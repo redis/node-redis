@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ARRTRIM from './ARRTRIM';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('JSON.ARRTRIM', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      ARRTRIM.transformArguments('key', '$', 0, 1),
+      parseArgs(ARRTRIM, 'key', '$', 0, 1),
       ['JSON.ARRTRIM', 'key', '$', '0', '1']
     );
   });

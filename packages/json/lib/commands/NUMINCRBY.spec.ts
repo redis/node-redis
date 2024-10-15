@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import NUMINCRBY from './NUMINCRBY';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('JSON.NUMINCRBY', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      NUMINCRBY.transformArguments('key', '$', 1),
+      parseArgs(NUMINCRBY, 'key', '$', 1),
       ['JSON.NUMINCRBY', 'key', '$', '1']
     );
   });

@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import CLUSTER_INFO from './CLUSTER_INFO';
+import { parseArgs } from './generic-transformers';
 
 describe('CLUSTER INFO', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      CLUSTER_INFO.transformArguments(),
+      parseArgs(CLUSTER_INFO),
       ['CLUSTER', 'INFO']
     );
   });

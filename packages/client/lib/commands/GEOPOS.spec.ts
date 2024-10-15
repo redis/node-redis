@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import GEOPOS from './GEOPOS';
+import { parseArgs } from './generic-transformers';
 
 describe('GEOPOS', () => {
   describe('transformArguments', () => {
     it('single member', () => {
       assert.deepEqual(
-        GEOPOS.transformArguments('key', 'member'),
+        parseArgs(GEOPOS, 'key', 'member'),
         ['GEOPOS', 'key', 'member']
       );
     });
 
     it('multiple members', () => {
       assert.deepEqual(
-        GEOPOS.transformArguments('key', ['1', '2']),
+        parseArgs(GEOPOS, 'key', ['1', '2']),
         ['GEOPOS', 'key', '1', '2']
       );
     });

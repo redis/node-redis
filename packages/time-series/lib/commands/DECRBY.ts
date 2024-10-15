@@ -1,9 +1,13 @@
 import { Command } from '@redis/client/dist/lib/RESP/types';
-import INCRBY, { transformIncrByArguments } from './INCRBY';
+import INCRBY, { parseIncrByArguments } from './INCRBY';
 
 export default {
-  FIRST_KEY_INDEX: INCRBY.FIRST_KEY_INDEX,
   IS_READ_ONLY: INCRBY.IS_READ_ONLY,
-  transformArguments: transformIncrByArguments.bind(undefined, 'TS.DECRBY'),
+  parseCommand(...args: Parameters<typeof parseIncrByArguments>) {
+    const parser = args[0];
+
+    parser.push('TS.DECRBY');
+    parseIncrByArguments(...args);
+  },
   transformReply: INCRBY.transformReply
 } as const satisfies Command;

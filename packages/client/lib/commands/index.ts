@@ -1030,3 +1030,7 @@ export default {
   ZUNIONSTORE,
   zUnionStore: ZUNIONSTORE
 } as const satisfies RedisCommands;
+/**
+ * @readonly
+ * @enum {number}
+ */

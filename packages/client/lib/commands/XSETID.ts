@@ -1,3 +1,4 @@
+import { CommandParser } from '../client/parser';
 import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
 export interface XSetIdOptions {
   /** added in 7.0 */
@@ -7,24 +8,24 @@ export interface XSetIdOptions {
 }
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: false,
-  transformArguments(
+  parseCommand(
+    parser: CommandParser,
     key: RedisArgument,
     lastId: RedisArgument,
     options?: XSetIdOptions
   ) {
-    const args = ['XSETID', key, lastId];
+    parser.push('XSETID');
+    parser.pushKey(key);
+    parser.push(lastId);
 
     if (options?.ENTRIESADDED) {
-      args.push('ENTRIESADDED', options.ENTRIESADDED.toString());
+      parser.push('ENTRIESADDED', options.ENTRIESADDED.toString());
     }
 
     if (options?.MAXDELETEDID) {
-      args.push('MAXDELETEDID', options.MAXDELETEDID);
+      parser.push('MAXDELETEDID', options.MAXDELETEDID);
     }
-
-    return args;
   },
   transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
 } as const satisfies Command;

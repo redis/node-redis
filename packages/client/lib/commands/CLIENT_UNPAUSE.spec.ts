@@ -1,13 +1,14 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import CLIENT_UNPAUSE from './CLIENT_UNPAUSE';
+import { parseArgs } from './generic-transformers';
 
 describe('CLIENT UNPAUSE', () => {
   testUtils.isVersionGreaterThanHook([6, 2]);
 
   it('transformArguments', () => {
     assert.deepEqual(
-      CLIENT_UNPAUSE.transformArguments(),
+      parseArgs(CLIENT_UNPAUSE),
       ['CLIENT', 'UNPAUSE']
     );
   });

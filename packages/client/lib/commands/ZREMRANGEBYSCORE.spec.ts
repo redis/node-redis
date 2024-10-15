@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
+import { parseArgs } from './generic-transformers';
 import ZREMRANGEBYSCORE from './ZREMRANGEBYSCORE';
 
 describe('ZREMRANGEBYSCORE', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      ZREMRANGEBYSCORE.transformArguments('key', 0, 1),
+      parseArgs(ZREMRANGEBYSCORE, 'key', 0, 1),
       ['ZREMRANGEBYSCORE', 'key', '0', '1']
     );
   });

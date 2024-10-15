@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ZCOUNT from './ZCOUNT';
+import { parseArgs } from './generic-transformers';
 
 describe('ZCOUNT', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      ZCOUNT.transformArguments('key', 0, 1),
+      parseArgs(ZCOUNT, 'key', 0, 1),
       ['ZCOUNT', 'key', '0', '1']
     );
   });

@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ZSCORE from './ZSCORE';
+import { parseArgs } from './generic-transformers';
 
 describe('ZSCORE', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      ZSCORE.transformArguments('key', 'member'),
+      parseArgs(ZSCORE, 'key', 'member'),
       ['ZSCORE', 'key', 'member']
     );
   });

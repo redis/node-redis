@@ -1,10 +1,11 @@
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument, ArrayReply, SetReply, BlobStringReply, Command } from '@redis/client/dist/lib/RESP/types';
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments(dictionary: RedisArgument) {
-    return ['FT.DICTDUMP', dictionary];
+  parseCommand(parser: CommandParser, dictionary: RedisArgument) {
+    parser.push('FT.DICTDUMP', dictionary);
   },
   transformReply: {
     2: undefined as unknown as () => ArrayReply<BlobStringReply>,

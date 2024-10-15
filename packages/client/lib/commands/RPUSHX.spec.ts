@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import RPUSHX from './RPUSHX';
+import { parseArgs } from './generic-transformers';
 
 describe('RPUSHX', () => {
   describe('transformArguments', () => {
     it('string', () => {
       assert.deepEqual(
-        RPUSHX.transformArguments('key', 'element'),
+        parseArgs(RPUSHX, 'key', 'element'),
         ['RPUSHX', 'key', 'element']
       );
     });
 
     it('array', () => {
       assert.deepEqual(
-        RPUSHX.transformArguments('key', ['1', '2']),
+        parseArgs(RPUSHX, 'key', ['1', '2']),
         ['RPUSHX', 'key', '1', '2']
       );
     });

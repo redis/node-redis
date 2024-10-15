@@ -9,6 +9,7 @@ import { MATH_FUNCTION, loadMathFunction } from '../commands/FUNCTION_LOAD.spec'
 import { RESP_TYPES } from '../RESP/decoder';
 import { BlobStringReply, NumberReply } from '../RESP/types';
 import { SortedSetMember } from '../commands/generic-transformers';
+import { CommandParser } from './parser';
 
 export const SQUARE_SCRIPT = defineScript({
   SCRIPT:
@@ -16,8 +17,8 @@ export const SQUARE_SCRIPT = defineScript({
     return number * number`,
   NUMBER_OF_KEYS: 1,
   FIRST_KEY_INDEX: 0,
-  transformArguments(key: string) {
-    return [key];
+  parseCommand(parser: CommandParser, key: string) {
+    parser.pushKey(key);
   },
   transformReply: undefined as unknown as () => NumberReply
 });
@@ -318,8 +319,8 @@ describe('Client', () => {
 
   const module = {
     echo: {
-      transformArguments(message: string) {
-        return ['ECHO', message];
+      parseCommand(parser: CommandParser, message: string) {
+        parser.push('ECHO', message);
       },
       transformReply: undefined as unknown as () => BlobStringReply
     }

@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL, BLOCKING_MIN_VALUE } from '../test-utils';
 import BZPOPMIN from './BZPOPMIN';
+import { parseArgs } from './generic-transformers';
 
 describe('BZPOPMIN', () => {
   describe('transformArguments', () => {
     it('single', () => {
       assert.deepEqual(
-        BZPOPMIN.transformArguments('key', 0),
+        parseArgs(BZPOPMIN, 'key', 0),
         ['BZPOPMIN', 'key', '0']
       );
     });
 
     it('multiple', () => {
       assert.deepEqual(
-        BZPOPMIN.transformArguments(['1', '2'], 0),
+        parseArgs(BZPOPMIN, ['1', '2'], 0),
         ['BZPOPMIN', '1', '2', '0']
       );
     });

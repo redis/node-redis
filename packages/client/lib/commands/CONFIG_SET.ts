@@ -1,3 +1,4 @@
+import { CommandParser } from '../client/parser';
 import { SimpleStringReply, Command, RedisArgument } from '../RESP/types';
 
 type SingleParameter = [parameter: RedisArgument, value: RedisArgument];
@@ -5,22 +6,21 @@ type SingleParameter = [parameter: RedisArgument, value: RedisArgument];
 type MultipleParameters = [config: Record<string, RedisArgument>];
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments(
+  parseCommand(
+    parser: CommandParser,
     ...[parameterOrConfig, value]: SingleParameter | MultipleParameters
   ) {
-    const args: Array<RedisArgument> = ['CONFIG', 'SET'];
+    parser.push('CONFIG', 'SET');
   
     if (typeof parameterOrConfig === 'string' || parameterOrConfig instanceof Buffer) {
-      args.push(parameterOrConfig, value!);
+      parser.push(parameterOrConfig, value!);
     } else {
       for (const [key, value] of Object.entries(parameterOrConfig)) {
-        args.push(key, value);
+        parser.push(key, value);
       }
     }
-  
-    return args;
   },
   transformReply: undefined as unknown as () => SimpleStringReply
 } as const satisfies Command;

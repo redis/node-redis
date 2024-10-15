@@ -1,10 +1,12 @@
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument, ArrayReply, NumberReply, DoubleReply, NullReply, BlobStringReply, UnwrapReply, Command } from '@redis/client/dist/lib/RESP/types';
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: false,
-  transformArguments(key: RedisArgument, path: RedisArgument, by: number) {
-    return ['JSON.NUMINCRBY', key, path, by.toString()];
+  parseCommand(parser: CommandParser, key: RedisArgument, path: RedisArgument, by: number) {
+    parser.push('JSON.NUMINCRBY');
+    parser.pushKey(key);
+    parser.push(path, by.toString());
   },
   transformReply: {
     2: (reply: UnwrapReply<BlobStringReply>) => {

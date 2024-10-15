@@ -1,14 +1,14 @@
 import { Command } from '../RESP/types';
-import ZRANGE from './ZRANGE';
 import { transformSortedSetReply } from './generic-transformers';
+import ZRANGE from './ZRANGE';
 
 export default {
-  FIRST_KEY_INDEX: ZRANGE.FIRST_KEY_INDEX,
   IS_READ_ONLY: ZRANGE.IS_READ_ONLY,
-  transformArguments(...args: Parameters<typeof ZRANGE.transformArguments>) {
-    const redisArgs = ZRANGE.transformArguments(...args);
-    redisArgs.push('WITHSCORES');
-    return redisArgs;
+  parseCommand(...args: Parameters<typeof ZRANGE.parseCommand>) {
+    const parser = args[0];
+
+    ZRANGE.parseCommand(...args);
+    parser.push('WITHSCORES');
   },
   transformReply: transformSortedSetReply
 } as const satisfies Command;

@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../../test-utils';
 import BYRANK from './BYRANK';
+import { parseArgs } from '@redis/client/dist/lib/commands/generic-transformers';
 
 describe('TDIGEST.BYRANK', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      BYRANK.transformArguments('key', [1, 2]),
+      parseArgs(BYRANK, 'key', [1, 2]),
       ['TDIGEST.BYRANK', 'key', '1', '2']
     );
   });

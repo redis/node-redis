@@ -1,3 +1,4 @@
+import { CommandParser } from '../client/parser';
 import { SimpleStringReply, Command } from '../RESP/types';
 
 export const FAILOVER_MODES = {
@@ -12,16 +13,14 @@ export interface ClusterFailoverOptions {
 }
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments(options?: ClusterFailoverOptions) {
-    const args = ['CLUSTER', 'FAILOVER'];
+  parseCommand(parser:CommandParser, options?: ClusterFailoverOptions) {
+    parser.push('CLUSTER', 'FAILOVER');
 
     if (options?.mode) {
-      args.push(options.mode);
+      parser.push(options.mode);
     }
-
-    return args;
   },
   transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
 } as const satisfies Command;

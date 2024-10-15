@@ -1,13 +1,14 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import LCS_LEN from './LCS_LEN';
+import { parseArgs } from './generic-transformers';
 
 describe('LCS_LEN', () => {
   testUtils.isVersionGreaterThanHook([7]);
 
   it('transformArguments', () => {
     assert.deepEqual(
-      LCS_LEN.transformArguments('1', '2'),
+      parseArgs(LCS_LEN, '1', '2'),
       ['LCS', '1', '2', 'LEN']
     );
   });

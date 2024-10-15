@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import XCLAIM_JUSTID from './XCLAIM_JUSTID';
+import { parseArgs } from './generic-transformers';
 
 describe('XCLAIM JUSTID', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      XCLAIM_JUSTID.transformArguments('key', 'group', 'consumer', 1, '0-0'),
+      parseArgs(XCLAIM_JUSTID, 'key', 'group', 'consumer', 1, '0-0'),
       ['XCLAIM', 'key', 'group', 'consumer', '1', '0-0', 'JUSTID']
     );
   });

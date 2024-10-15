@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SDIFF from './SDIFF';
+import { parseArgs } from './generic-transformers';
 
 describe('SDIFF', () => {
-  describe('transformArguments', () => {
+  describe('processCommand', () => {
     it('string', () => {
       assert.deepEqual(
-        SDIFF.transformArguments('key'),
+        parseArgs(SDIFF, 'key'),
         ['SDIFF', 'key']
       );
     });
 
     it('array', () => {
       assert.deepEqual(
-        SDIFF.transformArguments(['1', '2']),
+        parseArgs(SDIFF, ['1', '2']),
         ['SDIFF', '1', '2']
       );
     });

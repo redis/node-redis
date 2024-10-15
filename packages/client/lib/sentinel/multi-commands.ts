@@ -3,6 +3,8 @@ import RedisMultiCommand, { MULTI_REPLY, MultiReply, MultiReplyType } from '../m
 import { ReplyWithTypeMapping, CommandReply, Command, CommandArguments, CommanderConfig, RedisFunctions, RedisModules, RedisScripts, RespVersions, TransformReply, RedisScript, RedisFunction, TypeMapping } from '../RESP/types';
 import { attachConfig, functionArgumentsPrefix, getTransformReply } from '../commander';
 import { RedisSentinelType } from './types';
+import { BasicCommandParser } from '../client/parser';
+import { Tail } from '../commands/generic-transformers';
 
 type CommandSignature<
   REPLIES extends Array<unknown>,
@@ -12,7 +14,7 @@ type CommandSignature<
   S extends RedisScripts,
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping
-> = (...args: Parameters<C['transformArguments']>) => RedisSentinelMultiCommandType<
+> = (...args: Tail<Parameters<C['parseCommand']>>) => RedisSentinelMultiCommandType<
   [...REPLIES, ReplyWithTypeMapping<CommandReply<C, RESP>, TYPE_MAPPING>],
   M,
   F,
@@ -87,8 +89,15 @@ export type RedisSentinelMultiCommandType<
 export default class RedisSentinelMultiCommand<REPLIES = []> {
   private static _createCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
+
     return function (this: RedisSentinelMultiCommand, ...args: Array<unknown>) {
-      const redisArgs = command.transformArguments(...args);
+      let redisArgs: CommandArguments = [];
+
+      const parser = new BasicCommandParser(resp);
+      command.parseCommand(parser, ...args);
+      redisArgs = parser.redisArgs;
+      redisArgs.preserve = parser.preserve;
+
       return this.addCommand(
         command.IS_READ_ONLY,
         redisArgs,
@@ -99,8 +108,15 @@ export default class RedisSentinelMultiCommand<REPLIES = []> {
 
   private static _createModuleCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
+
     return function (this: { _self: RedisSentinelMultiCommand }, ...args: Array<unknown>) {
-      const redisArgs = command.transformArguments(...args);
+      let redisArgs: CommandArguments = [];
+
+      const parser = new BasicCommandParser(resp);
+      command.parseCommand(parser, ...args);
+      redisArgs = parser.redisArgs;
+      redisArgs.preserve = parser.preserve;
+
       return this._self.addCommand(
         command.IS_READ_ONLY,
         redisArgs,
@@ -110,12 +126,20 @@ export default class RedisSentinelMultiCommand<REPLIES = []> {
   }
 
   private static _createFunctionCommand(name: string, fn: RedisFunction, resp: RespVersions) {
-    const prefix = functionArgumentsPrefix(name, fn),
-      transformReply = getTransformReply(fn, resp);
+    const prefix = functionArgumentsPrefix(name, fn);
+    const transformReply = getTransformReply(fn, resp);
+
     return function (this: { _self: RedisSentinelMultiCommand }, ...args: Array<unknown>) {
-      const fnArgs = fn.transformArguments(...args);
+      let fnArgs: CommandArguments = [];
+
+      const parser = new BasicCommandParser(resp);
+      fn.parseCommand(parser, ...args);
+      fnArgs = parser.redisArgs;
+      fnArgs.preserve = parser.preserve;
+
       const redisArgs: CommandArguments = prefix.concat(fnArgs);
       redisArgs.preserve = fnArgs.preserve;
+
       return this._self.addCommand(
         fn.IS_READ_ONLY,
         redisArgs,
@@ -126,8 +150,15 @@ export default class RedisSentinelMultiCommand<REPLIES = []> {
 
   private static _createScriptCommand(script: RedisScript, resp: RespVersions) {
     const transformReply = getTransformReply(script, resp);
+
     return function (this: RedisSentinelMultiCommand, ...args: Array<unknown>) {
-      const scriptArgs = script.transformArguments(...args);
+      let scriptArgs: CommandArguments = [];
+
+      const parser = new BasicCommandParser(resp);
+      script.parseCommand(parser, ...args);
+      scriptArgs = parser.redisArgs;
+      scriptArgs.preserve = parser.preserve;
+
       this._setState(
         script.IS_READ_ONLY
       );
@@ -136,6 +167,7 @@ export default class RedisSentinelMultiCommand<REPLIES = []> {
         scriptArgs,
         transformReply
       );
+
       return this;
     };
   }

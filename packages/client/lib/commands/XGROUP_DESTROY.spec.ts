@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import XGROUP_DESTROY from './XGROUP_DESTROY';
+import { parseArgs } from './generic-transformers';
 
 describe('XGROUP DESTROY', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      XGROUP_DESTROY.transformArguments('key', 'group'),
+      parseArgs(XGROUP_DESTROY, 'key', 'group'),
       ['XGROUP', 'DESTROY', 'key', 'group']
     );
   });

@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import AGGREGATE from './AGGREGATE';
+import { parseArgs } from '@redis/client/dist/lib/commands/generic-transformers';
 
 describe('AGGREGATE', () => {
   describe('transformArguments', () => {
     it('without options', () => {
       assert.deepEqual(
-        AGGREGATE.transformArguments('index', '*'),
+        parseArgs(AGGREGATE, 'index', '*'),
         ['FT.AGGREGATE', 'index', '*']
       );
     });
 
     it('with VERBATIM', () => {
       assert.deepEqual(
-        AGGREGATE.transformArguments('index', '*', {
+        parseArgs(AGGREGATE, 'index', '*', {
           VERBATIM: true
         }),
         ['FT.AGGREGATE', 'index', '*', 'VERBATIM']
@@ -22,7 +23,7 @@ describe('AGGREGATE', () => {
 
     it('with ADDSCORES', () => {
       assert.deepEqual(
-        AGGREGATE.transformArguments('index', '*', { ADDSCORES: true }),
+        parseArgs(AGGREGATE, 'index', '*', { ADDSCORES: true }),
         ['FT.AGGREGATE', 'index', '*', 'ADDSCORES']
       );
     });  
@@ -32,7 +33,7 @@ describe('AGGREGATE', () => {
         describe('without alias', () => {
           it('string', () => {
             assert.deepEqual(
-              AGGREGATE.transformArguments('index', '*', {
+              parseArgs(AGGREGATE, 'index', '*', {
                 LOAD: '@property'
               }),
               ['FT.AGGREGATE', 'index', '*', 'LOAD', '1', '@property']
@@ -41,7 +42,7 @@ describe('AGGREGATE', () => {
 
           it('{ identifier: string }', () => {
             assert.deepEqual(
-              AGGREGATE.transformArguments('index', '*', {
+              parseArgs(AGGREGATE, 'index', '*', {
                 LOAD: {
                   identifier: '@property'
                 }
@@ -53,7 +54,7 @@ describe('AGGREGATE', () => {
 
         it('with alias', () => {
           assert.deepEqual(
-            AGGREGATE.transformArguments('index', '*', {
+            parseArgs(AGGREGATE, 'index', '*', {
               LOAD: {
                 identifier: '@property',
                 AS: 'alias'
@@ -66,7 +67,7 @@ describe('AGGREGATE', () => {
 
       it('multiple', () => {
         assert.deepEqual(
-          AGGREGATE.transformArguments('index', '*', {
+          parseArgs(AGGREGATE, 'index', '*', {
             LOAD: ['@1', '@2']
           }),
           ['FT.AGGREGATE', 'index', '*', 'LOAD', '2', '@1', '@2']
@@ -80,7 +81,7 @@ describe('AGGREGATE', () => {
           describe('without properties', () => {
             it('without alias', () => {
               assert.deepEqual(
-                AGGREGATE.transformArguments('index', '*', {
+                parseArgs(AGGREGATE, 'index', '*', {
                   STEPS: [{
                     type: 'GROUPBY',
                     REDUCE: {
@@ -94,7 +95,7 @@ describe('AGGREGATE', () => {
 
             it('with alias', () => {
               assert.deepEqual(
-                AGGREGATE.transformArguments('index', '*', {
+                parseArgs(AGGREGATE, 'index', '*', {
                   STEPS: [{
                     type: 'GROUPBY',
                     REDUCE: {
@@ -111,7 +112,7 @@ describe('AGGREGATE', () => {
           describe('with properties', () => {
             it('single', () => {
               assert.deepEqual(
-                AGGREGATE.transformArguments('index', '*', {
+                parseArgs(AGGREGATE, 'index', '*', {
                   STEPS: [{
                     type: 'GROUPBY',
                     properties: '@property',
@@ -126,7 +127,7 @@ describe('AGGREGATE', () => {
 
             it('multiple', () => {
               assert.deepEqual(
-                AGGREGATE.transformArguments('index', '*', {
+                parseArgs(AGGREGATE, 'index', '*', {
                   STEPS: [{
                     type: 'GROUPBY',
                     properties: ['@1', '@2'],
@@ -143,7 +144,7 @@ describe('AGGREGATE', () => {
 
         it('COUNT_DISTINCT', () => {
           assert.deepEqual(
-            AGGREGATE.transformArguments('index', '*', {
+            parseArgs(AGGREGATE, 'index', '*', {
               STEPS: [{
                 type: 'GROUPBY',
                 REDUCE: {
@@ -158,7 +159,7 @@ describe('AGGREGATE', () => {
 
         it('COUNT_DISTINCTISH', () => {
           assert.deepEqual(
-            AGGREGATE.transformArguments('index', '*', {
+            parseArgs(AGGREGATE, 'index', '*', {
               STEPS: [{
                 type: 'GROUPBY',
                 REDUCE: {
@@ -173,7 +174,7 @@ describe('AGGREGATE', () => {
 
         it('SUM', () => {
           assert.deepEqual(
-            AGGREGATE.transformArguments('index', '*', {
+            parseArgs(AGGREGATE, 'index', '*', {
               STEPS: [{
                 type: 'GROUPBY',
                 REDUCE: {
@@ -188,7 +189,7 @@ describe('AGGREGATE', () => {
 
         it('MIN', () => {
           assert.deepEqual(
-            AGGREGATE.transformArguments('index', '*', {
+            parseArgs(AGGREGATE, 'index', '*', {
               STEPS: [{
                 type: 'GROUPBY',
                 REDUCE: {
@@ -203,7 +204,7 @@ describe('AGGREGATE', () => {
 
         it('MAX', () => {
           assert.deepEqual(
-            AGGREGATE.transformArguments('index', '*', {
+            parseArgs(AGGREGATE, 'index', '*', {
               STEPS: [{
                 type: 'GROUPBY',
                 REDUCE: {
@@ -218,7 +219,7 @@ describe('AGGREGATE', () => {
 
         it('AVG', () => {
           assert.deepEqual(
-            AGGREGATE.transformArguments('index', '*', {
+            parseArgs(AGGREGATE, 'index', '*', {
               STEPS: [{
                 type: 'GROUPBY',
                 REDUCE: {
@@ -230,10 +231,9 @@ describe('AGGREGATE', () => {
             ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'AVG', '1', '@property']
           );
         });
-
         it('STDDEV', () => {
           assert.deepEqual(
-            AGGREGATE.transformArguments('index', '*', {
+            parseArgs(AGGREGATE, 'index', '*', {
               STEPS: [{
                 type: 'GROUPBY',
                 REDUCE: {
@@ -248,7 +248,7 @@ describe('AGGREGATE', () => {
 
         it('QUANTILE', () => {
           assert.deepEqual(
-            AGGREGATE.transformArguments('index', '*', {
+            parseArgs(AGGREGATE, 'index', '*', {
               STEPS: [{
                 type: 'GROUPBY',
                 REDUCE: {
@@ -264,7 +264,7 @@ describe('AGGREGATE', () => {
 
         it('TOLIST', () => {
           assert.deepEqual(
-            AGGREGATE.transformArguments('index', '*', {
+            parseArgs(AGGREGATE, 'index', '*', {
               STEPS: [{
                 type: 'GROUPBY',
                 REDUCE: {
@@ -280,7 +280,7 @@ describe('AGGREGATE', () => {
         describe('FIRST_VALUE', () => {
           it('simple', () => {
             assert.deepEqual(
-              AGGREGATE.transformArguments('index', '*', {
+              parseArgs(AGGREGATE, 'index', '*', {
                 STEPS: [{
                   type: 'GROUPBY',
                   REDUCE: {
@@ -297,7 +297,7 @@ describe('AGGREGATE', () => {
             describe('without direction', () => {
               it('string', () => {
                 assert.deepEqual(
-                  AGGREGATE.transformArguments('index', '*', {
+                  parseArgs(AGGREGATE, 'index', '*', {
                     STEPS: [{
                       type: 'GROUPBY',
                       REDUCE: {
@@ -314,7 +314,7 @@ describe('AGGREGATE', () => {
 
               it('{ property: string }', () => {
                 assert.deepEqual(
-                  AGGREGATE.transformArguments('index', '*', {
+                  parseArgs(AGGREGATE, 'index', '*', {
                     STEPS: [{
                       type: 'GROUPBY',
                       REDUCE: {
@@ -333,7 +333,7 @@ describe('AGGREGATE', () => {
 
             it('with direction', () => {
               assert.deepEqual(
-                AGGREGATE.transformArguments('index', '*', {
+                parseArgs(AGGREGATE, 'index', '*', {
                   STEPS: [{
                     type: 'GROUPBY',
                     REDUCE: {
@@ -354,7 +354,7 @@ describe('AGGREGATE', () => {
 
         it('RANDOM_SAMPLE', () => {
           assert.deepEqual(
-            AGGREGATE.transformArguments('index', '*', {
+            parseArgs(AGGREGATE, 'index', '*', {
               STEPS: [{
                 type: 'GROUPBY',
                 REDUCE: {
@@ -372,7 +372,7 @@ describe('AGGREGATE', () => {
       describe('SORTBY', () => {
         it('string', () => {
           assert.deepEqual(
-            AGGREGATE.transformArguments('index', '*', {
+            parseArgs(AGGREGATE, 'index', '*', {
               STEPS: [{
                 type: 'SORTBY',
                 BY: '@by'
@@ -384,7 +384,7 @@ describe('AGGREGATE', () => {
 
         it('Array', () => {
           assert.deepEqual(
-            AGGREGATE.transformArguments('index', '*', {
+            parseArgs(AGGREGATE, 'index', '*', {
               STEPS: [{
                 type: 'SORTBY',
                 BY: ['@1', '@2']
@@ -396,7 +396,7 @@ describe('AGGREGATE', () => {
 
         it('with MAX', () => {
           assert.deepEqual(
-            AGGREGATE.transformArguments('index', '*', {
+            parseArgs(AGGREGATE, 'index', '*', {
               STEPS: [{
                 type: 'SORTBY',
                 BY: '@by',
@@ -410,7 +410,7 @@ describe('AGGREGATE', () => {
 
       describe('APPLY', () => {
         assert.deepEqual(
-          AGGREGATE.transformArguments('index', '*', {
+          parseArgs(AGGREGATE, 'index', '*', {
             STEPS: [{
               type: 'APPLY',
               expression: '@field + 1',
@@ -423,7 +423,7 @@ describe('AGGREGATE', () => {
 
       describe('LIMIT', () => {
         assert.deepEqual(
-          AGGREGATE.transformArguments('index', '*', {
+          parseArgs(AGGREGATE, 'index', '*', {
             STEPS: [{
               type: 'LIMIT',
               from: 0,
@@ -436,7 +436,7 @@ describe('AGGREGATE', () => {
 
       describe('FILTER', () => {
         assert.deepEqual(
-          AGGREGATE.transformArguments('index', '*', {
+          parseArgs(AGGREGATE, 'index', '*', {
             STEPS: [{
               type: 'FILTER',
               expression: '@field != ""'
@@ -449,7 +449,7 @@ describe('AGGREGATE', () => {
 
     it('with PARAMS', () => {
       assert.deepEqual(
-        AGGREGATE.transformArguments('index', '*', {
+        parseArgs(AGGREGATE, 'index', '*', {
           PARAMS: {
             param: 'value'
           }
@@ -460,7 +460,7 @@ describe('AGGREGATE', () => {
 
     it('with DIALECT', () => {
       assert.deepEqual(
-        AGGREGATE.transformArguments('index', '*', {
+        parseArgs(AGGREGATE, 'index', '*', {
           DIALECT: 1
         }),
         ['FT.AGGREGATE', 'index', '*', 'DIALECT', '1']
@@ -469,7 +469,7 @@ describe('AGGREGATE', () => {
 
     it('with TIMEOUT', () => {
       assert.deepEqual(
-        AGGREGATE.transformArguments('index', '*', { TIMEOUT: 10 }),
+        parseArgs(AGGREGATE, 'index', '*', { TIMEOUT: 10 }),
         ['FT.AGGREGATE', 'index', '*', 'TIMEOUT', '10']
       );
     });

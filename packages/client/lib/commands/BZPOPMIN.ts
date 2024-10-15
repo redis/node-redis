@@ -1,11 +1,14 @@
+import { CommandParser } from '../client/parser';
 import { Command } from '../RESP/types';
-import BZPOPMAX, { BZPopArguments, transformBZPopArguments } from './BZPOPMAX';
+import { RedisVariadicArgument } from './generic-transformers';
+import BZPOPMAX from './BZPOPMAX';
 
 export default {
-  FIRST_KEY_INDEX: BZPOPMAX.FIRST_KEY_INDEX,
   IS_READ_ONLY: BZPOPMAX.IS_READ_ONLY,
-  transformArguments(...args: BZPopArguments) {
-    return transformBZPopArguments('BZPOPMIN', ...args);
+  parseCommand(parser: CommandParser, keys: RedisVariadicArgument, timeout: number) {
+    parser.push('BZPOPMIN');
+    parser.pushKeys(keys);
+    parser.push(timeout.toString());
   },
   transformReply: BZPOPMAX.transformReply
 } as const satisfies Command;

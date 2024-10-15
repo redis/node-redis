@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../../test-utils';
 import INITBYPROB from './INITBYPROB';
+import { parseArgs } from '@redis/client/dist/lib/commands/generic-transformers';
 
 describe('CMS.INITBYPROB', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      INITBYPROB.transformArguments('key', 0.001, 0.01),
+      parseArgs(INITBYPROB, 'key', 0.001, 0.01),
       ['CMS.INITBYPROB', 'key', '0.001', '0.01']
     );
   });

@@ -1,4 +1,5 @@
-import { BlobStringReply, Command, NumberReply, SimpleStringReply, TypeMapping } from "@redis/client/lib/RESP/types";
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { BlobStringReply, Command, NumberReply, SimpleStringReply, TypeMapping } from "@redis/client/dist/lib/RESP/types";
 import INFO, { InfoRawReply, InfoRawReplyTypes, InfoReply } from "./INFO";
 import { ReplyUnion } from '@redis/client/lib/RESP/types';
 
@@ -37,12 +38,10 @@ export interface InfoDebugReply extends InfoReply {
 }
 
 export default {
-  FIRST_KEY_INDEX: INFO.FIRST_KEY_INDEX,
   IS_READ_ONLY: INFO.IS_READ_ONLY,
-  transformArguments(key: string) {
-    const args = INFO.transformArguments(key);
-    args.push('DEBUG');
-		return args;
+  parseCommand(parser: CommandParser, key: string) {
+    INFO.parseCommand(parser, key);
+    parser.push('DEBUG');
   },
   transformReply: {
     2: (reply: InfoDebugRawReply, _, typeMapping?: TypeMapping): InfoDebugReply => {

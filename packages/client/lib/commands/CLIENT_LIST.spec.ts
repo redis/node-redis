@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import CLIENT_LIST from './CLIENT_LIST';
 import testUtils, { GLOBAL } from '../test-utils';
+import { parseArgs } from './generic-transformers';
 
 describe('CLIENT LIST', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        CLIENT_LIST.transformArguments(),
+        parseArgs(CLIENT_LIST),
         ['CLIENT', 'LIST']
       );
     });
 
     it('with TYPE', () => {
       assert.deepEqual(
-        CLIENT_LIST.transformArguments({
+        parseArgs(CLIENT_LIST, {
           TYPE: 'NORMAL'
         }),
         ['CLIENT', 'LIST', 'TYPE', 'NORMAL']
@@ -22,7 +23,7 @@ describe('CLIENT LIST', () => {
 
     it('with ID', () => {
       assert.deepEqual(
-        CLIENT_LIST.transformArguments({
+        parseArgs(CLIENT_LIST, {
           ID: ['1', '2']
         }),
         ['CLIENT', 'LIST', 'ID', '1', '2']

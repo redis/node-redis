@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SCRIPT_EXISTS from './SCRIPT_EXISTS';
+import { parseArgs } from './generic-transformers';
 
 describe('SCRIPT EXISTS', () => {
   describe('transformArguments', () => {
     it('string', () => {
       assert.deepEqual(
-        SCRIPT_EXISTS.transformArguments('sha1'),
+        parseArgs(SCRIPT_EXISTS, 'sha1'),
         ['SCRIPT', 'EXISTS', 'sha1']
       );
     });
 
     it('array', () => {
       assert.deepEqual(
-        SCRIPT_EXISTS.transformArguments(['1', '2']),
+        parseArgs(SCRIPT_EXISTS, ['1', '2']),
         ['SCRIPT', 'EXISTS', '1', '2']
       );
     });

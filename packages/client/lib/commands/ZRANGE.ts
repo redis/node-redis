@@ -1,3 +1,4 @@
+import { CommandParser } from '../client/parser';
 import { RedisArgument, ArrayReply, BlobStringReply, Command } from '../RESP/types';
 import { transformStringDoubleArgument } from './generic-transformers';
 
@@ -10,45 +11,54 @@ export interface ZRangeOptions {
   };
 }
 
+export function zRangeArgument(
+  min: RedisArgument | number,
+  max: RedisArgument | number,
+  options?: ZRangeOptions
+) {
+  const args = [
+    transformStringDoubleArgument(min),
+    transformStringDoubleArgument(max)
+  ]
+
+  switch (options?.BY) {
+    case 'SCORE':
+      args.push('BYSCORE');
+      break;
+
+    case 'LEX':
+      args.push('BYLEX');
+      break;
+  }
+
+  if (options?.REV) {
+    args.push('REV');
+  }
+
+  if (options?.LIMIT) {
+    args.push(
+      'LIMIT',
+      options.LIMIT.offset.toString(),
+      options.LIMIT.count.toString()
+    );
+  }
+
+  return args;
+}
+
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: true,
-  transformArguments(
+  parseCommand(
+    parser: CommandParser,
     key: RedisArgument,
     min: RedisArgument | number,
     max: RedisArgument | number,
     options?: ZRangeOptions
   ) {
-    const args = [
-      'ZRANGE',
-      key,
-      transformStringDoubleArgument(min),
-      transformStringDoubleArgument(max)
-    ];
-
-    switch (options?.BY) {
-      case 'SCORE':
-        args.push('BYSCORE');
-        break;
-
-      case 'LEX':
-        args.push('BYLEX');
-        break;
-    }
-
-    if (options?.REV) {
-      args.push('REV');
-    }
-
-    if (options?.LIMIT) {
-      args.push(
-        'LIMIT',
-        options.LIMIT.offset.toString(),
-        options.LIMIT.count.toString()
-      );
-    }
-
-    return args;
+    parser.setCachable();
+    parser.push('ZRANGE');
+    parser.pushKey(key);
+    parser.pushVariadic(zRangeArgument(min, max, options))
   },
   transformReply: undefined as unknown as () => ArrayReply<BlobStringReply>
 } as const satisfies Command;

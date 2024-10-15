@@ -1,25 +1,26 @@
 import { strict as assert } from 'node:assert';
 import MIGRATE from './MIGRATE';
+import { parseArgs } from './generic-transformers';
 
 describe('MIGRATE', () => {
   describe('transformArguments', () => {
     it('single key', () => {
       assert.deepEqual(
-        MIGRATE.transformArguments('127.0.0.1', 6379, 'key', 0, 10),
+        parseArgs(MIGRATE, '127.0.0.1', 6379, 'key', 0, 10),
         ['MIGRATE', '127.0.0.1', '6379', 'key', '0', '10']
       );
     });
 
     it('multiple keys', () => {
       assert.deepEqual(
-        MIGRATE.transformArguments('127.0.0.1', 6379, ['1', '2'], 0, 10),
+        parseArgs(MIGRATE, '127.0.0.1', 6379, ['1', '2'], 0, 10),
         ['MIGRATE', '127.0.0.1', '6379', '', '0', '10', 'KEYS', '1', '2']
       );
     });
 
     it('with COPY', () => {
       assert.deepEqual(
-        MIGRATE.transformArguments('127.0.0.1', 6379, 'key', 0, 10, {
+        parseArgs(MIGRATE, '127.0.0.1', 6379, 'key', 0, 10, {
           COPY: true
         }),
         ['MIGRATE', '127.0.0.1', '6379', 'key', '0', '10', 'COPY']
@@ -28,7 +29,7 @@ describe('MIGRATE', () => {
 
     it('with REPLACE', () => {
       assert.deepEqual(
-        MIGRATE.transformArguments('127.0.0.1', 6379, 'key', 0, 10, {
+        parseArgs(MIGRATE, '127.0.0.1', 6379, 'key', 0, 10, {
           REPLACE: true
         }),
         ['MIGRATE', '127.0.0.1', '6379', 'key', '0', '10', 'REPLACE']
@@ -38,7 +39,7 @@ describe('MIGRATE', () => {
     describe('with AUTH', () => {
       it('password only', () => {
         assert.deepEqual(
-          MIGRATE.transformArguments('127.0.0.1', 6379, 'key', 0, 10, {
+          parseArgs(MIGRATE, '127.0.0.1', 6379, 'key', 0, 10, {
             AUTH: {
               password: 'password'
             }
@@ -49,7 +50,7 @@ describe('MIGRATE', () => {
 
       it('username & password', () => {
         assert.deepEqual(
-          MIGRATE.transformArguments('127.0.0.1', 6379, 'key', 0, 10, {
+          parseArgs(MIGRATE, '127.0.0.1', 6379, 'key', 0, 10, {
             AUTH: {
               username: 'username',
               password: 'password'
@@ -62,7 +63,7 @@ describe('MIGRATE', () => {
 
     it('with COPY, REPLACE, AUTH', () => {
       assert.deepEqual(
-        MIGRATE.transformArguments('127.0.0.1', 6379, 'key', 0, 10, {
+        parseArgs(MIGRATE, '127.0.0.1', 6379, 'key', 0, 10, {
           COPY: true,
           REPLACE: true,
           AUTH: {

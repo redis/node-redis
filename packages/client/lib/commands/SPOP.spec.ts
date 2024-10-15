@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SPOP from './SPOP';
+import { parseArgs } from './generic-transformers';
 
 describe('SPOP', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      SPOP.transformArguments('key'),
+      parseArgs(SPOP, 'key'),
       ['SPOP', 'key']
     );
   });

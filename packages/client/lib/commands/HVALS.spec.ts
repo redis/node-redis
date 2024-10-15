@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import HVALS from './HVALS';
+import { parseArgs } from './generic-transformers';
 
 describe('HVALS', () => {
-  it('transformArguments', () => {
+  it('processCommand', () => {
     assert.deepEqual(
-      HVALS.transformArguments('key'),
+      parseArgs(HVALS, 'key'),
       ['HVALS', 'key']
     );
   });

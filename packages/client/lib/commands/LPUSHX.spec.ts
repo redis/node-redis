@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import LPUSHX from './LPUSHX';
+import { parseArgs } from './generic-transformers';
 
 describe('LPUSHX', () => {
   describe('transformArguments', () => {
     it('string', () => {
       assert.deepEqual(
-        LPUSHX.transformArguments('key', 'element'),
+        parseArgs(LPUSHX, 'key', 'element'),
         ['LPUSHX', 'key', 'element']
       );
     });
 
     it('array', () => {
       assert.deepEqual(
-        LPUSHX.transformArguments('key', ['1', '2']),
+        parseArgs(LPUSHX, 'key', ['1', '2']),
         ['LPUSHX', 'key', '1', '2']
       );
     });

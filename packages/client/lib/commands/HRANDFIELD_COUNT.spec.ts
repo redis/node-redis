@@ -1,13 +1,14 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import HRANDFIELD_COUNT from './HRANDFIELD_COUNT';
+import { parseArgs } from './generic-transformers';
 
 describe('HRANDFIELD COUNT', () => {
   testUtils.isVersionGreaterThanHook([6, 2, 5]);
 
   it('transformArguments', () => {
     assert.deepEqual(
-      HRANDFIELD_COUNT.transformArguments('key', 1),
+      parseArgs(HRANDFIELD_COUNT, 'key', 1),
       ['HRANDFIELD', 'key', '1']
     );
   });

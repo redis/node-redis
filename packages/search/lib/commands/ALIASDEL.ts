@@ -1,10 +1,11 @@
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument, SimpleStringReply, Command } from '@redis/client/dist/lib/RESP/types';
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments(alias: RedisArgument) {
-    return ['FT.ALIASDEL', alias];
+  parseCommand(parser: CommandParser, alias: RedisArgument) {
+    parser.push('FT.ALIASDEL', alias);
   },
   transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
 } as const satisfies Command;

@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import LATENCY_GRAPH from './LATENCY_GRAPH';
+import { parseArgs } from './generic-transformers';
 
 describe('LATENCY GRAPH', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      LATENCY_GRAPH.transformArguments('command'),
+      parseArgs(LATENCY_GRAPH, 'command'),
       [
         'LATENCY',
         'GRAPH',

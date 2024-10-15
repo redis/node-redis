@@ -1,11 +1,18 @@
+import { CommandParser } from '../client/parser';
 import { ArrayReply, Command, NullReply, NumberReply, RedisArgument } from '../RESP/types';
-import { pushVariadicArgument, RedisVariadicArgument } from './generic-transformers';
+import { RedisVariadicArgument } from './generic-transformers';
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: true,
-  transformArguments(key: RedisArgument, fields: RedisVariadicArgument) {
-    return pushVariadicArgument(['HPEXPIRETIME', key, 'FIELDS'], fields);
+  parseCommand(
+    parser: CommandParser,
+    key: RedisArgument,
+    fields: RedisVariadicArgument,
+  ) {
+    parser.push('HPEXPIRETIME');
+    parser.pushKey(key);
+    parser.push('FIELDS');
+    parser.pushVariadicWithLength(fields);
   },
   transformReply: undefined as unknown as () => ArrayReply<NumberReply> | NullReply
 } as const satisfies Command;

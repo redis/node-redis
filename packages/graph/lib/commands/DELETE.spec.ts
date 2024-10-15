@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import DELETE from './DELETE';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('GRAPH.DELETE', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      DELETE.transformArguments('key'),
+      parseArgs(DELETE, 'key'),
       ['GRAPH.DELETE', 'key']
     );
   });

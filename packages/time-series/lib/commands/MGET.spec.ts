@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import MGET from './MGET';
+import { parseArgs } from '@redis/client/dist/lib/commands/generic-transformers';
 
 describe('TS.MGET', () => {
   describe('transformArguments', () => {
     it('without options', () => {
       assert.deepEqual(
-        MGET.transformArguments('label=value'),
+        parseArgs(MGET, 'label=value'),
         ['TS.MGET', 'FILTER', 'label=value']
       );
     });
 
     it('with LATEST', () => {
       assert.deepEqual(
-        MGET.transformArguments('label=value', {
+        parseArgs(MGET, 'label=value', {
           LATEST: true
         }),
         ['TS.MGET', 'LATEST', 'FILTER', 'label=value']

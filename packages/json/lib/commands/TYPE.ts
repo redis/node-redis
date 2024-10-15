@@ -1,3 +1,4 @@
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { NullReply, BlobStringReply, ArrayReply, Command, RedisArgument, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
 
 export interface JsonTypeOptions {
@@ -5,16 +6,14 @@ export interface JsonTypeOptions {
 }
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: true,
-  transformArguments(key: RedisArgument, options?: JsonTypeOptions) {
-    const args = ['JSON.TYPE', key];
+  parseCommand(parser: CommandParser, key: RedisArgument, options?: JsonTypeOptions) {
+    parser.push('JSON.TYPE');
+    parser.pushKey(key);
 
     if (options?.path) {
-      args.push(options.path);
+      parser.push(options.path);
     }
-
-    return args;
   },
   transformReply: {
     2: undefined as unknown as () => NullReply | BlobStringReply | ArrayReply<BlobStringReply | NullReply>,
@@ -24,4 +23,3 @@ export default {
     }
   },
 } as const satisfies Command;
-

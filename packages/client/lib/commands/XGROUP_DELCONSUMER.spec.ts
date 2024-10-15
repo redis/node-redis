@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import XGROUP_DELCONSUMER from './XGROUP_DELCONSUMER';
+import { parseArgs } from './generic-transformers';
 
 describe('XGROUP DELCONSUMER', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      XGROUP_DELCONSUMER.transformArguments('key', 'group', 'consumer'),
+      parseArgs(XGROUP_DELCONSUMER, 'key', 'group', 'consumer'),
       ['XGROUP', 'DELCONSUMER', 'key', 'group', 'consumer']
     );
   });

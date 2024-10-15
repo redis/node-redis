@@ -1,20 +1,18 @@
+import { CommandParser } from '../client/parser';
 import { BlobStringReply, Command } from '../RESP/types';
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments(version?: number, ...optionalArguments: Array<number>) {
-    const args = ['LOLWUT'];
-
+  parseCommand(parser: CommandParser, version?: number, ...optionalArguments: Array<number>) {
+    parser.push('LOLWUT');
     if (version) {
-      args.push(
+      parser.push(
         'VERSION',
-        version.toString(),
-        ...optionalArguments.map(String),
+        version.toString()
       );
+      parser.pushVariadic(optionalArguments.map(String));
     }
-
-    return args;
   },
   transformReply: undefined as unknown as () => BlobStringReply
 } as const satisfies Command;

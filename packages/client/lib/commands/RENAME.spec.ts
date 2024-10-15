@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import RENAME from './RENAME';
+import { parseArgs } from './generic-transformers';
 
 describe('RENAME', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      RENAME.transformArguments('source', 'destination'),
+      parseArgs(RENAME, 'source', 'destination'),
       ['RENAME', 'source', 'destination']
     );
   });

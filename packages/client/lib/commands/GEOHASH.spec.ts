@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import GEOHASH from './GEOHASH';
+import { parseArgs } from './generic-transformers';
 
 describe('GEOHASH', () => {
   describe('transformArguments', () => {
     it('single member', () => {
       assert.deepEqual(
-        GEOHASH.transformArguments('key', 'member'),
+        parseArgs(GEOHASH, 'key', 'member'),
         ['GEOHASH', 'key', 'member']
       );
     });
 
     it('multiple members', () => {
       assert.deepEqual(
-        GEOHASH.transformArguments('key', ['1', '2']),
+        parseArgs(GEOHASH, 'key', ['1', '2']),
         ['GEOHASH', 'key', '1', '2']
       );
     });

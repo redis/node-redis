@@ -1,3 +1,4 @@
+import { CommandParser } from '../client/parser';
 import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
 
 export interface XGroupSetIdOptions {
@@ -6,21 +7,21 @@ export interface XGroupSetIdOptions {
 }
 
 export default {
-  FIRST_KEY_INDEX: 2,
   IS_READ_ONLY: false,
-  transformArguments(
+  parseCommand(
+    parser: CommandParser,
     key: RedisArgument,
     group: RedisArgument,
     id: RedisArgument,
     options?: XGroupSetIdOptions
   ) {
-    const args = ['XGROUP', 'SETID', key, group, id];
+    parser.push('XGROUP', 'SETID');
+    parser.pushKey(key);
+    parser.push(group, id);
 
     if (options?.ENTRIESREAD) {
-      args.push('ENTRIESREAD', options.ENTRIESREAD.toString());
+      parser.push('ENTRIESREAD', options.ENTRIESREAD.toString());
     }
-
-    return args;
   },
   transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
 } as const satisfies Command;

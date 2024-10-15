@@ -3,6 +3,8 @@ import testUtils, { GLOBAL } from '../test-utils';
 import FUNCTION_LOAD from './FUNCTION_LOAD';
 import { RedisClientType } from '../client';
 import { NumberReply, RedisFunctions, RedisModules, RedisScripts, RespVersions } from '../RESP/types';
+import { parseArgs } from './generic-transformers';
+import { CommandParser } from '../client/parser';
 
 
 
@@ -25,8 +27,8 @@ export const MATH_FUNCTION = {
       IS_READ_ONLY: true,
       NUMBER_OF_KEYS: 1,
       FIRST_KEY_INDEX: 0,
-      transformArguments(key: string) {
-        return [key];
+      parseCommand(parser: CommandParser, key: string) {
+        parser.pushKey(key);
       },
       transformReply: undefined as unknown as () => NumberReply
     }
@@ -53,14 +55,14 @@ describe('FUNCTION LOAD', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        FUNCTION_LOAD.transformArguments('code'),
+        parseArgs(FUNCTION_LOAD, 'code'),
         ['FUNCTION', 'LOAD', 'code']
       );
     });
 
     it('with REPLACE', () => {
       assert.deepEqual(
-        FUNCTION_LOAD.transformArguments('code', {
+        parseArgs(FUNCTION_LOAD, 'code', {
           REPLACE: true
         }),
         ['FUNCTION', 'LOAD', 'REPLACE', 'code']

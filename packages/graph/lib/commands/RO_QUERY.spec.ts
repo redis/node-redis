@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import RO_QUERY from './RO_QUERY';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('GRAPH.RO_QUERY', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      RO_QUERY.transformArguments('key', 'query'),
+      parseArgs(RO_QUERY, 'key', 'query'),
       ['GRAPH.RO_QUERY', 'key', 'query']
     );
   });

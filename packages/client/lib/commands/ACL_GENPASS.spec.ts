@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ACL_GENPASS from './ACL_GENPASS';
+import { parseArgs } from './generic-transformers';
 
 describe('ACL GENPASS', () => {
   testUtils.isVersionGreaterThanHook([6]);
@@ -8,14 +9,14 @@ describe('ACL GENPASS', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        ACL_GENPASS.transformArguments(),
+        parseArgs(ACL_GENPASS),
         ['ACL', 'GENPASS']
       );
     });
 
     it('with bits', () => {
       assert.deepEqual(
-        ACL_GENPASS.transformArguments(128),
+        parseArgs(ACL_GENPASS, 128),
         ['ACL', 'GENPASS', '128']
       );
     });

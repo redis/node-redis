@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SINTERCARD from './SINTERCARD';
+import { parseArgs } from './generic-transformers';
 
 describe('SINTERCARD', () => {
   testUtils.isVersionGreaterThanHook([7]);
@@ -8,21 +9,21 @@ describe('SINTERCARD', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        SINTERCARD.transformArguments(['1', '2']),
+        parseArgs(SINTERCARD, ['1', '2']),
         ['SINTERCARD', '2', '1', '2']
       );
     });
 
     it('with limit (backwards compatibility)', () => {
       assert.deepEqual(
-        SINTERCARD.transformArguments(['1', '2'], 1),
+        parseArgs(SINTERCARD, ['1', '2'], 1),
         ['SINTERCARD', '2', '1', '2', 'LIMIT', '1']
       );
     });
 
     it('with LIMIT', () => {
       assert.deepEqual(
-        SINTERCARD.transformArguments(['1', '2'], {
+        parseArgs(SINTERCARD, ['1', '2'], {
           LIMIT: 1
         }),
         ['SINTERCARD', '2', '1', '2', 'LIMIT', '1']

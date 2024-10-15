@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import DICTDUMP from './DICTDUMP';
+import { parseArgs } from '@redis/client/dist/lib/commands/generic-transformers';
 
 describe('FT.DICTDUMP', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      DICTDUMP.transformArguments('dictionary'),
+      parseArgs(DICTDUMP, 'dictionary'),
       ['FT.DICTDUMP', 'dictionary']
     );
   });

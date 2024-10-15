@@ -1,14 +1,14 @@
+import { CommandParser } from '../client/parser';
 import { RedisArgument, ArrayReply, NullReply, BlobStringReply, DoubleReply, UnwrapReply, Command, TypeMapping } from '../RESP/types';
-import { createTransformNullableDoubleReplyResp2Func, pushVariadicArguments, RedisVariadicArgument } from './generic-transformers';
+import { createTransformNullableDoubleReplyResp2Func, RedisVariadicArgument } from './generic-transformers';
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: true,
-  transformArguments(
-    key: RedisArgument,
-    member: RedisVariadicArgument
-  ) {
-    return pushVariadicArguments(['ZMSCORE', key], member);
+  parseCommand(parser: CommandParser, key: RedisArgument, member: RedisVariadicArgument) {
+    parser.setCachable();
+    parser.push('ZMSCORE');
+    parser.pushKey(key);
+    parser.pushVariadic(member);
   },
   transformReply: {
     2: (reply: UnwrapReply<ArrayReply<NullReply | BlobStringReply>>, preserve?: any, typeMapping?: TypeMapping) => {

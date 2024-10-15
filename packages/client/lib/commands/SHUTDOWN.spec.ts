@@ -1,18 +1,19 @@
 import { strict as assert } from 'node:assert';
 import SHUTDOWN from './SHUTDOWN';
+import { parseArgs } from './generic-transformers';
 
 describe('SHUTDOWN', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        SHUTDOWN.transformArguments(),
+        parseArgs(SHUTDOWN),
         ['SHUTDOWN']
       );
     });
 
     it('with mode', () => {
       assert.deepEqual(
-        SHUTDOWN.transformArguments({
+        parseArgs(SHUTDOWN, {
           mode: 'NOSAVE'
         }),
         ['SHUTDOWN', 'NOSAVE']
@@ -21,7 +22,7 @@ describe('SHUTDOWN', () => {
 
     it('with NOW', () => {
       assert.deepEqual(
-        SHUTDOWN.transformArguments({
+        parseArgs(SHUTDOWN, {
           NOW: true
         }),
         ['SHUTDOWN', 'NOW']
@@ -30,7 +31,7 @@ describe('SHUTDOWN', () => {
 
     it('with FORCE', () => {
       assert.deepEqual(
-        SHUTDOWN.transformArguments({
+        parseArgs(SHUTDOWN, {
           FORCE: true
         }),
         ['SHUTDOWN', 'FORCE']
@@ -39,7 +40,7 @@ describe('SHUTDOWN', () => {
 
     it('with ABORT', () => {
       assert.deepEqual(
-        SHUTDOWN.transformArguments({
+        parseArgs(SHUTDOWN, {
           ABORT: true
         }),
         ['SHUTDOWN', 'ABORT']

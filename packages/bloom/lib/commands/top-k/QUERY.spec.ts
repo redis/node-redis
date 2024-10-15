@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../../test-utils';
 import QUERY from './QUERY';
+import { parseArgs } from '@redis/client/dist/lib/commands/generic-transformers';
 
 describe('TOPK.QUERY', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      QUERY.transformArguments('key', 'item'),
+      parseArgs(QUERY, 'key', 'item'),
       ['TOPK.QUERY', 'key', 'item']
     );
   });

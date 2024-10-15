@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import DICTDEL from './DICTDEL';
+import { parseArgs } from '@redis/client/dist/lib/commands/generic-transformers';
 
 describe('FT.DICTDEL', () => {
   describe('transformArguments', () => {
     it('string', () => {
       assert.deepEqual(
-        DICTDEL.transformArguments('dictionary', 'term'),
+        parseArgs(DICTDEL, 'dictionary', 'term'),
         ['FT.DICTDEL', 'dictionary', 'term']
       );
     });
 
     it('Array', () => {
       assert.deepEqual(
-        DICTDEL.transformArguments('dictionary', ['1', '2']),
+        parseArgs(DICTDEL, 'dictionary', ['1', '2']),
         ['FT.DICTDEL', 'dictionary', '1', '2']
       );
     });

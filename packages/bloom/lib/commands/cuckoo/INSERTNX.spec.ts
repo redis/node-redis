@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../../test-utils';
 import INSERTNX from './INSERTNX';
+import { parseArgs } from '@redis/client/dist/lib/commands/generic-transformers';
 
 describe('CF.INSERTNX', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      INSERTNX.transformArguments('key', 'item', {
+      parseArgs(INSERTNX, 'key', 'item', {
         CAPACITY: 100,
         NOCREATE: true
       }),

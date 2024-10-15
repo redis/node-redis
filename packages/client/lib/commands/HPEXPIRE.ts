@@ -1,24 +1,27 @@
+import { CommandParser } from '../client/parser';
 import { ArrayReply, Command, NullReply, RedisArgument } from '../RESP/types';
-import { pushVariadicArgument, RedisVariadicArgument } from './generic-transformers';
+import { RedisVariadicArgument } from './generic-transformers';
 import { HashExpiration } from "./HEXPIRE";
 
 export default {
-  FIRST_KEY_INDEX: 1,
-  transformArguments(
+  parseCommand(
+    parser: CommandParser,
     key: RedisArgument, 
     fields: RedisVariadicArgument,
     ms: number,
     mode?: 'NX' | 'XX' | 'GT' | 'LT',
   ) {
-    const args = ['HPEXPIRE', key, ms.toString()];
-  
+    parser.push('HPEXPIRE');
+    parser.pushKey(key);
+    parser.push(ms.toString());
+
     if (mode) {
-      args.push(mode);
+      parser.push(mode);
     }
-  
-    args.push('FIELDS')
-  
-    return pushVariadicArgument(args, fields);
+
+    parser.push('FIELDS')
+
+    parser.pushVariadicWithLength(fields);
   },
   transformReply: undefined as unknown as () => ArrayReply<HashExpiration> | NullReply
 } as const satisfies Command;

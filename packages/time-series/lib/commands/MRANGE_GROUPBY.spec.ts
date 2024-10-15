@@ -2,11 +2,12 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import MRANGE_GROUPBY, { TIME_SERIES_REDUCERS } from './MRANGE_GROUPBY';
 import { TIME_SERIES_AGGREGATION_TYPE } from './CREATERULE';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('TS.MRANGE_GROUPBY', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      MRANGE_GROUPBY.transformArguments('-', '+', 'label=value', {
+      parseArgs(MRANGE_GROUPBY, '-', '+', 'label=value', {
         REDUCE: TIME_SERIES_REDUCERS.AVG,
         label: 'label'
       }, {

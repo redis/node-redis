@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SCRIPT_DEBUG from './SCRIPT_DEBUG';
+import { parseArgs } from './generic-transformers';
 
 describe('SCRIPT DEBUG', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      SCRIPT_DEBUG.transformArguments('NO'),
+      parseArgs(SCRIPT_DEBUG, 'NO'),
       ['SCRIPT', 'DEBUG', 'NO']
     );
   });

@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import EVAL from './EVAL';
+import { parseArgs } from './generic-transformers';
 
 describe('EVAL', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      EVAL.transformArguments('return KEYS[1] + ARGV[1]', {
+      parseArgs(EVAL, 'return KEYS[1] + ARGV[1]', {
         keys: ['key'],
         arguments: ['argument']
       }),

@@ -7,12 +7,11 @@ export type FunctionListWithCodeReply = ArrayReply<TuplesToMapReply<[
 ]>>;
 
 export default {
-  FIRST_KEY_INDEX: FUNCTION_LIST.FIRST_KEY_INDEX,
+  NOT_KEYED_COMMAND: FUNCTION_LIST.NOT_KEYED_COMMAND,
   IS_READ_ONLY: FUNCTION_LIST.IS_READ_ONLY,
-  transformArguments(...args: Parameters<typeof FUNCTION_LIST.transformArguments>) {
-    const redisArgs = FUNCTION_LIST.transformArguments(...args);
-    redisArgs.push('WITHCODE');
-    return redisArgs;
+  parseCommand(...args: Parameters<typeof FUNCTION_LIST.parseCommand>) {
+    FUNCTION_LIST.parseCommand(...args);
+    args[0].push('WITHCODE');
   },
   transformReply: {
     2: (reply: UnwrapReply<Resp2Reply<FunctionListWithCodeReply>>) => {

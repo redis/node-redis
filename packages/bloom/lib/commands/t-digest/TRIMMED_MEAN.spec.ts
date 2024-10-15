@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../../test-utils';
 import TRIMMED_MEAN from './TRIMMED_MEAN';
+import { parseArgs } from '@redis/client/dist/lib/commands/generic-transformers';
 
 describe('TDIGEST.TRIMMED_MEAN', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      TRIMMED_MEAN.transformArguments('key', 0, 1),
+      parseArgs(TRIMMED_MEAN, 'key', 0, 1),
       ['TDIGEST.TRIMMED_MEAN', 'key', '0', '1']
     );
   });

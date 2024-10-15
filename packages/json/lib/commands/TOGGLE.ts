@@ -1,10 +1,12 @@
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument, ArrayReply, NumberReply, NullReply, Command, } from '@redis/client/dist/lib/RESP/types';
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: false,
-  transformArguments(key: RedisArgument, path: RedisArgument) {
-    return ['JSON.TOGGLE', key, path];
+  parseCommand(parser: CommandParser, key: RedisArgument, path: RedisArgument) {
+    parser.push('JSON.TOGGLE');
+    parser.pushKey(key);
+    parser.push(path);
   },
   transformReply: undefined as unknown as () => NumberReply | NullReply | ArrayReply<NumberReply | NullReply>
 } as const satisfies Command;

@@ -1,17 +1,12 @@
+import { CommandParser } from '../client/parser';
 import { Command } from '../RESP/types';
-import LMPOP, { LMPopArguments, transformLMPopArguments } from './LMPOP';
+import LMPOP, { LMPopArguments, parseLMPopArguments } from './LMPOP';
 
 export default {
-  FIRST_KEY_INDEX: 3,
   IS_READ_ONLY: false,
-  transformArguments(
-    timeout: number,
-    ...args: LMPopArguments
-  ) {
-    return transformLMPopArguments(
-      ['BLMPOP', timeout.toString()],
-      ...args
-    );
-  },
+  parseCommand(parser: CommandParser, timeout: number, ...args: LMPopArguments) {
+    parser.push('BLMPOP', timeout.toString());
+    parseLMPopArguments(parser, ...args);
+  }, 
   transformReply: LMPOP.transformReply
 } as const satisfies Command;

@@ -2,11 +2,12 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import TAGVALS from './TAGVALS';
 import { SCHEMA_FIELD_TYPE } from './CREATE';
+import { parseArgs } from '@redis/client/dist/lib/commands/generic-transformers';
 
 describe('FT.TAGVALS', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      TAGVALS.transformArguments('index', '@field'),
+      parseArgs(TAGVALS, 'index', '@field'),
       ['FT.TAGVALS', 'index', '@field']
     );
   });

@@ -1,12 +1,13 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import CREATE, { SCHEMA_FIELD_TYPE, SCHEMA_TEXT_FIELD_PHONETIC, SCHEMA_VECTOR_FIELD_ALGORITHM, REDISEARCH_LANGUAGE } from './CREATE';
+import { parseArgs } from '@redis/client/dist/lib/commands/generic-transformers';
 
 describe('FT.CREATE', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        CREATE.transformArguments('index', {}),
+        parseArgs(CREATE, 'index', {}),
         ['FT.CREATE', 'index', 'SCHEMA']
       );
     });
@@ -15,7 +16,7 @@ describe('FT.CREATE', () => {
       describe('TEXT', () => {
         it('without options', () => {
           assert.deepEqual(
-            CREATE.transformArguments('index', {
+            parseArgs(CREATE, 'index', {
               field: SCHEMA_FIELD_TYPE.TEXT
             }),
             ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TEXT']
@@ -24,7 +25,7 @@ describe('FT.CREATE', () => {
 
         it('with NOSTEM', () => {
           assert.deepEqual(
-            CREATE.transformArguments('index', {
+            parseArgs(CREATE, 'index', {
               field: {
                 type: SCHEMA_FIELD_TYPE.TEXT,
                 NOSTEM: true
@@ -36,7 +37,7 @@ describe('FT.CREATE', () => {
 
         it('with WEIGHT', () => {
           assert.deepEqual(
-            CREATE.transformArguments('index', {
+            parseArgs(CREATE, 'index', {
               field: {
                 type: SCHEMA_FIELD_TYPE.TEXT,
                 WEIGHT: 1
@@ -48,7 +49,7 @@ describe('FT.CREATE', () => {
 
         it('with PHONETIC', () => {
           assert.deepEqual(
-            CREATE.transformArguments('index', {
+            parseArgs(CREATE, 'index', {
               field: {
                 type: SCHEMA_FIELD_TYPE.TEXT,
                 PHONETIC: SCHEMA_TEXT_FIELD_PHONETIC.DM_EN
@@ -60,7 +61,7 @@ describe('FT.CREATE', () => {
 
         it('with WITHSUFFIXTRIE', () => {
           assert.deepEqual(
-            CREATE.transformArguments('index', {
+            parseArgs(CREATE, 'index', {
               field: {
                 type: SCHEMA_FIELD_TYPE.TEXT,
                 WITHSUFFIXTRIE: true
@@ -73,7 +74,7 @@ describe('FT.CREATE', () => {
 
       it('NUMERIC', () => {
         assert.deepEqual(
-          CREATE.transformArguments('index', {
+          parseArgs(CREATE, 'index', {
             field: SCHEMA_FIELD_TYPE.NUMERIC
           }),
           ['FT.CREATE', 'index', 'SCHEMA', 'field', 'NUMERIC']
@@ -82,7 +83,7 @@ describe('FT.CREATE', () => {
 
       it('GEO', () => {
         assert.deepEqual(
-          CREATE.transformArguments('index', {
+          parseArgs(CREATE, 'index', {
             field: SCHEMA_FIELD_TYPE.GEO
           }),
           ['FT.CREATE', 'index', 'SCHEMA', 'field', 'GEO']
@@ -93,7 +94,7 @@ describe('FT.CREATE', () => {
         describe('without options', () => {
           it('SCHEMA_FIELD_TYPE.TAG', () => {
             assert.deepEqual(
-              CREATE.transformArguments('index', {
+              parseArgs(CREATE, 'index', {
                 field: SCHEMA_FIELD_TYPE.TAG
               }),
               ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TAG']
@@ -102,7 +103,7 @@ describe('FT.CREATE', () => {
 
           it('{ type: SCHEMA_FIELD_TYPE.TAG }', () => {
             assert.deepEqual(
-              CREATE.transformArguments('index', {
+              parseArgs(CREATE, 'index', {
                 field: {
                   type: SCHEMA_FIELD_TYPE.TAG
                 }
@@ -114,7 +115,7 @@ describe('FT.CREATE', () => {
 
         it('with SEPARATOR', () => {
           assert.deepEqual(
-            CREATE.transformArguments('index', {
+            parseArgs(CREATE, 'index', {
               field: {
                 type: SCHEMA_FIELD_TYPE.TAG,
                 SEPARATOR: 'separator'
@@ -126,7 +127,7 @@ describe('FT.CREATE', () => {
 
         it('with CASESENSITIVE', () => {
           assert.deepEqual(
-            CREATE.transformArguments('index', {
+            parseArgs(CREATE, 'index', {
               field: {
                 type: SCHEMA_FIELD_TYPE.TAG,
                 CASESENSITIVE: true
@@ -138,7 +139,7 @@ describe('FT.CREATE', () => {
 
         it('with WITHSUFFIXTRIE', () => {
           assert.deepEqual(
-            CREATE.transformArguments('index', {
+            parseArgs(CREATE, 'index', {
               field: {
                 type: SCHEMA_FIELD_TYPE.TAG,
                 WITHSUFFIXTRIE: true
@@ -150,7 +151,7 @@ describe('FT.CREATE', () => {
 
 	it('with INDEXEMPTY', () => {
           assert.deepEqual(
-            CREATE.transformArguments('index', {
+            parseArgs(CREATE, 'index', {
               field: {
                 type: SCHEMA_FIELD_TYPE.TAG,
                 INDEXEMPTY: true
@@ -164,7 +165,7 @@ describe('FT.CREATE', () => {
       describe('VECTOR', () => {
         it('Flat algorithm', () => {
           assert.deepEqual(
-            CREATE.transformArguments('index', {
+            parseArgs(CREATE, 'index', {
               field: {
                 type: SCHEMA_FIELD_TYPE.VECTOR,
                 ALGORITHM: SCHEMA_VECTOR_FIELD_ALGORITHM.FLAT,
@@ -185,7 +186,7 @@ describe('FT.CREATE', () => {
 
         it('HNSW algorithm', () => {
           assert.deepEqual(
-            CREATE.transformArguments('index', {
+            parseArgs(CREATE, 'index', {
               field: {
                 type: SCHEMA_FIELD_TYPE.VECTOR,
                 ALGORITHM: SCHEMA_VECTOR_FIELD_ALGORITHM.HNSW,
@@ -211,7 +212,7 @@ describe('FT.CREATE', () => {
         describe('without options', () => {
           it('SCHEMA_FIELD_TYPE.GEOSHAPE', () => {
             assert.deepEqual(
-              CREATE.transformArguments('index', {
+              parseArgs(CREATE, 'index', {
                 field: SCHEMA_FIELD_TYPE.GEOSHAPE
               }),
               ['FT.CREATE', 'index', 'SCHEMA', 'field', 'GEOSHAPE']
@@ -220,7 +221,7 @@ describe('FT.CREATE', () => {
 
           it('{ type: SCHEMA_FIELD_TYPE.GEOSHAPE }', () => {
             assert.deepEqual(
-              CREATE.transformArguments('index', {
+              parseArgs(CREATE, 'index', {
                 field: {
                   type: SCHEMA_FIELD_TYPE.GEOSHAPE
                 }
@@ -232,7 +233,7 @@ describe('FT.CREATE', () => {
 
         it('with COORD_SYSTEM', () => {
           assert.deepEqual(
-            CREATE.transformArguments('index', {
+            parseArgs(CREATE, 'index', {
               field: {
                 type: SCHEMA_FIELD_TYPE.GEOSHAPE,
                 COORD_SYSTEM: 'SPHERICAL'
@@ -245,7 +246,7 @@ describe('FT.CREATE', () => {
   
       it('with AS', () => {
         assert.deepEqual(
-          CREATE.transformArguments('index', {
+          parseArgs(CREATE, 'index', {
             field: {
               type: SCHEMA_FIELD_TYPE.TEXT,
               AS: 'as'
@@ -258,7 +259,7 @@ describe('FT.CREATE', () => {
       describe('with SORTABLE', () => {
         it('true', () => {
           assert.deepEqual(
-            CREATE.transformArguments('index', {
+            parseArgs(CREATE, 'index', {
               field: {
                 type: SCHEMA_FIELD_TYPE.TEXT,
                 SORTABLE: true
@@ -270,7 +271,7 @@ describe('FT.CREATE', () => {
 
         it('UNF', () => {
           assert.deepEqual(
-            CREATE.transformArguments('index', {
+            parseArgs(CREATE, 'index', {
               field: {
                 type: SCHEMA_FIELD_TYPE.TEXT,
                 SORTABLE: 'UNF'
@@ -283,7 +284,7 @@ describe('FT.CREATE', () => {
 
       it('with NOINDEX', () => {
         assert.deepEqual(
-          CREATE.transformArguments('index', {
+          parseArgs(CREATE, 'index', {
             field: {
               type: SCHEMA_FIELD_TYPE.TEXT,
               NOINDEX: true
@@ -295,7 +296,7 @@ describe('FT.CREATE', () => {
 
       it('with INDEXMISSING', () => {
         assert.deepEqual(
-          CREATE.transformArguments('index', {
+          parseArgs(CREATE, 'index', {
             field: {
               type: SCHEMA_FIELD_TYPE.TEXT,
               INDEXMISSING: true
@@ -308,7 +309,7 @@ describe('FT.CREATE', () => {
 
     it('with ON', () => {
       assert.deepEqual(
-        CREATE.transformArguments('index', {}, {
+        parseArgs(CREATE, 'index', {}, {
           ON: 'HASH'
         }),
         ['FT.CREATE', 'index', 'ON', 'HASH', 'SCHEMA']
@@ -318,7 +319,7 @@ describe('FT.CREATE', () => {
     describe('with PREFIX', () => {
       it('string', () => {
         assert.deepEqual(
-          CREATE.transformArguments('index', {}, {
+          parseArgs(CREATE, 'index', {}, {
             PREFIX: 'prefix'
           }),
           ['FT.CREATE', 'index', 'PREFIX', '1', 'prefix', 'SCHEMA']
@@ -327,7 +328,7 @@ describe('FT.CREATE', () => {
 
       it('Array', () => {
         assert.deepEqual(
-          CREATE.transformArguments('index', {}, {
+          parseArgs(CREATE, 'index', {}, {
             PREFIX: ['1', '2']
           }),
           ['FT.CREATE', 'index', 'PREFIX', '2', '1', '2', 'SCHEMA']
@@ -337,7 +338,7 @@ describe('FT.CREATE', () => {
 
     it('with FILTER', () => {
       assert.deepEqual(
-        CREATE.transformArguments('index', {}, {
+        parseArgs(CREATE, 'index', {}, {
           FILTER: '@field != ""'
         }),
         ['FT.CREATE', 'index', 'FILTER', '@field != ""', 'SCHEMA']
@@ -346,7 +347,7 @@ describe('FT.CREATE', () => {
 
     it('with LANGUAGE', () => {
       assert.deepEqual(
-        CREATE.transformArguments('index', {}, {
+        parseArgs(CREATE, 'index', {}, {
           LANGUAGE: REDISEARCH_LANGUAGE.ARABIC
         }),
         ['FT.CREATE', 'index', 'LANGUAGE', REDISEARCH_LANGUAGE.ARABIC, 'SCHEMA']
@@ -355,7 +356,7 @@ describe('FT.CREATE', () => {
 
     it('with LANGUAGE_FIELD', () => {
       assert.deepEqual(
-        CREATE.transformArguments('index', {}, {
+        parseArgs(CREATE, 'index', {}, {
           LANGUAGE_FIELD: '@field'
         }),
         ['FT.CREATE', 'index', 'LANGUAGE_FIELD', '@field', 'SCHEMA']
@@ -364,7 +365,7 @@ describe('FT.CREATE', () => {
 
     it('with SCORE', () => {
       assert.deepEqual(
-        CREATE.transformArguments('index', {}, {
+        parseArgs(CREATE, 'index', {}, {
           SCORE: 1
         }),
         ['FT.CREATE', 'index', 'SCORE', '1', 'SCHEMA']
@@ -373,7 +374,7 @@ describe('FT.CREATE', () => {
 
     it('with SCORE_FIELD', () => {
       assert.deepEqual(
-        CREATE.transformArguments('index', {}, {
+        parseArgs(CREATE, 'index', {}, {
           SCORE_FIELD: '@field'
         }),
         ['FT.CREATE', 'index', 'SCORE_FIELD', '@field', 'SCHEMA']
@@ -382,7 +383,7 @@ describe('FT.CREATE', () => {
 
     it('with MAXTEXTFIELDS', () => {
       assert.deepEqual(
-        CREATE.transformArguments('index', {}, {
+        parseArgs(CREATE, 'index', {}, {
           MAXTEXTFIELDS: true
         }),
         ['FT.CREATE', 'index', 'MAXTEXTFIELDS', 'SCHEMA']
@@ -391,7 +392,7 @@ describe('FT.CREATE', () => {
 
     it('with TEMPORARY', () => {
       assert.deepEqual(
-        CREATE.transformArguments('index', {}, {
+        parseArgs(CREATE, 'index', {}, {
           TEMPORARY: 1
         }),
         ['FT.CREATE', 'index', 'TEMPORARY', '1', 'SCHEMA']
@@ -400,7 +401,7 @@ describe('FT.CREATE', () => {
 
     it('with NOOFFSETS', () => {
       assert.deepEqual(
-        CREATE.transformArguments('index', {}, {
+        parseArgs(CREATE, 'index', {}, {
           NOOFFSETS: true
         }),
         ['FT.CREATE', 'index', 'NOOFFSETS', 'SCHEMA']
@@ -409,7 +410,7 @@ describe('FT.CREATE', () => {
 
     it('with NOHL', () => {
       assert.deepEqual(
-        CREATE.transformArguments('index', {}, {
+        parseArgs(CREATE, 'index', {}, {
           NOHL: true
         }),
         ['FT.CREATE', 'index', 'NOHL', 'SCHEMA']
@@ -418,7 +419,7 @@ describe('FT.CREATE', () => {
 
     it('with NOFIELDS', () => {
       assert.deepEqual(
-        CREATE.transformArguments('index', {}, {
+        parseArgs(CREATE, 'index', {}, {
           NOFIELDS: true
         }),
         ['FT.CREATE', 'index', 'NOFIELDS', 'SCHEMA']
@@ -427,7 +428,7 @@ describe('FT.CREATE', () => {
 
     it('with NOFREQS', () => {
       assert.deepEqual(
-        CREATE.transformArguments('index', {}, {
+        parseArgs(CREATE, 'index', {}, {
           NOFREQS: true
         }),
         ['FT.CREATE', 'index', 'NOFREQS', 'SCHEMA']
@@ -436,7 +437,7 @@ describe('FT.CREATE', () => {
 
     it('with SKIPINITIALSCAN', () => {
       assert.deepEqual(
-        CREATE.transformArguments('index', {}, {
+        parseArgs(CREATE, 'index', {}, {
           SKIPINITIALSCAN: true
         }),
         ['FT.CREATE', 'index', 'SKIPINITIALSCAN', 'SCHEMA']
@@ -446,7 +447,7 @@ describe('FT.CREATE', () => {
     describe('with STOPWORDS', () => {
       it('string', () => {
         assert.deepEqual(
-          CREATE.transformArguments('index', {}, {
+          parseArgs(CREATE, 'index', {}, {
             STOPWORDS: 'stopword'
           }),
           ['FT.CREATE', 'index', 'STOPWORDS', '1', 'stopword', 'SCHEMA']
@@ -455,7 +456,7 @@ describe('FT.CREATE', () => {
 
       it('Array', () => {
         assert.deepEqual(
-          CREATE.transformArguments('index', {}, {
+          parseArgs(CREATE, 'index', {}, {
             STOPWORDS: ['1', '2']
           }),
           ['FT.CREATE', 'index', 'STOPWORDS', '2', '1', '2', 'SCHEMA']

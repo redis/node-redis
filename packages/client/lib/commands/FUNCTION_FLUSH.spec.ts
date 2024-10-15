@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import FUNCTION_FLUSH from './FUNCTION_FLUSH';
+import { parseArgs } from './generic-transformers';
 
 describe('FUNCTION FLUSH', () => {
   testUtils.isVersionGreaterThanHook([7]);
@@ -8,14 +9,14 @@ describe('FUNCTION FLUSH', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        FUNCTION_FLUSH.transformArguments(),
+        parseArgs(FUNCTION_FLUSH),
         ['FUNCTION', 'FLUSH']
       );
     });
 
     it('with mode', () => {
       assert.deepEqual(
-        FUNCTION_FLUSH.transformArguments('SYNC'),
+        parseArgs(FUNCTION_FLUSH, 'SYNC'),
         ['FUNCTION', 'FLUSH', 'SYNC']
       );
     });

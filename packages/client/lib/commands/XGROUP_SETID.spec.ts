@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import XGROUP_SETID from './XGROUP_SETID';
+import { parseArgs } from './generic-transformers';
 
 describe('XGROUP SETID', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      XGROUP_SETID.transformArguments('key', 'group', '0'),
+      parseArgs(XGROUP_SETID, 'key', 'group', '0'),
       ['XGROUP', 'SETID', 'key', 'group', '0']
     );
   });

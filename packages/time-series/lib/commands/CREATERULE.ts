@@ -1,3 +1,4 @@
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument, SimpleStringReply, Command } from '@redis/client/dist/lib/RESP/types';
 
 export const TIME_SERIES_AGGREGATION_TYPE = {
@@ -19,29 +20,22 @@ export const TIME_SERIES_AGGREGATION_TYPE = {
 export type TimeSeriesAggregationType = typeof TIME_SERIES_AGGREGATION_TYPE[keyof typeof TIME_SERIES_AGGREGATION_TYPE];
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: false,
-  transformArguments(
+  parseCommand(
+    parser: CommandParser,
     sourceKey: RedisArgument,
     destinationKey: RedisArgument,
     aggregationType: TimeSeriesAggregationType,
     bucketDuration: number,
     alignTimestamp?: number
   ) {
-    const args = [
-      'TS.CREATERULE',
-      sourceKey,
-      destinationKey,
-      'AGGREGATION',
-      aggregationType,
-      bucketDuration.toString()
-    ];
+    parser.push('TS.CREATERULE');
+    parser.pushKeys([sourceKey, destinationKey]);
+    parser.push('AGGREGATION', aggregationType, bucketDuration.toString());
 
     if (alignTimestamp !== undefined) {
-      args.push(alignTimestamp.toString());
+      parser.push(alignTimestamp.toString());
     }
-
-    return args;
   },
   transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
 } as const satisfies Command;

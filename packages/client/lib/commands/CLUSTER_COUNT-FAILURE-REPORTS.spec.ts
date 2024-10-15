@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import CLUSTER_COUNT_FAILURE_REPORTS from './CLUSTER_COUNT-FAILURE-REPORTS';
+import { parseArgs } from './generic-transformers';
 
 describe('CLUSTER COUNT-FAILURE-REPORTS', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      CLUSTER_COUNT_FAILURE_REPORTS.transformArguments('0'),
+      parseArgs(CLUSTER_COUNT_FAILURE_REPORTS, '0'),
       ['CLUSTER', 'COUNT-FAILURE-REPORTS', '0']
     );
   });

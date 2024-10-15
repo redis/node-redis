@@ -2,11 +2,12 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import REVRANGE from './REVRANGE';
 import { TIME_SERIES_AGGREGATION_TYPE } from '../index';
+import { parseArgs } from '@redis/client/dist/lib/commands/generic-transformers';
 
 describe('TS.REVRANGE', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      REVRANGE.transformArguments('key', '-', '+', {
+      parseArgs(REVRANGE, 'key', '-', '+', {
         FILTER_BY_TS: [0],
         FILTER_BY_VALUE: {
           min: 1,

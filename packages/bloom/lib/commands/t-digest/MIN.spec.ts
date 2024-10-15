@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../../test-utils';
 import MIN from './MIN';
+import { parseArgs } from '@redis/client/dist/lib/commands/generic-transformers';
 
 describe('TDIGEST.MIN', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      MIN.transformArguments('key'),
+      parseArgs(MIN, 'key'),
       ['TDIGEST.MIN', 'key']
     );
   });

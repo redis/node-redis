@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL, BLOCKING_MIN_VALUE } from '../test-utils';
 import BLMPOP from './BLMPOP';
+import { parseArgs } from './generic-transformers';
 
 describe('BLMPOP', () => {
   testUtils.isVersionGreaterThanHook([7]);
@@ -8,14 +9,14 @@ describe('BLMPOP', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        BLMPOP.transformArguments(0, 'key', 'LEFT'),
+        parseArgs(BLMPOP, 0, 'key', 'LEFT'),
         ['BLMPOP', '0', '1', 'key', 'LEFT']
       );
     });
 
     it('with COUNT', () => {
       assert.deepEqual(
-        BLMPOP.transformArguments(0, 'key', 'LEFT', {
+        parseArgs(BLMPOP, 0, 'key', 'LEFT', {
           COUNT: 1
         }),
         ['BLMPOP', '0', '1', 'key', 'LEFT', 'COUNT', '1']

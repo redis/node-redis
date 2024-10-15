@@ -1,3 +1,4 @@
+import { CommandParser } from '../client/parser';
 import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
 
 export interface RestoreOptions {
@@ -8,33 +9,33 @@ export interface RestoreOptions {
 }
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: false,
-  transformArguments(
+  parseCommand(
+    parser: CommandParser,
     key: RedisArgument,
     ttl: number,
     serializedValue: RedisArgument,
     options?: RestoreOptions
   ) {
-    const args =  ['RESTORE', key, ttl.toString(), serializedValue];
+    parser.push('RESTORE');
+    parser.pushKey(key);
+    parser.push(ttl.toString(), serializedValue);
 
     if (options?.REPLACE) {
-      args.push('REPLACE');
+      parser.push('REPLACE');
     }
 
     if (options?.ABSTTL) {
-      args.push('ABSTTL');
+      parser.push('ABSTTL');
     }
 
     if (options?.IDLETIME) {
-      args.push('IDLETIME', options.IDLETIME.toString());
+      parser.push('IDLETIME', options.IDLETIME.toString());
     }
 
     if (options?.FREQ) {
-      args.push('FREQ', options.FREQ.toString());
+      parser.push('FREQ', options.FREQ.toString());
     }
-
-    return args;
   },
   transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
 } as const satisfies Command;

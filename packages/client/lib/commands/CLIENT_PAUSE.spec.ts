@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import CLIENT_PAUSE from './CLIENT_PAUSE';
+import { parseArgs } from './generic-transformers';
 
 describe('CLIENT PAUSE', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        CLIENT_PAUSE.transformArguments(0),
+        parseArgs(CLIENT_PAUSE, 0),
         ['CLIENT', 'PAUSE', '0']
       );
     });
 
     it('with mode', () => {
       assert.deepEqual(
-        CLIENT_PAUSE.transformArguments(0, 'ALL'),
+        parseArgs(CLIENT_PAUSE, 0, 'ALL'),
         ['CLIENT', 'PAUSE', '0', 'ALL']
       );
     });
