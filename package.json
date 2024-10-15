@@ -7,7 +7,7 @@
   "scripts": {
     "test": "npm run test -ws --if-present",
     "build": "tsc --build",
-    "documentation": "typedoc",
+    "documentation": "typedoc --out ./documentation",
     "gh-pages": "gh-pages -d ./documentation -e ./documentation -u 'documentation-bot <documentation@bot>'"
   },
   "devDependencies": {
