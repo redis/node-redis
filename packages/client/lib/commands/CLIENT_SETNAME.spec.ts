@@ -2,11 +2,12 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 
 import CLIENT_SETNAME from './CLIENT_SETNAME';
+import { parseArgs } from './generic-transformers';
 
 describe('CLIENT SETNAME', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      CLIENT_SETNAME.transformArguments('name'),
+      parseArgs(CLIENT_SETNAME, 'name'),
       ['CLIENT', 'SETNAME', 'name']
     );
   });

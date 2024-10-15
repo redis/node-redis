@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../../test-utils';
 import CREATE from './CREATE';
+import { parseArgs } from '@redis/client/dist/lib/commands/generic-transformers';
 
 describe('TDIGEST.CREATE', () => {
   describe('transformArguments', () => {
     it('without options', () => {
       assert.deepEqual(
-        CREATE.transformArguments('key'),
+        parseArgs(CREATE, 'key'),
         ['TDIGEST.CREATE', 'key']
       );
     });
 
     it('with COMPRESSION', () => {
       assert.deepEqual(
-        CREATE.transformArguments('key', {
+        parseArgs(CREATE, 'key', {
           COMPRESSION: 100
         }),
         ['TDIGEST.CREATE', 'key', 'COMPRESSION', '100']

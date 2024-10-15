@@ -1,9 +1,10 @@
+import { CommandParser } from '../client/parser';
 import { RedisArgument, NumberReply, Command } from '../RESP/types';
 
 export default {
-  FIRST_KEY_INDEX: 1,
-  transformArguments(key: RedisArgument) {
-    return ['INCR', key];
+  parseCommand(parser: CommandParser, key: RedisArgument) {
+    parser.push('INCR');
+    parser.pushKey(key);
   },
   transformReply: undefined as unknown as () => NumberReply
 } as const satisfies Command;

@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SRANDMEMBER from './SRANDMEMBER';
+import { parseArgs } from './generic-transformers';
 
 describe('SRANDMEMBER', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      SRANDMEMBER.transformArguments('key'),
+      parseArgs(SRANDMEMBER, 'key'),
       ['SRANDMEMBER', 'key']
     );
   });

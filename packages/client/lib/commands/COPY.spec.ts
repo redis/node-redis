@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import COPY from './COPY';
+import { parseArgs } from './generic-transformers';
 
 describe('COPY', () => {
   testUtils.isVersionGreaterThanHook([6, 2]);
@@ -8,14 +9,14 @@ describe('COPY', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        COPY.transformArguments('source', 'destination'),
+        parseArgs(COPY, 'source', 'destination'),
         ['COPY', 'source', 'destination']
       );
     });
 
     it('with destination DB flag', () => {
       assert.deepEqual(
-        COPY.transformArguments('source', 'destination', {
+        parseArgs(COPY, 'source', 'destination', {
           DB: 1
         }),
         ['COPY', 'source', 'destination', 'DB', '1']
@@ -24,7 +25,7 @@ describe('COPY', () => {
 
     it('with replace flag', () => {
       assert.deepEqual(
-        COPY.transformArguments('source', 'destination', {
+        parseArgs(COPY, 'source', 'destination', {
           REPLACE: true
         }),
         ['COPY', 'source', 'destination', 'REPLACE']
@@ -33,7 +34,7 @@ describe('COPY', () => {
 
     it('with both flags', () => {
       assert.deepEqual(
-        COPY.transformArguments('source', 'destination', {
+        parseArgs(COPY, 'source', 'destination', {
           DB: 1,
           REPLACE: true
         }),

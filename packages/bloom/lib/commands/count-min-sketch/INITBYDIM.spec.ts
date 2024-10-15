@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../../test-utils';
 import INITBYDIM from './INITBYDIM';
+import { parseArgs } from '@redis/client/dist/lib/commands/generic-transformers';
 
 describe('CMS.INITBYDIM', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      INITBYDIM.transformArguments('key', 1000, 5),
+      parseArgs(INITBYDIM, 'key', 1000, 5),
       ['CMS.INITBYDIM', 'key', '1000', '5']
     );
   });

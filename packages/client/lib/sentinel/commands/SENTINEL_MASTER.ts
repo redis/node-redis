@@ -1,9 +1,10 @@
 import { RedisArgument, MapReply, BlobStringReply, Command } from '../../RESP/types';
+import { CommandParser } from '../../client/parser';
 import { transformTuplesReply } from '../../commands/generic-transformers';
 
 export default {
-  transformArguments(dbname: RedisArgument) {
-    return ['SENTINEL', 'MASTER', dbname];
+  parseCommand(parser: CommandParser, dbname: RedisArgument) {
+    parser.push('SENTINEL', 'MASTER', dbname);
   },
   transformReply: {
     2: transformTuplesReply<BlobStringReply>,

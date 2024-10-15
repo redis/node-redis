@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import PING from './PING';
+import { parseArgs } from './generic-transformers';
 
 describe('PING', () => {
   describe('transformArguments', () => {
     it('default', () => {
       assert.deepEqual(
-        PING.transformArguments(),
+        parseArgs(PING),
         ['PING']
       );
     });
 
     it('with message', () => {
       assert.deepEqual(
-        PING.transformArguments('message'),
+        parseArgs(PING, 'message'),
         ['PING', 'message']
       );
     });

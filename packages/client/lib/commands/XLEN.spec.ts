@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import XLEN from './XLEN';
+import { parseArgs } from './generic-transformers';
 
 describe('XLEN', () => {
-  it('transformArguments', () => {
+  it('processCommand', () => {
     assert.deepEqual(
-      XLEN.transformArguments('key'),
+      parseArgs(XLEN, 'key'),
       ['XLEN', 'key']
     );
   });

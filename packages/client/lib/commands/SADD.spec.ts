@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SADD from './SADD';
+import { parseArgs } from './generic-transformers';
 
 describe('SADD', () => {
   describe('transformArguments', () => {
     it('string', () => {
       assert.deepEqual(
-        SADD.transformArguments('key', 'member'),
+        parseArgs(SADD, 'key', 'member'),
         ['SADD', 'key', 'member']
       );
     });
 
     it('array', () => {
       assert.deepEqual(
-        SADD.transformArguments('key', ['1', '2']),
+        parseArgs(SADD, 'key', ['1', '2']),
         ['SADD', 'key', '1', '2']
       );
     });

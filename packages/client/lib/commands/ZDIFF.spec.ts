@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ZDIFF from './ZDIFF';
+import { parseArgs } from './generic-transformers';
 
 describe('ZDIFF', () => {
   testUtils.isVersionGreaterThanHook([6, 2]);
@@ -8,14 +9,14 @@ describe('ZDIFF', () => {
   describe('transformArguments', () => {
     it('string', () => {
       assert.deepEqual(
-        ZDIFF.transformArguments('key'),
+        parseArgs(ZDIFF, 'key'),
         ['ZDIFF', '1', 'key']
       );
     });
 
     it('array', () => {
       assert.deepEqual(
-        ZDIFF.transformArguments(['1', '2']),
+        parseArgs(ZDIFF, ['1', '2']),
         ['ZDIFF', '2', '1', '2']
       );
     });

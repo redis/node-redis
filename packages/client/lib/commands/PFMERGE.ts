@@ -1,16 +1,18 @@
+import { CommandParser } from '../client/parser';
 import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
-import { RedisVariadicArgument, pushVariadicArguments } from './generic-transformers';
+import { RedisVariadicArgument } from './generic-transformers';
 
 export default {
-  FIRST_KEY_INDEX: 1,
-  transformArguments(
+  parseCommand(
+    parser: CommandParser,
     destination: RedisArgument,
-    source?: RedisVariadicArgument
+    sources?: RedisVariadicArgument
   ) {
-    const args = ['PFMERGE', destination];
-    if (!source) return args;
-
-    return pushVariadicArguments(args, source);
+    parser.push('PFMERGE');
+    parser.pushKey(destination);
+    if (sources) {
+      parser.pushKeys(sources);
+    }
   },
   transformReply: undefined as unknown as () => SimpleStringReply
 } as const satisfies Command;

@@ -1,16 +1,15 @@
+import { CommandParser } from '../client/parser';
 import { RedisArgument, VerbatimStringReply, Command } from '../RESP/types';
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments(section?: RedisArgument) {
-    const args: Array<RedisArgument> = ['INFO'];
+  parseCommand(parser: CommandParser, section?: RedisArgument) {
+    parser.push('INFO');
 
     if (section) {
-      args.push(section);
+      parser.push(section);
     }
-
-    return args;
   },
   transformReply: undefined as unknown as () => VerbatimStringReply
 } as const satisfies Command;

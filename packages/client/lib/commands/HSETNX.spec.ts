@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import HSETNX from './HSETNX';
+import { parseArgs } from './generic-transformers';
 
 describe('HSETNX', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      HSETNX.transformArguments('key', 'field', 'value'),
+      parseArgs(HSETNX, 'key', 'field', 'value'),
       ['HSETNX', 'key', 'field', 'value']
     );
   });

@@ -1,3 +1,4 @@
+import { CommandParser } from '../client/parser';
 import { Command, RedisArgument, ReplyUnion } from '../RESP/types';
 import { transformStreamsMessagesReplyResp2 } from './generic-transformers';
 
@@ -8,19 +9,19 @@ export interface XReadStream {
 
 export type XReadStreams = Array<XReadStream> | XReadStream;
 
-export function pushXReadStreams(args: Array<RedisArgument>, streams: XReadStreams) {
-  args.push('STREAMS');
+export function pushXReadStreams(parser: CommandParser, streams: XReadStreams) {
+  parser.push('STREAMS');
 
   if (Array.isArray(streams)) {
-    const keysStart = args.length,
-      idsStart = keysStart + streams.length;
     for (let i = 0; i < streams.length; i++) {
-      const stream = streams[i];
-      args[keysStart + i] = stream.key;
-      args[idsStart + i] = stream.id;
+      parser.pushKey(streams[i].key);
+    }
+    for (let i = 0; i < streams.length; i++) {
+      parser.push(streams[i].id);
     }
   } else {
-    args.push(streams.key, streams.id);
+    parser.pushKey(streams.key);
+    parser.push(streams.id);
   }
 }
 
@@ -30,24 +31,19 @@ export interface XReadOptions {
 }
 
 export default {
-  FIRST_KEY_INDEX(streams: XReadStreams) {
-    return Array.isArray(streams) ? streams[0].key : streams.key;
-  },
   IS_READ_ONLY: true,
-  transformArguments(streams: XReadStreams, options?: XReadOptions) {
-    const args: Array<RedisArgument> = ['XREAD'];
+  parseCommand(parser: CommandParser, streams: XReadStreams, options?: XReadOptions) {
+    parser.push('XREAD');
 
     if (options?.COUNT) {
-      args.push('COUNT', options.COUNT.toString());
+      parser.push('COUNT', options.COUNT.toString());
     }
 
     if (options?.BLOCK !== undefined) {
-      args.push('BLOCK', options.BLOCK.toString());
+      parser.push('BLOCK', options.BLOCK.toString());
     }
 
-    pushXReadStreams(args, streams);
-
-    return args;
+    pushXReadStreams(parser, streams);
   },
   transformReply: {
     2: transformStreamsMessagesReplyResp2,
@@ -55,4 +51,3 @@ export default {
   },
   unstableResp3: true
 } as const satisfies Command;
-

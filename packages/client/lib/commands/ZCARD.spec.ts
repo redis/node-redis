@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ZCARD from './ZCARD';
+import { parseArgs } from './generic-transformers';
 
 describe('ZCARD', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      ZCARD.transformArguments('key'),
+      parseArgs(ZCARD, 'key'),
       ['ZCARD', 'key']
     );
   });

@@ -3,11 +3,12 @@ import { TIME_SERIES_DUPLICATE_POLICIES } from '.';
 import testUtils, { GLOBAL } from '../test-utils';
 import INFO, { InfoReply } from './INFO';
 import { TIME_SERIES_AGGREGATION_TYPE } from './CREATERULE';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('TS.INFO', () => {
     it('transformArguments', () => {
         assert.deepEqual(
-            INFO.transformArguments('key'),
+            parseArgs(INFO, 'key'),
             ['TS.INFO', 'key']
         );
     });

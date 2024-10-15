@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import HKEYS from './HKEYS';
+import { parseArgs } from './generic-transformers';
 
 describe('HKEYS', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      HKEYS.transformArguments('key'),
+      parseArgs(HKEYS, 'key'),
       ['HKEYS', 'key']
     );
   });

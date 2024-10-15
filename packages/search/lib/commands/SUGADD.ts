@@ -1,3 +1,4 @@
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument, NumberReply, Command } from '@redis/client/dist/lib/RESP/types';
 
 export interface FtSugAddOptions {
@@ -6,20 +7,19 @@ export interface FtSugAddOptions {
 }
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: true,
-  transformArguments(key: RedisArgument, string: RedisArgument, score: number, options?: FtSugAddOptions) {
-    const args = ['FT.SUGADD', key, string, score.toString()];
+  parseCommand(parser: CommandParser, key: RedisArgument, string: RedisArgument, score: number, options?: FtSugAddOptions) {
+    parser.push('FT.SUGADD');
+    parser.pushKey(key);
+    parser.push(string, score.toString());
 
     if (options?.INCR) {
-      args.push('INCR');
+      parser.push('INCR');
     }
 
     if (options?.PAYLOAD) {
-      args.push('PAYLOAD', options.PAYLOAD);
+      parser.push('PAYLOAD', options.PAYLOAD);
     }
-
-    return args;
   },
   transformReply: undefined as unknown as () => NumberReply
 } as const satisfies Command;

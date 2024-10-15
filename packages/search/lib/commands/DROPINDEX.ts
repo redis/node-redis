@@ -1,3 +1,4 @@
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument, SimpleStringReply, NumberReply, Command } from '@redis/client/dist/lib/RESP/types';
 
 export interface FtDropIndexOptions {
@@ -5,16 +6,14 @@ export interface FtDropIndexOptions {
 }
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments(index: RedisArgument, options?: FtDropIndexOptions) {
-    const args = ['FT.DROPINDEX', index];
+  parseCommand(parser: CommandParser, index: RedisArgument, options?: FtDropIndexOptions) {
+    parser.push('FT.DROPINDEX', index);
 
     if (options?.DD) {
-      args.push('DD');
+      parser.push('DD');
     }
-
-    return args;
   },
   transformReply: {
     2: undefined as unknown as () => SimpleStringReply<'OK'>,

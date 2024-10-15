@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ZRANGEBYSCORE_WITHSCORES from './ZRANGEBYSCORE_WITHSCORES';
+import { parseArgs } from './generic-transformers';
 
 describe('ZRANGEBYSCORE WITHSCORES', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        ZRANGEBYSCORE_WITHSCORES.transformArguments('src', 0, 1),
+        parseArgs(ZRANGEBYSCORE_WITHSCORES, 'src', 0, 1),
         ['ZRANGEBYSCORE', 'src', '0', '1', 'WITHSCORES']
       );
     });
 
     it('with LIMIT', () => {
       assert.deepEqual(
-        ZRANGEBYSCORE_WITHSCORES.transformArguments('src', 0, 1, {
+        parseArgs(ZRANGEBYSCORE_WITHSCORES, 'src', 0, 1, {
           LIMIT: {
             offset: 0,
             count: 1

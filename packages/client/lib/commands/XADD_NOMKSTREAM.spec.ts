@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import XADD_NOMKSTREAM from './XADD_NOMKSTREAM';
+import { parseArgs } from './generic-transformers';
 
 describe('XADD NOMKSTREAM', () => {
   testUtils.isVersionGreaterThanHook([6, 2]);
@@ -8,7 +9,7 @@ describe('XADD NOMKSTREAM', () => {
   describe('transformArguments', () => {
     it('single field', () => {
       assert.deepEqual(
-        XADD_NOMKSTREAM.transformArguments('key', '*', {
+        parseArgs(XADD_NOMKSTREAM, 'key', '*', {
           field: 'value'
         }),
         ['XADD', 'key', 'NOMKSTREAM', '*', 'field', 'value']
@@ -17,7 +18,7 @@ describe('XADD NOMKSTREAM', () => {
 
     it('multiple fields', () => {
       assert.deepEqual(
-        XADD_NOMKSTREAM.transformArguments('key', '*', {
+        parseArgs(XADD_NOMKSTREAM, 'key', '*', {
           '1': 'I',
           '2': 'II'
         }),
@@ -27,7 +28,7 @@ describe('XADD NOMKSTREAM', () => {
 
     it('with TRIM', () => {
       assert.deepEqual(
-        XADD_NOMKSTREAM.transformArguments('key', '*', {
+        parseArgs(XADD_NOMKSTREAM, 'key', '*', {
           field: 'value'
         }, {
           TRIM: {
@@ -40,7 +41,7 @@ describe('XADD NOMKSTREAM', () => {
 
     it('with TRIM.strategy', () => {
       assert.deepEqual(
-        XADD_NOMKSTREAM.transformArguments('key', '*', {
+        parseArgs(XADD_NOMKSTREAM, 'key', '*', {
           field: 'value'
         }, {
           TRIM: {
@@ -54,7 +55,7 @@ describe('XADD NOMKSTREAM', () => {
 
     it('with TRIM.strategyModifier', () => {
       assert.deepEqual(
-        XADD_NOMKSTREAM.transformArguments('key', '*', {
+        parseArgs(XADD_NOMKSTREAM, 'key', '*', {
           field: 'value'
         }, {
           TRIM: {
@@ -68,7 +69,7 @@ describe('XADD NOMKSTREAM', () => {
 
     it('with TRIM.limit', () => {
       assert.deepEqual(
-        XADD_NOMKSTREAM.transformArguments('key', '*', {
+        parseArgs(XADD_NOMKSTREAM, 'key', '*', {
           field: 'value'
         }, {
           TRIM: {

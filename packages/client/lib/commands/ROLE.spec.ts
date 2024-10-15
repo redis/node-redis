@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ROLE from './ROLE';
+import { parseArgs } from './generic-transformers';
 
 describe('ROLE', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      ROLE.transformArguments(),
+      parseArgs(ROLE),
       ['ROLE']
     );
   });

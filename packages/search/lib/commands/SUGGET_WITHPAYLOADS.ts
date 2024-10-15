@@ -3,12 +3,10 @@ import { isNullReply } from '@redis/client/dist/lib/commands/generic-transformer
 import SUGGET from './SUGGET';
 
 export default {
-  FIRST_KEY_INDEX: SUGGET.FIRST_KEY_INDEX,
   IS_READ_ONLY: SUGGET.IS_READ_ONLY,
-  transformArguments(...args: Parameters<typeof SUGGET.transformArguments>) {
-    const transformedArguments = SUGGET.transformArguments(...args);
-    transformedArguments.push('WITHPAYLOADS');
-    return transformedArguments;
+  parseCommand(...args: Parameters<typeof SUGGET.parseCommand>) {
+    SUGGET.parseCommand(...args);
+    args[0].push('WITHPAYLOADS');
   },
   transformReply(reply: NullReply | UnwrapReply<ArrayReply<BlobStringReply>>) {
     if (isNullReply(reply)) return null;

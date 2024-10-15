@@ -1,20 +1,21 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../../test-utils';
 import MERGE from './MERGE';
+import { parseArgs } from '@redis/client/dist/lib/commands/generic-transformers';
 
 describe('TDIGEST.MERGE', () => {
   describe('transformArguments', () => {
     describe('source', () => {
       it('string', () => {
         assert.deepEqual(
-          MERGE.transformArguments('destination', 'source'),
+          parseArgs(MERGE, 'destination', 'source'),
           ['TDIGEST.MERGE', 'destination', '1', 'source']
         );
       });
 
       it('Array', () => {
         assert.deepEqual(
-          MERGE.transformArguments('destination', ['1', '2']),
+          parseArgs(MERGE, 'destination', ['1', '2']),
           ['TDIGEST.MERGE', 'destination', '2', '1', '2']
         );
       });
@@ -22,7 +23,7 @@ describe('TDIGEST.MERGE', () => {
 
     it('with COMPRESSION', () => {
       assert.deepEqual(
-        MERGE.transformArguments('destination', 'source', {
+        parseArgs(MERGE, 'destination', 'source', {
           COMPRESSION: 100
         }),
         ['TDIGEST.MERGE', 'destination', '1', 'source', 'COMPRESSION', '100']
@@ -31,7 +32,7 @@ describe('TDIGEST.MERGE', () => {
 
     it('with OVERRIDE', () => {
       assert.deepEqual(
-        MERGE.transformArguments('destination', 'source', {
+        parseArgs(MERGE, 'destination', 'source', {
           OVERRIDE: true
         }),
         ['TDIGEST.MERGE', 'destination', '1', 'source', 'OVERRIDE']

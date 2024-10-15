@@ -1,4 +1,5 @@
-import { RedisArgument, CommandArguments, NumberReply, Command } from '../RESP/types';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, NumberReply, Command } from '../RESP/types';
 import { GeoCoordinates } from './GEOSEARCH';
 
 export interface GeoMember extends GeoCoordinates {
@@ -19,45 +20,45 @@ export interface GeoAddOptions {
 }
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: false,
-  transformArguments(
+  parseCommand(
+    parser: CommandParser,
     key: RedisArgument,
     toAdd: GeoMember | Array<GeoMember>,
     options?: GeoAddOptions
   ) {
-    const args = ['GEOADD', key];
+    parser.push('GEOADD')
+    parser.pushKey(key);
 
     if (options?.condition) {
-      args.push(options.condition);
+      parser.push(options.condition);
     } else if (options?.NX) {
-      args.push('NX');
+      parser.push('NX');
     } else if (options?.XX) {
-      args.push('XX');
+      parser.push('XX');
     }
 
     if (options?.CH) {
-      args.push('CH');
+      parser.push('CH');
     }
 
     if (Array.isArray(toAdd)) {
       for (const member of toAdd) {
-        pushMember(args, member);
+        pushMember(parser, member);
       }
     } else {
-      pushMember(args, toAdd);
+      pushMember(parser, toAdd);
     }
 
-    return args;
   },
   transformReply: undefined as unknown as () => NumberReply
 } as const satisfies Command;
 
 function pushMember(
-  args: CommandArguments,
+  parser: CommandParser,
   { longitude, latitude, member }: GeoMember
 ) {
-  args.push(
+  parser.push(
     longitude.toString(),
     latitude.toString(),
     member

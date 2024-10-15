@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import MEMORY_USAGE from './MEMORY_USAGE';
+import { parseArgs } from './generic-transformers';
 
 describe('MEMORY USAGE', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        MEMORY_USAGE.transformArguments('key'),
+        parseArgs(MEMORY_USAGE, 'key'),
         ['MEMORY', 'USAGE', 'key']
       );
     });
 
     it('with SAMPLES', () => {
       assert.deepEqual(
-        MEMORY_USAGE.transformArguments('key', {
+        parseArgs(MEMORY_USAGE, 'key', {
           SAMPLES: 1
         }),
         ['MEMORY', 'USAGE', 'key', 'SAMPLES', '1']

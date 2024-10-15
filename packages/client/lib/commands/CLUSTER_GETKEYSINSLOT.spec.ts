@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import CLUSTER_GETKEYSINSLOT from './CLUSTER_GETKEYSINSLOT';
+import { parseArgs } from './generic-transformers';
 
 describe('CLUSTER GETKEYSINSLOT', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      CLUSTER_GETKEYSINSLOT.transformArguments(0, 10),
+      parseArgs(CLUSTER_GETKEYSINSLOT, 0, 10),
       ['CLUSTER', 'GETKEYSINSLOT', '0', '10']
     );
   });

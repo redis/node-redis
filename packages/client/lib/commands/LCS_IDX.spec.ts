@@ -1,13 +1,14 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import LCS_IDX from './LCS_IDX';
+import { parseArgs } from './generic-transformers';
 
 describe('LCS IDX', () => {
   testUtils.isVersionGreaterThanHook([7]);
 
   it('transformArguments', () => {
     assert.deepEqual(
-      LCS_IDX.transformArguments('1', '2'),
+      parseArgs(LCS_IDX, '1', '2'),
       ['LCS', '1', '2', 'IDX']
     );
   });

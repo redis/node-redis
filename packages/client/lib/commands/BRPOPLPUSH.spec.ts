@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL, BLOCKING_MIN_VALUE } from '../test-utils';
 import BRPOPLPUSH from './BRPOPLPUSH';
+import { parseArgs } from './generic-transformers';
 
 describe('BRPOPLPUSH', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      BRPOPLPUSH.transformArguments('source', 'destination', 0),
+      parseArgs(BRPOPLPUSH, 'source', 'destination', 0),
       ['BRPOPLPUSH', 'source', 'destination', '0']
     );
   });

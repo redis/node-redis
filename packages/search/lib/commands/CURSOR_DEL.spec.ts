@@ -2,11 +2,12 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import CURSOR_DEL from './CURSOR_DEL';
 import { SCHEMA_FIELD_TYPE } from './CREATE';
+import { parseArgs } from '@redis/client/dist/lib/commands/generic-transformers';
 
 describe('FT.CURSOR DEL', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      CURSOR_DEL.transformArguments('index', 0),
+      parseArgs(CURSOR_DEL, 'index', 0),
       ['FT.CURSOR', 'DEL', 'index', '0']
     );
   });

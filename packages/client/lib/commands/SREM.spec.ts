@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SREM from './SREM';
+import { parseArgs } from './generic-transformers';
 
 describe('SREM', () => {
   describe('transformArguments', () => {
     it('string', () => {
       assert.deepEqual(
-        SREM.transformArguments('key', 'member'),
+        parseArgs(SREM, 'key', 'member'),
         ['SREM', 'key', 'member']
       );
     });
 
     it('array', () => {
       assert.deepEqual(
-        SREM.transformArguments('key', ['1', '2']),
+        parseArgs(SREM, 'key', ['1', '2']),
         ['SREM', 'key', '1', '2']
       );
     });

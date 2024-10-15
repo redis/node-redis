@@ -1,10 +1,11 @@
+import { CommandParser } from '../client/parser';
 import { RedisArgument, NumberReply, Command } from '../RESP/types';
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: true,
-  transformArguments(key: RedisArgument) {
-    return ['PEXPIRETIME', key];
+  parseCommand(parser: CommandParser, key: RedisArgument) {
+    parser.push('PEXPIRETIME');
+    parser.pushKey(key);
   },
   transformReply: undefined as unknown as () => NumberReply
 } as const satisfies Command;

@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL, BLOCKING_MIN_VALUE } from '../test-utils';
 import BZPOPMAX from './BZPOPMAX';
+import { parseArgs } from './generic-transformers';
 
 describe('BZPOPMAX', () => {
   describe('transformArguments', () => {
     it('single', () => {
       assert.deepEqual(
-        BZPOPMAX.transformArguments('key', 0),
+        parseArgs(BZPOPMAX, 'key', 0),
         ['BZPOPMAX', 'key', '0']
       );
     });
 
     it('multiple', () => {
       assert.deepEqual(
-        BZPOPMAX.transformArguments(['1', '2'], 0),
+        parseArgs(BZPOPMAX, ['1', '2'], 0),
         ['BZPOPMAX', '1', '2', '0']
       );
     });

@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import PSETEX from './PSETEX';
+import { parseArgs } from './generic-transformers';
 
 describe('PSETEX', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      PSETEX.transformArguments('key', 1, 'value'),
+      parseArgs(PSETEX, 'key', 1, 'value'),
       ['PSETEX', 'key', '1', 'value']
     );
   });

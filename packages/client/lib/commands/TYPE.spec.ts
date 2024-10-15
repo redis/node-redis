@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import TYPE from './TYPE';
+import { parseArgs } from './generic-transformers';
 
 describe('TYPE', () => {
-  it('transformArguments', () => {
+  it('processCommand', () => {
     assert.deepEqual(
-      TYPE.transformArguments('key'),
+      parseArgs(TYPE, 'key'),
       ['TYPE', 'key']
     );
   });

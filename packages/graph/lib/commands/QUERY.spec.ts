@@ -1,12 +1,13 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import QUERY from './QUERY';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('GRAPH.QUERY', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        QUERY.transformArguments('key', 'query'),
+        parseArgs(QUERY, 'key', 'query'),
         ['GRAPH.QUERY', 'key', 'query']
       );
     });
@@ -14,7 +15,7 @@ describe('GRAPH.QUERY', () => {
     describe('params', () => {
       it('all types', () => {
         assert.deepEqual(
-          QUERY.transformArguments('key', 'query', {
+          parseArgs(QUERY, 'key', 'query', {
             params: {
               null: null,
               string: '"\\',
@@ -30,7 +31,7 @@ describe('GRAPH.QUERY', () => {
   
       it('TypeError', () => {
         assert.throws(() => {
-          QUERY.transformArguments('key', 'query', {
+          parseArgs(QUERY, 'key', 'query', {
             params: {
               a: Symbol()
             }
@@ -41,7 +42,7 @@ describe('GRAPH.QUERY', () => {
   
     it('TIMEOUT', () => {
       assert.deepEqual(
-        QUERY.transformArguments('key', 'query', {
+        parseArgs(QUERY, 'key', 'query', {
           TIMEOUT: 1
         }),
         ['GRAPH.QUERY', 'key', 'query', 'TIMEOUT', '1']
@@ -50,7 +51,7 @@ describe('GRAPH.QUERY', () => {
   
     it('compact', () => {
       assert.deepEqual(
-        QUERY.transformArguments('key', 'query', undefined, true),
+        parseArgs(QUERY, 'key', 'query', undefined, true),
         ['GRAPH.QUERY', 'key', 'query', '--compact']
       );
     });

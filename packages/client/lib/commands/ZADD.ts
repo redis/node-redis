@@ -1,3 +1,4 @@
+import { CommandParser } from '../client/parser';
 import { RedisArgument, Command } from '../RESP/types';
 import { SortedSetMember, transformDoubleArgument, transformDoubleReply } from './generic-transformers';
 
@@ -24,58 +25,57 @@ export interface ZAddOptions {
 }
 
 export default {
-  FIRST_KEY_INDEX: 1,
-  transformArguments(
+  parseCommand(
+    parser: CommandParser,
     key: RedisArgument,
     members: SortedSetMember | Array<SortedSetMember>,
     options?: ZAddOptions
   ) {
-    const args = ['ZADD', key];
+    parser.push('ZADD');
+    parser.pushKey(key);
 
     if (options?.condition) {
-      args.push(options.condition);
+      parser.push(options.condition);
     } else if (options?.NX) {
-      args.push('NX');
+      parser.push('NX');
     } else if (options?.XX) {
-      args.push('XX');
+      parser.push('XX');
     } 
 
     if (options?.comparison) {
-      args.push(options.comparison);
+      parser.push(options.comparison);
     } else if (options?.LT) {
-      args.push('LT');
+      parser.push('LT');
     } else if (options?.GT) {
-      args.push('GT');
+      parser.push('GT');
     }
 
     if (options?.CH) {
-      args.push('CH');
+      parser.push('CH');
     }
 
-    pushMembers(args, members);
-
-    return args;
+    pushMembers(parser, members);
   },
   transformReply: transformDoubleReply
 } as const satisfies Command;
 
 export function pushMembers(
-  args: Array<RedisArgument>,
+  parser: CommandParser,
   members: SortedSetMember | Array<SortedSetMember>) {
   if (Array.isArray(members)) {
     for (const member of members) {
-      pushMember(args, member);
+      pushMember(parser, member);
     }
   } else {
-    pushMember(args, members);
+    pushMember(parser, members);
   }
 }
 
 function pushMember(
-  args: Array<RedisArgument>,
+  parser: CommandParser,
   member: SortedSetMember
 ) {
-  args.push(
+  parser.push(
     transformDoubleArgument(member.score),
     member.value
   );

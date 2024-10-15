@@ -1,8 +1,9 @@
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { Command, ArrayReply, BlobStringReply, Resp2Reply, MapReply, TuplesReply, TypeMapping, RedisArgument } from '@redis/client/dist/lib/RESP/types';
 import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
 import { resp2MapToValue, resp3MapToValue, SampleRawReply, Timestamp, transformSamplesReply } from '.';
-import { TsRangeOptions, pushRangeArguments } from './RANGE';
-import { pushFilterArgument } from './MGET';
+import { TsRangeOptions, parseRangeArguments } from './RANGE';
+import { parseFilterArgument } from './MGET';
 
 export type TsMRangeRawReply2 = ArrayReply<
   TuplesReply<[
@@ -23,26 +24,28 @@ export type TsMRangeRawReply3 = MapReply<
 
 export function createTransformMRangeArguments(command: RedisArgument) {
   return (
+    parser: CommandParser,
     fromTimestamp: Timestamp,
     toTimestamp: Timestamp,
     filter: RedisVariadicArgument,
     options?: TsRangeOptions
   ) => {
-    const args = pushRangeArguments(
-      [command],
+    parser.push(command);
+    parseRangeArguments(
+      parser,
       fromTimestamp,
       toTimestamp,
       options
     );
   
-    return pushFilterArgument(args, filter);
+    parseFilterArgument(parser, filter);
   };
 }
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments: createTransformMRangeArguments('TS.MRANGE'),
+  parseCommand: createTransformMRangeArguments('TS.MRANGE'),
   transformReply: {
     2(reply: TsMRangeRawReply2, _?: any, typeMapping?: TypeMapping) {
       return resp2MapToValue(reply, ([_key, _labels, samples]) => {

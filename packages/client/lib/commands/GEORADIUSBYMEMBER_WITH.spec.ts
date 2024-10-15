@@ -3,6 +3,7 @@ import testUtils, { GLOBAL } from '../test-utils';
 import GEORADIUSBYMEMBER_WITH from './GEORADIUSBYMEMBER_WITH';
 import { CommandArguments } from '../RESP/types';
 import { GEO_REPLY_WITH } from './GEOSEARCH_WITH';
+import { parseArgs } from './generic-transformers';
 
 describe('GEORADIUSBYMEMBER WITH', () => {
   it('transformArguments', () => {
@@ -10,7 +11,7 @@ describe('GEORADIUSBYMEMBER WITH', () => {
     expectedReply.preserve = ['WITHDIST'];
 
     assert.deepEqual(
-      GEORADIUSBYMEMBER_WITH.transformArguments('key', 'member', 3, 'm', [
+      parseArgs(GEORADIUSBYMEMBER_WITH, 'key', 'member', 3, 'm', [
         GEO_REPLY_WITH.DISTANCE
       ]),
       expectedReply

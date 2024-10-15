@@ -3,11 +3,12 @@ import testUtils, { GLOBAL } from '../test-utils';
 import MRANGE_WITHLABELS_GROUPBY from './MRANGE_WITHLABELS_GROUPBY';
 import { TIME_SERIES_REDUCERS } from './MRANGE_GROUPBY';
 import { TIME_SERIES_AGGREGATION_TYPE } from './CREATERULE';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('TS.MRANGE_WITHLABELS_GROUPBY', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      MRANGE_WITHLABELS_GROUPBY.transformArguments('-', '+', 'label=value', {
+      parseArgs(MRANGE_WITHLABELS_GROUPBY, '-', '+', 'label=value', {
         label: 'label',
         REDUCE: TIME_SERIES_REDUCERS.AVG
       }, {

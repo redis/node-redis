@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ZINCRBY from './ZINCRBY';
+import { parseArgs } from './generic-transformers';
 
 describe('ZINCRBY', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      ZINCRBY.transformArguments('key', 1, 'member'),
+      parseArgs(ZINCRBY, 'key', 1, 'member'),
       ['ZINCRBY', 'key', '1', 'member']
     );
   });

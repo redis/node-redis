@@ -1,12 +1,13 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import MREVRANGE_WITHLABELS from './MREVRANGE_WITHLABELS';
+import { parseArgs } from '@redis/client/dist/lib/commands/generic-transformers';
 import { TIME_SERIES_AGGREGATION_TYPE } from './CREATERULE';
 
 describe('TS.MREVRANGE_WITHLABELS', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      MREVRANGE_WITHLABELS.transformArguments('-', '+', 'label=value', {
+      parseArgs(MREVRANGE_WITHLABELS, '-', '+', 'label=value', {
         LATEST: true,
         FILTER_BY_TS: [0],
         FILTER_BY_VALUE: {

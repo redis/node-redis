@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../../test-utils';
 import MERGE from './MERGE';
+import { parseArgs } from '@redis/client/dist/lib/commands/generic-transformers';
 
 describe('CMS.MERGE', () => {
   describe('transformArguments', () => {
     it('without WEIGHTS', () => {
       assert.deepEqual(
-        MERGE.transformArguments('destination', ['source']),
+        parseArgs(MERGE, 'destination', ['source']),
         ['CMS.MERGE', 'destination', '1', 'source']
       );
     });
 
     it('with WEIGHTS', () => {
       assert.deepEqual(
-        MERGE.transformArguments('destination', [{
+        parseArgs(MERGE, 'destination', [{
           name: 'source',
           weight: 1
         }]),

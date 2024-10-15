@@ -1,3 +1,4 @@
+import { CommandParser } from '../client/parser';
 import { RedisArgument, TuplesReply, BlobStringReply, ArrayReply, NullReply, UnwrapReply, Command, TypeMapping } from '../RESP/types';
 import { StreamMessageRawReply, transformStreamMessageNullReply } from './generic-transformers';
 
@@ -12,9 +13,9 @@ export type XAutoClaimRawReply = TuplesReply<[
 ]>;
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: false,
-  transformArguments(
+  parseCommand(
+    parser: CommandParser,
     key: RedisArgument,
     group: RedisArgument,
     consumer: RedisArgument,
@@ -22,20 +23,13 @@ export default {
     start: RedisArgument,
     options?: XAutoClaimOptions
   ) {
-    const args = [
-      'XAUTOCLAIM',
-      key,
-      group,
-      consumer,
-      minIdleTime.toString(),
-      start
-    ];
+    parser.push('XAUTOCLAIM');
+    parser.pushKey(key);
+    parser.push(group, consumer, minIdleTime.toString(), start);
 
     if (options?.COUNT) {
-      args.push('COUNT', options.COUNT.toString());
+      parser.push('COUNT', options.COUNT.toString());
     }
-
-    return args;
   },
   transformReply(reply: UnwrapReply<XAutoClaimRawReply>, preserve?: any, typeMapping?: TypeMapping) {
     return {
