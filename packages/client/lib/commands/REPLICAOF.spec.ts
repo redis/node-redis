@@ -1,11 +1,11 @@
-import { strict as assert } from 'assert';
-import { transformArguments } from './REPLICAOF';
+import { strict as assert } from 'node:assert';
+import REPLICAOF from './REPLICAOF';
 
 describe('REPLICAOF', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('host', 1),
-            ['REPLICAOF', 'host', '1']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      REPLICAOF.transformArguments('host', 1),
+      ['REPLICAOF', 'host', '1']
+    );
+  });
 });

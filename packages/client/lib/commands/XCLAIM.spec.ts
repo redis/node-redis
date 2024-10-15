@@ -1,120 +1,125 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './XCLAIM';
+import XCLAIM from './XCLAIM';
 
 describe('XCLAIM', () => {
-    describe('transformArguments', () => {
-        it('single id (string)', () => {
-            assert.deepEqual(
-                transformArguments('key', 'group', 'consumer', 1, '0-0'),
-                ['XCLAIM', 'key', 'group', 'consumer', '1', '0-0']
-            );
-        });
-
-        it('multiple ids (array)', () => {
-            assert.deepEqual(
-                transformArguments('key', 'group', 'consumer', 1, ['0-0', '1-0']),
-                ['XCLAIM', 'key', 'group', 'consumer', '1', '0-0', '1-0']
-            );
-        });
-
-        it('with IDLE', () => {
-            assert.deepEqual(
-                transformArguments('key', 'group', 'consumer', 1, '0-0', {
-                    IDLE: 1
-                }),
-                ['XCLAIM', 'key', 'group', 'consumer', '1', '0-0', 'IDLE', '1']
-            );
-        });
-
-        it('with TIME (number)', () => {
-            assert.deepEqual(
-                transformArguments('key', 'group', 'consumer', 1, '0-0', {
-                    TIME: 1
-                }),
-                ['XCLAIM', 'key', 'group', 'consumer', '1', '0-0', 'TIME', '1']
-            );
-        });
-
-        it('with TIME (date)', () => {
-            const d = new Date();
-            assert.deepEqual(
-                transformArguments('key', 'group', 'consumer', 1, '0-0', {
-                    TIME: d
-                }),
-                ['XCLAIM', 'key', 'group', 'consumer', '1', '0-0', 'TIME', d.getTime().toString()]
-            );
-        });
-
-        it('with RETRYCOUNT', () => {
-            assert.deepEqual(
-                transformArguments('key', 'group', 'consumer', 1, '0-0', {
-                    RETRYCOUNT: 1
-                }),
-                ['XCLAIM', 'key', 'group', 'consumer', '1', '0-0', 'RETRYCOUNT', '1']
-            );
-        });
-
-        it('with FORCE', () => {
-            assert.deepEqual(
-                transformArguments('key', 'group', 'consumer', 1, '0-0', {
-                    FORCE: true
-                }),
-                ['XCLAIM', 'key', 'group', 'consumer', '1', '0-0', 'FORCE']
-            );
-        });
-
-        it('with IDLE, TIME, RETRYCOUNT, FORCE, JUSTID', () => {
-            assert.deepEqual(
-                transformArguments('key', 'group', 'consumer', 1, '0-0', {
-                    IDLE: 1,
-                    TIME: 1,
-                    RETRYCOUNT: 1,
-                    FORCE: true
-                }),
-                ['XCLAIM', 'key', 'group', 'consumer', '1', '0-0', 'IDLE', '1', 'TIME', '1', 'RETRYCOUNT', '1', 'FORCE']
-            );
-        });
+  describe('transformArguments', () => {
+    it('single id (string)', () => {
+      assert.deepEqual(
+        XCLAIM.transformArguments('key', 'group', 'consumer', 1, '0-0'),
+        ['XCLAIM', 'key', 'group', 'consumer', '1', '0-0']
+      );
     });
 
-    testUtils.testWithClient('client.xClaim', async client => {
-        await client.xGroupCreate('key', 'group', '$', {
-            MKSTREAM: true
-        });
+    it('multiple ids (array)', () => {
+      assert.deepEqual(
+        XCLAIM.transformArguments('key', 'group', 'consumer', 1, ['0-0', '1-0']),
+        ['XCLAIM', 'key', 'group', 'consumer', '1', '0-0', '1-0']
+      );
+    });
 
+    it('with IDLE', () => {
+      assert.deepEqual(
+        XCLAIM.transformArguments('key', 'group', 'consumer', 1, '0-0', {
+          IDLE: 1
+        }),
+        ['XCLAIM', 'key', 'group', 'consumer', '1', '0-0', 'IDLE', '1']
+      );
+    });
+    
+    describe('with TIME', () => {
+      it('number', () => {
         assert.deepEqual(
-            await client.xClaim('key', 'group', 'consumer', 0, '0-0'),
-            []
+          XCLAIM.transformArguments('key', 'group', 'consumer', 1, '0-0', {
+            TIME: 1
+          }),
+          ['XCLAIM', 'key', 'group', 'consumer', '1', '0-0', 'TIME', '1']
         );
-    }, GLOBAL.SERVERS.OPEN);
-
-    testUtils.testWithClient('client.xClaim with a message', async client => {
-        await client.xGroupCreate('key', 'group', '$', { MKSTREAM: true });
-        const id = await client.xAdd('key', '*', { foo: 'bar' });
-        await client.xReadGroup('group', 'consumer', { key: 'key', id: '>' });
-
+      });
+  
+      it('Date', () => {
+        const d = new Date();
         assert.deepEqual(
-            await client.xClaim('key', 'group', 'consumer', 0, id),
-            [{
-                id,
-                message: Object.create(null, { 'foo': {
-                    value: 'bar',
-                    configurable: true,
-                    enumerable: true
-                } })
-            }]
+          XCLAIM.transformArguments('key', 'group', 'consumer', 1, '0-0', {
+            TIME: d
+          }),
+          ['XCLAIM', 'key', 'group', 'consumer', '1', '0-0', 'TIME', d.getTime().toString()]
         );
-    }, GLOBAL.SERVERS.OPEN);
+      });
+    });
 
-    testUtils.testWithClient('client.xClaim with a trimmed message', async client => {
-        await client.xGroupCreate('key', 'group', '$', { MKSTREAM: true });
-        const id = await client.xAdd('key', '*', { foo: 'bar' });
-        await client.xReadGroup('group', 'consumer', { key: 'key', id: '>' });
-        await client.xTrim('key', 'MAXLEN', 0);
+    it('with RETRYCOUNT', () => {
+      assert.deepEqual(
+        XCLAIM.transformArguments('key', 'group', 'consumer', 1, '0-0', {
+          RETRYCOUNT: 1
+        }),
+        ['XCLAIM', 'key', 'group', 'consumer', '1', '0-0', 'RETRYCOUNT', '1']
+      );
+    });
 
-        assert.deepEqual(
-            await client.xClaim('key', 'group', 'consumer', 0, id),
-            testUtils.isVersionGreaterThan([7, 0]) ? []: [null]
-        );
-    }, GLOBAL.SERVERS.OPEN);
+    it('with FORCE', () => {
+      assert.deepEqual(
+        XCLAIM.transformArguments('key', 'group', 'consumer', 1, '0-0', {
+          FORCE: true
+        }),
+        ['XCLAIM', 'key', 'group', 'consumer', '1', '0-0', 'FORCE']
+      );
+    });
+
+    it('with LASTID', () => {
+      assert.deepEqual(
+        XCLAIM.transformArguments('key', 'group', 'consumer', 1, '0-0', {
+          LASTID: '0-0'
+        }),
+        ['XCLAIM', 'key', 'group', 'consumer', '1', '0-0', 'LASTID', '0-0']
+      );
+    });
+
+    it('with IDLE, TIME, RETRYCOUNT, FORCE, LASTID', () => {
+      assert.deepEqual(
+        XCLAIM.transformArguments('key', 'group', 'consumer', 1, '0-0', {
+          IDLE: 1,
+          TIME: 1,
+          RETRYCOUNT: 1,
+          FORCE: true,
+          LASTID: '0-0'
+        }),
+        ['XCLAIM', 'key', 'group', 'consumer', '1', '0-0', 'IDLE', '1', 'TIME', '1', 'RETRYCOUNT', '1', 'FORCE', 'LASTID', '0-0']
+      );
+    });
+  });
+
+  testUtils.testAll('xClaim', async client => {
+    const message = Object.create(null, {
+      field: {
+        value: 'value',
+        enumerable: true
+      }
+    });
+
+    const [, , , , , reply] = await Promise.all([
+      client.xGroupCreate('key', 'group', '$', {
+        MKSTREAM: true
+      }),
+      client.xAdd('key', '1-0', message),
+      client.xAdd('key', '2-0', message),
+      client.xReadGroup('group', 'consumer', {
+        key: 'key',
+        id: '>'
+      }),
+      client.xTrim('key', 'MAXLEN', 1),
+      client.xClaim('key', 'group', 'consumer', 0, ['1-0', '2-0'])
+    ]);
+
+    assert.deepEqual(reply, [
+      ...(testUtils.isVersionGreaterThan([7, 0]) ? [] : [null]),
+      {
+        id: '2-0',
+        message
+      }
+    ]);
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

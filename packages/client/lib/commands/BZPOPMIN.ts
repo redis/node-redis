@@ -1,17 +1,12 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { pushVerdictArguments } from './generic-transformers';
+import { Command } from '../RESP/types';
+import BZPOPMAX, { BZPopArguments, transformBZPopArguments } from './BZPOPMAX';
 
-export const FIRST_KEY_INDEX = 1;
+export default {
+  FIRST_KEY_INDEX: BZPOPMAX.FIRST_KEY_INDEX,
+  IS_READ_ONLY: BZPOPMAX.IS_READ_ONLY,
+  transformArguments(...args: BZPopArguments) {
+    return transformBZPopArguments('BZPOPMIN', ...args);
+  },
+  transformReply: BZPOPMAX.transformReply
+} as const satisfies Command;
 
-export function transformArguments(
-    key: RedisCommandArgument | Array<RedisCommandArgument>,
-    timeout: number
-): RedisCommandArguments {
-    const args = pushVerdictArguments(['BZPOPMIN'], key);
-
-    args.push(timeout.toString());
-
-    return args;
-}
-
-export { transformReply } from './BZPOPMAX';

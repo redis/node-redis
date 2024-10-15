@@ -1,7 +1,11 @@
-export const FIRST_KEY_INDEX = 1;
+import { RedisArgument, Command } from '@redis/client/dist/lib/RESP/types';
+import NUMINCRBY from './NUMINCRBY';
 
-export function transformArguments(key: string, path: string, by: number): Array<string> {
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: false,
+  transformArguments(key: RedisArgument, path: RedisArgument, by: number) {
     return ['JSON.NUMMULTBY', key, path, by.toString()];
-}
-
-export { transformNumbersReply as transformReply } from '.';
+  },
+  transformReply: NUMINCRBY.transformReply
+} as const satisfies Command;

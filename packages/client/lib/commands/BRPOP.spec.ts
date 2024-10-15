@@ -1,79 +1,46 @@
-import { strict as assert } from 'assert';
-import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments, transformReply } from './BRPOP';
-import { commandOptions } from '../../index';
+import { strict as assert } from 'node:assert';
+import testUtils, { GLOBAL, BLOCKING_MIN_VALUE } from '../test-utils';
+import BRPOP from './BRPOP';
 
 describe('BRPOP', () => {
-    describe('transformArguments', () => {
-        it('single', () => {
-            assert.deepEqual(
-                transformArguments('key', 0),
-                ['BRPOP', 'key', '0']
-            );
-        });
-
-        it('multiple', () => {
-            assert.deepEqual(
-                transformArguments(['key1', 'key2'], 0),
-                ['BRPOP', 'key1', 'key2', '0']
-            );
-        });
+  describe('transformArguments', () => {
+    it('single', () => {
+      assert.deepEqual(
+        BRPOP.transformArguments('key', 0),
+        ['BRPOP', 'key', '0']
+      );
     });
 
-    describe('transformReply', () => {
-        it('null', () => {
-            assert.equal(
-                transformReply(null),
-                null
-            );
-        });
-
-        it('member', () => {
-            assert.deepEqual(
-                transformReply(['key', 'element']),
-                {
-                    key: 'key',
-                    element: 'element'
-                }
-            );
-        });
+    it('multiple', () => {
+      assert.deepEqual(
+        BRPOP.transformArguments(['1', '2'], 0),
+        ['BRPOP', '1', '2', '0']
+      );
     });
+  });
 
-    testUtils.testWithClient('client.brPop', async client => {
-        const [ brPopReply ] = await Promise.all([
-            client.brPop(
-                commandOptions({ isolated: true }),
-                'key',
-                1
-            ),
-            client.lPush('key', 'element'),
-        ]);
+  testUtils.testAll('brPop - null', async client => {
+    assert.equal(
+      await client.brPop('key', BLOCKING_MIN_VALUE),
+      null
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 
-        assert.deepEqual(
-            brPopReply,
-            {
-                key: 'key',
-                element: 'element'
-            }
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testAll('brPopblPop - with member', async client => {
+    const [, reply] = await Promise.all([
+      client.lPush('key', 'element'),
+      client.brPop('key', 1)
+    ]);
 
-    testUtils.testWithCluster('cluster.brPop', async cluster => {
-        const [ brPopReply ] = await Promise.all([
-            cluster.brPop(
-                commandOptions({ isolated: true }),
-                'key',
-                1
-            ),
-            cluster.lPush('key', 'element'),
-        ]);
-
-        assert.deepEqual(
-            brPopReply,
-            {
-                key: 'key',
-                element: 'element'
-            }
-        );
-    }, GLOBAL.CLUSTERS.OPEN);
+    assert.deepEqual(reply, {
+      key: 'key',
+      element: 'element'
+    });
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

@@ -1,8 +1,11 @@
-import { RedisCommandArguments } from '@redis/client/dist/lib/commands';
-import { pushVerdictArguments } from '@redis/client/dist/lib/commands/generic-transformers';
+import { RedisArgument, NumberReply, Command } from '@redis/client/dist/lib/RESP/types';
+import { pushVariadicArguments, RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
 
-export function transformArguments(dictionary: string, term: string | Array<string>): RedisCommandArguments {
-    return pushVerdictArguments(['FT.DICTADD', dictionary], term);
-}
-
-export declare function transformReply(): number;
+export default {
+  FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
+  transformArguments(dictionary: RedisArgument, term: RedisVariadicArgument) {
+    return pushVariadicArguments(['FT.DICTADD', dictionary], term);
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

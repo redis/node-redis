@@ -1,24 +1,27 @@
-import RedisClient from './lib/client';
-import RedisCluster from './lib/cluster';
+export { RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping/*, CommandPolicies*/, RedisArgument } from './lib/RESP/types';
+export { RESP_TYPES } from './lib/RESP/decoder';
+export { VerbatimString } from './lib/RESP/verbatim-string';
+export { defineScript } from './lib/lua-script';
+// export * from './lib/errors';
 
-export { RedisClientType, RedisClientOptions } from './lib/client';
-
-export { RedisModules, RedisFunctions, RedisScripts } from './lib/commands';
-
+import RedisClient, { RedisClientOptions, RedisClientType } from './lib/client';
+export { RedisClientOptions, RedisClientType };
 export const createClient = RedisClient.create;
 
-export const commandOptions = RedisClient.commandOptions;
+import { RedisClientPool, RedisPoolOptions, RedisClientPoolType } from './lib/client/pool';
+export { RedisClientPoolType, RedisPoolOptions };
+export const createClientPool = RedisClientPool.create;
 
-export { RedisClusterType, RedisClusterOptions } from './lib/cluster';
-
+import RedisCluster, { RedisClusterOptions, RedisClusterType } from './lib/cluster';
+export { RedisClusterType, RedisClusterOptions };
 export const createCluster = RedisCluster.create;
 
-export { defineScript } from './lib/lua-script';
+import RedisSentinel from './lib/sentinel';
+export { RedisSentinelOptions, RedisSentinelType } from './lib/sentinel/types';
+export const createSentinel = RedisSentinel.create;
 
-export * from './lib/errors';
+// export { GeoReplyWith } from './lib/commands/generic-transformers';
 
-export { GeoReplyWith } from './lib/commands/generic-transformers';
+// export { SetOptions } from './lib/commands/SET';
 
-export { SetOptions } from './lib/commands/SET';
-
-export { RedisFlushModes } from './lib/commands/FLUSHALL';
+// export { RedisFlushModes } from './lib/commands/FLUSHALL';

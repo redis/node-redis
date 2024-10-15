@@ -1,11 +1,14 @@
-import { RedisCommandArguments } from '@redis/client/dist/lib/commands';
-import { pushVerdictArguments } from '@redis/client/dist/lib/commands/generic-transformers';
-import { Filter } from '.';
+import { ArrayReply, BlobStringReply, SetReply, Command } from '@redis/client/dist/lib/RESP/types';
+import { RedisVariadicArgument, pushVariadicArguments } from '@redis/client/dist/lib/commands/generic-transformers';
 
-export const IS_READ_ONLY = true;
-
-export function transformArguments(filter: Filter): RedisCommandArguments {
-    return pushVerdictArguments(['TS.QUERYINDEX'], filter);
-}
-
-export declare function transformReply(): Array<string>;
+export default {
+  FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
+  transformArguments(filter: RedisVariadicArgument) {
+    return pushVariadicArguments(['TS.QUERYINDEX'], filter);
+  },
+  transformReply: {
+    2: undefined as unknown as () => ArrayReply<BlobStringReply>,
+    3: undefined as unknown as () => SetReply<BlobStringReply>
+  }
+} as const satisfies Command;

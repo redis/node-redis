@@ -1,18 +1,16 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { RedisArgument, SimpleStringReply, BlobStringReply, Command } from '../RESP/types';
 
-export const IS_READ_ONLY = true;
-
-export function transformArguments(
-    username: RedisCommandArgument,
-    command: Array<RedisCommandArgument>
-): RedisCommandArguments {
+export default {
+  FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
+  transformArguments(username: RedisArgument, command: Array<RedisArgument>) {
     return [
-        'ACL',
-        'DRYRUN',
-        username,
-        ...command
+      'ACL',
+      'DRYRUN',
+      username,
+      ...command
     ];
-}
-
-export declare function transformReply(): RedisCommandArgument;
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'> | BlobStringReply
+} as const satisfies Command;
 

@@ -1,29 +1,32 @@
-export const FIRST_KEY_INDEX = 1;
+import { RedisArgument, ArrayReply, SimpleStringReply, NullReply, Command } from '@redis/client/dist/lib/RESP/types';
 
-interface IncrByItem {
-    item: string;
-    incrementBy: number;
+export interface TopKIncrByItem {
+  item: string;
+  incrementBy: number;
 }
 
-export function transformArguments(
-    key: string,
-    items: IncrByItem | Array<IncrByItem>
-): Array<string> {
+function pushIncrByItem(args: Array<RedisArgument>, { item, incrementBy }: TopKIncrByItem) {
+  args.push(item, incrementBy.toString());
+}
+
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: false,
+  transformArguments(
+    key: RedisArgument,
+    items: TopKIncrByItem | Array<TopKIncrByItem>
+  ) {
     const args = ['TOPK.INCRBY', key];
 
     if (Array.isArray(items)) {
-        for (const item of items) {
-            pushIncrByItem(args, item);
-        }
+      for (const item of items) {
+        pushIncrByItem(args, item);
+      }
     } else {
-        pushIncrByItem(args, items);
+      pushIncrByItem(args, items);
     }
 
     return args;
-}
-
-function pushIncrByItem(args: Array<string>, { item, incrementBy }: IncrByItem): void {
-    args.push(item, incrementBy.toString());
-}
-
-export declare function transformReply(): Array<string | null>;
+  },
+  transformReply: undefined as unknown as () => ArrayReply<SimpleStringReply | NullReply>
+} as const satisfies Command;

@@ -1,20 +1,17 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { transformLMPopArguments, LMPopOptions, ListSide } from './generic-transformers';
+import { Command } from '../RESP/types';
+import LMPOP, { LMPopArguments, transformLMPopArguments } from './LMPOP';
 
-export const FIRST_KEY_INDEX = 3;
-
-export function transformArguments(
+export default {
+  FIRST_KEY_INDEX: 3,
+  IS_READ_ONLY: false,
+  transformArguments(
     timeout: number,
-    keys: RedisCommandArgument | Array<RedisCommandArgument>,
-    side: ListSide,
-    options?: LMPopOptions
-): RedisCommandArguments {
+    ...args: LMPopArguments
+  ) {
     return transformLMPopArguments(
-        ['BLMPOP', timeout.toString()],
-        keys,
-        side,
-        options
+      ['BLMPOP', timeout.toString()],
+      ...args
     );
-}
-
-export { transformReply } from './LMPOP';
+  },
+  transformReply: LMPOP.transformReply
+} as const satisfies Command;

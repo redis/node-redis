@@ -1,44 +1,34 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { ScanOptions, pushScanArguments } from './generic-transformers';
+import { RedisArgument, BlobStringReply, Command } from '../RESP/types';
+import { ScanCommonOptions, pushScanArguments } from './SCAN';
 
-export const FIRST_KEY_INDEX = 1;
-
-export const IS_READ_ONLY = true;
-
-export function transformArguments(
-    key: RedisCommandArgument,
-    cursor: number,
-    options?: ScanOptions
-): RedisCommandArguments {
-    return pushScanArguments([
-        'HSCAN',
-        key
-    ], cursor, options);
+export interface HScanEntry {
+  field: BlobStringReply;
+  value: BlobStringReply;
 }
 
-export type HScanRawReply = [RedisCommandArgument, Array<RedisCommandArgument>];
-
-export interface HScanTuple {
-    field: RedisCommandArgument;
-    value: RedisCommandArgument;
-}
-
-interface HScanReply {
-    cursor: number;
-    tuples: Array<HScanTuple>;
-}
-
-export function transformReply([cursor, rawTuples]: HScanRawReply): HScanReply {
-    const parsedTuples = [];
-    for (let i = 0; i < rawTuples.length; i += 2) {
-        parsedTuples.push({
-            field: rawTuples[i],
-            value: rawTuples[i + 1]
-        });
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: true,
+  transformArguments(
+    key: RedisArgument,
+    cursor: RedisArgument,
+    options?: ScanCommonOptions
+  ) {
+    return pushScanArguments(['HSCAN', key], cursor, options);
+  },
+  transformReply([cursor, rawEntries]: [BlobStringReply, Array<BlobStringReply>]) {
+    const entries = [];
+    let i = 0;
+    while (i < rawEntries.length) {
+      entries.push({
+        field: rawEntries[i++],
+        value: rawEntries[i++]
+      } satisfies HScanEntry);
     }
 
     return {
-        cursor: Number(cursor),
-        tuples: parsedTuples
+      cursor,
+      entries
     };
-}
+  }
+} as const satisfies Command;

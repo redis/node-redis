@@ -1,13 +1,20 @@
-export const FIRST_KEY_INDEX = 2;
+import { RedisArgument, NumberReply, Command } from '@redis/client/dist/lib/RESP/types';
 
-export function transformArguments(key: string, path?: string): Array<string> {
+export interface JsonDebugMemoryOptions {
+  path?: RedisArgument;
+}
+
+export default {
+  FIRST_KEY_INDEX: 2,
+  IS_READ_ONLY: false,
+  transformArguments(key: RedisArgument, options?: JsonDebugMemoryOptions) {
     const args = ['JSON.DEBUG', 'MEMORY', key];
 
-    if (path) {
-        args.push(path);
+    if (options?.path !== undefined) {
+      args.push(options.path);
     }
 
     return args;
-}
-
-export declare function transformReply(): number;
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

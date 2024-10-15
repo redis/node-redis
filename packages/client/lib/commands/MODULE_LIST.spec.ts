@@ -1,11 +1,11 @@
-import { strict as assert } from 'assert';
-import { transformArguments } from './MODULE_LIST';
+import { strict as assert } from 'node:assert';
+import MODULE_LIST from './MODULE_LIST';
 
 describe('MODULE LIST', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments(),
-            ['MODULE', 'LIST']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      MODULE_LIST.transformArguments(),
+      ['MODULE', 'LIST']
+    );
+  });
 });

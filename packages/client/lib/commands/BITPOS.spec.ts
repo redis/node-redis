@@ -1,49 +1,45 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './BITPOS';
+import BITPOS from './BITPOS';
 
 describe('BITPOS', () => {
-    describe('transformArguments', () => {
-        it('simple', () => {
-            assert.deepEqual(
-                transformArguments('key', 1),
-                ['BITPOS', 'key', '1']
-            );
-        });
-
-        it('with start', () => {
-            assert.deepEqual(
-                transformArguments('key', 1, 1),
-                ['BITPOS', 'key', '1', '1']
-            );
-        });
-
-        it('with start and end', () => {
-            assert.deepEqual(
-                transformArguments('key', 1, 1, -1),
-                ['BITPOS', 'key', '1', '1', '-1']
-            );
-        });
-
-        it('with start, end and mode', () => {
-            assert.deepEqual(
-                transformArguments('key', 1, 1, -1, 'BIT'),
-                ['BITPOS', 'key', '1', '1', '-1', 'BIT']
-            );
-        });
+  describe('transformArguments', () => {
+    it('simple', () => {
+      assert.deepEqual(
+        BITPOS.transformArguments('key', 1),
+        ['BITPOS', 'key', '1']
+      );
     });
 
-    testUtils.testWithClient('client.bitPos', async client => {
-        assert.equal(
-            await client.bitPos('key', 1, 1),
-            -1
-        );
-    }, GLOBAL.SERVERS.OPEN);
+    it('with start', () => {
+      assert.deepEqual(
+        BITPOS.transformArguments('key', 1, 1),
+        ['BITPOS', 'key', '1', '1']
+      );
+    });
 
-    testUtils.testWithCluster('cluster.bitPos', async cluster => {
-        assert.equal(
-            await cluster.bitPos('key', 1, 1),
-            -1
-        );
-    }, GLOBAL.CLUSTERS.OPEN);
+    it('with start and end', () => {
+      assert.deepEqual(
+        BITPOS.transformArguments('key', 1, 1, -1),
+        ['BITPOS', 'key', '1', '1', '-1']
+      );
+    });
+
+    it('with start, end and mode', () => {
+      assert.deepEqual(
+        BITPOS.transformArguments('key', 1, 1, -1, 'BIT'),
+        ['BITPOS', 'key', '1', '1', '-1', 'BIT']
+      );
+    });
+  });
+
+  testUtils.testAll('bitPos', async client => {
+    assert.equal(
+      await client.bitPos('key', 1, 1),
+      -1
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

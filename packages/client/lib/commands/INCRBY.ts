@@ -1,12 +1,9 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { RedisArgument, NumberReply, Command } from '../RESP/types';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(
-    key: RedisCommandArgument,
-    increment: number
-): RedisCommandArguments {
+export default {
+  FIRST_KEY_INDEX: 1,
+  transformArguments(key: RedisArgument, increment: number) {
     return ['INCRBY', key, increment.toString()];
-}
-
-export declare function transformReply(): number;
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

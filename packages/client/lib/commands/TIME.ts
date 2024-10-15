@@ -1,15 +1,13 @@
-export function transformArguments(): Array<string> {
+import { BlobStringReply, Command } from '../RESP/types';
+
+export default {
+  FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
+  transformArguments() {
     return ['TIME'];
-}
-
-interface TimeReply extends Date {
-    microseconds: number;
-}
-
-export function transformReply(reply: [string, string]): TimeReply {
-    const seconds = Number(reply[0]),
-        microseconds = Number(reply[1]),
-        d: Partial<TimeReply> = new Date(seconds * 1000 + microseconds / 1000);
-    d.microseconds = microseconds;
-    return d as TimeReply;
-}
+  },
+  transformReply: undefined as unknown as () => [
+    unixTimestamp: BlobStringReply<`${number}`>,
+    microseconds: BlobStringReply<`${number}`>
+  ]
+} as const satisfies Command;

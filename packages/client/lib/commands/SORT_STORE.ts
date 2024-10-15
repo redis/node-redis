@@ -1,17 +1,17 @@
-import { RedisCommandArguments } from '.';
-import { SortOptions } from './generic-transformers';
-import { transformArguments as transformSortArguments } from './SORT';
+import { RedisArgument, NumberReply, Command } from '../RESP/types';
+import SORT, { SortOptions } from './SORT';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(
-    source: string,
-    destination: string,
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: false,
+  transformArguments(
+    source: RedisArgument,
+    destination: RedisArgument,
     options?: SortOptions
-): RedisCommandArguments {
-    const args = transformSortArguments(source, options);
+  ) {
+    const args = SORT.transformArguments(source, options);
     args.push('STORE', destination);
     return args;
-}
-
-export declare function transformReply(): number;
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

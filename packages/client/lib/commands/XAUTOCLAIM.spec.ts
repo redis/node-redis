@@ -1,98 +1,68 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './XAUTOCLAIM';
+import XAUTOCLAIM from './XAUTOCLAIM';
 
 describe('XAUTOCLAIM', () => {
-    testUtils.isVersionGreaterThanHook([6, 2]);
+  testUtils.isVersionGreaterThanHook([6, 2]);
 
-    describe('transformArguments', () => {
-        it('simple', () => {
-            assert.deepEqual(
-                transformArguments('key', 'group', 'consumer', 1, '0-0'),
-                ['XAUTOCLAIM', 'key', 'group', 'consumer', '1', '0-0']
-            );
-        });
-
-        it('with COUNT', () => {
-            assert.deepEqual(
-                transformArguments('key', 'group', 'consumer', 1, '0-0', {
-                    COUNT: 1
-                }),
-                ['XAUTOCLAIM', 'key', 'group', 'consumer', '1', '0-0', 'COUNT', '1']
-            );
-        });
+  describe('transformArguments', () => {
+    it('simple', () => {
+      assert.deepEqual(
+        XAUTOCLAIM.transformArguments('key', 'group', 'consumer', 1, '0-0'),
+        ['XAUTOCLAIM', 'key', 'group', 'consumer', '1', '0-0']
+      );
     });
 
-    testUtils.testWithClient('client.xAutoClaim without messages', async client => {
-        const [,, reply] = await Promise.all([
-            client.xGroupCreate('key', 'group', '$', { MKSTREAM: true }),
-            client.xGroupCreateConsumer('key', 'group', 'consumer'),
-            client.xAutoClaim('key', 'group', 'consumer', 1, '0-0')
-        ]);
+    it('with COUNT', () => {
+      assert.deepEqual(
+        XAUTOCLAIM.transformArguments('key', 'group', 'consumer', 1, '0-0', {
+          COUNT: 1
+        }),
+        ['XAUTOCLAIM', 'key', 'group', 'consumer', '1', '0-0', 'COUNT', '1']
+      );
+    });
+  });
 
-        assert.deepEqual(reply, {
-            nextId: '0-0',
-            messages: []
-        });
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testAll('xAutoClaim', async client => {
+    const message = Object.create(null, {
+      field: {
+        value: 'value',
+        enumerable: true
+      }
+    });
 
-    testUtils.testWithClient('client.xAutoClaim with messages', async client => {
-        const [,, id,, reply] = await Promise.all([
-            client.xGroupCreate('key', 'group', '$', { MKSTREAM: true }),
-            client.xGroupCreateConsumer('key', 'group', 'consumer'),
-            client.xAdd('key', '*', { foo: 'bar' }),
-            client.xReadGroup('group', 'consumer', { key: 'key', id: '>' }),
-            client.xAutoClaim('key', 'group', 'consumer', 0, '0-0')
-        ]);
+    const [, id1, id2, , , reply] = await Promise.all([
+      client.xGroupCreate('key', 'group', '$', {
+        MKSTREAM: true
+      }),
+      client.xAdd('key', '*', message),
+      client.xAdd('key', '*', message),
+      client.xReadGroup('group', 'consumer', {
+        key: 'key',
+        id: '>'
+      }),
+      client.xTrim('key', 'MAXLEN', 1),
+      client.xAutoClaim('key', 'group', 'consumer', 0, '0-0')
+    ]);
 
-        assert.deepEqual(reply, {
-            nextId: '0-0',
-            messages: [{
-                id,
-                message: Object.create(null, {
-                    foo: {
-                        value: 'bar',
-                        configurable: true,
-                        enumerable: true
-                    }
-                })
-            }]
-        });
-    }, GLOBAL.SERVERS.OPEN);
-
-    testUtils.testWithClient('client.xAutoClaim with trimmed messages', async client => {
-        const [,,,,, id,, reply] = await Promise.all([
-            client.xGroupCreate('key', 'group', '$', { MKSTREAM: true }),
-            client.xGroupCreateConsumer('key', 'group', 'consumer'),
-            client.xAdd('key', '*', { foo: 'bar' }),
-            client.xReadGroup('group', 'consumer', { key: 'key', id: '>' }),
-            client.xTrim('key', 'MAXLEN', 0),
-            client.xAdd('key', '*', { bar: 'baz' }),
-            client.xReadGroup('group', 'consumer', { key: 'key', id: '>' }),
-            client.xAutoClaim('key', 'group', 'consumer', 0, '0-0')
-        ]);
-
-        assert.deepEqual(reply, {
-            nextId: '0-0',
-            messages: testUtils.isVersionGreaterThan([7, 0]) ? [{
-                id,
-                message: Object.create(null, {
-                    bar: {
-                        value: 'baz',
-                        configurable: true,
-                        enumerable: true
-                    }
-                })
-            }] : [null, {
-                id,
-                message: Object.create(null, {
-                    bar: {
-                        value: 'baz',
-                        configurable: true,
-                        enumerable: true
-                    }
-                })
-            }]
-        });
-    }, GLOBAL.SERVERS.OPEN);
+    assert.deepEqual(reply, {
+      nextId: '0-0',
+      ...(testUtils.isVersionGreaterThan([7, 0]) ? {
+        messages: [{
+          id: id2,
+          message
+        }],
+        deletedMessages: [id1]
+      } : {
+        messages: [null, {
+          id: id2,
+          message
+        }],
+        deletedMessages: undefined
+      })
+    });
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

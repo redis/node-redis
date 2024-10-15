@@ -1,58 +1,54 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './LPOS';
+import LPOS from './LPOS';
 
 describe('LPOS', () => {
-    testUtils.isVersionGreaterThanHook([6, 0, 6]);
+  testUtils.isVersionGreaterThanHook([6, 0, 6]);
 
-    describe('transformArguments', () => {
-        it('simple', () => {
-            assert.deepEqual(
-                transformArguments('key', 'element'),
-                ['LPOS', 'key', 'element']
-            );
-        });
-
-        it('with RANK', () => {
-            assert.deepEqual(
-                transformArguments('key', 'element', {
-                    RANK: 0
-                }),
-                ['LPOS', 'key', 'element', 'RANK', '0']
-            );
-        });
-
-        it('with MAXLEN', () => {
-            assert.deepEqual(
-                transformArguments('key', 'element', {
-                    MAXLEN: 10
-                }),
-                ['LPOS', 'key', 'element', 'MAXLEN', '10']
-            );
-        });
-
-        it('with RANK, MAXLEN', () => {
-            assert.deepEqual(
-                transformArguments('key', 'element', {
-                    RANK: 0,
-                    MAXLEN: 10
-                }),
-                ['LPOS', 'key', 'element', 'RANK', '0', 'MAXLEN', '10']
-            );
-        });
+  describe('transformArguments', () => {
+    it('simple', () => {
+      assert.deepEqual(
+        LPOS.transformArguments('key', 'element'),
+        ['LPOS', 'key', 'element']
+      );
     });
 
-    testUtils.testWithClient('client.lPos', async client => {
-        assert.equal(
-            await client.lPos('key', 'element'),
-            null
-        );
-    }, GLOBAL.SERVERS.OPEN);
+    it('with RANK', () => {
+      assert.deepEqual(
+        LPOS.transformArguments('key', 'element', {
+          RANK: 0
+        }),
+        ['LPOS', 'key', 'element', 'RANK', '0']
+      );
+    });
 
-    testUtils.testWithCluster('cluster.lPos', async cluster => {
-        assert.equal(
-            await cluster.lPos('key', 'element'),
-            null
-        );
-    }, GLOBAL.CLUSTERS.OPEN);
+    it('with MAXLEN', () => {
+      assert.deepEqual(
+        LPOS.transformArguments('key', 'element', {
+          MAXLEN: 10
+        }),
+        ['LPOS', 'key', 'element', 'MAXLEN', '10']
+      );
+    });
+
+    it('with RANK, MAXLEN', () => {
+      assert.deepEqual(
+        LPOS.transformArguments('key', 'element', {
+          RANK: 0,
+          MAXLEN: 10
+        }),
+        ['LPOS', 'key', 'element', 'RANK', '0', 'MAXLEN', '10']
+      );
+    });
+  });
+
+  testUtils.testAll('lPos', async client => {
+    assert.equal(
+      await client.lPos('key', 'element'),
+      null
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

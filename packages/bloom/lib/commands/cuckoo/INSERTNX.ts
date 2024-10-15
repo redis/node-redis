@@ -1,18 +1,9 @@
-import { RedisCommandArguments } from '@redis/client/dist/lib/commands';
-import { InsertOptions, pushInsertOptions } from ".";
+import { Command } from '@redis/client/dist/lib/RESP/types';
+import INSERT, { transofrmCfInsertArguments } from './INSERT';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(
-    key: string,
-    items: string | Array<string>,
-    options?: InsertOptions
-): RedisCommandArguments {
-    return pushInsertOptions(
-        ['CF.INSERTNX', key],
-        items,
-        options
-    );
-}
-
-export { transformBooleanArrayReply as transformReply } from '@redis/client/dist/lib/commands/generic-transformers';
+export default {
+  FIRST_KEY_INDEX: INSERT.FIRST_KEY_INDEX,
+  IS_READ_ONLY: INSERT.IS_READ_ONLY,
+  transformArguments: transofrmCfInsertArguments.bind(undefined, 'CF.INSERTNX'),
+  transformReply: INSERT.transformReply
+} as const satisfies Command;

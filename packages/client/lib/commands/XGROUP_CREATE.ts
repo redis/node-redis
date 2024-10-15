@@ -1,24 +1,34 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
 
-export const FIRST_KEY_INDEX = 2;
-
-interface XGroupCreateOptions {
-    MKSTREAM?: true;
+export interface XGroupCreateOptions {
+  MKSTREAM?: boolean;
+  /**
+   * added in 7.0
+   */
+  ENTRIESREAD?: number;
 }
 
-export function transformArguments(
-    key: RedisCommandArgument,
-    group: RedisCommandArgument,
-    id: RedisCommandArgument,
+export default {
+  FIRST_KEY_INDEX: 2,
+  IS_READ_ONLY: false,
+  transformArguments(
+    key: RedisArgument,
+    group: RedisArgument,
+    id: RedisArgument,
     options?: XGroupCreateOptions
-): RedisCommandArguments {
+  ) {
     const args = ['XGROUP', 'CREATE', key, group, id];
 
     if (options?.MKSTREAM) {
-        args.push('MKSTREAM');
+      args.push('MKSTREAM');
+    }
+
+    if (options?.ENTRIESREAD) {
+      args.push('ENTRIESREAD', options.ENTRIESREAD.toString());
     }
 
     return args;
-}
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;
 
-export declare function transformReply(): RedisCommandArgument;

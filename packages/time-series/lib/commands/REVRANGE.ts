@@ -1,24 +1,9 @@
-import { RedisCommandArguments } from '@redis/client/dist/lib/commands';
-import { RangeOptions, Timestamp, pushRangeArguments, SampleRawReply, SampleReply, transformRangeReply } from '.';
+import { Command } from '@redis/client/dist/lib/RESP/types';
+import RANGE, { transformRangeArguments } from './RANGE';
 
-export const FIRST_KEY_INDEX = 1;
-
-export const IS_READ_ONLY = true;
-
-export function transformArguments(
-    key: string,
-    fromTimestamp: Timestamp,
-    toTimestamp: Timestamp,
-    options?: RangeOptions
-): RedisCommandArguments {
-    return pushRangeArguments(
-        ['TS.REVRANGE', key],
-        fromTimestamp,
-        toTimestamp,
-        options
-    );
-}
-
-export function transformReply(reply: Array<SampleRawReply>): Array<SampleReply> {
-    return transformRangeReply(reply);
-}
+export default {
+  FIRST_KEY_INDEX: RANGE.FIRST_KEY_INDEX,
+  IS_READ_ONLY: RANGE.IS_READ_ONLY,
+  transformArguments: transformRangeArguments.bind(undefined, 'TS.REVRANGE'),
+  transformReply: RANGE.transformReply
+} as const satisfies Command;

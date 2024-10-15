@@ -1,13 +1,15 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { RedisArgument, MapReply, BlobStringReply, Command } from '../RESP/types';
+import { transformTuplesReply } from './generic-transformers';
 
-export const FIRST_KEY_INDEX = 1;
-
-export const IS_READ_ONLY = true;
-
-export const TRANSFORM_LEGACY_REPLY = true;
-
-export function transformArguments(key: RedisCommandArgument): RedisCommandArguments {
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: true,
+  transformArguments(key: RedisArgument) {
     return ['HGETALL', key];
-}
-
-export { transformTuplesReply as transformReply } from './generic-transformers';
+  },
+  TRANSFORM_LEGACY_REPLY: true,
+  transformReply: {
+    2: transformTuplesReply,
+    3: undefined as unknown as () => MapReply<BlobStringReply, BlobStringReply>
+  }
+} as const satisfies Command;

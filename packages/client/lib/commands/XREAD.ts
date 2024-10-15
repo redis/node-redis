@@ -1,46 +1,58 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { Command, RedisArgument, ReplyUnion } from '../RESP/types';
+import { transformStreamsMessagesReplyResp2 } from './generic-transformers';
 
-export const FIRST_KEY_INDEX = (streams: Array<XReadStream> | XReadStream): RedisCommandArgument => {
+export interface XReadStream {
+  key: RedisArgument;
+  id: RedisArgument;
+}
+
+export type XReadStreams = Array<XReadStream> | XReadStream;
+
+export function pushXReadStreams(args: Array<RedisArgument>, streams: XReadStreams) {
+  args.push('STREAMS');
+
+  if (Array.isArray(streams)) {
+    const keysStart = args.length,
+      idsStart = keysStart + streams.length;
+    for (let i = 0; i < streams.length; i++) {
+      const stream = streams[i];
+      args[keysStart + i] = stream.key;
+      args[idsStart + i] = stream.id;
+    }
+  } else {
+    args.push(streams.key, streams.id);
+  }
+}
+
+export interface XReadOptions {
+  COUNT?: number;
+  BLOCK?: number;
+}
+
+export default {
+  FIRST_KEY_INDEX(streams: XReadStreams) {
     return Array.isArray(streams) ? streams[0].key : streams.key;
-};
-
-export const IS_READ_ONLY = true;
-
-interface XReadStream {
-    key: RedisCommandArgument;
-    id: RedisCommandArgument;
-}
-
-interface XReadOptions {
-    COUNT?: number;
-    BLOCK?: number;
-}
-
-export function transformArguments(
-    streams: Array<XReadStream> | XReadStream,
-    options?: XReadOptions
-): RedisCommandArguments {
-    const args: RedisCommandArguments = ['XREAD'];
+  },
+  IS_READ_ONLY: true,
+  transformArguments(streams: XReadStreams, options?: XReadOptions) {
+    const args: Array<RedisArgument> = ['XREAD'];
 
     if (options?.COUNT) {
-        args.push('COUNT', options.COUNT.toString());
+      args.push('COUNT', options.COUNT.toString());
     }
 
-    if (typeof options?.BLOCK === 'number') {
-        args.push('BLOCK', options.BLOCK.toString());
+    if (options?.BLOCK !== undefined) {
+      args.push('BLOCK', options.BLOCK.toString());
     }
 
-    args.push('STREAMS');
-
-    const streamsArray = Array.isArray(streams) ? streams : [streams],
-        argsLength = args.length;
-    for (let i = 0; i < streamsArray.length; i++) {
-        const stream = streamsArray[i];
-        args[argsLength + i] = stream.key;
-        args[argsLength + streamsArray.length + i] = stream.id;
-    }
+    pushXReadStreams(args, streams);
 
     return args;
-}
+  },
+  transformReply: {
+    2: transformStreamsMessagesReplyResp2,
+    3: undefined as unknown as () => ReplyUnion
+  },
+  unstableResp3: true
+} as const satisfies Command;
 
-export { transformStreamsMessagesReply as transformReply } from './generic-transformers';

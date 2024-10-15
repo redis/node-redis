@@ -1,22 +1,23 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-
-export const FIRST_KEY_INDEX = 1;
+import { RedisArgument, NumberReply, Command } from '../RESP/types';
 
 type LInsertPosition = 'BEFORE' | 'AFTER';
 
-export function transformArguments(
-    key: RedisCommandArgument,
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: true,
+  transformArguments(
+    key: RedisArgument,
     position: LInsertPosition,
-    pivot: RedisCommandArgument,
-    element: RedisCommandArgument
-): RedisCommandArguments {
+    pivot: RedisArgument,
+    element: RedisArgument
+  ) {
     return [
-        'LINSERT',
-        key,
-        position,
-        pivot,
-        element
+      'LINSERT',
+      key,
+      position,
+      pivot,
+      element
     ];
-}
-
-export declare function transformReply(): number;
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

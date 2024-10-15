@@ -1,30 +1,9 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { GeoReplyWith, GeoSearchOptions, GeoCoordinates, GeoUnits } from './generic-transformers';
-import { transformArguments as transformGeoRadiusRoArguments } from './GEORADIUS_RO';
+import { Command } from '../RESP/types';
+import GEORADIUS_WITH, { transformGeoRadiusWithArguments } from './GEORADIUS_WITH';
 
-export { FIRST_KEY_INDEX, IS_READ_ONLY } from './GEORADIUS_RO';
-
-export function transformArguments(
-    key: RedisCommandArgument,
-    coordinates: GeoCoordinates,
-    radius: number,
-    unit: GeoUnits,
-    replyWith: Array<GeoReplyWith>,
-    options?: GeoSearchOptions
-): RedisCommandArguments {
-    const args: RedisCommandArguments = transformGeoRadiusRoArguments(
-        key,
-        coordinates,
-        radius,
-        unit,
-        options
-    );
-
-    args.push(...replyWith);
-
-    args.preserve = replyWith;
-
-    return args;
-}
-
-export { transformGeoMembersWithReply as transformReply } from './generic-transformers';
+export default {
+  FIRST_KEY_INDEX: GEORADIUS_WITH.FIRST_KEY_INDEX,
+  IS_READ_ONLY: true,
+  transformArguments: transformGeoRadiusWithArguments.bind(undefined, 'GEORADIUS_RO'),
+  transformReply: GEORADIUS_WITH.transformReply
+} as const satisfies Command;

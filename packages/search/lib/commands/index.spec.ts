@@ -1,5 +1,6 @@
-import { strict as assert } from 'assert';
-import { pushArgumentsWithLength, pushSortByArguments } from '.';
+import { strict as assert } from 'node:assert';
+
+/* import { pushArgumentsWithLength, pushSortByArguments } from '.';
 
 describe('pushSortByArguments', () => {
     describe('single', () => {
@@ -44,3 +45,4 @@ it('pushArgumentsWithLength', () => {
         ['a', '2', 'b', 'c']
     );
 });
+*/

@@ -1,53 +1,65 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { GeoCoordinates } from './generic-transformers';
+import { RedisArgument, CommandArguments, NumberReply, Command } from '../RESP/types';
+import { GeoCoordinates } from './GEOSEARCH';
 
-export const FIRST_KEY_INDEX = 1;
-
-interface GeoMember extends GeoCoordinates {
-    member: RedisCommandArgument;
+export interface GeoMember extends GeoCoordinates {
+  member: RedisArgument;
 }
 
-interface NX {
-    NX?: true;
+export interface GeoAddOptions {
+  condition?: 'NX' | 'XX';
+  /**
+   * @deprecated Use `{ condition: 'NX' }` instead.
+   */
+  NX?: boolean;
+  /**
+   * @deprecated Use `{ condition: 'XX' }` instead.
+   */
+  XX?: boolean;
+  CH?: boolean;
 }
 
-interface XX {
-    XX?: true;
-}
-
-type SetGuards = NX | XX;
-
-interface GeoAddCommonOptions {
-    CH?: true;
-}
-
-type GeoAddOptions = SetGuards & GeoAddCommonOptions;
-
-export function transformArguments(
-    key: RedisCommandArgument, toAdd: GeoMember | Array<GeoMember>,
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: false,
+  transformArguments(
+    key: RedisArgument,
+    toAdd: GeoMember | Array<GeoMember>,
     options?: GeoAddOptions
-): RedisCommandArguments {
+  ) {
     const args = ['GEOADD', key];
 
-    if ((options as NX)?.NX) {
-        args.push('NX');
-    } else if ((options as XX)?.XX) {
-        args.push('XX');
+    if (options?.condition) {
+      args.push(options.condition);
+    } else if (options?.NX) {
+      args.push('NX');
+    } else if (options?.XX) {
+      args.push('XX');
     }
 
     if (options?.CH) {
-        args.push('CH');
+      args.push('CH');
     }
 
-    for (const { longitude, latitude, member } of (Array.isArray(toAdd) ? toAdd : [toAdd])) {
-        args.push(
-            longitude.toString(),
-            latitude.toString(),
-            member
-        );
+    if (Array.isArray(toAdd)) {
+      for (const member of toAdd) {
+        pushMember(args, member);
+      }
+    } else {
+      pushMember(args, toAdd);
     }
 
     return args;
-}
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;
 
-export declare function transformReply(): number;
+function pushMember(
+  args: CommandArguments,
+  { longitude, latitude, member }: GeoMember
+) {
+  args.push(
+    longitude.toString(),
+    latitude.toString(),
+    member
+  );
+}

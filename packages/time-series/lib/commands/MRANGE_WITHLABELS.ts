@@ -1,21 +1,78 @@
-import { RedisCommandArguments } from '@redis/client/dist/lib/commands';
-import { Timestamp, MRangeWithLabelsOptions, pushMRangeWithLabelsArguments } from '.';
+import { Command, UnwrapReply, ArrayReply, BlobStringReply, Resp2Reply, MapReply, TuplesReply, TypeMapping, RedisArgument } from '@redis/client/dist/lib/RESP/types';
+import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
+import { resp2MapToValue, resp3MapToValue, SampleRawReply, Timestamp, transformSamplesReply } from '.';
+import { TsRangeOptions, pushRangeArguments } from './RANGE';
+import { pushFilterArgument } from './MGET';
 
-export const IS_READ_ONLY = true;
+export type TsMRangeWithLabelsRawReply2 = ArrayReply<
+  TuplesReply<[
+    key: BlobStringReply,
+    labels: ArrayReply<TuplesReply<[
+      label: BlobStringReply,
+      value: BlobStringReply
+    ]>>,
+    samples: ArrayReply<Resp2Reply<SampleRawReply>>
+  ]>
+>;
 
-export function transformArguments(
+export type TsMRangeWithLabelsRawReply3 = MapReply<
+  BlobStringReply,
+  TuplesReply<[
+    labels: MapReply<BlobStringReply, BlobStringReply>,
+    metadata: never, // ?!
+    samples: ArrayReply<SampleRawReply>
+  ]>
+>;
+
+export function createTransformMRangeWithLabelsArguments(command: RedisArgument) {
+  return (
     fromTimestamp: Timestamp,
     toTimestamp: Timestamp,
-    filters: string | Array<string>,
-    options?: MRangeWithLabelsOptions
-): RedisCommandArguments {
-    return pushMRangeWithLabelsArguments(
-        ['TS.MRANGE'],
-        fromTimestamp,
-        toTimestamp,
-        filters,
-        options
+    filter: RedisVariadicArgument,
+    options?: TsRangeOptions
+  ) => {
+    const args = pushRangeArguments(
+      [command],
+      fromTimestamp,
+      toTimestamp,
+      options
     );
+  
+    args.push('WITHLABELS');
+  
+    return pushFilterArgument(args, filter);
+  };
 }
 
-export { transformMRangeWithLabelsReply as transformReply } from '.';
+export default {
+  FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
+  transformArguments: createTransformMRangeWithLabelsArguments('TS.MRANGE'),
+  transformReply: {
+    2(reply: TsMRangeWithLabelsRawReply2, _?: any, typeMapping?: TypeMapping) {
+      return resp2MapToValue(reply, ([_key, labels, samples]) => {
+        const unwrappedLabels = labels as unknown as UnwrapReply<typeof labels>;
+        // TODO: use Map type mapping for labels
+        const labelsObject: Record<string, BlobStringReply> = Object.create(null);
+        for (const tuple of unwrappedLabels) {
+          const [key, value] = tuple as unknown as UnwrapReply<typeof tuple>;
+          const unwrappedKey = key as unknown as UnwrapReply<typeof key>;
+          labelsObject[unwrappedKey.toString()] = value;
+        }
+
+        return {
+          labels: labelsObject,
+          samples: transformSamplesReply[2](samples)
+        };
+      }, typeMapping);
+    },
+    3(reply: TsMRangeWithLabelsRawReply3) {
+      return resp3MapToValue(reply, ([labels, _metadata, samples]) => {
+        return {
+          labels,
+          samples: transformSamplesReply[3](samples)
+        };
+      });
+    }
+  },
+} as const satisfies Command;

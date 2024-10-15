@@ -1,19 +1,20 @@
-export const FIRST_KEY_INDEX = 1;
+import { NumberReply, NullReply, Command, RedisArgument } from '../RESP/types';
 
-export const IS_READ_ONLY = true;
-
-interface MemoryUsageOptions {
-    SAMPLES?: number;
+export interface MemoryUsageOptions {
+  SAMPLES?: number;
 }
 
-export function transformArguments(key: string, options?: MemoryUsageOptions): Array<string> {
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: true,
+  transformArguments(key: RedisArgument, options?: MemoryUsageOptions) {
     const args = ['MEMORY', 'USAGE', key];
 
     if (options?.SAMPLES) {
-        args.push('SAMPLES', options.SAMPLES.toString());
+      args.push('SAMPLES', options.SAMPLES.toString());
     }
-
+    
     return args;
-}
-
-export declare function transformReply(): number | null;
+  },
+  transformReply: undefined as unknown as () => NumberReply | NullReply
+} as const satisfies Command;

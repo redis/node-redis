@@ -1,23 +1,26 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './XGROUP_DESTROY';
+import XGROUP_DESTROY from './XGROUP_DESTROY';
 
 describe('XGROUP DESTROY', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key', 'group'),
-            ['XGROUP', 'DESTROY', 'key', 'group']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      XGROUP_DESTROY.transformArguments('key', 'group'),
+      ['XGROUP', 'DESTROY', 'key', 'group']
+    );
+  });
 
-    testUtils.testWithClient('client.xGroupDestroy', async client => {
-        await client.xGroupCreate('key', 'group', '$', {
-            MKSTREAM: true
-        });
+  testUtils.testAll('xGroupDestroy', async client => {
+    const [, reply] = await Promise.all([
+      client.xGroupCreate('key', 'group', '$', {
+        MKSTREAM: true
+      }),
+      client.xGroupDestroy('key', 'group')
+    ]);
 
-        assert.equal(
-            await client.xGroupDestroy('key', 'group'),
-            true
-        );
-    }, GLOBAL.SERVERS.OPEN);
+    assert.equal(reply, 1);
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

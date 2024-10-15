@@ -1,12 +1,9 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { RedisArgument, ArrayReply, BlobStringReply, NullReply, Command } from '../RESP/types';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(
-    key: RedisCommandArgument,
-    count: number
-): RedisCommandArguments {
+export default {
+  FIRST_KEY_INDEX: 1,
+  transformArguments(key: RedisArgument, count: number) {
     return ['RPOP', key, count.toString()];
-}
-
-export declare function transformReply(): Array<RedisCommandArgument> | null;
+  },
+  transformReply: undefined as unknown as () => ArrayReply<BlobStringReply> | NullReply
+} as const satisfies Command;

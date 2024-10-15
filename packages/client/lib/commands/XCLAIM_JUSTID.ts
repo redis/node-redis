@@ -1,13 +1,13 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { transformArguments as transformXClaimArguments } from './XCLAIM';
+import { ArrayReply, BlobStringReply, Command } from '../RESP/types';
+import XCLAIM from './XCLAIM';
 
-export { FIRST_KEY_INDEX } from './XCLAIM';
-
-export function transformArguments(...args: Parameters<typeof transformXClaimArguments>): RedisCommandArguments {
-    return [
-        ...transformXClaimArguments(...args),
-        'JUSTID'
-    ];
-}
-
-export declare function transformReply(): Array<RedisCommandArgument>;
+export default {
+  FIRST_KEY_INDEX: XCLAIM.FIRST_KEY_INDEX,
+  IS_READ_ONLY: XCLAIM.IS_READ_ONLY,
+  transformArguments(...args: Parameters<typeof XCLAIM.transformArguments>) {
+    const redisArgs = XCLAIM.transformArguments(...args);
+    redisArgs.push('JUSTID');
+    return redisArgs;
+  },
+  transformReply: undefined as unknown as () => ArrayReply<BlobStringReply>
+} as const satisfies Command;

@@ -1,7 +1,7 @@
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import { basename } from 'path';
-import { promises as fs } from 'fs';
+import { basename } from 'node:path';
+import { promises as fs } from 'node:fs';
 import * as hdr from 'hdr-histogram-js';
 hdr.initWebAssemblySync();
 
@@ -71,7 +71,7 @@ const benchmarkStart = process.hrtime.bigint(),
     histogram = await run(times),
     benchmarkNanoseconds = process.hrtime.bigint() - benchmarkStart,
     json = {
-        timestamp,
+        // timestamp,
         operationsPerSecond: times / Number(benchmarkNanoseconds) * 1_000_000_000,
         p0: histogram.getValueAtPercentile(0),
         p50: histogram.getValueAtPercentile(50),

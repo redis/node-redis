@@ -1,11 +1,11 @@
-import { strict as assert } from 'assert';
-import { transformArguments } from './CLUSTER_SET-CONFIG-EPOCH';
+import { strict as assert } from 'node:assert';
+import CLUSTER_SET_CONFIG_EPOCH from './CLUSTER_SET-CONFIG-EPOCH';
 
 describe('CLUSTER SET-CONFIG-EPOCH', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments(0),
-            ['CLUSTER', 'SET-CONFIG-EPOCH', '0']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      CLUSTER_SET_CONFIG_EPOCH.transformArguments(0),
+      ['CLUSTER', 'SET-CONFIG-EPOCH', '0']
+    );
+  });
 });

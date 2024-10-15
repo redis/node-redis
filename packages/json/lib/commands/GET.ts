@@ -1,42 +1,22 @@
-import { pushVerdictArguments } from '@redis/client/dist/lib/commands/generic-transformers';
-import { RedisCommandArguments } from '@redis/client/dist/lib/commands';
+import { RedisArgument, Command } from '@redis/client/dist/lib/RESP/types';
+import { RedisVariadicArgument, pushVariadicArguments } from '@redis/client/dist/lib/commands/generic-transformers';
+import { transformRedisJsonNullReply } from '.';
 
-export const FIRST_KEY_INDEX = 1;
-
-export const IS_READ_ONLY = true;
-
-interface GetOptions {
-    path?: string | Array<string>;
-    INDENT?: string;
-    NEWLINE?: string;
-    SPACE?: string;
-    NOESCAPE?: true;
+export interface JsonGetOptions {
+  path?: RedisVariadicArgument;
 }
 
-export function transformArguments(key: string, options?: GetOptions): RedisCommandArguments {
-    let args: RedisCommandArguments = ['JSON.GET', key];
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: false,
+  transformArguments(key: RedisArgument, options?: JsonGetOptions) {
+    let args = ['JSON.GET', key];
 
-    if (options?.path) {
-        args = pushVerdictArguments(args, options.path);
-    }
-
-    if (options?.INDENT) {
-        args.push('INDENT', options.INDENT);
-    }
-
-    if (options?.NEWLINE) {
-        args.push('NEWLINE', options.NEWLINE);
-    }
-
-    if (options?.SPACE) {
-        args.push('SPACE', options.SPACE);
-    }
-
-    if (options?.NOESCAPE) {
-        args.push('NOESCAPE');
+    if (options?.path !== undefined) {
+      args = pushVariadicArguments(args, options.path);
     }
 
     return args;
-}
-
-export { transformRedisJsonNullReply as transformReply } from '.';
+  },
+  transformReply: transformRedisJsonNullReply
+} as const satisfies Command;

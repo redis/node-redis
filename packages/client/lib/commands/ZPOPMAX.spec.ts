@@ -1,41 +1,39 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments, transformReply } from './ZPOPMAX';
+import ZPOPMAX from './ZPOPMAX';
 
 describe('ZPOPMAX', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key'),
-            ['ZPOPMAX', 'key']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      ZPOPMAX.transformArguments('key'),
+      ['ZPOPMAX', 'key']
+    );
+  });
 
-    it('transformReply', () => {
-        assert.deepEqual(
-            transformReply(['value', '1']),
-            {
-                value: 'value',
-                score: 1
-            }
-        );
-    });
+  testUtils.testAll('zPopMax - null', async client => {
+    assert.equal(
+      await client.zPopMax('key'),
+      null
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.SERVERS.OPEN
+  });
 
-    describe('client.zPopMax', () => {
-        testUtils.testWithClient('null', async client => {
-            assert.equal(
-                await client.zPopMax('key'),
-                null
-            );
-        }, GLOBAL.SERVERS.OPEN);
+  testUtils.testAll('zPopMax - with member', async client => {
+    const member = {
+      value: 'value',
+      score: 1
+    };
 
-        testUtils.testWithClient('member', async client => {
-            const member = { score: 1, value: 'value' },
-                [, zPopMaxReply] = await Promise.all([
-                    client.zAdd('key', member),
-                    client.zPopMax('key')
-                ]);
+    const [, reply] = await Promise.all([
+      client.zAdd('key', member),
+      client.zPopMax('key')
+    ]);
 
-            assert.deepEqual(zPopMaxReply, member);
-        }, GLOBAL.SERVERS.OPEN);
-    });
+    assert.deepEqual(reply, member);
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.SERVERS.OPEN
+  });
 });

@@ -1,10 +1,9 @@
-import { RedisCommandArguments } from '@redis/client/dist/lib/commands';
-import { IncrDecrOptions, transformIncrDecrArguments } from '.';
+import { Command } from '@redis/client/dist/lib/RESP/types';
+import INCRBY, { transformIncrByArguments } from './INCRBY';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(key: string, value: number, options?: IncrDecrOptions): RedisCommandArguments {
-    return transformIncrDecrArguments('TS.DECRBY', key, value, options);
-}
-
-export declare function transformReply(): number;
+export default {
+  FIRST_KEY_INDEX: INCRBY.FIRST_KEY_INDEX,
+  IS_READ_ONLY: INCRBY.IS_READ_ONLY,
+  transformArguments: transformIncrByArguments.bind(undefined, 'TS.DECRBY'),
+  transformReply: INCRBY.transformReply
+} as const satisfies Command;

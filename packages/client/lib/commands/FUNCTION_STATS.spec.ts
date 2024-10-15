@@ -1,25 +1,25 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './FUNCTION_STATS';
+import FUNCTION_STATS from './FUNCTION_STATS';
 
 describe('FUNCTION STATS', () => {
-    testUtils.isVersionGreaterThanHook([7]);
+  testUtils.isVersionGreaterThanHook([7]);
 
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments(),
-            ['FUNCTION', 'STATS']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      FUNCTION_STATS.transformArguments(),
+      ['FUNCTION', 'STATS']
+    );
+  });
 
-    testUtils.testWithClient('client.functionStats', async client => {
-        const stats = await client.functionStats();
-        assert.equal(stats.runningScript, null);
-        assert.equal(typeof stats.engines, 'object');
-        for (const [engine, { librariesCount, functionsCount }] of Object.entries(stats.engines)) {
-            assert.equal(typeof engine, 'string');
-            assert.equal(typeof librariesCount, 'number');
-            assert.equal(typeof functionsCount, 'number');
-        }
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testWithClient('client.functionStats', async client => {
+    const stats = await client.functionStats();
+    assert.equal(stats.running_script, null);
+    assert.equal(typeof stats.engines, 'object');
+    for (const [engine, { libraries_count, functions_count }] of Object.entries(stats.engines)) {
+      assert.equal(typeof engine, 'string');
+      assert.equal(typeof libraries_count, 'number');
+      assert.equal(typeof functions_count, 'number');
+    }
+  }, GLOBAL.SERVERS.OPEN);
 });

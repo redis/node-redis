@@ -1,25 +1,31 @@
 // Define a custom script that shows example of SET command
 // with several modifiers.
 
-import { createClient } from 'redis';
+import { createClient } from '../packages/client';
 
 const client = createClient();
 
 await client.connect();
 await client.del('mykey');
 
-let result = await client.set('mykey', 'myvalue', {
-  EX: 60,
-  GET: true
-});
+console.log(
+  await client.set('mykey', 'myvalue', {
+    expiration: {
+      type: 'EX',
+      value: 60
+    },
+    GET: true
+  })
+); // null
 
-console.log(result); //null
+console.log(
+  await client.set('mykey', 'newvalue', {
+    expiration: { 
+      type: 'EX',
+      value: 60
+    },
+    GET: true
+  })
+); // 'myvalue'
 
-result = await client.set('mykey', 'newvalue', {
-  EX: 60,
-  GET: true
-});
-
-console.log(result); //myvalue
-
-await client.quit();
+await client.close();

@@ -1,5 +1,10 @@
-export function transformArguments(slot: number): Array<string> {
-    return ['CLUSTER', 'COUNTKEYSINSLOT', slot.toString()];
-}
+import { NumberReply, Command } from '../RESP/types';
 
-export declare function transformReply(): number;
+export default {
+  FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
+  transformArguments(slot: number) {
+    return ['CLUSTER', 'COUNTKEYSINSLOT', slot.toString()];
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

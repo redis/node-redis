@@ -1,21 +1,21 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../../test-utils';
-import { transformArguments, transformReply } from './MIN';
+import MIN from './MIN';
 
 describe('TDIGEST.MIN', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key'),
-            ['TDIGEST.MIN', 'key']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      MIN.transformArguments('key'),
+      ['TDIGEST.MIN', 'key']
+    );
+  });
 
-    testUtils.testWithClient('client.tDigest.min', async client => {
-        const [ , reply ] = await Promise.all([
-            client.tDigest.create('key'),
-            client.tDigest.min('key')
-        ]);
+  testUtils.testWithClient('client.tDigest.min', async client => {
+    const [, reply] = await Promise.all([
+      client.tDigest.create('key'),
+      client.tDigest.min('key')
+    ]);
 
-        assert.equal(reply, NaN);
-    }, GLOBAL.SERVERS.OPEN);
+    assert.equal(reply, NaN);
+  }, GLOBAL.SERVERS.OPEN);
 });

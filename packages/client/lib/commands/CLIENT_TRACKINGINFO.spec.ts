@@ -1,25 +1,25 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './CLIENT_TRACKINGINFO';
+import CLIENT_TRACKINGINFO from './CLIENT_TRACKINGINFO';
 
 describe('CLIENT TRACKINGINFO', () => {
-    testUtils.isVersionGreaterThanHook([6, 2]);
+  testUtils.isVersionGreaterThanHook([6, 2]);
 
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments(),
-            ['CLIENT', 'TRACKINGINFO']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      CLIENT_TRACKINGINFO.transformArguments(),
+      ['CLIENT', 'TRACKINGINFO']
+    );
+  });
 
-    testUtils.testWithClient('client.clientTrackingInfo', async client => {
-        assert.deepEqual(
-            await client.clientTrackingInfo(),
-            {
-                flags: new Set(['off']),
-                redirect: -1,
-                prefixes: []
-            }
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testWithClient('client.clientTrackingInfo', async client => {
+    assert.deepEqual(
+      await client.clientTrackingInfo(),
+      {
+        flags: ['off'],
+        redirect: -1,
+        prefixes: []
+      }
+    );
+  }, GLOBAL.SERVERS.OPEN);
 });

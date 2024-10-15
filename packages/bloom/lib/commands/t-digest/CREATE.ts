@@ -1,16 +1,20 @@
-import { RedisCommandArgument, RedisCommandArguments } from '@redis/client/dist/lib/commands';
-import { CompressionOption, pushCompressionArgument } from '.';
+import { RedisArgument, SimpleStringReply, Command } from '@redis/client/dist/lib/RESP/types';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(
-    key: RedisCommandArgument,
-    options?: CompressionOption
-): RedisCommandArguments {
-    return pushCompressionArgument(
-        ['TDIGEST.CREATE', key],
-        options
-    );
+export interface TDigestCreateOptions {
+  COMPRESSION?: number;
 }
 
-export declare function transformReply(): 'OK';
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: false,
+  transformArguments(key: RedisArgument, options?: TDigestCreateOptions) {
+    const args = ['TDIGEST.CREATE', key];
+    
+    if (options?.COMPRESSION !== undefined) {
+      args.push('COMPRESSION', options.COMPRESSION.toString());
+    }
+
+    return args;
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

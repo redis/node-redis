@@ -1,9 +1,11 @@
-export const FIRST_KEY_INDEX = 1;
+import { RedisArgument, Command } from '@redis/client/dist/lib/RESP/types';
+import { transformBooleanReply } from '@redis/client/dist/lib/commands/generic-transformers';
 
-export const IS_READ_ONLY = true;
-
-export function transformArguments(key: string, item: string): Array<string> {
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: false,
+  transformArguments(key: RedisArgument, item: RedisArgument) {
     return ['CF.EXISTS', key, item];
-}
-
-export { transformBooleanReply as transformReply } from '@redis/client/dist/lib/commands/generic-transformers';
+  },
+  transformReply: transformBooleanReply
+} as const satisfies Command;

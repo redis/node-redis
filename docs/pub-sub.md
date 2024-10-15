@@ -1,18 +1,20 @@
 # Pub/Sub
 
-The Pub/Sub API is implemented by `RedisClient` and `RedisCluster`.
+The Pub/Sub API is implemented by `RedisClient`, `RedisCluster`, and `RedisSentinel`.
 
 ## Pub/Sub with `RedisClient`
 
-Pub/Sub requires a dedicated stand-alone client. You can easily get one by `.duplicate()`ing an existing `RedisClient`:
+### RESP2
 
-```typescript
+Using RESP2, Pub/Sub "takes over" the connection (a client with subscriptions will not execute commands), therefore it requires a dedicated connection. You can easily get one by `.duplicate()`ing an existing `RedisClient`:
+
+```javascript
 const subscriber = client.duplicate();
 subscriber.on('error', err => console.error(err));
 await subscriber.connect();
 ```
 
-When working with a `RedisCluster`, this is handled automatically for you.
+> When working with either `RedisCluster` or `RedisSentinel`, this is handled automatically for you.
 
 ### `sharded-channel-moved` event
 
@@ -29,6 +31,8 @@ The event listener signature is as follows:
 )
 ```
 
+> When working with `RedisCluster`, this is handled automatically for you.
+
 ## Subscribing
 
 ```javascript
@@ -39,7 +43,7 @@ await client.pSubscribe('channe*', listener);
 await client.sSubscribe('channel', listener);
 ```
 
-> ⚠️ Subscribing to the same channel more than once will create multiple listeners which will each be called when a message is recieved.
+> ⚠️ Subscribing to the same channel more than once will create multiple listeners, each of which will be called when a message is received.
 
 ## Publishing
 

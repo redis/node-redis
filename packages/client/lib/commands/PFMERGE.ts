@@ -1,10 +1,16 @@
-import { RedisCommandArguments } from '.';
-import { pushVerdictArguments } from './generic-transformers';
+import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
+import { RedisVariadicArgument, pushVariadicArguments } from './generic-transformers';
 
-export const FIRST_KEY_INDEX = 1;
+export default {
+  FIRST_KEY_INDEX: 1,
+  transformArguments(
+    destination: RedisArgument,
+    source?: RedisVariadicArgument
+  ) {
+    const args = ['PFMERGE', destination];
+    if (!source) return args;
 
-export function transformArguments(destination: string, source: string | Array<string>): RedisCommandArguments {
-    return pushVerdictArguments(['PFMERGE', destination], source);
-}
-
-export declare function transformReply(): string;
+    return pushVariadicArguments(args, source);
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply
+} as const satisfies Command;

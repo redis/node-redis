@@ -1,10 +1,10 @@
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import { promises as fs } from 'fs';
-import { fork } from 'child_process';
-import { URL, fileURLToPath } from 'url';
-import { once } from 'events';
-import { extname } from 'path';
+import { promises as fs } from 'node:fs';
+import { fork } from 'node:child_process';
+import { URL, fileURLToPath } from 'node:url';
+import { once } from 'node:events';
+import { extname } from 'node:path';
 
 async function getPathChoices() {
     const dirents = await fs.readdir(new URL('.', import.meta.url), {

@@ -1,39 +1,40 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
 
-export const FIRST_KEY_INDEX = 1;
-
-interface RestoreOptions {
-    REPLACE?: true;
-    ABSTTL?: true;
-    IDLETIME?: number;
-    FREQ?: number;
+export interface RestoreOptions {
+  REPLACE?: boolean;
+  ABSTTL?: boolean;
+  IDLETIME?: number;
+  FREQ?: number;
 }
 
-export function transformArguments(
-    key: RedisCommandArgument,
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: false,
+  transformArguments(
+    key: RedisArgument,
     ttl: number,
-    serializedValue: RedisCommandArgument,
+    serializedValue: RedisArgument,
     options?: RestoreOptions
-): RedisCommandArguments {
+  ) {
     const args =  ['RESTORE', key, ttl.toString(), serializedValue];
 
     if (options?.REPLACE) {
-        args.push('REPLACE');
+      args.push('REPLACE');
     }
 
     if (options?.ABSTTL) {
-        args.push('ABSTTL');
+      args.push('ABSTTL');
     }
 
     if (options?.IDLETIME) {
-        args.push('IDLETIME', options.IDLETIME.toString());
+      args.push('IDLETIME', options.IDLETIME.toString());
     }
 
     if (options?.FREQ) {
-        args.push('FREQ', options.FREQ.toString());
+      args.push('FREQ', options.FREQ.toString());
     }
 
     return args;
-}
-
-export declare function transformReply(): 'OK';
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

@@ -1,32 +1,17 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { pushVerdictArgument } from './generic-transformers';
 
-export const FIRST_KEY_INDEX = 1;
+import { RedisArgument, NumberReply, Command } from '../RESP/types';
+import { pushZInterArguments, ZInterOptions } from './ZINTER';
+import { ZKeys } from './generic-transformers';
 
-interface ZInterStoreOptions {
-    WEIGHTS?: Array<number>;
-    AGGREGATE?: 'SUM' | 'MIN' | 'MAX';
-}
-
-export function transformArguments(
-    destination: RedisCommandArgument,
-    keys: Array<RedisCommandArgument> | RedisCommandArgument,
-    options?: ZInterStoreOptions
-): RedisCommandArguments {
-    const args = pushVerdictArgument(['ZINTERSTORE', destination], keys);
-
-    if (options?.WEIGHTS) {
-        args.push(
-            'WEIGHTS',
-            ...options.WEIGHTS.map(weight => weight.toString())
-        );
-    }
-
-    if (options?.AGGREGATE) {
-        args.push('AGGREGATE', options.AGGREGATE);
-    }
-
-    return args;
-}
-
-export declare function transformReply(): number;
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: false,
+  transformArguments(
+    destination: RedisArgument,
+    keys: ZKeys,
+    options?: ZInterOptions
+  ) {
+    return pushZInterArguments(['ZINTERSTORE', destination], keys, options);
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

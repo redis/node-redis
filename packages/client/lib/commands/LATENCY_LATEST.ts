@@ -1,12 +1,16 @@
-import { RedisCommandArguments } from '.';
+import { ArrayReply, BlobStringReply, NumberReply, Command } from '../RESP/types';
 
-export function transformArguments(): RedisCommandArguments {
+export default {
+  FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
+  transformArguments() {
     return ['LATENCY', 'LATEST'];
-}
+  },
+  transformReply: undefined as unknown as () => ArrayReply<[
+    name: BlobStringReply,
+    timestamp: NumberReply,
+    latestLatency: NumberReply,
+    allTimeLatency: NumberReply
+  ]>
+} as const satisfies Command;
 
-export declare function transformReply(): Array<[
-    name: string,
-    timestamp: number,
-    latestLatency: number,
-    allTimeLatency: number
-]>;

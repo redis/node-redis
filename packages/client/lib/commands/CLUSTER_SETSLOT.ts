@@ -1,22 +1,25 @@
-export enum ClusterSlotStates {
-    IMPORTING = 'IMPORTING',
-    MIGRATING = 'MIGRATING',
-    STABLE = 'STABLE',
-    NODE = 'NODE'
-}
+import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
 
-export function transformArguments(
-    slot: number,
-    state: ClusterSlotStates,
-    nodeId?: string
-): Array<string> {
-    const args = ['CLUSTER', 'SETSLOT', slot.toString(), state];
+export const CLUSTER_SLOT_STATES = {
+  IMPORTING: 'IMPORTING',
+  MIGRATING: 'MIGRATING',
+  STABLE: 'STABLE',
+  NODE: 'NODE'
+} as const;
+
+export type ClusterSlotState = typeof CLUSTER_SLOT_STATES[keyof typeof CLUSTER_SLOT_STATES];
+
+export default {
+  FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
+  transformArguments(slot: number, state: ClusterSlotState, nodeId?: RedisArgument) {
+    const args: Array<RedisArgument> = ['CLUSTER', 'SETSLOT', slot.toString(), state];
 
     if (nodeId) {
-        args.push(nodeId);
+      args.push(nodeId);
     }
 
     return args;
-}
-
-export declare function transformReply(): 'OK';
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

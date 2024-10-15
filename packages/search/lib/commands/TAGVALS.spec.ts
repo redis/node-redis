@@ -1,24 +1,24 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { SchemaFieldTypes } from '.';
-import { transformArguments } from './TAGVALS';
+import TAGVALS from './TAGVALS';
+import { SCHEMA_FIELD_TYPE } from './CREATE';
 
-describe('TAGVALS', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('index', '@field'),
-            ['FT.TAGVALS', 'index', '@field']
-        );
-    });
+describe('FT.TAGVALS', () => {
+  it('transformArguments', () => {
+    assert.deepEqual(
+      TAGVALS.transformArguments('index', '@field'),
+      ['FT.TAGVALS', 'index', '@field']
+    );
+  });
 
-    testUtils.testWithClient('client.ft.tagVals', async client => {
-        await client.ft.create('index', {
-            field: SchemaFieldTypes.TAG
-        });
+  testUtils.testWithClient('client.ft.tagVals', async client => {
+    const [, reply] = await Promise.all([
+      client.ft.create('index', {
+        field: SCHEMA_FIELD_TYPE.TAG
+      }),
+      client.ft.tagVals('index', 'field')
+    ]);
 
-        assert.deepEqual(
-            await client.ft.tagVals('index', 'field'),
-            []
-        );
-    }, GLOBAL.SERVERS.OPEN);
+    assert.deepEqual(reply, []);
+  }, GLOBAL.SERVERS.OPEN);
 });

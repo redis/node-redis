@@ -1,25 +1,30 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../../test-utils';
-import { transformArguments } from './INFO';
+import INFO from './INFO';
 
 describe('TDIGEST.INFO', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key'),
-            ['TDIGEST.INFO', 'key']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      INFO.transformArguments('key'),
+      ['TDIGEST.INFO', 'key']
+    );
+  });
 
-    testUtils.testWithClient('client.tDigest.info', async client => {
-        await client.tDigest.create('key');
+  testUtils.testWithClient('client.tDigest.info', async client => {
+    const [, reply] = await Promise.all([
+      client.tDigest.create('key'),
+      client.tDigest.info('key')
+    ]);
 
-        const info = await client.tDigest.info('key');
-        assert(typeof info.capacity, 'number');
-        assert(typeof info.mergedNodes, 'number');
-        assert(typeof info.unmergedNodes, 'number');
-        assert(typeof info.mergedWeight, 'number');
-        assert(typeof info.unmergedWeight, 'number');
-        assert(typeof info.totalCompression, 'number');
-        assert(typeof info.totalCompression, 'number');
-    }, GLOBAL.SERVERS.OPEN);
+    assert(typeof reply, 'object');
+    assert(typeof reply['Compression'], 'number');
+    assert(typeof reply['Capacity'], 'number');
+    assert(typeof reply['Merged nodes'], 'number');
+    assert(typeof reply['Unmerged nodes'], 'number');
+    assert(typeof reply['Merged weight'], 'number');
+    assert(typeof reply['Unmerged weight'], 'number');
+    assert(typeof reply['Observations'], 'number');
+    assert(typeof reply['Total compressions'], 'number');
+    assert(typeof reply['Memory usage'], 'number');
+  }, GLOBAL.SERVERS.OPEN);
 });

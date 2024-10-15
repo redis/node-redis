@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './HPTTL';
+import HPTTL from './HPTTL';
 import { HASH_EXPIRATION_TIME } from './HEXPIRETIME';
 
 describe('HPTTL', () => {
@@ -9,14 +9,14 @@ describe('HPTTL', () => {
   describe('transformArguments', () => {
     it('string', () => {
       assert.deepEqual(
-        transformArguments('key', 'field'),
+        HPTTL.transformArguments('key', 'field'),
         ['HPTTL', 'key', 'FIELDS', '1', 'field']
       );
     });
 
     it('array', () => {
       assert.deepEqual(
-        transformArguments('key', ['field1', 'field2']),
+        HPTTL.transformArguments('key', ['field1', 'field2']),
         ['HPTTL', 'key', 'FIELDS', '2', 'field1', 'field2']
       );
     });

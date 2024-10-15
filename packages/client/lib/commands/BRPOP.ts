@@ -1,17 +1,17 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { pushVerdictArguments } from './generic-transformers';
+import { Command } from '../RESP/types';
+import { RedisVariadicArgument, pushVariadicArguments } from './generic-transformers';
+import BLPOP from './BLPOP';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(
-    key: RedisCommandArgument | Array<RedisCommandArgument>,
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: true,
+  transformArguments(
+    key: RedisVariadicArgument,
     timeout: number
-): RedisCommandArguments {
-    const args = pushVerdictArguments(['BRPOP'], key);
-
+  ) {
+    const args = pushVariadicArguments(['BRPOP'], key);
     args.push(timeout.toString());
-
     return args;
-}
-
-export { transformReply } from './BLPOP';
+  },
+  transformReply: BLPOP.transformReply
+} as const satisfies Command;

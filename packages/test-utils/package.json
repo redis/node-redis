@@ -1,24 +1,13 @@
 {
   "name": "@redis/test-utils",
   "private": true,
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "scripts": {
-    "build": "tsc"
-  },
+  "main": "./dist/lib/index.js",
+  "types": "./dist/lib/index.d.ts",
   "peerDependencies": {
-    "@redis/client": "^1.0.0"
+    "@redis/client": "*"
   },
   "devDependencies": {
-    "@istanbuljs/nyc-config-typescript": "^1.0.2",
-    "@types/mocha": "^10.0.1",
-    "@types/node": "^20.6.2",
-    "@types/yargs": "^17.0.24",
-    "mocha": "^10.2.0",
-    "nyc": "^15.1.0",
-    "source-map-support": "^0.5.21",
-    "ts-node": "^10.9.1",
-    "typescript": "^5.2.2",
+    "@types/yargs": "^17.0.32",
     "yargs": "^17.7.2"
   }
 }

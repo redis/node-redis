@@ -1,30 +1,31 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-
-export const FIRST_KEY_INDEX = 1;
-
-export const IS_READ_ONLY = true;
+import { RedisArgument, NumberReply, NullReply, Command } from '../RESP/types';
 
 export interface LPosOptions {
-    RANK?: number;
-    MAXLEN?: number;
+  RANK?: number;
+  MAXLEN?: number;
 }
 
-export function transformArguments(
-    key: RedisCommandArgument,
-    element: RedisCommandArgument,
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: true,
+  transformArguments(
+    key: RedisArgument,
+    element: RedisArgument,
     options?: LPosOptions
-): RedisCommandArguments {
+  ) {
     const args = ['LPOS', key, element];
 
-    if (typeof options?.RANK === 'number') {
+    if (options) {
+      if (typeof options.RANK === 'number') {
         args.push('RANK', options.RANK.toString());
-    }
+      }
 
-    if (typeof options?.MAXLEN === 'number') {
+      if (typeof options.MAXLEN === 'number') {
         args.push('MAXLEN', options.MAXLEN.toString());
+      }
     }
 
     return args;
-}
-
-export declare function transformReply(): number | null;
+  },
+  transformReply: undefined as unknown as () => NumberReply | NullReply
+} as const satisfies Command;

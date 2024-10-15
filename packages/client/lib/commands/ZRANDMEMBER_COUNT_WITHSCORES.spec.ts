@@ -1,21 +1,24 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './ZRANDMEMBER_COUNT_WITHSCORES';
+import ZRANDMEMBER_COUNT_WITHSCORES from './ZRANDMEMBER_COUNT_WITHSCORES';
 
 describe('ZRANDMEMBER COUNT WITHSCORES', () => {
-    testUtils.isVersionGreaterThanHook([6, 2, 5]);
+  testUtils.isVersionGreaterThanHook([6, 2, 5]);
 
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key', 1),
-            ['ZRANDMEMBER', 'key', '1', 'WITHSCORES']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      ZRANDMEMBER_COUNT_WITHSCORES.transformArguments('key', 1),
+      ['ZRANDMEMBER', 'key', '1', 'WITHSCORES']
+    );
+  });
 
-    testUtils.testWithClient('client.zRandMemberCountWithScores', async client => {
-        assert.deepEqual(
-            await client.zRandMemberCountWithScores('key', 1),
-            []
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testAll('zRandMemberCountWithScores', async client => {
+    assert.deepEqual(
+      await client.zRandMemberCountWithScores('key', 1),
+      []
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

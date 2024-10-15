@@ -1,5 +1,10 @@
-export function transformArguments(key: string, string: string): Array<string> {
-    return ['FT.SUGDEL', key, string];
-}
+import { RedisArgument, NumberReply, Command } from '@redis/client/dist/lib/RESP/types';
 
-export { transformBooleanReply as transformReply } from '@redis/client/dist/lib/commands/generic-transformers';
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: true,
+  transformArguments(key: RedisArgument, string: RedisArgument) {
+    return ['FT.SUGDEL', key, string];
+  },
+  transformReply: undefined as unknown as () => NumberReply<0 | 1>
+} as const satisfies Command;

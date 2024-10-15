@@ -1,17 +1,17 @@
-import { RedisJSON, transformRedisJsonNullReply } from '.';
+import { RedisArgument, UnwrapReply, ArrayReply, NullReply, BlobStringReply, Command } from '@redis/client/dist/lib/RESP/types';
+import { transformRedisJsonNullReply } from '.';
 
-export const FIRST_KEY_INDEX = 1;
-
-export const IS_READ_ONLY = true;
-
-export function transformArguments(keys: Array<string>, path: string): Array<string> {
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: true,
+  transformArguments(keys: Array<RedisArgument>, path: RedisArgument) {
     return [
-        'JSON.MGET',
-        ...keys,
-        path
+      'JSON.MGET',
+      ...keys,
+      path
     ];
-}
-
-export function transformReply(reply: Array<string | null>): Array<RedisJSON | null> {
-    return reply.map(transformRedisJsonNullReply);
-}
+  },
+  transformReply(reply: UnwrapReply<ArrayReply<NullReply | BlobStringReply>>) {
+    return reply.map(json => transformRedisJsonNullReply(json))
+  }
+} as const satisfies Command;

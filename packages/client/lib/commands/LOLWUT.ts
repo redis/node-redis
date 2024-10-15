@@ -1,19 +1,20 @@
-import { RedisCommandArgument } from '.';
+import { BlobStringReply, Command } from '../RESP/types';
 
-export const IS_READ_ONLY = true;
-
-export function transformArguments(version?: number, ...optionalArguments: Array<number>): Array<string> {
+export default {
+  FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
+  transformArguments(version?: number, ...optionalArguments: Array<number>) {
     const args = ['LOLWUT'];
 
     if (version) {
-        args.push(
-            'VERSION',
-            version.toString(),
-            ...optionalArguments.map(String),
-        );
+      args.push(
+        'VERSION',
+        version.toString(),
+        ...optionalArguments.map(String),
+      );
     }
 
     return args;
-}
-
-export declare function transformReply(): RedisCommandArgument;
+  },
+  transformReply: undefined as unknown as () => BlobStringReply
+} as const satisfies Command;

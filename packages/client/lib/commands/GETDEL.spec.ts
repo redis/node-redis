@@ -1,28 +1,24 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './GETDEL';
+import GETDEL from './GETDEL';
 
 describe('GETDEL', () => {
-    testUtils.isVersionGreaterThanHook([6, 2]);
+  testUtils.isVersionGreaterThanHook([6, 2]);
 
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key'),
-            ['GETDEL', 'key']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      GETDEL.transformArguments('key'),
+      ['GETDEL', 'key']
+    );
+  });
 
-    testUtils.testWithClient('client.getDel', async client => {
-        assert.equal(
-            await client.getDel('key'),
-            null
-        );
-    }, GLOBAL.SERVERS.OPEN);
-
-    testUtils.testWithCluster('cluster.getDel', async cluster => {
-        assert.equal(
-            await cluster.getDel('key'),
-            null
-        );
-    }, GLOBAL.CLUSTERS.OPEN);
+  testUtils.testAll('getDel', async client => {
+    assert.equal(
+      await client.getDel('key'),
+      null
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

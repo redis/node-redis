@@ -2,18 +2,18 @@ import TestUtils from '@redis/test-utils';
 import RedisBloomModules from '.';
 
 export default new TestUtils({
-    dockerImageName: 'redislabs/rebloom',
-    dockerImageVersionArgument: 'redisbloom-version',
-    defaultDockerVersion: 'edge'
+  dockerImageName: 'redis/redis-stack',
+  dockerImageVersionArgument: 'redisbloom-version',
+  defaultDockerVersion: '7.4.0-v1'
 });
 
 export const GLOBAL = {
-    SERVERS: {
-        OPEN: {
-            serverArguments: ['--loadmodule /usr/lib/redis/modules/redisbloom.so'],
-            clientOptions: {
-                modules: RedisBloomModules
-            }
-        }
+  SERVERS: {
+    OPEN: {
+      serverArguments: [],
+      clientOptions: {
+        modules: RedisBloomModules
+      }
     }
+  }
 };

@@ -1,28 +1,30 @@
+import { RedisArgument, SimpleStringReply, Command } from '@redis/client/dist/lib/RESP/types';
 import {
-    pushRetentionArgument,
-    TimeSeriesEncoding,
-    pushEncodingArgument,
-    pushChunkSizeArgument,
-    TimeSeriesDuplicatePolicies,
-    Labels,
-    pushLabelsArgument,
-    pushDuplicatePolicy,
-    pushIgnoreArgument
+  pushRetentionArgument,
+  TimeSeriesEncoding,
+  pushEncodingArgument,
+  pushChunkSizeArgument,
+  TimeSeriesDuplicatePolicies,
+  pushDuplicatePolicy,
+  Labels,
+  pushLabelsArgument,
+  pushIgnoreArgument
 } from '.';
 import { TsIgnoreOptions } from './ADD';
 
-export const FIRST_KEY_INDEX = 1;
-
-interface CreateOptions {
-    RETENTION?: number;
-    ENCODING?: TimeSeriesEncoding;
-    CHUNK_SIZE?: number;
-    DUPLICATE_POLICY?: TimeSeriesDuplicatePolicies;
-    LABELS?: Labels;
-    IGNORE?: TsIgnoreOptions;
+export interface TsCreateOptions {
+  RETENTION?: number;
+  ENCODING?: TimeSeriesEncoding;
+  CHUNK_SIZE?: number;
+  DUPLICATE_POLICY?: TimeSeriesDuplicatePolicies;
+  LABELS?: Labels;
+  IGNORE?: TsIgnoreOptions;
 }
 
-export function transformArguments(key: string, options?: CreateOptions): Array<string> {
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: false,
+  transformArguments(key: RedisArgument, options?: TsCreateOptions) {
     const args = ['TS.CREATE', key];
 
     pushRetentionArgument(args, options?.RETENTION);
@@ -38,6 +40,6 @@ export function transformArguments(key: string, options?: CreateOptions): Array<
     pushIgnoreArgument(args, options?.IGNORE);
 
     return args;
-}
-
-export declare function transformReply(): 'OK';
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

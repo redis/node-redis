@@ -1,76 +1,71 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './HELLO';
+import HELLO from './HELLO';
 
 describe('HELLO', () => {
-    testUtils.isVersionGreaterThanHook([6]);
+  testUtils.isVersionGreaterThanHook([6]);
 
-    describe('transformArguments', () => {
-        it('simple', () => {
-            assert.deepEqual(
-                transformArguments(),
-                ['HELLO']
-            );
-        });
-
-        it('with protover', () => {
-            assert.deepEqual(
-                transformArguments({
-                    protover: 3
-                }),
-                ['HELLO', '3']
-            );
-        });
-
-        it('with protover, auth', () => {
-            assert.deepEqual(
-                transformArguments({
-                    protover: 3,
-                    auth: {
-                        username: 'username',
-                        password: 'password'
-                    }
-                }),
-                ['HELLO', '3', 'AUTH', 'username', 'password']
-            );
-        });
-
-        it('with protover, clientName', () => {
-            assert.deepEqual(
-                transformArguments({
-                    protover: 3,
-                    clientName: 'clientName'
-                }),
-                ['HELLO', '3', 'SETNAME', 'clientName']
-            );
-        });
-
-        it('with protover, auth, clientName', () => {
-            assert.deepEqual(
-                transformArguments({
-                    protover: 3,
-                    auth: {
-                        username: 'username',
-                        password: 'password'
-                    },
-                    clientName: 'clientName'
-                }),
-                ['HELLO', '3', 'AUTH', 'username', 'password', 'SETNAME', 'clientName']
-            );
-        });
+  describe('transformArguments', () => {
+    it('simple', () => {
+      assert.deepEqual(
+        HELLO.transformArguments(),
+        ['HELLO']
+      );
     });
 
-    testUtils.testWithClient('client.hello', async client => {
-        const reply = await client.hello();
-        assert.equal(reply.server, 'redis');
-        assert.equal(typeof reply.version, 'string');
-        assert.equal(reply.proto, 2);
-        assert.equal(typeof reply.id, 'number');
-        assert.equal(reply.mode, 'standalone');
-        assert.equal(reply.role, 'master');
-        assert.deepEqual(reply.modules, []);
-    }, {
-        ...GLOBAL.SERVERS.OPEN,
-        minimumDockerVersion: [6, 2]
+    it('with protover', () => {
+      assert.deepEqual(
+        HELLO.transformArguments(3),
+        ['HELLO', '3']
+      );
     });
+
+    it('with protover, AUTH', () => {
+      assert.deepEqual(
+        HELLO.transformArguments(3, {
+          AUTH: {
+            username: 'username',
+            password: 'password'
+          }
+        }),
+        ['HELLO', '3', 'AUTH', 'username', 'password']
+      );
+    });
+
+    it('with protover, SETNAME', () => {
+      assert.deepEqual(
+        HELLO.transformArguments(3, {
+          SETNAME: 'name'
+        }),
+        ['HELLO', '3', 'SETNAME', 'name']
+      );
+    });
+
+    it('with protover, AUTH, SETNAME', () => {
+      assert.deepEqual(
+        HELLO.transformArguments(3, {
+          AUTH: {
+            username: 'username',
+            password: 'password'
+          },
+          SETNAME: 'name'
+        }),
+        ['HELLO', '3', 'AUTH', 'username', 'password', 'SETNAME', 'name']
+      );
+    });
+  });
+
+  testUtils.testWithClient('client.hello', async client => {
+    const reply = await client.hello();
+    assert.equal(reply.server, 'redis');
+    assert.equal(typeof reply.version, 'string');
+    assert.equal(reply.proto, 2);
+    assert.equal(typeof reply.id, 'number');
+    assert.equal(reply.mode, 'standalone');
+    assert.equal(reply.role, 'master');
+    assert.ok(reply.modules instanceof Array);
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    minimumDockerVersion: [6, 2]
+  });
 });

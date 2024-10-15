@@ -1,31 +1,61 @@
-import { RedisCommandArguments } from '@redis/client/dist/lib/commands';
-import { Filter, pushFilterArgument, pushLatestArgument, RawLabels, SampleRawReply, SampleReply, transformSampleReply } from '.';
+import { CommandArguments, Command, BlobStringReply, ArrayReply, Resp2Reply, MapReply, TuplesReply, TypeMapping } from '@redis/client/dist/lib/RESP/types';
+import { RedisVariadicArgument, pushVariadicArguments } from '@redis/client/dist/lib/commands/generic-transformers';
+import { resp2MapToValue, resp3MapToValue, SampleRawReply, transformSampleReply } from '.';
 
-export const IS_READ_ONLY = true;
-
-export interface MGetOptions {
-    LATEST?: boolean;
+export interface TsMGetOptions {
+  LATEST?: boolean;
 }
 
-export function transformArguments(filter: Filter, options?: MGetOptions): RedisCommandArguments {
+export function pushLatestArgument(args: CommandArguments, latest?: boolean) {
+  if (latest) {
+    args.push('LATEST');
+  }
+
+  return args;
+}
+
+export function pushFilterArgument(args: CommandArguments, filter: RedisVariadicArgument) {
+  args.push('FILTER');
+  return pushVariadicArguments(args, filter);
+}
+
+export type MGetRawReply2 = ArrayReply<
+  TuplesReply<[
+    key: BlobStringReply,
+    labels: never,
+    sample: Resp2Reply<SampleRawReply>
+  ]>
+>;
+
+export type MGetRawReply3 = MapReply<
+  BlobStringReply,
+  TuplesReply<[
+    labels: never,
+    sample: SampleRawReply
+  ]>
+>;
+
+export default {
+  FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
+  transformArguments(filter: RedisVariadicArgument, options?: TsMGetOptions) {
     const args = pushLatestArgument(['TS.MGET'], options?.LATEST);
     return pushFilterArgument(args, filter);
-}
-
-export type MGetRawReply = Array<[
-    key: string,
-    labels: RawLabels,
-    sample: SampleRawReply
-]>;
-
-export interface MGetReply {
-    key: string,
-    sample: SampleReply
-}
-
-export function transformReply(reply: MGetRawReply): Array<MGetReply> {
-    return reply.map(([key, _, sample]) => ({
-        key,
-        sample: transformSampleReply(sample)
-    }));
-}
+  },
+  transformReply: {
+    2(reply: MGetRawReply2, _, typeMapping?: TypeMapping) {
+      return resp2MapToValue(reply, ([,, sample]) => {
+        return {
+          sample: transformSampleReply[2](sample)
+        };
+      }, typeMapping);
+    },
+    3(reply: MGetRawReply3) {
+      return resp3MapToValue(reply, ([, sample]) => {
+        return {
+          sample: transformSampleReply[3](sample)
+        };
+      });
+    }
+  }
+} as const satisfies Command;

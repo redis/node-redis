@@ -1,93 +1,68 @@
-export function transformArguments(): Array<string> {
+import { TuplesToMapReply, BlobStringReply, NumberReply, DoubleReply, ArrayReply, UnwrapReply, Command, TypeMapping } from '../RESP/types'; 
+import { transformDoubleReply } from './generic-transformers';
+
+export type MemoryStatsReply = TuplesToMapReply<[
+  [BlobStringReply<'peak.allocated'>, NumberReply],
+  [BlobStringReply<'total.allocated'>, NumberReply],
+  [BlobStringReply<'startup.allocated'>, NumberReply],
+  [BlobStringReply<'replication.backlog'>, NumberReply],
+  [BlobStringReply<'clients.slaves'>, NumberReply],
+  [BlobStringReply<'clients.normal'>, NumberReply],
+  /** added in 7.0 */
+  [BlobStringReply<'cluster.links'>, NumberReply],
+  [BlobStringReply<'aof.buffer'>, NumberReply],
+  [BlobStringReply<'lua.caches'>, NumberReply],
+  /** added in 7.0 */
+  [BlobStringReply<'functions.caches'>, NumberReply],
+  // FIXME: 'db.0', and perhaps others' is here and is a map that should be handled?
+  [BlobStringReply<'overhead.total'>, NumberReply],
+  [BlobStringReply<'keys.count'>, NumberReply],
+  [BlobStringReply<'keys.bytes-per-key'>, NumberReply],
+  [BlobStringReply<'dataset.bytes'>, NumberReply],
+  [BlobStringReply<'dataset.percentage'>, DoubleReply],
+  [BlobStringReply<'peak.percentage'>, DoubleReply],
+  [BlobStringReply<'allocator.allocated'>, NumberReply],
+  [BlobStringReply<'allocator.active'>, NumberReply],
+  [BlobStringReply<'allocator.resident'>, NumberReply],
+  [BlobStringReply<'allocator-fragmentation.ratio'>, DoubleReply],
+  [BlobStringReply<'allocator-fragmentation.bytes'>, NumberReply],
+  [BlobStringReply<'allocator-rss.ratio'>, DoubleReply],
+  [BlobStringReply<'allocator-rss.bytes'>, NumberReply],
+  [BlobStringReply<'rss-overhead.ratio'>, DoubleReply],
+  [BlobStringReply<'rss-overhead.bytes'>, NumberReply],
+  [BlobStringReply<'fragmentation'>, DoubleReply],
+  [BlobStringReply<'fragmentation.bytes'>, NumberReply]
+]>;
+
+export default {
+  FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
+  transformArguments() {
     return ['MEMORY', 'STATS'];
-}
+  },
+  transformReply: {
+    2: (rawReply: UnwrapReply<ArrayReply<BlobStringReply | NumberReply>>, preserve?: any, typeMapping?: TypeMapping) => {
+      const reply: any = {};
 
-interface MemoryStatsReply {
-    peakAllocated: number;
-    totalAllocated: number;
-    startupAllocated: number;
-    replicationBacklog: number;
-    clientsReplicas: number;
-    clientsNormal: number;
-    aofBuffer: number;
-    luaCaches: number;
-    overheadTotal: number;
-    keysCount: number;
-    keysBytesPerKey: number;
-    datasetBytes: number;
-    datasetPercentage: number;
-    peakPercentage: number;
-    allocatorAllocated?: number,
-    allocatorActive?: number;
-    allocatorResident?: number;
-    allocatorFragmentationRatio?: number;
-    allocatorFragmentationBytes?: number;
-    allocatorRssRatio?: number;
-    allocatorRssBytes?: number;
-    rssOverheadRatio?: number;
-    rssOverheadBytes?: number;
-    fragmentation?: number;
-    fragmentationBytes: number;
-    db: {
-        [key: number]: {
-            overheadHashtableMain: number;
-            overheadHashtableExpires: number;
-        };
-    };
-}
-
-const FIELDS_MAPPING = {
-        'peak.allocated': 'peakAllocated',
-        'total.allocated': 'totalAllocated',
-        'startup.allocated': 'startupAllocated',
-        'replication.backlog': 'replicationBacklog',
-        'clients.slaves': 'clientsReplicas',
-        'clients.normal': 'clientsNormal',
-        'aof.buffer': 'aofBuffer',
-        'lua.caches': 'luaCaches',
-        'overhead.total': 'overheadTotal',
-        'keys.count': 'keysCount',
-        'keys.bytes-per-key': 'keysBytesPerKey',
-        'dataset.bytes': 'datasetBytes',
-        'dataset.percentage': 'datasetPercentage',
-        'peak.percentage': 'peakPercentage',
-        'allocator.allocated': 'allocatorAllocated',
-        'allocator.active': 'allocatorActive',
-        'allocator.resident': 'allocatorResident',
-        'allocator-fragmentation.ratio': 'allocatorFragmentationRatio',
-        'allocator-fragmentation.bytes': 'allocatorFragmentationBytes',
-        'allocator-rss.ratio': 'allocatorRssRatio',
-        'allocator-rss.bytes': 'allocatorRssBytes',
-        'rss-overhead.ratio': 'rssOverheadRatio',
-        'rss-overhead.bytes': 'rssOverheadBytes',
-        'fragmentation': 'fragmentation',
-        'fragmentation.bytes': 'fragmentationBytes'
-    },
-    DB_FIELDS_MAPPING = {
-        'overhead.hashtable.main': 'overheadHashtableMain',
-        'overhead.hashtable.expires': 'overheadHashtableExpires'
-    };
-
-export function transformReply(rawReply: Array<string | number | Array<string | number>>): MemoryStatsReply {
-    const reply: any = {
-        db: {}
-    };
-
-    for (let i = 0; i < rawReply.length; i += 2) {
-        const key = rawReply[i] as string;
-        if (key.startsWith('db.')) {
-            const dbTuples = rawReply[i + 1] as Array<string | number>,
-                db: any = {};
-            for (let j = 0; j < dbTuples.length; j += 2) {
-                db[DB_FIELDS_MAPPING[dbTuples[j] as keyof typeof DB_FIELDS_MAPPING]] = dbTuples[j + 1];
-            }
-
-            reply.db[key.substring(3)] = db;
-            continue;
+      let i = 0;
+      while (i < rawReply.length) {
+        switch(rawReply[i].toString()) {
+          case 'dataset.percentage':
+          case 'peak.percentage':
+          case 'allocator-fragmentation.ratio':
+          case 'allocator-rss.ratio':
+          case 'rss-overhead.ratio':
+          case 'fragmentation':
+            reply[rawReply[i++] as any] = transformDoubleReply[2](rawReply[i++] as unknown as BlobStringReply, preserve, typeMapping);
+            break;
+          default:
+            reply[rawReply[i++] as any] = rawReply[i++];
         }
+        
+      }
 
-        reply[FIELDS_MAPPING[key as keyof typeof FIELDS_MAPPING]] = Number(rawReply[i + 1]);
-    }
-
-    return reply as MemoryStatsReply;
-}
+      return reply as MemoryStatsReply;
+    },
+    3: undefined as unknown as () => MemoryStatsReply
+  }
+} as const satisfies Command;

@@ -1,29 +1,43 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { pushVerdictArguments, transformNumberInfinityReply, ZMember } from './generic-transformers';
+import { RedisArgument, NullReply, TuplesReply, BlobStringReply, DoubleReply, UnwrapReply, Command, TypeMapping } from '../RESP/types';
+import { RedisVariadicArgument, pushVariadicArguments, transformDoubleReply } from './generic-transformers';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(
-    key: RedisCommandArgument | Array<RedisCommandArgument>,
-    timeout: number
-): RedisCommandArguments {
-    const args = pushVerdictArguments(['BZPOPMAX'], key);
-
-    args.push(timeout.toString());
-
-    return args;
+export function transformBZPopArguments(
+  command: RedisArgument,
+  key: RedisVariadicArgument,
+  timeout: number
+) {
+  const args = pushVariadicArguments([command], key);
+  args.push(timeout.toString());
+  return args;
 }
 
-type ZMemberRawReply = [key: RedisCommandArgument, value: RedisCommandArgument, score: RedisCommandArgument] | null;
+export type BZPopArguments = typeof transformBZPopArguments extends (_: any, ...args: infer T) => any ? T : never;
 
-type BZPopMaxReply = (ZMember & { key: RedisCommandArgument }) | null;
-
-export function transformReply(reply: ZMemberRawReply): BZPopMaxReply | null {
-    if (!reply) return null;
-
-    return {
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: false,
+  transformArguments(...args: BZPopArguments) {
+    return transformBZPopArguments('BZPOPMAX', ...args);
+  },
+  transformReply: {
+    2(
+      reply: UnwrapReply<NullReply | TuplesReply<[BlobStringReply, BlobStringReply, BlobStringReply]>>,
+      preserve?: any,
+      typeMapping?: TypeMapping
+    ) {
+      return reply === null ? null : {
         key: reply[0],
         value: reply[1],
-        score: transformNumberInfinityReply(reply[2])
-    };
-}
+        score: transformDoubleReply[2](reply[2], preserve, typeMapping)
+      };
+    },
+    3(reply: UnwrapReply<NullReply | TuplesReply<[BlobStringReply, BlobStringReply, DoubleReply]>>) {
+      return reply === null ? null : {
+        key: reply[0],
+        value: reply[1],
+        score: reply[2]
+      };
+    }
+  }
+} as const satisfies Command;
+

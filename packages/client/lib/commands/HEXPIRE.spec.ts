@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './HEXPIRE';
+import HEXPIRE from './HEXPIRE';
 import { HASH_EXPIRATION_TIME } from './HEXPIRETIME';
 
 describe('HEXPIRE', () => {
@@ -9,21 +9,21 @@ describe('HEXPIRE', () => {
   describe('transformArguments', () => {
     it('string', () => {
       assert.deepEqual(
-        transformArguments('key', 'field', 1),
+        HEXPIRE.transformArguments('key', 'field', 1),
         ['HEXPIRE', 'key', '1', 'FIELDS', '1', 'field']
       );
     });
 
     it('array', () => {
       assert.deepEqual(
-        transformArguments('key', ['field1', 'field2'], 1),
+        HEXPIRE.transformArguments('key', ['field1', 'field2'], 1),
         ['HEXPIRE', 'key', '1', 'FIELDS', '2', 'field1', 'field2']
       );
     });
 
     it('with set option', () => {
       assert.deepEqual(
-        transformArguments('key', ['field1'], 1, 'NX'),
+        HEXPIRE.transformArguments('key', ['field1'], 1, 'NX'),
         ['HEXPIRE', 'key', '1', 'NX', 'FIELDS', '1', 'field1']
       );
     });

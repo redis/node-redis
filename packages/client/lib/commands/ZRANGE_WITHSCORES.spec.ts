@@ -1,65 +1,75 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './ZRANGE_WITHSCORES';
+import ZRANGE_WITHSCORES from './ZRANGE_WITHSCORES';
 
 describe('ZRANGE WITHSCORES', () => {
-    describe('transformArguments', () => {
-        it('simple', () => {
-            assert.deepEqual(
-                transformArguments('src', 0, 1),
-                ['ZRANGE', 'src', '0', '1', 'WITHSCORES']
-            );
-        });
-
-        it('with BY', () => {
-            assert.deepEqual(
-                transformArguments('src', 0, 1, {
-                    BY: 'SCORE'
-                }),
-                ['ZRANGE', 'src', '0', '1', 'BYSCORE', 'WITHSCORES']
-            );
-        });
-
-        it('with REV', () => {
-            assert.deepEqual(
-                transformArguments('src', 0, 1, {
-                    REV: true
-                }),
-                ['ZRANGE', 'src', '0', '1', 'REV', 'WITHSCORES']
-            );
-        });
-
-        it('with LIMIT', () => {
-            assert.deepEqual(
-                transformArguments('src', 0, 1, {
-                    LIMIT: {
-                        offset: 0,
-                        count: 1
-                    }
-                }),
-                ['ZRANGE', 'src', '0', '1', 'LIMIT', '0', '1', 'WITHSCORES']
-            );
-        });
-
-        it('with BY & REV & LIMIT', () => {
-            assert.deepEqual(
-                transformArguments('src', 0, 1, {
-                    BY: 'SCORE',
-                    REV: true,
-                    LIMIT: {
-                        offset: 0,
-                        count: 1
-                    }
-                }),
-                ['ZRANGE', 'src', '0', '1', 'BYSCORE', 'REV', 'LIMIT', '0', '1', 'WITHSCORES']
-            );
-        });
+  describe('transformArguments', () => {
+    it('simple', () => {
+      assert.deepEqual(
+        ZRANGE_WITHSCORES.transformArguments('src', 0, 1),
+        ['ZRANGE', 'src', '0', '1', 'WITHSCORES']
+      );
     });
 
-    testUtils.testWithClient('client.zRangeWithScores', async client => {
-        assert.deepEqual(
-            await client.zRangeWithScores('src', 0, 1),
-            []
-        );
-    }, GLOBAL.SERVERS.OPEN);
+    it('with BY', () => {
+      assert.deepEqual(
+        ZRANGE_WITHSCORES.transformArguments('src', 0, 1, {
+          BY: 'SCORE'
+        }),
+        ['ZRANGE', 'src', '0', '1', 'BYSCORE', 'WITHSCORES']
+      );
+    });
+
+    it('with REV', () => {
+      assert.deepEqual(
+        ZRANGE_WITHSCORES.transformArguments('src', 0, 1, {
+          REV: true
+        }),
+        ['ZRANGE', 'src', '0', '1', 'REV', 'WITHSCORES']
+      );
+    });
+
+    it('with LIMIT', () => {
+      assert.deepEqual(
+        ZRANGE_WITHSCORES.transformArguments('src', 0, 1, {
+          LIMIT: {
+            offset: 0,
+            count: 1
+          }
+        }),
+        ['ZRANGE', 'src', '0', '1', 'LIMIT', '0', '1', 'WITHSCORES']
+      );
+    });
+
+    it('with BY & REV & LIMIT', () => {
+      assert.deepEqual(
+        ZRANGE_WITHSCORES.transformArguments('src', 0, 1, {
+          BY: 'SCORE',
+          REV: true,
+          LIMIT: {
+            offset: 0,
+            count: 1
+          }
+        }),
+        ['ZRANGE', 'src', '0', '1', 'BYSCORE', 'REV', 'LIMIT', '0', '1', 'WITHSCORES']
+      );
+    });
+  });
+
+  testUtils.testAll('zRangeWithScores', async client => {
+    const members = [{
+      value: '1',
+      score: 1
+    }];
+
+    const [, reply] = await Promise.all([
+      client.zAdd('key', members),
+      client.zRangeWithScores('key', 0, 1)
+    ]);
+
+    assert.deepEqual(reply, members);
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

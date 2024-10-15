@@ -1,38 +1,32 @@
-export function transformArguments(): Array<string> {
+import { ArrayReply, TuplesToMapReply, BlobStringReply, NumberReply, UnwrapReply, Resp2Reply, Command } from '../RESP/types';
+
+type ClusterLinksReply = ArrayReply<TuplesToMapReply<[
+  [BlobStringReply<'direction'>, BlobStringReply],
+  [BlobStringReply<'node'>, BlobStringReply],
+  [BlobStringReply<'create-time'>, NumberReply],
+  [BlobStringReply<'events'>, BlobStringReply],
+  [BlobStringReply<'send-buffer-allocated'>, NumberReply],
+  [BlobStringReply<'send-buffer-used'>, NumberReply],
+]>>;
+
+export default {
+  FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
+  transformArguments() {
     return ['CLUSTER', 'LINKS'];
-}
-
-type ClusterLinksRawReply = Array<[
-    'direction',
-    string,
-    'node',
-    string,
-    'createTime',
-    number,
-    'events',
-    string,
-    'send-buffer-allocated',
-    number,
-    'send-buffer-used',
-    number
-]>;
-
-type ClusterLinksReply = Array<{
-    direction: string;
-    node: string;
-    createTime: number;
-    events: string;
-    sendBufferAllocated: number;
-    sendBufferUsed: number;
-}>;
-
-export function transformReply(reply: ClusterLinksRawReply): ClusterLinksReply {
-    return reply.map(peerLink => ({
-        direction: peerLink[1],
-        node: peerLink[3],
-        createTime: Number(peerLink[5]),
-        events: peerLink[7],
-        sendBufferAllocated: Number(peerLink[9]),
-        sendBufferUsed: Number(peerLink[11])
-    }));
-}
+  },
+  transformReply: {
+    2: (reply: UnwrapReply<Resp2Reply<ClusterLinksReply>>) => reply.map(link => {
+      const unwrapped = link as unknown as UnwrapReply<typeof link>;
+      return {
+        direction: unwrapped[1],
+        node: unwrapped[3],
+        'create-time': unwrapped[5],
+        events: unwrapped[7],
+        'send-buffer-allocated': unwrapped[9],
+        'send-buffer-used': unwrapped[11]
+      };
+    }),
+    3: undefined as unknown as () => ClusterLinksReply
+  }
+} as const satisfies Command;

@@ -27,4 +27,4 @@ console.log('blpopPromise resolved');
 // {"key":"keyName","element":"value"}
 console.log(`listItem is '${JSON.stringify(listItem)}'`);
 
-await client.quit();
+client.destroy();

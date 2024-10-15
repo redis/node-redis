@@ -1,10 +1,11 @@
-import { RedisCommandArgument } from '.';
-import { pushVerdictArgument } from './generic-transformers';
+import { ArrayReply, Command, NullReply, NumberReply, RedisArgument } from '../RESP/types';
+import { pushVariadicArgument, RedisVariadicArgument } from './generic-transformers';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(key: RedisCommandArgument, fields: RedisCommandArgument | Array<RedisCommandArgument>) {
-  return pushVerdictArgument(['HPERSIST', key, 'FIELDS'], fields);
-}
-
-export declare function transformReply(): Array<number> | null;
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: true,
+  transformArguments(key: RedisArgument, fields: RedisVariadicArgument) {
+    return pushVariadicArgument(['HPERSIST', key, 'FIELDS'], fields);
+  },
+  transformReply: undefined as unknown as () => ArrayReply<NumberReply> | NullReply
+} as const satisfies Command;

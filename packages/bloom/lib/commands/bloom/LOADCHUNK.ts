@@ -1,13 +1,10 @@
-import { RedisCommandArgument, RedisCommandArguments } from '@redis/client/dist/lib/commands';
+import { RedisArgument, SimpleStringReply, Command } from '@redis/client/dist/lib/RESP/types';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(
-    key: string,
-    iteretor: number,
-    chunk: RedisCommandArgument
-): RedisCommandArguments {
-    return ['BF.LOADCHUNK', key, iteretor.toString(), chunk];
-}
-
-export declare function transformReply(): 'OK';
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: false,
+  transformArguments(key: RedisArgument, iterator: number, chunk: RedisArgument) {
+    return ['BF.LOADCHUNK', key, iterator.toString(), chunk];
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

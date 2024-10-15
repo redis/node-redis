@@ -1,16 +1,19 @@
-export const FIRST_KEY_INDEX = 1;
+import { RedisArgument, SimpleStringReply, Command } from '@redis/client/dist/lib/RESP/types';
 
-interface ReserveOptions {
-    EXPANSION?: number;
-    NONSCALING?: true;
+export interface BfReserveOptions {
+  EXPANSION?: number;
+  NONSCALING?: boolean;
 }
 
-export function transformArguments(
-    key: string,
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: true,
+  transformArguments(
+    key: RedisArgument,
     errorRate: number,
     capacity: number,
-    options?: ReserveOptions
-): Array<string> {
+    options?: BfReserveOptions
+  ) {
     const args = ['BF.RESERVE', key, errorRate.toString(), capacity.toString()];
 
     if (options?.EXPANSION) {
@@ -22,6 +25,6 @@ export function transformArguments(
     }
 
     return args;
-}
-
-export declare function transformReply(): 'OK';
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

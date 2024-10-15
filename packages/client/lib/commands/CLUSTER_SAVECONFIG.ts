@@ -1,5 +1,11 @@
-export function transformArguments(): Array<string> {
-    return  ['CLUSTER', 'SAVECONFIG'];
-}
+import { SimpleStringReply, Command } from '../RESP/types';
 
-export declare function transformReply(): 'OK';
+export default {
+  FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
+  transformArguments() {
+    return ['CLUSTER', 'SAVECONFIG'];
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;
+

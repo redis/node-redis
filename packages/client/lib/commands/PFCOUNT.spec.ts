@@ -1,28 +1,31 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './PFCOUNT';
+import PFCOUNT from './PFCOUNT';
 
 describe('PFCOUNT', () => {
-    describe('transformArguments', () => {
-        it('string', () => {
-            assert.deepEqual(
-                transformArguments('key'),
-                ['PFCOUNT', 'key']
-            );
-        });
-
-        it('array', () => {
-            assert.deepEqual(
-                transformArguments(['1', '2']),
-                ['PFCOUNT', '1', '2']
-            );
-        });
+  describe('transformArguments', () => {
+    it('string', () => {
+      assert.deepEqual(
+        PFCOUNT.transformArguments('key'),
+        ['PFCOUNT', 'key']
+      );
     });
 
-    testUtils.testWithClient('client.pfCount', async client => {
-        assert.equal(
-            await client.pfCount('key'),
-            0
-        );
-    }, GLOBAL.SERVERS.OPEN);
+    it('array', () => {
+      assert.deepEqual(
+        PFCOUNT.transformArguments(['1', '2']),
+        ['PFCOUNT', '1', '2']
+      );
+    });
+  });
+
+  testUtils.testAll('pfCount', async client => {
+    assert.equal(
+      await client.pfCount('key'),
+      0
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

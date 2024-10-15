@@ -1,22 +1,25 @@
-export const IS_READ_ONLY = true;
+import { NullReply, ArrayReply, BlobStringReply, Command, RedisArgument } from '@redis/client/dist/lib/RESP/types';
 
-export interface SugGetOptions {
-    FUZZY?: true;
-    MAX?: number;
+export interface FtSugGetOptions {
+  FUZZY?: boolean;
+  MAX?: number;
 }
 
-export function transformArguments(key: string, prefix: string, options?: SugGetOptions): Array<string> {
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: true,
+  transformArguments(key: RedisArgument, prefix: RedisArgument, options?: FtSugGetOptions) {
     const args = ['FT.SUGGET', key, prefix];
 
     if (options?.FUZZY) {
-        args.push('FUZZY');
+      args.push('FUZZY');
     }
 
-    if (options?.MAX) {
-        args.push('MAX', options.MAX.toString());
+    if (options?.MAX !== undefined) {
+      args.push('MAX', options.MAX.toString());
     }
 
     return args;
-}
-
-export declare function transformReply(): null | Array<string>;
+  },
+  transformReply: undefined as unknown as () => NullReply | ArrayReply<BlobStringReply>
+} as const satisfies Command;

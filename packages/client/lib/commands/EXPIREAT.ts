@@ -1,24 +1,21 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { RedisArgument, NumberReply, Command } from '../RESP/types';
 import { transformEXAT } from './generic-transformers';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(
-    key: RedisCommandArgument,
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: true,
+  transformArguments(
+    key: RedisArgument,
     timestamp: number | Date,
     mode?: 'NX' | 'XX' | 'GT' | 'LT'
-): RedisCommandArguments {
-    const args = [
-        'EXPIREAT',
-        key,
-        transformEXAT(timestamp)
-    ];
+  ) {
+    const args = ['EXPIREAT', key, transformEXAT(timestamp)];
 
     if (mode) {
-        args.push(mode);
+      args.push(mode);
     }
 
     return args;
-}
-
-export { transformBooleanReply as transformReply } from './generic-transformers';
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

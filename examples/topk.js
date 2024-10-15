@@ -110,4 +110,4 @@ const [ simonCount, lanceCount ] = await client.topK.count('mytopk', [
 console.log(`Count estimate for simon: ${simonCount}.`);
 console.log(`Count estimate for lance: ${lanceCount}.`);
 
-await client.quit();
+client.destroy();

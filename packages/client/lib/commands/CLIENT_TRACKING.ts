@@ -1,83 +1,87 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
+import { RedisVariadicArgument } from './generic-transformers';
 
 interface CommonOptions {
-    REDIRECT?: number;
-    NOLOOP?: boolean;
+  REDIRECT?: number;
+  NOLOOP?: boolean;
 }
 
 interface BroadcastOptions {
-    BCAST?: boolean;
-    PREFIX?: RedisCommandArgument | Array<RedisCommandArgument>;
+  BCAST?: boolean;
+  PREFIX?: RedisVariadicArgument;
 }
 
 interface OptInOptions {
-    OPTIN?: boolean;
+  OPTIN?: boolean;
 }
 
 interface OptOutOptions {
-    OPTOUT?: boolean;
+  OPTOUT?: boolean;
 }
 
-type ClientTrackingOptions = CommonOptions & (
-    BroadcastOptions |
-    OptInOptions |
-    OptOutOptions
+export type ClientTrackingOptions = CommonOptions & (
+  BroadcastOptions |
+  OptInOptions |
+  OptOutOptions
 );
 
-export function transformArguments<M extends boolean>(
+export default {
+  FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: true,
+  transformArguments<M extends boolean>(
     mode: M,
-    options?: M extends true ? ClientTrackingOptions : undefined
-): RedisCommandArguments {
-    const args: RedisCommandArguments = [
-        'CLIENT',
-        'TRACKING',
-        mode ? 'ON' : 'OFF'
+    options?: M extends true ? ClientTrackingOptions : never
+  ) {
+    const args: Array<RedisArgument> = [
+      'CLIENT',
+      'TRACKING',
+      mode ? 'ON' : 'OFF'
     ];
 
     if (mode) {
-        if (options?.REDIRECT) {
-            args.push(
-                'REDIRECT',
-                options.REDIRECT.toString()
-            );
-        }
+      if (options?.REDIRECT) {
+        args.push(
+          'REDIRECT',
+          options.REDIRECT.toString()
+        );
+      }
 
-        if (isBroadcast(options)) {
-            args.push('BCAST');
+      if (isBroadcast(options)) {
+        args.push('BCAST');
 
-            if (options?.PREFIX) {
-                if (Array.isArray(options.PREFIX)) {
-                    for (const prefix of options.PREFIX) {
-                        args.push('PREFIX', prefix);
-                    }
-                } else {
-                    args.push('PREFIX', options.PREFIX);
-                }
+        if (options?.PREFIX) {
+          if (Array.isArray(options.PREFIX)) {
+            for (const prefix of options.PREFIX) {
+              args.push('PREFIX', prefix);
             }
-        } else if (isOptIn(options)) {
-            args.push('OPTIN');
-        } else if (isOptOut(options)) {
-            args.push('OPTOUT');
+          } else {
+            args.push('PREFIX', options.PREFIX);
+          }
         }
+      } else if (isOptIn(options)) {
+        args.push('OPTIN');
+      } else if (isOptOut(options)) {
+        args.push('OPTOUT');
+      }
 
-        if (options?.NOLOOP) {
-            args.push('NOLOOP');
-        }
+      if (options?.NOLOOP) {
+        args.push('NOLOOP');
+      }
     }
 
     return args;
-}
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;
 
 function isBroadcast(options?: ClientTrackingOptions): options is BroadcastOptions {
-    return (options as BroadcastOptions)?.BCAST === true;
+  return (options as BroadcastOptions)?.BCAST === true;
 }
 
 function isOptIn(options?: ClientTrackingOptions): options is OptInOptions {
-    return (options as OptInOptions)?.OPTIN === true;
+  return (options as OptInOptions)?.OPTIN === true;
 }
 
 function isOptOut(options?: ClientTrackingOptions): options is OptOutOptions {
-    return (options as OptOutOptions)?.OPTOUT === true;
+  return (options as OptOutOptions)?.OPTOUT === true;
 }
-
-export declare function transformReply(): 'OK' | Buffer;

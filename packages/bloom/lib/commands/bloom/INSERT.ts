@@ -1,45 +1,47 @@
-import { pushVerdictArguments } from '@redis/client/dist/lib/commands/generic-transformers';
-import { RedisCommandArgument, RedisCommandArguments } from '@redis/client/dist/lib/commands';
+import { RedisArgument, Command } from '@redis/client/dist/lib/RESP/types';
+import { RedisVariadicArgument, pushVariadicArguments } from '@redis/client/dist/lib/commands/generic-transformers';
+import { transformBooleanArrayReply } from '@redis/client/dist/lib/commands/generic-transformers';
 
-export const FIRST_KEY_INDEX = 1;
-
-interface InsertOptions {
-    CAPACITY?: number;
-    ERROR?: number;
-    EXPANSION?: number;
-    NOCREATE?: true;
-    NONSCALING?: true;
+export interface BfInsertOptions {
+  CAPACITY?: number;
+  ERROR?: number;
+  EXPANSION?: number;
+  NOCREATE?: boolean;
+  NONSCALING?: boolean;
 }
 
-export function transformArguments(
-    key: string,
-    items: RedisCommandArgument | Array<RedisCommandArgument>,
-    options?: InsertOptions
-): RedisCommandArguments {
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: false,
+  transformArguments(
+    key: RedisArgument,
+    items: RedisVariadicArgument,
+    options?: BfInsertOptions
+  ) {
     const args = ['BF.INSERT', key];
 
-    if (options?.CAPACITY) {
-        args.push('CAPACITY', options.CAPACITY.toString());
+    if (options?.CAPACITY !== undefined) {
+      args.push('CAPACITY', options.CAPACITY.toString());
     }
 
-    if (options?.ERROR) {
-        args.push('ERROR', options.ERROR.toString());
+    if (options?.ERROR !== undefined) {
+      args.push('ERROR', options.ERROR.toString());
     }
 
-    if (options?.EXPANSION) {
-        args.push('EXPANSION', options.EXPANSION.toString());
+    if (options?.EXPANSION !== undefined) {
+      args.push('EXPANSION', options.EXPANSION.toString());
     }
 
     if (options?.NOCREATE) {
-        args.push('NOCREATE');
+      args.push('NOCREATE');
     }
 
     if (options?.NONSCALING) {
-        args.push('NONSCALING');
+      args.push('NONSCALING');
     }
 
     args.push('ITEMS');
-    return pushVerdictArguments(args, items);
-}
-
-export { transformBooleanArrayReply as transformReply } from '@redis/client/dist/lib/commands/generic-transformers';
+    return pushVariadicArguments(args, items);
+  },
+  transformReply: transformBooleanArrayReply
+} as const satisfies Command;

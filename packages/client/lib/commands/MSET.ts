@@ -1,24 +1,27 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-
-export const FIRST_KEY_INDEX = 1;
+import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
 
 export type MSetArguments =
-    Array<[RedisCommandArgument, RedisCommandArgument]> |
-    Array<RedisCommandArgument> |
-    Record<string, RedisCommandArgument>;
+  Array<[RedisArgument, RedisArgument]> |
+  Array<RedisArgument> |
+  Record<string, RedisArgument>;
 
-export function transformArguments(toSet: MSetArguments): RedisCommandArguments {
-    const args: RedisCommandArguments = ['MSET'];
+export function mSetArguments(command: string, toSet: MSetArguments) {
+  const args: Array<RedisArgument> = [command];
 
-    if (Array.isArray(toSet)) {
-        args.push(...toSet.flat());
-    } else {
-        for (const key of Object.keys(toSet)) {
-            args.push(key, toSet[key]);
-        }
+  if (Array.isArray(toSet)) {
+    args.push(...toSet.flat());
+  } else {
+    for (const tuple of Object.entries(toSet)) {
+      args.push(...tuple);
     }
+  }
 
-    return args;
+  return args;
 }
 
-export declare function transformReply(): RedisCommandArgument;
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: true,
+  transformArguments: mSetArguments.bind(undefined, 'MSET'),
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

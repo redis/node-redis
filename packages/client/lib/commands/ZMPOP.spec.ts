@@ -1,32 +1,55 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './ZMPOP';
+import ZMPOP from './ZMPOP';
 
 describe('ZMPOP', () => {
-    testUtils.isVersionGreaterThanHook([7]);
+  testUtils.isVersionGreaterThanHook([7]);
 
-    describe('transformArguments', () => {
-        it('simple', () => {
-            assert.deepEqual(
-                transformArguments('key', 'MIN'),
-                ['ZMPOP', '1', 'key', 'MIN']
-            );
-        });
-
-        it('with score and count', () => {
-            assert.deepEqual(
-                transformArguments('key', 'MIN', {
-                    COUNT: 2
-                }),
-                ['ZMPOP', '1', 'key', 'MIN', 'COUNT', '2']
-            );
-        });
+  describe('transformArguments', () => {
+    it('simple', () => {
+      assert.deepEqual(
+        ZMPOP.transformArguments('key', 'MIN'),
+        ['ZMPOP', '1', 'key', 'MIN']
+      );
     });
 
-    testUtils.testWithClient('client.zmPop', async client => {
-        assert.deepEqual(
-            await client.zmPop('key', 'MIN'),
-            null
-        );
-    }, GLOBAL.SERVERS.OPEN);
+    it('with count', () => {
+      assert.deepEqual(
+        ZMPOP.transformArguments('key', 'MIN', {
+          COUNT: 2
+        }),
+        ['ZMPOP', '1', 'key', 'MIN', 'COUNT', '2']
+      );
+    });
+  });
+
+  testUtils.testAll('zmPop - null', async client => {
+    assert.equal(
+      await client.zmPop('key', 'MIN'),
+      null
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
+
+  testUtils.testAll('zmPop - with members', async client => {
+    const members = [{
+      value: '1',
+      score: 1
+    }];
+
+    const [, reply] = await Promise.all([
+      client.zAdd('key', members),
+      client.zmPop('key', 'MIN')
+    ]);
+
+    assert.deepEqual(reply, {
+      key: 'key',
+      members
+    });
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

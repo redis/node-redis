@@ -1,16 +1,20 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { SimpleStringReply, Command, RedisArgument } from '../RESP/types';
 
-export function transformArguments(
-    dump: RedisCommandArgument,
-    mode?: 'FLUSH' | 'APPEND' | 'REPLACE'
-): RedisCommandArguments {
+export interface FunctionRestoreOptions {
+  mode?: 'FLUSH' | 'APPEND' | 'REPLACE';
+}
+
+export default {
+  FIRST_KEY_INDEX: undefined,
+  IS_READ_ONLY: false,
+  transformArguments(dump: RedisArgument, options?: FunctionRestoreOptions) {
     const args = ['FUNCTION', 'RESTORE', dump];
 
-    if (mode) {
-        args.push(mode);
+    if (options?.mode) {
+      args.push(options.mode);
     }
 
     return args;
-}
-
-export declare function transformReply(): 'OK';
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

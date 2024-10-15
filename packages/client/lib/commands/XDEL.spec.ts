@@ -1,28 +1,31 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './XDEL';
+import XDEL from './XDEL';
 
 describe('XDEL', () => {
-    describe('transformArguments', () => {
-        it('string', () => {
-            assert.deepEqual(
-                transformArguments('key', '0-0'),
-                ['XDEL', 'key', '0-0']
-            );
-        });
-
-        it('array', () => {
-            assert.deepEqual(
-                transformArguments('key', ['0-0', '1-0']),
-                ['XDEL', 'key', '0-0', '1-0']
-            );
-        });
+  describe('transformArguments', () => {
+    it('string', () => {
+      assert.deepEqual(
+        XDEL.transformArguments('key', '0-0'),
+        ['XDEL', 'key', '0-0']
+      );
     });
 
-    testUtils.testWithClient('client.xDel', async client => {
-        assert.equal(
-            await client.xDel('key', '0-0'),
-            0
-        );
-    }, GLOBAL.SERVERS.OPEN);
+    it('array', () => {
+      assert.deepEqual(
+        XDEL.transformArguments('key', ['0-0', '1-0']),
+        ['XDEL', 'key', '0-0', '1-0']
+      );
+    });
+  });
+
+  testUtils.testAll('xDel', async client => {
+    assert.equal(
+      await client.xDel('key', '0-0'),
+      0
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

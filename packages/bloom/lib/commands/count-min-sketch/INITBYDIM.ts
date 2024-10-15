@@ -1,7 +1,10 @@
-export const FIRST_KEY_INDEX = 1;
+import { RedisArgument, SimpleStringReply, Command } from '@redis/client/dist/lib/RESP/types';
 
-export function transformArguments(key: string, width: number, depth: number): Array<string> {
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: false,
+  transformArguments(key: RedisArgument, width: number, depth: number) {
     return ['CMS.INITBYDIM', key, width.toString(), depth.toString()];
-}
-
-export declare function transformReply(): 'OK';
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

@@ -1,25 +1,28 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './XGROUP_CREATECONSUMER';
+import XGROUP_CREATECONSUMER from './XGROUP_CREATECONSUMER';
 
 describe('XGROUP CREATECONSUMER', () => {
-    testUtils.isVersionGreaterThanHook([6, 2]);
+  testUtils.isVersionGreaterThanHook([6, 2]);
 
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key', 'group', 'consumer'),
-            ['XGROUP', 'CREATECONSUMER', 'key', 'group', 'consumer']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      XGROUP_CREATECONSUMER.transformArguments('key', 'group', 'consumer'),
+      ['XGROUP', 'CREATECONSUMER', 'key', 'group', 'consumer']
+    );
+  });
 
-    testUtils.testWithClient('client.xGroupCreateConsumer', async client => {
-        await client.xGroupCreate('key', 'group', '$', {
-            MKSTREAM: true
-        });
+  testUtils.testAll('xGroupCreateConsumer', async client => {
+    const [, reply] = await Promise.all([
+      client.xGroupCreate('key', 'group', '$', {
+        MKSTREAM: true
+      }),
+      client.xGroupCreateConsumer('key', 'group', 'consumer')
+    ]);
 
-        assert.equal(
-            await client.xGroupCreateConsumer('key', 'group', 'consumer'),
-            true
-        );
-    }, GLOBAL.SERVERS.OPEN);
+    assert.equal(reply, 1);
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

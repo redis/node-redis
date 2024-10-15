@@ -1,7 +1,10 @@
-export const FIRST_KEY_INDEX = 1;
+import { RedisArgument, BlobStringReply, Command } from '@redis/client/dist/lib/RESP/types';
 
-export function transformArguments(key: string): Array<string> {
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: false,
+  transformArguments(key: RedisArgument) {
     return ['GRAPH.DELETE', key];
-}
-
-export declare function transformReply(): string;
+  },
+  transformReply: undefined as unknown as () => BlobStringReply
+} as const satisfies Command;

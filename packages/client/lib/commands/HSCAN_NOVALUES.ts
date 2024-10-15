@@ -1,27 +1,22 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { ScanOptions } from './generic-transformers';
-import { HScanRawReply, transformArguments as transformHScanArguments } from './HSCAN';
+import { RedisArgument, BlobStringReply, Command } from '../RESP/types';
+import { ScanCommonOptions, pushScanArguments } from './SCAN';
 
-export { FIRST_KEY_INDEX, IS_READ_ONLY } from './HSCAN';
-
-export function transformArguments(
-    key: RedisCommandArgument,
-    cursor: number,
-    options?: ScanOptions
-): RedisCommandArguments {
-    const args = transformHScanArguments(key, cursor, options);
+export default {
+  FIRST_KEY_INDEX: 1,
+  IS_READ_ONLY: true,
+  transformArguments(
+    key: RedisArgument,
+    cursor: RedisArgument,
+    options?: ScanCommonOptions
+  ) {
+    const args = pushScanArguments(['HSCAN', key], cursor, options);
     args.push('NOVALUES');
     return args;
-}
-
-interface HScanNoValuesReply {
-    cursor: number;
-    keys: Array<RedisCommandArgument>;
-}
-
-export function transformReply([cursor, rawData]: HScanRawReply): HScanNoValuesReply {
+  },
+  transformReply([cursor, fields]: [BlobStringReply, Array<BlobStringReply>]) {
     return {
-        cursor: Number(cursor),
-        keys: rawData
+      cursor,
+      fields
     };
-}
+  }
+} as const satisfies Command;

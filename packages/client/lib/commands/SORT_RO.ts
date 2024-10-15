@@ -1,15 +1,9 @@
-import { RedisCommandArguments } from '.';
-import { pushSortArguments, SortOptions } from "./generic-transformers";
+import { Command } from '../RESP/types';
+import SORT, { transformSortArguments } from './SORT';
 
-export const FIRST_KEY_INDEX = 1;
-
-export const IS_READ_ONLY = true;
-
-export function transformArguments(
-    key: string,
-    options?: SortOptions
-): RedisCommandArguments {
-    return pushSortArguments(['SORT_RO', key], options);
-}
-
-export declare function transformReply(): Array<string>;
+export default {
+  FIRST_KEY_INDEX: SORT.FIRST_KEY_INDEX,
+  IS_READ_ONLY: true,
+  transformArguments: transformSortArguments.bind(undefined, 'SORT_RO'),
+  transformReply: SORT.transformReply
+} as const satisfies Command;
