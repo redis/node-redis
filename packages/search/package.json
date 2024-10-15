@@ -1,6 +1,6 @@
 {
   "name": "@redis/search",
-  "version": "2.0.0-next.2",
+  "version": "5.0.0-next.5",
   "license": "MIT",
   "main": "./dist/lib/index.js",
   "types": "./dist/lib/index.d.ts",
