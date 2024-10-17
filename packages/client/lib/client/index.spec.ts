@@ -1,4 +1,5 @@
 import { strict as assert } from 'node:assert';
+import { setTimeout } from 'node:timers/promises';
 import testUtils, { GLOBAL, waitTillBeenCalled } from '../test-utils';
 import RedisClient, { RedisClientType } from '.';
 import { AbortError, ClientClosedError, ClientOfflineError, ConnectionTimeoutError, DisconnectsClientError, ErrorReply, MultiErrorReply, SocketClosedUnexpectedlyError, WatchError } from '../errors';
@@ -102,6 +103,21 @@ describe('Client', () => {
         database: 2
       },
       minimumDockerVersion: [6, 2]
+    });
+
+    testUtils.testWithClient('should accept a credentialSupplier', async client => {
+      assert.equal(
+          await client.ping(),
+          'PONG'
+      );
+    }, {
+      ...GLOBAL.SERVERS.PASSWORD,
+      clientOptions: {
+        // simulate a slight pause to fetch the credentials
+        credentialSupplier: () => setTimeout(50).then(() => Promise.resolve({
+          ...GLOBAL.SERVERS.PASSWORD.clientOptions,
+        })),
+      }
     });
   });
 
