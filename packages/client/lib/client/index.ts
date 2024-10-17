@@ -11,10 +11,13 @@ import { Command, CommandSignature, TypeMapping, CommanderConfig, RedisFunction,
 import RedisClientMultiCommand, { RedisClientMultiCommandType } from './multi-command';
 import { RedisMultiQueuedCommand } from '../multi-command';
 import HELLO, { HelloOptions } from '../commands/HELLO';
+import { AuthOptions } from '../commands/AUTH';
 import { ScanOptions, ScanCommonOptions } from '../commands/SCAN';
 import { RedisLegacyClient, RedisLegacyClientType } from './legacy-mode';
 import { RedisPoolOptions, RedisClientPool } from './pool';
 import { RedisVariadicArgument, pushVariadicArguments } from '../commands/generic-transformers';
+
+export type RedisCredentialSupplier = () => Promise<AuthOptions>;
 
 export interface RedisClientOptions<
   M extends RedisModules = RedisModules,
@@ -33,6 +36,10 @@ export interface RedisClientOptions<
    * Socket connection properties
    */
   socket?: SocketOptions;
+  /**
+   * Credential supplier callback function
+   */
+  credentialSupplier?: RedisCredentialSupplier;
   /**
    * ACL username ([see ACL guide](https://redis.io/topics/acl))
    */
@@ -289,6 +296,7 @@ export default class RedisClient<
   readonly #options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>;
   readonly #socket: RedisSocket;
   readonly #queue: RedisCommandsQueue;
+  #credentialSupplier?: RedisCredentialSupplier;
   #selectedDB = 0;
   #monitorCallback?: MonitorCallback<TYPE_MAPPING>;
   private _self = this;
@@ -347,6 +355,13 @@ export default class RedisClient<
       this._commandOptions = options.commandOptions;
     }
 
+    // if a credential supplier has been provided, use it, otherwise create a provider from the
+    // supplier username and password (if provided), otherwise leave it undefined
+    this.#credentialSupplier = options?.credentialSupplier ?? ((options?.username || options?.password) ? () => Promise.resolve({
+      username: options?.username,
+      password: options?.password ?? '',
+    }) : undefined);
+
     return options;
   }
 
@@ -358,16 +373,16 @@ export default class RedisClient<
     );
   }
 
-  #handshake(selectedDB: number) {
+  #handshake(selectedDB: number, credential?: AuthOptions) {
     const commands = [];
 
     if (this.#options?.RESP) {
       const hello: HelloOptions = {};
 
-      if (this.#options.password) {
+      if (credential?.password) {
         hello.AUTH = {
-          username: this.#options.username ?? 'default',
-          password: this.#options.password
+          username: credential?.username ?? 'default',
+          password: credential?.password
         };
       }
 
@@ -379,11 +394,11 @@ export default class RedisClient<
         HELLO.transformArguments(this.#options.RESP, hello)
       );
     } else {
-      if (this.#options?.username || this.#options?.password) {
+      if (credential) {
         commands.push(
           COMMANDS.AUTH.transformArguments({
-            username: this.#options.username,
-            password: this.#options.password ?? ''
+            username: credential.username,
+            password: credential.password ?? ''
           })
         );
       }
@@ -409,7 +424,11 @@ export default class RedisClient<
   }
 
   #initiateSocket(): RedisSocket {
-    const socketInitiator = () => {
+    const socketInitiator = async () => {
+      // we have to call the credential fetch before pushing any commands into the queue,
+      // so fetch the credentials before doing anything else.
+      const credential: AuthOptions | undefined = await this.#credentialSupplier?.();
+
       const promises = [],
         chainId = Symbol('Socket Initiator');
 
@@ -431,7 +450,7 @@ export default class RedisClient<
         );
       }
 
-      const commands = this.#handshake(this.#selectedDB);
+      const commands = this.#handshake(this.#selectedDB, credential);
       for (let i = commands.length - 1; i >= 0; --i) {
         promises.push(
           this.#queue.addCommand(commands[i], {
@@ -981,10 +1000,11 @@ export default class RedisClient<
    * Reset the client to its default state (i.e. stop PubSub, stop monitoring, select default DB, etc.)
    */
   async reset() {
+    const credential: AuthOptions | undefined = await this.#credentialSupplier?.();
     const chainId = Symbol('Reset Chain'),
       promises = [this._self.#queue.reset(chainId)],
       selectedDB = this._self.#options?.database ?? 0;
-    for (const command of this._self.#handshake(selectedDB)) {
+    for (const command of this._self.#handshake(selectedDB, credential)) {
       promises.push(
         this._self.#queue.addCommand(command, {
           chainId
