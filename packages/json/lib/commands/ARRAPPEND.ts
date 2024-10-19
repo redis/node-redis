@@ -1,6 +1,6 @@
-import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { CommandParser } from '@redis/client/lib/client/parser';
 import { RedisJSON, transformRedisJsonArgument } from '.';
-import { RedisArgument, NumberReply, ArrayReply, NullReply, Command } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, NumberReply, ArrayReply, NullReply, Command } from '@redis/client/lib/RESP/types';
 
 export default {
   IS_READ_ONLY: false,

@@ -1,7 +1,7 @@
 import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SEARCH_NOCONTENT from './SEARCH_NOCONTENT';
-import { parseArgs } from '@redis/client/dist/lib/commands/generic-transformers';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('FT.SEARCH NOCONTENT', () => {
   describe('transformArguments', () => {

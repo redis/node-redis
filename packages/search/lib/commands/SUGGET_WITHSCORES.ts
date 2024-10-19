@@ -1,5 +1,5 @@
-import { NullReply, ArrayReply, BlobStringReply, DoubleReply, UnwrapReply, Command, TypeMapping } from '@redis/client/dist/lib/RESP/types';
-import { isNullReply, transformDoubleReply } from '@redis/client/dist/lib/commands/generic-transformers';
+import { NullReply, ArrayReply, BlobStringReply, DoubleReply, UnwrapReply, Command, TypeMapping } from '@redis/client/lib/RESP/types';
+import { isNullReply, transformDoubleReply } from '@redis/client/lib/commands/generic-transformers';
 import SUGGET from './SUGGET';
 
 type SuggestScore = {

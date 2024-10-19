@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import GET from './GET';
-import { parseArgs } from '@redis/client/dist/lib/commands/generic-transformers';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('TS.GET', () => {
   describe('transformArguments', () => {

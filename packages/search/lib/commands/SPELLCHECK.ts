@@ -1,5 +1,5 @@
-import { CommandParser } from '@redis/client/dist/lib/client/parser';
-import { RedisArgument, Command, ReplyUnion } from '@redis/client/dist/lib/RESP/types';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { RedisArgument, Command, ReplyUnion } from '@redis/client/lib/RESP/types';
 
 export interface Terms {
   mode: 'INCLUDE' | 'EXCLUDE';

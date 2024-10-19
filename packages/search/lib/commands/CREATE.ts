@@ -1,4 +1,4 @@
-import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { CommandParser } from '@redis/client/lib/client/parser';
 import { RedisArgument, SimpleStringReply, Command } from '@redis/client/lib/RESP/types';
 import { RedisVariadicArgument, parseOptionalVariadicArgument } from '@redis/client/lib/commands/generic-transformers';
 

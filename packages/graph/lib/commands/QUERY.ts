@@ -1,5 +1,5 @@
-import { RedisArgument, ArrayReply, BlobStringReply, NumberReply, NullReply, TuplesReply, UnwrapReply, Command } from '@redis/client/dist/lib/RESP/types';
-import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { RedisArgument, ArrayReply, BlobStringReply, NumberReply, NullReply, TuplesReply, UnwrapReply, Command } from '@redis/client/lib/RESP/types';
+import { CommandParser } from '@redis/client/lib/client/parser';
 
 type Headers = ArrayReply<BlobStringReply>;
 

@@ -1,5 +1,5 @@
-import { NullReply, ArrayReply, BlobStringReply, UnwrapReply, Command } from '@redis/client/dist/lib/RESP/types';
-import { isNullReply } from '@redis/client/dist/lib/commands/generic-transformers';
+import { NullReply, ArrayReply, BlobStringReply, UnwrapReply, Command } from '@redis/client/lib/RESP/types';
+import { isNullReply } from '@redis/client/lib/commands/generic-transformers';
 import SUGGET from './SUGGET';
 
 export default {

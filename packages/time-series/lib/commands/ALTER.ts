@@ -1,5 +1,5 @@
-import { CommandParser } from '@redis/client/dist/lib/client/parser';
-import { RedisArgument, SimpleStringReply, Command } from '@redis/client/dist/lib/RESP/types';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { RedisArgument, SimpleStringReply, Command } from '@redis/client/lib/RESP/types';
 import { TsCreateOptions } from './CREATE';
 import { parseRetentionArgument, parseChunkSizeArgument, parseDuplicatePolicy, parseLabelsArgument, parseIgnoreArgument } from '.';
 

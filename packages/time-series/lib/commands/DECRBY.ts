@@ -1,4 +1,4 @@
-import { Command } from '@redis/client/dist/lib/RESP/types';
+import { Command } from '@redis/client/lib/RESP/types';
 import INCRBY, { parseIncrByArguments } from './INCRBY';
 
 export default {

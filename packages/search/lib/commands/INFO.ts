@@ -1,7 +1,7 @@
-import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { CommandParser } from '@redis/client/lib/client/parser';
 import { RedisArgument } from "@redis/client";
-import { ArrayReply, BlobStringReply, Command, DoubleReply, MapReply, NullReply, NumberReply, ReplyUnion, SimpleStringReply, TypeMapping } from "@redis/client/dist/lib/RESP/types";
-import { createTransformTuplesReplyFunc, transformDoubleReply } from "@redis/client/dist/lib/commands/generic-transformers";
+import { ArrayReply, BlobStringReply, Command, DoubleReply, MapReply, NullReply, NumberReply, ReplyUnion, SimpleStringReply, TypeMapping } from "@redis/client/lib/RESP/types";
+import { createTransformTuplesReplyFunc, transformDoubleReply } from "@redis/client/lib/commands/generic-transformers";
 import { TuplesReply } from '@redis/client/lib/RESP/types';
 
 export default {

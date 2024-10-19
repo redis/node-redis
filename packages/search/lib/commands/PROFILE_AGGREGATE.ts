@@ -1,5 +1,5 @@
-import { CommandParser } from '@redis/client/dist/lib/client/parser';
-import { Command, ReplyUnion } from "@redis/client/dist/lib/RESP/types";
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { Command, ReplyUnion } from "@redis/client/lib/RESP/types";
 import AGGREGATE, { AggregateRawReply, FtAggregateOptions, parseAggregateOptions } from "./AGGREGATE";
 import { ProfileOptions, ProfileRawReply, ProfileReply, transformProfile } from "./PROFILE_SEARCH";
 

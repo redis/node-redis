@@ -1,5 +1,5 @@
-import { CommandParser } from '@redis/client/dist/lib/client/parser';
-import { RedisArgument, Command, ReplyUnion, NumberReply } from '@redis/client/dist/lib/RESP/types';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { RedisArgument, Command, ReplyUnion, NumberReply } from '@redis/client/lib/RESP/types';
 import AGGREGATE, { AggregateRawReply, AggregateReply, FtAggregateOptions } from './AGGREGATE';
 
 export interface FtAggregateWithCursorOptions extends FtAggregateOptions {

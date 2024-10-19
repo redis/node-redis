@@ -2,7 +2,7 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import DROPINDEX from './DROPINDEX';
 import { SCHEMA_FIELD_TYPE } from './CREATE';
-import { parseArgs } from '@redis/client/dist/lib/commands/generic-transformers';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('FT.DROPINDEX', () => {
   describe('transformArguments', () => {

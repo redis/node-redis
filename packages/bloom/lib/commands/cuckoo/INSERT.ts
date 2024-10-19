@@ -1,6 +1,6 @@
-import { CommandParser } from '@redis/client/dist/lib/client/parser';
-import { Command, RedisArgument } from '@redis/client/dist/lib/RESP/types';
-import { RedisVariadicArgument, transformBooleanArrayReply } from '@redis/client/dist/lib/commands/generic-transformers';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { Command, RedisArgument } from '@redis/client/lib/RESP/types';
+import { RedisVariadicArgument, transformBooleanArrayReply } from '@redis/client/lib/commands/generic-transformers';
 
 export interface CfInsertOptions {
   CAPACITY?: number;

@@ -1,9 +1,9 @@
-import { Command, ArrayReply, BlobStringReply, Resp2Reply, MapReply, TuplesReply, TypeMapping, RedisArgument, TuplesToMapReply, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
-import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { Command, ArrayReply, BlobStringReply, Resp2Reply, MapReply, TuplesReply, TypeMapping, RedisArgument, TuplesToMapReply, UnwrapReply } from '@redis/client/lib/RESP/types';
+import { RedisVariadicArgument } from '@redis/client/lib/commands/generic-transformers';
 import { resp2MapToValue, resp3MapToValue, SampleRawReply, Timestamp, transformSamplesReply } from '.';
 import { TsRangeOptions, parseRangeArguments } from './RANGE';
 import { parseFilterArgument } from './MGET';
-import { CommandParser } from '@redis/client/lib/client/parser';
 
 export const TIME_SERIES_REDUCERS = {
   AVG: 'AVG',

@@ -1,5 +1,5 @@
-import { CommandParser } from '@redis/client/dist/lib/client/parser';
-import { RedisArgument, Command } from '@redis/client/dist/lib/RESP/types';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { RedisArgument, Command } from '@redis/client/lib/RESP/types';
 import NUMINCRBY from './NUMINCRBY';
 
 export default {

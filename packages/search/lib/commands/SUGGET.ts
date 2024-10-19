@@ -1,5 +1,5 @@
-import { CommandParser } from '@redis/client/dist/lib/client/parser';
-import { NullReply, ArrayReply, BlobStringReply, Command, RedisArgument } from '@redis/client/dist/lib/RESP/types';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { NullReply, ArrayReply, BlobStringReply, Command, RedisArgument } from '@redis/client/lib/RESP/types';
 
 export interface FtSugGetOptions {
   FUZZY?: boolean;

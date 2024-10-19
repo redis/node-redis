@@ -1,5 +1,5 @@
-import { CommandParser } from '@redis/client/dist/lib/client/parser';
-import { RedisArgument, Command, NumberReply, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { RedisArgument, Command, NumberReply, UnwrapReply } from '@redis/client/lib/RESP/types';
 import AGGREGATE_WITHCURSOR from './AGGREGATE_WITHCURSOR';
 
 export interface FtCursorReadOptions {

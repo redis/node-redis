@@ -1,4 +1,4 @@
-import type { RedisCommands } from '@redis/client/dist/lib/RESP/types';
+import type { RedisCommands } from '@redis/client/lib/RESP/types';
 import CONFIG_GET from './CONFIG_GET';
 import CONFIG_SET from './CONFIG_SET';;
 import DELETE from './DELETE';

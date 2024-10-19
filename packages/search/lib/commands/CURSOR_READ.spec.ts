@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import CURSOR_READ from './CURSOR_READ';
-import { parseArgs } from '@redis/client/dist/lib/commands/generic-transformers';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('FT.CURSOR READ', () => {
   describe('transformArguments', () => {

@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import CREATE, { SCHEMA_FIELD_TYPE, SCHEMA_TEXT_FIELD_PHONETIC, SCHEMA_VECTOR_FIELD_ALGORITHM, REDISEARCH_LANGUAGE } from './CREATE';
-import { parseArgs } from '@redis/client/dist/lib/commands/generic-transformers';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('FT.CREATE', () => {
   describe('transformArguments', () => {

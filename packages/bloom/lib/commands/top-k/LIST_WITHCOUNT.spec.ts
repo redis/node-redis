@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../../test-utils';
 import LIST_WITHCOUNT from './LIST_WITHCOUNT';
-import { parseArgs } from '@redis/client/dist/lib/commands/generic-transformers';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('TOPK.LIST WITHCOUNT', () => {
   testUtils.isVersionGreaterThanHook([2, 2, 9]);

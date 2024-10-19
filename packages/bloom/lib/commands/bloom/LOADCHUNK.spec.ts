@@ -2,7 +2,7 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../../test-utils';
 import LOADCHUNK from './LOADCHUNK';
 import { RESP_TYPES } from '@redis/client';
-import { parseArgs } from '@redis/client/dist/lib/commands/generic-transformers';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('BF.LOADCHUNK', () => {
   it('transformArguments', () => {

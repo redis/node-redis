@@ -1,6 +1,6 @@
-import { CommandParser } from '@redis/client/dist/lib/client/parser';
-import { RedisArgument, Command } from '@redis/client/dist/lib/RESP/types';
-import { transformDoubleArrayReply } from '@redis/client/dist/lib/commands/generic-transformers';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { RedisArgument, Command } from '@redis/client/lib/RESP/types';
+import { transformDoubleArrayReply } from '@redis/client/lib/commands/generic-transformers';
 
 export function transformByRankArguments(
   parser: CommandParser, 

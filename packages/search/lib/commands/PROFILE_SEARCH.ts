@@ -1,5 +1,5 @@
-import { CommandParser } from '@redis/client/dist/lib/client/parser';
-import { Command, RedisArgument, ReplyUnion } from "@redis/client/dist/lib/RESP/types";
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { Command, RedisArgument, ReplyUnion } from "@redis/client/lib/RESP/types";
 import { AggregateReply } from "./AGGREGATE";
 import SEARCH, { FtSearchOptions, SearchRawReply, SearchReply, parseSearchOptions } from "./SEARCH";
 

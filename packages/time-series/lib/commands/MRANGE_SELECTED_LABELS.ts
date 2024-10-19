@@ -1,9 +1,9 @@
-import { Command, ArrayReply, BlobStringReply, Resp2Reply, MapReply, TuplesReply, TypeMapping, NullReply, RedisArgument } from '@redis/client/dist/lib/RESP/types';
-import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { Command, ArrayReply, BlobStringReply, Resp2Reply, MapReply, TuplesReply, TypeMapping, NullReply, RedisArgument } from '@redis/client/lib/RESP/types';
+import { RedisVariadicArgument } from '@redis/client/lib/commands/generic-transformers';
 import { parseSelectedLabelsArguments, resp2MapToValue, resp3MapToValue, SampleRawReply, Timestamp, transformRESP2Labels, transformSamplesReply } from '.';
 import { TsRangeOptions, parseRangeArguments } from './RANGE';
 import { parseFilterArgument } from './MGET';
-import { CommandParser } from '@redis/client/lib/client/parser';
 
 export type TsMRangeSelectedLabelsRawReply2 = ArrayReply<
   TuplesReply<[

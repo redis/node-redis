@@ -1,8 +1,8 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import MREVRANGE from './MREVRANGE';
-import { parseArgs } from '@redis/client/dist/lib/commands/generic-transformers';
 import { TIME_SERIES_AGGREGATION_TYPE } from './CREATERULE';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('TS.MREVRANGE', () => {
   it('transformArguments', () => {

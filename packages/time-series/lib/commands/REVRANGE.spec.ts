@@ -2,7 +2,7 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import REVRANGE from './REVRANGE';
 import { TIME_SERIES_AGGREGATION_TYPE } from '../index';
-import { parseArgs } from '@redis/client/dist/lib/commands/generic-transformers';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('TS.REVRANGE', () => {
   it('transformArguments', () => {

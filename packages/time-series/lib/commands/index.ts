@@ -1,4 +1,4 @@
-import type { DoubleReply, NumberReply, RedisCommands, TuplesReply, UnwrapReply, Resp2Reply, ArrayReply, BlobStringReply, MapReply, NullReply, TypeMapping, ReplyUnion, RespType } from '@redis/client/dist/lib/RESP/types';
+import type { DoubleReply, NumberReply, RedisCommands, TuplesReply, UnwrapReply, Resp2Reply, ArrayReply, BlobStringReply, MapReply, NullReply, TypeMapping, ReplyUnion, RespType } from '@redis/client/lib/RESP/types';
 import ADD, { TsIgnoreOptions } from './ADD';
 import ALTER from './ALTER';
 import CREATE from './CREATE';
@@ -29,8 +29,8 @@ import MREVRANGE from './MREVRANGE';
 import QUERYINDEX from './QUERYINDEX';
 import RANGE from './RANGE';
 import REVRANGE from './REVRANGE';
-import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
-import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { RedisVariadicArgument } from '@redis/client/lib/commands/generic-transformers';
+import { CommandParser } from '@redis/client/lib/client/parser';
 import { RESP_TYPES } from '@redis/client/lib/RESP/decoder';
 
 export default {

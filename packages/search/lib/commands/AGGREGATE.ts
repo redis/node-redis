@@ -1,8 +1,8 @@
-import { CommandParser } from '@redis/client/dist/lib/client/parser';
-import { ArrayReply, BlobStringReply, Command, MapReply, NumberReply, RedisArgument, ReplyUnion, TypeMapping, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { ArrayReply, BlobStringReply, Command, MapReply, NumberReply, RedisArgument, ReplyUnion, TypeMapping, UnwrapReply } from '@redis/client/lib/RESP/types';
 import { RediSearchProperty } from './CREATE';
 import { FtSearchParams, parseParamsArgument } from './SEARCH';
-import { transformTuplesReply } from '@redis/client/dist/lib/commands/generic-transformers';
+import { transformTuplesReply } from '@redis/client/lib/commands/generic-transformers';
 
 type LoadField = RediSearchProperty | {
   identifier: RediSearchProperty;

@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../../test-utils';
 import TRIMMED_MEAN from './TRIMMED_MEAN';
-import { parseArgs } from '@redis/client/dist/lib/commands/generic-transformers';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('TDIGEST.TRIMMED_MEAN', () => {
   it('transformArguments', () => {

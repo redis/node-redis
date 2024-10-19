@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SUGGET_WITHPAYLOADS from './SUGGET_WITHPAYLOADS';
-import { parseArgs } from '@redis/client/dist/lib/commands/generic-transformers';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('FT.SUGGET WITHPAYLOADS', () => {
   it('transformArguments', () => {

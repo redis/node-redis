@@ -1,4 +1,4 @@
-import { Command } from '@redis/client/dist/lib/RESP/types';
+import { Command } from '@redis/client/lib/RESP/types';
 import MRANGE_SELECTED_LABELS_GROUPBY, { createMRangeSelectedLabelsGroupByTransformArguments } from './MRANGE_SELECTED_LABELS_GROUPBY';
 
 export default {

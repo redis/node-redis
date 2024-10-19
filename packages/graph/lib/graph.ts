@@ -1,5 +1,5 @@
 import { RedisClientType } from '@redis/client';
-import { RedisArgument, RedisFunctions, RedisScripts } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, RedisFunctions, RedisScripts } from '@redis/client/lib/RESP/types';
 import QUERY, { QueryOptions } from './commands/QUERY';
 
 interface GraphMetadata {

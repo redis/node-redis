@@ -1,8 +1,8 @@
-import { CommandParser } from '@redis/client/dist/lib/client/parser';
-import { RedisArgument, Command } from '@redis/client/dist/lib/RESP/types';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { RedisArgument, Command } from '@redis/client/lib/RESP/types';
 import { Timestamp, transformTimestampArgument, SamplesRawReply, transformSamplesReply } from '.';
 import { TimeSeriesAggregationType } from './CREATERULE';
-import { Resp2Reply } from '@redis/client/dist/lib/RESP/types';
+import { Resp2Reply } from '@redis/client/lib/RESP/types';
 
 export const TIME_SERIES_BUCKET_TIMESTAMP = {
   LOW: '-',

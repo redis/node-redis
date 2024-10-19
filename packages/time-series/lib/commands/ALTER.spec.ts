@@ -2,7 +2,7 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ALTER from './ALTER';
 import { TIME_SERIES_DUPLICATE_POLICIES } from '.';
-import { parseArgs } from '@redis/client/dist/lib/commands/generic-transformers';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('TS.ALTER', () => {
   describe('transformArguments', () => {

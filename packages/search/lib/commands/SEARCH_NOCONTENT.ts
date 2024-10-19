@@ -1,4 +1,4 @@
-import { Command, ReplyUnion } from '@redis/client/dist/lib/RESP/types';
+import { Command, ReplyUnion } from '@redis/client/lib/RESP/types';
 import SEARCH, { SearchRawReply } from './SEARCH';
 
 export default {

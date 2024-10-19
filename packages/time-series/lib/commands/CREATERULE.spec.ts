@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import CREATERULE, { TIME_SERIES_AGGREGATION_TYPE } from './CREATERULE';
-import { parseArgs } from '@redis/client/dist/lib/commands/generic-transformers';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('TS.CREATERULE', () => {
   describe('transformArguments', () => {
