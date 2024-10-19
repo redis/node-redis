@@ -23,7 +23,7 @@ export default {
     parser.pushKey(key);
     parser.push(
       transformStringDoubleArgument(min),
-      transformStringDoubleArgument(max),
+      transformStringDoubleArgument(max)
     );
 
     if (options?.LIMIT) {

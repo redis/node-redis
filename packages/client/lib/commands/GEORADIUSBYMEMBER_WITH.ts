@@ -17,7 +17,7 @@ export function parseGeoRadiusByMemberWithArguments(
   parser.push(from, radius.toString(), unit);
   parseGeoSearchOptions(parser, options);
 
-  parser.pushVariadic(replyWith);
+  parser.push(...replyWith);
   parser.setPreserve(replyWith);
 }
 

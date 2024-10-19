@@ -31,7 +31,7 @@ export default {
     options?: GeoSearchOptions
   ) {
     GEOSEARCH.parseCommand(parser, key, from, by, options);
-    parser.pushVariadic(replyWith);
+    parser.push(...replyWith);
     parser.setPreserve(replyWith);
   },
   transformReply(

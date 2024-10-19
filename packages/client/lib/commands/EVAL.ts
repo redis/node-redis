@@ -19,7 +19,7 @@ export function parseEvalArguments(
   }
 
   if (options?.arguments) {
-    parser.pushVariadic(options.arguments)
+    parser.push(...options.arguments)
   }
 }
 

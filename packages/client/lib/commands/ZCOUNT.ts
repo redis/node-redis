@@ -12,7 +12,7 @@ export default {
   ) {
     parser.setCachable();
     parser.push('ZCOUNT');
-    parser.push(key);
+    parser.pushKey(key);
     parser.push(
       transformStringDoubleArgument(min), 
       transformStringDoubleArgument(max)

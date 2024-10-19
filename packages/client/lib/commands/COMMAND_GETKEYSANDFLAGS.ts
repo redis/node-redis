@@ -11,7 +11,7 @@ export default {
   IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, args: Array<RedisArgument>) {
     parser.push('COMMAND', 'GETKEYSANDFLAGS');
-    parser.pushVariadic(args);
+    parser.push(...args);
   },
   transformReply(reply: UnwrapReply<CommandGetKeysAndFlagsRawReply>) {
     return reply.map(entry => {

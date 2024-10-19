@@ -347,13 +347,13 @@ export function transformCommandReply(
   [name, arity, flags, firstKeyIndex, lastKeyIndex, step, categories]: CommandRawReply
 ): CommandReply {
   return {
-      name,
-      arity,
-      flags: new Set(flags),
-      firstKeyIndex,
-      lastKeyIndex,
-      step,
-      categories: new Set(categories)
+    name,
+    arity,
+    flags: new Set(flags),
+    firstKeyIndex,
+    lastKeyIndex,
+    step,
+    categories: new Set(categories)
   };
 }
 

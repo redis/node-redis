@@ -7,8 +7,7 @@ export default {
     parser.setCachable();
     parser.push('GETRANGE');
     parser.pushKey(key);
-    parser.push(start.toString());
-    parser.push(end.toString());
+    parser.push(start.toString(), end.toString());
   },
   transformReply: undefined as unknown as () => BlobStringReply | NullReply
 } as const satisfies Command;

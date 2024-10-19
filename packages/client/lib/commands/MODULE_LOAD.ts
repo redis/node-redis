@@ -8,7 +8,7 @@ export default {
     parser.push('MODULE', 'LOAD', path);
 
     if (moduleArguments) {
-      parser.pushVariadic(moduleArguments);
+      parser.push(...moduleArguments);
     }
   },
   transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
