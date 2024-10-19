@@ -162,7 +162,7 @@ export default class RedisSentinelMultiCommand<REPLIES = []> {
       this._setState(
         script.IS_READ_ONLY
       );
-      this._multi.addScript(
+      this.#multi.addScript(
         script,
         scriptArgs,
         transformReply
@@ -189,20 +189,19 @@ export default class RedisSentinelMultiCommand<REPLIES = []> {
     });
   }
 
-  private readonly _multi = new RedisMultiCommand();
-  private readonly _sentinel: RedisSentinelType
-  private _isReadonly: boolean | undefined = true;
-  private readonly _typeMapping?: TypeMapping;
+  readonly #multi = new RedisMultiCommand();
+  readonly #sentinel: RedisSentinelType
+  #isReadonly: boolean | undefined = true;
 
   constructor(sentinel: RedisSentinelType, typeMapping: TypeMapping) {
-    this._sentinel = sentinel;
-    this._typeMapping = typeMapping;
+    this.#multi = new RedisMultiCommand(typeMapping);
+    this.#sentinel = sentinel;
   }
 
   private _setState(
     isReadonly: boolean | undefined,
   ) {
-    this._isReadonly &&= isReadonly;
+    this.#isReadonly &&= isReadonly;
   }
 
   addCommand(
@@ -211,19 +210,18 @@ export default class RedisSentinelMultiCommand<REPLIES = []> {
     transformReply?: TransformReply
   ) {
     this._setState(isReadonly);
-    this._multi.addCommand(args, transformReply);
+    this.#multi.addCommand(args, transformReply);
     return this;
   }
 
   async exec<T extends MultiReply = MULTI_REPLY['GENERIC']>(execAsPipeline = false) {
     if (execAsPipeline) return this.execAsPipeline<T>();
 
-    return this._multi.transformReplies(
-      await this._sentinel._executeMulti(
-        this._isReadonly,
-        this._multi.queue
-      ),
-      this._typeMapping
+    return this.#multi.transformReplies(
+      await this.#sentinel._executeMulti(
+        this.#isReadonly,
+        this.#multi.queue
+      )
     ) as MultiReplyType<T, REPLIES>;
   }
 
@@ -234,14 +232,13 @@ export default class RedisSentinelMultiCommand<REPLIES = []> {
   }
 
   async execAsPipeline<T extends MultiReply = MULTI_REPLY['GENERIC']>() {
-    if (this._multi.queue.length === 0) return [] as MultiReplyType<T, REPLIES>;
+    if (this.#multi.queue.length === 0) return [] as MultiReplyType<T, REPLIES>;
 
-    return this._multi.transformReplies(
-      await this._sentinel._executePipeline(
-        this._isReadonly,
-        this._multi.queue
-      ),
-      this._typeMapping
+    return this.#multi.transformReplies(
+      await this.#sentinel._executePipeline(
+        this.#isReadonly,
+        this.#multi.queue
+      )
     ) as MultiReplyType<T, REPLIES>;
   }
 
