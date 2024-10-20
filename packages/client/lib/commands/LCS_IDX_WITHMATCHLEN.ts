@@ -1,5 +1,5 @@
-import { RedisArgument, TuplesToMapReply, BlobStringReply, ArrayReply, TuplesReply, NumberReply, UnwrapReply, Resp2Reply, Command } from '../RESP/types';
-import LCS_IDX, { LcsIdxOptions, LcsIdxRange } from './LCS_IDX';
+import { TuplesToMapReply, BlobStringReply, ArrayReply, TuplesReply, NumberReply, UnwrapReply, Resp2Reply, Command } from '../RESP/types';
+import LCS_IDX, { LcsIdxRange } from './LCS_IDX';
 
 export type LcsIdxWithMatchLenMatches = ArrayReply<
   TuplesReply<[
@@ -15,16 +15,11 @@ export type LcsIdxWithMatchLenReply = TuplesToMapReply<[
 ]>;
 
 export default {
-  FIRST_KEY_INDEX: LCS_IDX.FIRST_KEY_INDEX,
   IS_READ_ONLY: LCS_IDX.IS_READ_ONLY,
-  transformArguments(
-    key1: RedisArgument,
-    key2: RedisArgument,
-    options?: LcsIdxOptions
-  ) {
-    const args = LCS_IDX.transformArguments(key1, key2);
-    args.push('WITHMATCHLEN');
-    return args;
+  parseCommand(...args: Parameters<typeof LCS_IDX.parseCommand>) {
+    const parser = args[0];
+    LCS_IDX.parseCommand(...args);
+    parser.push('WITHMATCHLEN');
   },
   transformReply: {
     2: (reply: UnwrapReply<Resp2Reply<LcsIdxWithMatchLenReply>>) => ({

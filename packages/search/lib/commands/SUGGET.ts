@@ -1,4 +1,5 @@
-import { NullReply, ArrayReply, BlobStringReply, Command, RedisArgument } from '@redis/client/dist/lib/RESP/types';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { NullReply, ArrayReply, BlobStringReply, Command, RedisArgument } from '@redis/client/lib/RESP/types';
 
 export interface FtSugGetOptions {
   FUZZY?: boolean;
@@ -6,20 +7,19 @@ export interface FtSugGetOptions {
 }
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: true,
-  transformArguments(key: RedisArgument, prefix: RedisArgument, options?: FtSugGetOptions) {
-    const args = ['FT.SUGGET', key, prefix];
+  parseCommand(parser: CommandParser, key: RedisArgument, prefix: RedisArgument, options?: FtSugGetOptions) {
+    parser.push('FT.SUGGET');
+    parser.pushKey(key);
+    parser.push(prefix);
 
     if (options?.FUZZY) {
-      args.push('FUZZY');
+      parser.push('FUZZY');
     }
 
     if (options?.MAX !== undefined) {
-      args.push('MAX', options.MAX.toString());
+      parser.push('MAX', options.MAX.toString());
     }
-
-    return args;
   },
   transformReply: undefined as unknown as () => NullReply | ArrayReply<BlobStringReply>
 } as const satisfies Command;

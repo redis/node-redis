@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import MGET_WITHLABELS from './MGET_WITHLABELS';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('TS.MGET_WITHLABELS', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      MGET_WITHLABELS.transformArguments('label=value'),
+      parseArgs(MGET_WITHLABELS, 'label=value'),
       ['TS.MGET', 'WITHLABELS', 'FILTER', 'label=value']
     );
   });

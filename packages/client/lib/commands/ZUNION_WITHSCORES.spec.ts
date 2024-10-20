@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ZUNION_WITHSCORES from './ZUNION_WITHSCORES';
+import { parseArgs } from './generic-transformers';
 
 describe('ZUNION WITHSCORES', () => {
   testUtils.isVersionGreaterThanHook([6, 2]);
@@ -8,21 +9,21 @@ describe('ZUNION WITHSCORES', () => {
   describe('transformArguments', () => {
     it('key (string)', () => {
       assert.deepEqual(
-        ZUNION_WITHSCORES.transformArguments('key'),
+        parseArgs(ZUNION_WITHSCORES, 'key'),
         ['ZUNION', '1', 'key', 'WITHSCORES']
       );
     });
 
     it('keys (Array<string>)', () => {
       assert.deepEqual(
-        ZUNION_WITHSCORES.transformArguments(['1', '2']),
+        parseArgs(ZUNION_WITHSCORES, ['1', '2']),
         ['ZUNION', '2', '1', '2', 'WITHSCORES']
       );
     });
 
     it('key & weight', () => {
       assert.deepEqual(
-        ZUNION_WITHSCORES.transformArguments({
+        parseArgs(ZUNION_WITHSCORES, {
           key: 'key',
           weight: 1
         }),
@@ -32,7 +33,7 @@ describe('ZUNION WITHSCORES', () => {
 
     it('keys & weights', () => {
       assert.deepEqual(
-        ZUNION_WITHSCORES.transformArguments([{
+        parseArgs(ZUNION_WITHSCORES, [{
           key: 'a',
           weight: 1
         }, {
@@ -45,7 +46,7 @@ describe('ZUNION WITHSCORES', () => {
 
     it('with AGGREGATE', () => {
       assert.deepEqual(
-        ZUNION_WITHSCORES.transformArguments('key', {
+        parseArgs(ZUNION_WITHSCORES, 'key', {
           AGGREGATE: 'SUM'
         }),
         ['ZUNION', '1', 'key', 'AGGREGATE', 'SUM', 'WITHSCORES']

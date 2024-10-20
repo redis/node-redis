@@ -2,6 +2,7 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import HPEXPIRETIME from './HPEXPIRETIME';
 import { HASH_EXPIRATION_TIME } from './HEXPIRETIME';
+import { parseArgs } from './generic-transformers';
 
 describe('HPEXPIRETIME', () => {
   testUtils.isVersionGreaterThanHook([7, 4]);
@@ -9,14 +10,14 @@ describe('HPEXPIRETIME', () => {
   describe('transformArguments', () => {
     it('string', () => {
       assert.deepEqual(
-        HPEXPIRETIME.transformArguments('key', 'field'),
+        parseArgs(HPEXPIRETIME, 'key', 'field'),
         ['HPEXPIRETIME', 'key', 'FIELDS', '1', 'field']
       );
     });
 
     it('array', () => {
       assert.deepEqual(
-        HPEXPIRETIME.transformArguments('key', ['field1', 'field2']),
+        parseArgs(HPEXPIRETIME, 'key', ['field1', 'field2']),
         ['HPEXPIRETIME', 'key', 'FIELDS', '2', 'field1', 'field2']
       );
     });

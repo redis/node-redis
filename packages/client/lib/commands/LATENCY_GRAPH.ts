@@ -1,3 +1,4 @@
+import { CommandParser } from '../client/parser';
 import { BlobStringReply, Command } from '../RESP/types';
 
 export const LATENCY_EVENTS = {
@@ -22,10 +23,10 @@ export const LATENCY_EVENTS = {
 export type LatencyEvent = typeof LATENCY_EVENTS[keyof typeof LATENCY_EVENTS];
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments(event: LatencyEvent) {
-    return ['LATENCY', 'GRAPH', event];
+  parseCommand(parser: CommandParser, event: LatencyEvent) {
+    parser.push('LATENCY', 'GRAPH', event);
   },
   transformReply: undefined as unknown as () => BlobStringReply
 } as const satisfies Command;

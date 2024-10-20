@@ -1,4 +1,4 @@
-import type { RedisCommands } from '@redis/client/dist/lib/RESP/types';
+import type { RedisCommands } from '@redis/client/lib/RESP/types';
 import ADD from './ADD';
 import BYRANK from './BYRANK';
 import BYREVRANK from './BYREVRANK';

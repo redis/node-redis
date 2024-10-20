@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../../test-utils';
 import REVRANK from './REVRANK';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('TDIGEST.REVRANK', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      REVRANK.transformArguments('key', [1, 2]),
+      parseArgs(REVRANK, 'key', [1, 2]),
       ['TDIGEST.REVRANK', 'key', '1', '2']
     );
   });

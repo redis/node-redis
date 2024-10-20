@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import GEORADIUS_RO from './GEORADIUS_RO';
+import { parseArgs } from './generic-transformers';
 
 describe('GEORADIUS_RO', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      GEORADIUS_RO.transformArguments('key', {
+      parseArgs(GEORADIUS_RO, 'key', {
         longitude: 1,
         latitude: 2
       }, 3, 'm'),

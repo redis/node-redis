@@ -1,4 +1,4 @@
-import { BlobStringReply, NullReply, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
+import { BlobStringReply, NullReply, UnwrapReply } from '@redis/client/lib/RESP/types';
 import ARRAPPEND from './ARRAPPEND';
 import ARRINDEX from './ARRINDEX';
 import ARRINSERT from './ARRINSERT';
@@ -23,7 +23,7 @@ import STRAPPEND from './STRAPPEND';
 import STRLEN from './STRLEN';
 import TOGGLE from './TOGGLE';
 import TYPE from './TYPE';
-import { isNullReply } from '@redis/client/dist/lib/commands/generic-transformers';
+import { isNullReply } from '@redis/client/lib/commands/generic-transformers';
 
 export default {
   ARRAPPEND,

@@ -1,11 +1,12 @@
-import { RedisArgument, Command } from '@redis/client/dist/lib/RESP/types';
-import { transformDoubleReply } from '@redis/client/dist/lib/commands/generic-transformers';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { RedisArgument, Command } from '@redis/client/lib/RESP/types';
+import { transformDoubleReply } from '@redis/client/lib/commands/generic-transformers';
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: true,
-  transformArguments(key: RedisArgument) {
-    return ['TDIGEST.MAX', key];
+  parseCommand(parser: CommandParser, key: RedisArgument) {
+    parser.push('TDIGEST.MAX');
+    parser.pushKey(key);
   },
   transformReply: transformDoubleReply
 } as const satisfies Command;

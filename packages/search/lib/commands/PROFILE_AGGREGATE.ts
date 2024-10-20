@@ -1,27 +1,26 @@
-// import { pushAggregatehOptions, AggregateOptions, transformReply as transformAggregateReply, AggregateRawReply } from './AGGREGATE';
-// import { ProfileOptions, ProfileRawReply, ProfileReply, transformProfile } from '.';
-
-import { Command, ReplyUnion } from "@redis/client/dist/lib/RESP/types";
-import AGGREGATE, { AggregateRawReply, FtAggregateOptions, pushAggregateOptions } from "./AGGREGATE";
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { Command, ReplyUnion } from "@redis/client/lib/RESP/types";
+import AGGREGATE, { AggregateRawReply, FtAggregateOptions, parseAggregateOptions } from "./AGGREGATE";
 import { ProfileOptions, ProfileRawReply, ProfileReply, transformProfile } from "./PROFILE_SEARCH";
 
 export default {
-    FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
     IS_READ_ONLY: true,
-    transformArguments(
+    parseCommand(
+      parser: CommandParser,
       index: string,
       query: string,
       options?: ProfileOptions & FtAggregateOptions
     ) {
-      const args = ['FT.PROFILE', index, 'AGGREGATE'];
+      parser.push('FT.PROFILE', index, 'AGGREGATE');
     
       if (options?.LIMITED) {
-        args.push('LIMITED');
+        parser.push('LIMITED');
       }
     
-      args.push('QUERY', query);
+      parser.push('QUERY', query);
 
-      return pushAggregateOptions(args, options)
+      parseAggregateOptions(parser, options)
     },
     transformReply: {
       2: (reply: ProfileAggeregateRawReply): ProfileReply => {

@@ -1,10 +1,11 @@
+import { CommandParser } from '../client/parser';
 import { BlobStringReply, Command } from '../RESP/types';
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments() {
-    return ['TIME'];
+  parseCommand(parser: CommandParser) {
+    parser.push('TIME');
   },
   transformReply: undefined as unknown as () => [
     unixTimestamp: BlobStringReply<`${number}`>,

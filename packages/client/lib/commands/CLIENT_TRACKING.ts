@@ -1,4 +1,5 @@
-import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
+import { CommandParser } from '../client/parser';
+import { SimpleStringReply, Command } from '../RESP/types';
 import { RedisVariadicArgument } from './generic-transformers';
 
 interface CommonOptions {
@@ -26,50 +27,49 @@ export type ClientTrackingOptions = CommonOptions & (
 );
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments<M extends boolean>(
+  parseCommand<M extends boolean>(
+    parser: CommandParser,
     mode: M,
     options?: M extends true ? ClientTrackingOptions : never
   ) {
-    const args: Array<RedisArgument> = [
+    parser.push(
       'CLIENT',
       'TRACKING',
       mode ? 'ON' : 'OFF'
-    ];
+    );
 
     if (mode) {
       if (options?.REDIRECT) {
-        args.push(
+        parser.push(
           'REDIRECT',
           options.REDIRECT.toString()
         );
       }
 
       if (isBroadcast(options)) {
-        args.push('BCAST');
+        parser.push('BCAST');
 
         if (options?.PREFIX) {
           if (Array.isArray(options.PREFIX)) {
             for (const prefix of options.PREFIX) {
-              args.push('PREFIX', prefix);
+              parser.push('PREFIX', prefix);
             }
           } else {
-            args.push('PREFIX', options.PREFIX);
+            parser.push('PREFIX', options.PREFIX);
           }
         }
       } else if (isOptIn(options)) {
-        args.push('OPTIN');
+        parser.push('OPTIN');
       } else if (isOptOut(options)) {
-        args.push('OPTOUT');
+        parser.push('OPTOUT');
       }
 
       if (options?.NOLOOP) {
-        args.push('NOLOOP');
+        parser.push('NOLOOP');
       }
     }
-
-    return args;
   },
   transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
 } as const satisfies Command;

@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import MGET from './MGET';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('JSON.MGET', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      MGET.transformArguments(['1', '2'], '$'),
+      parseArgs(MGET, ['1', '2'], '$'),
       ['JSON.MGET', '1', '2', '$']
     );
   });

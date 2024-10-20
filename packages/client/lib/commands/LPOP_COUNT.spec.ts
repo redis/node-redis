@@ -1,13 +1,14 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import LPOP_COUNT from './LPOP_COUNT';
+import { parseArgs } from './generic-transformers';
 
 describe('LPOP COUNT', () => {
   testUtils.isVersionGreaterThanHook([6, 2]);
 
   it('transformArguments', () => {
     assert.deepEqual(
-      LPOP_COUNT.transformArguments('key', 1),
+      parseArgs(LPOP_COUNT, 'key', 1),
       ['LPOP', 'key', '1']
     );
   });

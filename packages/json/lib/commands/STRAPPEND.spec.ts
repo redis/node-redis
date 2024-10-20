@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import STRAPPEND from './STRAPPEND';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('JSON.STRAPPEND', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        STRAPPEND.transformArguments('key', 'append'),
+        parseArgs(STRAPPEND, 'key', 'append'),
         ['JSON.STRAPPEND', 'key', '"append"']
       );
     });
 
     it('with path', () => {
       assert.deepEqual(
-        STRAPPEND.transformArguments('key', 'append', {
+        parseArgs(STRAPPEND, 'key', 'append', {
           path: '$'
         }),
         ['JSON.STRAPPEND', 'key', '$', '"append"']

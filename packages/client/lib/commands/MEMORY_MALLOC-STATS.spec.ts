@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import MEMORY_MALLOC_STATS from './MEMORY_MALLOC-STATS';
+import { parseArgs } from './generic-transformers';
 
 describe('MEMORY MALLOC-STATS', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      MEMORY_MALLOC_STATS.transformArguments(),
+      parseArgs(MEMORY_MALLOC_STATS),
       ['MEMORY', 'MALLOC-STATS']
     );
   });

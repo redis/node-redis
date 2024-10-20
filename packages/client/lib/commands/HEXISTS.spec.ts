@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import HEXISTS from './HEXISTS';
+import { parseArgs } from './generic-transformers';
 
 describe('HEXISTS', () => {
-  it('transformArguments', () => {
+  it('processCommand', () => {
     assert.deepEqual(
-      HEXISTS.transformArguments('key', 'field'),
+      parseArgs(HEXISTS, 'key', 'field'),
       ['HEXISTS', 'key', 'field']
     );
   });

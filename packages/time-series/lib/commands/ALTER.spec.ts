@@ -2,19 +2,20 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ALTER from './ALTER';
 import { TIME_SERIES_DUPLICATE_POLICIES } from '.';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('TS.ALTER', () => {
   describe('transformArguments', () => {
     it('without options', () => {
       assert.deepEqual(
-        ALTER.transformArguments('key'),
+        parseArgs(ALTER, 'key'),
         ['TS.ALTER', 'key']
       );
     });
 
     it('with RETENTION', () => {
       assert.deepEqual(
-        ALTER.transformArguments('key', {
+        parseArgs(ALTER, 'key', {
           RETENTION: 1
         }),
         ['TS.ALTER', 'key', 'RETENTION', '1']
@@ -23,7 +24,7 @@ describe('TS.ALTER', () => {
 
     it('with CHUNK_SIZE', () => {
       assert.deepEqual(
-        ALTER.transformArguments('key', {
+        parseArgs(ALTER, 'key', {
           CHUNK_SIZE: 1
         }),
         ['TS.ALTER', 'key', 'CHUNK_SIZE', '1']
@@ -32,7 +33,7 @@ describe('TS.ALTER', () => {
 
     it('with DUPLICATE_POLICY', () => {
       assert.deepEqual(
-        ALTER.transformArguments('key', {
+        parseArgs(ALTER, 'key', {
           DUPLICATE_POLICY: TIME_SERIES_DUPLICATE_POLICIES.BLOCK
         }),
         ['TS.ALTER', 'key', 'DUPLICATE_POLICY', 'BLOCK']
@@ -41,7 +42,7 @@ describe('TS.ALTER', () => {
 
     it('with LABELS', () => {
       assert.deepEqual(
-        ALTER.transformArguments('key', {
+        parseArgs(ALTER, 'key', {
           LABELS: { label: 'value' }
         }),
         ['TS.ALTER', 'key', 'LABELS', 'label', 'value']
@@ -50,7 +51,7 @@ describe('TS.ALTER', () => {
 
     it('with IGNORE with MAX_TIME_DIFF', () => {
       assert.deepEqual(
-        ALTER.transformArguments('key', {
+        parseArgs(ALTER, 'key', {
           IGNORE: { 
             maxTimeDiff: 1,
             maxValDiff: 1
@@ -62,7 +63,7 @@ describe('TS.ALTER', () => {
 
     it('with RETENTION, CHUNK_SIZE, DUPLICATE_POLICY, LABELS, IGNORE', () => {
       assert.deepEqual(
-        ALTER.transformArguments('key', {
+        parseArgs(ALTER, 'key', {
           RETENTION: 1,
           CHUNK_SIZE: 1,
           DUPLICATE_POLICY: TIME_SERIES_DUPLICATE_POLICIES.BLOCK,

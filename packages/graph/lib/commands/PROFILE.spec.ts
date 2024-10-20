@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import PROFILE from './PROFILE';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('GRAPH.PROFILE', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      PROFILE.transformArguments('key', 'RETURN 0'),
+      parseArgs(PROFILE, 'key', 'RETURN 0'),
       ['GRAPH.PROFILE', 'key', 'RETURN 0']
     );
   });

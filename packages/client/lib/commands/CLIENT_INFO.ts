@@ -1,3 +1,4 @@
+import { CommandParser } from '../client/parser';
 import { Command, VerbatimStringReply } from '../RESP/types';
 
 export interface ClientInfoReply {
@@ -56,10 +57,10 @@ export interface ClientInfoReply {
 const CLIENT_INFO_REGEX = /([^\s=]+)=([^\s]*)/g;
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments() {
-    return ['CLIENT', 'INFO']
+  parseCommand(parser: CommandParser) {
+    parser.push('CLIENT', 'INFO');
   },
   transformReply(rawReply: VerbatimStringReply) {
     const map: Record<string, string> = {};

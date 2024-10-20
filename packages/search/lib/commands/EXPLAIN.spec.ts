@@ -1,5 +1,6 @@
 import { strict as assert } from 'node:assert';
 import EXPLAIN from './EXPLAIN';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 import testUtils, { GLOBAL } from '../test-utils';
 import { SCHEMA_FIELD_TYPE } from './CREATE';
 
@@ -7,14 +8,14 @@ describe('EXPLAIN', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        EXPLAIN.transformArguments('index', '*'),
+        parseArgs(EXPLAIN, 'index', '*'),
         ['FT.EXPLAIN', 'index', '*']
       );
     });
 
     it('with PARAMS', () => {
       assert.deepEqual(
-        EXPLAIN.transformArguments('index', '*', {
+        parseArgs(EXPLAIN, 'index', '*', {
           PARAMS: {
             param: 'value'
           }
@@ -25,7 +26,7 @@ describe('EXPLAIN', () => {
 
     it('with DIALECT', () => {
       assert.deepEqual(
-        EXPLAIN.transformArguments('index', '*', {
+        parseArgs(EXPLAIN, 'index', '*', {
           DIALECT: 1
         }),
         ['FT.EXPLAIN', 'index', '*', 'DIALECT', '1']

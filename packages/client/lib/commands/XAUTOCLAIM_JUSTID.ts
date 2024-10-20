@@ -8,12 +8,11 @@ type XAutoClaimJustIdRawReply = TuplesReply<[
 ]>;
 
 export default {
-  FIRST_KEY_INDEX: XAUTOCLAIM.FIRST_KEY_INDEX,
   IS_READ_ONLY: XAUTOCLAIM.IS_READ_ONLY,
-  transformArguments(...args: Parameters<typeof XAUTOCLAIM.transformArguments>) {
-    const redisArgs = XAUTOCLAIM.transformArguments(...args);
-    redisArgs.push('JUSTID');
-    return redisArgs;
+  parseCommand(...args: Parameters<typeof XAUTOCLAIM.parseCommand>) {
+    const parser = args[0];
+    XAUTOCLAIM.parseCommand(...args);
+    parser.push('JUSTID');
   },
   transformReply(reply: UnwrapReply<XAutoClaimJustIdRawReply>) {
     return {

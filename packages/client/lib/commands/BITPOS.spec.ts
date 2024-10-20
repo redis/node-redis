@@ -1,33 +1,34 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import BITPOS from './BITPOS';
+import { parseArgs } from './generic-transformers';
 
 describe('BITPOS', () => {
-  describe('transformArguments', () => {
+  describe('parseCommand', () => {
     it('simple', () => {
       assert.deepEqual(
-        BITPOS.transformArguments('key', 1),
+        parseArgs(BITPOS, 'key', 1),
         ['BITPOS', 'key', '1']
       );
     });
 
     it('with start', () => {
       assert.deepEqual(
-        BITPOS.transformArguments('key', 1, 1),
+        parseArgs(BITPOS, 'key', 1, 1),
         ['BITPOS', 'key', '1', '1']
       );
     });
 
     it('with start and end', () => {
       assert.deepEqual(
-        BITPOS.transformArguments('key', 1, 1, -1),
+        parseArgs(BITPOS, 'key', 1, 1, -1),
         ['BITPOS', 'key', '1', '1', '-1']
       );
     });
 
     it('with start, end and mode', () => {
       assert.deepEqual(
-        BITPOS.transformArguments('key', 1, 1, -1, 'BIT'),
+        parseArgs(BITPOS, 'key', 1, 1, -1, 'BIT'),
         ['BITPOS', 'key', '1', '1', '-1', 'BIT']
       );
     });

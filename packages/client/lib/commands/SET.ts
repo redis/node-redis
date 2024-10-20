@@ -1,3 +1,4 @@
+import { CommandParser } from '../client/parser';
 import { RedisArgument, SimpleStringReply, BlobStringReply, NullReply, Command } from '../RESP/types';
 
 export interface SetOptions {
@@ -42,50 +43,45 @@ export interface SetOptions {
 }
 
 export default {
-  FIRST_KEY_INDEX: 1,
-  transformArguments(key: RedisArgument, value: RedisArgument | number, options?: SetOptions) {
-    const args = [
-      'SET',
-      key,
-      typeof value === 'number' ? value.toString() : value
-    ];
+  parseCommand(parser: CommandParser, key: RedisArgument, value: RedisArgument | number, options?: SetOptions) {
+    parser.push('SET');
+    parser.pushKey(key);
+    parser.push(typeof value === 'number' ? value.toString() : value);
 
     if (options?.expiration) {
       if (typeof options.expiration === 'string') {
-        args.push(options.expiration);
+        parser.push(options.expiration);
       } else if (options.expiration.type === 'KEEPTTL') {
-        args.push('KEEPTTL');
+        parser.push('KEEPTTL');
       } else {
-        args.push(
+        parser.push(
           options.expiration.type,
           options.expiration.value.toString()
         );
       }
     } else if (options?.EX !== undefined) {
-      args.push('EX', options.EX.toString());
+      parser.push('EX', options.EX.toString());
     } else if (options?.PX !== undefined) {
-      args.push('PX', options.PX.toString());
+      parser.push('PX', options.PX.toString());
     } else if (options?.EXAT !== undefined) {
-      args.push('EXAT', options.EXAT.toString());
+      parser.push('EXAT', options.EXAT.toString());
     } else if (options?.PXAT !== undefined) {
-      args.push('PXAT', options.PXAT.toString());
+      parser.push('PXAT', options.PXAT.toString());
     } else if (options?.KEEPTTL) {
-      args.push('KEEPTTL');
+      parser.push('KEEPTTL');
     }
 
     if (options?.condition) {
-      args.push(options.condition);
+      parser.push(options.condition);
     } else if (options?.NX) {
-      args.push('NX');
+      parser.push('NX');
     } else if (options?.XX) {
-      args.push('XX');
+      parser.push('XX');
     }
 
     if (options?.GET) {
-      args.push('GET');
+      parser.push('GET');
     }
-
-    return args;
   },
   transformReply: undefined as unknown as () => SimpleStringReply<'OK'> | BlobStringReply | NullReply
 } as const satisfies Command;

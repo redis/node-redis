@@ -1,11 +1,13 @@
+import { CommandParser } from '../client/parser';
 import { MapReply, BlobStringReply, Command } from '../RESP/types';
-import { RedisVariadicArgument, pushVariadicArguments, transformTuplesReply } from './generic-transformers';
+import { RedisVariadicArgument, transformTuplesReply } from './generic-transformers';
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments(parameters: RedisVariadicArgument) {
-    return pushVariadicArguments(['CONFIG', 'GET'], parameters);
+  parseCommand(parser: CommandParser, parameters: RedisVariadicArgument) {
+    parser.push('CONFIG', 'GET');
+    parser.pushVariadic(parameters);
   },
   transformReply: {
     2: transformTuplesReply,

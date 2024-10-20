@@ -1,4 +1,5 @@
-import { RedisArgument, Command, NullReply, NumberReply, ArrayReply } from '@redis/client/dist/lib/RESP/types';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { RedisArgument, Command, NullReply, NumberReply, ArrayReply } from '@redis/client/lib/RESP/types';
 import { transformRedisJsonArgument } from '.';
 
 export interface JsonStrAppendOptions {
@@ -6,17 +7,16 @@ export interface JsonStrAppendOptions {
 }
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: false,
-  transformArguments(key: RedisArgument, append: string, options?: JsonStrAppendOptions) {
-    const args = ['JSON.STRAPPEND', key];
+  parseCommand(parser: CommandParser, key: RedisArgument, append: string, options?: JsonStrAppendOptions) {
+    parser.push('JSON.STRAPPEND');
+    parser.pushKey(key);
 
     if (options?.path !== undefined) {
-      args.push(options.path);
+      parser.push(options.path);
     }
 
-    args.push(transformRedisJsonArgument(append));
-    return args;
+    parser.push(transformRedisJsonArgument(append));
   },
   transformReply: undefined as unknown as () => NumberReply | ArrayReply<NullReply | NumberReply>
 } as const satisfies Command;

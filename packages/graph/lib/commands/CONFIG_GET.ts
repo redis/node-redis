@@ -1,4 +1,5 @@
-import { RedisArgument, TuplesReply, ArrayReply, BlobStringReply, NumberReply, Command } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, TuplesReply, ArrayReply, BlobStringReply, NumberReply, Command } from '@redis/client/lib/RESP/types';
+import { CommandParser } from '@redis/client/lib/client/parser';
 
 type ConfigItemReply = TuplesReply<[
   configKey: BlobStringReply,
@@ -6,10 +7,10 @@ type ConfigItemReply = TuplesReply<[
 ]>;
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments(configKey: RedisArgument) {
-    return ['GRAPH.CONFIG', 'GET', configKey];
+  parseCommand(parser: CommandParser, configKey: RedisArgument) {
+    parser.push('GRAPH.CONFIG', 'GET', configKey);
   },
   transformReply: undefined as unknown as () => ConfigItemReply | ArrayReply<ConfigItemReply>
 } as const satisfies Command;

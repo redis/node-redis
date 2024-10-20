@@ -1,3 +1,4 @@
+import { CommandParser } from '../client/parser';
 import { RedisArgument, NumberReply, Command } from '../RESP/types';
 import { transformStringDoubleArgument } from './generic-transformers';
 
@@ -11,42 +12,40 @@ export interface ZRangeStoreOptions {
 }
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: false,
-  transformArguments(
+  parseCommand(
+    parser: CommandParser,
     destination: RedisArgument,
     source: RedisArgument,
     min: RedisArgument | number,
     max: RedisArgument | number,
     options?: ZRangeStoreOptions
   ) {
-    const args = [
-      'ZRANGESTORE',
-      destination,
-      source,
-      transformStringDoubleArgument(min),
+    parser.push('ZRANGESTORE');
+    parser.pushKey(destination);
+    parser.pushKey(source);
+    parser.push(
+      transformStringDoubleArgument(min), 
       transformStringDoubleArgument(max)
-    ];
+    );
 
     switch (options?.BY) {
       case 'SCORE':
-        args.push('BYSCORE');
+        parser.push('BYSCORE');
         break;
 
       case 'LEX':
-        args.push('BYLEX');
+        parser.push('BYLEX');
         break;
     }
 
     if (options?.REV) {
-      args.push('REV');
+      parser.push('REV');
     }
 
     if (options?.LIMIT) {
-      args.push('LIMIT', options.LIMIT.offset.toString(), options.LIMIT.count.toString());
+      parser.push('LIMIT', options.LIMIT.offset.toString(), options.LIMIT.count.toString());
     }
-
-    return args;
   },
   transformReply: undefined as unknown as () => NumberReply
 } as const satisfies Command;

@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import HSTRLEN from './HSTRLEN';
+import { parseArgs } from './generic-transformers';
 
 describe('HSTRLEN', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      HSTRLEN.transformArguments('key', 'field'),
+      parseArgs(HSTRLEN, 'key', 'field'),
       ['HSTRLEN', 'key', 'field']
     );
   });

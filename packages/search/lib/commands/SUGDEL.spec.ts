@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SUGDEL from './SUGDEL';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('FT.SUGDEL', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      SUGDEL.transformArguments('key', 'string'),
+      parseArgs(SUGDEL, 'key', 'string'),
       ['FT.SUGDEL', 'key', 'string']
     );
   });

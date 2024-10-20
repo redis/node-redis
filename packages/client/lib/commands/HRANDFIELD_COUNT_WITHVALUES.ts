@@ -1,3 +1,4 @@
+import { CommandParser } from '../client/parser';
 import { RedisArgument, ArrayReply, TuplesReply, BlobStringReply, UnwrapReply, Command } from '../RESP/types';
 
 export type HRandFieldCountWithValuesReply = Array<{
@@ -6,10 +7,11 @@ export type HRandFieldCountWithValuesReply = Array<{
 }>;
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: true,
-  transformArguments(key: RedisArgument, count: number) {
-    return ['HRANDFIELD', key, count.toString(), 'WITHVALUES'];
+  parseCommand(parser: CommandParser, key: RedisArgument, count: number) {
+    parser.push('HRANDFIELD');
+    parser.pushKey(key);
+    parser.push(count.toString(), 'WITHVALUES');
   },
   transformReply: {
     2: (rawReply: UnwrapReply<ArrayReply<BlobStringReply>>) => {

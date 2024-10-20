@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import RPOPLPUSH from './RPOPLPUSH';
+import { parseArgs } from './generic-transformers';
 
 describe('RPOPLPUSH', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      RPOPLPUSH.transformArguments('source', 'destination'),
+      parseArgs(RPOPLPUSH, 'source', 'destination'),
       ['RPOPLPUSH', 'source', 'destination']
     );
   });

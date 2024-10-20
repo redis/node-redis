@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import PFMERGE from './PFMERGE';
+import { parseArgs } from './generic-transformers';
 
 describe('PFMERGE', () => {
   describe('transformArguments', () => {
     it('string', () => {
       assert.deepEqual(
-        PFMERGE.transformArguments('destination', 'source'),
+        parseArgs(PFMERGE, 'destination', 'source'),
         ['PFMERGE', 'destination', 'source']
       );
     });
 
     it('array', () => {
       assert.deepEqual(
-        PFMERGE.transformArguments('destination', ['1', '2']),
+        parseArgs(PFMERGE, 'destination', ['1', '2']),
         ['PFMERGE', 'destination', '1', '2']
       );
     });

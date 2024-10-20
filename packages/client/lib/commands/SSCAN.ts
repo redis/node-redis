@@ -1,15 +1,18 @@
+import { CommandParser } from '../client/parser';
 import { RedisArgument, BlobStringReply, Command } from '../RESP/types';
-import { ScanCommonOptions, pushScanArguments } from './SCAN';
+import { ScanCommonOptions, parseScanArguments} from './SCAN';
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: true,
-  transformArguments(
+  parseCommand(
+    parser: CommandParser,
     key: RedisArgument,
     cursor: RedisArgument,
     options?: ScanCommonOptions
   ) {
-    return pushScanArguments(['SSCAN', key], cursor, options);
+    parser.push('SSCAN');
+    parser.pushKey(key);
+    parseScanArguments(parser, cursor, options);
   },
   transformReply([cursor, members]: [BlobStringReply, Array<BlobStringReply>]) {
     return {

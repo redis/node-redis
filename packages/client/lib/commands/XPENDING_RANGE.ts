@@ -1,3 +1,4 @@
+import { CommandParser } from '../client/parser';
 import { RedisArgument, ArrayReply, TuplesReply, BlobStringReply, NumberReply, UnwrapReply, Command } from '../RESP/types';
 
 export interface XPendingRangeOptions {
@@ -13,33 +14,30 @@ type XPendingRangeRawReply = ArrayReply<TuplesReply<[
 ]>>;
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: true,
-  transformArguments(
+  parseCommand(
+    parser: CommandParser,
     key: RedisArgument,
     group: RedisArgument,
     start: RedisArgument,
     end: RedisArgument,
     count: number,
     options?: XPendingRangeOptions
-  ) {
-    const args = ['XPENDING', key, group];
+  ) { 
+    parser.setCachable();
+    parser.push('XPENDING');
+    parser.pushKey(key);
+    parser.push(group);
 
     if (options?.IDLE !== undefined) {
-      args.push('IDLE', options.IDLE.toString());
+      parser.push('IDLE', options.IDLE.toString());
     }
 
-    args.push(
-      start,
-      end,
-      count.toString()
-    );
+    parser.push(start, end, count.toString());
 
     if (options?.consumer) {
-      args.push(options.consumer);
+      parser.push(options.consumer);
     }
-
-    return args;
   },
   transformReply(reply: UnwrapReply<XPendingRangeRawReply>) {
     return reply.map(pending => {

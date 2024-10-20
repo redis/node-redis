@@ -1,6 +1,8 @@
 import TestUtils from '@redis/test-utils';
 import { SinonSpy } from 'sinon';
 import { setTimeout } from 'node:timers/promises';
+import { Command } from './RESP/types';
+import { BasicCommandParser } from './client/parser';
 
 const utils = new TestUtils({
   dockerImageName: 'redis/redis-stack',
@@ -67,3 +69,9 @@ export const BLOCKING_MIN_VALUE = (
   utils.isVersionGreaterThan([6]) ? 0.01 :
   1
 );
+
+export function parseFirstKey(command: Command, ...args: Array<any>) {
+  const parser = new BasicCommandParser();
+  command.parseCommand!(parser, ...args);
+  return parser.firstKey;
+}

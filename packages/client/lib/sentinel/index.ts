@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import { CommandArguments, RedisArgument, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions, TypeMapping } from '../RESP/types';
+import { CommandArguments, RedisFunctions, RedisModules, RedisScripts, ReplyUnion, RespVersions, TypeMapping } from '../RESP/types';
 import RedisClient, { RedisClientOptions, RedisClientType } from '../client';
 import { CommandOptions } from '../client/commands-queue';
 import { attachConfig } from '../commander';
@@ -16,6 +16,7 @@ import { RedisVariadicArgument } from '../commands/generic-transformers';
 import { WaitQueue } from './wait-queue';
 import { TcpNetConnectOpts } from 'node:net';
 import { RedisTcpSocketOptions } from '../client/socket';
+import { BasicPooledClientSideCache, PooledClientSideCacheProvider, PooledNoRedirectClientSideCache, PooledRedirectClientSideCache } from '../client/cache';
 
 interface ClientInfo {
   id: number;
@@ -164,18 +165,6 @@ export class RedisSentinelClient<
     );
   }
 
-  executeScript(
-    script: RedisScript,  
-    isReadonly: boolean | undefined,
-    args: Array<RedisArgument>,
-    options?: CommandOptions
-  ) {
-    return this._execute(
-      isReadonly,
-      client => client.executeScript(script, args, options)
-    );
-  }
-
   /**
    * @internal
    */
@@ -284,7 +273,11 @@ export default class RedisSentinel<
 
     this.#options = options;
 
-    if (options?.commandOptions) {
+    if (options.replicaPoolSize != 0 && options.clientSideCache) {
+      throw new Error("cannot use replica reads and client side cache together");
+    }
+
+    if (options.commandOptions) {
       this.#commandOptions = options.commandOptions;
     }
 
@@ -437,18 +430,6 @@ export default class RedisSentinel<
     return this._execute(
       isReadonly,
       client => client.sendCommand(args, options)
-    );
-  }
-
-  executeScript(
-    script: RedisScript,
-    isReadonly: boolean | undefined,
-    args: Array<RedisArgument>,
-    options?: CommandOptions
-  ) {
-    return this._execute(
-      isReadonly,
-      client => client.executeScript(script, args, options)
     );
   }
 
@@ -614,6 +595,11 @@ class RedisSentinelInternal<
 
   #trace: (msg: string) => unknown = () => { };
 
+  #clientSideCache?: PooledClientSideCacheProvider;
+  get clientSideCache() {
+    return this.#clientSideCache;
+  }
+
   constructor(options: RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>) {
     super();
 
@@ -626,9 +612,20 @@ class RedisSentinelInternal<
     this.#scanInterval = options.scanInterval ?? 0;
     this.#passthroughClientErrorEvents = options.passthroughClientErrorEvents ?? false;
 
-    this.#nodeClientOptions = options.nodeClientOptions ? Object.assign({} as RedisClientOptions<M, F, S, RESP, TYPE_MAPPING, RedisTcpSocketOptions>, options.nodeClientOptions) : {};
+    this.#nodeClientOptions = options.nodeClientOptions ? {...options.nodeClientOptions} : {};
     if (this.#nodeClientOptions.url !== undefined) {
       throw new Error("invalid nodeClientOptions for Sentinel");
+    }
+
+    if (options.clientSideCache) {
+      if (options.clientSideCache instanceof PooledClientSideCacheProvider) {
+        this.#clientSideCache = this.#nodeClientOptions.clientSideCache = options.clientSideCache;
+      } else {
+        const cscConfig = options.clientSideCache;
+        this.#clientSideCache = this.#nodeClientOptions.clientSideCache = new BasicPooledClientSideCache(cscConfig);
+        this.#clientSideCache = this.#nodeClientOptions.clientSideCache = new PooledNoRedirectClientSideCache(cscConfig);
+        this.#clientSideCache = this.#nodeClientOptions.clientSideCache = new PooledRedirectClientSideCache(cscConfig);
+      }
     }
 
     this.#sentinelClientOptions = options.sentinelClientOptions ? Object.assign({} as RedisClientOptions<typeof RedisSentinelModule, F, S, RESP, TYPE_MAPPING, RedisTcpSocketOptions>, options.sentinelClientOptions) : {};
@@ -850,6 +847,10 @@ class RedisSentinelInternal<
     }
 
     this.#isReady = false;
+
+    if (this.#clientSideCache) {
+      this.#clientSideCache.onClose();
+    }
 
     if (this.#scanTimer) {
       clearInterval(this.#scanTimer);

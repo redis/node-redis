@@ -1,19 +1,17 @@
+import { CommandParser } from '../client/parser';
 import { RedisArgument, Command } from '../RESP/types';
 import { transformDoubleArgument, transformDoubleReply } from './generic-transformers';
 
 export default {
-  FIRST_KEY_INDEX: 1,
-  transformArguments(
+  parseCommand(
+    parser: CommandParser,
     key: RedisArgument,
     increment: number,
     member: RedisArgument
   ) {
-    return [
-      'ZINCRBY',
-      key,
-      transformDoubleArgument(increment),
-      member
-    ];
+    parser.push('ZINCRBY');
+    parser.pushKey(key);
+    parser.push(transformDoubleArgument(increment), member);
   },
   transformReply: transformDoubleReply
 } as const satisfies Command;

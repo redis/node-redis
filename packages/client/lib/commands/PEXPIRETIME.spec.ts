@@ -1,13 +1,14 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import PEXPIRETIME from './PEXPIRETIME';
+import { parseArgs } from './generic-transformers';
 
 describe('PEXPIRETIME', () => {
   testUtils.isVersionGreaterThanHook([7]);
 
   it('transformArguments', () => {
     assert.deepEqual(
-      PEXPIRETIME.transformArguments('key'),
+      parseArgs(PEXPIRETIME, 'key'),
       ['PEXPIRETIME', 'key']
     );
   });

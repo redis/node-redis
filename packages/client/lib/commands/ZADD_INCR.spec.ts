@@ -1,12 +1,13 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ZADD_INCR from './ZADD_INCR';
+import { parseArgs } from './generic-transformers';
 
 describe('ZADD INCR', () => {
   describe('transformArguments', () => {
     it('single member', () => {
       assert.deepEqual(
-        ZADD_INCR.transformArguments('key', {
+        parseArgs(ZADD_INCR, 'key', {
           value: '1',
           score: 1
         }),
@@ -16,7 +17,7 @@ describe('ZADD INCR', () => {
 
     it('multiple members', () => {
       assert.deepEqual(
-        ZADD_INCR.transformArguments('key', [{
+        parseArgs(ZADD_INCR, 'key', [{
           value: '1',
           score: 1
         }, {
@@ -29,7 +30,7 @@ describe('ZADD INCR', () => {
 
     it('with condition', () => {
       assert.deepEqual(
-        ZADD_INCR.transformArguments('key', {
+        parseArgs(ZADD_INCR, 'key', {
           value: '1',
           score: 1
         }, {
@@ -41,7 +42,7 @@ describe('ZADD INCR', () => {
 
     it('with comparison', () => {
       assert.deepEqual(
-        ZADD_INCR.transformArguments('key', {
+        parseArgs(ZADD_INCR, 'key', {
           value: '1',
           score: 1
         }, {
@@ -53,7 +54,7 @@ describe('ZADD INCR', () => {
 
     it('with CH', () => {
       assert.deepEqual(
-        ZADD_INCR.transformArguments('key', {
+        parseArgs(ZADD_INCR, 'key', {
           value: '1',
           score: 1
         }, {
@@ -65,7 +66,7 @@ describe('ZADD INCR', () => {
 
     it('with condition, comparison, CH', () => {
       assert.deepEqual(
-        ZADD_INCR.transformArguments('key', {
+        parseArgs(ZADD_INCR, 'key', {
           value: '1',
           score: 1
         }, {
