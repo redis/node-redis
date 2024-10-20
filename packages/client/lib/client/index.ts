@@ -178,7 +178,7 @@ export default class RedisClient<
 
     return async function (this: NamespaceProxyClient, ...args: Array<unknown>) {
       const parser = new BasicCommandParser(resp);
-      parser.pushVariadic(prefix);
+      parser.push(...prefix);
       fn.parseCommand(parser, ...args);
 
       return this._self._executeCommand(parser, this._self._commandOptions, transformReply);
@@ -191,7 +191,7 @@ export default class RedisClient<
 
     return async function (this: ProxyClient, ...args: Array<unknown>) {
       const parser = new BasicCommandParser(resp);
-      parser.pushVariadic(prefix);
+      parser.push(...prefix);
       script.parseCommand(parser, ...args)
 
       return this._executeScript(script, parser, this._commandOptions, transformReply);

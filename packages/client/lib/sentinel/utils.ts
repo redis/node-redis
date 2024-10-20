@@ -57,7 +57,7 @@ export function createFunctionCommand<T extends NamespaceProxySentinel | Namespa
 
   return async function (this: T, ...args: Array<unknown>) {
     const parser = new BasicCommandParser(resp);
-    parser.pushVariadic(prefix);
+    parser.push(...prefix);
     fn.parseCommand(parser, ...args);
 
     return this._self._execute(
@@ -87,7 +87,7 @@ export function createScriptCommand<T extends ProxySentinel | ProxySentinelClien
 
   return async function (this: T, ...args: Array<unknown>) {
     const parser = new BasicCommandParser(resp);
-    parser.pushVariadic(prefix);
+    parser.push(...prefix);
     script.parseCommand(parser, ...args);
 
     return this._self._execute(

@@ -91,7 +91,7 @@ export class RedisClientPool<
 
     return async function (this: NamespaceProxyPool, ...args: Array<unknown>) {
       const parser = new BasicCommandParser(resp);
-      parser.pushVariadic(prefix);
+      parser.push(...prefix);
       fn.parseCommand(parser, ...args);
 
       return this._self.execute(client => client._executeCommand(parser, this._self._commandOptions, transformReply))    };

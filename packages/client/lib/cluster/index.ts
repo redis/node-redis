@@ -183,7 +183,7 @@ export default class RedisCluster<
 
     return async function (this: NamespaceProxyCluster, ...args: Array<unknown>) {
       const parser = new BasicCommandParser(resp);
-      parser.pushVariadic(prefix);
+      parser.push(...prefix);
       fn.parseCommand(parser, ...args);
 
       return this._self.#execute(
@@ -201,7 +201,7 @@ export default class RedisCluster<
 
     return async function (this: ProxyCluster, ...args: Array<unknown>) {
       const parser = new BasicCommandParser(resp);
-      parser.pushVariadic(prefix);
+      parser.push(...prefix);
       script.parseCommand(parser, ...args);
 
       return this._self.#execute(
