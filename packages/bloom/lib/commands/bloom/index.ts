@@ -1,4 +1,4 @@
-import type { RedisCommands, TypeMapping } from '@redis/client/dist/lib/RESP/types';
+import type { RedisCommands, TypeMapping } from '@redis/client/lib/RESP/types';
 
 import ADD from './ADD';
 import CARD from './CARD';

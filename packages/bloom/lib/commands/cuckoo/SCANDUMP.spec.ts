@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../../test-utils';
 import SCANDUMP from './SCANDUMP';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('CF.SCANDUMP', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      SCANDUMP.transformArguments('key', 0),
+      parseArgs(SCANDUMP, 'key', 0),
       ['CF.SCANDUMP', 'key', '0']
     );
   });

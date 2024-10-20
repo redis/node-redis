@@ -1,26 +1,27 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import XCLAIM from './XCLAIM';
+import { parseArgs } from './generic-transformers';
 
 describe('XCLAIM', () => {
   describe('transformArguments', () => {
     it('single id (string)', () => {
       assert.deepEqual(
-        XCLAIM.transformArguments('key', 'group', 'consumer', 1, '0-0'),
+        parseArgs(XCLAIM, 'key', 'group', 'consumer', 1, '0-0'),
         ['XCLAIM', 'key', 'group', 'consumer', '1', '0-0']
       );
     });
 
     it('multiple ids (array)', () => {
       assert.deepEqual(
-        XCLAIM.transformArguments('key', 'group', 'consumer', 1, ['0-0', '1-0']),
+        parseArgs(XCLAIM, 'key', 'group', 'consumer', 1, ['0-0', '1-0']),
         ['XCLAIM', 'key', 'group', 'consumer', '1', '0-0', '1-0']
       );
     });
 
     it('with IDLE', () => {
       assert.deepEqual(
-        XCLAIM.transformArguments('key', 'group', 'consumer', 1, '0-0', {
+        parseArgs(XCLAIM, 'key', 'group', 'consumer', 1, '0-0', {
           IDLE: 1
         }),
         ['XCLAIM', 'key', 'group', 'consumer', '1', '0-0', 'IDLE', '1']
@@ -30,7 +31,7 @@ describe('XCLAIM', () => {
     describe('with TIME', () => {
       it('number', () => {
         assert.deepEqual(
-          XCLAIM.transformArguments('key', 'group', 'consumer', 1, '0-0', {
+          parseArgs(XCLAIM, 'key', 'group', 'consumer', 1, '0-0', {
             TIME: 1
           }),
           ['XCLAIM', 'key', 'group', 'consumer', '1', '0-0', 'TIME', '1']
@@ -40,7 +41,7 @@ describe('XCLAIM', () => {
       it('Date', () => {
         const d = new Date();
         assert.deepEqual(
-          XCLAIM.transformArguments('key', 'group', 'consumer', 1, '0-0', {
+          parseArgs(XCLAIM, 'key', 'group', 'consumer', 1, '0-0', {
             TIME: d
           }),
           ['XCLAIM', 'key', 'group', 'consumer', '1', '0-0', 'TIME', d.getTime().toString()]
@@ -50,7 +51,7 @@ describe('XCLAIM', () => {
 
     it('with RETRYCOUNT', () => {
       assert.deepEqual(
-        XCLAIM.transformArguments('key', 'group', 'consumer', 1, '0-0', {
+        parseArgs(XCLAIM, 'key', 'group', 'consumer', 1, '0-0', {
           RETRYCOUNT: 1
         }),
         ['XCLAIM', 'key', 'group', 'consumer', '1', '0-0', 'RETRYCOUNT', '1']
@@ -59,7 +60,7 @@ describe('XCLAIM', () => {
 
     it('with FORCE', () => {
       assert.deepEqual(
-        XCLAIM.transformArguments('key', 'group', 'consumer', 1, '0-0', {
+        parseArgs(XCLAIM, 'key', 'group', 'consumer', 1, '0-0', {
           FORCE: true
         }),
         ['XCLAIM', 'key', 'group', 'consumer', '1', '0-0', 'FORCE']
@@ -68,7 +69,7 @@ describe('XCLAIM', () => {
 
     it('with LASTID', () => {
       assert.deepEqual(
-        XCLAIM.transformArguments('key', 'group', 'consumer', 1, '0-0', {
+        parseArgs(XCLAIM, 'key', 'group', 'consumer', 1, '0-0', {
           LASTID: '0-0'
         }),
         ['XCLAIM', 'key', 'group', 'consumer', '1', '0-0', 'LASTID', '0-0']
@@ -77,7 +78,7 @@ describe('XCLAIM', () => {
 
     it('with IDLE, TIME, RETRYCOUNT, FORCE, LASTID', () => {
       assert.deepEqual(
-        XCLAIM.transformArguments('key', 'group', 'consumer', 1, '0-0', {
+        parseArgs(XCLAIM, 'key', 'group', 'consumer', 1, '0-0', {
           IDLE: 1,
           TIME: 1,
           RETRYCOUNT: 1,

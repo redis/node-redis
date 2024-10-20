@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../../test-utils';
 import INFO from './INFO';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('CF.INFO', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      INFO.transformArguments('cuckoo'),
+      parseArgs(INFO, 'cuckoo'),
       ['CF.INFO', 'cuckoo']
     );
   });

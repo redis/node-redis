@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import MOVE from './MOVE';
+import { parseArgs } from './generic-transformers';
 
 describe('MOVE', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      MOVE.transformArguments('key', 1),
+      parseArgs(MOVE, 'key', 1),
       ['MOVE', 'key', '1']
     );
   });

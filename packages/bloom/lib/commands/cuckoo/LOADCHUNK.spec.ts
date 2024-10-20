@@ -2,11 +2,12 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../../test-utils';
 import LOADCHUNK from './LOADCHUNK';
 import { RESP_TYPES } from '@redis/client';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('CF.LOADCHUNK', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      LOADCHUNK.transformArguments('item', 0, ''),
+      parseArgs(LOADCHUNK, 'item', 0, ''),
       ['CF.LOADCHUNK', 'item', '0', '']
     );
   });

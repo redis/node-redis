@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import DICTADD from './DICTADD';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('FT.DICTADD', () => {
   describe('transformArguments', () => {
     it('string', () => {
       assert.deepEqual(
-        DICTADD.transformArguments('dictionary', 'term'),
+        parseArgs(DICTADD, 'dictionary', 'term'),
         ['FT.DICTADD', 'dictionary', 'term']
       );
     });
 
     it('Array', () => {
       assert.deepEqual(
-        DICTADD.transformArguments('dictionary', ['1', '2']),
+        parseArgs(DICTADD, 'dictionary', ['1', '2']),
         ['FT.DICTADD', 'dictionary', '1', '2']
       );
     });

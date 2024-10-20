@@ -2,11 +2,12 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import MRANGE from './MRANGE';
 import { TIME_SERIES_AGGREGATION_TYPE } from './CREATERULE';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('TS.MRANGE', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      MRANGE.transformArguments('-', '+', 'label=value', {
+      parseArgs(MRANGE, '-', '+', 'label=value', {
         LATEST: true,
         FILTER_BY_TS: [0],
         FILTER_BY_VALUE: {

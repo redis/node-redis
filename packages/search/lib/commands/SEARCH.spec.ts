@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SEARCH from './SEARCH';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('FT.SEARCH', () => {
   describe('transformArguments', () => {
     it('without options', () => {
       assert.deepEqual(
-        SEARCH.transformArguments('index', 'query'),
+        parseArgs(SEARCH, 'index', 'query'),
         ['FT.SEARCH', 'index', 'query']
       );
     });
 
     it('with VERBATIM', () => {
       assert.deepEqual(
-        SEARCH.transformArguments('index', 'query', {
+        parseArgs(SEARCH, 'index', 'query', {
           VERBATIM: true
         }),
         ['FT.SEARCH', 'index', 'query', 'VERBATIM']
@@ -22,7 +23,7 @@ describe('FT.SEARCH', () => {
 
     it('with NOSTOPWORDS', () => {
       assert.deepEqual(
-        SEARCH.transformArguments('index', 'query', {
+        parseArgs(SEARCH, 'index', 'query', {
           NOSTOPWORDS: true
         }),
         ['FT.SEARCH', 'index', 'query', 'NOSTOPWORDS']
@@ -31,7 +32,7 @@ describe('FT.SEARCH', () => {
 
     it('with INKEYS', () => {
       assert.deepEqual(
-        SEARCH.transformArguments('index', 'query', {
+        parseArgs(SEARCH, 'index', 'query', {
           INKEYS: 'key'
         }),
         ['FT.SEARCH', 'index', 'query', 'INKEYS', '1', 'key']
@@ -40,7 +41,7 @@ describe('FT.SEARCH', () => {
 
     it('with INFIELDS', () => {
       assert.deepEqual(
-        SEARCH.transformArguments('index', 'query', {
+        parseArgs(SEARCH, 'index', 'query', {
           INFIELDS: 'field'
         }),
         ['FT.SEARCH', 'index', 'query', 'INFIELDS', '1', 'field']
@@ -49,7 +50,7 @@ describe('FT.SEARCH', () => {
 
     it('with RETURN', () => {
       assert.deepEqual(
-        SEARCH.transformArguments('index', 'query', {
+        parseArgs(SEARCH, 'index', 'query', {
           RETURN: 'return'
         }),
         ['FT.SEARCH', 'index', 'query', 'RETURN', '1', 'return']
@@ -59,7 +60,7 @@ describe('FT.SEARCH', () => {
     describe('with SUMMARIZE', () => {
       it('true', () => {
         assert.deepEqual(
-          SEARCH.transformArguments('index', 'query', {
+          parseArgs(SEARCH, 'index', 'query', {
             SUMMARIZE: true
           }),
           ['FT.SEARCH', 'index', 'query', 'SUMMARIZE']
@@ -69,7 +70,7 @@ describe('FT.SEARCH', () => {
       describe('with FIELDS', () => {
         it('string', () => {
           assert.deepEqual(
-            SEARCH.transformArguments('index', 'query', {
+            parseArgs(SEARCH, 'index', 'query', {
               SUMMARIZE: {
                 FIELDS: '@field'
               }
@@ -80,7 +81,7 @@ describe('FT.SEARCH', () => {
 
         it('Array', () => {
           assert.deepEqual(
-            SEARCH.transformArguments('index', 'query', {
+            parseArgs(SEARCH, 'index', 'query', {
               SUMMARIZE: {
                 FIELDS: ['@1', '@2']
               }
@@ -92,7 +93,7 @@ describe('FT.SEARCH', () => {
 
       it('with FRAGS', () => {
         assert.deepEqual(
-          SEARCH.transformArguments('index', 'query', {
+          parseArgs(SEARCH, 'index', 'query', {
             SUMMARIZE: {
               FRAGS: 1
             }
@@ -103,7 +104,7 @@ describe('FT.SEARCH', () => {
 
       it('with LEN', () => {
         assert.deepEqual(
-          SEARCH.transformArguments('index', 'query', {
+          parseArgs(SEARCH, 'index', 'query', {
             SUMMARIZE: {
               LEN: 1
             }
@@ -114,7 +115,7 @@ describe('FT.SEARCH', () => {
 
       it('with SEPARATOR', () => {
         assert.deepEqual(
-          SEARCH.transformArguments('index', 'query', {
+          parseArgs(SEARCH, 'index', 'query', {
             SUMMARIZE: {
               SEPARATOR: 'separator'
             }
@@ -127,7 +128,7 @@ describe('FT.SEARCH', () => {
     describe('with HIGHLIGHT', () => {
       it('true', () => {
         assert.deepEqual(
-          SEARCH.transformArguments('index', 'query', {
+          parseArgs(SEARCH, 'index', 'query', {
             HIGHLIGHT: true
           }),
           ['FT.SEARCH', 'index', 'query', 'HIGHLIGHT']
@@ -137,7 +138,7 @@ describe('FT.SEARCH', () => {
       describe('with FIELDS', () => {
         it('string', () => {
           assert.deepEqual(
-            SEARCH.transformArguments('index', 'query', {
+            parseArgs(SEARCH, 'index', 'query', {
               HIGHLIGHT: {
                 FIELDS: ['@field']
               }
@@ -148,7 +149,7 @@ describe('FT.SEARCH', () => {
 
         it('Array', () => {
           assert.deepEqual(
-            SEARCH.transformArguments('index', 'query', {
+            parseArgs(SEARCH, 'index', 'query', {
               HIGHLIGHT: {
                 FIELDS: ['@1', '@2']
               }
@@ -160,7 +161,7 @@ describe('FT.SEARCH', () => {
 
       it('with TAGS', () => {
         assert.deepEqual(
-          SEARCH.transformArguments('index', 'query', {
+          parseArgs(SEARCH, 'index', 'query', {
             HIGHLIGHT: {
               TAGS: {
                 open: 'open',
@@ -175,7 +176,7 @@ describe('FT.SEARCH', () => {
 
     it('with SLOP', () => {
       assert.deepEqual(
-        SEARCH.transformArguments('index', 'query', {
+        parseArgs(SEARCH, 'index', 'query', {
           SLOP: 1
         }),
         ['FT.SEARCH', 'index', 'query', 'SLOP', '1']
@@ -184,7 +185,7 @@ describe('FT.SEARCH', () => {
 
     it('with TIMEOUT', () => {
       assert.deepEqual(
-        SEARCH.transformArguments('index', 'query', {
+        parseArgs(SEARCH, 'index', 'query', {
           TIMEOUT: 1
         }),
         ['FT.SEARCH', 'index', 'query', 'TIMEOUT', '1']
@@ -193,7 +194,7 @@ describe('FT.SEARCH', () => {
 
     it('with INORDER', () => {
       assert.deepEqual(
-        SEARCH.transformArguments('index', 'query', {
+        parseArgs(SEARCH, 'index', 'query', {
           INORDER: true
         }),
         ['FT.SEARCH', 'index', 'query', 'INORDER']
@@ -202,7 +203,7 @@ describe('FT.SEARCH', () => {
 
     it('with LANGUAGE', () => {
       assert.deepEqual(
-        SEARCH.transformArguments('index', 'query', {
+        parseArgs(SEARCH, 'index', 'query', {
           LANGUAGE: 'Arabic'
         }),
         ['FT.SEARCH', 'index', 'query', 'LANGUAGE', 'Arabic']
@@ -211,7 +212,7 @@ describe('FT.SEARCH', () => {
 
     it('with EXPANDER', () => {
       assert.deepEqual(
-        SEARCH.transformArguments('index', 'query', {
+        parseArgs(SEARCH, 'index', 'query', {
           EXPANDER: 'expender'
         }),
         ['FT.SEARCH', 'index', 'query', 'EXPANDER', 'expender']
@@ -220,7 +221,7 @@ describe('FT.SEARCH', () => {
 
     it('with SCORER', () => {
       assert.deepEqual(
-        SEARCH.transformArguments('index', 'query', {
+        parseArgs(SEARCH, 'index', 'query', {
           SCORER: 'scorer'
         }),
         ['FT.SEARCH', 'index', 'query', 'SCORER', 'scorer']
@@ -229,7 +230,7 @@ describe('FT.SEARCH', () => {
 
     it('with SORTBY', () => {
       assert.deepEqual(
-        SEARCH.transformArguments('index', 'query', {
+        parseArgs(SEARCH, 'index', 'query', {
           SORTBY: '@by'
         }),
         ['FT.SEARCH', 'index', 'query', 'SORTBY', '@by']
@@ -238,7 +239,7 @@ describe('FT.SEARCH', () => {
 
     it('with LIMIT', () => {
       assert.deepEqual(
-        SEARCH.transformArguments('index', 'query', {
+        parseArgs(SEARCH, 'index', 'query', {
           LIMIT: {
             from: 0,
             size: 1
@@ -250,7 +251,7 @@ describe('FT.SEARCH', () => {
 
     it('with PARAMS', () => {
       assert.deepEqual(
-        SEARCH.transformArguments('index', 'query', {
+        parseArgs(SEARCH, 'index', 'query', {
           PARAMS: {
             string: 'string',
             buffer: Buffer.from('buffer'),
@@ -263,7 +264,7 @@ describe('FT.SEARCH', () => {
 
     it('with DIALECT', () => {
       assert.deepEqual(
-        SEARCH.transformArguments('index', 'query', {
+        parseArgs(SEARCH, 'index', 'query', {
           DIALECT: 1
         }),
         ['FT.SEARCH', 'index', 'query', 'DIALECT', '1']

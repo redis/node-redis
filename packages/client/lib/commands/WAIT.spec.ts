@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import WAIT from './WAIT';
+import { parseArgs } from './generic-transformers';
 
 describe('WAIT', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      WAIT.transformArguments(0, 1),
+      parseArgs(WAIT, 0, 1),
       ['WAIT', '0', '1']
     );
   });

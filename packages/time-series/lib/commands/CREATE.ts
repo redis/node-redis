@@ -1,14 +1,15 @@
-import { RedisArgument, SimpleStringReply, Command } from '@redis/client/dist/lib/RESP/types';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { RedisArgument, SimpleStringReply, Command } from '@redis/client/lib/RESP/types';
 import {
-  pushRetentionArgument,
+  parseRetentionArgument,
   TimeSeriesEncoding,
-  pushEncodingArgument,
-  pushChunkSizeArgument,
+  parseEncodingArgument,
+  parseChunkSizeArgument,
   TimeSeriesDuplicatePolicies,
-  pushDuplicatePolicy,
+  parseDuplicatePolicy,
   Labels,
-  pushLabelsArgument,
-  pushIgnoreArgument
+  parseLabelsArgument,
+  parseIgnoreArgument
 } from '.';
 import { TsIgnoreOptions } from './ADD';
 
@@ -22,24 +23,22 @@ export interface TsCreateOptions {
 }
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: false,
-  transformArguments(key: RedisArgument, options?: TsCreateOptions) {
-    const args = ['TS.CREATE', key];
+  parseCommand(parser: CommandParser, key: RedisArgument, options?: TsCreateOptions) {
+    parser.push('TS.CREATE');
+    parser.pushKey(key);
 
-    pushRetentionArgument(args, options?.RETENTION);
+    parseRetentionArgument(parser, options?.RETENTION);
 
-    pushEncodingArgument(args, options?.ENCODING);
+    parseEncodingArgument(parser, options?.ENCODING);
 
-    pushChunkSizeArgument(args, options?.CHUNK_SIZE);
+    parseChunkSizeArgument(parser, options?.CHUNK_SIZE);
 
-    pushDuplicatePolicy(args, options?.DUPLICATE_POLICY);
+    parseDuplicatePolicy(parser, options?.DUPLICATE_POLICY);
 
-    pushLabelsArgument(args, options?.LABELS);
+    parseLabelsArgument(parser, options?.LABELS);
 
-    pushIgnoreArgument(args, options?.IGNORE);
-
-    return args;
+    parseIgnoreArgument(parser, options?.IGNORE);
   },
   transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
 } as const satisfies Command;

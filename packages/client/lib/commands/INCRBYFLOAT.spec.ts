@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import INCRBYFLOAT from './INCRBYFLOAT';
+import { parseArgs } from './generic-transformers';
 
 describe('INCRBYFLOAT', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      INCRBYFLOAT.transformArguments('key', 1.5),
+      parseArgs(INCRBYFLOAT, 'key', 1.5),
       ['INCRBYFLOAT', 'key', '1.5']
     );
   });

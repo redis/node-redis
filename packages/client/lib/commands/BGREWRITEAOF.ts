@@ -1,10 +1,11 @@
+import { CommandParser } from '../client/parser';
 import { SimpleStringReply, Command } from '../RESP/types';
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments() {
-    return ['BGREWRITEAOF'];
+  parseCommand(parser: CommandParser) {
+    parser.push('BGREWRITEAOF');
   },
   transformReply: undefined as unknown as () => SimpleStringReply
 } as const satisfies Command;

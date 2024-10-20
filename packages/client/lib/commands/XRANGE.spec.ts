@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import XRANGE from './XRANGE';
+import { parseArgs } from './generic-transformers';
 
 describe('XRANGE', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        XRANGE.transformArguments('key', '-', '+'),
+        parseArgs(XRANGE, 'key', '-', '+'),
         ['XRANGE', 'key', '-', '+']
       );
     });
 
     it('with COUNT', () => {
       assert.deepEqual(
-        XRANGE.transformArguments('key', '-', '+', {
+        parseArgs(XRANGE, 'key', '-', '+', {
           COUNT: 1
         }),
         ['XRANGE', 'key', '-', '+', 'COUNT', '1']

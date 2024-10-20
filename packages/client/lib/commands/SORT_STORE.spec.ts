@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SORT_STORE from './SORT_STORE';
+import { parseArgs } from './generic-transformers';
 
 describe('SORT STORE', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        SORT_STORE.transformArguments('source', 'destination'),
+        parseArgs(SORT_STORE, 'source', 'destination'),
         ['SORT', 'source', 'STORE', 'destination']
       );
     });
 
     it('with BY', () => {
       assert.deepEqual(
-        SORT_STORE.transformArguments('source', 'destination', {
+        parseArgs(SORT_STORE, 'source', 'destination', {
           BY: 'pattern'
         }),
         ['SORT', 'source', 'BY', 'pattern', 'STORE', 'destination']
@@ -22,7 +23,7 @@ describe('SORT STORE', () => {
 
     it('with LIMIT', () => {
       assert.deepEqual(
-        SORT_STORE.transformArguments('source', 'destination', {
+        parseArgs(SORT_STORE, 'source', 'destination', {
           LIMIT: {
             offset: 0,
             count: 1
@@ -35,7 +36,7 @@ describe('SORT STORE', () => {
     describe('with GET', () => {
       it('string', () => {
         assert.deepEqual(
-          SORT_STORE.transformArguments('source', 'destination', {
+          parseArgs(SORT_STORE, 'source', 'destination', {
             GET: 'pattern'
           }),
           ['SORT', 'source', 'GET', 'pattern', 'STORE', 'destination']
@@ -44,7 +45,7 @@ describe('SORT STORE', () => {
 
       it('array', () => {
         assert.deepEqual(
-          SORT_STORE.transformArguments('source', 'destination', {
+          parseArgs(SORT_STORE, 'source', 'destination', {
             GET: ['1', '2']
           }),
           ['SORT', 'source', 'GET', '1', 'GET', '2', 'STORE', 'destination']
@@ -54,7 +55,7 @@ describe('SORT STORE', () => {
 
     it('with DIRECTION', () => {
       assert.deepEqual(
-        SORT_STORE.transformArguments('source', 'destination', {
+        parseArgs(SORT_STORE, 'source', 'destination', {
           DIRECTION: 'ASC'
         }),
         ['SORT', 'source', 'ASC', 'STORE', 'destination']
@@ -63,7 +64,7 @@ describe('SORT STORE', () => {
 
     it('with ALPHA', () => {
       assert.deepEqual(
-        SORT_STORE.transformArguments('source', 'destination', {
+        parseArgs(SORT_STORE, 'source', 'destination', {
           ALPHA: true
         }),
         ['SORT', 'source', 'ALPHA', 'STORE', 'destination']
@@ -72,7 +73,7 @@ describe('SORT STORE', () => {
 
     it('with BY, LIMIT, GET, DIRECTION, ALPHA', () => {
       assert.deepEqual(
-        SORT_STORE.transformArguments('source', 'destination', {
+        parseArgs(SORT_STORE, 'source', 'destination', {
           BY: 'pattern',
           LIMIT: {
             offset: 0,

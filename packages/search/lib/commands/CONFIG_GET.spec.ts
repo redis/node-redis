@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import CONFIG_GET from './CONFIG_GET';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('FT.CONFIG GET', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      CONFIG_GET.transformArguments('TIMEOUT'),
+      parseArgs(CONFIG_GET, 'TIMEOUT'),
       ['FT.CONFIG', 'GET', 'TIMEOUT']
     );
   });

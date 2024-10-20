@@ -1,7 +1,8 @@
-import { CommandArguments, RedisArgument, Command } from '@redis/client/dist/lib/RESP/types';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { RedisArgument, Command } from '@redis/client/lib/RESP/types';
 import { Timestamp, transformTimestampArgument, SamplesRawReply, transformSamplesReply } from '.';
 import { TimeSeriesAggregationType } from './CREATERULE';
-import { Resp2Reply } from '@redis/client/dist/lib/RESP/types';
+import { Resp2Reply } from '@redis/client/lib/RESP/types';
 
 export const TIME_SERIES_BUCKET_TIMESTAMP = {
   LOW: '-',
@@ -29,30 +30,30 @@ export interface TsRangeOptions {
   };
 }
 
-export function pushRangeArguments(
-  args: CommandArguments,
+export function parseRangeArguments(
+  parser: CommandParser,
   fromTimestamp: Timestamp,
   toTimestamp: Timestamp,
   options?: TsRangeOptions
 ) {
-  args.push(
+  parser.push(
     transformTimestampArgument(fromTimestamp),
     transformTimestampArgument(toTimestamp)
   );
 
   if (options?.LATEST) {
-    args.push('LATEST');
+    parser.push('LATEST');
   }
 
   if (options?.FILTER_BY_TS) {
-    args.push('FILTER_BY_TS');
+    parser.push('FILTER_BY_TS');
     for (const timestamp of options.FILTER_BY_TS) {
-      args.push(transformTimestampArgument(timestamp));
+      parser.push(transformTimestampArgument(timestamp));
     }
   }
 
   if (options?.FILTER_BY_VALUE) {
-    args.push(
+    parser.push(
       'FILTER_BY_VALUE',
       options.FILTER_BY_VALUE.min.toString(),
       options.FILTER_BY_VALUE.max.toString()
@@ -60,54 +61,52 @@ export function pushRangeArguments(
   }
 
   if (options?.COUNT !== undefined) {
-    args.push('COUNT', options.COUNT.toString());
+    parser.push('COUNT', options.COUNT.toString());
   }
 
   if (options?.AGGREGATION) {
     if (options?.ALIGN !== undefined) {
-      args.push('ALIGN', transformTimestampArgument(options.ALIGN));
+      parser.push('ALIGN', transformTimestampArgument(options.ALIGN));
     }
 
-    args.push(
+    parser.push(
       'AGGREGATION',
       options.AGGREGATION.type,
       transformTimestampArgument(options.AGGREGATION.timeBucket)
     );
       
     if (options.AGGREGATION.BUCKETTIMESTAMP) {
-      args.push(
+      parser.push(
         'BUCKETTIMESTAMP',
         options.AGGREGATION.BUCKETTIMESTAMP
       );
     }
       
     if (options.AGGREGATION.EMPTY) {
-      args.push('EMPTY');
+      parser.push('EMPTY');
     }
   }
-
-  return args;
 }
 
 export function transformRangeArguments(
-  command: RedisArgument,
+  parser: CommandParser,
   key: RedisArgument,
   fromTimestamp: Timestamp,
   toTimestamp: Timestamp,
   options?: TsRangeOptions
 ) {
-  return pushRangeArguments(
-    [command, key],
-    fromTimestamp,
-    toTimestamp,
-    options
-  );
+  parser.pushKey(key);
+  parseRangeArguments(parser, fromTimestamp, toTimestamp, options);
 }
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: true,
-  transformArguments: transformRangeArguments.bind(undefined, 'TS.RANGE'),
+  parseCommand(...args: Parameters<typeof transformRangeArguments>) {
+    const parser = args[0];
+
+    parser.push('TS.RANGE');
+    transformRangeArguments(...args);
+  },
   transformReply: {
     2(reply: Resp2Reply<SamplesRawReply>) {
       return transformSamplesReply[2](reply);

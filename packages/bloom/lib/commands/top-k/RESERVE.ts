@@ -1,4 +1,5 @@
-import { SimpleStringReply, Command, RedisArgument } from '@redis/client/dist/lib/RESP/types';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { SimpleStringReply, Command, RedisArgument } from '@redis/client/lib/RESP/types';
 
 export interface TopKReserveOptions {
   width: number;
@@ -7,20 +8,19 @@ export interface TopKReserveOptions {
 }
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: false,
-  transformArguments(key: RedisArgument, topK: number, options?: TopKReserveOptions) {
-    const args = ['TOPK.RESERVE', key, topK.toString()];
+  parseCommand(parser: CommandParser, key: RedisArgument, topK: number, options?: TopKReserveOptions) {
+    parser.push('TOPK.RESERVE');
+    parser.pushKey(key);
+    parser.push(topK.toString());
 
     if (options) {
-      args.push(
+      parser.push(
         options.width.toString(),
         options.depth.toString(),
         options.decay.toString()
       );
     }
-
-    return args;
   },
   transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
 } as const satisfies Command;

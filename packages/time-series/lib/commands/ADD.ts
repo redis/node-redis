@@ -1,15 +1,16 @@
-import { RedisArgument, NumberReply, Command } from '@redis/client/dist/lib/RESP/types';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { RedisArgument, NumberReply, Command } from '@redis/client/lib/RESP/types';
 import {
   transformTimestampArgument,
-  pushRetentionArgument,
+  parseRetentionArgument,
   TimeSeriesEncoding,
-  pushEncodingArgument,
-  pushChunkSizeArgument,
+  parseEncodingArgument,
+  parseChunkSizeArgument,
   TimeSeriesDuplicatePolicies,
   Labels,
-  pushLabelsArgument,
+  parseLabelsArgument,
   Timestamp,
-  pushIgnoreArgument
+  parseIgnoreArgument
 } from '.';
 
 export interface TsIgnoreOptions {
@@ -27,36 +28,31 @@ export interface TsAddOptions {
 }
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: false,
-  transformArguments(
+  parseCommand(
+    parser: CommandParser,
     key: RedisArgument,
     timestamp: Timestamp,
     value: number,
     options?: TsAddOptions
   ) {
-    const args = [
-      'TS.ADD',
-      key,
-      transformTimestampArgument(timestamp),
-      value.toString()
-    ];
+    parser.push('TS.ADD');
+    parser.pushKey(key);
+    parser.push(transformTimestampArgument(timestamp), value.toString());
 
-    pushRetentionArgument(args, options?.RETENTION);
+    parseRetentionArgument(parser, options?.RETENTION);
 
-    pushEncodingArgument(args, options?.ENCODING);
+    parseEncodingArgument(parser, options?.ENCODING);
 
-    pushChunkSizeArgument(args, options?.CHUNK_SIZE);
+    parseChunkSizeArgument(parser, options?.CHUNK_SIZE);
 
     if (options?.ON_DUPLICATE) {
-      args.push('ON_DUPLICATE', options.ON_DUPLICATE);
+      parser.push('ON_DUPLICATE', options.ON_DUPLICATE);
     }
 
-    pushLabelsArgument(args, options?.LABELS);
+    parseLabelsArgument(parser, options?.LABELS);
 
-    pushIgnoreArgument(args, options?.IGNORE);
-
-    return args;
+    parseIgnoreArgument(parser, options?.IGNORE);
   },
   transformReply: undefined as unknown as () => NumberReply
 } as const satisfies Command;

@@ -1,4 +1,5 @@
-import { RedisArgument, Command, UnwrapReply, NullReply, NumberReply, TuplesToMapReply, Resp2Reply, SimpleStringReply, TypeMapping } from '@redis/client/dist/lib/RESP/types';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { RedisArgument, Command, UnwrapReply, NullReply, NumberReply, TuplesToMapReply, Resp2Reply, SimpleStringReply, TypeMapping } from '@redis/client/lib/RESP/types';
 import { transformInfoV2Reply } from '.';
 
 export type BfInfoReplyMap = TuplesToMapReply<[
@@ -9,19 +10,11 @@ export type BfInfoReplyMap = TuplesToMapReply<[
   [SimpleStringReply<'Expansion rate'>, NullReply | NumberReply] 
 ]>;
 
-export interface BfInfoReply {
-  capacity: NumberReply;
-  size: NumberReply;
-  numberOfFilters: NumberReply;
-  numberOfInsertedItems: NumberReply;
-  expansionRate: NullReply | NumberReply;
-}
-
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: true,
-  transformArguments(key: RedisArgument) {
-    return ['BF.INFO', key];
+  parseCommand(parser: CommandParser, key: RedisArgument) {
+    parser.push('BF.INFO');
+    parser.pushKey(key);
   },
   transformReply: {
     2: (reply: UnwrapReply<Resp2Reply<BfInfoReplyMap>>, _, typeMapping?: TypeMapping): BfInfoReplyMap => {

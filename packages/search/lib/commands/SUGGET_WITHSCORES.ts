@@ -1,5 +1,5 @@
-import { NullReply, ArrayReply, BlobStringReply, DoubleReply, UnwrapReply, Command, TypeMapping } from '@redis/client/dist/lib/RESP/types';
-import { isNullReply, transformDoubleReply } from '@redis/client/dist/lib/commands/generic-transformers';
+import { NullReply, ArrayReply, BlobStringReply, DoubleReply, UnwrapReply, Command, TypeMapping } from '@redis/client/lib/RESP/types';
+import { isNullReply, transformDoubleReply } from '@redis/client/lib/commands/generic-transformers';
 import SUGGET from './SUGGET';
 
 type SuggestScore = {
@@ -8,12 +8,10 @@ type SuggestScore = {
 }
 
 export default {
-  FIRST_KEY_INDEX: SUGGET.FIRST_KEY_INDEX,
   IS_READ_ONLY: SUGGET.IS_READ_ONLY,
-  transformArguments(...args: Parameters<typeof SUGGET.transformArguments>) {
-    const transformedArguments = SUGGET.transformArguments(...args);
-    transformedArguments.push('WITHSCORES');
-    return transformedArguments;
+  parseCommand(...args: Parameters<typeof SUGGET.parseCommand>) {
+    SUGGET.parseCommand(...args);
+    args[0].push('WITHSCORES');
   },
   transformReply: {
     2: (reply: NullReply | UnwrapReply<ArrayReply<BlobStringReply>>, preserve?: any, typeMapping?: TypeMapping) => {

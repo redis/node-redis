@@ -2,11 +2,12 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import MADD from './MADD';
 import { SimpleError } from '@redis/client/lib/errors';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('TS.MADD', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      MADD.transformArguments([{
+      parseArgs(MADD, [{
         key: '1',
         timestamp: 0,
         value: 0

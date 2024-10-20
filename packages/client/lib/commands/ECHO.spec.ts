@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ECHO from './ECHO';
+import { parseArgs } from './generic-transformers';
 
 describe('ECHO', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      ECHO.transformArguments('message'),
+      parseArgs(ECHO, 'message'),
       ['ECHO', 'message']
     );
   });

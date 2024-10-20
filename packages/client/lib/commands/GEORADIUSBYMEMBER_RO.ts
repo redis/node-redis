@@ -1,9 +1,13 @@
 import { Command } from '../RESP/types';
-import GEORADIUSBYMEMBER, { transformGeoRadiusByMemberArguments } from './GEORADIUSBYMEMBER';
+import GEORADIUSBYMEMBER, { parseGeoRadiusByMemberArguments } from './GEORADIUSBYMEMBER';
 
 export default {
-  FIRST_KEY_INDEX: GEORADIUSBYMEMBER.FIRST_KEY_INDEX,
   IS_READ_ONLY: true,
-  transformArguments: transformGeoRadiusByMemberArguments.bind(undefined, 'GEORADIUSBYMEMBER_RO'),
+  parseCommand(...args: Parameters<typeof parseGeoRadiusByMemberArguments>) {
+    const parser = args[0];
+    parser.setCachable();
+    parser.push('GEORADIUSBYMEMBER_RO');
+    parseGeoRadiusByMemberArguments(...args);
+  },
   transformReply: GEORADIUSBYMEMBER.transformReply
 } as const satisfies Command;

@@ -1,12 +1,13 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../../test-utils';
 import INCRBY from './INCRBY';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('TOPK.INCRBY', () => {
   describe('transformArguments', () => {
     it('single item', () => {
       assert.deepEqual(
-        INCRBY.transformArguments('key', {
+        parseArgs(INCRBY, 'key', {
           item: 'item',
           incrementBy: 1
         }),
@@ -16,7 +17,7 @@ describe('TOPK.INCRBY', () => {
 
     it('multiple items', () => {
       assert.deepEqual(
-        INCRBY.transformArguments('key', [{
+        parseArgs(INCRBY, 'key', [{
           item: 'a',
           incrementBy: 1
         }, {

@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import XREVRANGE from './XREVRANGE';
+import { parseArgs } from './generic-transformers';
 
 describe('XREVRANGE', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        XREVRANGE.transformArguments('key', '-', '+'),
+        parseArgs(XREVRANGE, 'key', '-', '+'),
         ['XREVRANGE', 'key', '-', '+']
       );
     });
 
     it('with COUNT', () => {
       assert.deepEqual(
-        XREVRANGE.transformArguments('key', '-', '+', {
+        parseArgs(XREVRANGE, 'key', '-', '+', {
           COUNT: 1
         }),
         ['XREVRANGE', 'key', '-', '+', 'COUNT', '1']

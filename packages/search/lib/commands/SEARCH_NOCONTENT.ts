@@ -1,13 +1,12 @@
-import { Command, ReplyUnion } from '@redis/client/dist/lib/RESP/types';
+import { Command, ReplyUnion } from '@redis/client/lib/RESP/types';
 import SEARCH, { SearchRawReply } from './SEARCH';
 
 export default {
-  FIRST_KEY_INDEX: SEARCH.FIRST_KEY_INDEX,
+  NOT_KEYED_COMMAND: SEARCH.NOT_KEYED_COMMAND,
   IS_READ_ONLY: SEARCH.IS_READ_ONLY,
-  transformArguments(...args: Parameters<typeof SEARCH.transformArguments>) {
-    const redisArgs = SEARCH.transformArguments(...args);
-    redisArgs.push('NOCONTENT');
-    return redisArgs;
+  parseCommand(...args: Parameters<typeof SEARCH.parseCommand>) {
+    SEARCH.parseCommand(...args);
+    args[0].push('NOCONTENT');
   },
   transformReply: {
     2: (reply: SearchRawReply): SearchNoContentReply => {

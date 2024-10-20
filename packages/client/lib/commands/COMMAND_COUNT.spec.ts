@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import COMMAND_COUNT from './COMMAND_COUNT';
+import { parseArgs } from './generic-transformers';
 
 describe('COMMAND COUNT', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      COMMAND_COUNT.transformArguments(),
+      parseArgs(COMMAND_COUNT),
       ['COMMAND', 'COUNT']
     );
   });

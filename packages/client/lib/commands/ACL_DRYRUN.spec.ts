@@ -1,13 +1,14 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ACL_DRYRUN from './ACL_DRYRUN';
+import { parseArgs } from './generic-transformers';
 
 describe('ACL DRYRUN', () => {
   testUtils.isVersionGreaterThanHook([7]);
 
   it('transformArguments', () => {
     assert.deepEqual(
-      ACL_DRYRUN.transformArguments('default', ['GET', 'key']),
+      parseArgs(ACL_DRYRUN, 'default', ['GET', 'key']),
       ['ACL', 'DRYRUN', 'default', 'GET', 'key']
     );
   });

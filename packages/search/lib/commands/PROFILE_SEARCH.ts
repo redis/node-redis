@@ -1,10 +1,7 @@
-// import { SearchOptions, SearchRawReply, transformReply as transformSearchReply } from './SEARCH';
-// import { pushSearchOptions, ProfileOptions, ProfileRawReply, ProfileReply, transformProfile } from '.';
-// import { RedisCommandArguments } from '@redis/client/dist/lib/commands';
-
-import { Command, RedisArgument, ReplyUnion } from "@redis/client/dist/lib/RESP/types";
-import SEARCH, { FtSearchOptions, SearchRawReply, SearchReply, pushSearchOptions } from "./SEARCH";
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { Command, RedisArgument, ReplyUnion } from "@redis/client/lib/RESP/types";
 import { AggregateReply } from "./AGGREGATE";
+import SEARCH, { FtSearchOptions, SearchRawReply, SearchReply, parseSearchOptions } from "./SEARCH";
 
 export type ProfileRawReply<T> = [
   results: T,
@@ -27,22 +24,23 @@ export interface ProfileOptions {
 }
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments(
+  parseCommand(
+    parser: CommandParser,
     index: RedisArgument,
     query: RedisArgument,
     options?: ProfileOptions & FtSearchOptions
   ) {
-    let args: Array<RedisArgument> = ['FT.PROFILE', index, 'SEARCH'];
+    parser.push('FT.PROFILE', index, 'SEARCH');
 
     if (options?.LIMITED) {
-      args.push('LIMITED');
+      parser.push('LIMITED');
     }
 
-    args.push('QUERY', query);
+    parser.push('QUERY', query);
 
-    return pushSearchOptions(args, options);
+    parseSearchOptions(parser, options);
   },
   transformReply: {
     2: (reply: ProfileSearchRawReply, withoutDocuments: boolean): ProfileReply => {

@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import { CommandArguments, RedisArgument, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions, TypeMapping } from '../RESP/types';
+import { CommandArguments, RedisFunctions, RedisModules, RedisScripts, ReplyUnion, RespVersions, TypeMapping } from '../RESP/types';
 import RedisClient, { RedisClientOptions, RedisClientType } from '../client';
 import { CommandOptions } from '../client/commands-queue';
 import { attachConfig } from '../commander';
@@ -161,18 +161,6 @@ export class RedisSentinelClient<
     return this._execute(
       isReadonly,
       client => client.sendCommand(args, options)
-    );
-  }
-
-  executeScript(
-    script: RedisScript,  
-    isReadonly: boolean | undefined,
-    args: Array<RedisArgument>,
-    options?: CommandOptions
-  ) {
-    return this._execute(
-      isReadonly,
-      client => client.executeScript(script, args, options)
     );
   }
 
@@ -437,18 +425,6 @@ export default class RedisSentinel<
     return this._execute(
       isReadonly,
       client => client.sendCommand(args, options)
-    );
-  }
-
-  executeScript(
-    script: RedisScript,
-    isReadonly: boolean | undefined,
-    args: Array<RedisArgument>,
-    options?: CommandOptions
-  ) {
-    return this._execute(
-      isReadonly,
-      client => client.executeScript(script, args, options)
     );
   }
 

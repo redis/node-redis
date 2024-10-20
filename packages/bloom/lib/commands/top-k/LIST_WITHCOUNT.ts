@@ -1,10 +1,12 @@
-import { RedisArgument, ArrayReply, BlobStringReply, NumberReply, UnwrapReply, Command } from '@redis/client/dist/lib/RESP/types';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { RedisArgument, ArrayReply, BlobStringReply, NumberReply, UnwrapReply, Command } from '@redis/client/lib/RESP/types';
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: true,
-  transformArguments(key: RedisArgument) {
-    return ['TOPK.LIST', key, 'WITHCOUNT'];
+  parseCommand(parser: CommandParser, key: RedisArgument) {
+    parser.push('TOPK.LIST');
+    parser.pushKey(key);
+    parser.push('WITHCOUNT');
   },
   transformReply(rawReply: UnwrapReply<ArrayReply<BlobStringReply | NumberReply>>) {
     const reply: Array<{

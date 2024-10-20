@@ -1,10 +1,11 @@
-import { ArrayReply, BlobStringReply, Command } from '@redis/client/dist/lib/RESP/types';
+import { ArrayReply, BlobStringReply, Command } from '@redis/client/lib/RESP/types';
+import { CommandParser } from '@redis/client/lib/client/parser';
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments() {
-    return ['GRAPH.LIST'];
+  parseCommand(parser: CommandParser) {
+    parser.push('GRAPH.LIST');
   },
   transformReply: undefined as unknown as () => ArrayReply<BlobStringReply>
 } as const satisfies Command;

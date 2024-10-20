@@ -1,34 +1,37 @@
-import { Command, RedisArgument } from '@redis/client/dist/lib/RESP/types';
-import { RedisVariadicArgument, pushVariadicArguments, transformBooleanArrayReply } from '@redis/client/dist/lib/commands/generic-transformers';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { Command, RedisArgument } from '@redis/client/lib/RESP/types';
+import { RedisVariadicArgument, transformBooleanArrayReply } from '@redis/client/lib/commands/generic-transformers';
 
 export interface CfInsertOptions {
   CAPACITY?: number;
   NOCREATE?: boolean;
 }
 
-export function transofrmCfInsertArguments(
-  command: RedisArgument,
+export function parseCfInsertArguments(
+  parser: CommandParser, 
   key: RedisArgument,
   items: RedisVariadicArgument,
   options?: CfInsertOptions
 ) {
-  const args = [command, key];
+  parser.pushKey(key);
 
   if (options?.CAPACITY !== undefined) {
-    args.push('CAPACITY', options.CAPACITY.toString());
+    parser.push('CAPACITY', options.CAPACITY.toString());
   }
 
   if (options?.NOCREATE) {
-    args.push('NOCREATE');
+    parser.push('NOCREATE');
   }
 
-  args.push('ITEMS');
-  return pushVariadicArguments(args, items);
+  parser.push('ITEMS');
+  parser.pushVariadic(items);
 }
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: false,
-  transformArguments: transofrmCfInsertArguments.bind(undefined, 'CF.INSERT'),
+  parseCommand(...args: Parameters<typeof parseCfInsertArguments>) {
+    args[0].push('CF.INSERT');
+    parseCfInsertArguments(...args);
+  },
   transformReply: transformBooleanArrayReply
 } as const satisfies Command;

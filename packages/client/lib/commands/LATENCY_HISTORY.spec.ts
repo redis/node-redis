@@ -1,11 +1,12 @@
 import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import LATENCY_HISTORY from './LATENCY_HISTORY';
+import { parseArgs } from './generic-transformers';
 
 describe('LATENCY HISTORY', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      LATENCY_HISTORY.transformArguments('command'),
+      parseArgs(LATENCY_HISTORY, 'command'),
       ['LATENCY', 'HISTORY', 'command']
     );
   });

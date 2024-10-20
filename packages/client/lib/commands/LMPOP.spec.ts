@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import LMPOP from './LMPOP';
+import { parseArgs } from './generic-transformers';
 
 describe('LMPOP', () => {
   testUtils.isVersionGreaterThanHook([7]);
@@ -8,14 +9,14 @@ describe('LMPOP', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        LMPOP.transformArguments('key', 'LEFT'),
+        parseArgs(LMPOP, 'key', 'LEFT'),
         ['LMPOP', '1', 'key', 'LEFT']
       );
     });
 
     it('with COUNT', () => {
       assert.deepEqual(
-        LMPOP.transformArguments('key', 'LEFT', {
+        parseArgs(LMPOP, 'key', 'LEFT', {
           COUNT: 2
         }),
         ['LMPOP', '1', 'key', 'LEFT', 'COUNT', '2']

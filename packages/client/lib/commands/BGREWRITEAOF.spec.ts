@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import BGREWRITEAOF from './BGREWRITEAOF';
+import { parseArgs } from './generic-transformers';
 
 describe('BGREWRITEAOF', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      BGREWRITEAOF.transformArguments(),
+      parseArgs(BGREWRITEAOF),
       ['BGREWRITEAOF']
     );
   });

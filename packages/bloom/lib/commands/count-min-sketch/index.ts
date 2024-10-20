@@ -1,4 +1,4 @@
-import type { RedisCommands } from '@redis/client/dist/lib/RESP/types';
+import type { RedisCommands } from '@redis/client/lib/RESP/types';
 import INCRBY from './INCRBY';
 import INFO from './INFO';
 import INITBYDIM from './INITBYDIM';

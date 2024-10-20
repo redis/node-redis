@@ -1,13 +1,14 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import CLIENT_TRACKINGINFO from './CLIENT_TRACKINGINFO';
+import { parseArgs } from './generic-transformers';
 
 describe('CLIENT TRACKINGINFO', () => {
   testUtils.isVersionGreaterThanHook([6, 2]);
 
   it('transformArguments', () => {
     assert.deepEqual(
-      CLIENT_TRACKINGINFO.transformArguments(),
+      parseArgs(CLIENT_TRACKINGINFO),
       ['CLIENT', 'TRACKINGINFO']
     );
   });

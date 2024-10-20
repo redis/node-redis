@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import HELLO from './HELLO';
+import { parseArgs } from './generic-transformers';
 
 describe('HELLO', () => {
   testUtils.isVersionGreaterThanHook([6]);
@@ -8,21 +9,21 @@ describe('HELLO', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        HELLO.transformArguments(),
+        parseArgs(HELLO),
         ['HELLO']
       );
     });
 
     it('with protover', () => {
       assert.deepEqual(
-        HELLO.transformArguments(3),
+        parseArgs(HELLO, 3),
         ['HELLO', '3']
       );
     });
 
     it('with protover, AUTH', () => {
       assert.deepEqual(
-        HELLO.transformArguments(3, {
+        parseArgs(HELLO, 3, {
           AUTH: {
             username: 'username',
             password: 'password'
@@ -34,7 +35,7 @@ describe('HELLO', () => {
 
     it('with protover, SETNAME', () => {
       assert.deepEqual(
-        HELLO.transformArguments(3, {
+        parseArgs(HELLO, 3, {
           SETNAME: 'name'
         }),
         ['HELLO', '3', 'SETNAME', 'name']
@@ -43,7 +44,7 @@ describe('HELLO', () => {
 
     it('with protover, AUTH, SETNAME', () => {
       assert.deepEqual(
-        HELLO.transformArguments(3, {
+        parseArgs(HELLO, 3, {
           AUTH: {
             username: 'username',
             password: 'password'

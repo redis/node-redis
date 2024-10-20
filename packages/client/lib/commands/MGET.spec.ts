@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import MGET from './MGET';
+import { parseArgs } from './generic-transformers';
 
 describe('MGET', () => {
-  it('transformArguments', () => {
+  it('processCommand', () => {
     assert.deepEqual(
-      MGET.transformArguments(['1', '2']),
+      parseArgs(MGET, ['1', '2']),
       ['MGET', '1', '2']
     );
   });

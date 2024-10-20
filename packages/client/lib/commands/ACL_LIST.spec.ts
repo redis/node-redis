@@ -1,13 +1,14 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ACL_LIST from './ACL_LIST';
+import { parseArgs } from './generic-transformers';
 
 describe('ACL LIST', () => {
   testUtils.isVersionGreaterThanHook([6]);
 
   it('transformArguments', () => {
     assert.deepEqual(
-      ACL_LIST.transformArguments(),
+      parseArgs(ACL_LIST),
       ['ACL', 'LIST']
     );
   });

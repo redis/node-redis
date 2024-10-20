@@ -1,10 +1,11 @@
-import { SimpleStringReply, Command, RedisArgument, NumberReply, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { SimpleStringReply, Command, RedisArgument, NumberReply, UnwrapReply } from '@redis/client/lib/RESP/types';
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments(index: RedisArgument, cursorId: UnwrapReply<NumberReply>) {
-    return ['FT.CURSOR', 'DEL', index, cursorId.toString()];
+  parseCommand(parser: CommandParser, index: RedisArgument, cursorId: UnwrapReply<NumberReply>) {
+    parser.push('FT.CURSOR', 'DEL', index, cursorId.toString());
   },
   transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
 } as const satisfies Command;

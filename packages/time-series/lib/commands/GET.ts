@@ -1,4 +1,5 @@
-import { RedisArgument, TuplesReply, NumberReply, DoubleReply, UnwrapReply, Resp2Reply, Command } from '@redis/client/dist/lib/RESP/types';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { RedisArgument, TuplesReply, NumberReply, DoubleReply, UnwrapReply, Resp2Reply, Command } from '@redis/client/lib/RESP/types';
 
 export interface TsGetOptions {
   LATEST?: boolean;
@@ -7,16 +8,14 @@ export interface TsGetOptions {
 export type TsGetReply = TuplesReply<[]> | TuplesReply<[NumberReply, DoubleReply]>;
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: true,
-  transformArguments(key: RedisArgument, options?: TsGetOptions) {
-    const args = ['TS.GET', key];
+  parseCommand(parser: CommandParser, key: RedisArgument, options?: TsGetOptions) {
+    parser.push('TS.GET');
+    parser.pushKey(key);
     
     if (options?.LATEST) {
-      args.push('LATEST');
+      parser.push('LATEST');
     }
-
-    return args;
   },
   transformReply: {
     2(reply: UnwrapReply<Resp2Reply<TsGetReply>>) {

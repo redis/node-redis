@@ -1,11 +1,13 @@
-import { ArrayReply, BlobStringReply, SetReply, Command } from '@redis/client/dist/lib/RESP/types';
-import { RedisVariadicArgument, pushVariadicArguments } from '@redis/client/dist/lib/commands/generic-transformers';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { ArrayReply, BlobStringReply, SetReply, Command } from '@redis/client/lib/RESP/types';
+import { RedisVariadicArgument } from '@redis/client/lib/commands/generic-transformers';
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments(filter: RedisVariadicArgument) {
-    return pushVariadicArguments(['TS.QUERYINDEX'], filter);
+  parseCommand(parser: CommandParser, filter: RedisVariadicArgument) {
+    parser.push('TS.QUERYINDEX');
+    parser.pushVariadic(filter);
   },
   transformReply: {
     2: undefined as unknown as () => ArrayReply<BlobStringReply>,

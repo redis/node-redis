@@ -1,10 +1,11 @@
-import { ArrayReply, TuplesReply, BlobStringReply, NullReply, UnwrapReply, Command } from '@redis/client/dist/lib/RESP/types';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { ArrayReply, TuplesReply, BlobStringReply, NullReply, UnwrapReply, Command } from '@redis/client/lib/RESP/types';
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments(option: string) {
-    return ['FT.CONFIG', 'GET', option];
+  parseCommand(parser: CommandParser, option: string) {
+    parser.push('FT.CONFIG', 'GET', option);
   },
   transformReply(reply: UnwrapReply<ArrayReply<TuplesReply<[BlobStringReply, BlobStringReply | NullReply]>>>) {
     const transformedReply: Record<string, BlobStringReply | NullReply> = Object.create(null);

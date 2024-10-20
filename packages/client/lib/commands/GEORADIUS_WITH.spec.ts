@@ -3,6 +3,7 @@ import testUtils, { GLOBAL } from '../test-utils';
 import GEORADIUS_WITH from './GEORADIUS_WITH';
 import { GEO_REPLY_WITH } from './GEOSEARCH_WITH';
 import { CommandArguments } from '../RESP/types';
+import { parseArgs } from './generic-transformers';
 
 describe('GEORADIUS WITH', () => {
   it('transformArguments', () => {
@@ -10,7 +11,7 @@ describe('GEORADIUS WITH', () => {
     expectedReply.preserve = ['WITHDIST'];
 
     assert.deepEqual(
-      GEORADIUS_WITH.transformArguments('key', {
+      parseArgs(GEORADIUS_WITH, 'key', {
         longitude: 1,
         latitude: 2
       }, 3, 'm', [GEO_REPLY_WITH.DISTANCE]),

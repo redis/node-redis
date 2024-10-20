@@ -1,9 +1,10 @@
-import { Command, ArrayReply, BlobStringReply, MapReply, TuplesReply, RedisArgument, NullReply } from '@redis/client/dist/lib/RESP/types';
-import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
-import { pushSelectedLabelsArguments, resp3MapToValue, SampleRawReply, Timestamp, transformSamplesReply } from '.';
-import { TsRangeOptions, pushRangeArguments } from './RANGE';
-import { extractResp3MRangeSources, pushGroupByArguments, TsMRangeGroupBy, TsMRangeGroupByRawMetadataReply3 } from './MRANGE_GROUPBY';
-import { pushFilterArgument } from './MGET';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { Command, ArrayReply, BlobStringReply, MapReply, TuplesReply, RedisArgument, NullReply } from '@redis/client/lib/RESP/types';
+import { RedisVariadicArgument } from '@redis/client/lib/commands/generic-transformers';
+import { parseSelectedLabelsArguments, resp3MapToValue, SampleRawReply, Timestamp, transformSamplesReply } from '.';
+import { TsRangeOptions, parseRangeArguments } from './RANGE';
+import { extractResp3MRangeSources, parseGroupByArguments, TsMRangeGroupBy, TsMRangeGroupByRawMetadataReply3 } from './MRANGE_GROUPBY';
+import { parseFilterArgument } from './MGET';
 import MRANGE_SELECTED_LABELS from './MRANGE_SELECTED_LABELS';
 
 export type TsMRangeWithLabelsGroupByRawReply3 = MapReply<
@@ -20,6 +21,7 @@ export function createMRangeSelectedLabelsGroupByTransformArguments(
   command: RedisArgument
 ) {
   return (
+    parser: CommandParser,
     fromTimestamp: Timestamp,
     toTimestamp: Timestamp,
     selectedLabels: RedisVariadicArgument,
@@ -27,27 +29,25 @@ export function createMRangeSelectedLabelsGroupByTransformArguments(
     groupBy: TsMRangeGroupBy,
     options?: TsRangeOptions
   ) => {
-    let args = pushRangeArguments(
-      [command],
+    parser.push(command);
+    parseRangeArguments(
+      parser,
       fromTimestamp,
       toTimestamp,
       options
     );
   
-    args = pushSelectedLabelsArguments(args, selectedLabels);
+    parseSelectedLabelsArguments(parser, selectedLabels);
   
-    args = pushFilterArgument(args, filter);
+    parseFilterArgument(parser, filter);
   
-    pushGroupByArguments(args, groupBy);
-  
-    return args;
+    parseGroupByArguments(parser, groupBy);
   };
 }
 
 export default {
-  FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: true,
-  transformArguments: createMRangeSelectedLabelsGroupByTransformArguments('TS.MRANGE'),
+  parseCommand: createMRangeSelectedLabelsGroupByTransformArguments('TS.MRANGE'),
   transformReply: {
     2: MRANGE_SELECTED_LABELS.transformReply[2],
     3(reply: TsMRangeWithLabelsGroupByRawReply3) {

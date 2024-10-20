@@ -1,32 +1,32 @@
-import { RedisArgument, ArrayReply, SimpleStringReply, NullReply, Command } from '@redis/client/dist/lib/RESP/types';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { RedisArgument, ArrayReply, SimpleStringReply, NullReply, Command } from '@redis/client/lib/RESP/types';
 
 export interface TopKIncrByItem {
   item: string;
   incrementBy: number;
 }
 
-function pushIncrByItem(args: Array<RedisArgument>, { item, incrementBy }: TopKIncrByItem) {
-  args.push(item, incrementBy.toString());
+function pushIncrByItem(parser: CommandParser, { item, incrementBy }: TopKIncrByItem) {
+  parser.push(item, incrementBy.toString());
 }
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: false,
-  transformArguments(
+  parseCommand(
+    parser: CommandParser,
     key: RedisArgument,
     items: TopKIncrByItem | Array<TopKIncrByItem>
   ) {
-    const args = ['TOPK.INCRBY', key];
+    parser.push('TOPK.INCRBY');
+    parser.pushKey(key);
 
     if (Array.isArray(items)) {
       for (const item of items) {
-        pushIncrByItem(args, item);
+        pushIncrByItem(parser, item);
       }
     } else {
-      pushIncrByItem(args, items);
+      pushIncrByItem(parser, items);
     }
-
-    return args;
   },
   transformReply: undefined as unknown as () => ArrayReply<SimpleStringReply | NullReply>
 } as const satisfies Command;

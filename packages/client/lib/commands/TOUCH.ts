@@ -1,11 +1,12 @@
+import { CommandParser } from '../client/parser';
 import { NumberReply, Command } from '../RESP/types';
-import { RedisVariadicArgument, pushVariadicArguments } from './generic-transformers';
+import { RedisVariadicArgument } from './generic-transformers';
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: false,
-  transformArguments(key: RedisVariadicArgument) {
-    return pushVariadicArguments(['TOUCH'], key);
+  parseCommand(parser: CommandParser, key: RedisVariadicArgument) {
+    parser.push('TOUCH');
+    parser.pushKeys(key);
   },
   transformReply: undefined as unknown as () => NumberReply
 } as const satisfies Command;

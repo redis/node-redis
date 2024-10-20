@@ -2,20 +2,21 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import PROFILE_SEARCH from './PROFILE_SEARCH';
 import { SCHEMA_FIELD_TYPE } from './CREATE';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 
 describe('PROFILE SEARCH', () => {
     describe('transformArguments', () => {
         it('without options', () => {
             assert.deepEqual(
-                PROFILE_SEARCH.transformArguments('index', 'query'),
+                parseArgs(PROFILE_SEARCH, 'index', 'query'),
                 ['FT.PROFILE', 'index', 'SEARCH', 'QUERY', 'query']
             );
         });
 
         it('with options', () => {
             assert.deepEqual(
-                PROFILE_SEARCH.transformArguments('index', 'query', { 
+                parseArgs(PROFILE_SEARCH, 'index', 'query', { 
                     LIMITED: true,
                     VERBATIM: true,
                     INKEYS: 'key'
