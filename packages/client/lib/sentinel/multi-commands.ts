@@ -91,11 +91,10 @@ export default class RedisSentinelMultiCommand<REPLIES = []> {
     const transformReply = getTransformReply(command, resp);
 
     return function (this: RedisSentinelMultiCommand, ...args: Array<unknown>) {
-      let redisArgs: CommandArguments = [];
-
       const parser = new BasicCommandParser(resp);
       command.parseCommand(parser, ...args);
-      redisArgs = parser.redisArgs;
+
+      const redisArgs: CommandArguments = parser.redisArgs;
       redisArgs.preserve = parser.preserve;
 
       return this.addCommand(
@@ -110,11 +109,10 @@ export default class RedisSentinelMultiCommand<REPLIES = []> {
     const transformReply = getTransformReply(command, resp);
 
     return function (this: { _self: RedisSentinelMultiCommand }, ...args: Array<unknown>) {
-      let redisArgs: CommandArguments = [];
-
       const parser = new BasicCommandParser(resp);
       command.parseCommand(parser, ...args);
-      redisArgs = parser.redisArgs;
+
+      const redisArgs: CommandArguments = parser.redisArgs;
       redisArgs.preserve = parser.preserve;
 
       return this._self.addCommand(
@@ -130,15 +128,12 @@ export default class RedisSentinelMultiCommand<REPLIES = []> {
     const transformReply = getTransformReply(fn, resp);
 
     return function (this: { _self: RedisSentinelMultiCommand }, ...args: Array<unknown>) {
-      let fnArgs: CommandArguments = [];
-
       const parser = new BasicCommandParser(resp);
+      parser.push(...prefix);
       fn.parseCommand(parser, ...args);
-      fnArgs = parser.redisArgs;
-      fnArgs.preserve = parser.preserve;
 
-      const redisArgs: CommandArguments = prefix.concat(fnArgs);
-      redisArgs.preserve = fnArgs.preserve;
+      const redisArgs: CommandArguments = parser.redisArgs;
+      redisArgs.preserve = parser.preserve;
 
       return this._self.addCommand(
         fn.IS_READ_ONLY,
@@ -152,23 +147,18 @@ export default class RedisSentinelMultiCommand<REPLIES = []> {
     const transformReply = getTransformReply(script, resp);
 
     return function (this: RedisSentinelMultiCommand, ...args: Array<unknown>) {
-      let scriptArgs: CommandArguments = [];
-
       const parser = new BasicCommandParser(resp);
       script.parseCommand(parser, ...args);
-      scriptArgs = parser.redisArgs;
+
+      const scriptArgs: CommandArguments = parser.redisArgs;
       scriptArgs.preserve = parser.preserve;
 
-      this._setState(
-        script.IS_READ_ONLY
-      );
-      this.#multi.addScript(
+      return this.addScript(
+        script.IS_READ_ONLY,
         script,
         scriptArgs,
         transformReply
       );
-
-      return this;
     };
   }
 
@@ -198,7 +188,7 @@ export default class RedisSentinelMultiCommand<REPLIES = []> {
     this.#sentinel = sentinel;
   }
 
-  private _setState(
+  #setState(
     isReadonly: boolean | undefined,
   ) {
     this.#isReadonly &&= isReadonly;
@@ -209,8 +199,20 @@ export default class RedisSentinelMultiCommand<REPLIES = []> {
     args: CommandArguments,
     transformReply?: TransformReply
   ) {
-    this._setState(isReadonly);
+    this.#setState(isReadonly);
     this.#multi.addCommand(args, transformReply);
+    return this;
+  }
+
+  addScript(
+    isReadonly: boolean | undefined,
+    script: RedisScript,
+    args: CommandArguments,
+    transformReply?: TransformReply
+  ) {
+    this.#setState(isReadonly);
+    this.#multi.addScript(script, args, transformReply);
+
     return this;
   }
 

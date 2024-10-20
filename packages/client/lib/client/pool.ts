@@ -209,7 +209,6 @@ export class RedisClientPool<
     return this._self.#isClosing;
   }
 
-
   /**
    * You are probably looking for {@link RedisClient.createPool `RedisClient.createPool`},
    * {@link RedisClientPool.fromClient `RedisClientPool.fromClient`},
