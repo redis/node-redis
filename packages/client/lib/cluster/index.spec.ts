@@ -47,7 +47,10 @@ describe('Cluster', () => {
     clusterConfiguration: {
       scripts: {
         square: SQUARE_SCRIPT
-      }
+      },
+      // Ensure we send the script to the correct node and not getting
+      // MOVED responses.
+      maxCommandRedirections: 0
     }
   });
 
