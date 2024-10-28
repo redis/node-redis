@@ -7,9 +7,9 @@ export interface XRevRangeOptions {
 }
 
 export default {
+  CACHEABLE: XRANGE.CACHEABLE,
   IS_READ_ONLY: XRANGE.IS_READ_ONLY,
   parseCommand(parser: CommandParser, key: RedisArgument, ...args: Parameters<typeof xRangeArguments>) {
-    parser.setCachable();
     parser.push('XREVRANGE');
     parser.pushKey(key);
     parser.pushVariadic(xRangeArguments(args[0], args[1], args[2]));

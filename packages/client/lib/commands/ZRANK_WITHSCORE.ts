@@ -2,6 +2,7 @@ import { NullReply, TuplesReply, NumberReply, BlobStringReply, DoubleReply, Unwr
 import ZRANK from './ZRANK';
 
 export default {
+  CACHEABLE: ZRANK.CACHEABLE,
   IS_READ_ONLY: ZRANK.IS_READ_ONLY,
   parseCommand(...args: Parameters<typeof ZRANK.parseCommand>) {
     const parser = args[0];

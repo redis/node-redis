@@ -10,6 +10,7 @@ export interface ZRangeByLexOptions {
 }
 
 export default {
+  CACHEABLE: true,
   IS_READ_ONLY: true,
   parseCommand(
     parser: CommandParser,
@@ -18,7 +19,6 @@ export default {
     max: RedisArgument,
     options?: ZRangeByLexOptions
   ) {
-    parser.setCachable();
     parser.push('ZRANGEBYLEX');
     parser.pushKey(key);
     parser.push(

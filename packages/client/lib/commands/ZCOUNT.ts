@@ -3,6 +3,7 @@ import { RedisArgument, NumberReply, Command } from '../RESP/types';
 import { transformStringDoubleArgument } from './generic-transformers';
 
 export default {
+  CACHEABLE: true,
   IS_READ_ONLY: true,
   parseCommand(
     parser: CommandParser, 
@@ -10,7 +11,6 @@ export default {
     min: number | RedisArgument,
     max: number | RedisArgument
   ) {
-    parser.setCachable();
     parser.push('ZCOUNT');
     parser.pushKey(key);
     parser.push(

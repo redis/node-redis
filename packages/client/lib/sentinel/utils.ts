@@ -41,12 +41,12 @@ export function createCommand<T extends ProxySentinel | ProxySentinelClient>(com
   const transformReply = getTransformReply(command, resp);
 
   return async function (this: T, ...args: Array<unknown>) {
-    const parser = new BasicCommandParser(resp);
+    const parser = new BasicCommandParser();
     command.parseCommand(parser, ...args);
 
     return this._self._execute(
       command.IS_READ_ONLY,
-      client => client._executeCommand(parser, this.commandOptions, transformReply)
+      client => client._executeCommand(command, parser, this.commandOptions, transformReply)
     );
   };
 }
@@ -56,13 +56,13 @@ export function createFunctionCommand<T extends NamespaceProxySentinel | Namespa
   const transformReply = getTransformReply(fn, resp);
 
   return async function (this: T, ...args: Array<unknown>) {
-    const parser = new BasicCommandParser(resp);
+    const parser = new BasicCommandParser();
     parser.push(...prefix);
     fn.parseCommand(parser, ...args);
 
     return this._self._execute(
       fn.IS_READ_ONLY,
-      client => client._executeCommand(parser, this._self.commandOptions, transformReply)
+      client => client._executeCommand(fn, parser, this._self.commandOptions, transformReply)
     );
   }
 };
@@ -71,12 +71,12 @@ export function createModuleCommand<T extends NamespaceProxySentinel | Namespace
   const transformReply = getTransformReply(command, resp);
 
   return async function (this: T, ...args: Array<unknown>) {
-    const parser = new BasicCommandParser(resp);
+    const parser = new BasicCommandParser();
     command.parseCommand(parser, ...args);
 
     return this._self._execute(
       command.IS_READ_ONLY,
-      client => client._executeCommand(parser, this._self.commandOptions, transformReply)
+      client => client._executeCommand(command, parser, this._self.commandOptions, transformReply)
     );
   }
 };
@@ -86,7 +86,7 @@ export function createScriptCommand<T extends ProxySentinel | ProxySentinelClien
   const transformReply = getTransformReply(script, resp);
 
   return async function (this: T, ...args: Array<unknown>) {
-    const parser = new BasicCommandParser(resp);
+    const parser = new BasicCommandParser();
     parser.push(...prefix);
     script.parseCommand(parser, ...args);
 

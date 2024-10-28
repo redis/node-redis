@@ -2,6 +2,7 @@ import { CommandParser } from '../client/parser';
 import { RedisArgument, NumberReply, Command } from '../RESP/types';
 
 export default {
+  CACHEABLE: true,
   IS_READ_ONLY: true,
   parseCommand(
     parser: CommandParser,
@@ -9,7 +10,6 @@ export default {
     min: RedisArgument,
     max: RedisArgument
   ) {
-    parser.setCachable();
     parser.push('ZLEXCOUNT');
     parser.pushKey(key);
     parser.push(min);

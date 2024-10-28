@@ -1,13 +1,11 @@
-import { RedisArgument, RespVersions } from "../RESP/types";
-import { RedisVariadicArgument } from "../commands/generic-transformers";
+import { RedisArgument } from '../RESP/types';
+import { RedisVariadicArgument } from '../commands/generic-transformers';
 
 export interface CommandParser {
   redisArgs: ReadonlyArray<RedisArgument>;
   keys: ReadonlyArray<RedisArgument>;
   firstKey: RedisArgument | undefined;
-  respVersion: RespVersions;
   preserve: unknown;
-  cachable: boolean;
 
   push: (...arg: Array<RedisArgument>) => unknown;
   pushVariadic: (vals: RedisVariadicArgument) => unknown;
@@ -16,20 +14,12 @@ export interface CommandParser {
   pushKey: (key: RedisArgument) => unknown; // normal push of keys
   pushKeys: (keys: RedisVariadicArgument) => unknown; // push multiple keys at a time
   pushKeysLength: (keys: RedisVariadicArgument) => unknown; // push multiple keys at a time
-  setCachable: () => unknown;
-  setPreserve: (val: unknown) => unknown;
 }
 
 export class BasicCommandParser implements CommandParser {
   #redisArgs: Array<RedisArgument> = [];
   #keys: Array<RedisArgument> = [];
-  #respVersion: RespVersions;
-  #preserve: unknown;
-  #cachable: boolean = false;
-
-  constructor(respVersion: RespVersions = 2) {
-    this.#respVersion = respVersion;
-  }
+  preserve: unknown;
 
   get redisArgs() {
     return this.#redisArgs;
@@ -40,19 +30,7 @@ export class BasicCommandParser implements CommandParser {
   }
 
   get firstKey() {
-    return this.#keys.length != 0 ? this.#keys[0] : undefined;
-  }
-
-  get respVersion() {
-    return this.#respVersion;
-  }
-
-  get preserve() {
-    return this.#preserve;
-  }
-
-  get cachable() {
-    return this.#cachable
+    return this.#keys[0];
   }
 
   push(...arg: Array<RedisArgument>) {
@@ -91,7 +69,7 @@ export class BasicCommandParser implements CommandParser {
   pushKey(key: RedisArgument) {
     this.#keys.push(key);
     this.#redisArgs.push(key);
-  };
+  }
 
   pushKeysLength(keys: RedisVariadicArgument) {
     if (Array.isArray(keys)) {
@@ -111,12 +89,4 @@ export class BasicCommandParser implements CommandParser {
       this.#redisArgs.push(keys);
     }
   }
-
-  setPreserve(val: unknown) {
-    this.#preserve = val;
-  }
-
-  setCachable() {
-    this.#cachable = true;
-  };
 }

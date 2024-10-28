@@ -3,6 +3,7 @@ import { transformSortedSetReply } from './generic-transformers';
 import ZRANGEBYSCORE from './ZRANGEBYSCORE';
 
 export default {
+  CACHEABLE: ZRANGEBYSCORE.CACHEABLE,
   IS_READ_ONLY: ZRANGEBYSCORE.IS_READ_ONLY,
   parseCommand(...args: Parameters<typeof ZRANGEBYSCORE.parseCommand>) {
     const parser = args[0];

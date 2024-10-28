@@ -16,7 +16,7 @@ export interface RedisMultiQueuedCommand {
 }
 
 export default class RedisMultiCommand {
-  readonly typeMapping?: TypeMapping;
+  private readonly typeMapping?: TypeMapping;
 
   constructor(typeMapping?: TypeMapping) {
     this.typeMapping = typeMapping;

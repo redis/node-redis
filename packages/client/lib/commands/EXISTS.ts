@@ -3,9 +3,9 @@ import { NumberReply, Command } from '../RESP/types';
 import { RedisVariadicArgument } from './generic-transformers';
 
 export default {
+  CACHEABLE: true,
   IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, keys: RedisVariadicArgument) {
-    parser.setCachable();
     parser.push('EXISTS');
     parser.pushKeys(keys);
   },

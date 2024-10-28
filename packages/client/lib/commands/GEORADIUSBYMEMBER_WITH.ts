@@ -18,7 +18,7 @@ export function parseGeoRadiusByMemberWithArguments(
   parseGeoSearchOptions(parser, options);
 
   parser.push(...replyWith);
-  parser.setPreserve(replyWith);
+  parser.preserve = replyWith;
 }
 
 export default {

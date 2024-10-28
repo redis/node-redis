@@ -1,7 +1,7 @@
 import { CommandParser } from '../client/parser';
 import { ArrayReply, Command, NullReply, RedisArgument } from '../RESP/types';
 import { RedisVariadicArgument, transformPXAT } from './generic-transformers';
-import { HashExpiration } from "./HEXPIRE";
+import { HashExpiration } from './HEXPIRE';
 
 export default {
   IS_READ_ONLY: true,

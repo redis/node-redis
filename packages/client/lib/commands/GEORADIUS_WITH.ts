@@ -15,7 +15,7 @@ export function parseGeoRadiusWithArguments(
 ) {
   parseGeoRadiusArguments(parser, key, from, radius, unit, options)
   parser.pushVariadic(replyWith);
-  parser.setPreserve(replyWith);
+  parser.preserve = replyWith;
 }
 
 export default {

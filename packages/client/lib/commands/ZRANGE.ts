@@ -47,6 +47,7 @@ export function zRangeArgument(
 }
 
 export default {
+  CACHEABLE: true,
   IS_READ_ONLY: true,
   parseCommand(
     parser: CommandParser,
@@ -55,7 +56,6 @@ export default {
     max: RedisArgument | number,
     options?: ZRangeOptions
   ) {
-    parser.setCachable();
     parser.push('ZRANGE');
     parser.pushKey(key);
     parser.pushVariadic(zRangeArgument(min, max, options))

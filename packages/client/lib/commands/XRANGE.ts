@@ -21,9 +21,9 @@ export function xRangeArguments(
 }
 
 export default {
+  CACHEABLE: true,
   IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, key: RedisArgument, ...args: Parameters<typeof xRangeArguments>) {
-    parser.setCachable();
     parser.push('XRANGE');
     parser.pushKey(key);
     parser.pushVariadic(xRangeArguments(args[0], args[1], args[2]));

@@ -1,6 +1,6 @@
 import COMMANDS from '../commands';
 import RedisMultiCommand, { MULTI_REPLY, MultiReply, MultiReplyType, RedisMultiQueuedCommand } from '../multi-command';
-import { ReplyWithTypeMapping, CommandReply, Command, CommandArguments, CommanderConfig, RedisFunctions, RedisModules, RedisScripts, RespVersions, TransformReply, RedisScript, RedisFunction, TypeMapping, RedisArgument } from '../RESP/types';
+import { ReplyWithTypeMapping, CommandReply, Command, CommandArguments, CommanderConfig, RedisFunctions, RedisModules, RedisScripts, RespVersions, RedisScript, RedisFunction, TypeMapping, RedisArgument } from '../RESP/types';
 import { attachConfig, functionArgumentsPrefix, getTransformReply } from '../commander';
 import { BasicCommandParser } from '../client/parser';
 import { Tail } from '../commands/generic-transformers';
@@ -95,40 +95,36 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
   static #createCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
 
-    return function (this: RedisClusterMultiCommand, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser(resp);
+    return function (this: RedisClusterMultiCommand, ...args: Array<unknown>): RedisClusterMultiCommand {
+      const parser = new BasicCommandParser();
       command.parseCommand(parser, ...args);
 
       const redisArgs: CommandArguments = parser.redisArgs;
       redisArgs.preserve = parser.preserve;
       const firstKey = parser.firstKey;
-      
-      return this.addCommand(
-        firstKey,
-        command.IS_READ_ONLY,
-        redisArgs,
-        transformReply
-      );
+
+      this.#setState(firstKey, command.IS_READ_ONLY);
+      this.#multi.addCommand(redisArgs, transformReply);
+
+      return this;
     };
   }
 
   static #createModuleCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
 
-    return function (this: { _self: RedisClusterMultiCommand }, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser(resp);
+    return function (this: { _self: RedisClusterMultiCommand }, ...args: Array<unknown>): RedisClusterMultiCommand {
+      const parser = new BasicCommandParser();
       command.parseCommand(parser, ...args);
 
       const redisArgs: CommandArguments = parser.redisArgs;
       redisArgs.preserve = parser.preserve;
       const firstKey = parser.firstKey;
 
-      return this._self.addCommand(
-        firstKey,
-        command.IS_READ_ONLY,
-        redisArgs,
-        transformReply
-      );
+      this._self.#setState(firstKey, command.IS_READ_ONLY);
+      this._self.#multi.addCommand(redisArgs, transformReply);
+
+      return this._self;
     };
   }
 
@@ -136,8 +132,8 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
     const prefix = functionArgumentsPrefix(name, fn);
     const transformReply = getTransformReply(fn, resp);
 
-    return function (this: { _self: RedisClusterMultiCommand }, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser(resp);
+    return function (this: { _self: RedisClusterMultiCommand }, ...args: Array<unknown>): RedisClusterMultiCommand {
+      const parser = new BasicCommandParser();
       parser.push(...prefix);
       fn.parseCommand(parser, ...args);
 
@@ -145,33 +141,28 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
       redisArgs.preserve = parser.preserve;
       const firstKey = parser.firstKey;
 
-      return this._self.addCommand(
-        firstKey,
-        fn.IS_READ_ONLY,
-        redisArgs,
-        transformReply
-      );
+      this._self.#setState(firstKey, fn.IS_READ_ONLY);
+      this._self.#multi.addCommand(redisArgs, transformReply);
+
+      return this._self;
     };
   }
 
   static #createScriptCommand(script: RedisScript, resp: RespVersions) {
     const transformReply = getTransformReply(script, resp);
 
-    return function (this: RedisClusterMultiCommand, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser(resp);
+    return function (this: RedisClusterMultiCommand, ...args: Array<unknown>): RedisClusterMultiCommand {
+      const parser = new BasicCommandParser();
       script.parseCommand(parser, ...args);
 
       const scriptArgs: CommandArguments = parser.redisArgs;
       scriptArgs.preserve = parser.preserve;
       const firstKey = parser.firstKey;
 
-      return this.addScript(
-        firstKey,
-        script.IS_READ_ONLY,
-        script,
-        scriptArgs,
-        transformReply
-      );
+      this.#setState(firstKey, script.IS_READ_ONLY);
+      this.#multi.addScript(script, scriptArgs, transformReply);
+
+      return this;
     };
   }
 
@@ -192,7 +183,7 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
     });
   }
 
-  readonly #multi: RedisMultiCommand
+  readonly #multi: RedisMultiCommand;
 
   readonly #executeMulti: ClusterMultiExecute;
   readonly #executePipeline: ClusterMultiExecute;
@@ -217,30 +208,6 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
   ) {
     this.#firstKey ??= firstKey;
     this.#isReadonly &&= isReadonly;
-  }
-
-  addCommand(
-    firstKey: RedisArgument | undefined,
-    isReadonly: boolean | undefined,
-    args: CommandArguments,
-    transformReply?: TransformReply
-  ) {
-    this.#setState(firstKey, isReadonly);
-    this.#multi.addCommand(args, transformReply);
-    return this;
-  }
-
-  addScript(
-    firstKey: RedisArgument | undefined,
-    isReadonly: boolean | undefined,
-    script: RedisScript,
-    args: CommandArguments,
-    transformReply?: TransformReply
-  ) {
-    this.#setState(firstKey, isReadonly);
-    this.#multi.addScript(script, args, transformReply);
-
-    return this;
   }
 
   async exec<T extends MultiReply = MULTI_REPLY['GENERIC']>(execAsPipeline = false) {

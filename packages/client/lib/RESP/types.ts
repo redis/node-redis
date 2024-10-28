@@ -274,6 +274,7 @@ export type CommandArguments = Array<RedisArgument> & { preserve?: unknown };
 // };
 
 export type Command = {
+  CACHEABLE?: boolean;
   IS_READ_ONLY?: boolean;
   /**
    * @internal

@@ -7,6 +7,7 @@ export interface LPosOptions {
 }
 
 export default {
+  CACHEABLE: true,
   IS_READ_ONLY: true,
   parseCommand(
     parser: CommandParser,
@@ -14,7 +15,6 @@ export default {
     element: RedisArgument,
     options?: LPosOptions
   ) {
-    parser.setCachable();
     parser.push('LPOS');
     parser.pushKey(key);
     parser.push(element);

@@ -67,10 +67,10 @@ export class RedisClientPool<
     const transformReply = getTransformReply(command, resp);
 
     return async function (this: ProxyPool, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser(resp);
+      const parser = new BasicCommandParser();
       command.parseCommand(parser, ...args);
 
-      return this.execute(client => client._executeCommand(parser, this._commandOptions, transformReply))
+      return this.execute(client => client._executeCommand(command, parser, this._commandOptions, transformReply))
     };
   }
 
@@ -78,10 +78,10 @@ export class RedisClientPool<
     const transformReply = getTransformReply(command, resp);
 
     return async function (this: NamespaceProxyPool, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser(resp);
+      const parser = new BasicCommandParser();
       command.parseCommand(parser, ...args);
 
-      return this._self.execute(client => client._executeCommand(parser, this._self._commandOptions, transformReply))
+      return this._self.execute(client => client._executeCommand(command, parser, this._self._commandOptions, transformReply))
     };
   }
 
@@ -90,11 +90,11 @@ export class RedisClientPool<
     const transformReply = getTransformReply(fn, resp);
 
     return async function (this: NamespaceProxyPool, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser(resp);
+      const parser = new BasicCommandParser();
       parser.push(...prefix);
       fn.parseCommand(parser, ...args);
 
-      return this._self.execute(client => client._executeCommand(parser, this._self._commandOptions, transformReply))    };
+      return this._self.execute(client => client._executeCommand(fn, parser, this._self._commandOptions, transformReply))    };
   }
 
   static #createScriptCommand(script: RedisScript, resp: RespVersions) {
@@ -102,7 +102,7 @@ export class RedisClientPool<
     const transformReply = getTransformReply(script, resp);
 
     return async function (this: ProxyPool, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser(resp);
+      const parser = new BasicCommandParser();
       parser.pushVariadic(prefix);
       script.parseCommand(parser, ...args);
 

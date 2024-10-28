@@ -12,6 +12,7 @@ export interface ZRangeByScoreOptions {
 export declare function transformReply(): Array<RedisArgument>;
 
 export default {
+  CACHEABLE: true,
   IS_READ_ONLY: true,
   parseCommand(
     parser: CommandParser,
@@ -20,7 +21,6 @@ export default {
     max: string | number,
     options?: ZRangeByScoreOptions
   ) {
-    parser.setCachable();
     parser.push('ZRANGEBYSCORE');
     parser.pushKey(key);
     parser.push(

@@ -32,7 +32,7 @@ export default {
   ) {
     GEOSEARCH.parseCommand(parser, key, from, by, options);
     parser.push(...replyWith);
-    parser.setPreserve(replyWith);
+    parser.preserve = replyWith;
   },
   transformReply(
     reply: UnwrapReply<ArrayReply<TuplesReply<[BlobStringReply, ...Array<any>]>>>,

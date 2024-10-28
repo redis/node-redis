@@ -3,9 +3,9 @@ import { RedisArgument, MapReply, BlobStringReply, Command } from '../RESP/types
 import { transformTuplesReply } from './generic-transformers';
 
 export default {
+  CACHEABLE: true,
   IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, key: RedisArgument) {
-    parser.setCachable();
     parser.push('HGETALL');
     parser.pushKey(key);
   },

@@ -1,6 +1,6 @@
 import COMMANDS from '../commands';
 import RedisMultiCommand, { MULTI_REPLY, MultiReply, MultiReplyType } from '../multi-command';
-import { ReplyWithTypeMapping, CommandReply, Command, CommandArguments, CommanderConfig, RedisFunctions, RedisModules, RedisScripts, RespVersions, TransformReply, RedisScript, RedisFunction, TypeMapping } from '../RESP/types';
+import { ReplyWithTypeMapping, CommandReply, Command, CommandArguments, CommanderConfig, RedisFunctions, RedisModules, RedisScripts, RespVersions, RedisScript, RedisFunction, TypeMapping } from '../RESP/types';
 import { attachConfig, functionArgumentsPrefix, getTransformReply } from '../commander';
 import { RedisSentinelType } from './types';
 import { BasicCommandParser } from '../client/parser';
@@ -90,36 +90,34 @@ export default class RedisSentinelMultiCommand<REPLIES = []> {
   private static _createCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
 
-    return function (this: RedisSentinelMultiCommand, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser(resp);
+    return function (this: RedisSentinelMultiCommand, ...args: Array<unknown>): RedisSentinelMultiCommand {
+      const parser = new BasicCommandParser();
       command.parseCommand(parser, ...args);
 
       const redisArgs: CommandArguments = parser.redisArgs;
       redisArgs.preserve = parser.preserve;
 
-      return this.addCommand(
-        command.IS_READ_ONLY,
-        redisArgs,
-        transformReply
-      );
+      this.#setState(command.IS_READ_ONLY);
+      this.#multi.addCommand(redisArgs, transformReply);
+
+      return this;
     };
   }
 
   private static _createModuleCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
 
-    return function (this: { _self: RedisSentinelMultiCommand }, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser(resp);
+    return function (this: { _self: RedisSentinelMultiCommand }, ...args: Array<unknown>): RedisSentinelMultiCommand {
+      const parser = new BasicCommandParser();
       command.parseCommand(parser, ...args);
 
       const redisArgs: CommandArguments = parser.redisArgs;
       redisArgs.preserve = parser.preserve;
 
-      return this._self.addCommand(
-        command.IS_READ_ONLY,
-        redisArgs,
-        transformReply
-      );
+      this._self.#setState(command.IS_READ_ONLY);
+      this._self.#multi.addCommand(redisArgs, transformReply);
+
+      return this._self;
     };
   }
 
@@ -127,38 +125,35 @@ export default class RedisSentinelMultiCommand<REPLIES = []> {
     const prefix = functionArgumentsPrefix(name, fn);
     const transformReply = getTransformReply(fn, resp);
 
-    return function (this: { _self: RedisSentinelMultiCommand }, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser(resp);
+    return function (this: { _self: RedisSentinelMultiCommand }, ...args: Array<unknown>): RedisSentinelMultiCommand {
+      const parser = new BasicCommandParser();
       parser.push(...prefix);
       fn.parseCommand(parser, ...args);
 
       const redisArgs: CommandArguments = parser.redisArgs;
       redisArgs.preserve = parser.preserve;
 
-      return this._self.addCommand(
-        fn.IS_READ_ONLY,
-        redisArgs,
-        transformReply
-      );
+      this._self.#setState(fn.IS_READ_ONLY);
+      this._self.#multi.addCommand(redisArgs, transformReply);
+
+      return this._self;
     };
   }
 
   private static _createScriptCommand(script: RedisScript, resp: RespVersions) {
     const transformReply = getTransformReply(script, resp);
 
-    return function (this: RedisSentinelMultiCommand, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser(resp);
+    return function (this: RedisSentinelMultiCommand, ...args: Array<unknown>): RedisSentinelMultiCommand {
+      const parser = new BasicCommandParser();
       script.parseCommand(parser, ...args);
 
       const scriptArgs: CommandArguments = parser.redisArgs;
       scriptArgs.preserve = parser.preserve;
 
-      return this.addScript(
-        script.IS_READ_ONLY,
-        script,
-        scriptArgs,
-        transformReply
-      );
+      this.#setState(script.IS_READ_ONLY);
+      this.#multi.addScript(script, scriptArgs, transformReply);
+
+      return this;
     };
   }
 
@@ -192,28 +187,6 @@ export default class RedisSentinelMultiCommand<REPLIES = []> {
     isReadonly: boolean | undefined,
   ) {
     this.#isReadonly &&= isReadonly;
-  }
-
-  addCommand(
-    isReadonly: boolean | undefined,
-    args: CommandArguments,
-    transformReply?: TransformReply
-  ) {
-    this.#setState(isReadonly);
-    this.#multi.addCommand(args, transformReply);
-    return this;
-  }
-
-  addScript(
-    isReadonly: boolean | undefined,
-    script: RedisScript,
-    args: CommandArguments,
-    transformReply?: TransformReply
-  ) {
-    this.#setState(isReadonly);
-    this.#multi.addScript(script, args, transformReply);
-
-    return this;
   }
 
   async exec<T extends MultiReply = MULTI_REPLY['GENERIC']>(execAsPipeline = false) {

@@ -3,9 +3,9 @@ import { RedisArgument, ArrayReply, NullReply, BlobStringReply, DoubleReply, Unw
 import { createTransformNullableDoubleReplyResp2Func, RedisVariadicArgument } from './generic-transformers';
 
 export default {
+  CACHEABLE: true,
   IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, key: RedisArgument, member: RedisVariadicArgument) {
-    parser.setCachable();
     parser.push('ZMSCORE');
     parser.pushKey(key);
     parser.pushVariadic(member);

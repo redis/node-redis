@@ -3,9 +3,9 @@ import { RedisArgument, ArrayReply, TuplesReply, BlobStringReply, NullReply, Unw
 import { RedisVariadicArgument } from './generic-transformers';
 
 export default {
+  CACHEABLE: true,
   IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, key: RedisArgument, member: RedisVariadicArgument) {
-    parser.setCachable();
     parser.push('GEOPOS');
     parser.pushKey(key);
     parser.pushVariadic(member);

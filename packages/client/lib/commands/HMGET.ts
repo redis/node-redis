@@ -3,9 +3,9 @@ import { RedisArgument, ArrayReply, BlobStringReply, NullReply, Command } from '
 import { RedisVariadicArgument } from './generic-transformers';
 
 export default {
+  CACHEABLE: true,
   IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, key: RedisArgument, fields: RedisVariadicArgument) {
-    parser.setCachable();
     parser.push('HMGET');
     parser.pushKey(key);
     parser.pushVariadic(fields);

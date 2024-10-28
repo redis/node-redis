@@ -149,14 +149,14 @@ export default class RedisCluster<
   static #createCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
     return async function (this: ProxyCluster, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser(resp);
+      const parser = new BasicCommandParser();
       command.parseCommand(parser, ...args);
 
       return this._self.#execute(
         parser.firstKey,
         command.IS_READ_ONLY,
         this._commandOptions,
-        (client, opts) => client._executeCommand(parser, opts, transformReply)
+        (client, opts) => client._executeCommand(command, parser, opts, transformReply)
       );
     };
   }
@@ -165,14 +165,14 @@ export default class RedisCluster<
     const transformReply = getTransformReply(command, resp);
 
     return async function (this: NamespaceProxyCluster, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser(resp);
+      const parser = new BasicCommandParser();
       command.parseCommand(parser, ...args);
 
       return this._self.#execute(
         parser.firstKey,
         command.IS_READ_ONLY,
         this._self._commandOptions,
-        (client, opts) => client._executeCommand(parser, opts, transformReply)
+        (client, opts) => client._executeCommand(command, parser, opts, transformReply)
       );
     };
   }
@@ -182,7 +182,7 @@ export default class RedisCluster<
     const transformReply = getTransformReply(fn, resp);
 
     return async function (this: NamespaceProxyCluster, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser(resp);
+      const parser = new BasicCommandParser();
       parser.push(...prefix);
       fn.parseCommand(parser, ...args);
 
@@ -190,7 +190,7 @@ export default class RedisCluster<
         parser.firstKey,
         fn.IS_READ_ONLY,
         this._self._commandOptions,
-        (client, opts) => client._executeCommand(parser, opts, transformReply)
+        (client, opts) => client._executeCommand(fn, parser, opts, transformReply)
       );
     };
   }
@@ -200,7 +200,7 @@ export default class RedisCluster<
     const transformReply = getTransformReply(script, resp);
 
     return async function (this: ProxyCluster, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser(resp);
+      const parser = new BasicCommandParser();
       parser.push(...prefix);
       script.parseCommand(parser, ...args);
 
@@ -419,7 +419,7 @@ export default class RedisCluster<
           client = redirectTo;
 
           const chainId = Symbol('Asking Chain');
-          const myOpts = options ? {...options} : {};
+          myOpts = options ? {...options} : {};
           myOpts.chainId = chainId;
 
           client.sendCommand(parseArgs(ASKING), {chainId: chainId}).catch(err => { console.log(`Asking Failed: ${err}`) } );

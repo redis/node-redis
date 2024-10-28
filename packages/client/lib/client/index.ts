@@ -154,10 +154,10 @@ export default class RedisClient<
     const transformReply = getTransformReply(command, resp);
 
     return async function (this: ProxyClient, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser(resp);
+      const parser = new BasicCommandParser();
       command.parseCommand(parser, ...args);
 
-      return this._self._executeCommand(parser, this._commandOptions, transformReply);
+      return this._self._executeCommand(command, parser, this._commandOptions, transformReply);
     }
   }
 
@@ -165,10 +165,10 @@ export default class RedisClient<
     const transformReply = getTransformReply(command, resp);
 
     return async function (this: NamespaceProxyClient, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser(resp);
+      const parser = new BasicCommandParser();
       command.parseCommand(parser, ...args);
 
-      return this._self._executeCommand(parser, this._self._commandOptions, transformReply);
+      return this._self._executeCommand(command, parser, this._self._commandOptions, transformReply);
     };
   }
 
@@ -177,11 +177,11 @@ export default class RedisClient<
     const transformReply = getTransformReply(fn, resp);
 
     return async function (this: NamespaceProxyClient, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser(resp);
+      const parser = new BasicCommandParser();
       parser.push(...prefix);
       fn.parseCommand(parser, ...args);
 
-      return this._self._executeCommand(parser, this._self._commandOptions, transformReply);
+      return this._self._executeCommand(fn, parser, this._self._commandOptions, transformReply);
     };
   }
 
@@ -190,7 +190,7 @@ export default class RedisClient<
     const transformReply = getTransformReply(script, resp);
 
     return async function (this: ProxyClient, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser(resp);
+      const parser = new BasicCommandParser();
       parser.push(...prefix);
       script.parseCommand(parser, ...args)
 
@@ -576,6 +576,7 @@ export default class RedisClient<
    * @internal
    */
   async _executeCommand(
+    command: Command,
     parser: CommandParser,
     commandOptions: CommandOptions<TYPE_MAPPING> | undefined,
     transformReply: TransformReply | undefined,

@@ -3,6 +3,7 @@ import { RedisArgument, NumberReply, Command } from '../RESP/types';
 import { BitValue } from './generic-transformers';
 
 export default {
+  CACHEABLE: true,
   IS_READ_ONLY: true,
   parseCommand(parser: CommandParser,
     key: RedisArgument,
@@ -11,7 +12,6 @@ export default {
     end?: number,
     mode?: 'BYTE' | 'BIT'
   ) {
-    parser.setCachable();
     parser.push('BITPOS');
     parser.pushKey(key);
     parser.push(bit.toString());

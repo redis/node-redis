@@ -14,6 +14,7 @@ type XPendingRangeRawReply = ArrayReply<TuplesReply<[
 ]>>;
 
 export default {
+  CACHEABLE: true,
   IS_READ_ONLY: true,
   parseCommand(
     parser: CommandParser,
@@ -24,7 +25,6 @@ export default {
     count: number,
     options?: XPendingRangeOptions
   ) { 
-    parser.setCachable();
     parser.push('XPENDING');
     parser.pushKey(key);
     parser.push(group);

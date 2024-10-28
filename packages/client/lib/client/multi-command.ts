@@ -91,34 +91,38 @@ export default class RedisClientMultiCommand<REPLIES = []> {
   static #createCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
 
-    return function (this: RedisClientMultiCommand, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser(resp);
+    return function (this: RedisClientMultiCommand, ...args: Array<unknown>): RedisClientMultiCommand {
+      const parser = new BasicCommandParser();
       command.parseCommand(parser, ...args);
 
       const redisArgs: CommandArguments = parser.redisArgs;
       redisArgs.preserve = parser.preserve;
 
-      return this.addCommand(
+      this.#multi.addCommand(
         redisArgs,
         transformReply
       );
+
+      return this;
     };
   }
 
   static #createModuleCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
 
-    return function (this: { _self: RedisClientMultiCommand }, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser(resp);
+    return function (this: { _self: RedisClientMultiCommand }, ...args: Array<unknown>): RedisClientMultiCommand {
+      const parser = new BasicCommandParser();
       command.parseCommand(parser, ...args);
 
       const redisArgs: CommandArguments = parser.redisArgs;
       redisArgs.preserve = parser.preserve;
 
-      return this._self.addCommand(
+      this._self.#multi.addCommand(
         redisArgs,
         transformReply
       );
+
+      return this._self;
     };
   }
 
@@ -126,18 +130,20 @@ export default class RedisClientMultiCommand<REPLIES = []> {
     const prefix = functionArgumentsPrefix(name, fn);
     const transformReply = getTransformReply(fn, resp);
 
-    return function (this: { _self: RedisClientMultiCommand }, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser(resp);
+    return function (this: { _self: RedisClientMultiCommand }, ...args: Array<unknown>): RedisClientMultiCommand {
+      const parser = new BasicCommandParser();
       parser.push(...prefix);
       fn.parseCommand(parser, ...args);
 
       const redisArgs: CommandArguments = parser.redisArgs;
       redisArgs.preserve = parser.preserve;
 
-      return this._self.addCommand(
+      this._self.#multi.addCommand(
         redisArgs,
         transformReply
       );
+
+      return this._self;
     };
   }
 
@@ -145,17 +151,19 @@ export default class RedisClientMultiCommand<REPLIES = []> {
     const transformReply = getTransformReply(script, resp);
 
     return function (this: RedisClientMultiCommand, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser(resp);
+      const parser = new BasicCommandParser();
       script.parseCommand(parser, ...args);
 
       const redisArgs: CommandArguments = parser.redisArgs;
       redisArgs.preserve = parser.preserve;
 
-      return this.addScript(
+      this.#multi.addScript(
         script,
         redisArgs,
         transformReply
       );
+
+      return this;
     };
   }
 
@@ -195,21 +203,6 @@ export default class RedisClientMultiCommand<REPLIES = []> {
   }
 
   select = this.SELECT;
-
-  addCommand(args: CommandArguments, transformReply?: TransformReply) {
-    this.#multi.addCommand(args, transformReply);
-    return this;
-  }
-
-  addScript(
-    script: RedisScript,
-    args: CommandArguments,
-    transformReply?: TransformReply
-  ) {
-    this.#multi.addScript(script, args, transformReply);
-
-    return this;
-  }
 
   async exec<T extends MultiReply = MULTI_REPLY['GENERIC']>(execAsPipeline = false): Promise<MultiReplyType<T, REPLIES>> {
     if (execAsPipeline) return this.execAsPipeline<T>();
