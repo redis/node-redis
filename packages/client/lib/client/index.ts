@@ -16,6 +16,7 @@ import { ScanOptions, ScanCommonOptions } from '../commands/SCAN';
 import { RedisLegacyClient, RedisLegacyClientType } from './legacy-mode';
 import { RedisPoolOptions, RedisClientPool } from './pool';
 import { RedisVariadicArgument, parseArgs, pushVariadicArguments } from '../commands/generic-transformers';
+import { BasicClientSideCache, ClientSideCacheConfig, ClientSideCacheProvider } from './cache';
 import { BasicCommandParser, CommandParser } from './parser';
 
 export interface RedisClientOptions<
@@ -80,6 +81,10 @@ export interface RedisClientOptions<
    * TODO
    */
   commandOptions?: CommandOptions<TYPE_MAPPING>;
+  /**
+   * TODO
+   */
+  clientSideCache?: ClientSideCacheProvider | ClientSideCacheConfig;
 }
 
 type WithCommands<
@@ -300,9 +305,8 @@ export default class RedisClient<
   private _self = this;
   private _commandOptions?: CommandOptions<TYPE_MAPPING>;
   #dirtyWatch?: string;
-  #epoch: number;
   #watchEpoch?: number; 
-
+  #clientSideCache?: ClientSideCacheProvider;
   #credentialsSubscription: Disposable | null = null;
 
   get options(): RedisClientOptions<M, F, S, RESP> | undefined {
@@ -321,6 +325,11 @@ export default class RedisClient<
     return this._self.#queue.isPubSubActive;
   }
 
+  get socketEpoch() {
+    return this._self.#socket.socketEpoch;
+  }
+
+
   get isWatching() {
     return this._self.#watchEpoch !== undefined;
   }
@@ -331,10 +340,20 @@ export default class RedisClient<
 
   constructor(options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>) {
     super();
+
     this.#options = this.#initiateOptions(options);
     this.#queue = this.#initiateQueue();
     this.#socket = this.#initiateSocket();
-    this.#epoch = 0;
+
+    if (options?.clientSideCache) {
+      if (options.clientSideCache instanceof ClientSideCacheProvider) {
+        this.#clientSideCache = options.clientSideCache;
+      } else {
+        const cscConfig = options.clientSideCache;
+        this.#clientSideCache = new BasicClientSideCache(cscConfig);
+      }
+      this.#queue.setInvalidateCallback(this.#clientSideCache.invalidate.bind(this.#clientSideCache));
+    }
   }
 
   #initiateOptions(options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>): RedisClientOptions<M, F, S, RESP, TYPE_MAPPING> | undefined {
@@ -495,6 +514,13 @@ export default class RedisClient<
       );
     }
 
+    if (this.#clientSideCache) {
+      const tracking = this.#clientSideCache.trackingOn();
+      if (tracking) {
+        commands.push(tracking);
+      }
+    }
+
     return commands;
   }
 
@@ -548,6 +574,7 @@ export default class RedisClient<
       })
       .on('error', err => {
         this.emit('error', err);
+        this.#clientSideCache?.onError();
         if (this.#socket.isOpen && !this.#options?.disableOfflineQueue) {
           this.#queue.flushWaitingForReply(err);
         } else {
@@ -556,7 +583,6 @@ export default class RedisClient<
       })
       .on('connect', () => this.emit('connect'))
       .on('ready', () => {
-        this.#epoch++;
         this.emit('ready');
         this.#setPingTimer();
         this.#maybeScheduleWrite();
@@ -684,13 +710,21 @@ export default class RedisClient<
     commandOptions: CommandOptions<TYPE_MAPPING> | undefined,
     transformReply: TransformReply | undefined,
   ) {
-    const reply = await this.sendCommand(parser.redisArgs, commandOptions);
+    const csc = this._self.#clientSideCache;
+    const defaultTypeMapping = this._self.#options?.commandOptions === commandOptions;
 
-    if (transformReply) {
-      return transformReply(reply, parser.preserve, commandOptions?.typeMapping);
+    const fn = () => { return this.sendCommand(parser.redisArgs, commandOptions) };
+
+    if (csc && command.CACHEABLE && defaultTypeMapping) {
+      return await csc.handleCache(this._self, parser as BasicCommandParser, fn, transformReply, commandOptions?.typeMapping);
+    } else {
+      const reply = await fn();
+
+      if (transformReply) {
+        return transformReply(reply, parser.preserve, commandOptions?.typeMapping);
+      }
+      return reply;
     }
-
-    return reply;
   }
 
   /**
@@ -855,7 +889,7 @@ export default class RedisClient<
     const reply = await this._self.sendCommand(
       pushVariadicArguments(['WATCH'], key)
     );
-    this._self.#watchEpoch ??= this._self.#epoch;
+    this._self.#watchEpoch ??= this._self.socketEpoch;
     return reply as unknown as ReplyWithTypeMapping<SimpleStringReply<'OK'>, TYPE_MAPPING>;
   }
 
@@ -922,7 +956,7 @@ export default class RedisClient<
     }
 
     const chainId = Symbol('Pipeline Chain'),
-      promise = Promise.all(
+      promise = Promise.allSettled(
         commands.map(({ args }) => this._self.#queue.addCommand(args, {
           chainId,
           typeMapping: this._commandOptions?.typeMapping
@@ -958,7 +992,7 @@ export default class RedisClient<
       throw new WatchError(dirtyWatch);
     }
 
-    if (watchEpoch && watchEpoch !== this._self.#epoch) {
+    if (watchEpoch && watchEpoch !== this._self.socketEpoch) {
       throw new WatchError('Client reconnected after WATCH');
     }
 
@@ -1182,6 +1216,7 @@ export default class RedisClient<
     return new Promise<void>(resolve => {
       clearTimeout(this._self.#pingTimer);
       this._self.#socket.close();
+      this._self.#clientSideCache?.onClose();
 
       if (this._self.#queue.isEmpty()) {
         this._self.#socket.destroySocket();
@@ -1208,6 +1243,7 @@ export default class RedisClient<
     clearTimeout(this._self.#pingTimer);
     this._self.#queue.flushAll(new DisconnectsClientError());
     this._self.#socket.destroy();
+    this._self.#clientSideCache?.onClose();
     this._self.#credentialsSubscription?.dispose();
     this._self.#credentialsSubscription = null;
   }
