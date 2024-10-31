@@ -8,6 +8,8 @@ import { RedisSentinelEvent, RedisSentinelType, RedisSentinelClientType, RedisNo
 import { RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping, NumberReply } from '../RESP/types';
 import { promisify } from 'node:util';
 import { exec } from 'node:child_process';
+import { BasicPooledClientSideCache } from '../client/cache'
+import { once } from 'node:events'
 const execAsync = promisify(exec);
 
 [GLOBAL.SENTINEL.OPEN, GLOBAL.SENTINEL.PASSWORD].forEach(testOptions => {
@@ -966,6 +968,34 @@ describe.skip('legacy tests', () => {
       await frame.addNode();
       tracer.push("added node and waiting on added promise");
       await nodeAddedPromise;
+    })
+
+    it('with client side caching', async function() {
+      this.timeout(30000);
+      const csc = new BasicPooledClientSideCache();
+
+      sentinel = frame.getSentinelClient({nodeClientOptions: {RESP: 3}, clientSideCache: csc, masterPoolSize: 5});
+      await sentinel.connect();
+
+      await sentinel.set('x', 1);
+      await sentinel.get('x');
+      await sentinel.get('x');
+      await sentinel.get('x');
+      await sentinel.get('x');
+
+      assert.equal(1, csc.cacheMisses());
+      assert.equal(3, csc.cacheHits());
+
+      const invalidatePromise = once(csc, 'invalidate');
+      await sentinel.set('x', 2);
+      await invalidatePromise;
+      await sentinel.get('x');
+      await sentinel.get('x');
+      await sentinel.get('x');
+      await sentinel.get('x');
+
+      assert.equal(csc.cacheMisses(), 2);
+      assert.equal(csc.cacheHits(), 6);
     })
   });
 });

@@ -9,11 +9,10 @@ import RedisClusterMultiCommand, { RedisClusterMultiCommandType } from './multi-
 import { PubSubListener } from '../client/pub-sub';
 import { ErrorReply } from '../errors';
 import { RedisTcpSocketOptions } from '../client/socket';
-import ASKING from '../commands/ASKING';
+import { ClientSideCacheConfig, PooledClientSideCacheProvider } from '../client/cache';
 import { BasicCommandParser } from '../client/parser';
-import { parseArgs } from '../commands/generic-transformers';
-import SingleEntryCache from '../single-entry-cache';
-
+import { ASKING_CMD } from '../commands/ASKING';
+import SingleEntryCache from '../single-entry-cache'
 interface ClusterCommander<
   M extends RedisModules,
   F extends RedisFunctions,
@@ -67,6 +66,10 @@ export interface RedisClusterOptions<
    * Useful when the cluster is running on another network
    */
   nodeAddressMap?: NodeAddressMap;
+  /**
+   * TODO
+   */
+  clientSideCache?: PooledClientSideCacheProvider | ClientSideCacheConfig;
 }
 
 // remove once request & response policies are ready
@@ -149,6 +152,7 @@ export default class RedisCluster<
 > extends EventEmitter {
   static #createCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
+
     return async function (this: ProxyCluster, ...args: Array<unknown>) {
       const parser = new BasicCommandParser();
       command.parseCommand(parser, ...args);
@@ -390,6 +394,27 @@ export default class RedisCluster<
   //   return this._commandOptionsProxy('policies', policies);
   // }
 
+  #handleAsk<T>(
+    fn: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>, opts?: ClusterCommandOptions) => Promise<T>
+  ) {
+    return async (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>, options?: ClusterCommandOptions) => {
+      const chainId = Symbol("asking chain");
+      const opts = options ? {...options} : {};
+      opts.chainId = chainId;
+
+
+
+      const ret = await Promise.all(
+        [
+          client.sendCommand([ASKING_CMD], {chainId: chainId}),
+          fn(client, opts)
+        ]
+      );
+
+      return ret[1];
+    };
+  }
+
   async #execute<T>(
     firstKey: RedisArgument | undefined,
     isReadonly: boolean | undefined,
@@ -399,14 +424,15 @@ export default class RedisCluster<
     const maxCommandRedirections = this.#options.maxCommandRedirections ?? 16;
     let client = await this.#slots.getClient(firstKey, isReadonly);
     let i = 0;
-    let myOpts = options;
+
+    let myFn = fn;
 
     while (true) {
       try {
-        return await fn(client, myOpts);
+        return await myFn(client, options);
       } catch (err) {
-        // reset to passed in options, if changed by an ask request 
-        myOpts = options;
+        myFn = fn;
+
         // TODO: error class
         if (++i > maxCommandRedirections || !(err instanceof Error)) {
           throw err;
@@ -425,13 +451,7 @@ export default class RedisCluster<
           }
 
           client = redirectTo;
-
-          const chainId = Symbol('Asking Chain');
-          myOpts = options ? {...options} : {};
-          myOpts.chainId = chainId;
-
-          client.sendCommand(parseArgs(ASKING), {chainId: chainId}).catch(err => { console.log(`Asking Failed: ${err}`) } );
-
+          myFn = this.#handleAsk(fn);
           continue;
         }
         
@@ -582,10 +602,12 @@ export default class RedisCluster<
   }
 
   close() {
+    this.#slots.clientSideCache?.onPoolClose();
     return this._self.#slots.close();
   }
 
   destroy() {
+    this.#slots.clientSideCache?.onPoolClose();
     return this._self.#slots.destroy();
   }
 
