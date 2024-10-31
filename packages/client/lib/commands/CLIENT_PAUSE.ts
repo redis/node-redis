@@ -1,20 +1,14 @@
+import { CommandParser } from '../client/parser';
 import { SimpleStringReply, Command } from '../RESP/types';
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments(timeout: number, mode?: 'WRITE' | 'ALL') {
-    const args = [
-      'CLIENT',
-      'PAUSE',
-      timeout.toString()
-    ];
-
+  parseCommand(parser: CommandParser, timeout: number, mode?: 'WRITE' | 'ALL') {
+    parser.push('CLIENT', 'PAUSE', timeout.toString());
     if (mode) {
-      args.push(mode);
+      parser.push(mode);
     }
-
-    return args;
   },
   transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
 } as const satisfies Command;

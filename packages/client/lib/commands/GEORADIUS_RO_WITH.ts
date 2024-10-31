@@ -1,9 +1,13 @@
 import { Command } from '../RESP/types';
-import GEORADIUS_WITH, { transformGeoRadiusWithArguments } from './GEORADIUS_WITH';
+import { parseGeoRadiusWithArguments } from './GEORADIUS_WITH';
+import GEORADIUS_WITH from './GEORADIUS_WITH';
 
 export default {
-  FIRST_KEY_INDEX: GEORADIUS_WITH.FIRST_KEY_INDEX,
+  CACHEABLE: true,
   IS_READ_ONLY: true,
-  transformArguments: transformGeoRadiusWithArguments.bind(undefined, 'GEORADIUS_RO'),
+  parseCommand(...args: Parameters<typeof parseGeoRadiusWithArguments>) {
+    args[0].push('GEORADIUS_RO');
+    parseGeoRadiusWithArguments(...args);
+  },
   transformReply: GEORADIUS_WITH.transformReply
 } as const satisfies Command;

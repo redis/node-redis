@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../../test-utils';
 import EXISTS from './EXISTS';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('CF.EXISTS', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      EXISTS.transformArguments('key', 'item'),
+      parseArgs(EXISTS, 'key', 'item'),
       ['CF.EXISTS', 'key', 'item']
     );
   });

@@ -1,13 +1,13 @@
-import { RedisArgument, SimpleStringReply, Command } from '@redis/client/dist/lib/RESP/types';
-import { RediSearchSchema, pushSchema } from './CREATE';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { RedisArgument, SimpleStringReply, Command } from '@redis/client/lib/RESP/types';
+import { RediSearchSchema, parseSchema } from './CREATE';
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments(index: RedisArgument, schema: RediSearchSchema) {
-    const args = ['FT.ALTER', index, 'SCHEMA', 'ADD'];
-    pushSchema(args, schema);
-    return args;
+  parseCommand(parser: CommandParser, index: RedisArgument, schema: RediSearchSchema) {
+    parser.push('FT.ALTER', index, 'SCHEMA', 'ADD');
+    parseSchema(parser, schema);
   },
   transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
 } as const satisfies Command;

@@ -1,22 +1,23 @@
-import { RedisArgument, ArrayReply, NumberReply, Command } from '@redis/client/dist/lib/RESP/types';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { RedisArgument, ArrayReply, NumberReply, Command } from '@redis/client/lib/RESP/types';
 
 export function transformRankArguments(
-  command: RedisArgument,
+  parser: CommandParser,
   key: RedisArgument,
   values: Array<number>
 ) {
-  const args = [command, key];
+  parser.pushKey(key);
 
   for (const value of values) {
-    args.push(value.toString());
+    parser.push(value.toString());
   }
-
-  return args;
 }
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: true,
-  transformArguments: transformRankArguments.bind(undefined, 'TDIGEST.RANK'),
+  parseCommand(...args: Parameters<typeof transformRankArguments>) {
+    args[0].push('TDIGEST.RANK');
+    transformRankArguments(...args);
+  },
   transformReply: undefined as unknown as () => ArrayReply<NumberReply>
 } as const satisfies Command;

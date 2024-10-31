@@ -1,13 +1,14 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL, BLOCKING_MIN_VALUE } from '../test-utils';
 import BLMOVE from './BLMOVE';
+import { parseArgs } from './generic-transformers';
 
 describe('BLMOVE', () => {
   testUtils.isVersionGreaterThanHook([6, 2]);
 
   it('transformArguments', () => {
     assert.deepEqual(
-      BLMOVE.transformArguments('source', 'destination', 'LEFT', 'RIGHT', 0),
+      parseArgs(BLMOVE, 'source', 'destination', 'LEFT', 'RIGHT', 0),
       ['BLMOVE', 'source', 'destination', 'LEFT', 'RIGHT', '0']
     );
   });

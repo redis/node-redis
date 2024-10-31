@@ -1,3 +1,4 @@
+import { CommandParser } from '../client/parser';
 import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
 import { AuthOptions } from './AUTH';
 
@@ -9,7 +10,8 @@ export interface MigrateOptions {
 
 export default {
   IS_READ_ONLY: false,
-  transformArguments(
+  parseCommand(
+    parser: CommandParser,
     host: RedisArgument,
     port: number,
     key: RedisArgument | Array<RedisArgument>,
@@ -17,37 +19,37 @@ export default {
     timeout: number,
     options?: MigrateOptions
   ) {
-    const args = ['MIGRATE', host, port.toString()],
-      isKeyArray = Array.isArray(key);
+    parser.push('MIGRATE', host, port.toString());
+    const isKeyArray = Array.isArray(key);
   
     if (isKeyArray) {
-      args.push('');
+      parser.push('');
     } else {
-      args.push(key);
+      parser.push(key);
     }
   
-    args.push(
+    parser.push(
       destinationDb.toString(),
       timeout.toString()
     );
   
     if (options?.COPY) {
-      args.push('COPY');
+      parser.push('COPY');
     }
   
     if (options?.REPLACE) {
-      args.push('REPLACE');
+      parser.push('REPLACE');
     }
   
     if (options?.AUTH) {
       if (options.AUTH.username) {
-        args.push(
+        parser.push(
           'AUTH2',
           options.AUTH.username,
           options.AUTH.password
         );
       } else {
-        args.push(
+        parser.push(
           'AUTH',
           options.AUTH.password
         );
@@ -55,13 +57,9 @@ export default {
     }
   
     if (isKeyArray) {
-      args.push(
-        'KEYS',
-        ...key
-      );
+      parser.push('KEYS');
+      parser.pushVariadic(key);
     }
-  
-    return args;
   },
   transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
 } as const satisfies Command;

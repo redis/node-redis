@@ -1,12 +1,13 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ZADD from './ZADD';
+import { parseArgs } from './generic-transformers';
 
 describe('ZADD', () => {
   describe('transformArguments', () => {
     it('single member', () => {
       assert.deepEqual(
-        ZADD.transformArguments('key', {
+        parseArgs(ZADD, 'key', {
           value: '1',
           score: 1
         }),
@@ -16,7 +17,7 @@ describe('ZADD', () => {
 
     it('multiple members', () => {
       assert.deepEqual(
-        ZADD.transformArguments('key', [{
+        parseArgs(ZADD, 'key', [{
           value: '1',
           score: 1
         }, {
@@ -30,7 +31,7 @@ describe('ZADD', () => {
     describe('with condition', () => {
       it('condition property', () => {
         assert.deepEqual(
-          ZADD.transformArguments('key', {
+          parseArgs(ZADD, 'key', {
             value: '1',
             score: 1
           }, {
@@ -42,7 +43,7 @@ describe('ZADD', () => {
 
       it('with NX (backwards compatibility)', () => {
         assert.deepEqual(
-          ZADD.transformArguments('key', {
+          parseArgs(ZADD, 'key', {
             value: '1',
             score: 1
           }, {
@@ -54,7 +55,7 @@ describe('ZADD', () => {
 
       it('with XX (backwards compatibility)', () => {
         assert.deepEqual(
-          ZADD.transformArguments('key', {
+          parseArgs(ZADD, 'key', {
             value: '1',
             score: 1
           }, {
@@ -68,7 +69,7 @@ describe('ZADD', () => {
     describe('with comparison', () => {
       it('with LT', () => {
         assert.deepEqual(
-          ZADD.transformArguments('key', {
+          parseArgs(ZADD, 'key', {
             value: '1',
             score: 1
           }, {
@@ -80,7 +81,7 @@ describe('ZADD', () => {
 
       it('with LT (backwards compatibility)', () => {
         assert.deepEqual(
-          ZADD.transformArguments('key', {
+          parseArgs(ZADD, 'key', {
             value: '1',
             score: 1
           }, {
@@ -92,7 +93,7 @@ describe('ZADD', () => {
 
       it('with GT (backwards compatibility)', () => {
         assert.deepEqual(
-          ZADD.transformArguments('key', {
+          parseArgs(ZADD, 'key', {
             value: '1',
             score: 1
           }, {
@@ -105,7 +106,7 @@ describe('ZADD', () => {
 
     it('with CH', () => {
       assert.deepEqual(
-        ZADD.transformArguments('key', {
+        parseArgs(ZADD, 'key', {
           value: '1',
           score: 1
         }, {
@@ -117,7 +118,7 @@ describe('ZADD', () => {
 
     it('with condition, comparison, CH', () => {
       assert.deepEqual(
-        ZADD.transformArguments('key', {
+        parseArgs(ZADD, 'key', {
           value: '1',
           score: 1
         }, {

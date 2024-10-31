@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import MEMORY_PURGE from './MEMORY_PURGE';
+import { parseArgs } from './generic-transformers';
 
 describe('MEMORY PURGE', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      MEMORY_PURGE.transformArguments(),
+      parseArgs(MEMORY_PURGE),
       ['MEMORY', 'PURGE']
     );
   });

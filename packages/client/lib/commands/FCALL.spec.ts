@@ -2,13 +2,14 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import { MATH_FUNCTION, loadMathFunction } from './FUNCTION_LOAD.spec';
 import FCALL from './FCALL';
+import { parseArgs } from './generic-transformers';
 
 describe('FCALL', () => {
   testUtils.isVersionGreaterThanHook([7]);
 
   it('transformArguments', () => {
     assert.deepEqual(
-      FCALL.transformArguments('function', {
+      parseArgs(FCALL, 'function', {
         keys: ['key'],
         arguments: ['argument']
       }),

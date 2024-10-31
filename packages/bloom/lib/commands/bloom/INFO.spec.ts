@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../../test-utils';
 import INFO from './INFO';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('BF.INFO', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      INFO.transformArguments('bloom'),
+      parseArgs(INFO, 'bloom'),
       ['BF.INFO', 'bloom']
     );
   });

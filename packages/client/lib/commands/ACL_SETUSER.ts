@@ -1,11 +1,13 @@
+import { CommandParser } from '../client/parser';
 import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
-import { RedisVariadicArgument, pushVariadicArguments } from './generic-transformers';
+import { RedisVariadicArgument } from './generic-transformers';
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments(username: RedisArgument, rule: RedisVariadicArgument) {
-    return pushVariadicArguments(['ACL', 'SETUSER', username], rule);
+  parseCommand(parser: CommandParser, username: RedisArgument, rule: RedisVariadicArgument) {
+    parser.push('ACL', 'SETUSER', username);
+    parser.pushVariadic(rule);
   },
   transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
 } as const satisfies Command;

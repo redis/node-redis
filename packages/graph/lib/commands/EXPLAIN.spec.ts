@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import EXPLAIN from './EXPLAIN';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('GRAPH.EXPLAIN', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      EXPLAIN.transformArguments('key', 'RETURN 0'),
+      parseArgs(EXPLAIN, 'key', 'RETURN 0'),
       ['GRAPH.EXPLAIN', 'key', 'RETURN 0']
     );
   });

@@ -1,10 +1,12 @@
-import { RedisArgument, TuplesReply, NumberReply, BlobStringReply, NullReply, UnwrapReply, Command } from '@redis/client/dist/lib/RESP/types';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { RedisArgument, TuplesReply, NumberReply, BlobStringReply, NullReply, UnwrapReply, Command } from '@redis/client/lib/RESP/types';
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: true,
-  transformArguments(key: RedisArgument, iterator: number) {
-    return ['CF.SCANDUMP', key, iterator.toString()];
+  parseCommand(parser: CommandParser, key: RedisArgument, iterator: number) {
+    parser.push('CF.SCANDUMP');
+    parser.pushKey(key);
+    parser.push(iterator.toString());
   },
   transformReply(reply: UnwrapReply<TuplesReply<[NumberReply, BlobStringReply | NullReply]>>) {
     return {

@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import LPUSH from './LPUSH';
+import { parseArgs } from './generic-transformers';
 
 describe('LPUSH', () => {
   describe('transformArguments', () => {
     it('string', () => {
       assert.deepEqual(
-        LPUSH.transformArguments('key', 'field'),
+        parseArgs(LPUSH, 'key', 'field'),
         ['LPUSH', 'key', 'field']
       );
     });
 
     it('array', () => {
       assert.deepEqual(
-        LPUSH.transformArguments('key', ['1', '2']),
+        parseArgs(LPUSH, 'key', ['1', '2']),
         ['LPUSH', 'key', '1', '2']
       );
     });

@@ -1,3 +1,4 @@
+import { CommandParser } from '../client/parser';
 import { RedisArgument, Command } from '../RESP/types';
 import { pushMembers } from './ZADD';
 import { SortedSetMember, transformNullableDoubleReply } from './generic-transformers';
@@ -9,31 +10,30 @@ export interface ZAddOptions {
 }
 
 export default {
-  FIRST_KEY_INDEX: 1,
-  transformArguments(
+  parseCommand(
+    parser: CommandParser,
     key: RedisArgument,
     members: SortedSetMember | Array<SortedSetMember>,
     options?: ZAddOptions
   ) {
-    const args = ['ZADD', key];
+    parser.push('ZADD');
+    parser.pushKey(key);
 
     if (options?.condition) {
-      args.push(options.condition);
+      parser.push(options.condition);
     }
 
     if (options?.comparison) {
-      args.push(options.comparison);
+      parser.push(options.comparison);
     }
 
     if (options?.CH) {
-      args.push('CH');
+      parser.push('CH');
     }
 
-    args.push('INCR');
+    parser.push('INCR');
 
-    pushMembers(args, members);
-
-    return args;
+    pushMembers(parser, members);
   },
   transformReply: transformNullableDoubleReply
 } as const satisfies Command;

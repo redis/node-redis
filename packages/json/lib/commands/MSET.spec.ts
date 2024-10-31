@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import MSET from './MSET';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('JSON.MSET', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      MSET.transformArguments([{
+      parseArgs(MSET, [{
         key: '1',
         path: '$',
         value: 1

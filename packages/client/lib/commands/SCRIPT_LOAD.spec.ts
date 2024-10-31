@@ -2,6 +2,7 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SCRIPT_LOAD from './SCRIPT_LOAD';
 import { scriptSha1 } from '../lua-script';
+import { parseArgs } from './generic-transformers';
 
 describe('SCRIPT LOAD', () => {
   const SCRIPT = 'return 1;',
@@ -9,7 +10,7 @@ describe('SCRIPT LOAD', () => {
 
   it('transformArguments', () => {
     assert.deepEqual(
-      SCRIPT_LOAD.transformArguments(SCRIPT),
+      parseArgs(SCRIPT_LOAD, SCRIPT),
       ['SCRIPT', 'LOAD', SCRIPT]
     );
   });

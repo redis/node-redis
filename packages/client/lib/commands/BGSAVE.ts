@@ -1,3 +1,4 @@
+import { CommandParser } from '../client/parser';
 import { SimpleStringReply, Command } from '../RESP/types';
 
 export interface BgSaveOptions {
@@ -5,16 +6,13 @@ export interface BgSaveOptions {
 }
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments(options?: BgSaveOptions) {
-    const args = ['BGSAVE'];
-    
+  parseCommand(parser: CommandParser, options?: BgSaveOptions) {
+    parser.push('BGSAVE');
     if (options?.SCHEDULE) {
-      args.push('SCHEDULE');
+      parser.push('SCHEDULE');
     }
-
-    return args;
   },
   transformReply: undefined as unknown as () => SimpleStringReply
 } as const satisfies Command;

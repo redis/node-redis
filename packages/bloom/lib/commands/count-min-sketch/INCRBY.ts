@@ -1,4 +1,5 @@
-import { RedisArgument, ArrayReply, NumberReply, Command } from '@redis/client/dist/lib/RESP/types';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { RedisArgument, ArrayReply, NumberReply, Command } from '@redis/client/lib/RESP/types';
 
 export interface BfIncrByItem {
   item: RedisArgument;
@@ -6,27 +7,26 @@ export interface BfIncrByItem {
 }
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: false,
-  transformArguments(
+  parseCommand(
+    parser: CommandParser,
     key: RedisArgument,
     items: BfIncrByItem | Array<BfIncrByItem>
   ) {
-    const args = ['CMS.INCRBY', key];
+    parser.push('CMS.INCRBY');
+    parser.pushKey(key);
 
     if (Array.isArray(items)) {
       for (const item of items) {
-        pushIncrByItem(args, item);
+        pushIncrByItem(parser, item);
       }
     } else {
-      pushIncrByItem(args, items);
+      pushIncrByItem(parser, items);
     }
-
-    return args;
   },
   transformReply: undefined as unknown as () => ArrayReply<NumberReply>
 } as const satisfies Command;
 
-function pushIncrByItem(args: Array<RedisArgument>, { item, incrementBy }: BfIncrByItem): void {
-  args.push(item, incrementBy.toString());
+function pushIncrByItem(parser: CommandParser, { item, incrementBy }: BfIncrByItem): void {
+  parser.push(item, incrementBy.toString());
 }

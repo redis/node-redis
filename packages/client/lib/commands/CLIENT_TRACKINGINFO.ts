@@ -1,3 +1,4 @@
+import { CommandParser } from '../client/parser';
 import { TuplesToMapReply, BlobStringReply, SetReply, NumberReply, ArrayReply, UnwrapReply, Resp2Reply, Command } from '../RESP/types';
 
 type TrackingInfo = TuplesToMapReply<[
@@ -7,10 +8,10 @@ type TrackingInfo = TuplesToMapReply<[
 ]>;
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments() {
-    return ['CLIENT', 'TRACKINGINFO'];
+  parseCommand(parser: CommandParser) {
+    parser.push('CLIENT', 'TRACKINGINFO');
   },
   transformReply: {
     2: (reply: UnwrapReply<Resp2Reply<TrackingInfo>>) => ({

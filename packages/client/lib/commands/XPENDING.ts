@@ -1,3 +1,4 @@
+import { CommandParser } from '../client/parser';
 import { RedisArgument, BlobStringReply, NullReply, ArrayReply, TuplesReply, NumberReply, UnwrapReply, Command } from '../RESP/types';
 
 type XPendingRawReply = TuplesReply<[
@@ -11,10 +12,12 @@ type XPendingRawReply = TuplesReply<[
 ]>;
 
 export default {
-  FIRST_KEY_INDEX: 1,
+  CACHEABLE: true,
   IS_READ_ONLY: true,
-  transformArguments(key: RedisArgument, group: RedisArgument) {
-    return ['XPENDING', key, group];
+  parseCommand(parser: CommandParser, key: RedisArgument, group: RedisArgument) {
+    parser.push('XPENDING');
+    parser.pushKey(key);
+    parser.push(group);
   },
   transformReply(reply: UnwrapReply<XPendingRawReply>) {
     const consumers = reply[3] as unknown as UnwrapReply<typeof reply[3]>;

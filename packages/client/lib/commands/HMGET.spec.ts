@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import HMGET from './HMGET';
+import { parseArgs } from './generic-transformers';
 
 describe('HMGET', () => {
-  describe('transformArguments', () => {
+  describe('parseCommand', () => {
     it('string', () => {
       assert.deepEqual(
-        HMGET.transformArguments('key', 'field'),
+        parseArgs(HMGET, 'key', 'field'),
         ['HMGET', 'key', 'field']
       );
     });
 
     it('array', () => {
       assert.deepEqual(
-        HMGET.transformArguments('key', ['field1', 'field2']),
+        parseArgs(HMGET, 'key', ['field1', 'field2']),
         ['HMGET', 'key', 'field1', 'field2']
       );
     });

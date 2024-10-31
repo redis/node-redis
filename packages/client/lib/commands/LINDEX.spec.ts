@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import LINDEX from './LINDEX';
+import { parseArgs } from './generic-transformers';
 
 describe('LINDEX', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      LINDEX.transformArguments('key', 0),
+      parseArgs(LINDEX, 'key', 0),
       ['LINDEX', 'key', '0']
     );
   });

@@ -1,10 +1,11 @@
 import { strict as assert } from 'node:assert';
 import EVALSHA from './EVALSHA';
+import { parseArgs } from './generic-transformers';
 
 describe('EVALSHA', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      EVALSHA.transformArguments('sha1', {
+      parseArgs(EVALSHA, 'sha1', {
         keys: ['key'],
         arguments: ['argument']
       }),

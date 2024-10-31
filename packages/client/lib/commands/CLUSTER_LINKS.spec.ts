@@ -1,13 +1,14 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import CLUSTER_LINKS from './CLUSTER_LINKS';
+import { parseArgs } from './generic-transformers';
 
 describe('CLUSTER LINKS', () => {
   testUtils.isVersionGreaterThanHook([7]);
 
   it('transformArguments', () => {
     assert.deepEqual(
-      CLUSTER_LINKS.transformArguments(),
+      parseArgs(CLUSTER_LINKS),
       ['CLUSTER', 'LINKS']
     );
   });

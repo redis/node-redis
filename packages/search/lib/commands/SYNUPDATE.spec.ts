@@ -2,26 +2,27 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SYNUPDATE from './SYNUPDATE';
 import { SCHEMA_FIELD_TYPE } from './CREATE';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('FT.SYNUPDATE', () => {
   describe('transformArguments', () => {
     it('single term', () => {
       assert.deepEqual(
-        SYNUPDATE.transformArguments('index', 'groupId', 'term'),
+        parseArgs(SYNUPDATE, 'index', 'groupId', 'term'),
         ['FT.SYNUPDATE', 'index', 'groupId', 'term']
       );
     });
 
     it('multiple terms', () => {
       assert.deepEqual(
-        SYNUPDATE.transformArguments('index', 'groupId', ['1', '2']),
+        parseArgs(SYNUPDATE, 'index', 'groupId', ['1', '2']),
         ['FT.SYNUPDATE', 'index', 'groupId', '1', '2']
       );
     });
 
     it('with SKIPINITIALSCAN', () => {
       assert.deepEqual(
-        SYNUPDATE.transformArguments('index', 'groupId', 'term', {
+        parseArgs(SYNUPDATE, 'index', 'groupId', 'term', {
           SKIPINITIALSCAN: true
         }),
         ['FT.SYNUPDATE', 'index', 'groupId', 'SKIPINITIALSCAN', 'term']

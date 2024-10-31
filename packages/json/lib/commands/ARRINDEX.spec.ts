@@ -1,12 +1,13 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ARRINDEX from './ARRINDEX';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('JSON.ARRINDEX', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        ARRINDEX.transformArguments('key', '$', 'value'),
+        parseArgs(ARRINDEX, 'key', '$', 'value'),
         ['JSON.ARRINDEX', 'key', '$', '"value"']
       );
     });
@@ -14,7 +15,7 @@ describe('JSON.ARRINDEX', () => {
     describe('with range', () => {
       it('start only', () => {
         assert.deepEqual(
-          ARRINDEX.transformArguments('key', '$', 'value', {
+          parseArgs(ARRINDEX, 'key', '$', 'value', {
             range: {
               start: 0
             }
@@ -25,7 +26,7 @@ describe('JSON.ARRINDEX', () => {
 
       it('with start and stop', () => {
         assert.deepEqual(
-          ARRINDEX.transformArguments('key', '$', 'value', {
+          parseArgs(ARRINDEX, 'key', '$', 'value', {
             range: {
               start: 0,
               stop: 1

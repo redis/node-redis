@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import GEOSEARCHSTORE from './GEOSEARCHSTORE';
+import { parseArgs } from './generic-transformers';
 
 describe('GEOSEARCHSTORE', () => {
   testUtils.isVersionGreaterThanHook([6, 2]);
@@ -8,7 +9,7 @@ describe('GEOSEARCHSTORE', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        GEOSEARCHSTORE.transformArguments('source', 'destination', 'member', {
+        parseArgs(GEOSEARCHSTORE, 'source', 'destination', 'member', {
           radius: 1,
           unit: 'm'
         }),
@@ -18,7 +19,7 @@ describe('GEOSEARCHSTORE', () => {
 
     it('with STOREDIST', () => {
       assert.deepEqual(
-        GEOSEARCHSTORE.transformArguments('destination', 'source', 'member', {
+        parseArgs(GEOSEARCHSTORE, 'destination', 'source', 'member', {
           radius: 1,
           unit: 'm'
         }, {

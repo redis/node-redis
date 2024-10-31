@@ -1,4 +1,5 @@
-import { RedisArgument, Command, NumberReply, TuplesToMapReply, UnwrapReply, Resp2Reply, SimpleStringReply, TypeMapping } from '@redis/client/dist/lib/RESP/types';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { RedisArgument, Command, NumberReply, TuplesToMapReply, UnwrapReply, Resp2Reply, SimpleStringReply, TypeMapping } from '@redis/client/lib/RESP/types';
 import { transformInfoV2Reply } from '../bloom';
 
 export type CfInfoReplyMap = TuplesToMapReply<[
@@ -13,10 +14,10 @@ export type CfInfoReplyMap = TuplesToMapReply<[
 ]>;
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: true,
-  transformArguments(key: RedisArgument) {
-    return ['CF.INFO', key];
+  parseCommand(parser: CommandParser, key: RedisArgument) {
+    parser.push('CF.INFO');
+    parser.pushKey(key);
   },
   transformReply: {
     2: (reply: UnwrapReply<Resp2Reply<CfInfoReplyMap>>, _, typeMapping?: TypeMapping): CfInfoReplyMap => {

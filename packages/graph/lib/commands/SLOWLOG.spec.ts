@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SLOWLOG from './SLOWLOG';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('GRAPH.SLOWLOG', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      SLOWLOG.transformArguments('key'),
+      parseArgs(SLOWLOG, 'key'),
       ['GRAPH.SLOWLOG', 'key']
     );
   });

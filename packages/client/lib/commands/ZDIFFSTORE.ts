@@ -1,14 +1,13 @@
+import { CommandParser } from '../client/parser';
 import { RedisArgument, NumberReply, Command } from '../RESP/types';
-import { RedisVariadicArgument, pushVariadicArgument } from './generic-transformers';
+import { RedisVariadicArgument } from './generic-transformers';
 
 export default {
-  FIRST_KEY_INDEX: 2,
   IS_READ_ONLY: true,
-  transformArguments(
-    destination: RedisArgument,
-    inputKeys: RedisVariadicArgument
-  ) {
-    return pushVariadicArgument(['ZDIFFSTORE', destination], inputKeys);
+  parseCommand(parser: CommandParser, destination: RedisArgument, inputKeys: RedisVariadicArgument) {
+    parser.push('ZDIFFSTORE');
+    parser.pushKey(destination);
+    parser.pushKeysLength(inputKeys);
   },
   transformReply: undefined as unknown as () => NumberReply
 } as const satisfies Command;

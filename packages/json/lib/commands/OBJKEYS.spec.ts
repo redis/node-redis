@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import OBJKEYS from './OBJKEYS';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('JSON.OBJKEYS', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        OBJKEYS.transformArguments('key'),
+        parseArgs(OBJKEYS, 'key'),
         ['JSON.OBJKEYS', 'key']
       );
     });
 
     it('with path', () => {
       assert.deepEqual(
-        OBJKEYS.transformArguments('key', {
+        parseArgs(OBJKEYS, 'key', {
           path: '$'
         }),
         ['JSON.OBJKEYS', 'key', '$']

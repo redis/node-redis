@@ -1,8 +1,9 @@
-import { Command, ArrayReply, BlobStringReply, Resp2Reply, MapReply, TuplesReply, TypeMapping, RedisArgument, TuplesToMapReply, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
-import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { Command, ArrayReply, BlobStringReply, Resp2Reply, MapReply, TuplesReply, TypeMapping, RedisArgument, TuplesToMapReply, UnwrapReply } from '@redis/client/lib/RESP/types';
+import { RedisVariadicArgument } from '@redis/client/lib/commands/generic-transformers';
 import { resp2MapToValue, resp3MapToValue, SampleRawReply, Timestamp, transformSamplesReply } from '.';
-import { TsRangeOptions, pushRangeArguments } from './RANGE';
-import { pushFilterArgument } from './MGET';
+import { TsRangeOptions, parseRangeArguments } from './RANGE';
+import { parseFilterArgument } from './MGET';
 
 export const TIME_SERIES_REDUCERS = {
   AVG: 'AVG',
@@ -24,8 +25,8 @@ export interface TsMRangeGroupBy {
   REDUCE: TimeSeriesReducer;
 }
 
-export function pushGroupByArguments(args: Array<RedisArgument>, groupBy: TsMRangeGroupBy) {
-  args.push('GROUPBY', groupBy.label, 'REDUCE', groupBy.REDUCE);
+export function parseGroupByArguments(parser: CommandParser, groupBy: TsMRangeGroupBy) {
+  parser.push('GROUPBY', groupBy.label, 'REDUCE', groupBy.REDUCE);
 }
 
 export type TsMRangeGroupByRawReply2 = ArrayReply<
@@ -52,24 +53,19 @@ export type TsMRangeGroupByRawReply3 = MapReply<
 
 export function createTransformMRangeGroupByArguments(command: RedisArgument) {
   return (
+    parser: CommandParser,
     fromTimestamp: Timestamp,
     toTimestamp: Timestamp,
     filter: RedisVariadicArgument,
     groupBy: TsMRangeGroupBy,
     options?: TsRangeOptions
   ) => {
-    let args = pushRangeArguments(
-      [command],
-      fromTimestamp,
-      toTimestamp,
-      options
-    );
-  
-    args = pushFilterArgument(args, filter);
-  
-    pushGroupByArguments(args, groupBy);
+    parser.push(command);
+    parseRangeArguments(parser, fromTimestamp, toTimestamp, options)
 
-    return args; 
+    parseFilterArgument(parser, filter);
+
+    parseGroupByArguments(parser, groupBy);
   };
 }
 
@@ -85,9 +81,8 @@ export function extractResp3MRangeSources(raw: TsMRangeGroupByRawMetadataReply3)
 }
 
 export default {
-  FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: true,
-  transformArguments: createTransformMRangeGroupByArguments('TS.MRANGE'),
+  parseCommand: createTransformMRangeGroupByArguments('TS.MRANGE'),
   transformReply: {
     2(reply: TsMRangeGroupByRawReply2, _?: any, typeMapping?: TypeMapping) {
       return resp2MapToValue(reply, ([_key, _labels, samples]) => {

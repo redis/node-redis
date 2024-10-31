@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
-import testUtils, { GLOBAL } from '../test-utils';
+import testUtils, { GLOBAL, parseFirstKey } from '../test-utils';
 import XREADGROUP from './XREADGROUP';
+import { parseArgs } from './generic-transformers';
 
 describe('XREADGROUP', () => {
   describe('FIRST_KEY_INDEX', () => {
     it('single stream', () => {
       assert.equal(
-        XREADGROUP.FIRST_KEY_INDEX('', '', { key: 'key', id: '' }),
+        parseFirstKey(XREADGROUP, '', '', { key: 'key', id: '' }),
         'key'
       );
     });
 
     it('multiple streams', () => {
       assert.equal(
-        XREADGROUP.FIRST_KEY_INDEX('', '', [{ key: '1', id: '' }, { key: '2', id: '' }]),
+        parseFirstKey(XREADGROUP, '', '', [{ key: '1', id: '' }, { key: '2', id: '' }]),
         '1'
       );
     });
@@ -22,7 +23,7 @@ describe('XREADGROUP', () => {
   describe('transformArguments', () => {
     it('single stream', () => {
       assert.deepEqual(
-        XREADGROUP.transformArguments('group', 'consumer', {
+        parseArgs(XREADGROUP, 'group', 'consumer', {
           key: 'key',
           id: '0-0'
         }),
@@ -32,7 +33,7 @@ describe('XREADGROUP', () => {
 
     it('multiple streams', () => {
       assert.deepEqual(
-        XREADGROUP.transformArguments('group', 'consumer', [{
+        parseArgs(XREADGROUP, 'group', 'consumer', [{
           key: '1',
           id: '0-0'
         }, {
@@ -45,7 +46,7 @@ describe('XREADGROUP', () => {
 
     it('with COUNT', () => {
       assert.deepEqual(
-        XREADGROUP.transformArguments('group', 'consumer', {
+        parseArgs(XREADGROUP, 'group', 'consumer', {
           key: 'key',
           id: '0-0'
         }, {
@@ -57,7 +58,7 @@ describe('XREADGROUP', () => {
 
     it('with BLOCK', () => {
       assert.deepEqual(
-        XREADGROUP.transformArguments('group', 'consumer', {
+        parseArgs(XREADGROUP, 'group', 'consumer', {
           key: 'key',
           id: '0-0'
         }, {
@@ -69,7 +70,7 @@ describe('XREADGROUP', () => {
 
     it('with NOACK', () => {
       assert.deepEqual(
-        XREADGROUP.transformArguments('group', 'consumer', {
+        parseArgs(XREADGROUP, 'group', 'consumer', {
           key: 'key',
           id: '0-0'
         }, {
@@ -81,7 +82,7 @@ describe('XREADGROUP', () => {
 
     it('with COUNT, BLOCK, NOACK', () => {
       assert.deepEqual(
-        XREADGROUP.transformArguments('group', 'consumer', {
+        parseArgs(XREADGROUP, 'group', 'consumer', {
           key: 'key',
           id: '0-0'
         }, {

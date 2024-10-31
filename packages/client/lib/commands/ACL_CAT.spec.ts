@@ -1,5 +1,6 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
+import { parseArgs } from './generic-transformers';
 import ACL_CAT from './ACL_CAT';
 
 describe('ACL CAT', () => {
@@ -8,14 +9,14 @@ describe('ACL CAT', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        ACL_CAT.transformArguments(),
+        parseArgs(ACL_CAT),
         ['ACL', 'CAT']
       );
     });
 
     it('with categoryName', () => {
       assert.deepEqual(
-        ACL_CAT.transformArguments('dangerous'),
+        parseArgs(ACL_CAT, 'dangerous'),
         ['ACL', 'CAT', 'dangerous']
       );
     });

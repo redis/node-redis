@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ARRLEN from './ARRLEN';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('JSON.ARRLEN', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        ARRLEN.transformArguments('key'),
+        parseArgs(ARRLEN, 'key'),
         ['JSON.ARRLEN', 'key']
       );
     });
 
     it('with path', () => {
       assert.deepEqual(
-        ARRLEN.transformArguments('key', {
+        parseArgs(ARRLEN, 'key', {
           path: '$'
         }),
         ['JSON.ARRLEN', 'key', '$']

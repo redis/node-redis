@@ -1,9 +1,11 @@
 import { Command } from '../RESP/types';
-import EVAL, { transformEvalArguments } from './EVAL';
+import EVAL, { parseEvalArguments } from './EVAL';
 
 export default {
-  FIRST_KEY_INDEX: EVAL.FIRST_KEY_INDEX,
   IS_READ_ONLY: true,
-  transformArguments: transformEvalArguments.bind(undefined, 'EVAL_RO'),
+  parseCommand(...args: Parameters<typeof parseEvalArguments>) {
+    args[0].push('EVAL_RO');
+    parseEvalArguments(...args);
+  },
   transformReply: EVAL.transformReply
 } as const satisfies Command;

@@ -2,6 +2,7 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import HPERSIST from './HPERSIST';
 import { HASH_EXPIRATION_TIME } from './HEXPIRETIME';
+import { parseArgs } from './generic-transformers';
 
 describe('HPERSIST', () => {
   testUtils.isVersionGreaterThanHook([7, 4]);
@@ -9,14 +10,14 @@ describe('HPERSIST', () => {
   describe('transformArguments', () => {
     it('string', () => {
       assert.deepEqual(
-        HPERSIST.transformArguments('key', 'field'),
+        parseArgs(HPERSIST, 'key', 'field'),
         ['HPERSIST', 'key', 'FIELDS', '1', 'field']
       );
     });
 
     it('array', () => {
       assert.deepEqual(
-        HPERSIST.transformArguments('key', ['field1', 'field2']),
+        parseArgs(HPERSIST, 'key', ['field1', 'field2']),
         ['HPERSIST', 'key', 'FIELDS', '2', 'field1', 'field2']
       );
     });

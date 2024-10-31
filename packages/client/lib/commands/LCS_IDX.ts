@@ -1,3 +1,4 @@
+import { CommandParser } from '../client/parser';
 import { RedisArgument, TuplesToMapReply, BlobStringReply, ArrayReply, NumberReply, UnwrapReply, Resp2Reply, Command, TuplesReply } from '../RESP/types';
 import LCS from './LCS';
 
@@ -23,22 +24,20 @@ export type LcsIdxReply = TuplesToMapReply<[
 ]>;
 
 export default {
-  FIRST_KEY_INDEX: LCS.FIRST_KEY_INDEX,
   IS_READ_ONLY: LCS.IS_READ_ONLY,
-  transformArguments(
+  parseCommand(
+    parser: CommandParser,
     key1: RedisArgument,
     key2: RedisArgument,
     options?: LcsIdxOptions
   ) {
-    const args = LCS.transformArguments(key1, key2);
+    LCS.parseCommand(parser, key1, key2);
 
-    args.push('IDX');
+    parser.push('IDX');
 
     if (options?.MINMATCHLEN) {
-      args.push('MINMATCHLEN', options.MINMATCHLEN.toString());
+      parser.push('MINMATCHLEN', options.MINMATCHLEN.toString());
     }
-
-    return args;
   },
   transformReply: {
     2: (reply: UnwrapReply<Resp2Reply<LcsIdxReply>>) => ({

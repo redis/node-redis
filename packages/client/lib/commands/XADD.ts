@@ -1,4 +1,6 @@
-import { RedisArgument, BlobStringReply, Command, CommandArguments } from '../RESP/types';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, BlobStringReply, Command } from '../RESP/types';
+import { Tail } from './generic-transformers';
 
 export interface XAddOptions {
   TRIM?: {
@@ -9,47 +11,47 @@ export interface XAddOptions {
   };
 }
 
-export function pushXAddArguments(
-  args: CommandArguments,
+export function parseXAddArguments(
+  optional: RedisArgument | undefined,
+  parser: CommandParser,
+  key: RedisArgument,
   id: RedisArgument,
   message: Record<string, RedisArgument>,
   options?: XAddOptions
 ) {
+  parser.push('XADD');
+  parser.pushKey(key);
+  if (optional) {
+    parser.push(optional);
+  }
+
   if (options?.TRIM) {
     if (options.TRIM.strategy) {
-      args.push(options.TRIM.strategy);
+      parser.push(options.TRIM.strategy);
     }
 
     if (options.TRIM.strategyModifier) {
-      args.push(options.TRIM.strategyModifier);
+      parser.push(options.TRIM.strategyModifier);
     }
 
-    args.push(options.TRIM.threshold.toString());
+    parser.push(options.TRIM.threshold.toString());
 
     if (options.TRIM.limit) {
-      args.push('LIMIT', options.TRIM.limit.toString());
+      parser.push('LIMIT', options.TRIM.limit.toString());
     }
   }
 
-  args.push(id);
+  parser.push(id);
 
   for (const [key, value] of Object.entries(message)) {
-    args.push(key, value);
+    parser.push(key, value);
   }
-
-  return args;
 }
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: false,
-  transformArguments(
-    key: RedisArgument,
-    id: RedisArgument,
-    message: Record<string, RedisArgument>,
-    options?: XAddOptions
-  ) {
-    return pushXAddArguments(['XADD', key], id, message, options);
+  parseCommand(...args: Tail<Parameters<typeof parseXAddArguments>>) {
+    return parseXAddArguments(undefined, ...args);
   },
   transformReply: undefined as unknown as () => BlobStringReply
 } as const satisfies Command;

@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import EXPIRE from './EXPIRE';
+import { parseArgs } from './generic-transformers';
 
 describe('EXPIRE', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        EXPIRE.transformArguments('key', 1),
+        parseArgs(EXPIRE, 'key', 1),
         ['EXPIRE', 'key', '1']
       );
     });
 
     it('with set option', () => {
       assert.deepEqual(
-        EXPIRE.transformArguments('key', 1, 'NX'),
+        parseArgs(EXPIRE, 'key', 1, 'NX'),
         ['EXPIRE', 'key', '1', 'NX']
       );
     });

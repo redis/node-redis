@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../../test-utils';
 import QUANTILE from './QUANTILE';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('TDIGEST.QUANTILE', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      QUANTILE.transformArguments('key', [1, 2]),
+      parseArgs(QUANTILE, 'key', [1, 2]),
       ['TDIGEST.QUANTILE', 'key', '1', '2']
     );
   });

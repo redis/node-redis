@@ -1,14 +1,14 @@
+import { CommandParser } from '../client/parser';
 import { RedisArgument, ArrayReply, BlobStringReply, Command } from '../RESP/types';
-import { RedisVariadicArgument, pushVariadicArguments } from './generic-transformers';
+import { RedisVariadicArgument } from './generic-transformers';
 
 export default {
-  FIRST_KEY_INDEX: 1,
+  CACHEABLE: true,
   IS_READ_ONLY: true,
-  transformArguments(
-    key: RedisArgument,
-    member: RedisVariadicArgument
-  ) {
-    return pushVariadicArguments(['GEOHASH', key], member);
+  parseCommand(parser: CommandParser, key: RedisArgument, member: RedisVariadicArgument) {
+    parser.push('GEOHASH');
+    parser.pushKey(key);
+    parser.pushVariadic(member);
   },
   transformReply: undefined as unknown as () => ArrayReply<BlobStringReply>
 } as const satisfies Command;

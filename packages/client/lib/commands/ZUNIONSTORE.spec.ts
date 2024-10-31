@@ -1,26 +1,27 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ZUNIONSTORE from './ZUNIONSTORE';
+import { parseArgs } from './generic-transformers';
 
 describe('ZUNIONSTORE', () => {
   describe('transformArguments', () => {
     it('key (string)', () => {
       assert.deepEqual(
-        ZUNIONSTORE.transformArguments('destination', 'source'),
+        parseArgs(ZUNIONSTORE, 'destination', 'source'),
         ['ZUNIONSTORE', 'destination', '1', 'source']
       );
     });
 
     it('keys (Array<string>)', () => {
       assert.deepEqual(
-        ZUNIONSTORE.transformArguments('destination', ['1', '2']),
+        parseArgs(ZUNIONSTORE, 'destination', ['1', '2']),
         ['ZUNIONSTORE', 'destination', '2', '1', '2']
       );
     });
 
     it('key & weight', () => {
       assert.deepEqual(
-        ZUNIONSTORE.transformArguments('destination', {
+        parseArgs(ZUNIONSTORE, 'destination', {
           key: 'source',
           weight: 1
         }),
@@ -30,7 +31,7 @@ describe('ZUNIONSTORE', () => {
 
     it('keys & weights', () => {
       assert.deepEqual(
-        ZUNIONSTORE.transformArguments('destination', [{
+        parseArgs(ZUNIONSTORE, 'destination', [{
           key: 'a',
           weight: 1
         }, {
@@ -43,7 +44,7 @@ describe('ZUNIONSTORE', () => {
 
     it('with AGGREGATE', () => {
       assert.deepEqual(
-        ZUNIONSTORE.transformArguments('destination', 'source', {
+        parseArgs(ZUNIONSTORE, 'destination', 'source', {
           AGGREGATE: 'SUM'
         }),
         ['ZUNIONSTORE', 'destination', '1', 'source', 'AGGREGATE', 'SUM']

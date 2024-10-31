@@ -2,11 +2,12 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ALIASADD from './ALIASADD';
 import { SCHEMA_FIELD_TYPE } from './CREATE';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('FT.ALIASADD', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      ALIASADD.transformArguments('alias', 'index'),
+      parseArgs(ALIASADD, 'alias', 'index'),
       ['FT.ALIASADD', 'alias', 'index']
     );
   });

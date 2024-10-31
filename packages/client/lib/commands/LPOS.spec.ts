@@ -1,21 +1,22 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import LPOS from './LPOS';
+import { parseArgs } from './generic-transformers';
 
 describe('LPOS', () => {
   testUtils.isVersionGreaterThanHook([6, 0, 6]);
 
-  describe('transformArguments', () => {
+  describe('processCommand', () => {
     it('simple', () => {
       assert.deepEqual(
-        LPOS.transformArguments('key', 'element'),
+        parseArgs(LPOS, 'key', 'element'),
         ['LPOS', 'key', 'element']
       );
     });
 
     it('with RANK', () => {
       assert.deepEqual(
-        LPOS.transformArguments('key', 'element', {
+        parseArgs(LPOS, 'key', 'element', {
           RANK: 0
         }),
         ['LPOS', 'key', 'element', 'RANK', '0']
@@ -24,7 +25,7 @@ describe('LPOS', () => {
 
     it('with MAXLEN', () => {
       assert.deepEqual(
-        LPOS.transformArguments('key', 'element', {
+        parseArgs(LPOS, 'key', 'element', {
           MAXLEN: 10
         }),
         ['LPOS', 'key', 'element', 'MAXLEN', '10']
@@ -33,7 +34,7 @@ describe('LPOS', () => {
 
     it('with RANK, MAXLEN', () => {
       assert.deepEqual(
-        LPOS.transformArguments('key', 'element', {
+        parseArgs(LPOS, 'key', 'element', {
           RANK: 0,
           MAXLEN: 10
         }),

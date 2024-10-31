@@ -1,7 +1,8 @@
-import { ArrayReply, BlobStringReply, Command, MapReply, NumberReply, RedisArgument, ReplyUnion, TypeMapping, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { ArrayReply, BlobStringReply, Command, MapReply, NumberReply, RedisArgument, ReplyUnion, TypeMapping, UnwrapReply } from '@redis/client/lib/RESP/types';
 import { RediSearchProperty } from './CREATE';
-import { FtSearchParams, pushParamsArgument } from './SEARCH';
-import { pushVariadicArgument, transformTuplesReply } from '@redis/client/dist/lib/commands/generic-transformers';
+import { FtSearchParams, parseParamsArgument } from './SEARCH';
+import { transformTuplesReply } from '@redis/client/lib/commands/generic-transformers';
 
 type LoadField = RediSearchProperty | {
   identifier: RediSearchProperty;
@@ -137,12 +138,12 @@ export interface AggregateReply {
 };
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: false,
-  transformArguments(index: RedisArgument, query: RedisArgument, options?: FtAggregateOptions) {
-    const args = ['FT.AGGREGATE', index, query];
+  parseCommand(parser: CommandParser, index: RedisArgument, query: RedisArgument, options?: FtAggregateOptions) {
+    parser.push('FT.AGGREGATE', index, query);
 
-    return pushAggregateOptions(args, options);
+    return parseAggregateOptions(parser, options);
   },
   transformReply: {
     2: (rawReply: AggregateRawReply, preserve?: any, typeMapping?: TypeMapping): AggregateReply => {
@@ -163,17 +164,17 @@ export default {
   unstableResp3: true
 } as const satisfies Command;
 
-export function pushAggregateOptions(args: Array<RedisArgument>, options?: FtAggregateOptions) {
+export function parseAggregateOptions(parser: CommandParser , options?: FtAggregateOptions) {
   if (options?.VERBATIM) {
-    args.push('VERBATIM');
+    parser.push('VERBATIM');
   }
 
   if (options?.ADDSCORES) {
-    args.push('ADDSCORES');
+    parser.push('ADDSCORES');
   }  
 
   if (options?.LOAD) {
-    const length = args.push('LOAD', '');
+    const args: Array<RedisArgument> = [];
 
     if (Array.isArray(options.LOAD)) {
       for (const load of options.LOAD) {
@@ -183,36 +184,37 @@ export function pushAggregateOptions(args: Array<RedisArgument>, options?: FtAgg
       pushLoadField(args, options.LOAD);
     }
 
-    args[length - 1] = (args.length - length).toString();
+    parser.push('LOAD');
+    parser.pushVariadicWithLength(args);
   }
 
   if (options?.TIMEOUT !== undefined) {
-    args.push('TIMEOUT', options.TIMEOUT.toString());
+    parser.push('TIMEOUT', options.TIMEOUT.toString());
   }
 
   if (options?.STEPS) {
     for (const step of options.STEPS) {
-      args.push(step.type);
+      parser.push(step.type);
       switch (step.type) {
         case FT_AGGREGATE_STEPS.GROUPBY:
           if (!step.properties) {
-            args.push('0');
+            parser.push('0');
           } else {
-            pushVariadicArgument(args, step.properties);
+            parser.pushVariadicWithLength(step.properties);
           }
 
           if (Array.isArray(step.REDUCE)) {
             for (const reducer of step.REDUCE) {
-              pushGroupByReducer(args, reducer);
+              parseGroupByReducer(parser, reducer);
             }
           } else {
-            pushGroupByReducer(args, step.REDUCE);
+            parseGroupByReducer(parser, step.REDUCE);
           }
 
           break;
 
         case FT_AGGREGATE_STEPS.SORTBY:
-          const length = args.push('');
+          const args: Array<RedisArgument> = [];
 
           if (Array.isArray(step.BY)) {
             for (const by of step.BY) {
@@ -226,32 +228,30 @@ export function pushAggregateOptions(args: Array<RedisArgument>, options?: FtAgg
             args.push('MAX', step.MAX.toString());
           }
 
-          args[length - 1] = (args.length - length).toString();
+          parser.pushVariadicWithLength(args);
 
           break;
 
         case FT_AGGREGATE_STEPS.APPLY:
-          args.push(step.expression, 'AS', step.AS);
+          parser.push(step.expression, 'AS', step.AS);
           break;
 
         case FT_AGGREGATE_STEPS.LIMIT:
-          args.push(step.from.toString(), step.size.toString());
+          parser.push(step.from.toString(), step.size.toString());
           break;
 
         case FT_AGGREGATE_STEPS.FILTER:
-          args.push(step.expression);
+          parser.push(step.expression);
           break;
       }
     }
   }
 
-  pushParamsArgument(args, options?.PARAMS);
+  parseParamsArgument(parser, options?.PARAMS);
 
   if (options?.DIALECT !== undefined) {
-    args.push('DIALECT', options.DIALECT.toString());
+    parser.push('DIALECT', options.DIALECT.toString());
   }
-
-  return args;
 }
 
 function pushLoadField(args: Array<RedisArgument>, toLoad: LoadField) {
@@ -266,12 +266,12 @@ function pushLoadField(args: Array<RedisArgument>, toLoad: LoadField) {
   }
 }
 
-function pushGroupByReducer(args: Array<RedisArgument>, reducer: GroupByReducers) {
-  args.push('REDUCE', reducer.type);
+function parseGroupByReducer(parser: CommandParser, reducer: GroupByReducers) {
+  parser.push('REDUCE', reducer.type);
 
   switch (reducer.type) {
     case FT_AGGREGATE_GROUP_BY_REDUCERS.COUNT:
-      args.push('0');
+      parser.push('0');
       break;
 
     case FT_AGGREGATE_GROUP_BY_REDUCERS.COUNT_DISTINCT:
@@ -282,15 +282,16 @@ function pushGroupByReducer(args: Array<RedisArgument>, reducer: GroupByReducers
     case FT_AGGREGATE_GROUP_BY_REDUCERS.AVG:
     case FT_AGGREGATE_GROUP_BY_REDUCERS.STDDEV:
     case FT_AGGREGATE_GROUP_BY_REDUCERS.TOLIST:
-      args.push('1', reducer.property);
+      parser.push('1', reducer.property);
       break;
 
     case FT_AGGREGATE_GROUP_BY_REDUCERS.QUANTILE:
-      args.push('2', reducer.property, reducer.quantile.toString());
+      parser.push('2', reducer.property, reducer.quantile.toString());
       break;
 
     case FT_AGGREGATE_GROUP_BY_REDUCERS.FIRST_VALUE: {
-      const length = args.push('', reducer.property) - 1;
+      const args: Array<RedisArgument> = [reducer.property];
+
       if (reducer.BY) {
         args.push('BY');
         if (typeof reducer.BY === 'string' || reducer.BY instanceof Buffer) {
@@ -303,17 +304,17 @@ function pushGroupByReducer(args: Array<RedisArgument>, reducer: GroupByReducers
         }
       }
 
-      args[length - 1] = (args.length - length).toString();
+      parser.pushVariadicWithLength(args);
       break;
     }
 
     case FT_AGGREGATE_GROUP_BY_REDUCERS.RANDOM_SAMPLE:
-      args.push('2', reducer.property, reducer.sampleSize.toString());
+      parser.push('2', reducer.property, reducer.sampleSize.toString());
       break;
   }
 
   if (reducer.AS) {
-    args.push('AS', reducer.AS);
+    parser.push('AS', reducer.AS);
   }
 }
 

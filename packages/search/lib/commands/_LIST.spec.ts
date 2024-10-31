@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import _LIST from './_LIST';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('_LIST', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      _LIST.transformArguments(),
+      parseArgs(_LIST),
       ['FT._LIST']
     );
   });

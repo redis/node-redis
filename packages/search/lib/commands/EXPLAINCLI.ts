@@ -1,10 +1,11 @@
-import { RedisArgument, ArrayReply, BlobStringReply, Command } from '@redis/client/dist/lib/RESP/types';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { RedisArgument, ArrayReply, BlobStringReply, Command } from '@redis/client/lib/RESP/types';
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments(index: RedisArgument, query: RedisArgument) {
-    return ['FT.EXPLAINCLI', index, query];
+  parseCommand(parser: CommandParser, index: RedisArgument, query: RedisArgument) {
+    parser.push('FT.EXPLAINCLI', index, query);
   },
   transformReply: undefined as unknown as () => ArrayReply<BlobStringReply>
 } as const satisfies Command;

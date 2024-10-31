@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import GEORADIUSBYMEMBER_RO from './GEORADIUSBYMEMBER_RO';
+import { parseArgs } from './generic-transformers';
 
 describe('GEORADIUSBYMEMBER_RO', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      GEORADIUSBYMEMBER_RO.transformArguments('key', 'member', 3, 'm'),
+      parseArgs(GEORADIUSBYMEMBER_RO, 'key', 'member', 3, 'm'),
       ['GEORADIUSBYMEMBER_RO', 'key', 'member', '3', 'm']
     );
   });

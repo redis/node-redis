@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ZRANGESTORE from './ZRANGESTORE';
+import { parseArgs } from './generic-transformers';
 
 describe('ZRANGESTORE', () => {
   testUtils.isVersionGreaterThanHook([6, 2]);
@@ -8,14 +9,14 @@ describe('ZRANGESTORE', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        ZRANGESTORE.transformArguments('destination', 'source', 0, 1),
+        parseArgs(ZRANGESTORE, 'destination', 'source', 0, 1),
         ['ZRANGESTORE', 'destination', 'source', '0', '1']
       );
     });
 
     it('with BYSCORE', () => {
       assert.deepEqual(
-        ZRANGESTORE.transformArguments('destination', 'source', 0, 1, {
+        parseArgs(ZRANGESTORE, 'destination', 'source', 0, 1, {
           BY: 'SCORE'
         }),
         ['ZRANGESTORE', 'destination', 'source', '0', '1', 'BYSCORE']
@@ -24,7 +25,7 @@ describe('ZRANGESTORE', () => {
 
     it('with BYLEX', () => {
       assert.deepEqual(
-        ZRANGESTORE.transformArguments('destination', 'source', 0, 1, {
+        parseArgs(ZRANGESTORE, 'destination', 'source', 0, 1, {
           BY: 'LEX'
         }),
         ['ZRANGESTORE', 'destination', 'source', '0', '1', 'BYLEX']
@@ -33,7 +34,7 @@ describe('ZRANGESTORE', () => {
 
     it('with REV', () => {
       assert.deepEqual(
-        ZRANGESTORE.transformArguments('destination', 'source', 0, 1, {
+        parseArgs(ZRANGESTORE, 'destination', 'source', 0, 1, {
           REV: true
         }),
         ['ZRANGESTORE', 'destination', 'source', '0', '1', 'REV']
@@ -42,7 +43,7 @@ describe('ZRANGESTORE', () => {
 
     it('with LIMIT', () => {
       assert.deepEqual(
-        ZRANGESTORE.transformArguments('destination', 'source', 0, 1, {
+        parseArgs(ZRANGESTORE, 'destination', 'source', 0, 1, {
           LIMIT: {
             offset: 0,
             count: 1
@@ -54,7 +55,7 @@ describe('ZRANGESTORE', () => {
 
     it('with BY & REV & LIMIT', () => {
       assert.deepEqual(
-        ZRANGESTORE.transformArguments('destination', 'source', 0, 1, {
+        parseArgs(ZRANGESTORE, 'destination', 'source', 0, 1, {
           BY: 'SCORE',
           REV: true,
           LIMIT: {

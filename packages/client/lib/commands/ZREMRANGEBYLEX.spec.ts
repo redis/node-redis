@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ZREMRANGEBYLEX from './ZREMRANGEBYLEX';
+import { parseArgs } from './generic-transformers';
 
 describe('ZREMRANGEBYLEX', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      ZREMRANGEBYLEX.transformArguments('key', '[a', '[b'),
+      parseArgs(ZREMRANGEBYLEX, 'key', '[a', '[b'),
       ['ZREMRANGEBYLEX', 'key', '[a', '[b']
     );
   });

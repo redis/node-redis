@@ -1,3 +1,4 @@
+import { CommandParser } from '../client/parser';
 import { RedisArgument, ArrayReply, BlobStringReply, Command } from '../RESP/types';
 
 export interface SortOptions {
@@ -11,19 +12,19 @@ export interface SortOptions {
   ALPHA?: boolean;
 }
 
-export function transformSortArguments(
-  command: RedisArgument,
+export function parseSortArguments(
+  parser: CommandParser,
   key: RedisArgument,
   options?: SortOptions
 ) {
-  const args: Array<RedisArgument> = [command, key];
+  parser.pushKey(key);
 
   if (options?.BY) {
-    args.push('BY', options.BY);
+    parser.push('BY', options.BY);
   }
 
   if (options?.LIMIT) {
-    args.push(
+    parser.push(
       'LIMIT',
       options.LIMIT.offset.toString(),
       options.LIMIT.count.toString()
@@ -33,27 +34,27 @@ export function transformSortArguments(
   if (options?.GET) {
     if (Array.isArray(options.GET)) {
       for (const pattern of options.GET) {
-        args.push('GET', pattern);
+        parser.push('GET', pattern);
       }
     } else {
-      args.push('GET', options.GET);
+      parser.push('GET', options.GET);
     }
   }
 
   if (options?.DIRECTION) {
-    args.push(options.DIRECTION);
+    parser.push(options.DIRECTION);
   }
 
   if (options?.ALPHA) {
-    args.push('ALPHA');
+    parser.push('ALPHA');
   }
-
-  return args;
 }
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: true,
-  transformArguments: transformSortArguments.bind(undefined, 'SORT'),
+  parseCommand(parser: CommandParser, key: RedisArgument, options?: SortOptions) {
+    parser.push('SORT');
+    parseSortArguments(parser, key, options);
+  },
   transformReply: undefined as unknown as () => ArrayReply<BlobStringReply>
 } as const satisfies Command;

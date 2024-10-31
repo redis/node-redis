@@ -1,13 +1,14 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ACL_GETUSER from './ACL_GETUSER';
+import { parseArgs } from './generic-transformers';
 
 describe('ACL GETUSER', () => {
   testUtils.isVersionGreaterThanHook([6]);
 
   it('transformArguments', () => {
     assert.deepEqual(
-      ACL_GETUSER.transformArguments('username'),
+      parseArgs(ACL_GETUSER, 'username'),
       ['ACL', 'GETUSER', 'username']
     );
   });

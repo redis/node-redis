@@ -2,6 +2,7 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import GEOSEARCH_WITH, { GEO_REPLY_WITH } from './GEOSEARCH_WITH';
 import { CommandArguments } from '../RESP/types';
+import { parseArgs } from './generic-transformers';
 
 describe('GEOSEARCH WITH', () => {
   testUtils.isVersionGreaterThanHook([6, 2]);
@@ -11,7 +12,7 @@ describe('GEOSEARCH WITH', () => {
     expectedReply.preserve = ['WITHDIST'];
 
     assert.deepEqual(
-      GEOSEARCH_WITH.transformArguments('key', 'member', {
+      parseArgs(GEOSEARCH_WITH, 'key', 'member', {
         radius: 1,
         unit: 'm'
       }, [GEO_REPLY_WITH.DISTANCE]),

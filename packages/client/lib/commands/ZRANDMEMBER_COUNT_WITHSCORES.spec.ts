@@ -1,13 +1,14 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ZRANDMEMBER_COUNT_WITHSCORES from './ZRANDMEMBER_COUNT_WITHSCORES';
+import { parseArgs } from './generic-transformers';
 
 describe('ZRANDMEMBER COUNT WITHSCORES', () => {
   testUtils.isVersionGreaterThanHook([6, 2, 5]);
 
   it('transformArguments', () => {
     assert.deepEqual(
-      ZRANDMEMBER_COUNT_WITHSCORES.transformArguments('key', 1),
+      parseArgs(ZRANDMEMBER_COUNT_WITHSCORES, 'key', 1),
       ['ZRANDMEMBER', 'key', '1', 'WITHSCORES']
     );
   });

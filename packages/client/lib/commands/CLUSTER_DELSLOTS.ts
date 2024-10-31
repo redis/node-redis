@@ -1,14 +1,12 @@
+import { CommandParser } from '../client/parser';
 import { SimpleStringReply, Command } from '../RESP/types';
-import { pushVariadicNumberArguments } from './generic-transformers';
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments(slots: number | Array<number>) {
-    return pushVariadicNumberArguments(
-      ['CLUSTER', 'DELSLOTS'],
-      slots
-    );
+  parseCommand(parser: CommandParser, slots: number | Array<number>) {
+    parser.push('CLUSTER', 'DELSLOTS');
+    parser.pushVariadicNumber(slots);
   },
   transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
 } as const satisfies Command;

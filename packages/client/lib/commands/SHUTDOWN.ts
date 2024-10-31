@@ -1,3 +1,4 @@
+import { CommandParser } from '../client/parser';
 import { SimpleStringReply, Command } from '../RESP/types';
 
 export interface ShutdownOptions {
@@ -8,28 +9,26 @@ export interface ShutdownOptions {
 }
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: false,
-  transformArguments(options?: ShutdownOptions) {
-    const args = ['SHUTDOWN']
+  parseCommand(parser: CommandParser, options?: ShutdownOptions) {
+    parser.push('SHUTDOWN');
 
     if (options?.mode) {
-      args.push(options.mode);
+      parser.push(options.mode);
     }
 
     if (options?.NOW) {
-      args.push('NOW');
+      parser.push('NOW');
     }
 
     if (options?.FORCE) {
-      args.push('FORCE');
+      parser.push('FORCE');
     }
 
     if (options?.ABORT) {
-      args.push('ABORT');
+      parser.push('ABORT');
     }
-
-    return args;
   },
   transformReply: undefined as unknown as () => void | SimpleStringReply
 } as const satisfies Command;

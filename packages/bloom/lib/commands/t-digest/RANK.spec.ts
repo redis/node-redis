@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../../test-utils';
 import RANK from './RANK';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('TDIGEST.RANK', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      RANK.transformArguments('key', [1, 2]),
+      parseArgs(RANK, 'key', [1, 2]),
       ['TDIGEST.RANK', 'key', '1', '2']
     );
   });

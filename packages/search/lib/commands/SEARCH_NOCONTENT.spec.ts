@@ -1,12 +1,13 @@
 import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SEARCH_NOCONTENT from './SEARCH_NOCONTENT';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('FT.SEARCH NOCONTENT', () => {
   describe('transformArguments', () => {
     it('without options', () => {
       assert.deepEqual(
-        SEARCH_NOCONTENT.transformArguments('index', 'query'),
+        parseArgs(SEARCH_NOCONTENT, 'index', 'query'),
         ['FT.SEARCH', 'index', 'query', 'NOCONTENT']
       );
     });

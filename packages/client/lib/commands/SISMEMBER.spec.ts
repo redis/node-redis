@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SISMEMBER from './SISMEMBER';
+import { parseArgs } from './generic-transformers';
 
 describe('SISMEMBER', () => {
-  it('transformArguments', () => {
+  it('processCommand', () => {
     assert.deepEqual(
-      SISMEMBER.transformArguments('key', 'member'),
+      parseArgs(SISMEMBER, 'key', 'member'),
       ['SISMEMBER', 'key', 'member']
     );
   });

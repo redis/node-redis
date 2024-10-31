@@ -1,12 +1,13 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import XPENDING from './XPENDING';
+import { parseArgs } from './generic-transformers';
 
 describe('XPENDING', () => {
   describe('transformArguments', () => {
     it('transformArguments', () => {
       assert.deepEqual(
-        XPENDING.transformArguments('key', 'group'),
+        parseArgs(XPENDING, 'key', 'group'),
         ['XPENDING', 'key', 'group']
       );
     });

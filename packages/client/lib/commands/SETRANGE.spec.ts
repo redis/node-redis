@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SETRANGE from './SETRANGE';
+import { parseArgs } from './generic-transformers';
 
 describe('SETRANGE', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      SETRANGE.transformArguments('key', 0, 'value'),
+      parseArgs(SETRANGE, 'key', 0, 'value'),
       ['SETRANGE', 'key', '0', 'value']
     );
   });

@@ -1,17 +1,15 @@
+import { CommandParser } from '../client/parser';
 import { SimpleStringReply, Command } from '../RESP/types';
 import { RedisFlushMode } from './FLUSHALL';
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: false,
-  transformArguments(mode?: RedisFlushMode) {
-    const args = ['FLUSHDB'];
-    
+  parseCommand(parser: CommandParser, mode?: RedisFlushMode) {
+    parser.push('FLUSHDB');
     if (mode) {
-      args.push(mode);
+      parser.push(mode);
     }
-
-    return args;
   },
   transformReply: undefined as unknown as () => SimpleStringReply
 } as const satisfies Command;

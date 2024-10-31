@@ -1,9 +1,12 @@
+import { CommandParser } from '../client/parser';
 import { SimpleStringReply, Command } from '../RESP/types';
-import { mSetArguments } from './MSET';
+import { MSetArguments, parseMSetArguments } from './MSET';
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: true,
-  transformArguments: mSetArguments.bind(undefined, 'MSETNX'),
+  parseCommand(parser: CommandParser, toSet: MSetArguments) {
+    parser.push('MSETNX');
+    return parseMSetArguments(parser, toSet);
+  },
   transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
 } as const satisfies Command;

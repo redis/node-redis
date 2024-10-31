@@ -1,14 +1,13 @@
 import { Command } from '../RESP/types';
-import ZINTER from './ZINTER';
 import { transformSortedSetReply } from './generic-transformers';
+import ZINTER from './ZINTER';
+
 
 export default {
-  FIRST_KEY_INDEX: ZINTER.FIRST_KEY_INDEX,
   IS_READ_ONLY: ZINTER.IS_READ_ONLY,
-  transformArguments(...args: Parameters<typeof ZINTER.transformArguments>) {
-    const redisArgs = ZINTER.transformArguments(...args);
-    redisArgs.push('WITHSCORES');
-    return redisArgs;
+  parseCommand(...args: Parameters<typeof ZINTER.parseCommand>) {
+    ZINTER.parseCommand(...args);
+    args[0].push('WITHSCORES');
   },
   transformReply: transformSortedSetReply
 } as const satisfies Command;

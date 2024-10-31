@@ -1,5 +1,6 @@
-import { RedisArgument, NumberReply, Command } from '@redis/client/dist/lib/RESP/types';
-import { Timestamp, transformTimestampArgument, pushRetentionArgument, pushChunkSizeArgument, Labels, pushLabelsArgument, pushIgnoreArgument } from '.';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { RedisArgument, NumberReply, Command } from '@redis/client/lib/RESP/types';
+import { Timestamp, transformTimestampArgument, parseRetentionArgument, parseChunkSizeArgument, Labels, parseLabelsArgument, parseIgnoreArgument } from '.';
 import { TsIgnoreOptions } from './ADD';
 
 export interface TsIncrByOptions {
@@ -11,40 +12,39 @@ export interface TsIncrByOptions {
   IGNORE?: TsIgnoreOptions;
 }
 
-export function transformIncrByArguments(
-  command: RedisArgument,
+export function parseIncrByArguments(
+  parser: CommandParser,
   key: RedisArgument,
   value: number,
   options?: TsIncrByOptions
 ) {
-  const args = [
-    command,
-    key,
-    value.toString()
-  ];
+  parser.pushKey(key);
+  parser.push(value.toString());
 
   if (options?.TIMESTAMP !== undefined && options?.TIMESTAMP !== null) {
-    args.push('TIMESTAMP', transformTimestampArgument(options.TIMESTAMP));
+    parser.push('TIMESTAMP', transformTimestampArgument(options.TIMESTAMP));
   }
 
-  pushRetentionArgument(args, options?.RETENTION);
+  parseRetentionArgument(parser, options?.RETENTION);
 
   if (options?.UNCOMPRESSED) {
-    args.push('UNCOMPRESSED');
+    parser.push('UNCOMPRESSED');
   }
 
-  pushChunkSizeArgument(args, options?.CHUNK_SIZE);
+  parseChunkSizeArgument(parser, options?.CHUNK_SIZE);
 
-  pushLabelsArgument(args, options?.LABELS);
+  parseLabelsArgument(parser, options?.LABELS);
 
-  pushIgnoreArgument(args, options?.IGNORE);
-
-  return args;
+  parseIgnoreArgument(parser, options?.IGNORE);
 }
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: false,
-  transformArguments: transformIncrByArguments.bind(undefined, 'TS.INCRBY'),
+  parseCommand(...args: Parameters<typeof parseIncrByArguments>) {
+    const parser = args[0];
+
+    parser.push('TS.INCRBY');
+    parseIncrByArguments(...args);
+  },
   transformReply: undefined as unknown as () => NumberReply
 } as const satisfies Command;

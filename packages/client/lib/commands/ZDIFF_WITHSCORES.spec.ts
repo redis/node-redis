@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ZDIFF_WITHSCORES from './ZDIFF_WITHSCORES';
+import { parseArgs } from './generic-transformers';
 
 describe('ZDIFF WITHSCORES', () => {
   testUtils.isVersionGreaterThanHook([6, 2]);
@@ -8,14 +9,14 @@ describe('ZDIFF WITHSCORES', () => {
   describe('transformArguments', () => {
     it('string', () => {
       assert.deepEqual(
-        ZDIFF_WITHSCORES.transformArguments('key'),
+        parseArgs(ZDIFF_WITHSCORES, 'key'),
         ['ZDIFF', '1', 'key', 'WITHSCORES']
       );
     });
 
     it('array', () => {
       assert.deepEqual(
-        ZDIFF_WITHSCORES.transformArguments(['1', '2']),
+        parseArgs(ZDIFF_WITHSCORES, ['1', '2']),
         ['ZDIFF', '2', '1', '2', 'WITHSCORES']
       );
     });

@@ -1,8 +1,9 @@
-import { Command, ArrayReply, BlobStringReply, Resp2Reply, MapReply, TuplesReply, TypeMapping, NullReply, RedisArgument } from '@redis/client/dist/lib/RESP/types';
-import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
-import { pushSelectedLabelsArguments, resp2MapToValue, resp3MapToValue, SampleRawReply, Timestamp, transformRESP2Labels, transformSamplesReply } from '.';
-import { TsRangeOptions, pushRangeArguments } from './RANGE';
-import { pushFilterArgument } from './MGET';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { Command, ArrayReply, BlobStringReply, Resp2Reply, MapReply, TuplesReply, TypeMapping, NullReply, RedisArgument } from '@redis/client/lib/RESP/types';
+import { RedisVariadicArgument } from '@redis/client/lib/commands/generic-transformers';
+import { parseSelectedLabelsArguments, resp2MapToValue, resp3MapToValue, SampleRawReply, Timestamp, transformRESP2Labels, transformSamplesReply } from '.';
+import { TsRangeOptions, parseRangeArguments } from './RANGE';
+import { parseFilterArgument } from './MGET';
 
 export type TsMRangeSelectedLabelsRawReply2 = ArrayReply<
   TuplesReply<[
@@ -26,29 +27,30 @@ export type TsMRangeSelectedLabelsRawReply3 = MapReply<
 
 export function createTransformMRangeSelectedLabelsArguments(command: RedisArgument) {
   return (
+    parser: CommandParser,
     fromTimestamp: Timestamp,
     toTimestamp: Timestamp,
     selectedLabels: RedisVariadicArgument,
     filter: RedisVariadicArgument,
     options?: TsRangeOptions
   ) => {
-    let args = pushRangeArguments(
-      [command],
+    parser.push(command);
+    parseRangeArguments(
+      parser,
       fromTimestamp,
       toTimestamp,
       options
     );
   
-    args = pushSelectedLabelsArguments(args, selectedLabels);
+    parseSelectedLabelsArguments(parser, selectedLabels);
   
-    return pushFilterArgument(args, filter);
+    parseFilterArgument(parser, filter);
   };
 }
 
 export default {
-  FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: true,
-  transformArguments: createTransformMRangeSelectedLabelsArguments('TS.MRANGE'),
+  parseCommand: createTransformMRangeSelectedLabelsArguments('TS.MRANGE'),
   transformReply: {
     2(reply: TsMRangeSelectedLabelsRawReply2, _?: any, typeMapping?: TypeMapping) {
       return resp2MapToValue(reply, ([_key, labels, samples]) => {

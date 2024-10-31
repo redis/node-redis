@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import CURSOR_READ from './CURSOR_READ';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('FT.CURSOR READ', () => {
   describe('transformArguments', () => {
     it('without options', () => {
       assert.deepEqual(
-        CURSOR_READ.transformArguments('index', 0),
+        parseArgs(CURSOR_READ, 'index', '0'),
         ['FT.CURSOR', 'READ', 'index', '0']
       );
     });
 
     it('with COUNT', () => {
       assert.deepEqual(
-        CURSOR_READ.transformArguments('index', 0, {
+        parseArgs(CURSOR_READ, 'index', '0', {
           COUNT: 1
         }),
         ['FT.CURSOR', 'READ', 'index', '0', 'COUNT', '1']

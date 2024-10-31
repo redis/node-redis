@@ -1,22 +1,21 @@
-import { CommandArguments, Command, BlobStringReply, ArrayReply, Resp2Reply, MapReply, TuplesReply, TypeMapping } from '@redis/client/dist/lib/RESP/types';
-import { RedisVariadicArgument, pushVariadicArguments } from '@redis/client/dist/lib/commands/generic-transformers';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { Command, BlobStringReply, ArrayReply, Resp2Reply, MapReply, TuplesReply, TypeMapping } from '@redis/client/lib/RESP/types';
 import { resp2MapToValue, resp3MapToValue, SampleRawReply, transformSampleReply } from '.';
+import { RedisVariadicArgument } from '@redis/client/lib/commands/generic-transformers';
 
 export interface TsMGetOptions {
   LATEST?: boolean;
 }
 
-export function pushLatestArgument(args: CommandArguments, latest?: boolean) {
+export function parseLatestArgument(parser: CommandParser, latest?: boolean) {
   if (latest) {
-    args.push('LATEST');
+    parser.push('LATEST');
   }
-
-  return args;
 }
 
-export function pushFilterArgument(args: CommandArguments, filter: RedisVariadicArgument) {
-  args.push('FILTER');
-  return pushVariadicArguments(args, filter);
+export function parseFilterArgument(parser: CommandParser, filter: RedisVariadicArgument) {
+  parser.push('FILTER');
+  parser.pushVariadic(filter);
 }
 
 export type MGetRawReply2 = ArrayReply<
@@ -36,11 +35,12 @@ export type MGetRawReply3 = MapReply<
 >;
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments(filter: RedisVariadicArgument, options?: TsMGetOptions) {
-    const args = pushLatestArgument(['TS.MGET'], options?.LATEST);
-    return pushFilterArgument(args, filter);
+  parseCommand(parser: CommandParser, filter: RedisVariadicArgument, options?: TsMGetOptions) {
+    parser.push('TS.MGET');
+    parseLatestArgument(parser, options?.LATEST);
+    parseFilterArgument(parser, filter);
   },
   transformReply: {
     2(reply: MGetRawReply2, _, typeMapping?: TypeMapping) {

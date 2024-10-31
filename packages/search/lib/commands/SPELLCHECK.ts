@@ -1,4 +1,5 @@
-import { RedisArgument, CommandArguments, Command, ReplyUnion } from '@redis/client/dist/lib/RESP/types';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { RedisArgument, Command, ReplyUnion } from '@redis/client/lib/RESP/types';
 
 export interface Terms {
   mode: 'INCLUDE' | 'EXCLUDE';
@@ -12,30 +13,28 @@ export interface FtSpellCheckOptions {
 }
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments(index: RedisArgument, query: RedisArgument, options?: FtSpellCheckOptions) {
-    const args = ['FT.SPELLCHECK', index, query];
+  parseCommand(parser: CommandParser, index: RedisArgument, query: RedisArgument, options?: FtSpellCheckOptions) {
+    parser.push('FT.SPELLCHECK', index, query);
 
     if (options?.DISTANCE) {
-      args.push('DISTANCE', options.DISTANCE.toString());
+      parser.push('DISTANCE', options.DISTANCE.toString());
     }
 
     if (options?.TERMS) {
       if (Array.isArray(options.TERMS)) {
         for (const term of options.TERMS) {
-          pushTerms(args, term);
+          parseTerms(parser, term);
         }
       } else {
-        pushTerms(args, options.TERMS);
+        parseTerms(parser, options.TERMS);
       }
     }
 
     if (options?.DIALECT) {
-      args.push('DIALECT', options.DIALECT.toString());
+      parser.push('DIALECT', options.DIALECT.toString());
     }
-
-    return args;
   },
   transformReply: {
     2: (rawReply: SpellCheckRawReply): SpellCheckReply => {
@@ -52,6 +51,10 @@ export default {
   unstableResp3: true
 } as const satisfies Command;
 
+function parseTerms(parser: CommandParser, { mode, dictionary }: Terms) {
+  parser.push('TERMS', mode, dictionary);
+}
+
 type SpellCheckRawReply = Array<[
   _: string,
   term: string,
@@ -65,7 +68,3 @@ type SpellCheckReply = Array<{
     suggestion: string
   }>
 }>;
-
-function pushTerms(args: CommandArguments, { mode, dictionary }: Terms) {
-  args.push('TERMS', mode, dictionary);
-}

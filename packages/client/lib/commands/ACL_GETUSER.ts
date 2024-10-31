@@ -1,3 +1,4 @@
+import { CommandParser } from '../client/parser';
 import { RedisArgument, TuplesToMapReply, BlobStringReply, ArrayReply, UnwrapReply, Resp2Reply, Command } from '../RESP/types';
 
 type AclUser = TuplesToMapReply<[
@@ -17,10 +18,10 @@ type AclUser = TuplesToMapReply<[
 ]>;
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments(username: RedisArgument) {
-    return ['ACL', 'GETUSER', username];
+  parseCommand(parser: CommandParser, username: RedisArgument) {
+    parser.push('ACL', 'GETUSER', username);
   },
   transformReply: {
     2: (reply: UnwrapReply<Resp2Reply<AclUser>>) => ({

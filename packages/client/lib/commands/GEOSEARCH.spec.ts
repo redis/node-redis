@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import GEOSEARCH from './GEOSEARCH';
+import { parseArgs } from './generic-transformers';
 
 describe('GEOSEARCH', () => {
   testUtils.isVersionGreaterThanHook([6, 2]);
@@ -8,7 +9,7 @@ describe('GEOSEARCH', () => {
   describe('transformArguments', () => {
     it('FROMMEMBER, BYRADIUS, without options', () => {
       assert.deepEqual(
-        GEOSEARCH.transformArguments('key', 'member', {
+        parseArgs(GEOSEARCH, 'key', 'member', {
           radius: 1,
           unit: 'm'
         }),
@@ -18,7 +19,7 @@ describe('GEOSEARCH', () => {
 
     it('FROMLONLAT, BYBOX, without options', () => {
       assert.deepEqual(
-        GEOSEARCH.transformArguments('key', {
+        parseArgs(GEOSEARCH, 'key', {
           longitude: 1,
           latitude: 2
         }, {
@@ -32,7 +33,7 @@ describe('GEOSEARCH', () => {
 
     it('with SORT', () => {
       assert.deepEqual(
-        GEOSEARCH.transformArguments('key', 'member', {
+        parseArgs(GEOSEARCH, 'key', 'member', {
           radius: 1,
           unit: 'm'
         }, {
@@ -45,7 +46,7 @@ describe('GEOSEARCH', () => {
     describe('with COUNT', () => {
       it('number', () => {
         assert.deepEqual(
-          GEOSEARCH.transformArguments('key', 'member', {
+          parseArgs(GEOSEARCH, 'key', 'member', {
             radius: 1,
             unit: 'm'
           }, {
@@ -57,7 +58,7 @@ describe('GEOSEARCH', () => {
 
       it('with ANY', () => {
         assert.deepEqual(
-          GEOSEARCH.transformArguments('key', 'member', {
+          parseArgs(GEOSEARCH, 'key', 'member', {
             radius: 1,
             unit: 'm'
           }, {

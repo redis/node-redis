@@ -2,19 +2,20 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import DROPINDEX from './DROPINDEX';
 import { SCHEMA_FIELD_TYPE } from './CREATE';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('FT.DROPINDEX', () => {
   describe('transformArguments', () => {
     it('without options', () => {
       assert.deepEqual(
-        DROPINDEX.transformArguments('index'),
+        parseArgs(DROPINDEX, 'index'),
         ['FT.DROPINDEX', 'index']
       );
     });
 
     it('with DD', () => {
       assert.deepEqual(
-        DROPINDEX.transformArguments('index', { DD: true }),
+        parseArgs(DROPINDEX, 'index', { DD: true }),
         ['FT.DROPINDEX', 'index', 'DD']
       );
     });

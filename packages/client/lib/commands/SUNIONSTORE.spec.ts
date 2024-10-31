@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SUNIONSTORE from './SUNIONSTORE';
+import { parseArgs } from './generic-transformers';
 
 describe('SUNIONSTORE', () => {
   describe('transformArguments', () => {
     it('string', () => {
       assert.deepEqual(
-        SUNIONSTORE.transformArguments('destination', 'key'),
+        parseArgs(SUNIONSTORE, 'destination', 'key'),
         ['SUNIONSTORE', 'destination', 'key']
       );
     });
 
     it('array', () => {
       assert.deepEqual(
-        SUNIONSTORE.transformArguments('destination', ['1', '2']),
+        parseArgs(SUNIONSTORE, 'destination', ['1', '2']),
         ['SUNIONSTORE', 'destination', '1', '2']
       );
     });

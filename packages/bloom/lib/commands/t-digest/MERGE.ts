@@ -1,5 +1,6 @@
-import { RedisArgument, SimpleStringReply, Command } from '@redis/client/dist/lib/RESP/types';
-import { RedisVariadicArgument, pushVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { RedisArgument, SimpleStringReply, Command } from '@redis/client/lib/RESP/types';
+import { RedisVariadicArgument } from '@redis/client/lib/commands/generic-transformers';
 
 export interface TDigestMergeOptions {
   COMPRESSION?: number;
@@ -7,24 +8,24 @@ export interface TDigestMergeOptions {
 }
 
 export default {
-  FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: false,
-  transformArguments(
+  parseCommand(
+    parser: CommandParser,
     destination: RedisArgument,
     source: RedisVariadicArgument,
     options?: TDigestMergeOptions
   ) {
-    const args = pushVariadicArgument(['TDIGEST.MERGE', destination], source);
+    parser.push('TDIGEST.MERGE');
+    parser.pushKey(destination);
+    parser.pushKeysLength(source);
 
     if (options?.COMPRESSION !== undefined) {
-      args.push('COMPRESSION', options.COMPRESSION.toString());
+      parser.push('COMPRESSION', options.COMPRESSION.toString());
     }
 
     if (options?.OVERRIDE) {
-      args.push('OVERRIDE');
+      parser.push('OVERRIDE');
     }
-
-    return args;
   },
   transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
 } as const satisfies Command;

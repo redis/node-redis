@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import DBSIZE from './DBSIZE';
+import { parseArgs } from './generic-transformers';
 
 describe('DBSIZE', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      DBSIZE.transformArguments(),
+      parseArgs(DBSIZE),
       ['DBSIZE']
     );
   });

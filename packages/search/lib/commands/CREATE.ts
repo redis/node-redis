@@ -1,5 +1,6 @@
-import { RedisArgument, SimpleStringReply, Command, CommandArguments } from '@redis/client/lib/RESP/types';
-import { RedisVariadicArgument, pushOptionalVariadicArgument } from '@redis/client/lib/commands/generic-transformers';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { RedisArgument, SimpleStringReply, Command } from '@redis/client/lib/RESP/types';
+import { RedisVariadicArgument, parseOptionalVariadicArgument } from '@redis/client/lib/commands/generic-transformers';
 
 export const SCHEMA_FIELD_TYPE = {
   TEXT: 'TEXT',
@@ -102,93 +103,93 @@ export interface RediSearchSchema {
   );
 }
 
-function pushCommonSchemaFieldOptions(args: CommandArguments, fieldOptions: SchemaCommonField) {
+function parseCommonSchemaFieldOptions(parser: CommandParser, fieldOptions: SchemaCommonField) {
   if (fieldOptions.SORTABLE) {
-    args.push('SORTABLE');
+    parser.push('SORTABLE');
 
     if (fieldOptions.SORTABLE === 'UNF') {
-      args.push('UNF');
+      parser.push('UNF');
     }
   }
 
   if (fieldOptions.NOINDEX) {
-    args.push('NOINDEX');
+    parser.push('NOINDEX');
   }
 }
 
-export function pushSchema(args: CommandArguments, schema: RediSearchSchema) {
+export function parseSchema(parser: CommandParser, schema: RediSearchSchema) {
   for (const [field, fieldOptions] of Object.entries(schema)) {
-    args.push(field);
+    parser.push(field);
 
     if (typeof fieldOptions === 'string') {
-      args.push(fieldOptions);
+      parser.push(fieldOptions);
       continue;
     }
 
     if (fieldOptions.AS) {
-      args.push('AS', fieldOptions.AS);
+      parser.push('AS', fieldOptions.AS);
     }
 
-    args.push(fieldOptions.type);
+    parser.push(fieldOptions.type);
 
     if (fieldOptions.INDEXMISSING) {
-      args.push('INDEXMISSING');
+      parser.push('INDEXMISSING');
     }
 
     switch (fieldOptions.type) {
       case SCHEMA_FIELD_TYPE.TEXT:
         if (fieldOptions.NOSTEM) {
-          args.push('NOSTEM');
+          parser.push('NOSTEM');
         }
 
         if (fieldOptions.WEIGHT) {
-          args.push('WEIGHT', fieldOptions.WEIGHT.toString());
+          parser.push('WEIGHT', fieldOptions.WEIGHT.toString());
         }
 
         if (fieldOptions.PHONETIC) {
-          args.push('PHONETIC', fieldOptions.PHONETIC);
+          parser.push('PHONETIC', fieldOptions.PHONETIC);
         }
 
         if (fieldOptions.WITHSUFFIXTRIE) {
-          args.push('WITHSUFFIXTRIE');
+          parser.push('WITHSUFFIXTRIE');
         }
 
         if (fieldOptions.INDEXEMPTY) {
-          args.push('INDEXEMPTY');
+          parser.push('INDEXEMPTY');
         }
 
-        pushCommonSchemaFieldOptions(args, fieldOptions)
+        parseCommonSchemaFieldOptions(parser, fieldOptions)
         break;
 
       case SCHEMA_FIELD_TYPE.NUMERIC:
       case SCHEMA_FIELD_TYPE.GEO:
-        pushCommonSchemaFieldOptions(args, fieldOptions)
+        parseCommonSchemaFieldOptions(parser, fieldOptions)
         break;
 
       case SCHEMA_FIELD_TYPE.TAG:
         if (fieldOptions.SEPARATOR) {
-          args.push('SEPARATOR', fieldOptions.SEPARATOR);
+          parser.push('SEPARATOR', fieldOptions.SEPARATOR);
         }
 
         if (fieldOptions.CASESENSITIVE) {
-          args.push('CASESENSITIVE');
+          parser.push('CASESENSITIVE');
         }
 
         if (fieldOptions.WITHSUFFIXTRIE) {
-          args.push('WITHSUFFIXTRIE');
+          parser.push('WITHSUFFIXTRIE');
         }
 
         if (fieldOptions.INDEXEMPTY) {
-          args.push('INDEXEMPTY');
+          parser.push('INDEXEMPTY');
         }
 
-        pushCommonSchemaFieldOptions(args, fieldOptions)
+        parseCommonSchemaFieldOptions(parser, fieldOptions)
         break;
 
       case SCHEMA_FIELD_TYPE.VECTOR:
-        args.push(fieldOptions.ALGORITHM);
+        parser.push(fieldOptions.ALGORITHM);
 
-        const lengthIndex = args.push('') - 1;
+        const args: Array<RedisArgument> = [];
 
         args.push(
           'TYPE', fieldOptions.TYPE,
@@ -200,7 +201,7 @@ export function pushSchema(args: CommandArguments, schema: RediSearchSchema) {
           args.push('INITIAL_CAP', fieldOptions.INITIAL_CAP.toString());
         }
 
-        switch (fieldOptions.ALGORITHM) {
+        switch (fieldOptions.ALGORITHM) {          
           case SCHEMA_VECTOR_FIELD_ALGORITHM.FLAT:
             if (fieldOptions.BLOCK_SIZE) {
               args.push('BLOCK_SIZE', fieldOptions.BLOCK_SIZE.toString());
@@ -223,13 +224,13 @@ export function pushSchema(args: CommandArguments, schema: RediSearchSchema) {
 
             break;
         }
-        args[lengthIndex] = (args.length - lengthIndex - 1).toString();
+        parser.pushVariadicWithLength(args);
 
         break;
     
       case SCHEMA_FIELD_TYPE.GEOSHAPE:
         if (fieldOptions.COORD_SYSTEM !== undefined) {
-          args.push('COORD_SYSTEM', fieldOptions.COORD_SYSTEM);
+          parser.push('COORD_SYSTEM', fieldOptions.COORD_SYSTEM);
         }
 
         break;
@@ -289,74 +290,72 @@ export interface CreateOptions {
 }
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments(index: RedisArgument, schema: RediSearchSchema, options?: CreateOptions) {
-    const args = ['FT.CREATE', index];
+  parseCommand(parser: CommandParser, index: RedisArgument, schema: RediSearchSchema, options?: CreateOptions) {
+    parser.push('FT.CREATE', index);
 
     if (options?.ON) {
-      args.push('ON', options.ON);
+      parser.push('ON', options.ON);
     }
 
-    pushOptionalVariadicArgument(args, 'PREFIX', options?.PREFIX);
+    parseOptionalVariadicArgument(parser, 'PREFIX', options?.PREFIX);
 
     if (options?.FILTER) {
-      args.push('FILTER', options.FILTER);
+      parser.push('FILTER', options.FILTER);
     }
 
     if (options?.LANGUAGE) {
-      args.push('LANGUAGE', options.LANGUAGE);
+      parser.push('LANGUAGE', options.LANGUAGE);
     }
 
     if (options?.LANGUAGE_FIELD) {
-      args.push('LANGUAGE_FIELD', options.LANGUAGE_FIELD);
+      parser.push('LANGUAGE_FIELD', options.LANGUAGE_FIELD);
     }
 
     if (options?.SCORE) {
-      args.push('SCORE', options.SCORE.toString());
+      parser.push('SCORE', options.SCORE.toString());
     }
 
     if (options?.SCORE_FIELD) {
-      args.push('SCORE_FIELD', options.SCORE_FIELD);
+      parser.push('SCORE_FIELD', options.SCORE_FIELD);
     }
 
     // if (options?.PAYLOAD_FIELD) {
-    //     args.push('PAYLOAD_FIELD', options.PAYLOAD_FIELD);
+    //     parser.push('PAYLOAD_FIELD', options.PAYLOAD_FIELD);
     // }
 
     if (options?.MAXTEXTFIELDS) {
-      args.push('MAXTEXTFIELDS');
+      parser.push('MAXTEXTFIELDS');
     }
 
     if (options?.TEMPORARY) {
-      args.push('TEMPORARY', options.TEMPORARY.toString());
+      parser.push('TEMPORARY', options.TEMPORARY.toString());
     }
 
     if (options?.NOOFFSETS) {
-      args.push('NOOFFSETS');
+      parser.push('NOOFFSETS');
     }
 
     if (options?.NOHL) {
-      args.push('NOHL');
+      parser.push('NOHL');
     }
 
     if (options?.NOFIELDS) {
-      args.push('NOFIELDS');
+      parser.push('NOFIELDS');
     }
 
     if (options?.NOFREQS) {
-      args.push('NOFREQS');
+      parser.push('NOFREQS');
     }
 
     if (options?.SKIPINITIALSCAN) {
-      args.push('SKIPINITIALSCAN');
+      parser.push('SKIPINITIALSCAN');
     }
 
-    pushOptionalVariadicArgument(args, 'STOPWORDS', options?.STOPWORDS);
-    args.push('SCHEMA');
-    pushSchema(args, schema);
-
-    return args;
+    parseOptionalVariadicArgument(parser, 'STOPWORDS', options?.STOPWORDS);
+    parser.push('SCHEMA');
+    parseSchema(parser, schema);
   },
   transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
 } as const satisfies Command;

@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ARRINSERT from './ARRINSERT';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('JSON.ARRINSERT', () => {
   describe('transformArguments', () => {
     it('single element', () => {
       assert.deepEqual(
-        ARRINSERT.transformArguments('key', '$', 0, 'value'),
+        parseArgs(ARRINSERT, 'key', '$', 0, 'value'),
         ['JSON.ARRINSERT', 'key', '$', '0', '"value"']
       );
     });
 
     it('multiple elements', () => {
       assert.deepEqual(
-        ARRINSERT.transformArguments('key', '$', 0, '1', '2'),
+        parseArgs(ARRINSERT, 'key', '$', 0, '1', '2'),
         ['JSON.ARRINSERT', 'key', '$', '0', '"1"', '"2"']
       );
     });

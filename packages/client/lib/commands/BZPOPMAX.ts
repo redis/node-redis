@@ -1,23 +1,13 @@
-import { RedisArgument, NullReply, TuplesReply, BlobStringReply, DoubleReply, UnwrapReply, Command, TypeMapping } from '../RESP/types';
-import { RedisVariadicArgument, pushVariadicArguments, transformDoubleReply } from './generic-transformers';
-
-export function transformBZPopArguments(
-  command: RedisArgument,
-  key: RedisVariadicArgument,
-  timeout: number
-) {
-  const args = pushVariadicArguments([command], key);
-  args.push(timeout.toString());
-  return args;
-}
-
-export type BZPopArguments = typeof transformBZPopArguments extends (_: any, ...args: infer T) => any ? T : never;
+import { CommandParser } from '../client/parser';
+import { NullReply, TuplesReply, BlobStringReply, DoubleReply, UnwrapReply, Command, TypeMapping } from '../RESP/types';
+import { RedisVariadicArgument, transformDoubleReply } from './generic-transformers';
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: false,
-  transformArguments(...args: BZPopArguments) {
-    return transformBZPopArguments('BZPOPMAX', ...args);
+  parseCommand(parser: CommandParser, keys: RedisVariadicArgument, timeout: number) {
+    parser.push('BZPOPMAX');
+    parser.pushKeys(keys);
+    parser.push(timeout.toString());
   },
   transformReply: {
     2(

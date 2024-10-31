@@ -1,10 +1,12 @@
+import { CommandParser } from '../client/parser';
 import { RedisArgument, ArrayReply, BlobStringReply, SetReply, Command } from '../RESP/types';
 
 export default {
-  FIRST_KEY_INDEX: 1,
+  CACHEABLE: true,
   IS_READ_ONLY: true,
-  transformArguments(key: RedisArgument) {
-    return ['SMEMBERS', key];
+  parseCommand(parser: CommandParser, key: RedisArgument) {
+    parser.push('SMEMBERS');
+    parser.pushKey(key);
   },
   transformReply: {
     2: undefined as unknown as () => ArrayReply<BlobStringReply>,

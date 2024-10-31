@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import XAUTOCLAIM from './XAUTOCLAIM';
+import { parseArgs } from './generic-transformers';
 
 describe('XAUTOCLAIM', () => {
   testUtils.isVersionGreaterThanHook([6, 2]);
@@ -8,14 +9,14 @@ describe('XAUTOCLAIM', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        XAUTOCLAIM.transformArguments('key', 'group', 'consumer', 1, '0-0'),
+        parseArgs(XAUTOCLAIM, 'key', 'group', 'consumer', 1, '0-0'),
         ['XAUTOCLAIM', 'key', 'group', 'consumer', '1', '0-0']
       );
     });
 
     it('with COUNT', () => {
       assert.deepEqual(
-        XAUTOCLAIM.transformArguments('key', 'group', 'consumer', 1, '0-0', {
+        parseArgs(XAUTOCLAIM, 'key', 'group', 'consumer', 1, '0-0', {
           COUNT: 1
         }),
         ['XAUTOCLAIM', 'key', 'group', 'consumer', '1', '0-0', 'COUNT', '1']

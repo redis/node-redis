@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import RENAMENX from './RENAMENX';
+import { parseArgs } from './generic-transformers';
 
 describe('RENAMENX', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      RENAMENX.transformArguments('source', 'destination'),
+      parseArgs(RENAMENX, 'source', 'destination'),
       ['RENAMENX', 'source', 'destination']
     );
   });

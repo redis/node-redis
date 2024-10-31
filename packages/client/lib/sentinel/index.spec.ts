@@ -14,20 +14,9 @@ import { defineScript } from '../lua-script';
 import { MATH_FUNCTION } from '../commands/FUNCTION_LOAD.spec';
 import RedisBloomModules from '@redis/bloom';
 import { RedisTcpSocketOptions } from '../client/socket';
+import { SQUARE_SCRIPT } from '../client/index.spec';
 
 const execAsync = promisify(exec);
-
-const SQUARE_SCRIPT = defineScript({
-  SCRIPT:
-    `local number = redis.call('GET', KEYS[1])
-    return number * number`,
-  NUMBER_OF_KEYS: 1,
-  FIRST_KEY_INDEX: 0,
-  transformArguments(key: string) {
-    return [key];
-  },
-  transformReply: undefined as unknown as () => NumberReply
-});
 
 /* used to ensure test environment resets to normal state
    i.e. 

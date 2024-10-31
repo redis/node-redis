@@ -1,6 +1,7 @@
 import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import CLIENT_NO_TOUCH from './CLIENT_NO-TOUCH';
+import { parseArgs } from './generic-transformers';
 
 describe('CLIENT NO-TOUCH', () => {
   testUtils.isVersionGreaterThanHook([7, 2]);
@@ -8,14 +9,14 @@ describe('CLIENT NO-TOUCH', () => {
   describe('transformArguments', () => {
     it('true', () => {
       assert.deepEqual(
-        CLIENT_NO_TOUCH.transformArguments(true),
+        parseArgs(CLIENT_NO_TOUCH, true),
         ['CLIENT', 'NO-TOUCH', 'ON']
       );
     });
 
     it('false', () => {
       assert.deepEqual(
-        CLIENT_NO_TOUCH.transformArguments(false),
+        parseArgs(CLIENT_NO_TOUCH, false),
         ['CLIENT', 'NO-TOUCH', 'OFF']
       );
     });

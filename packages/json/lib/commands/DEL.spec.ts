@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import DEL from './DEL';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('JSON.DEL', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        DEL.transformArguments('key'),
+        parseArgs(DEL, 'key'),
         ['JSON.DEL', 'key']
       );
     });
 
     it('with path', () => {
       assert.deepEqual(
-        DEL.transformArguments('key', {
+        parseArgs(DEL, 'key', {
           path: '$.path'
         }),
         ['JSON.DEL', 'key', '$.path']

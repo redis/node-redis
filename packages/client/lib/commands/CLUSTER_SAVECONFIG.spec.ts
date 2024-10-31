@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import CLUSTER_SAVECONFIG from './CLUSTER_SAVECONFIG';
+import { parseArgs } from './generic-transformers';
 
 describe('CLUSTER SAVECONFIG', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      CLUSTER_SAVECONFIG.transformArguments(),
+      parseArgs(CLUSTER_SAVECONFIG),
       ['CLUSTER', 'SAVECONFIG']
     );
   });

@@ -1,6 +1,7 @@
-import { Command, BlobStringReply, ArrayReply, Resp2Reply, MapReply, TuplesReply, TypeMapping } from '@redis/client/dist/lib/RESP/types';
-import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
-import { TsMGetOptions, pushLatestArgument, pushFilterArgument } from './MGET';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { Command, BlobStringReply, ArrayReply, Resp2Reply, MapReply, TuplesReply, TypeMapping } from '@redis/client/lib/RESP/types';
+import { RedisVariadicArgument } from '@redis/client/lib/commands/generic-transformers';
+import { TsMGetOptions, parseLatestArgument, parseFilterArgument } from './MGET';
 import { RawLabelValue, resp2MapToValue, resp3MapToValue, SampleRawReply, transformRESP2Labels, transformSampleReply } from '.';
 
 export interface TsMGetWithLabelsOptions extends TsMGetOptions {
@@ -50,12 +51,12 @@ export function createTransformMGetLabelsReply<T extends RawLabelValue>() {
 }
 
 export default {
-  FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: true,
-  transformArguments(filter: RedisVariadicArgument, options?: TsMGetOptions) {
-    const args = pushLatestArgument(['TS.MGET'], options?.LATEST);
-    args.push('WITHLABELS');
-    return pushFilterArgument(args, filter);
+  parseCommand(parser: CommandParser, filter: RedisVariadicArgument, options?: TsMGetWithLabelsOptions) {
+    parser.push('TS.MGET');
+    parseLatestArgument(parser, options?.LATEST);
+    parser.push('WITHLABELS');
+    parseFilterArgument(parser, filter);
   },
   transformReply: createTransformMGetLabelsReply<BlobStringReply>(),
 } as const satisfies Command;

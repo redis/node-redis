@@ -1,4 +1,5 @@
-import { RedisArgument, Command, ReplyUnion, NumberReply } from '@redis/client/dist/lib/RESP/types';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { RedisArgument, Command, ReplyUnion, NumberReply } from '@redis/client/lib/RESP/types';
 import AGGREGATE, { AggregateRawReply, AggregateReply, FtAggregateOptions } from './AGGREGATE';
 
 export interface FtAggregateWithCursorOptions extends FtAggregateOptions {
@@ -17,21 +18,18 @@ export interface AggregateWithCursorReply extends AggregateReply {
 }
 
 export default {
-  FIRST_KEY_INDEX: AGGREGATE.FIRST_KEY_INDEX,
   IS_READ_ONLY: AGGREGATE.IS_READ_ONLY,
-  transformArguments(index: RedisArgument, query: RedisArgument, options?: FtAggregateWithCursorOptions) {
-    const args = AGGREGATE.transformArguments(index, query, options);
-    args.push('WITHCURSOR');
+  parseCommand(parser: CommandParser, index: RedisArgument, query: RedisArgument, options?: FtAggregateWithCursorOptions) {
+    AGGREGATE.parseCommand(parser, index, query, options);
+    parser.push('WITHCURSOR');
 
     if (options?.COUNT !== undefined) {
-      args.push('COUNT', options.COUNT.toString());
+      parser.push('COUNT', options.COUNT.toString());
     }
 
     if(options?.MAXIDLE !== undefined) {
-      args.push('MAXIDLE', options.MAXIDLE.toString());
+      parser.push('MAXIDLE', options.MAXIDLE.toString());
     }
-
-    return args;
   },
   transformReply: {
     2: (reply: AggregateWithCursorRawReply): AggregateWithCursorReply => {
@@ -44,4 +42,3 @@ export default {
   },
   unstableResp3: true
 } as const satisfies Command;
-
