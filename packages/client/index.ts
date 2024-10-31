@@ -34,3 +34,7 @@ export { GEO_REPLY_WITH, GeoReplyWith } from './lib/commands/GEOSEARCH_WITH';
 export { SetOptions } from './lib/commands/SET';
 
 export { REDIS_FLUSH_MODES } from './lib/commands/FLUSHALL';
+
+import { BasicClientSideCache, BasicPooledClientSideCache } from './lib/client/cache';
+export { BasicClientSideCache, BasicPooledClientSideCache };
+
