@@ -1,5 +1,5 @@
-import { CommandParser } from '@redis/client/lib/client/parser';
-import { BlobStringReply, Command, NumberReply, SimpleStringReply, TypeMapping, ReplyUnion } from "@redis/client/lib/RESP/types";
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { BlobStringReply, Command, NumberReply, SimpleStringReply, TypeMapping, ReplyUnion } from "@redis/client/dist/lib/RESP/types";
 import INFO, { InfoRawReply, InfoRawReplyTypes, InfoReply } from "./INFO";
 
 type chunkType = Array<[

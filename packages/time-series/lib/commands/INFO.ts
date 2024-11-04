@@ -1,8 +1,8 @@
-import { CommandParser } from '@redis/client/lib/client/parser';
-import { ArrayReply, BlobStringReply, Command, DoubleReply, NumberReply, ReplyUnion, SimpleStringReply, TypeMapping } from "@redis/client/lib/RESP/types";
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { ArrayReply, BlobStringReply, Command, DoubleReply, NumberReply, ReplyUnion, SimpleStringReply, TypeMapping } from "@redis/client/dist/lib/RESP/types";
 import { TimeSeriesDuplicatePolicies } from ".";
 import { TimeSeriesAggregationType } from "./CREATERULE";
-import { transformDoubleReply } from '@redis/client/lib/commands/generic-transformers';
+import { transformDoubleReply } from '@redis/client/dist/lib/commands/generic-transformers';
 
 export type InfoRawReplyTypes = SimpleStringReply | 
   NumberReply | 
