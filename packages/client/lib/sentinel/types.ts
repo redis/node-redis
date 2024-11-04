@@ -29,10 +29,12 @@ export interface RedisSentinelOptions<
    * The maximum number of times a command will retry due to topology changes.
    */
   maxCommandRediscovers?: number;
+  // TODO: omit properties that users shouldn't be able to specify for sentinel at this level
   /**
    * The configuration values for every node in the cluster. Use this for example when specifying an ACL user to connect with
    */
   nodeClientOptions?: RedisClientOptions<RedisModules, RedisFunctions, RedisScripts, RESP, TYPE_MAPPING, RedisTcpSocketOptions>;
+  // TODO: omit properties that users shouldn't be able to specify for sentinel at this level
   /**
    * The configuration values for every sentinel in the cluster. Use this for example when specifying an ACL user to connect with
    */
