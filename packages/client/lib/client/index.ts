@@ -305,9 +305,13 @@ export default class RedisClient<
   private _self = this;
   private _commandOptions?: CommandOptions<TYPE_MAPPING>;
   #dirtyWatch?: string;
-  #watchEpoch?: number; 
+  #watchEpoch?: number;
   #clientSideCache?: ClientSideCacheProvider;
   #credentialsSubscription: Disposable | null = null;
+  get clientSideCache() {
+    return this._self.#clientSideCache;
+  }
+
 
   get options(): RedisClientOptions<M, F, S, RESP> | undefined {
     return this._self.#options;
@@ -328,7 +332,6 @@ export default class RedisClient<
   get socketEpoch() {
     return this._self.#socket.socketEpoch;
   }
-
 
   get isWatching() {
     return this._self.#watchEpoch !== undefined;
@@ -515,10 +518,7 @@ export default class RedisClient<
     }
 
     if (this.#clientSideCache) {
-      const tracking = this.#clientSideCache.trackingOn();
-      if (tracking) {
-        commands.push(tracking);
-      }
+      commands.push(this.#clientSideCache.trackingOn());
     }
 
     return commands;
@@ -956,7 +956,7 @@ export default class RedisClient<
     }
 
     const chainId = Symbol('Pipeline Chain'),
-      promise = Promise.allSettled(
+      promise = Promise.all(
         commands.map(({ args }) => this._self.#queue.addCommand(args, {
           chainId,
           typeMapping: this._commandOptions?.typeMapping
