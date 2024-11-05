@@ -277,6 +277,10 @@ export default class RedisCluster<
     return this._self.#slots.slots;
   }
 
+  get clientSideCache() {
+    return this._self.#slots.clientSideCache;
+  }
+
   /**
    * An array of the cluster masters.
    * Use with {@link RedisCluster.prototype.nodeClient} to get the client for a specific master node.

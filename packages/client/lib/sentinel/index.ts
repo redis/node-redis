@@ -16,7 +16,7 @@ import { RedisVariadicArgument } from '../commands/generic-transformers';
 import { WaitQueue } from './wait-queue';
 import { TcpNetConnectOpts } from 'node:net';
 import { RedisTcpSocketOptions } from '../client/socket';
-import { BasicPooledClientSideCache, PooledClientSideCacheProvider, PooledNoRedirectClientSideCache, PooledRedirectClientSideCache } from '../client/cache';
+import { BasicPooledClientSideCache, PooledClientSideCacheProvider } from '../client/cache';
 
 interface ClientInfo {
   id: number;
@@ -301,6 +301,10 @@ export default class RedisSentinel<
   #reservedClientInfo?: ClientInfo;
   #masterClientCount = 0;
   #masterClientInfo?: ClientInfo;
+
+  get clientSideCache() {
+    return this._self.#internal.clientSideCache;
+  }
 
   constructor(options: RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>) {
     super();
@@ -618,7 +622,7 @@ class RedisSentinelInternal<
 
   readonly #name: string;
   readonly #nodeClientOptions: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING, RedisTcpSocketOptions>;
-  readonly #sentinelClientOptions: RedisClientOptions<typeof RedisSentinelModule, F, S, RESP, TYPE_MAPPING, RedisTcpSocketOptions>;
+  readonly #sentinelClientOptions: RedisClientOptions<typeof RedisSentinelModule, RedisFunctions, RedisScripts, RespVersions, TypeMapping, RedisTcpSocketOptions>;
   readonly #scanInterval: number;
   readonly #passthroughClientErrorEvents: boolean;
 
@@ -679,8 +683,7 @@ class RedisSentinelInternal<
       } else {
         const cscConfig = options.clientSideCache;
         this.#clientSideCache = this.#nodeClientOptions.clientSideCache = new BasicPooledClientSideCache(cscConfig);
-        this.#clientSideCache = this.#nodeClientOptions.clientSideCache = new PooledNoRedirectClientSideCache(cscConfig);
-        this.#clientSideCache = this.#nodeClientOptions.clientSideCache = new PooledRedirectClientSideCache(cscConfig);
+//        this.#clientSideCache = this.#nodeClientOptions.clientSideCache = new PooledNoRedirectClientSideCache(cscConfig);
       }
     }
 

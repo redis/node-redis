@@ -1,10 +1,9 @@
 import { EventEmitter } from 'stream';
-import RedisClient, { RedisClientType } from '.';
+import RedisClient from '.';
 import { RedisArgument, ReplyUnion, TransformReply, TypeMapping } from '../RESP/types';
 import { BasicCommandParser } from './parser';
 
 type CachingClient = RedisClient<any, any, any, any, any>;
-type CachingClientType = RedisClientType<any, any, any, any, any>;
 type CmdFunc = () => Promise<ReplyUnion>;
 
 export interface ClientSideCacheConfig {
@@ -21,6 +20,17 @@ type CacheCreator = {
 interface ClientSideCacheEntry {
   invalidate(): void;
   validate(): boolean;
+}
+
+function generateCacheKey(redisArgs: ReadonlyArray<RedisArgument>): string {
+  const tmp = new Array(redisArgs.length*2);
+
+  for (let i = 0; i < redisArgs.length; i++) {
+    tmp[i] = redisArgs[i].length;
+    tmp[i+redisArgs.length] = redisArgs[i];
+  }
+
+  return tmp.join('_');
 }
 
 abstract class ClientSideCacheEntryBase implements ClientSideCacheEntry {
@@ -125,7 +135,7 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
   ) {
     let reply: ReplyUnion;
 
-    const cacheKey = parser.cacheKey;
+    const cacheKey = generateCacheKey(parser.redisArgs);
 
     // "2"
     let cacheEntry = this.get(cacheKey);
@@ -339,10 +349,6 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
 export abstract class PooledClientSideCacheProvider extends BasicClientSideCache {
   #disabled = false;
 
-  abstract updateRedirect(id: number): void;
-  abstract addClient(client: CachingClientType): void;
-  abstract removeClient(client: CachingClientType): void;
-
   disable() {
     this.#disabled = true;
   }
@@ -367,8 +373,6 @@ export abstract class PooledClientSideCacheProvider extends BasicClientSideCache
     return super.has(cacheKey);
   }  
   
-  onPoolConnect(factory: () => CachingClientType) {};
-
   onPoolClose() {
     this.clear();
   };
@@ -376,18 +380,6 @@ export abstract class PooledClientSideCacheProvider extends BasicClientSideCache
 
 // doesn't do anything special in pooling, clears cache on every client disconnect
 export class BasicPooledClientSideCache extends PooledClientSideCacheProvider {
-
-  override updateRedirect(id: number): void {
-    return;
-  }
-
-  override addClient(client: CachingClientType): void {
-    return;
-  }
-  override removeClient(client: CachingClientType): void {
-    return;
-  }
-
   override onError() {
     this.clear(false);
   }
@@ -459,75 +451,4 @@ export class PooledNoRedirectClientSideCache extends BasicPooledClientSideCache 
   override onError() {}
 
   override onClose() {}
-}
-
-// Only clears cache on "management"/"redirect" client disconnect
-export class PooledRedirectClientSideCache extends PooledClientSideCacheProvider {
-  #id?: number;
-  #clients: Set<CachingClientType> = new Set();
-  #redirectClient?: CachingClientType;
-
-  constructor(config: ClientSideCacheConfig) {
-    super(config);
-    this.disable();
-  }
-
-  override trackingOn(): string[] {
-    if (this.#id) {
-      return ['CLIENT', 'TRACKING', 'ON', 'REDIRECT', this.#id.toString()];
-    } else {
-      return [];
-    }
-  }
-
-  override updateRedirect(id: number) {
-    this.#id = id;
-    for (const client of this.#clients) {
-      client.sendCommand(this.trackingOn()).catch(() => {});
-    }
-  }
-
-  override addClient(client: CachingClientType) {
-    this.#clients.add(client);
-  }
-
-  override removeClient(client: CachingClientType) {
-    this.#clients.delete(client);
-  }
-
-  override onError(): void {};
-
-  override async onPoolConnect(factory: () => CachingClientType) {
-    const client = factory();
-    this.#redirectClient = client;
-
-    client.on("error", () => {
-      this.disable();
-      this.clear();
-    }).on("ready", async () => {
-      const clientId = await client.withTypeMapping({}).clientId();
-      this.updateRedirect(clientId);
-      this.enable();
-    })
-
-    try {
-      await client.connect();
-    } catch (err) {
-      throw err;
-    }
-  }
-
-  override onClose() {};
-
-  override onPoolClose() {
-    super.onPoolClose();
-
-    if (this.#redirectClient) {
-      this.#id = undefined;
-      const client = this.#redirectClient;
-      this.#redirectClient = undefined;
-
-      return client.close();
-    }
-  }
 }

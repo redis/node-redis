@@ -7,7 +7,7 @@ import { TimeoutError } from '../errors';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
 import { CommandOptions } from './commands-queue';
 import RedisClientMultiCommand, { RedisClientMultiCommandType } from './multi-command';
-import { BasicPooledClientSideCache, ClientSideCacheConfig, PooledClientSideCacheProvider, PooledNoRedirectClientSideCache, PooledRedirectClientSideCache } from './cache';
+import { BasicPooledClientSideCache, ClientSideCacheConfig, PooledClientSideCacheProvider } from './cache';
 import { BasicCommandParser } from './parser';
 import SingleEntryCache from '../single-entry-cache';
 
@@ -222,6 +222,9 @@ export class RedisClientPool<
   }
 
   #clientSideCache?: PooledClientSideCacheProvider;
+  get clientSideCache() {
+    return this._self.#clientSideCache;
+  }
 
   /**
    * You are probably looking for {@link RedisClient.createPool `RedisClient.createPool`},
@@ -248,8 +251,7 @@ export class RedisClientPool<
       } else {
         const cscConfig = options.clientSideCache;
         this.#clientSideCache = clientOptions.clientSideCache = new BasicPooledClientSideCache(cscConfig);
-        this.#clientSideCache = clientOptions.clientSideCache = new PooledNoRedirectClientSideCache(cscConfig);
-        this.#clientSideCache = clientOptions.clientSideCache = new PooledRedirectClientSideCache(cscConfig);
+//        this.#clientSideCache = clientOptions.clientSideCache = new PooledNoRedirectClientSideCache(cscConfig);
       }
     }
 
@@ -319,13 +321,6 @@ export class RedisClientPool<
     if (this._self.#isOpen) return; // TODO: throw error?
     this._self.#isOpen = true;
 
-    try {
-      this._self.#clientSideCache?.onPoolConnect(this._self.#clientFactory);
-    } catch (err) {
-      this.destroy();
-      throw err;
-    }
-
     const promises = [];
     while (promises.length < this._self.#options.minimum) {
       promises.push(this._self.#create());
@@ -341,7 +336,7 @@ export class RedisClientPool<
     return this as unknown as RedisClientPoolType<M, F, S, RESP, TYPE_MAPPING>;
   }
 
-  async #create(redirect?: boolean) {
+  async #create() {
     const node = this._self.#clientsInUse.push(
       this._self.#clientFactory()
         .on('error', (err: Error) => this.emit('error', err))
@@ -349,10 +344,6 @@ export class RedisClientPool<
 
     try {
       const client = node.value;
-      if (this._self.#clientSideCache) {
-        this._self.#clientSideCache.addClient(node.value);
-      }
-
       await client.connect();
     } catch (err) {
       this._self.#clientsInUse.remove(node);
@@ -443,7 +434,6 @@ export class RedisClientPool<
     for (let i = 0; i < toDestroy; i++) {
       // TODO: shift vs pop
       const client = this.#idleClients.shift()!
-      this.#clientSideCache?.removeClient(client);
       client.destroy();
     }
   }
