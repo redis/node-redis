@@ -227,7 +227,7 @@ describe("Client Side Cache", () => {
     });
   });
 
-  describe.only("Pooled Cache", () => {
+  describe("Pooled Cache", () => {
     const csc = new BasicPooledClientSideCache();
 
     testUtils.testWithClient('Virtual Pool Disconnect', async client1 => {
