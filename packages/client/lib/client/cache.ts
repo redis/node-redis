@@ -54,7 +54,7 @@ abstract class ClientSideCacheEntryBase implements ClientSideCacheEntry {
   }
 }
 
-export class ClientSideCacheEntryValue extends ClientSideCacheEntryBase {
+class ClientSideCacheEntryValue extends ClientSideCacheEntryBase {
   readonly #value: any;
 
   get value() {
@@ -67,7 +67,7 @@ export class ClientSideCacheEntryValue extends ClientSideCacheEntryBase {
   }
 }
 
-export class ClientSideCacheEntryPromise extends ClientSideCacheEntryBase {
+class ClientSideCacheEntryPromise extends ClientSideCacheEntryBase {
   readonly #sendCommandPromise: Promise<ReplyUnion>;
 
   get promise() {
@@ -95,8 +95,8 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
   #cacheKeyToEntryMap: Map<string, ClientSideCacheEntry>;
   #keyToCacheKeySetMap: Map<string, Set<string>>;
   readonly ttl: number;
-  readonly #maxEntries: number;
-  readonly #lru: boolean;
+  readonly maxEntries: number;
+  readonly lru: boolean;
   #cacheHits = 0;
   #cacheMisses = 0;
 
@@ -106,8 +106,8 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
     this.#cacheKeyToEntryMap = new Map<string, ClientSideCacheEntry>();
     this.#keyToCacheKeySetMap = new Map<string, Set<string>>();
     this.ttl = config?.ttl ?? 0;
-    this.#maxEntries = config?.maxEntries ?? 0;
-    this.#lru = config?.lru ?? true;
+    this.maxEntries = config?.maxEntries ?? 0;
+    this.lru = config?.lru ?? true;
   }
 
   /* logic of how caching works:
@@ -240,7 +240,7 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
       return undefined;
     }
 
-    if (val !== undefined && this.#lru) {
+    if (val !== undefined && this.lru) {
       this.#cacheKeyToEntryMap.delete(cacheKey);
       this.#cacheKeyToEntryMap.set(cacheKey, val);
     }
@@ -268,7 +268,7 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
       oldEntry.invalidate();
     }
 
-    if (this.#maxEntries > 0 && count >= this.#maxEntries) {
+    if (this.maxEntries > 0 && count >= this.maxEntries) {
       this.deleteOldest();
     }
 
