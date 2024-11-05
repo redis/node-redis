@@ -599,12 +599,12 @@ export default class RedisCluster<
   }
 
   close() {
-    this.#slots.clientSideCache?.onPoolClose();
+    this._self.#slots.clientSideCache?.onPoolClose();
     return this._self.#slots.close();
   }
 
   destroy() {
-    this.#slots.clientSideCache?.onPoolClose();
+    this._self.#slots.clientSideCache?.onPoolClose();
     return this._self.#slots.destroy();
   }
 
