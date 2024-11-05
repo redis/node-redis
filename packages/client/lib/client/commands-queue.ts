@@ -111,6 +111,7 @@ export default class RedisCommandsQueue {
       onErrorReply: err => this.#onErrorReply(err),
       onPush: push => {
         if (!this.#onPush(push)) {
+          // currently only supporting "invalidate" over RESP3 push messages
           switch (push[0].toString()) {
             case "invalidate": {
               if (this.#invalidateCallback) {
