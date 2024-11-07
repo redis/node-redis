@@ -6,10 +6,12 @@ import { BasicCommandParser } from './parser';
 type CachingClient = RedisClient<any, any, any, any, any>;
 type CmdFunc = () => Promise<ReplyUnion>;
 
+type EvictionPolicy = "LRU" | "FIFO"
+
 export interface ClientSideCacheConfig {
   ttl?: number;
   maxEntries?: number;
-  lru?: boolean;
+  evictPolocy?: EvictionPolicy;
 }
 
 type CacheCreator = {
@@ -107,7 +109,7 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
     this.#keyToCacheKeySetMap = new Map<string, Set<string>>();
     this.ttl = config?.ttl ?? 0;
     this.maxEntries = config?.maxEntries ?? 0;
-    this.lru = config?.lru ?? true;
+    this.lru = config?.evictPolocy !== "FIFO"
   }
 
   /* logic of how caching works:
@@ -165,6 +167,7 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
         if (cacheEntry.validate()) { // on error, have to remove promise from cache
           this.delete(cacheKey!);
         }
+        
         throw err;
       }
     }
@@ -217,25 +220,21 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
     this.emit('invalidate', key);
   }
 
-  override clear(reset = true) {
+  override clear(resetStats = true) {
     this.#cacheKeyToEntryMap.clear();
     this.#keyToCacheKeySetMap.clear();
-    if (reset) {
+    if (resetStats) {
       this.#cacheHits = 0;
       this.#cacheMisses = 0;
     }
   }
 
-  get(cacheKey?: string | undefined) {
-    if (cacheKey === undefined) {
-      return undefined
-    }
-
+  get(cacheKey: string) {
     const val = this.#cacheKeyToEntryMap.get(cacheKey);
 
     if (val && !val.validate()) {
       this.delete(cacheKey);
-      this.emit("invalidate", cacheKey);
+      this.emit("cache-evict", cacheKey);
 
       return undefined;
     }
@@ -263,6 +262,7 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
   set(cacheKey: string, cacheEntry: ClientSideCacheEntry, keys: Array<RedisArgument>) {
     let count = this.#cacheKeyToEntryMap.size;
     const oldEntry = this.#cacheKeyToEntryMap.get(cacheKey);
+
     if (oldEntry) {
       count--; // overwriting, so not incrementig
       oldEntry.invalidate();
@@ -419,11 +419,8 @@ class PooledClientSideCacheEntryPromise extends ClientSideCacheEntryPromise {
 
   override validate(): boolean {
     let ret = super.validate();
-    if (this.#creator) {
-      ret = ret && this.#creator.client.isReady && this.#creator.client.socketEpoch == this.#creator.epoch
-    }
-
-    return ret;
+    
+    return ret && this.#creator.client.isReady && this.#creator.client.socketEpoch == this.#creator.epoch
   }
 }
 
