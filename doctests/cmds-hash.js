@@ -55,7 +55,7 @@ const res8 = await client.hGet('myhash', 'field1')
 console.log(res8) // foo
 
 const res9 = await client.hGet('myhash', 'field2')
-console.log(res9) // foo
+console.log(res9) // null
 
 // REMOVE_START
 assert.equal(res7, 1);
