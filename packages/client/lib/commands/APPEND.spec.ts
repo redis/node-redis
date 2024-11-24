@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import APPEND from './APPEND';
+import { parseArgs } from './generic-transformers';
 
 describe('APPEND', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      APPEND.transformArguments('key', 'value'),
+      parseArgs(APPEND, 'key', 'value'),
       ['APPEND', 'key', 'value']
     );
   });

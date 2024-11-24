@@ -1,33 +1,36 @@
-import { CommandArguments, Command, RedisArgument } from '../RESP/types';
-import GEORADIUS, { transformGeoRadiusArguments } from './GEORADIUS';
+import { CommandParser } from '../client/parser';
+import { Command, RedisArgument } from '../RESP/types';
+import GEORADIUS, { parseGeoRadiusArguments } from './GEORADIUS';
 import { GeoCoordinates, GeoSearchOptions, GeoUnits } from './GEOSEARCH';
 import GEOSEARCH_WITH, { GeoReplyWith } from './GEOSEARCH_WITH';
 
-export function transformGeoRadiusWithArguments(
-  command: RedisArgument,
+export function parseGeoRadiusWithArguments(
+  parser: CommandParser,
   key: RedisArgument,
   from: GeoCoordinates,
   radius: number,
   unit: GeoUnits,
   replyWith: Array<GeoReplyWith>,
-  options?: GeoSearchOptions
+  options?: GeoSearchOptions,
 ) {
-  const args: CommandArguments = transformGeoRadiusArguments(
-    command,
-    key,
-    from,
-    radius,
-    unit,
-    options
-  );
-  args.push(...replyWith);
-  args.preserve = replyWith;
-  return args;
+  parseGeoRadiusArguments(parser, key, from, radius, unit, options)
+  parser.pushVariadic(replyWith);
+  parser.preserve = replyWith;
 }
 
 export default {
-  FIRST_KEY_INDEX: GEORADIUS.FIRST_KEY_INDEX,
   IS_READ_ONLY: GEORADIUS.IS_READ_ONLY,
-  transformArguments: transformGeoRadiusWithArguments.bind(undefined, 'GEORADIUS'),
+  parseCommand(
+    parser: CommandParser,
+    key: RedisArgument,
+    from: GeoCoordinates,
+    radius: number,
+    unit: GeoUnits,
+    replyWith: Array<GeoReplyWith>,
+    options?: GeoSearchOptions
+  ) {
+    parser.push('GEORADIUS');
+    parseGeoRadiusWithArguments(parser, key, from, radius, unit, replyWith, options);
+  },
   transformReply: GEOSEARCH_WITH.transformReply
 } as const satisfies Command;

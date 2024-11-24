@@ -2,19 +2,20 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ADD from './ADD';
 import { TIME_SERIES_ENCODING, TIME_SERIES_DUPLICATE_POLICIES } from '.';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('TS.ADD', () => {
   describe('transformArguments', () => {
     it('without options', () => {
       assert.deepEqual(
-        ADD.transformArguments('key', '*', 1),
+        parseArgs(ADD, 'key', '*', 1),
         ['TS.ADD', 'key', '*', '1']
       );
     });
 
     it('with RETENTION', () => {
       assert.deepEqual(
-        ADD.transformArguments('key', '*', 1, {
+        parseArgs(ADD, 'key', '*', 1, {
           RETENTION: 1
         }),
         ['TS.ADD', 'key', '*', '1', 'RETENTION', '1']
@@ -23,7 +24,7 @@ describe('TS.ADD', () => {
 
     it('with ENCODING', () => {
       assert.deepEqual(
-        ADD.transformArguments('key', '*', 1, {
+        parseArgs(ADD, 'key', '*', 1, {
           ENCODING: TIME_SERIES_ENCODING.UNCOMPRESSED
         }),
         ['TS.ADD', 'key', '*', '1', 'ENCODING', 'UNCOMPRESSED']
@@ -32,7 +33,7 @@ describe('TS.ADD', () => {
 
     it('with CHUNK_SIZE', () => {
       assert.deepEqual(
-        ADD.transformArguments('key', '*', 1, {
+        parseArgs(ADD, 'key', '*', 1, {
           CHUNK_SIZE: 1
         }),
         ['TS.ADD', 'key', '*', '1', 'CHUNK_SIZE', '1']
@@ -41,7 +42,7 @@ describe('TS.ADD', () => {
 
     it('with ON_DUPLICATE', () => {
       assert.deepEqual(
-        ADD.transformArguments('key', '*', 1, {
+        parseArgs(ADD, 'key', '*', 1, {
           ON_DUPLICATE: TIME_SERIES_DUPLICATE_POLICIES.BLOCK
         }),
         ['TS.ADD', 'key', '*', '1', 'ON_DUPLICATE', 'BLOCK']
@@ -50,7 +51,7 @@ describe('TS.ADD', () => {
 
     it('with LABELS', () => {
       assert.deepEqual(
-        ADD.transformArguments('key', '*', 1, {
+        parseArgs(ADD, 'key', '*', 1, {
           LABELS: { label: 'value' }
         }),
         ['TS.ADD', 'key', '*', '1', 'LABELS', 'label', 'value']
@@ -59,7 +60,7 @@ describe('TS.ADD', () => {
 
     it ('with IGNORE', () => {
       assert.deepEqual(
-        ADD.transformArguments('key', '*', 1, {
+        parseArgs(ADD, 'key', '*', 1, {
           IGNORE: { 
             maxTimeDiff: 1,
             maxValDiff: 1
@@ -71,7 +72,7 @@ describe('TS.ADD', () => {
 
     it('with RETENTION, ENCODING, CHUNK_SIZE, ON_DUPLICATE, LABELS, IGNORE', () => {
       assert.deepEqual(
-        ADD.transformArguments('key', '*', 1, {
+        parseArgs(ADD, 'key', '*', 1, {
           RETENTION: 1,
           ENCODING: TIME_SERIES_ENCODING.UNCOMPRESSED,
           CHUNK_SIZE: 1,

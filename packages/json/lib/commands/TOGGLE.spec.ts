@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import TOGGLE from './TOGGLE';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('JSON.TOGGLE', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      TOGGLE.transformArguments('key', '$'),
+      parseArgs(TOGGLE, 'key', '$'),
       ['JSON.TOGGLE', 'key', '$']
     );
   });

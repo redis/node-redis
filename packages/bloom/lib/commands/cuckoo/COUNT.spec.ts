@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../../test-utils';
 import COUNT from './COUNT';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('CF.COUNT', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      COUNT.transformArguments('key', 'item'),
+      parseArgs(COUNT, 'key', 'item'),
       ['CF.COUNT', 'key', 'item']
     );
   });

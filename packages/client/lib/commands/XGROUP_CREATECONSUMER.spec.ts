@@ -1,13 +1,14 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import XGROUP_CREATECONSUMER from './XGROUP_CREATECONSUMER';
+import { parseArgs } from './generic-transformers';
 
 describe('XGROUP CREATECONSUMER', () => {
   testUtils.isVersionGreaterThanHook([6, 2]);
 
   it('transformArguments', () => {
     assert.deepEqual(
-      XGROUP_CREATECONSUMER.transformArguments('key', 'group', 'consumer'),
+      parseArgs(XGROUP_CREATECONSUMER, 'key', 'group', 'consumer'),
       ['XGROUP', 'CREATECONSUMER', 'key', 'group', 'consumer']
     );
   });

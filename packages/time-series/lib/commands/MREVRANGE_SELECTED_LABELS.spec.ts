@@ -2,11 +2,12 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import MREVRANGE_SELECTED_LABELS from './MREVRANGE_SELECTED_LABELS';
 import { TIME_SERIES_AGGREGATION_TYPE } from './CREATERULE';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('TS.MREVRANGE_SELECTED_LABELS', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      MREVRANGE_SELECTED_LABELS.transformArguments('-', '+', 'label', 'label=value', {
+      parseArgs(MREVRANGE_SELECTED_LABELS, '-', '+', 'label', 'label=value', {
         FILTER_BY_TS: [0],
         FILTER_BY_VALUE: {
           min: 0,

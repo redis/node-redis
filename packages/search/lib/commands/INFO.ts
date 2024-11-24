@@ -1,13 +1,14 @@
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument } from "@redis/client";
 import { ArrayReply, BlobStringReply, Command, DoubleReply, MapReply, NullReply, NumberReply, ReplyUnion, SimpleStringReply, TypeMapping } from "@redis/client/dist/lib/RESP/types";
 import { createTransformTuplesReplyFunc, transformDoubleReply } from "@redis/client/dist/lib/commands/generic-transformers";
-import { TuplesReply } from '@redis/client/lib/RESP/types';
+import { TuplesReply } from '@redis/client/dist/lib/RESP/types';
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments(index: RedisArgument) {
-    return ['FT.INFO', index];
+  parseCommand(parser: CommandParser, index: RedisArgument) {
+    parser.push('FT.INFO', index);
   },
   transformReply: {
     2: transformV2Reply,

@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import COMMAND_GETKEYS from './COMMAND_GETKEYS';
+import { parseArgs } from './generic-transformers';
 
 describe('COMMAND GETKEYS', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      COMMAND_GETKEYS.transformArguments(['GET', 'key']),
+      parseArgs(COMMAND_GETKEYS, ['GET', 'key']),
       ['COMMAND', 'GETKEYS', 'GET', 'key']
     );
   });

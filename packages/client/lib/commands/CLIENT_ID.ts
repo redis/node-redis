@@ -1,10 +1,11 @@
+import { CommandParser } from '../client/parser';
 import { NumberReply, Command } from '../RESP/types';
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments() {
-    return ['CLIENT', 'ID'];
+  parseCommand(parser: CommandParser) {
+    parser.push('CLIENT', 'ID');
   },
   transformReply: undefined as unknown as () => NumberReply
 } as const satisfies Command;

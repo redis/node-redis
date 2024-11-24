@@ -1,13 +1,14 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SMISMEMBER from './SMISMEMBER';
+import { parseArgs } from './generic-transformers';
 
 describe('SMISMEMBER', () => {
   testUtils.isVersionGreaterThanHook([6, 2]);
 
-  it('transformArguments', () => {
+  it('processCommand', () => {
     assert.deepEqual(
-      SMISMEMBER.transformArguments('key', ['1', '2']),
+      parseArgs(SMISMEMBER, 'key', ['1', '2']),
       ['SMISMEMBER', 'key', '1', '2']
     );
   });

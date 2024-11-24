@@ -1,3 +1,4 @@
+import { CommandParser } from '../client/parser';
 import { Command, TuplesToMapReply, BlobStringReply, NullReply, NumberReply, MapReply, Resp2Reply, UnwrapReply } from '../RESP/types';
 import { isNullReply } from './generic-transformers';
 
@@ -20,10 +21,10 @@ type FunctionStatsReply = TuplesToMapReply<[
 ]>;
 
 export default {
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  FIRST_KEY_INDEX: undefined,
-  transformArguments() {
-    return ['FUNCTION', 'STATS'];
+  parseCommand(parser: CommandParser) {
+    parser.push('FUNCTION', 'STATS');
   },
   transformReply: {
     2: (reply: UnwrapReply<Resp2Reply<FunctionStatsReply>>) => {

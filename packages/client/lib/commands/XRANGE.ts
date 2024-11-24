@@ -1,3 +1,4 @@
+import { CommandParser } from '../client/parser';
 import { RedisArgument, ArrayReply, UnwrapReply, Command, TypeMapping } from '../RESP/types';
 import { StreamMessageRawReply, transformStreamMessageReply } from './generic-transformers';
 
@@ -5,14 +6,12 @@ export interface XRangeOptions {
   COUNT?: number;
 }
 
-export function transformXRangeArguments(
-  command: RedisArgument,
-  key: RedisArgument,
+export function xRangeArguments(
   start: RedisArgument,
   end: RedisArgument,
   options?: XRangeOptions
 ) {
-  const args = [command, key, start, end];
+  const args = [start, end];
 
   if (options?.COUNT) {
     args.push('COUNT', options.COUNT.toString());
@@ -22,9 +21,13 @@ export function transformXRangeArguments(
 }
 
 export default {
-  FIRST_KEY_INDEX: 1,
+  CACHEABLE: true,
   IS_READ_ONLY: true,
-  transformArguments: transformXRangeArguments.bind(undefined, 'XRANGE'),
+  parseCommand(parser: CommandParser, key: RedisArgument, ...args: Parameters<typeof xRangeArguments>) {
+    parser.push('XRANGE');
+    parser.pushKey(key);
+    parser.pushVariadic(xRangeArguments(args[0], args[1], args[2]));
+  },
   transformReply(
     reply: UnwrapReply<ArrayReply<StreamMessageRawReply>>,
     preserve?: any,

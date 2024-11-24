@@ -1,4 +1,4 @@
-import { Command, CommanderConfig, RedisCommands, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, RespVersions } from './RESP/types';
+import { Command, CommanderConfig, RedisArgument, RedisCommands, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, RespVersions, TransformReply } from './RESP/types';
 
 interface AttachConfigOptions<
   M extends RedisModules,
@@ -87,7 +87,7 @@ function attachNamespace(prototype: any, name: PropertyKey, fns: any) {
   });
 }
 
-export function getTransformReply(command: Command, resp: RespVersions) {
+export function getTransformReply(command: Command, resp: RespVersions): TransformReply | undefined {
   switch (typeof command.transformReply) {
     case 'function':
       return command.transformReply;
@@ -98,7 +98,7 @@ export function getTransformReply(command: Command, resp: RespVersions) {
 }
 
 export function functionArgumentsPrefix(name: string, fn: RedisFunction) {
-  const prefix: Array<string | Buffer> = [
+  const prefix: Array<RedisArgument> = [
     fn.IS_READ_ONLY ? 'FCALL_RO' : 'FCALL',
     name
   ];

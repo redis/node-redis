@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../../test-utils';
 import ADD from './ADD';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('TOPK.ADD', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      ADD.transformArguments('key', 'item'),
+      parseArgs(ADD, 'key', 'item'),
       ['TOPK.ADD', 'key', 'item']
     );
   });

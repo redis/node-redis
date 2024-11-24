@@ -1,3 +1,4 @@
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument, NumberReply, Command } from '@redis/client/dist/lib/RESP/types';
 
 export interface JsonDebugMemoryOptions {
@@ -5,16 +6,14 @@ export interface JsonDebugMemoryOptions {
 }
 
 export default {
-  FIRST_KEY_INDEX: 2,
   IS_READ_ONLY: false,
-  transformArguments(key: RedisArgument, options?: JsonDebugMemoryOptions) {
-    const args = ['JSON.DEBUG', 'MEMORY', key];
+  parseCommand(parser: CommandParser, key: RedisArgument, options?: JsonDebugMemoryOptions) {
+    parser.push('JSON.DEBUG', 'MEMORY');
+    parser.pushKey(key);
 
     if (options?.path !== undefined) {
-      args.push(options.path);
+      parser.push(options.path);
     }
-
-    return args;
   },
   transformReply: undefined as unknown as () => NumberReply
 } as const satisfies Command;

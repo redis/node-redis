@@ -1,7 +1,8 @@
-import { ArrayReply, BlobStringReply, Command, DoubleReply, NumberReply, ReplyUnion, SimpleStringReply, TypeMapping } from "@redis/client/lib/RESP/types";
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { ArrayReply, BlobStringReply, Command, DoubleReply, NumberReply, ReplyUnion, SimpleStringReply, TypeMapping } from "@redis/client/dist/lib/RESP/types";
 import { TimeSeriesDuplicatePolicies } from ".";
 import { TimeSeriesAggregationType } from "./CREATERULE";
-import { transformDoubleReply } from '@redis/client/lib/commands/generic-transformers';
+import { transformDoubleReply } from '@redis/client/dist/lib/commands/generic-transformers';
 
 export type InfoRawReplyTypes = SimpleStringReply | 
   NumberReply | 
@@ -71,10 +72,10 @@ export interface InfoReply {
 }
 
 export default {
-    FIRST_KEY_INDEX: 1,
     IS_READ_ONLY: true,
-    transformArguments(key: string) {
-      return ['TS.INFO', key];
+    parseCommand(parser: CommandParser, key: string) {
+      parser.push('TS.INFO');
+      parser.pushKey(key);
     },
     transformReply: {
       2: (reply: InfoRawReply, _, typeMapping?: TypeMapping): InfoReply => {

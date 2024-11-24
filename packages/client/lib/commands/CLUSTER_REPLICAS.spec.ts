@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import CLUSTER_REPLICAS from './CLUSTER_REPLICAS';
+import { parseArgs } from './generic-transformers';
 
 describe('CLUSTER REPLICAS', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      CLUSTER_REPLICAS.transformArguments('0'),
+      parseArgs(CLUSTER_REPLICAS, '0'),
       ['CLUSTER', 'REPLICAS', '0']
     );
   });

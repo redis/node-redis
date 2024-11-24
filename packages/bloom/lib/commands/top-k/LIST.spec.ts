@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../../test-utils';
 import LIST from './LIST';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('TOPK.LIST', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      LIST.transformArguments('key'),
+      parseArgs(LIST, 'key'),
       ['TOPK.LIST', 'key']
     );
   });

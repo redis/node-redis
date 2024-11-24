@@ -1,16 +1,15 @@
+import { CommandParser } from '../client/parser';
 import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments(path: RedisArgument, moduleArguments?: Array<RedisArgument>) {
-    const args = ['MODULE', 'LOAD', path];
+  parseCommand(parser: CommandParser, path: RedisArgument, moduleArguments?: Array<RedisArgument>) {
+    parser.push('MODULE', 'LOAD', path);
 
     if (moduleArguments) {
-      return args.concat(moduleArguments);
+      parser.push(...moduleArguments);
     }
-    
-    return args;
   },
   transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
 } as const satisfies Command;

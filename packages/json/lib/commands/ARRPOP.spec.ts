@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ARRPOP from './ARRPOP';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('JSON.ARRPOP', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        ARRPOP.transformArguments('key'),
+        parseArgs(ARRPOP, 'key'),
         ['JSON.ARRPOP', 'key']
       );
     });
 
     it('with path', () => {
       assert.deepEqual(
-        ARRPOP.transformArguments('key', {
+        parseArgs(ARRPOP, 'key', {
           path: '$'
         }),
         ['JSON.ARRPOP', 'key', '$']
@@ -22,7 +23,7 @@ describe('JSON.ARRPOP', () => {
 
     it('with path and index', () => {
       assert.deepEqual(
-        ARRPOP.transformArguments('key', {
+        parseArgs(ARRPOP, 'key', {
           path: '$',
           index: 0
         }),

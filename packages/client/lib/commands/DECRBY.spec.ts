@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import DECRBY from './DECRBY';
+import { parseArgs } from './generic-transformers';
 
 describe('DECRBY', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      DECRBY.transformArguments('key', 2),
+      parseArgs(DECRBY, 'key', 2),
       ['DECRBY', 'key', '2']
     );
   });

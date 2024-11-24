@@ -1,3 +1,4 @@
+import { BasicCommandParser } from '../client/parser';
 import { ArrayReply, Command, RedisFunction, RedisScript, RespVersions, UnwrapReply } from '../RESP/types';
 import { RedisSocketOptions, RedisTcpSocketOptions } from '../client/socket';
 import { functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
@@ -38,77 +39,60 @@ export function clientSocketToNode(socket: RedisSocketOptions): RedisNode {
 
 export function createCommand<T extends ProxySentinel | ProxySentinelClient>(command: Command, resp: RespVersions) {
   const transformReply = getTransformReply(command, resp);
+
   return async function (this: T, ...args: Array<unknown>) {
-    const redisArgs = command.transformArguments(...args);
-    const typeMapping = this._self.commandOptions?.typeMapping;
+    const parser = new BasicCommandParser();
+    command.parseCommand(parser, ...args);
 
-    const reply = await this._self.sendCommand(
+    return this._self._execute(
       command.IS_READ_ONLY,
-      redisArgs,
-      this._self.commandOptions
+      client => client._executeCommand(command, parser, this.commandOptions, transformReply)
     );
-
-    return transformReply ?
-      transformReply(reply, redisArgs.preserve, typeMapping) :
-      reply;
   };
 }
 
 export function createFunctionCommand<T extends NamespaceProxySentinel | NamespaceProxySentinelClient>(name: string, fn: RedisFunction, resp: RespVersions) {
-  const prefix = functionArgumentsPrefix(name, fn),
-  transformReply = getTransformReply(fn, resp);
+  const prefix = functionArgumentsPrefix(name, fn);
+  const transformReply = getTransformReply(fn, resp);
+
   return async function (this: T, ...args: Array<unknown>) {
-    const fnArgs = fn.transformArguments(...args);
-    const redisArgs = prefix.concat(fnArgs);
-    const typeMapping = this._self._self.commandOptions?.typeMapping;
+    const parser = new BasicCommandParser();
+    parser.push(...prefix);
+    fn.parseCommand(parser, ...args);
 
-    const reply = await this._self._self.sendCommand(
+    return this._self._execute(
       fn.IS_READ_ONLY,
-      redisArgs,
-      this._self._self.commandOptions
+      client => client._executeCommand(fn, parser, this._self.commandOptions, transformReply)
     );
-
-    return transformReply ?
-      transformReply(reply, fnArgs.preserve, typeMapping) :
-      reply;
   }
 };
 
 export function createModuleCommand<T extends NamespaceProxySentinel | NamespaceProxySentinelClient>(command: Command, resp: RespVersions) {
   const transformReply = getTransformReply(command, resp);
+
   return async function (this: T, ...args: Array<unknown>) {
-    const redisArgs = command.transformArguments(...args);
-    const typeMapping = this._self._self.commandOptions?.typeMapping;
+    const parser = new BasicCommandParser();
+    command.parseCommand(parser, ...args);
 
-    const reply = await this._self._self.sendCommand(
+    return this._self._execute(
       command.IS_READ_ONLY,
-      redisArgs,
-      this._self._self.commandOptions
+      client => client._executeCommand(command, parser, this._self.commandOptions, transformReply)
     );
-
-    return transformReply ?
-      transformReply(reply, redisArgs.preserve, typeMapping) :
-      reply;
   }
 };
 
 export function createScriptCommand<T extends ProxySentinel | ProxySentinelClient>(script: RedisScript, resp: RespVersions) {
-  const prefix = scriptArgumentsPrefix(script),
-    transformReply = getTransformReply(script, resp);
+  const prefix = scriptArgumentsPrefix(script);
+  const transformReply = getTransformReply(script, resp);
+
   return async function (this: T, ...args: Array<unknown>) {
-    const scriptArgs = script.transformArguments(...args);
-    const redisArgs = prefix.concat(scriptArgs);
-    const typeMapping = this._self.commandOptions?.typeMapping;
+    const parser = new BasicCommandParser();
+    parser.push(...prefix);
+    script.parseCommand(parser, ...args);
 
-    const reply = await this._self.executeScript(
-      script,
+    return this._self._execute(
       script.IS_READ_ONLY,
-      redisArgs,
-      this._self.commandOptions
+      client => client._executeScript(script, parser, this.commandOptions, transformReply)
     );
-
-    return transformReply ?
-      transformReply(reply, scriptArgs.preserve, typeMapping) :
-      reply;
   };
 }

@@ -9,6 +9,9 @@ import RedisClusterMultiCommand, { RedisClusterMultiCommandType } from './multi-
 import { PubSubListener } from '../client/pub-sub';
 import { ErrorReply } from '../errors';
 import { RedisTcpSocketOptions } from '../client/socket';
+import ASKING from '../commands/ASKING';
+import { BasicCommandParser } from '../client/parser';
+import { parseArgs } from '../commands/generic-transformers';
 
 interface ClusterCommander<
   M extends RedisModules,
@@ -69,7 +72,7 @@ export interface RedisClusterOptions<
 type ClusterCommand<
   NAME extends PropertyKey,
   COMMAND extends Command
-> = COMMAND['FIRST_KEY_INDEX'] extends undefined ? (
+> = COMMAND['NOT_KEYED_COMMAND'] extends true ? (
   COMMAND['IS_FORWARD_COMMAND'] extends true ? NAME : never
 ) : NAME;
 
@@ -143,131 +146,70 @@ export default class RedisCluster<
   TYPE_MAPPING extends TypeMapping,
   // POLICIES extends CommandPolicies
 > extends EventEmitter {
-  static extractFirstKey<C extends Command>(
-    command: C,
-    args: Parameters<C['transformArguments']>,
-    redisArgs: Array<RedisArgument>
-  ) {
-    let key: RedisArgument | undefined;
-    switch (typeof command.FIRST_KEY_INDEX) {
-      case 'number':
-        key = redisArgs[command.FIRST_KEY_INDEX];
-        break;
-      
-      case 'function':
-        key = command.FIRST_KEY_INDEX(...args);
-        break;
-    }
-
-    return key;
-  }
-
   static #createCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
     return async function (this: ProxyCluster, ...args: Array<unknown>) {
-      const redisArgs = command.transformArguments(...args);
-      const typeMapping = this._commandOptions?.typeMapping;
+      const parser = new BasicCommandParser();
+      command.parseCommand(parser, ...args);
 
-      const firstKey = RedisCluster.extractFirstKey(
-        command,
-        args,
-        redisArgs
-      );
-
-      const reply = await this.sendCommand(
-        firstKey,
+      return this._self.#execute(
+        parser.firstKey,
         command.IS_READ_ONLY,
-        redisArgs,
         this._commandOptions,
-        // command.POLICIES
+        (client, opts) => client._executeCommand(command, parser, opts, transformReply)
       );
-
-      return transformReply ?
-        transformReply(reply, redisArgs.preserve, typeMapping) :
-        reply;
     };
   }
 
   static #createModuleCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
+
     return async function (this: NamespaceProxyCluster, ...args: Array<unknown>) {
-      const redisArgs = command.transformArguments(...args);
-      const typeMapping = this._self._commandOptions?.typeMapping;
+      const parser = new BasicCommandParser();
+      command.parseCommand(parser, ...args);
 
-      const firstKey = RedisCluster.extractFirstKey(
-        command,
-        args,
-        redisArgs
-      );
-
-      const reply = await this._self.sendCommand(
-        firstKey,
+      return this._self.#execute(
+        parser.firstKey,
         command.IS_READ_ONLY,
-        redisArgs,
         this._self._commandOptions,
-        // command.POLICIES
+        (client, opts) => client._executeCommand(command, parser, opts, transformReply)
       );
-
-      return transformReply ?
-        transformReply(reply, redisArgs.preserve, typeMapping) :
-        reply;
     };
   }
 
   static #createFunctionCommand(name: string, fn: RedisFunction, resp: RespVersions) {
-    const prefix = functionArgumentsPrefix(name, fn),
-      transformReply = getTransformReply(fn, resp);
+    const prefix = functionArgumentsPrefix(name, fn);
+    const transformReply = getTransformReply(fn, resp);
+
     return async function (this: NamespaceProxyCluster, ...args: Array<unknown>) {
-      const fnArgs = fn.transformArguments(...args);
-      const redisArgs = prefix.concat(fnArgs);
-      const typeMapping = this._self._commandOptions?.typeMapping;
+      const parser = new BasicCommandParser();
+      parser.push(...prefix);
+      fn.parseCommand(parser, ...args);
 
-      const firstKey = RedisCluster.extractFirstKey(
-        fn,
-        args,
-        fnArgs
-      );
-
-      const reply = await this._self.sendCommand(
-        firstKey,
+      return this._self.#execute(
+        parser.firstKey,
         fn.IS_READ_ONLY,
-        redisArgs,
         this._self._commandOptions,
-        // fn.POLICIES
+        (client, opts) => client._executeCommand(fn, parser, opts, transformReply)
       );
-
-      return transformReply ?
-        transformReply(reply, fnArgs.preserve, typeMapping) :
-        reply;
     };
   }
 
   static #createScriptCommand(script: RedisScript, resp: RespVersions) {
-    const prefix = scriptArgumentsPrefix(script),
-      transformReply = getTransformReply(script, resp);
+    const prefix = scriptArgumentsPrefix(script);
+    const transformReply = getTransformReply(script, resp);
+
     return async function (this: ProxyCluster, ...args: Array<unknown>) {
-      const scriptArgs = script.transformArguments(...args);
-      const redisArgs = prefix.concat(scriptArgs);
-      const typeMapping = this._commandOptions?.typeMapping;
+      const parser = new BasicCommandParser();
+      parser.push(...prefix);
+      script.parseCommand(parser, ...args);
 
-      const firstKey = RedisCluster.extractFirstKey(
-        script,
-        args,
-        scriptArgs
-      );
-
-      const reply = await this.executeScript(
-        script,
-        firstKey,
+      return this._self.#execute(
+        parser.firstKey,
         script.IS_READ_ONLY,
-        redisArgs,
         this._commandOptions,
-        // script.POLICIES
+        (client, opts) => client._executeScript(script, parser, opts, transformReply)
       );
-
-      return transformReply ?
-        transformReply(reply, scriptArgs.preserve, typeMapping) :
-        reply;
     };
   }
 
@@ -443,15 +385,20 @@ export default class RedisCluster<
   async #execute<T>(
     firstKey: RedisArgument | undefined,
     isReadonly: boolean | undefined,
-    fn: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>) => Promise<T>
+    options: ClusterCommandOptions | undefined,
+    fn: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>, opts?: ClusterCommandOptions) => Promise<T>
   ): Promise<T> {
     const maxCommandRedirections = this.#options.maxCommandRedirections ?? 16;
-    let client = await this.#slots.getClient(firstKey, isReadonly),
-      i = 0;
+    let client = await this.#slots.getClient(firstKey, isReadonly);
+    let i = 0;
+    let myOpts = options;
+
     while (true) {
       try {
-        return await fn(client);
+        return await fn(client, myOpts);
       } catch (err) {
+        // reset to passed in options, if changed by an ask request 
+        myOpts = options;
         // TODO: error class
         if (++i > maxCommandRedirections || !(err instanceof Error)) {
           throw err;
@@ -469,8 +416,14 @@ export default class RedisCluster<
             throw new Error(`Cannot find node ${address}`);
           }
 
-          await redirectTo.asking();
           client = redirectTo;
+
+          const chainId = Symbol('Asking Chain');
+          myOpts = options ? {...options} : {};
+          myOpts.chainId = chainId;
+
+          client.sendCommand(parseArgs(ASKING), {chainId: chainId}).catch(err => { console.log(`Asking Failed: ${err}`) } );
+
           continue;
         }
         
@@ -495,21 +448,8 @@ export default class RedisCluster<
     return this._self.#execute(
       firstKey,
       isReadonly,
-      client => client.sendCommand(args, options)
-    );
-  }
-
-  executeScript(
-    script: RedisScript,
-    firstKey: RedisArgument | undefined,
-    isReadonly: boolean | undefined,
-    args: Array<RedisArgument>,
-    options?: CommandOptions
-  ) {
-    return this._self.#execute(
-      firstKey,
-      isReadonly,
-      client => client.executeScript(script, args, options)
+      options,
+      (client, opts) => client.sendCommand(args, opts)
     );
   }
 

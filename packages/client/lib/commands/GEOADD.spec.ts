@@ -1,12 +1,13 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import GEOADD from './GEOADD';
+import { parseArgs } from './generic-transformers';
 
 describe('GEOADD', () => {
   describe('transformArguments', () => {
     it('one member', () => {
       assert.deepEqual(
-        GEOADD.transformArguments('key', {
+        parseArgs(GEOADD, 'key', {
           member: 'member',
           longitude: 1,
           latitude: 2
@@ -17,7 +18,7 @@ describe('GEOADD', () => {
 
     it('multiple members', () => {
       assert.deepEqual(
-        GEOADD.transformArguments('key', [{
+        parseArgs(GEOADD, 'key', [{
           longitude: 1,
           latitude: 2,
           member: '3',
@@ -32,7 +33,7 @@ describe('GEOADD', () => {
 
     it('with condition', () => {
       assert.deepEqual(
-        GEOADD.transformArguments('key', {
+        parseArgs(GEOADD, 'key', {
           longitude: 1,
           latitude: 2,
           member: 'member'
@@ -45,7 +46,7 @@ describe('GEOADD', () => {
 
     it('with NX (backwards compatibility)', () => {
       assert.deepEqual(
-        GEOADD.transformArguments('key', {
+        parseArgs(GEOADD, 'key', {
           longitude: 1,
           latitude: 2,
           member: 'member'
@@ -58,7 +59,7 @@ describe('GEOADD', () => {
 
     it('with CH', () => {
       assert.deepEqual(
-        GEOADD.transformArguments('key', {
+        parseArgs(GEOADD, 'key', {
           longitude: 1,
           latitude: 2,
           member: 'member'
@@ -71,7 +72,7 @@ describe('GEOADD', () => {
 
     it('with condition, CH', () => {
       assert.deepEqual(
-        GEOADD.transformArguments('key', {
+        parseArgs(GEOADD, 'key', {
           longitude: 1,
           latitude: 2,
           member: 'member'

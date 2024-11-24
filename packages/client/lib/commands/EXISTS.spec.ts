@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import EXISTS from './EXISTS';
+import { parseArgs } from './generic-transformers';
 
 describe('EXISTS', () => {
-  describe('transformArguments', () => {
+  describe('parseCommand', () => {
     it('string', () => {
       assert.deepEqual(
-        EXISTS.transformArguments('key'),
+        parseArgs(EXISTS, 'key'),
         ['EXISTS', 'key']
       );
     });
 
     it('array', () => {
       assert.deepEqual(
-        EXISTS.transformArguments(['1', '2']),
+        parseArgs(EXISTS, ['1', '2']),
         ['EXISTS', '1', '2']
       );
     });

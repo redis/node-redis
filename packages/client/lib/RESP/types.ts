@@ -1,3 +1,5 @@
+import { CommandParser } from '../client/parser';
+import { Tail } from '../commands/generic-transformers';
 import { BlobError, SimpleError } from '../errors';
 import { RedisScriptConfig, SHA1 } from '../lua-script';
 import { RESP_TYPES } from './decoder';
@@ -272,15 +274,16 @@ export type CommandArguments = Array<RedisArgument> & { preserve?: unknown };
 // };
 
 export type Command = {
-  FIRST_KEY_INDEX?: number | ((this: void, ...args: Array<any>) => RedisArgument | undefined);
+  CACHEABLE?: boolean;
   IS_READ_ONLY?: boolean;
   /**
    * @internal
    * TODO: remove once `POLICIES` is implemented
    */
   IS_FORWARD_COMMAND?: boolean;
+  NOT_KEYED_COMMAND?: true;
   // POLICIES?: CommandPolicies;
-  transformArguments(this: void, ...args: Array<any>): CommandArguments;
+  parseCommand(this: void, parser: CommandParser, ...args: Array<any>): void;
   TRANSFORM_LEGACY_REPLY?: boolean;
   transformReply: TransformReply | Record<RespVersions, TransformReply>;
   unstableResp3?: boolean;
@@ -365,7 +368,7 @@ export type CommandSignature<
   COMMAND extends Command,
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping
-> = (...args: Parameters<COMMAND['transformArguments']>) => Promise<ReplyWithTypeMapping<CommandReply<COMMAND, RESP>, TYPE_MAPPING>>;
+> = (...args: Tail<Parameters<COMMAND['parseCommand']>>) => Promise<ReplyWithTypeMapping<CommandReply<COMMAND, RESP>, TYPE_MAPPING>>;
 
 // export type CommandWithPoliciesSignature<
 //   COMMAND extends Command,

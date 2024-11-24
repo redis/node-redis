@@ -1,13 +1,14 @@
 import { strict as assert } from 'assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import CLUSTER_MYSHARDID from './CLUSTER_MYSHARDID';
+import { parseArgs } from './generic-transformers';
 
 describe('CLUSTER MYSHARDID', () => {
   testUtils.isVersionGreaterThanHook([7, 2]);
 
   it('transformArguments', () => {
     assert.deepEqual(
-      CLUSTER_MYSHARDID.transformArguments(),
+      parseArgs(CLUSTER_MYSHARDID),
       ['CLUSTER', 'MYSHARDID']
     );
   });

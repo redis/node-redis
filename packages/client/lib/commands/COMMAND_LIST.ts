@@ -1,3 +1,4 @@
+import { CommandParser } from '../client/parser';
 import { RedisArgument, ArrayReply, BlobStringReply, Command } from '../RESP/types';
 
 export const COMMAND_LIST_FILTER_BY = {
@@ -16,20 +17,18 @@ export interface CommandListOptions {
 }
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments(options?: CommandListOptions) {
-    const args: Array<RedisArgument> = ['COMMAND', 'LIST'];
+  parseCommand(parser: CommandParser, options?: CommandListOptions) {
+    parser.push('COMMAND', 'LIST');
 
     if (options?.FILTERBY) {
-      args.push(
+      parser.push(
         'FILTERBY',
         options.FILTERBY.type,
         options.FILTERBY.value
       );
     }
-
-    return args;
   },
   transformReply: undefined as unknown as () => ArrayReply<BlobStringReply>
 } as const satisfies Command;

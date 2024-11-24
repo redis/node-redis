@@ -2,12 +2,13 @@ import { NullReply, TuplesReply, NumberReply, BlobStringReply, DoubleReply, Unwr
 import ZRANK from './ZRANK';
 
 export default {
-  FIRST_KEY_INDEX: ZRANK.FIRST_KEY_INDEX,
+  CACHEABLE: ZRANK.CACHEABLE,
   IS_READ_ONLY: ZRANK.IS_READ_ONLY,
-  transformArguments(...args: Parameters<typeof ZRANK.transformArguments>) {
-    const redisArgs = ZRANK.transformArguments(...args);
-    redisArgs.push('WITHSCORE');
-    return redisArgs;
+  parseCommand(...args: Parameters<typeof ZRANK.parseCommand>) {
+    const parser = args[0];
+
+    ZRANK.parseCommand(...args);
+    parser.push('WITHSCORE');
   },
   transformReply: {
     2: (reply: UnwrapReply<NullReply | TuplesReply<[NumberReply, BlobStringReply]>>) => {

@@ -1,4 +1,4 @@
-import type { DoubleReply, NumberReply, RedisArgument, RedisCommands, TuplesReply, UnwrapReply, Resp2Reply, ArrayReply, BlobStringReply, MapReply, NullReply, TypeMapping, ReplyUnion, RespType } from '@redis/client/lib/RESP/types';
+import type { DoubleReply, NumberReply, RedisCommands, TuplesReply, UnwrapReply, Resp2Reply, ArrayReply, BlobStringReply, MapReply, NullReply, TypeMapping, ReplyUnion, RespType } from '@redis/client/dist/lib/RESP/types';
 import ADD, { TsIgnoreOptions } from './ADD';
 import ALTER from './ALTER';
 import CREATE from './CREATE';
@@ -29,8 +29,9 @@ import MREVRANGE from './MREVRANGE';
 import QUERYINDEX from './QUERYINDEX';
 import RANGE from './RANGE';
 import REVRANGE from './REVRANGE';
-import { RedisVariadicArgument, pushVariadicArguments } from '@redis/client/lib/commands/generic-transformers';
-import { RESP_TYPES } from '@redis/client/lib/RESP/decoder';
+import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { RESP_TYPES } from '@redis/client/dist/lib/RESP/decoder';
 
 export default {
   ADD,
@@ -95,15 +96,15 @@ export default {
   revRange: REVRANGE
 } as const satisfies RedisCommands;
 
-export function pushIgnoreArgument(args: Array<RedisArgument>, ignore?: TsIgnoreOptions) {
+export function parseIgnoreArgument(parser: CommandParser, ignore?: TsIgnoreOptions) {
   if (ignore !== undefined) {
-    args.push('IGNORE', ignore.maxTimeDiff.toString(), ignore.maxValDiff.toString());
+    parser.push('IGNORE', ignore.maxTimeDiff.toString(), ignore.maxValDiff.toString());
   }
 }
 
-export function pushRetentionArgument(args: Array<RedisArgument>, retention?: number) {
+export function parseRetentionArgument(parser: CommandParser, retention?: number) {
   if (retention !== undefined) {
-    args.push('RETENTION', retention.toString());
+    parser.push('RETENTION', retention.toString());
   }
 }
 
@@ -114,15 +115,15 @@ export const TIME_SERIES_ENCODING = {
 
 export type TimeSeriesEncoding = typeof TIME_SERIES_ENCODING[keyof typeof TIME_SERIES_ENCODING];
 
-export function pushEncodingArgument(args: Array<RedisArgument>, encoding?: TimeSeriesEncoding) {
+export function parseEncodingArgument(parser: CommandParser, encoding?: TimeSeriesEncoding) {
   if (encoding !== undefined) {
-    args.push('ENCODING', encoding);
+    parser.push('ENCODING', encoding);
   }
 }
 
-export function pushChunkSizeArgument(args: Array<RedisArgument>, chunkSize?: number) {
+export function parseChunkSizeArgument(parser: CommandParser, chunkSize?: number) {
   if (chunkSize !== undefined) {
-    args.push('CHUNK_SIZE', chunkSize.toString());
+    parser.push('CHUNK_SIZE', chunkSize.toString());
   }
 }
 
@@ -137,9 +138,9 @@ export const TIME_SERIES_DUPLICATE_POLICIES = {
 
 export type TimeSeriesDuplicatePolicies = typeof TIME_SERIES_DUPLICATE_POLICIES[keyof typeof TIME_SERIES_DUPLICATE_POLICIES];
 
-export function pushDuplicatePolicy(args: Array<RedisArgument>, duplicatePolicy?: TimeSeriesDuplicatePolicies) {
+export function parseDuplicatePolicy(parser: CommandParser, duplicatePolicy?: TimeSeriesDuplicatePolicies) {
   if (duplicatePolicy !== undefined) {
-    args.push('DUPLICATE_POLICY', duplicatePolicy);
+    parser.push('DUPLICATE_POLICY', duplicatePolicy);
   }
 }
 
@@ -159,16 +160,14 @@ export type Labels = {
   [label: string]: string;
 };
 
-export function pushLabelsArgument(args: Array<RedisArgument>, labels?: Labels) {
+export function parseLabelsArgument(parser: CommandParser, labels?: Labels) {
   if (labels) {
-    args.push('LABELS');
+    parser.push('LABELS');
 
     for (const [label, value] of Object.entries(labels)) {
-      args.push(label, value);
+      parser.push(label, value);
     }
   }
-
-  return args;
 }
 
 export type SampleRawReply = TuplesReply<[timestamp: NumberReply, value: DoubleReply]>;
@@ -269,12 +268,12 @@ export function resp3MapToValue<
   return reply as never;
 }
 
-export function pushSelectedLabelsArguments(
-  args: Array<RedisArgument>,
+export function parseSelectedLabelsArguments(
+  parser: CommandParser,
   selectedLabels: RedisVariadicArgument
 ) {
-  args.push('SELECTED_LABELS');
-  return pushVariadicArguments(args, selectedLabels);
+  parser.push('SELECTED_LABELS');
+  parser.pushVariadic(selectedLabels);
 }
 
 export type RawLabelValue = BlobStringReply | NullReply;

@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import LINSERT from './LINSERT';
+import { parseArgs } from './generic-transformers';
 
 describe('LINSERT', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      LINSERT.transformArguments('key', 'BEFORE', 'pivot', 'element'),
+      parseArgs(LINSERT, 'key', 'BEFORE', 'pivot', 'element'),
       ['LINSERT', 'key', 'BEFORE', 'pivot', 'element']
     );
   });

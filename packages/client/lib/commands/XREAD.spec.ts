@@ -1,12 +1,13 @@
 import { strict as assert } from 'node:assert';
-import testUtils, { GLOBAL } from '../test-utils';
+import testUtils, { GLOBAL, parseFirstKey } from '../test-utils';
 import XREAD from './XREAD';
+import { parseArgs } from './generic-transformers';
 
 describe('XREAD', () => {
   describe('FIRST_KEY_INDEX', () => {
     it('single stream', () => {
       assert.equal(
-        XREAD.FIRST_KEY_INDEX({
+        parseFirstKey(XREAD, {
           key: 'key',
           id: ''
         }),
@@ -16,7 +17,7 @@ describe('XREAD', () => {
 
     it('multiple streams', () => {
       assert.equal(
-        XREAD.FIRST_KEY_INDEX([{
+        parseFirstKey(XREAD, [{
           key: '1',
           id: ''
         }, {
@@ -31,7 +32,7 @@ describe('XREAD', () => {
   describe('transformArguments', () => {
     it('single stream', () => {
       assert.deepEqual(
-        XREAD.transformArguments({
+        parseArgs(XREAD, {
           key: 'key',
           id: '0-0'
         }),
@@ -41,7 +42,7 @@ describe('XREAD', () => {
 
     it('multiple streams', () => {
       assert.deepEqual(
-        XREAD.transformArguments([{
+        parseArgs(XREAD, [{
           key: '1',
           id: '0-0'
         }, {
@@ -54,7 +55,7 @@ describe('XREAD', () => {
 
     it('with COUNT', () => {
       assert.deepEqual(
-        XREAD.transformArguments({
+        parseArgs(XREAD, {
           key: 'key',
           id: '0-0'
         }, {
@@ -66,7 +67,7 @@ describe('XREAD', () => {
 
     it('with BLOCK', () => {
       assert.deepEqual(
-        XREAD.transformArguments({
+        parseArgs(XREAD, {
           key: 'key',
           id: '0-0'
         }, {
@@ -78,7 +79,7 @@ describe('XREAD', () => {
 
     it('with COUNT, BLOCK', () => {
       assert.deepEqual(
-        XREAD.transformArguments({
+        parseArgs(XREAD, {
           key: 'key',
           id: '0-0'
         }, {
@@ -89,7 +90,6 @@ describe('XREAD', () => {
       );
     });
   });
-
 
   testUtils.testAll('client.xRead', async client => {
     const message = { field: 'value' }, 

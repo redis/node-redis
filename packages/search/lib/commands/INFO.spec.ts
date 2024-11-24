@@ -2,11 +2,12 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import INFO, { InfoReply } from './INFO';
 import { SCHEMA_FIELD_TYPE } from './CREATE';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('INFO', () => {
     it('transformArguments', () => {
         assert.deepEqual(
-            INFO.transformArguments('index'),
+            parseArgs(INFO, 'index'),
             ['FT.INFO', 'index']
         );
     });

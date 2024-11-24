@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import { CommandArguments, RedisArgument, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions, TypeMapping } from '../RESP/types';
+import { CommandArguments, RedisFunctions, RedisModules, RedisScripts, ReplyUnion, RespVersions, TypeMapping } from '../RESP/types';
 import RedisClient, { RedisClientOptions, RedisClientType } from '../client';
 import { CommandOptions } from '../client/commands-queue';
 import { attachConfig } from '../commander';
@@ -93,10 +93,10 @@ export class RedisSentinelClient<
     RESP extends RespVersions = 2,
     TYPE_MAPPING extends TypeMapping = {}
   >(
+    options: RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>,
     internal: RedisSentinelInternal<M, F, S, RESP, TYPE_MAPPING>,
     clientInfo: ClientInfo,
     commandOptions?: CommandOptions<TYPE_MAPPING>,
-    options?: RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>
   ) {
     return RedisSentinelClient.factory(options)(internal, clientInfo, commandOptions);
   }
@@ -161,18 +161,6 @@ export class RedisSentinelClient<
     return this._execute(
       isReadonly,
       client => client.sendCommand(args, options)
-    );
-  }
-
-  executeScript(
-    script: RedisScript,  
-    isReadonly: boolean | undefined,
-    args: Array<RedisArgument>,
-    options?: CommandOptions
-  ) {
-    return this._execute(
-      isReadonly,
-      client => client.executeScript(script, args, options)
     );
   }
 
@@ -284,7 +272,7 @@ export default class RedisSentinel<
 
     this.#options = options;
 
-    if (options?.commandOptions) {
+    if (options.commandOptions) {
       this.#commandOptions = options.commandOptions;
     }
 
@@ -319,7 +307,7 @@ export default class RedisSentinel<
 
     Sentinel.prototype.Multi = RedisSentinelMultiCommand.extend(config);
 
-    return (options?: Omit<RedisSentinelOptions, keyof Exclude<typeof config, undefined>>) => {
+    return (options: Omit<RedisSentinelOptions, keyof Exclude<typeof config, undefined>>) => {
       // returning a "proxy" to prevent the namespaces.self to leak between "proxies"
       return Object.create(new Sentinel(options)) as RedisSentinelType<M, F, S, RESP, TYPE_MAPPING>;
     };
@@ -331,7 +319,7 @@ export default class RedisSentinel<
     S extends RedisScripts = {},
     RESP extends RespVersions = 2,
     TYPE_MAPPING extends TypeMapping = {}
-  >(options?: RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>) {
+  >(options: RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>) {
     return RedisSentinel.factory(options)(options);
   }
 
@@ -421,7 +409,7 @@ export default class RedisSentinel<
 
     try {
       return await fn(
-        RedisSentinelClient.create(this._self.#internal, clientInfo, this._self.#commandOptions, this._self.#options)
+        RedisSentinelClient.create(this._self.#options, this._self.#internal, clientInfo, this._self.#commandOptions)
       );
     } finally {
       const promise = this._self.#internal.releaseClientLease(clientInfo);
@@ -437,18 +425,6 @@ export default class RedisSentinel<
     return this._execute(
       isReadonly,
       client => client.sendCommand(args, options)
-    );
-  }
-
-  executeScript(
-    script: RedisScript,
-    isReadonly: boolean | undefined,
-    args: Array<RedisArgument>,
-    options?: CommandOptions
-  ) {
-    return this._execute(
-      isReadonly,
-      client => client.executeScript(script, args, options)
     );
   }
 
@@ -534,7 +510,7 @@ export default class RedisSentinel<
 
   async aquire(): Promise<RedisSentinelClientType<M, F, S, RESP, TYPE_MAPPING>> {
     const clientInfo = await this._self.#internal.getClientLease();
-    return RedisSentinelClient.create(this._self.#internal, clientInfo, this._self.#commandOptions, this._self.#options);
+    return RedisSentinelClient.create(this._self.#options, this._self.#internal, clientInfo, this._self.#commandOptions);
   }
 
   getSentinelNode(): RedisNode | undefined {

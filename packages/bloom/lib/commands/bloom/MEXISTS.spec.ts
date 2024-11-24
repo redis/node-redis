@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../../test-utils';
 import MEXISTS from './MEXISTS';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('BF.MEXISTS', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      MEXISTS.transformArguments('key', ['1', '2']),
+      parseArgs(MEXISTS, 'key', ['1', '2']),
       ['BF.MEXISTS', 'key', '1', '2']
     );
   });

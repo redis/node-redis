@@ -9,15 +9,13 @@ type SuggestScoreWithPayload = {
 }
 
 export default {
-  FIRST_KEY_INDEX: SUGGET.FIRST_KEY_INDEX,
   IS_READ_ONLY: SUGGET.IS_READ_ONLY,
-  transformArguments(...args: Parameters<typeof SUGGET.transformArguments>) {
-    const transformedArguments = SUGGET.transformArguments(...args);
-    transformedArguments.push(
+  parseCommand(...args: Parameters<typeof SUGGET.parseCommand>) {
+    SUGGET.parseCommand(...args);
+    args[0].push(
       'WITHSCORES',
       'WITHPAYLOADS'
     );
-    return transformedArguments;
   },
   transformReply: {
     2: (reply: NullReply | UnwrapReply<ArrayReply<BlobStringReply>>, preserve?: any, typeMapping?: TypeMapping) => {

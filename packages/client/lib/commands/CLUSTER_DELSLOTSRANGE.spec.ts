@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import CLUSTER_DELSLOTSRANGE from './CLUSTER_DELSLOTSRANGE';
+import { parseArgs } from './generic-transformers';
 
 describe('CLUSTER DELSLOTSRANGE', () => {
   describe('transformArguments', () => {
     it('single', () => {
       assert.deepEqual(
-        CLUSTER_DELSLOTSRANGE.transformArguments({
+        parseArgs(CLUSTER_DELSLOTSRANGE, {
           start: 0,
           end: 1
         }),
@@ -15,7 +16,7 @@ describe('CLUSTER DELSLOTSRANGE', () => {
 
     it('multiple', () => {
       assert.deepEqual(
-        CLUSTER_DELSLOTSRANGE.transformArguments([{
+        parseArgs(CLUSTER_DELSLOTSRANGE, [{
           start: 0,
           end: 1
         }, {

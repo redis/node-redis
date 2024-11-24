@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import OBJECT_ENCODING from './OBJECT_ENCODING';
+import { parseArgs } from './generic-transformers';
 
 describe('OBJECT ENCODING', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      OBJECT_ENCODING.transformArguments('key'),
+      parseArgs(OBJECT_ENCODING, 'key'),
       ['OBJECT', 'ENCODING', 'key']
     );
   });

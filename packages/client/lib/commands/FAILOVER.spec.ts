@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import FAILOVER from './FAILOVER';
+import { parseArgs } from './generic-transformers';
 
 describe('FAILOVER', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        FAILOVER.transformArguments(),
+        parseArgs(FAILOVER),
         ['FAILOVER']
       );
     });
@@ -13,7 +14,7 @@ describe('FAILOVER', () => {
     describe('with TO', () => {
       it('simple', () => {
         assert.deepEqual(
-          FAILOVER.transformArguments({
+          parseArgs(FAILOVER, {
             TO: {
               host: 'host',
               port: 6379
@@ -25,7 +26,7 @@ describe('FAILOVER', () => {
 
       it('with FORCE', () => {
         assert.deepEqual(
-          FAILOVER.transformArguments({
+          parseArgs(FAILOVER, {
             TO: {
               host: 'host',
               port: 6379,
@@ -39,7 +40,7 @@ describe('FAILOVER', () => {
 
     it('with ABORT', () => {
       assert.deepEqual(
-        FAILOVER.transformArguments({
+        parseArgs(FAILOVER, {
           ABORT: true
         }),
         ['FAILOVER', 'ABORT']
@@ -48,7 +49,7 @@ describe('FAILOVER', () => {
 
     it('with TIMEOUT', () => {
       assert.deepEqual(
-        FAILOVER.transformArguments({
+        parseArgs(FAILOVER, {
           TIMEOUT: 1
         }),
         ['FAILOVER', 'TIMEOUT', '1']
@@ -57,7 +58,7 @@ describe('FAILOVER', () => {
 
     it('with TO, ABORT, TIMEOUT', () => {
       assert.deepEqual(
-        FAILOVER.transformArguments({
+        parseArgs(FAILOVER, {
           TO: {
             host: 'host',
             port: 6379

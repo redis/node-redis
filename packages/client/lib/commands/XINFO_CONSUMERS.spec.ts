@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import XINFO_CONSUMERS from './XINFO_CONSUMERS';
+import { parseArgs } from './generic-transformers';
 
 describe('XINFO CONSUMERS', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      XINFO_CONSUMERS.transformArguments('key', 'group'),
+      parseArgs(XINFO_CONSUMERS, 'key', 'group'),
       ['XINFO', 'CONSUMERS', 'key', 'group']
     );
   });

@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import INCR from './INCR';
+import { parseArgs } from './generic-transformers';
 
 describe('INCR', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      INCR.transformArguments('key'),
+      parseArgs(INCR, 'key'),
       ['INCR', 'key']
     );
   });

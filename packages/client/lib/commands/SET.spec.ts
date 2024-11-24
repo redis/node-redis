@@ -1,20 +1,21 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SET from './SET';
+import { parseArgs } from './generic-transformers';
 
 describe('SET', () => {
   describe('transformArguments', () => {
     describe('value', () => {
       it('string', () => {
         assert.deepEqual(
-          SET.transformArguments('key', 'value'),
+          parseArgs(SET, 'key', 'value'),
           ['SET', 'key', 'value']
         );
       });
   
       it('number', () => {
         assert.deepEqual(
-          SET.transformArguments('key', 0),
+          parseArgs(SET, 'key', 0),
           ['SET', 'key', '0']
         );
       });
@@ -23,7 +24,7 @@ describe('SET', () => {
     describe('expiration', () => {
       it('\'KEEPTTL\'', () => {
         assert.deepEqual(
-          SET.transformArguments('key', 'value', {
+          parseArgs(SET, 'key', 'value', {
             expiration: 'KEEPTTL'
           }),
           ['SET', 'key', 'value', 'KEEPTTL']
@@ -32,7 +33,7 @@ describe('SET', () => {
 
       it('{ type: \'KEEPTTL\' }', () => {
         assert.deepEqual(
-          SET.transformArguments('key', 'value', {
+          parseArgs(SET, 'key', 'value', {
             expiration: {
               type: 'KEEPTTL'
             }
@@ -43,7 +44,7 @@ describe('SET', () => {
 
       it('{ type: \'EX\' }', () => {
         assert.deepEqual(
-          SET.transformArguments('key', 'value', {
+          parseArgs(SET, 'key', 'value', {
             expiration: {
               type: 'EX',
               value: 0
@@ -55,7 +56,7 @@ describe('SET', () => {
 
       it('with EX (backwards compatibility)', () => {
         assert.deepEqual(
-          SET.transformArguments('key', 'value', {
+          parseArgs(SET, 'key', 'value', {
             EX: 0
           }),
           ['SET', 'key', 'value', 'EX', '0']
@@ -64,7 +65,7 @@ describe('SET', () => {
 
       it('with PX (backwards compatibility)', () => {
         assert.deepEqual(
-          SET.transformArguments('key', 'value', {
+          parseArgs(SET, 'key', 'value', {
             PX: 0
           }),
           ['SET', 'key', 'value', 'PX', '0']
@@ -73,7 +74,7 @@ describe('SET', () => {
 
       it('with EXAT (backwards compatibility)', () => {
         assert.deepEqual(
-          SET.transformArguments('key', 'value', {
+          parseArgs(SET, 'key', 'value', {
             EXAT: 0
           }),
           ['SET', 'key', 'value', 'EXAT', '0']
@@ -82,7 +83,7 @@ describe('SET', () => {
 
       it('with PXAT (backwards compatibility)', () => {
         assert.deepEqual(
-          SET.transformArguments('key', 'value', {
+          parseArgs(SET, 'key', 'value', {
             PXAT: 0
           }),
           ['SET', 'key', 'value', 'PXAT', '0']
@@ -91,7 +92,7 @@ describe('SET', () => {
 
       it('with KEEPTTL (backwards compatibility)', () => {
         assert.deepEqual(
-          SET.transformArguments('key', 'value', {
+          parseArgs(SET, 'key', 'value', {
             KEEPTTL: true
           }),
           ['SET', 'key', 'value', 'KEEPTTL']
@@ -102,7 +103,7 @@ describe('SET', () => {
     describe('condition', () => {
       it('with condition', () => {
         assert.deepEqual(
-          SET.transformArguments('key', 'value', {
+          parseArgs(SET, 'key', 'value', {
             condition: 'NX'
           }),
           ['SET', 'key', 'value', 'NX']
@@ -111,7 +112,7 @@ describe('SET', () => {
 
       it('with NX (backwards compatibility)', () => {
         assert.deepEqual(
-          SET.transformArguments('key', 'value', {
+          parseArgs(SET, 'key', 'value', {
             NX: true
           }),
           ['SET', 'key', 'value', 'NX']
@@ -120,7 +121,7 @@ describe('SET', () => {
 
       it('with XX (backwards compatibility)', () => {
         assert.deepEqual(
-          SET.transformArguments('key', 'value', {
+          parseArgs(SET, 'key', 'value', {
             XX: true
           }),
           ['SET', 'key', 'value', 'XX']
@@ -130,7 +131,7 @@ describe('SET', () => {
 
     it('with GET', () => {
       assert.deepEqual(
-        SET.transformArguments('key', 'value', {
+        parseArgs(SET, 'key', 'value', {
           GET: true
         }),
         ['SET', 'key', 'value', 'GET']
@@ -139,7 +140,7 @@ describe('SET', () => {
 
     it('with expiration, condition, GET', () => {
       assert.deepEqual(
-        SET.transformArguments('key', 'value', {
+        parseArgs(SET, 'key', 'value', {
           expiration: {
             type: 'EX',
             value: 0 

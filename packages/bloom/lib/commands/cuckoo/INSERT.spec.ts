@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../../test-utils';
 import INSERT from './INSERT';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('CF.INSERT', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      INSERT.transformArguments('key', 'item', {
+      parseArgs(INSERT, 'key', 'item', {
         CAPACITY: 100,
         NOCREATE: true
       }),

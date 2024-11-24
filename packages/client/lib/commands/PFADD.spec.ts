@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import PFADD from './PFADD';
+import { parseArgs } from './generic-transformers';
 
 describe('PFADD', () => {
   describe('transformArguments', () => {
     it('string', () => {
       assert.deepEqual(
-        PFADD.transformArguments('key', 'element'),
+        parseArgs(PFADD, 'key', 'element'),
         ['PFADD', 'key', 'element']
       );
     });
 
     it('array', () => {
       assert.deepEqual(
-        PFADD.transformArguments('key', ['1', '2']),
+        parseArgs(PFADD, 'key', ['1', '2']),
         ['PFADD', 'key', '1', '2']
       );
     });

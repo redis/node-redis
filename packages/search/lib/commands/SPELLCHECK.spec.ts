@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SPELLCHECK from './SPELLCHECK';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('FT.SPELLCHECK', () => {
   describe('transformArguments', () => {
     it('without options', () => {
       assert.deepEqual(
-        SPELLCHECK.transformArguments('index', 'query'),
+        parseArgs(SPELLCHECK, 'index', 'query'),
         ['FT.SPELLCHECK', 'index', 'query']
       );
     });
 
     it('with DISTANCE', () => {
       assert.deepEqual(
-        SPELLCHECK.transformArguments('index', 'query', {
+        parseArgs(SPELLCHECK, 'index', 'query', {
           DISTANCE: 2
         }),
         ['FT.SPELLCHECK', 'index', 'query', 'DISTANCE', '2']
@@ -23,7 +24,7 @@ describe('FT.SPELLCHECK', () => {
     describe('with TERMS', () => {
       it('single', () => {
         assert.deepEqual(
-          SPELLCHECK.transformArguments('index', 'query', {
+          parseArgs(SPELLCHECK, 'index', 'query', {
             TERMS: {
               mode: 'INCLUDE',
               dictionary: 'dictionary'
@@ -35,7 +36,7 @@ describe('FT.SPELLCHECK', () => {
 
       it('multiple', () => {
         assert.deepEqual(
-          SPELLCHECK.transformArguments('index', 'query', {
+          parseArgs(SPELLCHECK, 'index', 'query', {
             TERMS: [{
               mode: 'INCLUDE',
               dictionary: 'include'
@@ -51,7 +52,7 @@ describe('FT.SPELLCHECK', () => {
 
     it('with DIALECT', () => {
       assert.deepEqual(
-        SPELLCHECK.transformArguments('index', 'query', {
+        parseArgs(SPELLCHECK, 'index', 'query', {
           DIALECT: 1
         }),
         ['FT.SPELLCHECK', 'index', 'query', 'DIALECT', '1']

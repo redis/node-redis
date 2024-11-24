@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import GETRANGE from './GETRANGE';
+import { parseArgs } from './generic-transformers';
 
 describe('GETRANGE', () => {
-  it('transformArguments', () => {
+  it('processCommand', () => {
     assert.deepEqual(
-      GETRANGE.transformArguments('key', 0, -1),
+      parseArgs(GETRANGE, 'key', 0, -1),
       ['GETRANGE', 'key', '0', '-1']
     );
   });

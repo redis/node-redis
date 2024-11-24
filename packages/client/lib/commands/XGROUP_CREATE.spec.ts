@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import XGROUP_CREATE from './XGROUP_CREATE';
+import { parseArgs } from './generic-transformers';
 
 describe('XGROUP CREATE', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        XGROUP_CREATE.transformArguments('key', 'group', '$'),
+        parseArgs(XGROUP_CREATE, 'key', 'group', '$'),
         ['XGROUP', 'CREATE', 'key', 'group', '$']
       );
     });
 
     it('with MKSTREAM', () => {
       assert.deepEqual(
-        XGROUP_CREATE.transformArguments('key', 'group', '$', {
+        parseArgs(XGROUP_CREATE, 'key', 'group', '$', {
           MKSTREAM: true
         }),
         ['XGROUP', 'CREATE', 'key', 'group', '$', 'MKSTREAM']
@@ -22,7 +23,7 @@ describe('XGROUP CREATE', () => {
 
     it('with ENTRIESREAD', () => {
       assert.deepEqual(
-        XGROUP_CREATE.transformArguments('key', 'group', '$', {
+        parseArgs(XGROUP_CREATE, 'key', 'group', '$', {
           ENTRIESREAD: 1
         }),
         ['XGROUP', 'CREATE', 'key', 'group', '$', 'ENTRIESREAD', '1']

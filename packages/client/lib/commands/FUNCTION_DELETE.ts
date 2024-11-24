@@ -1,10 +1,11 @@
+import { CommandParser } from '../client/parser';
 import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: false,
-  transformArguments(library: RedisArgument) {
-    return ['FUNCTION', 'DELETE', library];
+  parseCommand(parser: CommandParser, library: RedisArgument) {
+    parser.push('FUNCTION', 'DELETE', library);
   },
   transformReply: undefined as unknown as () => SimpleStringReply
 } as const satisfies Command;

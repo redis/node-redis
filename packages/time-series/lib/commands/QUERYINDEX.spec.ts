@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import QUERYINDEX from './QUERYINDEX';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('TS.QUERYINDEX', () => {
   describe('transformArguments', () => {
     it('single filter', () => {
       assert.deepEqual(
-        QUERYINDEX.transformArguments('*'),
+        parseArgs(QUERYINDEX, '*'),
         ['TS.QUERYINDEX', '*']
       );
     });
 
     it('multiple filters', () => {
       assert.deepEqual(
-        QUERYINDEX.transformArguments(['a=1', 'b=2']),
+        parseArgs(QUERYINDEX, ['a=1', 'b=2']),
         ['TS.QUERYINDEX', 'a=1', 'b=2']
       );
     });

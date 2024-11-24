@@ -1,12 +1,13 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import GET from './GET';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('JSON.GET', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        GET.transformArguments('key'),
+        parseArgs(GET, 'key'),
         ['JSON.GET', 'key']
       );
     });
@@ -14,14 +15,14 @@ describe('JSON.GET', () => {
     describe('with path', () => {
       it('string', () => {
         assert.deepEqual(
-          GET.transformArguments('key', { path: '$' }),
+          parseArgs(GET, 'key', { path: '$' }),
           ['JSON.GET', 'key', '$']
         );
       });
 
       it('array', () => {
         assert.deepEqual(
-          GET.transformArguments('key', { path: ['$.1', '$.2'] }),
+          parseArgs(GET, 'key', { path: ['$.1', '$.2'] }),
           ['JSON.GET', 'key', '$.1', '$.2']
         );
       });

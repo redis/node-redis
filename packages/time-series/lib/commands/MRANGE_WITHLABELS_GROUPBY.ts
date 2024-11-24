@@ -1,9 +1,10 @@
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { Command, ArrayReply, BlobStringReply, Resp2Reply, MapReply, TuplesReply, TypeMapping, RedisArgument } from '@redis/client/dist/lib/RESP/types';
 import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
 import { resp2MapToValue, resp3MapToValue, SampleRawReply, Timestamp, transformRESP2LabelsWithSources, transformSamplesReply } from '.';
-import { TsRangeOptions, pushRangeArguments } from './RANGE';
-import { extractResp3MRangeSources, pushGroupByArguments, TsMRangeGroupBy, TsMRangeGroupByRawMetadataReply3 } from './MRANGE_GROUPBY';
-import { pushFilterArgument } from './MGET';
+import { TsRangeOptions, parseRangeArguments } from './RANGE';
+import { extractResp3MRangeSources, parseGroupByArguments, TsMRangeGroupBy, TsMRangeGroupByRawMetadataReply3 } from './MRANGE_GROUPBY';
+import { parseFilterArgument } from './MGET';
 
 export type TsMRangeWithLabelsGroupByRawReply2 = ArrayReply<
   TuplesReply<[
@@ -28,33 +29,32 @@ export type TsMRangeWithLabelsGroupByRawReply3 = MapReply<
 
 export function createMRangeWithLabelsGroupByTransformArguments(command: RedisArgument) {
   return (
+    parser: CommandParser,
     fromTimestamp: Timestamp,
     toTimestamp: Timestamp,
     filter: RedisVariadicArgument,
     groupBy: TsMRangeGroupBy,
     options?: TsRangeOptions
   ) => {
-    let args = pushRangeArguments(
-      [command],
+    parser.push(command);
+    parseRangeArguments(
+      parser,
       fromTimestamp,
       toTimestamp,
       options
     );
   
-    args.push('WITHLABELS');
+    parser.push('WITHLABELS');
   
-    args = pushFilterArgument(args, filter);
+    parseFilterArgument(parser, filter);
   
-    pushGroupByArguments(args, groupBy);
-  
-    return args;
-  };
+    parseGroupByArguments(parser, groupBy);
+    };
 }
 
 export default {
-  FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: true,
-  transformArguments: createMRangeWithLabelsGroupByTransformArguments('TS.MRANGE'),
+  parseCommand: createMRangeWithLabelsGroupByTransformArguments('TS.MRANGE'),
   transformReply: {
     2(reply: TsMRangeWithLabelsGroupByRawReply2, _?: any, typeMapping?: TypeMapping) {
       return resp2MapToValue(reply, ([_key, labels, samples]) => {

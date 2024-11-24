@@ -1,26 +1,27 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import MSETNX from './MSETNX';
+import { parseArgs } from './generic-transformers';
 
 describe('MSETNX', () => {
   describe('transformArguments', () => {
     it("['key1', 'value1', 'key2', 'value2']", () => {
       assert.deepEqual(
-        MSETNX.transformArguments(['key1', 'value1', 'key2', 'value2']),
+        parseArgs(MSETNX, ['key1', 'value1', 'key2', 'value2']),
         ['MSETNX', 'key1', 'value1', 'key2', 'value2']
       );
     });
 
     it("[['key1', 'value1'], ['key2', 'value2']]", () => {
       assert.deepEqual(
-        MSETNX.transformArguments([['key1', 'value1'], ['key2', 'value2']]),
+        parseArgs(MSETNX, [['key1', 'value1'], ['key2', 'value2']]),
         ['MSETNX', 'key1', 'value1', 'key2', 'value2']
       );
     });
 
     it("{key1: 'value1'. key2: 'value2'}", () => {
       assert.deepEqual(
-        MSETNX.transformArguments({ key1: 'value1', key2: 'value2' }),
+        parseArgs(MSETNX, { key1: 'value1', key2: 'value2' }),
         ['MSETNX', 'key1', 'value1', 'key2', 'value2']
       );
     });

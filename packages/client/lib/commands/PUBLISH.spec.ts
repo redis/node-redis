@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import PUBLISH from './PUBLISH';
+import { parseArgs } from './generic-transformers';
 
 describe('PUBLISH', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      PUBLISH.transformArguments('channel', 'message'),
+      parseArgs(PUBLISH, 'channel', 'message'),
       ['PUBLISH', 'channel', 'message']
     );
   });

@@ -1,3 +1,4 @@
+import { CommandParser } from '../client/parser';
 import { ArrayReply, TuplesToMapReply, BlobStringReply, NumberReply, UnwrapReply, Resp2Reply, Command } from '../RESP/types';
 
 type ClusterLinksReply = ArrayReply<TuplesToMapReply<[
@@ -10,10 +11,10 @@ type ClusterLinksReply = ArrayReply<TuplesToMapReply<[
 ]>>;
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments() {
-    return ['CLUSTER', 'LINKS'];
+  parseCommand(parser: CommandParser) {
+    parser.push('CLUSTER', 'LINKS');
   },
   transformReply: {
     2: (reply: UnwrapReply<Resp2Reply<ClusterLinksReply>>) => reply.map(link => {

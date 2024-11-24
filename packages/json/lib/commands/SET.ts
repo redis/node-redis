@@ -1,3 +1,4 @@
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument, SimpleStringReply, NullReply, Command } from '@redis/client/dist/lib/RESP/types';
 import { RedisJSON, transformRedisJsonArgument } from '.';
 
@@ -14,25 +15,25 @@ export interface JsonSetOptions {
 }
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: false,
-  transformArguments(
+  parseCommand(
+    parser: CommandParser,
     key: RedisArgument,
     path: RedisArgument,
     json: RedisJSON,
     options?: JsonSetOptions
   ) {
-    const args = ['JSON.SET', key, path, transformRedisJsonArgument(json)];
+    parser.push('JSON.SET');
+    parser.pushKey(key);
+    parser.push(path, transformRedisJsonArgument(json));
 
     if (options?.condition) {
-      args.push(options?.condition);
+      parser.push(options?.condition);
     } else if (options?.NX) {
-      args.push('NX');
+      parser.push('NX');
     } else if (options?.XX) {
-      args.push('XX');
+      parser.push('XX');
     }
-
-    return args;
   },
   transformReply: undefined as unknown as () => SimpleStringReply<'OK'> | NullReply
 } as const satisfies Command;

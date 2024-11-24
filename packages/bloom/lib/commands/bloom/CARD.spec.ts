@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../../test-utils';
 import CARD from './CARD';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('BF.CARD', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      CARD.transformArguments('bloom'),
+      parseArgs(CARD, 'bloom'),
       ['BF.CARD', 'bloom']
     );
   });

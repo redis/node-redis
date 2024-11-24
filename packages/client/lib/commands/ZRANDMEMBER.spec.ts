@@ -1,13 +1,14 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ZRANDMEMBER from './ZRANDMEMBER';
+import { parseArgs } from './generic-transformers';
 
 describe('ZRANDMEMBER', () => {
   testUtils.isVersionGreaterThanHook([6, 2]);
 
   it('transformArguments', () => {
     assert.deepEqual(
-      ZRANDMEMBER.transformArguments('key'),
+      parseArgs(ZRANDMEMBER, 'key'),
       ['ZRANDMEMBER', 'key']
     );
   });

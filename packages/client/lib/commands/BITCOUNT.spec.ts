@@ -1,12 +1,13 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import BITCOUNT from './BITCOUNT';
+import { parseArgs } from './generic-transformers';
 
 describe('BITCOUNT', () => {
-  describe('transformArguments', () => {
+  describe('parseCommand', () => {
     it('simple', () => {
       assert.deepEqual(
-        BITCOUNT.transformArguments('key'),
+        parseArgs(BITCOUNT, 'key'),
         ['BITCOUNT', 'key']
       );
     });
@@ -14,7 +15,7 @@ describe('BITCOUNT', () => {
     describe('with range', () => {
       it('simple', () => {
         assert.deepEqual(
-          BITCOUNT.transformArguments('key', {
+          parseArgs(BITCOUNT, 'key', {
             start: 0,
             end: 1
           }),
@@ -24,7 +25,7 @@ describe('BITCOUNT', () => {
 
       it('with mode', () => {
         assert.deepEqual(
-          BITCOUNT.transformArguments('key', {
+          parseArgs(BITCOUNT, 'key', {
             start: 0,
             end: 1,
             mode: 'BIT'

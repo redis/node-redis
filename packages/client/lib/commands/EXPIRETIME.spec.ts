@@ -1,13 +1,14 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import EXPIRETIME from './EXPIRETIME';
+import { parseArgs } from './generic-transformers';
 
 describe('EXPIRETIME', () => {
   testUtils.isVersionGreaterThanHook([7]);
 
   it('transformArguments', () => {
     assert.deepEqual(
-      EXPIRETIME.transformArguments('key'),
+      parseArgs(EXPIRETIME, 'key'),
       ['EXPIRETIME', 'key']
     );
   });

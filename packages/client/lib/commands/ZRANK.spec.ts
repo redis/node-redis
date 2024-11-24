@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ZRANK from './ZRANK';
+import { parseArgs } from './generic-transformers';
 
 describe('ZRANK', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      ZRANK.transformArguments('key', 'member'),
+      parseArgs(ZRANK, 'key', 'member'),
       ['ZRANK', 'key', 'member']
     );
   });

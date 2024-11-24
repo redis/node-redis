@@ -1,3 +1,4 @@
+import { CommandParser } from '../../client/parser';
 import { RedisArgument, SimpleStringReply, Command } from '../../RESP/types';
 
 export type SentinelSetOptions = Array<{
@@ -6,14 +7,12 @@ export type SentinelSetOptions = Array<{
 }>;
 
 export default {
-  transformArguments(dbname: RedisArgument, options: SentinelSetOptions) {
-    const args = ['SENTINEL', 'SET', dbname];
+  parseCommand(parser: CommandParser, dbname: RedisArgument, options: SentinelSetOptions) {
+    parser.push('SENTINEL', 'SET', dbname);
 
     for (const option of options) {
-      args.push(option.option, option.value);
+      parser.push(option.option, option.value);
     }
-
-    return args;
   },
   transformReply: undefined as unknown as () => SimpleStringReply<'OK'> 
 } as const satisfies Command;

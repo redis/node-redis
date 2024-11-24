@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import GETSET from './GETSET';
+import { parseArgs } from './generic-transformers';
 
 describe('GETSET', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      GETSET.transformArguments('key', 'value'),
+      parseArgs(GETSET, 'key', 'value'),
       ['GETSET', 'key', 'value']
     );
   });

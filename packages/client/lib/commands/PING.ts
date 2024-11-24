@@ -1,15 +1,14 @@
+import { CommandParser } from '../client/parser';
 import { RedisArgument, SimpleStringReply, BlobStringReply, Command } from '../RESP/types';
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments(message?: RedisArgument) {
-    const args: Array<RedisArgument> = ['PING'];
+  parseCommand(parser: CommandParser, message?: RedisArgument) {
+    parser.push('PING');
     if (message) {
-      args.push(message);
+      parser.push(message);
     }
-
-    return args;
   },
   transformReply: undefined as unknown as () => SimpleStringReply | BlobStringReply
 } as const satisfies Command;

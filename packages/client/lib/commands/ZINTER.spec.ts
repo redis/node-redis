@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ZINTER from './ZINTER';
+import { parseArgs } from './generic-transformers';
 
 describe('ZINTER', () => {
   testUtils.isVersionGreaterThanHook([6, 2]);
@@ -8,21 +9,21 @@ describe('ZINTER', () => {
   describe('transformArguments', () => {
     it('key (string)', () => {
       assert.deepEqual(
-        ZINTER.transformArguments('key'),
+        parseArgs(ZINTER, 'key'),
         ['ZINTER', '1', 'key']
       );
     });
 
     it('keys (Array<string>)', () => {
       assert.deepEqual(
-        ZINTER.transformArguments(['1', '2']),
+        parseArgs(ZINTER, ['1', '2']),
         ['ZINTER', '2', '1', '2']
       );
     });
 
     it('key & weight', () => {
       assert.deepEqual(
-        ZINTER.transformArguments({
+        parseArgs(ZINTER, {
           key: 'key',
           weight: 1
         }),
@@ -32,7 +33,7 @@ describe('ZINTER', () => {
 
     it('keys & weights', () => {
       assert.deepEqual(
-        ZINTER.transformArguments([{
+        parseArgs(ZINTER, [{
           key: 'a',
           weight: 1
         }, {
@@ -45,7 +46,7 @@ describe('ZINTER', () => {
 
     it('with AGGREGATE', () => {
       assert.deepEqual(
-        ZINTER.transformArguments('key', {
+        parseArgs(ZINTER, 'key', {
           AGGREGATE: 'SUM'
         }),
         ['ZINTER', '1', 'key', 'AGGREGATE', 'SUM']

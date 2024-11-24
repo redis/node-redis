@@ -1,11 +1,13 @@
+import { CommandParser } from '../client/parser';
 import { ArrayReply, NumberReply, Command } from '../RESP/types';
-import { RedisVariadicArgument, pushVariadicArguments } from './generic-transformers';
+import { RedisVariadicArgument } from './generic-transformers';
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments(sha1: RedisVariadicArgument) {
-    return pushVariadicArguments(['SCRIPT', 'EXISTS'], sha1);
+  parseCommand(parser: CommandParser, sha1: RedisVariadicArgument) {
+    parser.push('SCRIPT', 'EXISTS');
+    parser.pushVariadic(sha1);
   },
   transformReply: undefined as unknown as () => ArrayReply<NumberReply>
 } as const satisfies Command;

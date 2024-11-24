@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SUNION from './SUNION';
+import { parseArgs } from './generic-transformers';
 
 describe('SUNION', () => {
   describe('transformArguments', () => {
     it('string', () => {
       assert.deepEqual(
-        SUNION.transformArguments('key'),
+        parseArgs(SUNION, 'key'),
         ['SUNION', 'key']
       );
     });
 
     it('array', () => {
       assert.deepEqual(
-        SUNION.transformArguments(['1', '2']),
+        parseArgs(SUNION, ['1', '2']),
         ['SUNION', '1', '2']
       );
     });

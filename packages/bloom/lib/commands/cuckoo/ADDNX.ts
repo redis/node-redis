@@ -1,11 +1,13 @@
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument, Command } from '@redis/client/dist/lib/RESP/types';
 import { transformBooleanReply } from '@redis/client/dist/lib/commands/generic-transformers';
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: false,
-  transformArguments(key: RedisArgument, item: RedisArgument) {
-    return ['CF.ADDNX', key, item];
+  parseCommand(parser: CommandParser, key: RedisArgument, item: RedisArgument) {
+    parser.push('CF.ADDNX');
+    parser.pushKey(key);
+    parser.push(item);
   },
   transformReply: transformBooleanReply
 } as const satisfies Command;

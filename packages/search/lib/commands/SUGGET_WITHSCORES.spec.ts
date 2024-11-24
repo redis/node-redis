@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SUGGET_WITHSCORES from './SUGGET_WITHSCORES';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('FT.SUGGET WITHSCORES', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      SUGGET_WITHSCORES.transformArguments('key', 'prefix'),
+      parseArgs(SUGGET_WITHSCORES, 'key', 'prefix'),
       ['FT.SUGGET', 'key', 'prefix', 'WITHSCORES']
     );
   });

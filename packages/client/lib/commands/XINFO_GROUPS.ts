@@ -1,3 +1,4 @@
+import { CommandParser } from '../client/parser';
 import { RedisArgument, ArrayReply, TuplesToMapReply, BlobStringReply, NumberReply, NullReply, UnwrapReply, Resp2Reply, Command } from '../RESP/types';
 
 export type XInfoGroupsReply = ArrayReply<TuplesToMapReply<[
@@ -12,10 +13,10 @@ export type XInfoGroupsReply = ArrayReply<TuplesToMapReply<[
 ]>>;
 
 export default {
-  FIRST_KEY_INDEX: 2,
   IS_READ_ONLY: true,
-  transformArguments(key: RedisArgument) {
-    return ['XINFO', 'GROUPS', key];
+  parseCommand(parser: CommandParser, key: RedisArgument) {
+    parser.push('XINFO', 'GROUPS');
+    parser.pushKey(key);
   },
   transformReply: {
     2: (reply: UnwrapReply<Resp2Reply<XInfoGroupsReply>>) => {

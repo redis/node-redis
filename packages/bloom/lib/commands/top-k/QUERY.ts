@@ -1,11 +1,13 @@
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument, Command } from '@redis/client/dist/lib/RESP/types';
-import { RedisVariadicArgument, pushVariadicArguments, transformBooleanArrayReply } from '@redis/client/dist/lib/commands/generic-transformers';
+import { RedisVariadicArgument, transformBooleanArrayReply } from '@redis/client/dist/lib/commands/generic-transformers';
 
 export default {
-  FIRST_KEY_INDEX: undefined,
   IS_READ_ONLY: false,
-  transformArguments(key: RedisArgument, items: RedisVariadicArgument) {
-    return pushVariadicArguments(['TOPK.QUERY', key], items);
+  parseCommand(parser: CommandParser, key: RedisArgument, items: RedisVariadicArgument) {
+    parser.push('TOPK.QUERY');
+    parser.pushKey(key);
+    parser.pushVariadic(items);
   },
   transformReply: transformBooleanArrayReply
 } as const satisfies Command;

@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import LLEN from './LLEN';
+import { parseArgs } from './generic-transformers';
 
 describe('LLEN', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      LLEN.transformArguments('key'),
+      parseArgs(LLEN, 'key'),
       ['LLEN', 'key']
     );
   });

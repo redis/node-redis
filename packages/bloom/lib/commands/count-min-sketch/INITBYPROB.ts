@@ -1,10 +1,12 @@
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument, SimpleStringReply, Command } from '@redis/client/dist/lib/RESP/types';
 
 export default {
-  FIRST_KEY_INDEX: 1,
   IS_READ_ONLY: false,
-  transformArguments(key: RedisArgument, error: number, probability: number) {
-    return ['CMS.INITBYPROB', key, error.toString(), probability.toString()];
+  parseCommand(parser: CommandParser, key: RedisArgument, error: number, probability: number) {
+    parser.push('CMS.INITBYPROB');
+    parser.pushKey(key);
+    parser.push(error.toString(), probability.toString());
   },
   transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
 } as const satisfies Command;

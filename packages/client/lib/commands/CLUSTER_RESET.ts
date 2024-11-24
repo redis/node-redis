@@ -1,3 +1,4 @@
+import { CommandParser } from '../client/parser';
 import { SimpleStringReply, Command } from '../RESP/types';
 
 export interface ClusterResetOptions {
@@ -5,16 +6,14 @@ export interface ClusterResetOptions {
 }
 
 export default {
-  FIRST_KEY_INDEX: undefined,
+  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  transformArguments(options?: ClusterResetOptions) {
-    const args = ['CLUSTER', 'RESET'];
+  parseCommand(parser: CommandParser, options?: ClusterResetOptions) {
+    parser.push('CLUSTER', 'RESET');
 
     if (options?.mode) {
-      args.push(options.mode);
+      parser.push(options.mode);
     }
-
-    return args;
   },
   transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
 } as const satisfies Command;

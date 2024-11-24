@@ -1,19 +1,20 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import GEODIST from './GEODIST';
+import { parseArgs } from './generic-transformers';
 
 describe('GEODIST', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
-        GEODIST.transformArguments('key', '1', '2'),
+        parseArgs(GEODIST, 'key', '1', '2'),
         ['GEODIST', 'key', '1', '2']
       );
     });
 
     it('with unit', () => {
       assert.deepEqual(
-        GEODIST.transformArguments('key', '1', '2', 'm'),
+        parseArgs(GEODIST, 'key', '1', '2', 'm'),
         ['GEODIST', 'key', '1', '2', 'm']
       );
     });

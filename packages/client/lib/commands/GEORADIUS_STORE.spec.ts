@@ -1,12 +1,13 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import GEORADIUS_STORE from './GEORADIUS_STORE';
+import { parseArgs } from './generic-transformers';
 
 describe('GEORADIUS STORE', () => {
   describe('transformArguments', () => {
     it('STORE', () => {
       assert.deepEqual(
-        GEORADIUS_STORE.transformArguments('key', {
+        parseArgs(GEORADIUS_STORE, 'key', {
           longitude: 1,
           latitude: 2
         }, 3, 'm', 'destination'),
@@ -16,7 +17,7 @@ describe('GEORADIUS STORE', () => {
 
     it('STOREDIST', () => {
       assert.deepEqual(
-        GEORADIUS_STORE.transformArguments('key', {
+        parseArgs(GEORADIUS_STORE, 'key', {
           longitude: 1,
           latitude: 2 
         }, 3, 'm', 'destination', {

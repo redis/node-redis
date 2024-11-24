@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import CLIENT_GETNAME from './CLIENT_GETNAME';
+import { parseArgs } from './generic-transformers';
 
 describe('CLIENT GETNAME', () => {
   it('transformArguments', () => {
     assert.deepEqual(
-      CLIENT_GETNAME.transformArguments(),
+      parseArgs(CLIENT_GETNAME),
       ['CLIENT', 'GETNAME']
     );
   });

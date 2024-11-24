@@ -1,12 +1,13 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import XADD from './XADD';
+import { parseArgs } from './generic-transformers';
 
 describe('XADD', () => {
   describe('transformArguments', () => {
     it('single field', () => {
       assert.deepEqual(
-        XADD.transformArguments('key', '*', {
+        parseArgs(XADD, 'key', '*', {
           field: 'value'
         }),
         ['XADD', 'key', '*', 'field', 'value']
@@ -15,7 +16,7 @@ describe('XADD', () => {
 
     it('multiple fields', () => {
       assert.deepEqual(
-        XADD.transformArguments('key', '*', {
+        parseArgs(XADD, 'key', '*', {
           '1': 'I',
           '2': 'II'
         }),
@@ -25,7 +26,7 @@ describe('XADD', () => {
 
     it('with TRIM', () => {
       assert.deepEqual(
-        XADD.transformArguments('key', '*', {
+        parseArgs(XADD, 'key', '*', {
           field: 'value'
         }, {
           TRIM: {
@@ -38,7 +39,7 @@ describe('XADD', () => {
 
     it('with TRIM.strategy', () => {
       assert.deepEqual(
-        XADD.transformArguments('key', '*', {
+        parseArgs(XADD, 'key', '*', {
           field: 'value'
         }, {
           TRIM: {
@@ -52,7 +53,7 @@ describe('XADD', () => {
 
     it('with TRIM.strategyModifier', () => {
       assert.deepEqual(
-        XADD.transformArguments('key', '*', {
+        parseArgs(XADD, 'key', '*', {
           field: 'value'
         }, {
           TRIM: {
@@ -66,7 +67,7 @@ describe('XADD', () => {
 
     it('with TRIM.limit', () => {
       assert.deepEqual(
-        XADD.transformArguments('key', '*', {
+        parseArgs(XADD, 'key', '*', {
           field: 'value'
         }, {
           TRIM: {
