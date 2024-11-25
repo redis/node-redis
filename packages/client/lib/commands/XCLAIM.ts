@@ -1,48 +1,59 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { pushVerdictArguments } from './generic-transformers';
-
-export const FIRST_KEY_INDEX = 1;
+import { CommandParser } from '../client/parser';
+import { RedisArgument, ArrayReply, NullReply, UnwrapReply, Command, TypeMapping } from '../RESP/types';
+import { RedisVariadicArgument, StreamMessageRawReply, transformStreamMessageNullReply } from './generic-transformers';
 
 export interface XClaimOptions {
-    IDLE?: number;
-    TIME?: number | Date;
-    RETRYCOUNT?: number;
-    FORCE?: true;
+  IDLE?: number;
+  TIME?: number | Date;
+  RETRYCOUNT?: number;
+  FORCE?: boolean;
+  LASTID?: RedisArgument;
 }
 
-export function transformArguments(
-    key: RedisCommandArgument,
-    group: RedisCommandArgument,
-    consumer: RedisCommandArgument,
+export default {
+  IS_READ_ONLY: false,
+  parseCommand(
+    parser: CommandParser,
+    key: RedisArgument,
+    group: RedisArgument,
+    consumer: RedisArgument,
     minIdleTime: number,
-    id: RedisCommandArgument | Array<RedisCommandArgument>,
+    id: RedisVariadicArgument,
     options?: XClaimOptions
-): RedisCommandArguments {
-    const args =  pushVerdictArguments(
-        ['XCLAIM', key, group, consumer, minIdleTime.toString()],
-        id
-    );
+  ) {
+    parser.push('XCLAIM');
+    parser.pushKey(key);
+    parser.push(group, consumer, minIdleTime.toString());
+    parser.pushVariadic(id);
 
-    if (options?.IDLE) {
-        args.push('IDLE', options.IDLE.toString());
+    if (options?.IDLE !== undefined) {
+      parser.push('IDLE', options.IDLE.toString());
     }
 
-    if (options?.TIME) {
-        args.push(
-            'TIME',
-            (typeof options.TIME === 'number' ? options.TIME : options.TIME.getTime()).toString()
-        );
+    if (options?.TIME !== undefined) {
+      parser.push(
+        'TIME',
+        (options.TIME instanceof Date ? options.TIME.getTime() : options.TIME).toString()
+      );
     }
 
-    if (options?.RETRYCOUNT) {
-        args.push('RETRYCOUNT', options.RETRYCOUNT.toString());
+    if (options?.RETRYCOUNT !== undefined) {
+      parser.push('RETRYCOUNT', options.RETRYCOUNT.toString());
     }
 
     if (options?.FORCE) {
-        args.push('FORCE');
+      parser.push('FORCE');
     }
 
-    return args;
-}
-
-export { transformStreamMessagesNullReply as transformReply } from './generic-transformers';
+    if (options?.LASTID !== undefined) {
+      parser.push('LASTID', options.LASTID);
+    }
+  },
+  transformReply(
+    reply: UnwrapReply<ArrayReply<StreamMessageRawReply | NullReply>>, 
+    preserve?: any,
+    typeMapping?: TypeMapping
+  ) {
+    return reply.map(transformStreamMessageNullReply.bind(undefined, typeMapping));
+  }
+} as const satisfies Command;

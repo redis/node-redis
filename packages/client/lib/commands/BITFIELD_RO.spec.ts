@@ -1,27 +1,31 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './BITFIELD_RO';
+import BITFIELD_RO from './BITFIELD_RO';
+import { parseArgs } from './generic-transformers';
 
-describe('BITFIELD RO', () => {
-    testUtils.isVersionGreaterThanHook([6, 2]);
+describe('BITFIELD_RO', () => {
+  testUtils.isVersionGreaterThanHook([6, 2]);
 
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key', [{
-                encoding: 'i8',
-                offset: 0
-            }]),
-            ['BITFIELD_RO', 'key', 'GET', 'i8', '0']
-        );
-    });
+  it('parseCommand', () => {
+    assert.deepEqual(
+      parseArgs(BITFIELD_RO, 'key', [{
+        encoding: 'i8',
+        offset: 0
+      }]),
+      ['BITFIELD_RO', 'key', 'GET', 'i8', '0']
+    );
+  });
 
-    testUtils.testWithClient('client.bitFieldRo', async client => {
-        assert.deepEqual(
-            await client.bitFieldRo('key', [{
-                encoding: 'i8',
-                offset: 0
-            }]),
-            [0]
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testAll('bitFieldRo', async client => {
+    assert.deepEqual(
+      await client.bitFieldRo('key', [{
+        encoding: 'i8',
+        offset: 0
+      }]),
+      [0]
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

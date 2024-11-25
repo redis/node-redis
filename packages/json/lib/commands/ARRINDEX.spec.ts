@@ -1,37 +1,49 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './ARRINDEX';
+import ARRINDEX from './ARRINDEX';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
-describe('ARRINDEX', () => {
-    describe('transformArguments', () => {
-        it('simple', () => {
-            assert.deepEqual(
-                transformArguments('key', '$', 'json'),
-                ['JSON.ARRINDEX', 'key', '$', '"json"']
-            );
-        });
-
-        it('with start', () => {
-            assert.deepEqual(
-                transformArguments('key', '$', 'json', 1),
-                ['JSON.ARRINDEX', 'key', '$', '"json"', '1']
-            );
-        });
-
-        it('with start, end', () => {
-            assert.deepEqual(
-                transformArguments('key', '$', 'json', 1, 2),
-                ['JSON.ARRINDEX', 'key', '$', '"json"', '1', '2']
-            );
-        });
+describe('JSON.ARRINDEX', () => {
+  describe('transformArguments', () => {
+    it('simple', () => {
+      assert.deepEqual(
+        parseArgs(ARRINDEX, 'key', '$', 'value'),
+        ['JSON.ARRINDEX', 'key', '$', '"value"']
+      );
     });
 
-    testUtils.testWithClient('client.json.arrIndex', async client => {
-        await client.json.set('key', '$', []);
-
+    describe('with range', () => {
+      it('start only', () => {
         assert.deepEqual(
-            await client.json.arrIndex('key', '$', 'json'),
-            [-1]
+          parseArgs(ARRINDEX, 'key', '$', 'value', {
+            range: {
+              start: 0
+            }
+          }),
+          ['JSON.ARRINDEX', 'key', '$', '"value"', '0']
         );
-    }, GLOBAL.SERVERS.OPEN);
+      });
+
+      it('with start and stop', () => {
+        assert.deepEqual(
+          parseArgs(ARRINDEX, 'key', '$', 'value', {
+            range: {
+              start: 0,
+              stop: 1
+            }
+          }),
+          ['JSON.ARRINDEX', 'key', '$', '"value"', '0', '1']
+        );
+      });
+    });
+  });
+
+  testUtils.testWithClient('client.json.arrIndex', async client => {
+    const [, reply] = await Promise.all([
+      client.json.set('key', '$', []),
+      client.json.arrIndex('key', '$', 'value')
+    ]);
+
+    assert.deepEqual(reply, [-1]);
+  }, GLOBAL.SERVERS.OPEN);
 });

@@ -1,18 +1,11 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, BlobStringReply, NullReply, Command } from '../RESP/types';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(
-    key: RedisCommandArgument,
-    count?: number
-): RedisCommandArguments {
-    const args = ['SPOP', key];
-
-    if (typeof count === 'number') {
-        args.push(count.toString());
-    }
-
-    return args;
-}
-
-export declare function transformReply(): Array<RedisCommandArgument>;
+export default {
+  IS_READ_ONLY: false,
+  parseCommand(parser: CommandParser, key: RedisArgument) {
+    parser.push('SPOP');
+    parser.pushKey(key);
+  },
+  transformReply: undefined as unknown as () => BlobStringReply | NullReply
+} as const satisfies Command;

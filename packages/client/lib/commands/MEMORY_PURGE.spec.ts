@@ -1,19 +1,20 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './MEMORY_PURGE';
+import MEMORY_PURGE from './MEMORY_PURGE';
+import { parseArgs } from './generic-transformers';
 
 describe('MEMORY PURGE', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments(),
-            ['MEMORY', 'PURGE']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(MEMORY_PURGE),
+      ['MEMORY', 'PURGE']
+    );
+  });
 
-    testUtils.testWithClient('client.memoryPurge', async client => {
-        assert.equal(
-            await client.memoryPurge(),
-            'OK'
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testWithClient('client.memoryPurge', async client => {
+    assert.equal(
+      await client.memoryPurge(),
+      'OK'
+    );
+  }, GLOBAL.SERVERS.OPEN);
 });

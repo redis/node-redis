@@ -1,18 +1,21 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './SLOWLOG';
+import SLOWLOG from './SLOWLOG';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
-describe('SLOWLOG', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key'),
-            ['GRAPH.SLOWLOG', 'key']
-        );
-    });
+describe('GRAPH.SLOWLOG', () => {
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(SLOWLOG, 'key'),
+      ['GRAPH.SLOWLOG', 'key']
+    );
+  });
 
-    testUtils.testWithClient('client.graph.slowLog', async client => {
-        await client.graph.query('key', 'RETURN 1');
-        const reply = await client.graph.slowLog('key');
-		assert.equal(reply.length, 1);
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testWithClient('client.graph.slowLog', async client => {
+    const [, reply] = await Promise.all([
+      client.graph.query('key', 'RETURN 1'),
+      client.graph.slowLog('key')
+    ]);
+    assert.equal(reply.length, 1);
+  }, GLOBAL.SERVERS.OPEN);
 });

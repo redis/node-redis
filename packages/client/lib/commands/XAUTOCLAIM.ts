@@ -1,39 +1,41 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { StreamMessagesNullReply, transformStreamMessagesNullReply } from './generic-transformers';
-
-export const FIRST_KEY_INDEX = 1;
+import { CommandParser } from '../client/parser';
+import { RedisArgument, TuplesReply, BlobStringReply, ArrayReply, NullReply, UnwrapReply, Command, TypeMapping } from '../RESP/types';
+import { StreamMessageRawReply, transformStreamMessageNullReply } from './generic-transformers';
 
 export interface XAutoClaimOptions {
-    COUNT?: number;
+  COUNT?: number;
 }
 
-export function transformArguments(
-    key: RedisCommandArgument,
-    group: RedisCommandArgument,
-    consumer: RedisCommandArgument,
+export type XAutoClaimRawReply = TuplesReply<[
+  nextId: BlobStringReply,
+  messages: ArrayReply<StreamMessageRawReply | NullReply>,
+  deletedMessages: ArrayReply<BlobStringReply>
+]>;
+
+export default {
+  IS_READ_ONLY: false,
+  parseCommand(
+    parser: CommandParser,
+    key: RedisArgument,
+    group: RedisArgument,
+    consumer: RedisArgument,
     minIdleTime: number,
-    start: string,
+    start: RedisArgument,
     options?: XAutoClaimOptions
-): RedisCommandArguments {
-    const args = ['XAUTOCLAIM', key, group, consumer, minIdleTime.toString(), start];
+  ) {
+    parser.push('XAUTOCLAIM');
+    parser.pushKey(key);
+    parser.push(group, consumer, minIdleTime.toString(), start);
 
     if (options?.COUNT) {
-        args.push('COUNT', options.COUNT.toString());
+      parser.push('COUNT', options.COUNT.toString());
     }
-
-    return args;
-}
-
-type XAutoClaimRawReply = [RedisCommandArgument, Array<any>];
-
-interface XAutoClaimReply {
-    nextId: RedisCommandArgument;
-    messages: StreamMessagesNullReply;
-}
-
-export function transformReply(reply: XAutoClaimRawReply): XAutoClaimReply {
+  },
+  transformReply(reply: UnwrapReply<XAutoClaimRawReply>, preserve?: any, typeMapping?: TypeMapping) {
     return {
-        nextId: reply[0],
-        messages: transformStreamMessagesNullReply(reply[1])
+      nextId: reply[0],
+      messages: (reply[1] as unknown as UnwrapReply<typeof reply[1]>).map(transformStreamMessageNullReply.bind(undefined, typeMapping)),
+      deletedMessages: reply[2]
     };
-}
+  }
+} as const satisfies Command;

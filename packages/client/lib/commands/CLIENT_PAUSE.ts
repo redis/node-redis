@@ -1,20 +1,14 @@
-import { RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { SimpleStringReply, Command } from '../RESP/types';
 
-export function transformArguments(
-    timeout: number,
-    mode?: 'WRITE' | 'ALL'
-): RedisCommandArguments {
-    const args = [
-        'CLIENT',
-        'PAUSE',
-        timeout.toString()
-    ];
-
+export default {
+  NOT_KEYED_COMMAND: true,
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, timeout: number, mode?: 'WRITE' | 'ALL') {
+    parser.push('CLIENT', 'PAUSE', timeout.toString());
     if (mode) {
-        args.push(mode);
+      parser.push(mode);
     }
-
-    return args;
-}
-
-export declare function transformReply(): 'OK' | Buffer;
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

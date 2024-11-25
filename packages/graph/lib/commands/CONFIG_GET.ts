@@ -1,12 +1,16 @@
-export const IS_READ_ONLY = true;
+import { RedisArgument, TuplesReply, ArrayReply, BlobStringReply, NumberReply, Command } from '@redis/client/dist/lib/RESP/types';
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
 
-export function transformArguments(configKey: string): Array<string> {
-    return ['GRAPH.CONFIG', 'GET', configKey];
-}
+type ConfigItemReply = TuplesReply<[
+  configKey: BlobStringReply,
+  value: NumberReply
+]>;
 
-type ConfigItem = [
-    configKey: string,
-    value: number
-];
-
-export declare function transformReply(): ConfigItem | Array<ConfigItem>;
+export default {
+  NOT_KEYED_COMMAND: true,
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, configKey: RedisArgument) {
+    parser.push('GRAPH.CONFIG', 'GET', configKey);
+  },
+  transformReply: undefined as unknown as () => ConfigItemReply | ArrayReply<ConfigItemReply>
+} as const satisfies Command;

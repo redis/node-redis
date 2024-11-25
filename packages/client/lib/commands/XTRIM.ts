@@ -1,31 +1,34 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { NumberReply, Command, RedisArgument } from '../RESP/types';
 
-export const FIRST_KEY_INDEX = 1;
-
-interface XTrimOptions {
-    strategyModifier?: '=' | '~';
-    LIMIT?: number;
+export interface XTrimOptions {
+  strategyModifier?: '=' | '~';
+  /** added in 6.2 */
+  LIMIT?: number;
 }
 
-export function transformArguments(
-    key: RedisCommandArgument,
+export default {
+  IS_READ_ONLY: false,
+  parseCommand(
+    parser: CommandParser,
+    key: RedisArgument,
     strategy: 'MAXLEN' | 'MINID',
     threshold: number,
     options?: XTrimOptions
-): RedisCommandArguments {
-    const args = ['XTRIM', key, strategy];
+  ) {
+    parser.push('XTRIM')
+    parser.pushKey(key);
+    parser.push(strategy);
 
     if (options?.strategyModifier) {
-        args.push(options.strategyModifier);
+      parser.push(options.strategyModifier);
     }
 
-    args.push(threshold.toString());
+    parser.push(threshold.toString());
 
     if (options?.LIMIT) {
-        args.push('LIMIT', options.LIMIT.toString());
+      parser.push('LIMIT', options.LIMIT.toString());
     }
-
-    return args;
-}
-
-export declare function transformReply(): number;
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

@@ -1,12 +1,12 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, NullReply, ArrayReply, BlobStringReply, Command } from '../RESP/types';
+import LPOP from './LPOP';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(
-    key: RedisCommandArgument,
-    count: number
-): RedisCommandArguments {
-    return ['LPOP', key, count.toString()];
-}
-
-export declare function transformReply(): Array<RedisCommandArgument> | null;
+export default {
+  IS_READ_ONLY: false,
+  parseCommand(parser: CommandParser, key: RedisArgument, count: number) {
+    LPOP.parseCommand(parser, key);
+    parser.push(count.toString())
+  },
+  transformReply: undefined as unknown as () => NullReply | ArrayReply<BlobStringReply>
+} as const satisfies Command;

@@ -1,28 +1,29 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './DICTADD';
+import DICTADD from './DICTADD';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
-describe('DICTADD', () => {
-    describe('transformArguments', () => {
-        it('string', () => {
-            assert.deepEqual(
-                transformArguments('dictionary', 'term'),
-                ['FT.DICTADD', 'dictionary', 'term']
-            );
-        });
-
-        it('Array', () => {
-            assert.deepEqual(
-                transformArguments('dictionary', ['1', '2']),
-                ['FT.DICTADD', 'dictionary', '1', '2']
-            );
-        });
+describe('FT.DICTADD', () => {
+  describe('transformArguments', () => {
+    it('string', () => {
+      assert.deepEqual(
+        parseArgs(DICTADD, 'dictionary', 'term'),
+        ['FT.DICTADD', 'dictionary', 'term']
+      );
     });
 
-    testUtils.testWithClient('client.ft.dictAdd', async client => {
-        assert.equal(
-            await client.ft.dictAdd('dictionary', 'term'),
-            1
-        );
-    }, GLOBAL.SERVERS.OPEN);
+    it('Array', () => {
+      assert.deepEqual(
+        parseArgs(DICTADD, 'dictionary', ['1', '2']),
+        ['FT.DICTADD', 'dictionary', '1', '2']
+      );
+    });
+  });
+
+  testUtils.testWithClient('client.ft.dictAdd', async client => {
+    assert.equal(
+      await client.ft.dictAdd('dictionary', 'term'),
+      1
+    );
+  }, GLOBAL.SERVERS.OPEN);
 });

@@ -1,9 +1,12 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, ArrayReply, BlobStringReply, Command } from '../RESP/types';
 
-export const IS_READ_ONLY = true;
-
-export function transformArguments(args: Array<RedisCommandArgument>): RedisCommandArguments {
-    return ['COMMAND', 'GETKEYS', ...args];
-}
-
-export declare function transformReply(): Array<RedisCommandArgument>;
+export default {
+  NOT_KEYED_COMMAND: true,
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, args: Array<RedisArgument>) {
+    parser.push('COMMAND', 'GETKEYS');
+    parser.push(...args);
+  },
+  transformReply: undefined as unknown as () => ArrayReply<BlobStringReply>
+} as const satisfies Command;

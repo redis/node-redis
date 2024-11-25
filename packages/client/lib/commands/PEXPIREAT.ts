@@ -1,24 +1,22 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, NumberReply, Command } from '../RESP/types';
 import { transformPXAT } from './generic-transformers';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(
-    key: RedisCommandArgument,
-    millisecondsTimestamp: number | Date,
+export default {
+  IS_READ_ONLY: true,
+  parseCommand(
+    parser: CommandParser,
+    key: RedisArgument,
+    msTimestamp: number | Date,
     mode?: 'NX' | 'XX' | 'GT' | 'LT'
-): RedisCommandArguments {
-    const args = [
-        'PEXPIREAT',
-        key,
-        transformPXAT(millisecondsTimestamp)
-    ];
+  ) {
+    parser.push('PEXPIREAT');
+    parser.pushKey(key);
+    parser.push(transformPXAT(msTimestamp));
 
     if (mode) {
-        args.push(mode);
+      parser.push(mode);
     }
-
-    return args;
-}
-
-export { transformBooleanReply as transformReply } from './generic-transformers';
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

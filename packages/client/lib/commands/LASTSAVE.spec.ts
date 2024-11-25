@@ -1,16 +1,20 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './LASTSAVE';
+import LASTSAVE from './LASTSAVE';
+import { parseArgs } from './generic-transformers';
 
 describe('LASTSAVE', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments(),
-            ['LASTSAVE']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(LASTSAVE),
+      ['LASTSAVE']
+    );
+  });
 
-    testUtils.testWithClient('client.lastSave', async client => {
-        assert.ok((await client.lastSave()) instanceof Date);
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testWithClient('client.lastSave', async client => {
+    assert.equal(
+      typeof await client.lastSave(),
+      'number'
+    );
+  }, GLOBAL.SERVERS.OPEN);
 });

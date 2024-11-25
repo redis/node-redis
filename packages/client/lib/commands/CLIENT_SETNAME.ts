@@ -1,7 +1,11 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
 
-export function transformArguments(name: RedisCommandArgument): RedisCommandArguments {
-    return ['CLIENT', 'SETNAME', name];
-}
-
-export declare function transformReply(): RedisCommandArgument;
+export default {
+  NOT_KEYED_COMMAND: true,
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, name: RedisArgument) {
+    parser.push('CLIENT', 'SETNAME', name);
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

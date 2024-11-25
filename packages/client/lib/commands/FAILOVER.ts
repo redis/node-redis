@@ -1,33 +1,35 @@
+import { CommandParser } from '../client/parser';
+import { SimpleStringReply, Command } from '../RESP/types';
+
 interface FailoverOptions {
-    TO?: {
-        host: string;
-        port: number;
-        FORCE?: true;
-    };
-    ABORT?: true;
-    TIMEOUT?: number;
+  TO?: {
+    host: string;
+    port: number;
+    FORCE?: true;
+  };
+  ABORT?: true;
+  TIMEOUT?: number;
 }
 
-export function transformArguments(options?: FailoverOptions): Array<string> {
-    const args = ['FAILOVER'];
+export default {
+  parseCommand(parser: CommandParser, options?: FailoverOptions) {
+    parser.push('FAILOVER');
 
     if (options?.TO) {
-        args.push('TO', options.TO.host, options.TO.port.toString());
+      parser.push('TO', options.TO.host, options.TO.port.toString());
 
-        if (options.TO.FORCE) {
-            args.push('FORCE');
-        }
+      if (options.TO.FORCE) {
+        parser.push('FORCE');
+      }
     }
 
     if (options?.ABORT) {
-        args.push('ABORT');
+      parser.push('ABORT');
     }
 
     if (options?.TIMEOUT) {
-        args.push('TIMEOUT', options.TIMEOUT.toString());
+      parser.push('TIMEOUT', options.TIMEOUT.toString());
     }
-
-    return args;
-}
-
-export declare function transformReply(): string;
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply
+} as const satisfies Command;

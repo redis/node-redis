@@ -1,20 +1,18 @@
-import { RedisCommandArgument, RedisCommandArguments } from '@redis/client/dist/lib/commands';
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { RedisArgument, Command } from '@redis/client/dist/lib/RESP/types';
+import { transformDoubleReply } from '@redis/client/dist/lib/commands/generic-transformers';
 
-export const FIRST_KEY_INDEX = 1;
-
-export const IS_READ_ONLY = true;
-
-export function transformArguments(
-    key: RedisCommandArgument,
+export default {
+  IS_READ_ONLY: true,
+  parseCommand(
+    parser: CommandParser,
+    key: RedisArgument,
     lowCutPercentile: number,
     highCutPercentile: number
-): RedisCommandArguments {
-    return [
-        'TDIGEST.TRIMMED_MEAN',
-        key,
-        lowCutPercentile.toString(),
-        highCutPercentile.toString()
-    ];
-}
-
-export { transformDoubleReply as transformReply } from '.';
+  ) {
+    parser.push('TDIGEST.TRIMMED_MEAN');
+    parser.pushKey(key);
+    parser.push(lowCutPercentile.toString(), highCutPercentile.toString());
+  },
+  transformReply: transformDoubleReply
+} as const satisfies Command;

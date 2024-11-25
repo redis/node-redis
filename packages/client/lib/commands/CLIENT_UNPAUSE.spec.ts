@@ -1,21 +1,22 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './CLIENT_UNPAUSE';
+import CLIENT_UNPAUSE from './CLIENT_UNPAUSE';
+import { parseArgs } from './generic-transformers';
 
 describe('CLIENT UNPAUSE', () => {
-    testUtils.isVersionGreaterThanHook([6, 2]);
+  testUtils.isVersionGreaterThanHook([6, 2]);
 
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments(),
-            ['CLIENT', 'UNPAUSE']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(CLIENT_UNPAUSE),
+      ['CLIENT', 'UNPAUSE']
+    );
+  });
 
-    testUtils.testWithClient('client.unpause', async client => {
-        assert.equal(
-            await client.clientUnpause(),
-            'OK'
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testWithClient('client.clientUnpause', async client => {
+    assert.equal(
+      await client.clientUnpause(),
+      'OK'
+    );
+  }, GLOBAL.SERVERS.OPEN);
 });

@@ -1,13 +1,18 @@
-export const FIRST_KEY_INDEX = 1;
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { RedisArgument, NumberReply, ArrayReply, NullReply, Command } from '@redis/client/dist/lib/RESP/types';
 
-export function transformArguments(key: string, path?: string): Array<string> {
-    const args = ['JSON.OBJLEN', key];
-
-    if (path) {
-        args.push(path);
-    }
-
-    return args;
+export interface JsonObjLenOptions {
+  path?: RedisArgument;
 }
 
-export declare function transformReply(): number | null | Array<number | null>;
+export default {
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, key: RedisArgument, options?: JsonObjLenOptions) {
+    parser.push('JSON.OBJLEN');
+    parser.pushKey(key);
+    if (options?.path !== undefined) {
+      parser.push(options.path);
+    }
+  },
+  transformReply: undefined as unknown as () => NumberReply | ArrayReply<NumberReply | NullReply>
+} as const satisfies Command;

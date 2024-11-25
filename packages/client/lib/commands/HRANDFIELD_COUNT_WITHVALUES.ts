@@ -1,16 +1,41 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { transformArguments as transformHRandFieldCountArguments } from './HRANDFIELD_COUNT';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, ArrayReply, TuplesReply, BlobStringReply, UnwrapReply, Command } from '../RESP/types';
 
-export { FIRST_KEY_INDEX, IS_READ_ONLY } from './HRANDFIELD_COUNT';
+export type HRandFieldCountWithValuesReply = Array<{
+  field: BlobStringReply;
+  value: BlobStringReply;
+}>;
 
-export function transformArguments(
-    key: RedisCommandArgument,
-    count: number
-): RedisCommandArguments {
-    return [
-        ...transformHRandFieldCountArguments(key, count),
-        'WITHVALUES'
-    ];
-}
+export default {
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, key: RedisArgument, count: number) {
+    parser.push('HRANDFIELD');
+    parser.pushKey(key);
+    parser.push(count.toString(), 'WITHVALUES');
+  },
+  transformReply: {
+    2: (rawReply: UnwrapReply<ArrayReply<BlobStringReply>>) => {
+      const reply: HRandFieldCountWithValuesReply = [];
 
-export { transformTuplesReply as transformReply } from './generic-transformers';
+      let i = 0;
+      while (i < rawReply.length) {
+        reply.push({
+          field: rawReply[i++],
+          value: rawReply[i++]
+        });
+      }
+
+      return reply;
+    },
+    3: (reply: UnwrapReply<ArrayReply<TuplesReply<[BlobStringReply, BlobStringReply]>>>) => {
+      return reply.map(entry => {
+        const [field, value] = entry as unknown as UnwrapReply<typeof entry>;
+        return {
+          field,
+          value
+        };
+      }) satisfies HRandFieldCountWithValuesReply;
+    }
+  }
+} as const satisfies Command;
+ 

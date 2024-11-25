@@ -1,19 +1,18 @@
-import { RedisCommandArgument } from '.';
+import { CommandParser } from '../client/parser';
+import { BlobStringReply, Command } from '../RESP/types';
 
-export const IS_READ_ONLY = true;
-
-export function transformArguments(version?: number, ...optionalArguments: Array<number>): Array<string> {
-    const args = ['LOLWUT'];
-
+export default {
+  NOT_KEYED_COMMAND: true,
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, version?: number, ...optionalArguments: Array<number>) {
+    parser.push('LOLWUT');
     if (version) {
-        args.push(
-            'VERSION',
-            version.toString(),
-            ...optionalArguments.map(String),
-        );
+      parser.push(
+        'VERSION',
+        version.toString()
+      );
+      parser.pushVariadic(optionalArguments.map(String));
     }
-
-    return args;
-}
-
-export declare function transformReply(): RedisCommandArgument;
+  },
+  transformReply: undefined as unknown as () => BlobStringReply
+} as const satisfies Command;

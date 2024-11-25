@@ -1,7 +1,12 @@
-export const FIRST_KEY_INDEX = 1;
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { RedisArgument, SimpleStringReply, Command } from '@redis/client/dist/lib/RESP/types';
 
-export function transformArguments(key: string, width: number, depth: number): Array<string> {
-    return ['CMS.INITBYDIM', key, width.toString(), depth.toString()];
-}
-
-export declare function transformReply(): 'OK';
+export default {
+  IS_READ_ONLY: false,
+  parseCommand(parser: CommandParser, key: RedisArgument, width: number, depth: number) {
+    parser.push('CMS.INITBYDIM');
+    parser.pushKey(key);
+    parser.push(width.toString(), depth.toString());
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

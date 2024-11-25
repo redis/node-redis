@@ -1,16 +1,12 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { transformArguments as transformHRandFieldArguments } from './HRANDFIELD';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, ArrayReply, BlobStringReply, Command } from '../RESP/types';
 
-export { FIRST_KEY_INDEX, IS_READ_ONLY } from './HRANDFIELD';
-
-export function transformArguments(
-    key: RedisCommandArgument,
-    count: number
-): RedisCommandArguments {
-    return [
-        ...transformHRandFieldArguments(key),
-        count.toString()
-    ];
-}
-
-export declare function transformReply(): Array<RedisCommandArgument>;
+export default {
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, key: RedisArgument, count: number) {
+    parser.push('HRANDFIELD');
+    parser.pushKey(key);
+    parser.push(count.toString());
+  },
+  transformReply: undefined as unknown as () => ArrayReply<BlobStringReply>
+} as const satisfies Command;

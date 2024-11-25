@@ -1,19 +1,20 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../../test-utils';
-import { transformArguments } from './ADD';
+import ADD from './ADD';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
-describe('BF ADD', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key', 'item'),
-            ['BF.ADD', 'key', 'item']
-        );
-    });
+describe('BF.ADD', () => {
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(ADD, 'key', 'item'),
+      ['BF.ADD', 'key', 'item']
+    );
+  });
 
-    testUtils.testWithClient('client.bf.add', async client => {
-        assert.equal(
-            await client.bf.add('key', 'item'),
-            true
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testWithClient('client.bf.add', async client => {
+    assert.equal(
+      await client.bf.add('key', 'item'),
+      true
+    );
+  }, GLOBAL.SERVERS.OPEN);
 });

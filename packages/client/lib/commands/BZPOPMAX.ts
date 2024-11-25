@@ -1,29 +1,33 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { pushVerdictArguments, transformNumberInfinityReply, ZMember } from './generic-transformers';
+import { CommandParser } from '../client/parser';
+import { NullReply, TuplesReply, BlobStringReply, DoubleReply, UnwrapReply, Command, TypeMapping } from '../RESP/types';
+import { RedisVariadicArgument, transformDoubleReply } from './generic-transformers';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(
-    key: RedisCommandArgument | Array<RedisCommandArgument>,
-    timeout: number
-): RedisCommandArguments {
-    const args = pushVerdictArguments(['BZPOPMAX'], key);
-
-    args.push(timeout.toString());
-
-    return args;
-}
-
-type ZMemberRawReply = [key: RedisCommandArgument, value: RedisCommandArgument, score: RedisCommandArgument] | null;
-
-type BZPopMaxReply = (ZMember & { key: RedisCommandArgument }) | null;
-
-export function transformReply(reply: ZMemberRawReply): BZPopMaxReply | null {
-    if (!reply) return null;
-
-    return {
+export default {
+  IS_READ_ONLY: false,
+  parseCommand(parser: CommandParser, keys: RedisVariadicArgument, timeout: number) {
+    parser.push('BZPOPMAX');
+    parser.pushKeys(keys);
+    parser.push(timeout.toString());
+  },
+  transformReply: {
+    2(
+      reply: UnwrapReply<NullReply | TuplesReply<[BlobStringReply, BlobStringReply, BlobStringReply]>>,
+      preserve?: any,
+      typeMapping?: TypeMapping
+    ) {
+      return reply === null ? null : {
         key: reply[0],
         value: reply[1],
-        score: transformNumberInfinityReply(reply[2])
-    };
-}
+        score: transformDoubleReply[2](reply[2], preserve, typeMapping)
+      };
+    },
+    3(reply: UnwrapReply<NullReply | TuplesReply<[BlobStringReply, BlobStringReply, DoubleReply]>>) {
+      return reply === null ? null : {
+        key: reply[0],
+        value: reply[1],
+        score: reply[2]
+      };
+    }
+  }
+} as const satisfies Command;
+

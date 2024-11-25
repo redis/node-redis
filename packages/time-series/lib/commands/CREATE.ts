@@ -1,38 +1,44 @@
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { RedisArgument, SimpleStringReply, Command } from '@redis/client/dist/lib/RESP/types';
 import {
-    pushRetentionArgument,
-    TimeSeriesEncoding,
-    pushEncodingArgument,
-    pushChunkSizeArgument,
-    TimeSeriesDuplicatePolicies,
-    Labels,
-    pushLabelsArgument,
-    pushDuplicatePolicy
+  parseRetentionArgument,
+  TimeSeriesEncoding,
+  parseEncodingArgument,
+  parseChunkSizeArgument,
+  TimeSeriesDuplicatePolicies,
+  parseDuplicatePolicy,
+  Labels,
+  parseLabelsArgument,
+  parseIgnoreArgument
 } from '.';
+import { TsIgnoreOptions } from './ADD';
 
-export const FIRST_KEY_INDEX = 1;
-
-interface CreateOptions {
-    RETENTION?: number;
-    ENCODING?: TimeSeriesEncoding;
-    CHUNK_SIZE?: number;
-    DUPLICATE_POLICY?: TimeSeriesDuplicatePolicies;
-    LABELS?: Labels;
+export interface TsCreateOptions {
+  RETENTION?: number;
+  ENCODING?: TimeSeriesEncoding;
+  CHUNK_SIZE?: number;
+  DUPLICATE_POLICY?: TimeSeriesDuplicatePolicies;
+  LABELS?: Labels;
+  IGNORE?: TsIgnoreOptions;
 }
 
-export function transformArguments(key: string, options?: CreateOptions): Array<string> {
-    const args = ['TS.CREATE', key];
+export default {
+  IS_READ_ONLY: false,
+  parseCommand(parser: CommandParser, key: RedisArgument, options?: TsCreateOptions) {
+    parser.push('TS.CREATE');
+    parser.pushKey(key);
 
-    pushRetentionArgument(args, options?.RETENTION);
+    parseRetentionArgument(parser, options?.RETENTION);
 
-    pushEncodingArgument(args, options?.ENCODING);
+    parseEncodingArgument(parser, options?.ENCODING);
 
-    pushChunkSizeArgument(args, options?.CHUNK_SIZE);
+    parseChunkSizeArgument(parser, options?.CHUNK_SIZE);
 
-    pushDuplicatePolicy(args, options?.DUPLICATE_POLICY);
+    parseDuplicatePolicy(parser, options?.DUPLICATE_POLICY);
 
-    pushLabelsArgument(args, options?.LABELS);
+    parseLabelsArgument(parser, options?.LABELS);
 
-    return args;
-}
-
-export declare function transformReply(): 'OK';
+    parseIgnoreArgument(parser, options?.IGNORE);
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

@@ -1,14 +1,13 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, NumberReply, NullReply, Command } from '../RESP/types';
 
-export const FIRST_KEY_INDEX = 1;
-
-export const IS_READ_ONLY = true;
-
-export function transformArguments(
-    key: RedisCommandArgument,
-    member: RedisCommandArgument
-): RedisCommandArguments {
-    return ['ZRANK', key, member];
-}
-
-export declare function transformReply(): number | null;
+export default {
+  CACHEABLE: true,
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, key: RedisArgument, member: RedisArgument) {
+    parser.push('ZRANK');
+    parser.pushKey(key);
+    parser.push(member);
+  },
+  transformReply: undefined as unknown as () => NumberReply | NullReply
+} as const satisfies Command;

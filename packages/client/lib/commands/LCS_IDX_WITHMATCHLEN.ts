@@ -1,45 +1,31 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { RangeReply, RawRangeReply, transformRangeReply } from './generic-transformers';
-import { transformArguments as transformLcsArguments } from './LCS';
+import { TuplesToMapReply, BlobStringReply, ArrayReply, TuplesReply, NumberReply, UnwrapReply, Resp2Reply, Command } from '../RESP/types';
+import LCS_IDX, { LcsIdxRange } from './LCS_IDX';
 
-export { FIRST_KEY_INDEX, IS_READ_ONLY } from './LCS';
+export type LcsIdxWithMatchLenMatches = ArrayReply<
+  TuplesReply<[
+    key1: LcsIdxRange,
+    key2: LcsIdxRange,
+    len: NumberReply
+  ]>
+>;
 
-export function transformArguments(
-    key1: RedisCommandArgument,
-    key2: RedisCommandArgument
-): RedisCommandArguments {
-    const args = transformLcsArguments(key1, key2);
-    args.push('IDX', 'WITHMATCHLEN');
-    return args;
-}
+export type LcsIdxWithMatchLenReply = TuplesToMapReply<[
+  [BlobStringReply<'matches'>, LcsIdxWithMatchLenMatches],
+  [BlobStringReply<'len'>, NumberReply]
+]>;
 
-type RawReply = [
-    'matches',
-    Array<[
-        key1: RawRangeReply,
-        key2: RawRangeReply,
-        length: number
-    ]>,
-    'len',
-    number
-];
-
-interface Reply {
-    matches: Array<{
-        key1: RangeReply;
-        key2: RangeReply;
-        length: number;
-    }>;
-    length: number;
-}
-
-export function transformReply(reply: RawReply): Reply {
-    return {
-        matches: reply[1].map(([key1, key2, length]) => ({
-            key1: transformRangeReply(key1),
-            key2: transformRangeReply(key2),
-            length
-        })),
-        length: reply[3]
-    };
-}
+export default {
+  IS_READ_ONLY: LCS_IDX.IS_READ_ONLY,
+  parseCommand(...args: Parameters<typeof LCS_IDX.parseCommand>) {
+    const parser = args[0];
+    LCS_IDX.parseCommand(...args);
+    parser.push('WITHMATCHLEN');
+  },
+  transformReply: {
+    2: (reply: UnwrapReply<Resp2Reply<LcsIdxWithMatchLenReply>>) => ({
+      matches: reply[1],
+      len: reply[3]
+    }),
+    3: undefined as unknown as () => LcsIdxWithMatchLenReply
+  }
+} as const satisfies Command;

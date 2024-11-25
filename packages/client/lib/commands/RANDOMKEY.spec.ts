@@ -1,19 +1,23 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './RANDOMKEY';
+import RANDOMKEY from './RANDOMKEY';
+import { parseArgs } from './generic-transformers';
 
 describe('RANDOMKEY', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments(),
-            ['RANDOMKEY']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(RANDOMKEY),
+      ['RANDOMKEY']
+    );
+  });
 
-    testUtils.testWithClient('client.randomKey', async client => {
-        assert.equal(
-            await client.randomKey(),
-            null
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testAll('randomKey', async client => {
+    assert.equal(
+      await client.randomKey(),
+      null
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

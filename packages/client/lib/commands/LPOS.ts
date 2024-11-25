@@ -1,30 +1,31 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-
-export const FIRST_KEY_INDEX = 1;
-
-export const IS_READ_ONLY = true;
+import { CommandParser } from '../client/parser';
+import { RedisArgument, NumberReply, NullReply, Command } from '../RESP/types';
 
 export interface LPosOptions {
-    RANK?: number;
-    MAXLEN?: number;
+  RANK?: number;
+  MAXLEN?: number;
 }
 
-export function transformArguments(
-    key: RedisCommandArgument,
-    element: RedisCommandArgument,
+export default {
+  CACHEABLE: true,
+  IS_READ_ONLY: true,
+  parseCommand(
+    parser: CommandParser,
+    key: RedisArgument,
+    element: RedisArgument,
     options?: LPosOptions
-): RedisCommandArguments {
-    const args = ['LPOS', key, element];
+  ) {
+    parser.push('LPOS');
+    parser.pushKey(key);
+    parser.push(element);
 
-    if (typeof options?.RANK === 'number') {
-        args.push('RANK', options.RANK.toString());
+    if (options?.RANK !== undefined) {
+      parser.push('RANK', options.RANK.toString());
     }
 
-    if (typeof options?.MAXLEN === 'number') {
-        args.push('MAXLEN', options.MAXLEN.toString());
+    if (options?.MAXLEN !== undefined) {
+      parser.push('MAXLEN', options.MAXLEN.toString());
     }
-
-    return args;
-}
-
-export declare function transformReply(): number | null;
+  },
+  transformReply: undefined as unknown as () => NumberReply | NullReply
+} as const satisfies Command;

@@ -2,19 +2,20 @@ import TestUtils from '@redis/test-utils';
 import RedisGraph from '.';
 
 export default new TestUtils({
-    dockerImageName: 'redislabs/redisgraph',
-    dockerImageVersionArgument: 'redisgraph-version'
+  dockerImageName: 'redis/redis-stack',
+  dockerImageVersionArgument: 'redisgraph-version',
+  defaultDockerVersion: '7.4.0-v1'
 });
 
 export const GLOBAL = {
-    SERVERS: {
-        OPEN: {
-            serverArguments: ['--loadmodule /usr/lib/redis/modules/redisgraph.so'],
-            clientOptions: {
-                modules: {
-                    graph: RedisGraph
-                }
-            }
+  SERVERS: {
+    OPEN: {
+      serverArguments: [],
+      clientOptions: {
+        modules: {
+          graph: RedisGraph
         }
+      }
     }
+  }
 };

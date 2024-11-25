@@ -1,5 +1,11 @@
-export function transformArguments(): Array<string> {
-    return ['MEMORY', 'DOCTOR'];
-}
+import { CommandParser } from '../client/parser';
+import { BlobStringReply, Command } from '../RESP/types';
 
-export declare function transformReply(): string;
+export default {
+  NOT_KEYED_COMMAND: true,
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser) {
+    parser.push('MEMORY', 'DOCTOR');
+  },
+  transformReply: undefined as unknown as () => BlobStringReply
+} as const satisfies Command;

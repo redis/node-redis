@@ -1,13 +1,13 @@
-import { RedisCommandArguments } from '.';
-import { transformArguments as transformZInterArguments } from './ZINTER';
+import { Command } from '../RESP/types';
+import { transformSortedSetReply } from './generic-transformers';
+import ZINTER from './ZINTER';
 
-export { FIRST_KEY_INDEX, IS_READ_ONLY } from './ZINTER';
 
-export function transformArguments(...args: Parameters<typeof transformZInterArguments>): RedisCommandArguments {
-    return [
-        ...transformZInterArguments(...args),
-        'WITHSCORES'
-    ];
-}
-
-export { transformSortedSetWithScoresReply as transformReply } from './generic-transformers';
+export default {
+  IS_READ_ONLY: ZINTER.IS_READ_ONLY,
+  parseCommand(...args: Parameters<typeof ZINTER.parseCommand>) {
+    ZINTER.parseCommand(...args);
+    args[0].push('WITHSCORES');
+  },
+  transformReply: transformSortedSetReply
+} as const satisfies Command;

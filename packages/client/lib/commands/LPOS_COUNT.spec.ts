@@ -1,58 +1,55 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './LPOS_COUNT';
+import LPOS_COUNT from './LPOS_COUNT';
+import { parseArgs } from './generic-transformers';
 
 describe('LPOS COUNT', () => {
-    testUtils.isVersionGreaterThanHook([6, 0, 6]);
+  testUtils.isVersionGreaterThanHook([6, 0, 6]);
 
-    describe('transformArguments', () => {
-        it('simple', () => {
-            assert.deepEqual(
-                transformArguments('key', 'element', 0),
-                ['LPOS', 'key', 'element', 'COUNT', '0']
-            );
-        });
-
-        it('with RANK', () => {
-            assert.deepEqual(
-                transformArguments('key', 'element', 0, {
-                    RANK: 0
-                }),
-                ['LPOS', 'key', 'element', 'RANK', '0', 'COUNT', '0']
-            );
-        });
-
-        it('with MAXLEN', () => {
-            assert.deepEqual(
-                transformArguments('key', 'element', 0, {
-                    MAXLEN: 10
-                }),
-                ['LPOS', 'key', 'element', 'COUNT', '0', 'MAXLEN', '10']
-            );
-        });
-
-        it('with RANK, MAXLEN', () => {
-            assert.deepEqual(
-                transformArguments('key', 'element', 0, {
-                    RANK: 0,
-                    MAXLEN: 10
-                }),
-                ['LPOS', 'key', 'element', 'RANK', '0', 'COUNT', '0', 'MAXLEN', '10']
-            );
-        });
+  describe('processCommand', () => {
+    it('simple', () => {
+      assert.deepEqual(
+        parseArgs(LPOS_COUNT, 'key', 'element', 0),
+        ['LPOS', 'key', 'element', 'COUNT', '0']
+      );
     });
 
-    testUtils.testWithClient('client.lPosCount', async client => {
-        assert.deepEqual(
-            await client.lPosCount('key', 'element', 0),
-            []
-        );
-    }, GLOBAL.SERVERS.OPEN);
+    it('with RANK', () => {
+      assert.deepEqual(
+        parseArgs(LPOS_COUNT, 'key', 'element', 0, {
+          RANK: 0
+        }),
+        ['LPOS', 'key', 'element', 'RANK', '0', 'COUNT', '0']
+      );
+    });
 
-    testUtils.testWithCluster('cluster.lPosCount', async cluster => {
-        assert.deepEqual(
-            await cluster.lPosCount('key', 'element', 0),
-            []
-        );
-    }, GLOBAL.CLUSTERS.OPEN);
+    it('with MAXLEN', () => {
+      assert.deepEqual(
+        parseArgs(LPOS_COUNT, 'key', 'element', 0, {
+          MAXLEN: 10
+        }),
+        ['LPOS', 'key', 'element', 'MAXLEN', '10', 'COUNT', '0']
+      );
+    });
+
+    it('with RANK, MAXLEN', () => {
+      assert.deepEqual(
+        parseArgs(LPOS_COUNT, 'key', 'element', 0, {
+          RANK: 0,
+          MAXLEN: 10
+        }),
+        ['LPOS', 'key', 'element', 'RANK', '0', 'MAXLEN', '10', 'COUNT', '0']
+      );
+    });
+  });
+
+  testUtils.testAll('lPosCount', async client => {
+    assert.deepEqual(
+      await client.lPosCount('key', 'element', 0),
+      []
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

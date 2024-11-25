@@ -1,19 +1,20 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './DBSIZE';
+import DBSIZE from './DBSIZE';
+import { parseArgs } from './generic-transformers';
 
 describe('DBSIZE', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments(),
-            ['DBSIZE']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(DBSIZE),
+      ['DBSIZE']
+    );
+  });
 
-    testUtils.testWithClient('client.dbSize', async client => {
-        assert.equal(
-            await client.dbSize(),
-            0
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testWithClient('client.dbSize', async client => {
+    assert.equal(
+      await client.dbSize(),
+      0
+    );
+  }, GLOBAL.SERVERS.OPEN);
 });

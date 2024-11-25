@@ -1,25 +1,39 @@
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { RedisArgument, SimpleStringReply, NullReply, Command } from '@redis/client/dist/lib/RESP/types';
 import { RedisJSON, transformRedisJsonArgument } from '.';
 
-export const FIRST_KEY_INDEX = 1;
-
-interface NX {
-    NX: true;
+export interface JsonSetOptions {
+  condition?: 'NX' | 'XX';
+  /**
+   * @deprecated Use `{ condition: 'NX' }` instead.
+   */
+  NX?: boolean;
+  /**
+   * @deprecated Use `{ condition: 'XX' }` instead.
+   */
+  XX?: boolean;
 }
 
-interface XX {
-    XX: true;
-}
+export default {
+  IS_READ_ONLY: false,
+  parseCommand(
+    parser: CommandParser,
+    key: RedisArgument,
+    path: RedisArgument,
+    json: RedisJSON,
+    options?: JsonSetOptions
+  ) {
+    parser.push('JSON.SET');
+    parser.pushKey(key);
+    parser.push(path, transformRedisJsonArgument(json));
 
-export function transformArguments(key: string, path: string, json: RedisJSON, options?: NX | XX): Array<string> {
-    const args = ['JSON.SET', key, path, transformRedisJsonArgument(json)];
-
-    if ((<NX>options)?.NX) {
-        args.push('NX');
-    } else if ((<XX>options)?.XX) {
-        args.push('XX');
+    if (options?.condition) {
+      parser.push(options?.condition);
+    } else if (options?.NX) {
+      parser.push('NX');
+    } else if (options?.XX) {
+      parser.push('XX');
     }
-
-    return args;
-}
-
-export declare function transformReply(): 'OK' | null;
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'> | NullReply
+} as const satisfies Command;

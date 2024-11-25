@@ -1,167 +1,164 @@
-import { RedisCommandArgument } from '@redis/client/dist/lib/commands';
-import { transformTuplesReply } from '@redis/client/dist/lib/commands/generic-transformers';
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { RedisArgument } from "@redis/client";
+import { ArrayReply, BlobStringReply, Command, DoubleReply, MapReply, NullReply, NumberReply, ReplyUnion, SimpleStringReply, TypeMapping } from "@redis/client/dist/lib/RESP/types";
+import { createTransformTuplesReplyFunc, transformDoubleReply } from "@redis/client/dist/lib/commands/generic-transformers";
+import { TuplesReply } from '@redis/client/dist/lib/RESP/types';
 
-export function transformArguments(index: string): Array<string> {
-    return ['FT.INFO', index];
+export default {
+  NOT_KEYED_COMMAND: true,
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, index: RedisArgument) {
+    parser.push('FT.INFO', index);
+  },
+  transformReply: {
+    2: transformV2Reply,
+    3: undefined as unknown as () => ReplyUnion
+  },
+  unstableResp3: true
+} as const satisfies Command;
+
+export interface InfoReply {
+  index_name: SimpleStringReply;
+  index_options: ArrayReply<SimpleStringReply>;
+  index_definition: MapReply<SimpleStringReply, SimpleStringReply>;
+  attributes: Array<MapReply<SimpleStringReply, SimpleStringReply>>;
+  num_docs: NumberReply
+  max_doc_id: NumberReply;
+  num_terms: NumberReply;
+  num_records: NumberReply;
+  inverted_sz_mb: DoubleReply;
+  vector_index_sz_mb: DoubleReply;
+  total_inverted_index_blocks: NumberReply;
+  offset_vectors_sz_mb: DoubleReply;
+  doc_table_size_mb: DoubleReply;
+  sortable_values_size_mb: DoubleReply;
+  key_table_size_mb: DoubleReply;
+  tag_overhead_sz_mb: DoubleReply;
+  text_overhead_sz_mb: DoubleReply;
+  total_index_memory_sz_mb: DoubleReply;
+  geoshapes_sz_mb: DoubleReply;
+  records_per_doc_avg: DoubleReply;
+  bytes_per_record_avg: DoubleReply;
+  offsets_per_term_avg: DoubleReply;
+  offset_bits_per_record_avg: DoubleReply;
+  hash_indexing_failures: NumberReply;
+  total_indexing_time: DoubleReply;
+  indexing: NumberReply;
+  percent_indexed: DoubleReply;
+  number_of_uses: NumberReply;
+  cleaning: NumberReply;
+  gc_stats: {
+    bytes_collected: DoubleReply;
+    total_ms_run: DoubleReply;
+    total_cycles: DoubleReply;
+    average_cycle_time_ms: DoubleReply;
+    last_run_time_ms: DoubleReply;
+    gc_numeric_trees_missed: DoubleReply;
+    gc_blocks_denied: DoubleReply;
+  };
+  cursor_stats: {
+    global_idle: NumberReply;
+    global_total: NumberReply;
+    index_capacity: NumberReply;
+    index_total: NumberReply;
+  };
+  stopwords_list?: ArrayReply<BlobStringReply> | TuplesReply<[NullReply]>;
 }
 
-type InfoRawReply = [
-    'index_name',
-    RedisCommandArgument,
-    'index_options',
-    Array<RedisCommandArgument>,
-    'index_definition',
-    Array<RedisCommandArgument>,
-    'attributes',
-    Array<Array<RedisCommandArgument>>,
-    'num_docs',
-    RedisCommandArgument,
-    'max_doc_id',
-    RedisCommandArgument,
-    'num_terms',
-    RedisCommandArgument,
-    'num_records',
-    RedisCommandArgument,
-    'inverted_sz_mb',
-    RedisCommandArgument,
-    'vector_index_sz_mb',
-    RedisCommandArgument,
-    'total_inverted_index_blocks',
-    RedisCommandArgument,
-    'offset_vectors_sz_mb',
-    RedisCommandArgument,
-    'doc_table_size_mb',
-    RedisCommandArgument,
-    'sortable_values_size_mb',
-    RedisCommandArgument,
-    'key_table_size_mb',
-    RedisCommandArgument,
-    'records_per_doc_avg',
-    RedisCommandArgument,
-    'bytes_per_record_avg',
-    RedisCommandArgument,
-    'offsets_per_term_avg',
-    RedisCommandArgument,
-    'offset_bits_per_record_avg',
-    RedisCommandArgument,
-    'hash_indexing_failures',
-    RedisCommandArgument,
-    'indexing',
-    RedisCommandArgument,
-    'percent_indexed',
-    RedisCommandArgument,
-    'gc_stats',
-    [
-        'bytes_collected',
-        RedisCommandArgument,
-        'total_ms_run',
-        RedisCommandArgument,
-        'total_cycles',
-        RedisCommandArgument,
-        'average_cycle_time_ms',
-        RedisCommandArgument,
-        'last_run_time_ms',
-        RedisCommandArgument,
-        'gc_numeric_trees_missed',
-        RedisCommandArgument,
-        'gc_blocks_denied',
-        RedisCommandArgument
-    ],
-    'cursor_stats',
-    [
-        'global_idle',
-        number,
-        'global_total',
-        number,
-        'index_capacity',
-        number,
-        'index_total',
-        number
-    ],
-    'stopwords_list'?,
-    Array<RedisCommandArgument>?
-];
+function transformV2Reply(reply: Array<any>, preserve?: any, typeMapping?: TypeMapping): InfoReply {
+  const myTransformFunc = createTransformTuplesReplyFunc<SimpleStringReply>(preserve, typeMapping);
 
-interface InfoReply {
-    indexName: RedisCommandArgument;
-    indexOptions: Array<RedisCommandArgument>;
-    indexDefinition: Record<string, RedisCommandArgument>;
-    attributes: Array<Record<string, RedisCommandArgument>>;
-    numDocs: RedisCommandArgument;
-    maxDocId: RedisCommandArgument;
-    numTerms: RedisCommandArgument;
-    numRecords: RedisCommandArgument;
-    invertedSzMb: RedisCommandArgument;
-    vectorIndexSzMb: RedisCommandArgument;
-    totalInvertedIndexBlocks: RedisCommandArgument;
-    offsetVectorsSzMb: RedisCommandArgument;
-    docTableSizeMb: RedisCommandArgument;
-    sortableValuesSizeMb: RedisCommandArgument;
-    keyTableSizeMb: RedisCommandArgument;
-    recordsPerDocAvg: RedisCommandArgument;
-    bytesPerRecordAvg: RedisCommandArgument;
-    offsetsPerTermAvg: RedisCommandArgument;
-    offsetBitsPerRecordAvg: RedisCommandArgument;
-    hashIndexingFailures: RedisCommandArgument;
-    indexing: RedisCommandArgument;
-    percentIndexed: RedisCommandArgument;
-    gcStats: {
-        bytesCollected: RedisCommandArgument;
-        totalMsRun: RedisCommandArgument;
-        totalCycles: RedisCommandArgument;
-        averageCycleTimeMs: RedisCommandArgument;
-        lastRunTimeMs: RedisCommandArgument;
-        gcNumericTreesMissed: RedisCommandArgument;
-        gcBlocksDenied: RedisCommandArgument;
-    };
-    cursorStats: {
-        globalIdle: number;
-        globalTotal: number;
-        indexCapacity: number;
-        idnexTotal: number;
-    };
-    stopWords: Array<RedisCommandArgument> | undefined;
-}
+  const ret = {} as unknown as InfoReply;
 
-export function transformReply(rawReply: InfoRawReply): InfoReply {
-    return {
-        indexName: rawReply[1],
-        indexOptions: rawReply[3],
-        indexDefinition: transformTuplesReply(rawReply[5]),
-        attributes: rawReply[7].map(attribute => transformTuplesReply(attribute)),
-        numDocs: rawReply[9],
-        maxDocId: rawReply[11],
-        numTerms: rawReply[13],
-        numRecords: rawReply[15],
-        invertedSzMb: rawReply[17],
-        vectorIndexSzMb: rawReply[19],
-        totalInvertedIndexBlocks: rawReply[21],
-        offsetVectorsSzMb: rawReply[23],
-        docTableSizeMb: rawReply[25],
-        sortableValuesSizeMb: rawReply[27],
-        keyTableSizeMb: rawReply[29],
-        recordsPerDocAvg: rawReply[31],
-        bytesPerRecordAvg: rawReply[33],
-        offsetsPerTermAvg: rawReply[35],
-        offsetBitsPerRecordAvg: rawReply[37],
-        hashIndexingFailures: rawReply[39],
-        indexing: rawReply[41],
-        percentIndexed: rawReply[43],
-        gcStats: {
-            bytesCollected: rawReply[45][1],
-            totalMsRun: rawReply[45][3],
-            totalCycles: rawReply[45][5],
-            averageCycleTimeMs: rawReply[45][7],
-            lastRunTimeMs: rawReply[45][9],
-            gcNumericTreesMissed: rawReply[45][11],
-            gcBlocksDenied: rawReply[45][13]
-        },
-        cursorStats: {
-            globalIdle: rawReply[47][1],
-            globalTotal: rawReply[47][3],
-            indexCapacity: rawReply[47][5],
-            idnexTotal: rawReply[47][7]
-        },
-        stopWords: rawReply[49]
-    };
+  for (let i=0; i < reply.length; i += 2) {
+    const key = reply[i].toString() as keyof InfoReply;
+
+    switch (key) {
+      case 'index_name':
+      case 'index_options':
+      case 'num_docs':
+      case 'max_doc_id':
+      case 'num_terms':
+      case 'num_records':
+      case 'total_inverted_index_blocks':
+      case 'hash_indexing_failures':
+      case 'indexing':
+      case 'number_of_uses':
+      case 'cleaning':  
+      case 'stopwords_list':
+        ret[key] = reply[i+1];
+        break;
+      case 'inverted_sz_mb':
+      case 'vector_index_sz_mb':
+      case 'offset_vectors_sz_mb':
+      case 'doc_table_size_mb':
+      case 'sortable_values_size_mb':
+      case 'key_table_size_mb':
+      case 'text_overhead_sz_mb':
+      case 'tag_overhead_sz_mb':
+      case 'total_index_memory_sz_mb':
+      case 'geoshapes_sz_mb':
+      case 'records_per_doc_avg':
+      case 'bytes_per_record_avg':
+      case 'offsets_per_term_avg':
+      case 'offset_bits_per_record_avg':
+      case 'total_indexing_time':
+      case 'percent_indexed':        
+        ret[key] = transformDoubleReply[2](reply[i+1], undefined, typeMapping) as DoubleReply;
+        break;
+      case 'index_definition':
+        ret[key] = myTransformFunc(reply[i+1]);
+        break;
+      case 'attributes':
+        ret[key] = (reply[i+1] as Array<ArrayReply<SimpleStringReply>>).map(attribute => myTransformFunc(attribute));
+        break;
+      case 'gc_stats': {
+        const innerRet = {} as unknown as InfoReply['gc_stats'];
+
+        const array = reply[i+1];
+
+        for (let i=0; i < array.length; i += 2) {
+          const innerKey = array[i].toString() as keyof InfoReply['gc_stats'];
+
+          switch (innerKey) {
+            case 'bytes_collected':
+            case 'total_ms_run':
+            case 'total_cycles':
+            case 'average_cycle_time_ms':
+            case 'last_run_time_ms':
+            case 'gc_numeric_trees_missed':
+            case 'gc_blocks_denied':
+              innerRet[innerKey] = transformDoubleReply[2](array[i+1], undefined, typeMapping) as DoubleReply;
+              break;
+          }
+        }
+        
+        ret[key] = innerRet;
+        break;
+      }
+      case 'cursor_stats': {
+        const innerRet = {} as unknown as InfoReply['cursor_stats'];
+
+        const array = reply[i+1];
+
+        for (let i=0; i < array.length; i += 2) {
+          const innerKey = array[i].toString() as keyof InfoReply['cursor_stats'];
+
+          switch (innerKey) {
+            case 'global_idle':
+            case 'global_total':
+            case 'index_capacity':
+            case 'index_total':
+              innerRet[innerKey] = array[i+1];
+              break;
+          }
+        }
+
+        ret[key] = innerRet;
+        break;
+      }
+    }  
+  }
+
+  return ret;
 }

@@ -1,35 +1,32 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './LPUSH';
+import LPUSH from './LPUSH';
+import { parseArgs } from './generic-transformers';
 
 describe('LPUSH', () => {
-    describe('transformArguments', () => {
-        it('string', () => {
-            assert.deepEqual(
-                transformArguments('key', 'field'),
-                ['LPUSH', 'key', 'field']
-            );
-        });
-
-        it('array', () => {
-            assert.deepEqual(
-                transformArguments('key', ['1', '2']),
-                ['LPUSH', 'key', '1', '2']
-            );
-        });
+  describe('transformArguments', () => {
+    it('string', () => {
+      assert.deepEqual(
+        parseArgs(LPUSH, 'key', 'field'),
+        ['LPUSH', 'key', 'field']
+      );
     });
 
-    testUtils.testWithClient('client.lPush', async client => {
-        assert.equal(
-            await client.lPush('key', 'field'),
-            1
-        );
-    }, GLOBAL.SERVERS.OPEN);
+    it('array', () => {
+      assert.deepEqual(
+        parseArgs(LPUSH, 'key', ['1', '2']),
+        ['LPUSH', 'key', '1', '2']
+      );
+    });
+  });
 
-    testUtils.testWithCluster('cluster.lPush', async cluster => {
-        assert.equal(
-            await cluster.lPush('key', 'field'),
-            1
-        );
-    }, GLOBAL.CLUSTERS.OPEN);
+  testUtils.testAll('lPush', async client => {
+    assert.equal(
+      await client.lPush('key', 'field'),
+      1
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

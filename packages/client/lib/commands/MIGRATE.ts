@@ -1,65 +1,65 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
 import { AuthOptions } from './AUTH';
 
-interface MigrateOptions {
-    COPY?: true;
-    REPLACE?: true;
-    AUTH?: AuthOptions;
+export interface MigrateOptions {
+  COPY?: true;
+  REPLACE?: true;
+  AUTH?: AuthOptions;
 }
 
-export function transformArguments(
-    host: RedisCommandArgument,
+export default {
+  IS_READ_ONLY: false,
+  parseCommand(
+    parser: CommandParser,
+    host: RedisArgument,
     port: number,
-    key: RedisCommandArgument | Array<RedisCommandArgument>,
+    key: RedisArgument | Array<RedisArgument>,
     destinationDb: number,
     timeout: number,
     options?: MigrateOptions
-): RedisCommandArguments {
-    const args = ['MIGRATE', host, port.toString()],
-        isKeyArray = Array.isArray(key);
-
+  ) {
+    parser.push('MIGRATE', host, port.toString());
+    const isKeyArray = Array.isArray(key);
+  
     if (isKeyArray) {
-        args.push('');
+      parser.push('');
     } else {
-        args.push(key);
+      parser.push(key);
     }
-
-    args.push(
-        destinationDb.toString(),
-        timeout.toString()
+  
+    parser.push(
+      destinationDb.toString(),
+      timeout.toString()
     );
-
+  
     if (options?.COPY) {
-        args.push('COPY');
+      parser.push('COPY');
     }
-
+  
     if (options?.REPLACE) {
-        args.push('REPLACE');
+      parser.push('REPLACE');
     }
-
+  
     if (options?.AUTH) {
-        if (options.AUTH.username) {
-            args.push(
-                'AUTH2',
-                options.AUTH.username,
-                options.AUTH.password
-            );
-        } else {
-            args.push(
-                'AUTH',
-                options.AUTH.password
-            );
-        }
-    }
-
-    if (isKeyArray) {
-        args.push(
-            'KEYS',
-            ...key
+      if (options.AUTH.username) {
+        parser.push(
+          'AUTH2',
+          options.AUTH.username,
+          options.AUTH.password
         );
+      } else {
+        parser.push(
+          'AUTH',
+          options.AUTH.password
+        );
+      }
     }
-
-    return args;
-}
-
-export declare function transformReply(): string;
+  
+    if (isKeyArray) {
+      parser.push('KEYS');
+      parser.pushVariadic(key);
+    }
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

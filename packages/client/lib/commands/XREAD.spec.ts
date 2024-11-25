@@ -1,103 +1,134 @@
-import { strict as assert } from 'assert';
-import testUtils, { GLOBAL } from '../test-utils';
-import { FIRST_KEY_INDEX, transformArguments } from './XREAD';
+import { strict as assert } from 'node:assert';
+import testUtils, { GLOBAL, parseFirstKey } from '../test-utils';
+import XREAD from './XREAD';
+import { parseArgs } from './generic-transformers';
 
 describe('XREAD', () => {
-    describe('FIRST_KEY_INDEX', () => {
-        it('single stream', () => {
-            assert.equal(
-                FIRST_KEY_INDEX({ key: 'key', id: '' }),
-                'key'
-            );
-        });
-
-        it('multiple streams', () => {
-            assert.equal(
-                FIRST_KEY_INDEX([{ key: '1', id: '' }, { key: '2', id: '' }]),
-                '1'
-            );
-        });
+  describe('FIRST_KEY_INDEX', () => {
+    it('single stream', () => {
+      assert.equal(
+        parseFirstKey(XREAD, {
+          key: 'key',
+          id: ''
+        }),
+        'key'
+      );
     });
 
-    describe('transformArguments', () => {
-        it('single stream', () => {
-            assert.deepEqual(
-                transformArguments({
-                    key: 'key',
-                    id: '0'
-                }),
-                ['XREAD', 'STREAMS', 'key', '0']
-            );
-        });
+    it('multiple streams', () => {
+      assert.equal(
+        parseFirstKey(XREAD, [{
+          key: '1',
+          id: ''
+        }, {
+          key: '2',
+          id: ''
+        }]),
+        '1'
+      );
+    });
+  });
 
-        it('multiple streams', () => {
-            assert.deepEqual(
-                transformArguments([{
-                    key: '1',
-                    id: '0'
-                }, {
-                    key: '2',
-                    id: '0'
-                }]),
-                ['XREAD', 'STREAMS', '1', '2', '0', '0']
-            );
-        });
-
-        it('with COUNT', () => {
-            assert.deepEqual(
-                transformArguments({
-                    key: 'key',
-                    id: '0'
-                }, {
-                    COUNT: 1
-                }),
-                ['XREAD', 'COUNT', '1', 'STREAMS', 'key', '0']
-            );
-        });
-
-        it('with BLOCK', () => {
-            assert.deepEqual(
-                transformArguments({
-                    key: 'key',
-                    id: '0'
-                }, {
-                    BLOCK: 0
-                }),
-                ['XREAD', 'BLOCK', '0', 'STREAMS', 'key', '0']
-            );
-        });
-
-        it('with COUNT, BLOCK', () => {
-            assert.deepEqual(
-                transformArguments({
-                    key: 'key',
-                    id: '0'
-                }, {
-                    COUNT: 1,
-                    BLOCK: 0
-                }),
-                ['XREAD', 'COUNT', '1', 'BLOCK', '0', 'STREAMS', 'key', '0']
-            );
-        });
+  describe('transformArguments', () => {
+    it('single stream', () => {
+      assert.deepEqual(
+        parseArgs(XREAD, {
+          key: 'key',
+          id: '0-0'
+        }),
+        ['XREAD', 'STREAMS', 'key', '0-0']
+      );
     });
 
-    testUtils.testWithClient('client.xRead', async client => {
-        assert.equal(
-            await client.xRead({
-                key: 'key',
-                id: '0'
-            }),
-            null
-        );
-    }, GLOBAL.SERVERS.OPEN);
+    it('multiple streams', () => {
+      assert.deepEqual(
+        parseArgs(XREAD, [{
+          key: '1',
+          id: '0-0'
+        }, {
+          key: '2',
+          id: '0-0'
+        }]),
+        ['XREAD', 'STREAMS', '1', '2', '0-0', '0-0']
+      );
+    });
 
-    testUtils.testWithCluster('cluster.xRead', async cluster => {
-        assert.equal(
-            await cluster.xRead({
-                key: 'key',
-                id: '0'
-            }),
-            null
-        );
-    }, GLOBAL.CLUSTERS.OPEN);
+    it('with COUNT', () => {
+      assert.deepEqual(
+        parseArgs(XREAD, {
+          key: 'key',
+          id: '0-0'
+        }, {
+          COUNT: 1
+        }),
+        ['XREAD', 'COUNT', '1', 'STREAMS', 'key', '0-0']
+      );
+    });
+
+    it('with BLOCK', () => {
+      assert.deepEqual(
+        parseArgs(XREAD, {
+          key: 'key',
+          id: '0-0'
+        }, {
+          BLOCK: 0
+        }),
+        ['XREAD', 'BLOCK', '0', 'STREAMS', 'key', '0-0']
+      );
+    });
+
+    it('with COUNT, BLOCK', () => {
+      assert.deepEqual(
+        parseArgs(XREAD, {
+          key: 'key',
+          id: '0-0'
+        }, {
+          COUNT: 1,
+          BLOCK: 0
+        }),
+        ['XREAD', 'COUNT', '1', 'BLOCK', '0', 'STREAMS', 'key', '0-0']
+      );
+    });
+  });
+
+  testUtils.testAll('client.xRead', async client => {
+    const message = { field: 'value' }, 
+    [id, reply] = await Promise.all([
+      client.xAdd('key', '*', message),
+      client.xRead({
+        key: 'key',
+        id: '0-0'
+      }),
+    ])
+
+    // FUTURE resp3 compatible
+    const obj = Object.assign(Object.create(null), {
+      'key': [{
+        id: id,
+        message: Object.create(null, {
+          field: {
+            value: 'value',
+            configurable: true,
+            enumerable: true
+          }
+        })
+      }]
+    });
+
+    // v4 compatible
+    const expected = [{
+      name: 'key',
+      messages: [{
+        id: id,
+        message: Object.assign(Object.create(null), {
+          field: 'value'
+        })
+      }]
+    }];
+
+    assert.deepStrictEqual(reply, expected);
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

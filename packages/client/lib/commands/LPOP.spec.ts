@@ -1,26 +1,23 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './LPOP';
+import LPOP from './LPOP';
+import { parseArgs } from './generic-transformers';
 
 describe('LPOP', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key'),
-            ['LPOP', 'key']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(LPOP, 'key'),
+      ['LPOP', 'key']
+    );
+  });
 
-    testUtils.testWithClient('client.lPop', async client => {
-        assert.equal(
-            await client.lPop('key'),
-            null
-        );
-    }, GLOBAL.SERVERS.OPEN);
-
-    testUtils.testWithCluster('cluster.lPop', async cluster => {
-        assert.equal(
-            await cluster.lPop('key'),
-            null
-        );
-    }, GLOBAL.CLUSTERS.OPEN);
+  testUtils.testAll('lPop', async client => {
+    assert.equal(
+      await client.lPop('key'),
+      null
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

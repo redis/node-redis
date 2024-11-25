@@ -1,13 +1,13 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { pushVerdictArguments } from './generic-transformers';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, NumberReply, Command } from '../RESP/types';
+import { RedisVariadicArgument } from './generic-transformers';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(
-    destination: RedisCommandArgument,
-    keys: RedisCommandArgument | Array<RedisCommandArgument>
-): RedisCommandArguments {
-    return pushVerdictArguments(['SUNIONSTORE', destination], keys);
-}
-
-export declare function transformReply(): number;
+export default {
+  IS_READ_ONLY: false,
+  parseCommand(parser: CommandParser, destination: RedisArgument, keys: RedisVariadicArgument) {
+    parser.push('SUNIONSTORE');
+    parser.pushKey(destination);
+    parser.pushKeys(keys);
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

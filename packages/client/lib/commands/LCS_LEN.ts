@@ -1,15 +1,13 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { transformArguments as transformLcsArguments } from './LCS';
+import { NumberReply, Command } from '../RESP/types';
+import LCS from './LCS';
 
-export { FIRST_KEY_INDEX, IS_READ_ONLY } from './LCS';
+export default {
+  IS_READ_ONLY: LCS.IS_READ_ONLY,
+  parseCommand(...args: Parameters<typeof LCS.parseCommand>) {
+    const parser = args[0];
 
-export function transformArguments(
-    key1: RedisCommandArgument,
-    key2: RedisCommandArgument
-): RedisCommandArguments {
-    const args = transformLcsArguments(key1, key2);
-    args.push('LEN');
-    return args;
-}
-
-export declare function transformReply(): number;
+    LCS.parseCommand(...args);
+    parser.push('LEN');
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

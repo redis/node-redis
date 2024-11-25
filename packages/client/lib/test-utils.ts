@@ -1,11 +1,13 @@
 import TestUtils from '@redis/test-utils';
 import { SinonSpy } from 'sinon';
-import { promiseTimeout } from './utils';
+import { setTimeout } from 'node:timers/promises';
+import { Command } from './RESP/types';
+import { BasicCommandParser } from './client/parser';
 
 const utils = new TestUtils({
-  dockerImageName: 'redis',
+  dockerImageName: 'redis/redis-stack',
   dockerImageVersionArgument: 'redis-version',
-  defaultDockerVersion: '7.2'
+  defaultDockerVersion: '7.4.0-v1'
 });
 
 export default utils;
@@ -15,49 +17,61 @@ const DEBUG_MODE_ARGS = utils.isVersionGreaterThan([7]) ?
   [];
 
 export const GLOBAL = {
-    SERVERS: {
-        OPEN: {
-            serverArguments: [...DEBUG_MODE_ARGS]
-        },
-        PASSWORD: {
-            serverArguments: ['--requirepass', 'password', ...DEBUG_MODE_ARGS],
-            clientOptions: {
-                password: 'password'
-            }
-        }
+  SERVERS: {
+    OPEN: {
+      serverArguments: [...DEBUG_MODE_ARGS]
     },
-    CLUSTERS: {
-        OPEN: {
-            serverArguments: [...DEBUG_MODE_ARGS]
-        },
-        PASSWORD: {
-            serverArguments: ['--requirepass', 'password', ...DEBUG_MODE_ARGS],
-            clusterConfiguration: {
-                defaults: {
-                    password: 'password'
-                }
-            }
-        },
-        WITH_REPLICAS: {
-            serverArguments: [...DEBUG_MODE_ARGS],
-            numberOfMasters: 2,
-            numberOfReplicas: 1,
-            clusterConfiguration: {
-                useReplicas: true
-            }
-        }
+    PASSWORD: {
+      serverArguments: ['--requirepass', 'password', ...DEBUG_MODE_ARGS],
+      clientOptions: {
+        password: 'password'
+      }
     }
+  },
+  CLUSTERS: {
+    OPEN: {
+      serverArguments: [...DEBUG_MODE_ARGS]
+    },
+    PASSWORD: {
+      serverArguments: ['--requirepass', 'password', ...DEBUG_MODE_ARGS],
+      clusterConfiguration: {
+        defaults: {
+          password: 'password'
+        }
+      }
+    },
+    WITH_REPLICAS: {
+      serverArguments: [...DEBUG_MODE_ARGS],
+      numberOfMasters: 2,
+      numberOfReplicas: 1,
+      clusterConfiguration: {
+        useReplicas: true
+      }
+    }
+  }
 };
 
 export async function waitTillBeenCalled(spy: SinonSpy): Promise<void> {
-    const start = process.hrtime.bigint(),
-        calls = spy.callCount;
+  const start = process.hrtime.bigint(),
+    calls = spy.callCount;
 
-    do {
-        if (process.hrtime.bigint() - start > 1_000_000_000) {
-            throw new Error('Waiting for more than 1 second');
-        }
+  do {
+    if (process.hrtime.bigint() - start > 1_000_000_000) {
+      throw new Error('Waiting for more than 1 second');
+    }
 
-        await promiseTimeout(50);
-    } while (spy.callCount === calls);
+    await setTimeout(50);
+  } while (spy.callCount === calls);
+}
+
+export const BLOCKING_MIN_VALUE = (
+  utils.isVersionGreaterThan([7]) ? Number.MIN_VALUE :
+  utils.isVersionGreaterThan([6]) ? 0.01 :
+  1
+);
+
+export function parseFirstKey(command: Command, ...args: Array<any>) {
+  const parser = new BasicCommandParser();
+  command.parseCommand!(parser, ...args);
+  return parser.firstKey;
 }

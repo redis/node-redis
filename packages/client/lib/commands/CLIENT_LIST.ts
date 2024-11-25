@@ -1,43 +1,41 @@
-import { RedisCommandArguments, RedisCommandArgument } from '.';
-import { pushVerdictArguments } from './generic-transformers';
-import { transformReply as transformClientInfoReply, ClientInfoReply } from './CLIENT_INFO';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, VerbatimStringReply, Command } from '../RESP/types';
+import CLIENT_INFO, { ClientInfoReply } from './CLIENT_INFO';
 
-interface ListFilterType {
-    TYPE: 'NORMAL' | 'MASTER' | 'REPLICA' | 'PUBSUB';
-    ID?: never;
+export interface ListFilterType {
+  TYPE: 'NORMAL' | 'MASTER' | 'REPLICA' | 'PUBSUB';
+  ID?: never;
 }
 
-interface ListFilterId {
-    ID: Array<RedisCommandArgument>;
-    TYPE?: never;
+export interface ListFilterId {
+  ID: Array<RedisArgument>;
+  TYPE?: never;
 }
 
 export type ListFilter = ListFilterType | ListFilterId;
 
-export const IS_READ_ONLY = true;
-
-export function transformArguments(filter?: ListFilter): RedisCommandArguments {
-    let args: RedisCommandArguments = ['CLIENT', 'LIST'];
-
+export default {
+  NOT_KEYED_COMMAND: true,
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, filter?: ListFilter) {
+    parser.push('CLIENT', 'LIST');
     if (filter) {
-        if (filter.TYPE !== undefined) {
-            args.push('TYPE', filter.TYPE);
-        } else  {
-            args.push('ID');
-            args = pushVerdictArguments(args, filter.ID);
-        }
+      if (filter.TYPE !== undefined) {
+        parser.push('TYPE', filter.TYPE);
+      } else {
+        parser.push('ID');
+        parser.pushVariadic(filter.ID);
+      }
     }
-
-    return args;
-}
-
-export function transformReply(rawReply: string): Array<ClientInfoReply> {
-    const split = rawReply.split('\n'),
-        length = split.length - 1,
-        reply: Array<ClientInfoReply> = [];
+  },
+  transformReply(rawReply: VerbatimStringReply): Array<ClientInfoReply> {
+    const split = rawReply.toString().split('\n'),
+      length = split.length - 1,
+      reply: Array<ClientInfoReply> = [];
     for (let i = 0; i < length; i++) {
-        reply.push(transformClientInfoReply(split[i]));
+      reply.push(CLIENT_INFO.transformReply(split[i] as unknown as VerbatimStringReply));
     }
-    
+
     return reply;
-}
+  }
+} as const satisfies Command;

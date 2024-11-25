@@ -1,39 +1,42 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './MGET_WITHLABELS';
+import MGET_WITHLABELS from './MGET_WITHLABELS';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
-describe('MGET_WITHLABELS', () => {
-    describe('transformArguments', () => {
-        it('without options', () => {
-            assert.deepEqual(
-                transformArguments('label=value'),
-                ['TS.MGET', 'WITHLABELS', 'FILTER', 'label=value']
-            );
-        });
+describe('TS.MGET_WITHLABELS', () => {
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(MGET_WITHLABELS, 'label=value'),
+      ['TS.MGET', 'WITHLABELS', 'FILTER', 'label=value']
+    );
+  });
 
-        it('with SELECTED_LABELS', () => {
-            assert.deepEqual(
-                transformArguments('label=value', { SELECTED_LABELS: 'label' }),
-                ['TS.MGET', 'SELECTED_LABELS', 'label', 'FILTER', 'label=value']
-            );
-        });
-    });
-
-    testUtils.testWithClient('client.ts.mGetWithLabels', async client => {
-        await client.ts.add('key', 0, 0, {
-            LABELS: { label: 'value' }
-        });
-
-        assert.deepEqual(
-            await client.ts.mGetWithLabels('label=value'),
-            [{
-                key: 'key',
-                labels: { label: 'value'},
-                sample: {
-                    timestamp: 0,
-                    value: 0
-                }
-            }]
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testWithClient('client.ts.mGetWithLabels', async client => {
+    const [, reply] = await Promise.all([
+      client.ts.add('key', 0, 0, {
+        LABELS: { label: 'value' }
+      }),
+      client.ts.mGetWithLabels('label=value')
+    ]);
+    
+    assert.deepStrictEqual(reply, Object.create(null, {
+      key: {
+        configurable: true,
+        enumerable: true,
+        value: {
+          labels: Object.create(null, {
+            label: {
+              configurable: true,
+              enumerable: true,
+              value: 'value'
+            }
+          }),
+          sample: {
+            timestamp: 0,
+            value: 0
+          }
+        }
+      }
+    }));
+  }, GLOBAL.SERVERS.OPEN);
 });

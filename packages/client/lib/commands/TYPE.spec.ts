@@ -1,19 +1,23 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './TYPE';
+import TYPE from './TYPE';
+import { parseArgs } from './generic-transformers';
 
 describe('TYPE', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key'),
-            ['TYPE', 'key']
-        );
-    });
+  it('processCommand', () => {
+    assert.deepEqual(
+      parseArgs(TYPE, 'key'),
+      ['TYPE', 'key']
+    );
+  });
 
-    testUtils.testWithClient('client.type', async client => {
-        assert.equal(
-            await client.type('key'),
-            'none'
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testAll('type', async client => {
+    assert.equal(
+      await client.type('key'),
+      'none'
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

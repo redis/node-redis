@@ -1,7 +1,12 @@
-export const FIRST_KEY_INDEX = 1;
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { RedisArgument, ArrayReply, NumberReply, NullReply, Command } from '@redis/client/dist/lib/RESP/types';
 
-export function transformArguments(key: string, path: string, start: number, stop: number): Array<string> {
-    return ['JSON.ARRTRIM', key, path, start.toString(), stop.toString()];
-}
-
-export declare function transformReply(): number | Array<number>;
+export default {
+  IS_READ_ONLY: false,
+  parseCommand(parser: CommandParser, key: RedisArgument, path: RedisArgument, start: number, stop: number) {
+    parser.push('JSON.ARRTRIM');
+    parser.pushKey(key);
+    parser.push(path, start.toString(), stop.toString());
+  },
+  transformReply: undefined as unknown as () => NumberReply | ArrayReply<NumberReply | NullReply>
+} as const satisfies Command;

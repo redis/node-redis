@@ -1,13 +1,17 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, Command, NumberReply } from '../RESP/types';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(
-    key: RedisCommandArgument,
-    field: RedisCommandArgument,
-    value: RedisCommandArgument
-): RedisCommandArguments {
-    return ['HSETNX', key, field, value];
-}
-
-export { transformBooleanReply as transformReply } from './generic-transformers';
+export default {
+  IS_READ_ONLY: true,
+  parseCommand(
+    parser: CommandParser,
+    key: RedisArgument,
+    field: RedisArgument,
+    value: RedisArgument
+  ) {
+    parser.push('HSETNX');
+    parser.pushKey(key);
+    parser.push(field, value);
+  },
+  transformReply: undefined as unknown as () => NumberReply<0 | 1>
+} as const satisfies Command;

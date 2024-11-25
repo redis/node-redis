@@ -1,9 +1,11 @@
-import { RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { NumberReply, Command } from '../RESP/types';
 
-export const IS_READ_ONLY = true;
-
-export function transformArguments(): RedisCommandArguments {
-    return ['COMMAND', 'COUNT'];
-}
-
-export declare function transformReply(): number;
+export default {
+  NOT_KEYED_COMMAND: true,
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser) {
+    parser.push('COMMAND', 'COUNT');
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

@@ -1,39 +1,77 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, BlobStringReply, NullReply, Command } from '../RESP/types';
 import { transformEXAT, transformPXAT } from './generic-transformers';
 
-export const FIRST_KEY_INDEX = 1;
-
-type GetExModes = {
-    EX: number;
+export type GetExOptions = {
+  type: 'EX' | 'PX';
+  value: number;
 } | {
-    PX: number;
+  type: 'EXAT' | 'PXAT';
+  value: number | Date;
 } | {
-    EXAT: number | Date;
+  type: 'PERSIST';
 } | {
-    PXAT: number | Date;
+  /**
+   * @deprecated Use `{ type: 'EX', value: number }` instead.
+   */
+  EX: number;
 } | {
-    PERSIST: true;
+  /**
+   * @deprecated Use `{ type: 'PX', value: number }` instead.
+   */
+  PX: number;
+} | {
+  /**
+   * @deprecated Use `{ type: 'EXAT', value: number | Date }` instead.
+   */
+  EXAT: number | Date;
+} | {
+  /**
+   * @deprecated Use `{ type: 'PXAT', value: number | Date }` instead.
+   */
+  PXAT: number | Date;
+} | {
+  /**
+   * @deprecated Use `{ type: 'PERSIST' }` instead.
+   */
+  PERSIST: true;
 };
 
-export function transformArguments(
-    key: RedisCommandArgument,
-    mode: GetExModes
-): RedisCommandArguments {
-    const args = ['GETEX', key];
+export default {
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, key: RedisArgument, options: GetExOptions) {
+    parser.push('GETEX');
+    parser.pushKey(key);
 
-    if ('EX' in mode) {
-        args.push('EX', mode.EX.toString());
-    } else if ('PX' in mode) {
-        args.push('PX', mode.PX.toString());
-    } else if ('EXAT' in mode) {
-        args.push('EXAT', transformEXAT(mode.EXAT));
-    } else if ('PXAT' in mode) {
-        args.push('PXAT', transformPXAT(mode.PXAT));
-    } else { // PERSIST
-        args.push('PERSIST');
+    if ('type' in options) {
+      switch (options.type) {
+        case 'EX':
+        case 'PX':
+          parser.push(options.type, options.value.toString());
+          break;
+        
+        case 'EXAT':
+        case 'PXAT':
+          parser.push(options.type, transformEXAT(options.value));
+          break;
+
+        case 'PERSIST':
+          parser.push('PERSIST');
+          break;
+      }
+    } else {
+      if ('EX' in options) {
+        parser.push('EX', options.EX.toString());
+      } else if ('PX' in options) {
+        parser.push('PX', options.PX.toString());
+      } else if ('EXAT' in options) {
+        parser.push('EXAT', transformEXAT(options.EXAT));
+      } else if ('PXAT' in options) {
+        parser.push('PXAT', transformPXAT(options.PXAT));
+      } else { // PERSIST
+        parser.push('PERSIST');
+      }
     }
-
-    return args;
-}
-
-export declare function transformReply(): RedisCommandArgument | null;
+  },
+  transformReply: undefined as unknown as () => BlobStringReply | NullReply
+} as const satisfies Command;

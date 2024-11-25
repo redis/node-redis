@@ -1,12 +1,13 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, NumberReply, Command } from '../RESP/types';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(
-    key: RedisCommandArgument,
-    field: RedisCommandArgument
-): RedisCommandArguments {
-    return ['HEXISTS', key, field];
-}
-
-export { transformBooleanReply as transformReply } from './generic-transformers';
+export default {
+  CACHEABLE: true,
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, key: RedisArgument, field: RedisArgument) {
+    parser.push('HEXISTS');
+    parser.pushKey(key);
+    parser.push(field);
+  },
+  transformReply: undefined as unknown as () => NumberReply<0 | 1>
+} as const satisfies Command;

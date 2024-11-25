@@ -1,73 +1,74 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, NumberReply, Command } from '../RESP/types';
 
-export const FIRST_KEY_INDEX = 1;
+export type HashTypes = RedisArgument | number;
 
-type Types = RedisCommandArgument | number;
+type HSETObject = Record<string | number, HashTypes>;
 
-type HSETObject = Record<string | number, Types>;
+type HSETMap = Map<HashTypes, HashTypes>;
 
-type HSETMap = Map<Types, Types>;
+type HSETTuples = Array<[HashTypes, HashTypes]> | Array<HashTypes>;
 
-type HSETTuples = Array<[Types, Types]> | Array<Types>;
+type GenericArguments = [key: RedisArgument];
 
-type GenericArguments = [key: RedisCommandArgument];
-
-type SingleFieldArguments = [...generic: GenericArguments, field: Types, value: Types];
+type SingleFieldArguments = [...generic: GenericArguments, field: HashTypes, value: HashTypes];
 
 type MultipleFieldsArguments = [...generic: GenericArguments, value: HSETObject | HSETMap | HSETTuples];
 
-export function transformArguments(...[ key, value, fieldValue ]: SingleFieldArguments | MultipleFieldsArguments): RedisCommandArguments {
-    const args: RedisCommandArguments = ['HSET', key];
+export type HSETArguments = SingleFieldArguments | MultipleFieldsArguments;
 
-    if (typeof value === 'string' || typeof value === 'number' || Buffer.isBuffer(value)) {
-        args.push(
-            convertValue(value),
-            convertValue(fieldValue!)
-        );
+export default {
+  parseCommand(parser: CommandParser, ...[key, value, fieldValue]: SingleFieldArguments | MultipleFieldsArguments) {
+    parser.push('HSET');
+    parser.pushKey(key);
+
+    if (typeof value === 'string' || typeof value === 'number' || value instanceof Buffer) {
+      parser.push(
+        convertValue(value),
+        convertValue(fieldValue!)
+      );
     } else if (value instanceof Map) {
-        pushMap(args, value);
+      pushMap(parser, value);
     } else if (Array.isArray(value)) {
-        pushTuples(args, value);
+      pushTuples(parser, value);
     } else {
-        pushObject(args, value);
+      pushObject(parser, value);
+    }
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;
+
+function pushMap(parser: CommandParser, map: HSETMap): void {
+  for (const [key, value] of map.entries()) {
+    parser.push(
+      convertValue(key),
+      convertValue(value)
+    );
+  }
+}
+
+function pushTuples(parser: CommandParser, tuples: HSETTuples): void {
+  for (const tuple of tuples) {
+    if (Array.isArray(tuple)) {
+      pushTuples(parser, tuple);
+      continue;
     }
 
-    return args;
+    parser.push(convertValue(tuple));
+  }
 }
 
-function pushMap(args: RedisCommandArguments, map: HSETMap): void {
-    for (const [key, value] of map.entries()) {
-        args.push(
-            convertValue(key),
-            convertValue(value)
-        );
-    }
+function pushObject(parser: CommandParser, object: HSETObject): void {
+  for (const key of Object.keys(object)) {
+    parser.push(
+      convertValue(key),
+      convertValue(object[key])
+    );
+  }
 }
 
-function pushTuples(args: RedisCommandArguments, tuples: HSETTuples): void {
-    for (const tuple of tuples) {
-        if (Array.isArray(tuple)) {
-            pushTuples(args, tuple);
-            continue;
-        }
-
-        args.push(convertValue(tuple));
-    }
+function convertValue(value: HashTypes): RedisArgument {
+  return typeof value === 'number' ?
+    value.toString() :
+    value;
 }
-
-function pushObject(args: RedisCommandArguments, object: HSETObject): void {
-    for (const key of Object.keys(object)) {
-        args.push(
-            convertValue(key),
-            convertValue(object[key])
-        );
-    }
-}
-
-function convertValue(value: Types): RedisCommandArgument {
-    return typeof value === 'number' ?
-        value.toString() :
-        value;
-}
-
-export declare function transformReply(): number;

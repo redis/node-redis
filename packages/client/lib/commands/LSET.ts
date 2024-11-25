@@ -1,18 +1,12 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(
-    key: RedisCommandArgument,
-    index: number,
-    element: RedisCommandArgument
-): RedisCommandArguments {
-    return [
-        'LSET',
-        key,
-        index.toString(),
-        element
-    ];
-}
-
-export declare function transformReply(): RedisCommandArgument;
+export default {
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, key: RedisArgument, index: number, element: RedisArgument) {
+    parser.push('LSET');
+    parser.pushKey(key);
+    parser.push(index.toString(), element);
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

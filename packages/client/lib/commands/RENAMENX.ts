@@ -1,12 +1,11 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, NumberReply, Command } from '../RESP/types';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(
-    key: RedisCommandArgument,
-    newKey: RedisCommandArgument
-): RedisCommandArguments {
-    return ['RENAMENX', key, newKey];
-}
-
-export { transformBooleanReply as transformReply } from './generic-transformers';
+export default {
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, key: RedisArgument, newKey: RedisArgument) {
+    parser.push('RENAMENX');
+    parser.pushKeys([key, newKey]);
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

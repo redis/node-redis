@@ -1,5 +1,12 @@
-export function transformArguments(index1: number, index2: number): Array<string> {
-    return ['SWAPDB', index1.toString(), index2.toString()];
-}
+import { CommandParser } from '../client/parser';
+import { SimpleStringReply, Command } from '../RESP/types';
 
-export declare function transformReply(): string;
+export default {
+  NOT_KEYED_COMMAND: true,
+  IS_READ_ONLY: false,
+  parseCommand(parser: CommandParser, index1: number, index2: number) {
+    parser.push('SWAPDB', index1.toString(), index2.toString());
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;
+

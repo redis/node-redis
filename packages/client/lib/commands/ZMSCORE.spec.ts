@@ -1,30 +1,34 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './ZMSCORE';
+import ZMSCORE from './ZMSCORE';
+import { parseArgs } from './generic-transformers';
 
 describe('ZMSCORE', () => {
-    testUtils.isVersionGreaterThanHook([6, 2]);
+  testUtils.isVersionGreaterThanHook([6, 2]);
 
-    describe('transformArguments', () => {
-        it('string', () => {
-            assert.deepEqual(
-                transformArguments('key', 'member'),
-                ['ZMSCORE', 'key', 'member']
-            );
-        });
-
-        it('array', () => {
-            assert.deepEqual(
-                transformArguments('key', ['1', '2']),
-                ['ZMSCORE', 'key', '1', '2']
-            );
-        });
+  describe('transformArguments', () => {
+    it('string', () => {
+      assert.deepEqual(
+        parseArgs(ZMSCORE, 'key', 'member'),
+        ['ZMSCORE', 'key', 'member']
+      );
     });
 
-    testUtils.testWithClient('client.zmScore', async client => {
-        assert.deepEqual(
-            await client.zmScore('key', 'member'),
-            [null]
-        );
-    }, GLOBAL.SERVERS.OPEN);
+    it('array', () => {
+      assert.deepEqual(
+        parseArgs(ZMSCORE, 'key', ['1', '2']),
+        ['ZMSCORE', 'key', '1', '2']
+      );
+    });
+  });
+
+  testUtils.testAll('zmScore', async client => {
+    assert.deepEqual(
+      await client.zmScore('key', 'member'),
+      [null]
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

@@ -1,45 +1,49 @@
-import { pushVerdictArguments } from '@redis/client/dist/lib/commands/generic-transformers';
-import { RedisCommandArgument, RedisCommandArguments } from '@redis/client/dist/lib/commands';
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { RedisArgument, Command } from '@redis/client/dist/lib/RESP/types';
+import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
+import { transformBooleanArrayReply } from '@redis/client/dist/lib/commands/generic-transformers';
 
-export const FIRST_KEY_INDEX = 1;
-
-interface InsertOptions {
-    CAPACITY?: number;
-    ERROR?: number;
-    EXPANSION?: number;
-    NOCREATE?: true;
-    NONSCALING?: true;
+export interface BfInsertOptions {
+  CAPACITY?: number;
+  ERROR?: number;
+  EXPANSION?: number;
+  NOCREATE?: boolean;
+  NONSCALING?: boolean;
 }
 
-export function transformArguments(
-    key: string,
-    items: RedisCommandArgument | Array<RedisCommandArgument>,
-    options?: InsertOptions
-): RedisCommandArguments {
-    const args = ['BF.INSERT', key];
+export default {
+  IS_READ_ONLY: false,
+  parseCommand(
+    parser: CommandParser,
+    key: RedisArgument,
+    items: RedisVariadicArgument,
+    options?: BfInsertOptions
+  ) {
+    parser.push('BF.INSERT');
+    parser.pushKey(key);
 
-    if (options?.CAPACITY) {
-        args.push('CAPACITY', options.CAPACITY.toString());
+    if (options?.CAPACITY !== undefined) {
+      parser.push('CAPACITY', options.CAPACITY.toString());
     }
 
-    if (options?.ERROR) {
-        args.push('ERROR', options.ERROR.toString());
+    if (options?.ERROR !== undefined) {
+      parser.push('ERROR', options.ERROR.toString());
     }
 
-    if (options?.EXPANSION) {
-        args.push('EXPANSION', options.EXPANSION.toString());
+    if (options?.EXPANSION !== undefined) {
+      parser.push('EXPANSION', options.EXPANSION.toString());
     }
 
     if (options?.NOCREATE) {
-        args.push('NOCREATE');
+      parser.push('NOCREATE');
     }
 
     if (options?.NONSCALING) {
-        args.push('NONSCALING');
+      parser.push('NONSCALING');
     }
 
-    args.push('ITEMS');
-    return pushVerdictArguments(args, items);
-}
-
-export { transformBooleanArrayReply as transformReply } from '@redis/client/dist/lib/commands/generic-transformers';
+    parser.push('ITEMS');
+    parser.pushVariadic(items);
+  },
+  transformReply: transformBooleanArrayReply
+} as const satisfies Command;

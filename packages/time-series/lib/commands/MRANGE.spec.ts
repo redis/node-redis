@@ -1,50 +1,63 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './MRANGE';
-import { TimeSeriesAggregationType, TimeSeriesReducers } from '.';
+import MRANGE from './MRANGE';
+import { TIME_SERIES_AGGREGATION_TYPE } from './CREATERULE';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
-describe('MRANGE', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('-', '+', 'label=value', {
-                FILTER_BY_TS: [0],
-                FILTER_BY_VALUE: {
-                    min: 0,
-                    max: 1
-                },
-                COUNT: 1,
-                ALIGN: '-',
-                AGGREGATION: {
-                    type: TimeSeriesAggregationType.AVERAGE,
-                    timeBucket: 1
-                },
-                GROUPBY: {
-                    label: 'label',
-                    reducer: TimeSeriesReducers.SUM
-                },
-            }),
-            ['TS.MRANGE', '-', '+', 'FILTER_BY_TS', '0', 'FILTER_BY_VALUE', '0', '1',
-            'COUNT', '1', 'ALIGN', '-', 'AGGREGATION', 'AVG', '1', 'FILTER', 'label=value',
-            'GROUPBY', 'label', 'REDUCE', 'SUM']
-        );
-    });
+describe('TS.MRANGE', () => {
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(MRANGE, '-', '+', 'label=value', {
+        LATEST: true,
+        FILTER_BY_TS: [0],
+        FILTER_BY_VALUE: {
+          min: 0,
+          max: 1
+        },
+        COUNT: 1,
+        ALIGN: '-',
+        AGGREGATION: {
+          type: TIME_SERIES_AGGREGATION_TYPE.AVG,
+          timeBucket: 1
+        }
+      }),
+      [
+        'TS.MRANGE', '-', '+',
+        'LATEST',
+        'FILTER_BY_TS', '0',
+        'FILTER_BY_VALUE', '0', '1',
+        'COUNT', '1',
+        'ALIGN', '-',
+        'AGGREGATION', 'AVG', '1',
+        'FILTER', 'label=value'
+      ]
+    );
+  });
 
-    testUtils.testWithClient('client.ts.mRange', async client => {
-        await client.ts.add('key', 0, 0, {
-            LABELS: { label: 'value'}
-        });
+  testUtils.testWithClient('client.ts.mRange', async client => {
+    const [, reply] = await Promise.all([
+      client.ts.add('key', 0, 0, {
+        LABELS: {
+          label: 'value'
+        }
+      }),
+      client.ts.mRange('-', '+', 'label=value', {
+        COUNT: 1
+      })
+    ]);
 
-        assert.deepEqual(
-            await client.ts.mRange('-', '+', 'label=value', {
-                COUNT: 1
-            }),
-            [{
-                key: 'key',
-                samples: [{
-                    timestamp: 0,
-                    value: 0
-                }]
-            }]
-        );
-    }, GLOBAL.SERVERS.OPEN);
+    assert.deepStrictEqual(
+      reply,
+      Object.create(null, {
+        key: {
+          configurable: true,
+          enumerable: true,
+          value: [{
+            timestamp: 0,
+            value: 0
+          }]
+        }
+      })
+    );
+  }, GLOBAL.SERVERS.OPEN);
 });

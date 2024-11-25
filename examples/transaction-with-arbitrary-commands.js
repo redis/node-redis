@@ -37,4 +37,4 @@ console.log(responses);
 // Clean up fixtures.
 await client.del(['hash1', 'hash2', 'hash3']);
 
-await client.quit();
+client.destroy();

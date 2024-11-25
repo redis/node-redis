@@ -1,9 +1,11 @@
-export const FIRST_KEY_INDEX = 1;
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { RedisArgument, ArrayReply, BlobStringReply, Command } from '@redis/client/dist/lib/RESP/types';
 
-export const IS_READ_ONLY = true;
-
-export function transformArguments(key: string): Array<string> {
-    return ['TOPK.LIST', key];
-}
-
-export declare function transformReply(): Array<string | null>;
+export default {
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, key: RedisArgument) {
+    parser.push('TOPK.LIST');
+    parser.pushKey(key);
+  },
+  transformReply: undefined as unknown as () => ArrayReply<BlobStringReply>
+} as const satisfies Command;

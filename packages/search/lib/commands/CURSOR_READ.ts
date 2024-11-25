@@ -1,30 +1,21 @@
-import { RedisCommandArgument, RedisCommandArguments } from '@redis/client/dist/lib/commands';
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { RedisArgument, Command, NumberReply, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
+import AGGREGATE_WITHCURSOR from './AGGREGATE_WITHCURSOR';
 
-export const FIRST_KEY_INDEX = 1;
-
-export const IS_READ_ONLY = true;
-
-interface CursorReadOptions {
-    COUNT?: number;
+export interface FtCursorReadOptions {
+  COUNT?: number;
 }
 
-export function transformArguments(
-    index: RedisCommandArgument,
-    cursor: number,
-    options?: CursorReadOptions
-): RedisCommandArguments {
-    const args = [
-        'FT.CURSOR',
-        'READ',
-        index,
-        cursor.toString()
-    ];
+export default {
+  NOT_KEYED_COMMAND: true,
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, index: RedisArgument, cursor: UnwrapReply<NumberReply>, options?: FtCursorReadOptions) {
+    parser.push('FT.CURSOR', 'READ', index, cursor.toString());
 
-    if (options?.COUNT) {
-        args.push('COUNT', options.COUNT.toString());
+    if (options?.COUNT !== undefined) {
+      parser.push('COUNT', options.COUNT.toString());
     }
-
-    return args;
-}
-
-export { transformReply } from './AGGREGATE_WITHCURSOR';
+  },
+  transformReply: AGGREGATE_WITHCURSOR.transformReply,
+  unstableResp3: true
+} as const satisfies Command;

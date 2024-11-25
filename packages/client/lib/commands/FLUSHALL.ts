@@ -1,16 +1,21 @@
-export enum RedisFlushModes {
-    ASYNC = 'ASYNC',
-    SYNC = 'SYNC'
-}
+import { CommandParser } from '../client/parser';
+import { SimpleStringReply, Command } from '../RESP/types';
 
-export function transformArguments(mode?: RedisFlushModes): Array<string> {
-    const args = ['FLUSHALL'];
+export const REDIS_FLUSH_MODES = {
+  ASYNC: 'ASYNC',
+  SYNC: 'SYNC'
+} as const;
 
+export type RedisFlushMode = typeof REDIS_FLUSH_MODES[keyof typeof REDIS_FLUSH_MODES];
+
+export default {
+  NOT_KEYED_COMMAND: true,
+  IS_READ_ONLY: false,
+  parseCommand(parser: CommandParser, mode?: RedisFlushMode) {
+    parser.push('FLUSHALL');
     if (mode) {
-        args.push(mode);
+      parser.push(mode);
     }
-
-    return args;
-}
-
-export declare function transformReply(): string;
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply
+} as const satisfies Command;

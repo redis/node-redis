@@ -1,12 +1,14 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, SimpleStringReply, BlobStringReply, Command } from '../RESP/types';
 
-export function transformArguments(message?: RedisCommandArgument): RedisCommandArguments {
-    const args: RedisCommandArguments = ['PING'];
+export default {
+  NOT_KEYED_COMMAND: true,
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, message?: RedisArgument) {
+    parser.push('PING');
     if (message) {
-        args.push(message);
+      parser.push(message);
     }
-
-    return args;
-}
-
-export declare function transformReply(): RedisCommandArgument;
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply | BlobStringReply
+} as const satisfies Command;

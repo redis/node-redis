@@ -1,6 +1,6 @@
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import { randomBytes } from 'crypto';
+import { randomBytes } from 'node:crypto';
 
 const { size } = yargs(hideBin(process.argv))
     .option('size', {

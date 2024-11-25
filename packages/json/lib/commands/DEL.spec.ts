@@ -1,28 +1,32 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './DEL';
+import DEL from './DEL';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
-describe('DEL', () => {
-    describe('transformArguments', () => {
-        it('key', () => {
-            assert.deepEqual(
-                transformArguments('key'),
-                ['JSON.DEL', 'key']
-            );
-        });
-
-        it('key, path', () => {
-            assert.deepEqual(
-                transformArguments('key', '$.path'),
-                ['JSON.DEL', 'key', '$.path']
-            );
-        });
+describe('JSON.DEL', () => {
+  describe('transformArguments', () => {
+    it('simple', () => {
+      assert.deepEqual(
+        parseArgs(DEL, 'key'),
+        ['JSON.DEL', 'key']
+      );
     });
 
-    testUtils.testWithClient('client.json.del', async client => {
-        assert.deepEqual(
-            await client.json.del('key'),
-            0
-        );
-    }, GLOBAL.SERVERS.OPEN);
+    it('with path', () => {
+      assert.deepEqual(
+        parseArgs(DEL, 'key', {
+          path: '$.path'
+        }),
+        ['JSON.DEL', 'key', '$.path']
+      );
+    });
+  });
+
+  testUtils.testWithClient('client.json.del', async client => {
+    assert.equal(
+      await client.json.del('key'),
+      0
+    );
+  }, GLOBAL.SERVERS.OPEN);
 });
+

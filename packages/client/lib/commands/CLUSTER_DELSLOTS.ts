@@ -1,11 +1,12 @@
-import { RedisCommandArguments } from '.';
-import { pushVerdictNumberArguments } from './generic-transformers';
+import { CommandParser } from '../client/parser';
+import { SimpleStringReply, Command } from '../RESP/types';
 
-export function transformArguments(slots: number | Array<number>): RedisCommandArguments {
-    return pushVerdictNumberArguments(
-        ['CLUSTER', 'DELSLOTS'],
-        slots
-    );
-}
-
-export declare function transformReply(): 'OK';
+export default {
+  NOT_KEYED_COMMAND: true,
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, slots: number | Array<number>) {
+    parser.push('CLUSTER', 'DELSLOTS');
+    parser.pushVariadicNumber(slots);
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

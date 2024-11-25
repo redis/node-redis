@@ -1,7 +1,12 @@
-export const IS_READ_ONLY = true;
+import { CommandParser } from '../client/parser';
+import { BlobStringReply, Command } from '../RESP/types';
 
-export function transformArguments() {
-    return ['CLUSTER', 'MYSHARDID'];
-}
+export default {
+  NOT_KEYED_COMMAND: true,
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser) {
+    parser.push('CLUSTER', 'MYSHARDID');
+  },
+  transformReply: undefined as unknown as () => BlobStringReply
+} as const satisfies Command;
 
-export declare function transformReply(): string | Buffer;

@@ -77,4 +77,4 @@ const info = await client.bf.info('mybloom');
 //  }
 console.log(info);
 
-await client.quit();
+client.destroy();

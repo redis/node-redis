@@ -1,28 +1,32 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './ZREM';
+import ZREM from './ZREM';
+import { parseArgs } from './generic-transformers';
 
 describe('ZREM', () => {
-    describe('transformArguments', () => {
-        it('string', () => {
-            assert.deepEqual(
-                transformArguments('key', 'member'),
-                ['ZREM', 'key', 'member']
-            );
-        });
-
-        it('array', () => {
-            assert.deepEqual(
-                transformArguments('key', ['1', '2']),
-                ['ZREM', 'key', '1', '2']
-            );
-        });
+  describe('transformArguments', () => {
+    it('string', () => {
+      assert.deepEqual(
+        parseArgs(ZREM, 'key', 'member'),
+        ['ZREM', 'key', 'member']
+      );
     });
 
-    testUtils.testWithClient('client.zRem', async client => {
-        assert.equal(
-            await client.zRem('key', 'member'),
-            0
-        );
-    }, GLOBAL.SERVERS.OPEN);
+    it('array', () => {
+      assert.deepEqual(
+        parseArgs(ZREM, 'key', ['1', '2']),
+        ['ZREM', 'key', '1', '2']
+      );
+    });
+  });
+
+  testUtils.testAll('zRem', async client => {
+    assert.equal(
+      await client.zRem('key', 'member'),
+      0
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

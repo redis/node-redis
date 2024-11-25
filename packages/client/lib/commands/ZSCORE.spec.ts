@@ -1,19 +1,23 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './ZSCORE';
+import ZSCORE from './ZSCORE';
+import { parseArgs } from './generic-transformers';
 
 describe('ZSCORE', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key', 'member'),
-            ['ZSCORE', 'key', 'member']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(ZSCORE, 'key', 'member'),
+      ['ZSCORE', 'key', 'member']
+    );
+  });
 
-    testUtils.testWithClient('client.zScore', async client => {
-        assert.equal(
-            await client.zScore('key', 'member'),
-            null
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testAll('zScore', async client => {
+    assert.equal(
+      await client.zScore('key', 'member'),
+      null
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

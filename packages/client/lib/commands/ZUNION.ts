@@ -1,30 +1,20 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { pushVerdictArgument } from './generic-transformers';
+import { CommandParser } from '../client/parser';
+import { ArrayReply, BlobStringReply, Command } from '../RESP/types';
+import { ZKeys, parseZKeysArguments } from './generic-transformers';
 
-export const FIRST_KEY_INDEX = 2;
-
-export const IS_READ_ONLY = true;
-
-interface ZUnionOptions {
-    WEIGHTS?: Array<number>;
-    AGGREGATE?: 'SUM' | 'MIN' | 'MAX';
+export interface ZUnionOptions {
+  AGGREGATE?: 'SUM' | 'MIN' | 'MAX';
 }
 
-export function transformArguments(
-    keys: Array<RedisCommandArgument> | RedisCommandArgument,
-    options?: ZUnionOptions
-): RedisCommandArguments {
-    const args = pushVerdictArgument(['ZUNION'], keys);
-
-    if (options?.WEIGHTS) {
-        args.push('WEIGHTS', ...options.WEIGHTS.map(weight => weight.toString()));
-    }
+export default {
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, keys: ZKeys, options?: ZUnionOptions) {
+    parser.push('ZUNION');
+    parseZKeysArguments(parser, keys);
 
     if (options?.AGGREGATE) {
-        args.push('AGGREGATE', options.AGGREGATE);
+      parser.push('AGGREGATE', options.AGGREGATE);
     }
-
-    return args;
-}
-
-export declare function transformReply(): Array<RedisCommandArgument>;
+  },
+  transformReply: undefined as unknown as () => ArrayReply<BlobStringReply>
+} as const satisfies Command;

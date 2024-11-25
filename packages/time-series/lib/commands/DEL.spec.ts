@@ -1,21 +1,22 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './DEL';
+import DEL from './DEL';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
-describe('DEL', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key', '-', '+'),
-            ['TS.DEL', 'key', '-', '+']
-        );
-    });
+describe('TS.DEL', () => {
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(DEL, 'key', '-', '+'),
+      ['TS.DEL', 'key', '-', '+']
+    );
+  });
 
-    testUtils.testWithClient('client.ts.del', async client => {
-        await client.ts.create('key');
+  testUtils.testWithClient('client.ts.del', async client => {
+    const [, reply] = await Promise.all([
+      client.ts.create('key'),
+      client.ts.del('key', '-', '+')
+    ]);
 
-        assert.equal(
-            await client.ts.del('key', '-', '+'),
-            0
-        );
-    }, GLOBAL.SERVERS.OPEN);
+    assert.equal(reply, 0);
+  }, GLOBAL.SERVERS.OPEN);
 });

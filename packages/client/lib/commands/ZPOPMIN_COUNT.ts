@@ -1,16 +1,13 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { transformArguments as transformZPopMinArguments } from './ZPOPMIN';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, Command } from '../RESP/types';
+import { transformSortedSetReply } from './generic-transformers';
 
-export { FIRST_KEY_INDEX } from './ZPOPMIN';
-
-export function transformArguments(
-    key: RedisCommandArgument,
-    count: number
-): RedisCommandArguments {
-    return [
-        ...transformZPopMinArguments(key),
-        count.toString()
-    ];
-}
-
-export { transformSortedSetWithScoresReply as transformReply } from './generic-transformers';
+export default {
+  IS_READ_ONLY: false,
+  parseCommand(parser: CommandParser, key: RedisArgument, count: number) {
+    parser.push('ZPOPMIN');
+    parser.pushKey(key);
+    parser.push(count.toString());
+  },
+  transformReply: transformSortedSetReply
+} as const satisfies Command;

@@ -1,19 +1,11 @@
-import { RedisCommandArgument, RedisCommandArguments } from '@redis/client/dist/lib/commands';
+import { Command } from '@redis/client/dist/lib/RESP/types';
+import BYRANK, { transformByRankArguments } from './BYRANK';
 
-export const FIRST_KEY_INDEX = 1;
-
-export const IS_READ_ONLY = true;
-
-export function transformArguments(
-    key: RedisCommandArgument,
-    ranks: Array<number>
-): RedisCommandArguments {
-    const args = ['TDIGEST.BYREVRANK', key];
-    for (const rank of ranks) {
-        args.push(rank.toString());
-    }
-
-    return args;
-}
-
-export { transformDoublesReply as transformReply } from '.';
+export default {
+  IS_READ_ONLY: BYRANK.IS_READ_ONLY,
+  parseCommand(...args: Parameters<typeof transformByRankArguments>) {
+    args[0].push('TDIGEST.BYREVRANK');
+    transformByRankArguments(...args);
+  },
+  transformReply: BYRANK.transformReply
+} as const satisfies Command;

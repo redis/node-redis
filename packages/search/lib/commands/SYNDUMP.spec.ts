@@ -1,24 +1,25 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './SYNDUMP';
-import { SchemaFieldTypes } from '.';
+import SYNDUMP from './SYNDUMP';
+import { SCHEMA_FIELD_TYPE } from './CREATE';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
-describe('SYNDUMP', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('index'),
-            ['FT.SYNDUMP', 'index']
-        );
-    });
+describe('FT.SYNDUMP', () => {
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(SYNDUMP, 'index'),
+      ['FT.SYNDUMP', 'index']
+    );
+  });
 
-    testUtils.testWithClient('client.ft.synDump', async client => {
-        await client.ft.create('index', {
-            field: SchemaFieldTypes.TEXT
-        });
+  testUtils.testWithClient('client.ft.synDump', async client => {
+    const [, reply] = await Promise.all([
+      client.ft.create('index', {
+        field: SCHEMA_FIELD_TYPE.TEXT
+      }),
+      client.ft.synDump('index')
+    ]);
 
-        assert.deepEqual(
-            await client.ft.synDump('index'),
-            []
-        );
-    }, GLOBAL.SERVERS.OPEN);
+    assert.deepEqual(reply, {});
+  }, GLOBAL.SERVERS.OPEN);
 });

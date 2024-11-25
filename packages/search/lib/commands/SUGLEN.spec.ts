@@ -1,19 +1,20 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './SUGLEN';
+import SUGLEN from './SUGLEN';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
-describe('SUGLEN', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key'),
-            ['FT.SUGLEN', 'key']
-        );
-    });
+describe('FT.SUGLEN', () => {
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(SUGLEN, 'key'),
+      ['FT.SUGLEN', 'key']
+    );
+  });
 
-    testUtils.testWithClient('client.ft.sugLen', async client => {
-        assert.equal(
-            await client.ft.sugLen('key'),
-            0
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testWithClient('client.ft.sugLen', async client => {
+    assert.equal(
+      await client.ft.sugLen('key'),
+      0
+    );
+  }, GLOBAL.SERVERS.OPEN);
 });

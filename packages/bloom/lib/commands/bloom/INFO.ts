@@ -1,38 +1,25 @@
-export const FIRST_KEY_INDEX = 1;
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { RedisArgument, Command, UnwrapReply, NullReply, NumberReply, TuplesToMapReply, Resp2Reply, SimpleStringReply, TypeMapping } from '@redis/client/dist/lib/RESP/types';
+import { transformInfoV2Reply } from '.';
 
-export const IS_READ_ONLY = true;
+export type BfInfoReplyMap = TuplesToMapReply<[
+  [SimpleStringReply<'Capacity'>, NumberReply],
+  [SimpleStringReply<'Size'>, NumberReply],
+  [SimpleStringReply<'Number of filters'>, NumberReply],
+  [SimpleStringReply<'Number of items inserted'>, NumberReply],
+  [SimpleStringReply<'Expansion rate'>, NullReply | NumberReply] 
+]>;
 
-export function transformArguments(key: string): Array<string> {
-    return ['BF.INFO', key];
-}
-
-export type InfoRawReply = [
-    _: string,
-    capacity: number,
-    _: string,
-    size: number,
-    _: string,
-    numberOfFilters: number,
-    _: string,
-    numberOfInsertedItems: number,
-    _: string,
-    expansionRate: number,
-];
-
-export interface InfoReply {
-    capacity: number;
-    size: number;
-    numberOfFilters: number;
-    numberOfInsertedItems: number;
-    expansionRate: number;
-}
-
-export function transformReply(reply: InfoRawReply): InfoReply {
-    return {
-        capacity: reply[1],
-        size: reply[3],
-        numberOfFilters: reply[5],
-        numberOfInsertedItems: reply[7],
-        expansionRate: reply[9]
-    };
-}
+export default {
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, key: RedisArgument) {
+    parser.push('BF.INFO');
+    parser.pushKey(key);
+  },
+  transformReply: {
+    2: (reply: UnwrapReply<Resp2Reply<BfInfoReplyMap>>, _, typeMapping?: TypeMapping): BfInfoReplyMap => {
+      return transformInfoV2Reply<BfInfoReplyMap>(reply, typeMapping);
+    },
+    3: undefined as unknown as () => BfInfoReplyMap
+  }
+} as const satisfies Command;

@@ -1,15 +1,23 @@
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisJSON, transformRedisJsonArgument } from '.';
+import { RedisArgument, NumberReply, ArrayReply, NullReply, Command } from '@redis/client/dist/lib/RESP/types';
 
-export const FIRST_KEY_INDEX = 1;
+export default {
+  IS_READ_ONLY: false,
+  parseCommand(
+    parser: CommandParser,
+    key: RedisArgument,
+    path: RedisArgument,
+    json: RedisJSON,
+    ...jsons: Array<RedisJSON>
+  ) {
+    parser.push('JSON.ARRAPPEND');
+    parser.pushKey(key);
+    parser.push(path, transformRedisJsonArgument(json));
 
-export function transformArguments(key: string, path: string, ...jsons: Array<RedisJSON>): Array<string> {
-    const args = ['JSON.ARRAPPEND', key, path];
-
-    for (const json of jsons) {
-        args.push(transformRedisJsonArgument(json));
+    for (let i = 0; i < jsons.length; i++) {
+      parser.push(transformRedisJsonArgument(jsons[i]));
     }
-
-    return args;
-}
-
-export declare function transformReply(): number | Array<number>;
+  },
+  transformReply: undefined as unknown as () => NumberReply | ArrayReply<NumberReply | NullReply>
+} as const satisfies Command;

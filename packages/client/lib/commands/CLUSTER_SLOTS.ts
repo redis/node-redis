@@ -1,46 +1,42 @@
-import { RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { TuplesReply, BlobStringReply, NumberReply, ArrayReply, UnwrapReply, Command } from '../RESP/types';
 
-export function transformArguments(): RedisCommandArguments {
-    return ['CLUSTER', 'SLOTS'];
-}
-
-type ClusterSlotsRawNode = [ip: string, port: number, id: string];
-
-type ClusterSlotsRawReply = Array<[
-    from: number,
-    to: number,
-    master: ClusterSlotsRawNode,
-    ...replicas: Array<ClusterSlotsRawNode>
+type RawNode = TuplesReply<[
+  host: BlobStringReply,
+  port: NumberReply,
+  id: BlobStringReply
 ]>;
 
-export interface ClusterSlotsNode {
-    ip: string;
-    port: number;
-    id: string;
-};
+type ClusterSlotsRawReply = ArrayReply<[
+  from: NumberReply,
+  to: NumberReply,
+  master: RawNode,
+  ...replicas: Array<RawNode>
+]>;
 
-export type ClusterSlotsReply = Array<{
-    from: number;
-    to: number;
-    master: ClusterSlotsNode;
-    replicas: Array<ClusterSlotsNode>;
-}>;
+export type ClusterSlotsNode = ReturnType<typeof transformNode>;
 
-export function transformReply(reply: ClusterSlotsRawReply): ClusterSlotsReply {
-    return reply.map(([from, to, master, ...replicas]) => {
-        return {
-            from,
-            to,
-            master: transformNode(master),
-            replicas: replicas.map(transformNode)
-        };
-    });
-}
+export default {
+  NOT_KEYED_COMMAND: true,
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser) {
+    parser.push('CLUSTER', 'SLOTS');
+  },
+  transformReply(reply: UnwrapReply<ClusterSlotsRawReply>) {
+    return reply.map(([from, to, master, ...replicas]) => ({
+      from,
+      to,
+      master: transformNode(master),
+      replicas: replicas.map(transformNode)
+    }));
+  }
+} as const satisfies Command;
 
-function transformNode([ip, port, id]: ClusterSlotsRawNode): ClusterSlotsNode {
-    return {
-        ip,
-        port,
-        id
-    };
+function transformNode(node: RawNode) {
+  const [host, port, id] = node as unknown as UnwrapReply<typeof node>;
+  return {
+    host,
+    port,
+    id
+  };
 }

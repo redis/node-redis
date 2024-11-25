@@ -1,19 +1,19 @@
-export const FIRST_KEY_INDEX = 1;
+import { CommandParser } from '../client/parser';
+import { NumberReply, NullReply, Command, RedisArgument } from '../RESP/types';
 
-export const IS_READ_ONLY = true;
-
-interface MemoryUsageOptions {
-    SAMPLES?: number;
+export interface MemoryUsageOptions {
+  SAMPLES?: number;
 }
 
-export function transformArguments(key: string, options?: MemoryUsageOptions): Array<string> {
-    const args = ['MEMORY', 'USAGE', key];
+export default {
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, key: RedisArgument, options?: MemoryUsageOptions) {
+    parser.push('MEMORY', 'USAGE');
+    parser.pushKey(key);
 
     if (options?.SAMPLES) {
-        args.push('SAMPLES', options.SAMPLES.toString());
+      parser.push('SAMPLES', options.SAMPLES.toString());
     }
-
-    return args;
-}
-
-export declare function transformReply(): number | null;
+  },
+  transformReply: undefined as unknown as () => NumberReply | NullReply
+} as const satisfies Command;

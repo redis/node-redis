@@ -1,21 +1,25 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './SPUBLISH';
+import SPUBLISH from './SPUBLISH';
+import { parseArgs } from './generic-transformers';
 
 describe('SPUBLISH', () => {
-    testUtils.isVersionGreaterThanHook([7]);
-    
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('channel', 'message'),
-            ['SPUBLISH', 'channel', 'message']
-        );
-    });
+  testUtils.isVersionGreaterThanHook([7]);
 
-    testUtils.testWithClient('client.sPublish', async client => {
-        assert.equal(
-            await client.sPublish('channel', 'message'),
-            0
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(SPUBLISH, 'channel', 'message'),
+      ['SPUBLISH', 'channel', 'message']
+    );
+  });
+
+  testUtils.testAll('sPublish', async client => {
+    assert.equal(
+      await client.sPublish('channel', 'message'),
+      0
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

@@ -1,37 +1,32 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './PING';
+import PING from './PING';
+import { parseArgs } from './generic-transformers';
 
 describe('PING', () => {
-    describe('transformArguments', () => {
-        it('default', () => {
-            assert.deepEqual(
-                transformArguments(),
-                ['PING']
-            );
-        });
-
-        it('with message', () => {
-            assert.deepEqual(
-                transformArguments('message'),
-                ['PING', 'message']
-            );
-        });
+  describe('transformArguments', () => {
+    it('default', () => {
+      assert.deepEqual(
+        parseArgs(PING),
+        ['PING']
+      );
     });
 
-    describe('client.ping', () => {
-        testUtils.testWithClient('string', async client => {
-            assert.equal(
-                await client.ping(),
-                'PONG'
-            );
-        }, GLOBAL.SERVERS.OPEN);
-
-        testUtils.testWithClient('buffer', async client => {
-            assert.deepEqual(
-                await client.ping(client.commandOptions({ returnBuffers: true })),
-                Buffer.from('PONG')
-            );
-        }, GLOBAL.SERVERS.OPEN);
+    it('with message', () => {
+      assert.deepEqual(
+        parseArgs(PING, 'message'),
+        ['PING', 'message']
+      );
     });
+  });
+
+  testUtils.testAll('ping', async client => {
+    assert.equal(
+      await client.ping(),
+      'PONG'
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

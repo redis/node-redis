@@ -1,46 +1,58 @@
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { RedisArgument, NumberReply, Command } from '@redis/client/dist/lib/RESP/types';
 import {
-    transformTimestampArgument,
-    pushRetentionArgument,
-    TimeSeriesEncoding,
-    pushEncodingArgument,
-    pushChunkSizeArgument,
-    TimeSeriesDuplicatePolicies,
-    Labels,
-    pushLabelsArgument,
-    Timestamp,
+  transformTimestampArgument,
+  parseRetentionArgument,
+  TimeSeriesEncoding,
+  parseEncodingArgument,
+  parseChunkSizeArgument,
+  TimeSeriesDuplicatePolicies,
+  Labels,
+  parseLabelsArgument,
+  Timestamp,
+  parseIgnoreArgument
 } from '.';
 
-interface AddOptions {
-    RETENTION?: number;
-    ENCODING?: TimeSeriesEncoding;
-    CHUNK_SIZE?: number;
-    ON_DUPLICATE?: TimeSeriesDuplicatePolicies;
-    LABELS?: Labels;
+export interface TsIgnoreOptions {
+  maxTimeDiff: number;
+  maxValDiff: number;
 }
 
-export const FIRST_KEY_INDEX = 1;
+export interface TsAddOptions {
+  RETENTION?: number;
+  ENCODING?: TimeSeriesEncoding;
+  CHUNK_SIZE?: number;
+  ON_DUPLICATE?: TimeSeriesDuplicatePolicies;
+  LABELS?: Labels;
+  IGNORE?: TsIgnoreOptions;
+}
 
-export function transformArguments(key: string, timestamp: Timestamp, value: number, options?: AddOptions): Array<string> {
-    const args = [
-        'TS.ADD',
-        key,
-        transformTimestampArgument(timestamp),
-        value.toString()
-    ];
+export default {
+  IS_READ_ONLY: false,
+  parseCommand(
+    parser: CommandParser,
+    key: RedisArgument,
+    timestamp: Timestamp,
+    value: number,
+    options?: TsAddOptions
+  ) {
+    parser.push('TS.ADD');
+    parser.pushKey(key);
+    parser.push(transformTimestampArgument(timestamp), value.toString());
 
-    pushRetentionArgument(args, options?.RETENTION);
+    parseRetentionArgument(parser, options?.RETENTION);
 
-    pushEncodingArgument(args, options?.ENCODING);
+    parseEncodingArgument(parser, options?.ENCODING);
 
-    pushChunkSizeArgument(args, options?.CHUNK_SIZE);
+    parseChunkSizeArgument(parser, options?.CHUNK_SIZE);
 
     if (options?.ON_DUPLICATE) {
-        args.push('ON_DUPLICATE', options.ON_DUPLICATE);
+      parser.push('ON_DUPLICATE', options.ON_DUPLICATE);
     }
 
-    pushLabelsArgument(args, options?.LABELS);
+    parseLabelsArgument(parser, options?.LABELS);
 
-    return args;
-}
-
-export declare function transformReply(): number;
+    parseIgnoreArgument(parser, options?.IGNORE);
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

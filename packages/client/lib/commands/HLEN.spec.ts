@@ -1,19 +1,23 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './HLEN';
+import HLEN from './HLEN';
+import { parseArgs } from './generic-transformers';
 
 describe('HLEN', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key'),
-            ['HLEN', 'key']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(HLEN, 'key'),
+      ['HLEN', 'key']
+    );
+  });
 
-    testUtils.testWithClient('client.hLen', async client => {
-        assert.equal(
-            await client.hLen('key'),
-            0
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testAll('hLen', async client => {
+    assert.equal(
+      await client.hLen('key'),
+      0
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

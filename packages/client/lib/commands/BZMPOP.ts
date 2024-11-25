@@ -1,20 +1,12 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { SortedSetSide, transformZMPopArguments, ZMPopOptions } from './generic-transformers';
+import { CommandParser } from '../client/parser';
+import { Command } from '../RESP/types';
+import ZMPOP, { parseZMPopArguments, ZMPopArguments } from './ZMPOP';
 
-export const FIRST_KEY_INDEX = 3;
-
-export function transformArguments(
-    timeout: number,
-    keys: RedisCommandArgument | Array<RedisCommandArgument>,
-    side: SortedSetSide,
-    options?: ZMPopOptions
-): RedisCommandArguments {
-    return transformZMPopArguments(
-        ['BZMPOP', timeout.toString()],
-        keys,
-        side,
-        options
-    );
-}
-
-export { transformReply } from './ZMPOP';
+export default {
+  IS_READ_ONLY: false,
+  parseCommand(parser: CommandParser, timeout: number, ...args: ZMPopArguments) {
+    parser.push('BZMPOP', timeout.toString());
+    parseZMPopArguments(parser, ...args);
+  },
+  transformReply: ZMPOP.transformReply
+} as const satisfies Command;

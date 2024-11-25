@@ -1,5 +1,11 @@
-export function transformArguments(ip: string, port: number): Array<string> {
-    return ['CLUSTER', 'MEET', ip, port.toString()];
-}
+import { CommandParser } from '../client/parser';
+import { SimpleStringReply, Command } from '../RESP/types';
 
-export declare function transformReply(): 'OK';
+export default {
+  NOT_KEYED_COMMAND: true,
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, host: string, port: number) {
+    parser.push('CLUSTER', 'MEET', host, port.toString());
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

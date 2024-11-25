@@ -1,22 +1,21 @@
-import { RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, BlobStringReply, Command } from '../RESP/types';
 
-interface FunctionLoadOptions {
-    REPLACE?: boolean;
+export interface FunctionLoadOptions {
+  REPLACE?: boolean;
 }
 
-export function transformArguments(
-    code: string,
-    options?: FunctionLoadOptions
-): RedisCommandArguments {
-    const args = ['FUNCTION', 'LOAD'];
+export default {
+  NOT_KEYED_COMMAND: true,
+  IS_READ_ONLY: false,
+  parseCommand(parser: CommandParser, code: RedisArgument, options?: FunctionLoadOptions) {
+    parser.push('FUNCTION', 'LOAD');
 
     if (options?.REPLACE) {
-        args.push('REPLACE');
+      parser.push('REPLACE');
     }
 
-    args.push(code);
-
-    return args;
-}
-
-export declare function transformReply(): string;
+    parser.push(code);
+  },
+  transformReply: undefined as unknown as () => BlobStringReply
+} as const satisfies Command;

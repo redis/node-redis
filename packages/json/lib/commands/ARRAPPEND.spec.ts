@@ -1,30 +1,31 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './ARRAPPEND';
+import ARRAPPEND from './ARRAPPEND';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
-describe('ARRAPPEND', () => {
-    describe('transformArguments', () => {
-        it('single JSON', () => {
-            assert.deepEqual(
-                transformArguments('key', '$', 1),
-                ['JSON.ARRAPPEND', 'key', '$', '1']
-            );
-        });
-
-        it('multiple JSONs', () => {
-            assert.deepEqual(
-                transformArguments('key', '$', 1, 2),
-                ['JSON.ARRAPPEND', 'key', '$', '1', '2']
-            );
-        });
+describe('JSON.ARRAPPEND', () => {
+  describe('transformArguments', () => {
+    it('single element', () => {
+      assert.deepEqual(
+        parseArgs(ARRAPPEND, 'key', '$', 'value'),
+        ['JSON.ARRAPPEND', 'key', '$', '"value"']
+      );
     });
 
-    testUtils.testWithClient('client.json.arrAppend', async client => {
-        await client.json.set('key', '$', []);
+    it('multiple elements', () => {
+      assert.deepEqual(
+        parseArgs(ARRAPPEND, 'key', '$', 1, 2),
+        ['JSON.ARRAPPEND', 'key', '$', '1', '2']
+      );
+    });
+  });
 
-        assert.deepEqual(
-            await client.json.arrAppend('key', '$', 1),
-            [1]
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testWithClient('client.json.arrAppend', async client => {
+    const [, reply] = await Promise.all([
+      client.json.set('key', '$', []),
+      client.json.arrAppend('key', '$', 'value')
+    ]);
+
+    assert.deepEqual(reply, [1]);
+  }, GLOBAL.SERVERS.OPEN);
 });

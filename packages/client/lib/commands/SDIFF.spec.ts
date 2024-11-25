@@ -1,28 +1,32 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './SDIFF';
+import SDIFF from './SDIFF';
+import { parseArgs } from './generic-transformers';
 
 describe('SDIFF', () => {
-    describe('transformArguments', () => {
-        it('string', () => {
-            assert.deepEqual(
-                transformArguments('key'),
-                ['SDIFF', 'key']
-            );
-        });
-
-        it('array', () => {
-            assert.deepEqual(
-                transformArguments(['1', '2']),
-                ['SDIFF', '1', '2']
-            );
-        });
+  describe('processCommand', () => {
+    it('string', () => {
+      assert.deepEqual(
+        parseArgs(SDIFF, 'key'),
+        ['SDIFF', 'key']
+      );
     });
 
-    testUtils.testWithClient('client.sDiff', async client => {
-        assert.deepEqual(
-            await client.sDiff('key'),
-            []
-        );
-    }, GLOBAL.SERVERS.OPEN);
+    it('array', () => {
+      assert.deepEqual(
+        parseArgs(SDIFF, ['1', '2']),
+        ['SDIFF', '1', '2']
+      );
+    });
+  });
+
+  testUtils.testAll('sDiff', async client => {
+    assert.deepEqual(
+      await client.sDiff('key'),
+      []
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

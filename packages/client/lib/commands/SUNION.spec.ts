@@ -1,28 +1,32 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './SUNION';
+import SUNION from './SUNION';
+import { parseArgs } from './generic-transformers';
 
 describe('SUNION', () => {
-    describe('transformArguments', () => {
-        it('string', () => {
-            assert.deepEqual(
-                transformArguments('key'),
-                ['SUNION', 'key']
-            );
-        });
-
-        it('array', () => {
-            assert.deepEqual(
-                transformArguments(['1', '2']),
-                ['SUNION', '1', '2']
-            );
-        });
+  describe('transformArguments', () => {
+    it('string', () => {
+      assert.deepEqual(
+        parseArgs(SUNION, 'key'),
+        ['SUNION', 'key']
+      );
     });
 
-    testUtils.testWithClient('client.sUnion', async client => {
-        assert.deepEqual(
-            await client.sUnion('key'),
-            []
-        );
-    }, GLOBAL.SERVERS.OPEN);
+    it('array', () => {
+      assert.deepEqual(
+        parseArgs(SUNION, ['1', '2']),
+        ['SUNION', '1', '2']
+      );
+    });
+  });
+
+  testUtils.testAll('sUnion', async client => {
+    assert.deepEqual(
+      await client.sUnion('key'),
+      []
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

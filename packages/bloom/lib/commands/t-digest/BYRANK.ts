@@ -1,19 +1,25 @@
-import { RedisCommandArgument, RedisCommandArguments } from '@redis/client/dist/lib/commands';
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { RedisArgument, Command } from '@redis/client/dist/lib/RESP/types';
+import { transformDoubleArrayReply } from '@redis/client/dist/lib/commands/generic-transformers';
 
-export const FIRST_KEY_INDEX = 1;
+export function transformByRankArguments(
+  parser: CommandParser, 
+  key: RedisArgument,
+  ranks: Array<number>
+) {
+  parser.pushKey(key);
 
-export const IS_READ_ONLY = true;
-
-export function transformArguments(
-    key: RedisCommandArgument,
-    ranks: Array<number>
-): RedisCommandArguments {
-    const args = ['TDIGEST.BYRANK', key];
-    for (const rank of ranks) {
-        args.push(rank.toString());
-    }
-
-    return args;
+  for (const rank of ranks) {
+    parser.push(rank.toString());
+  }
 }
 
-export { transformDoublesReply as transformReply } from '.';
+export default {
+  IS_READ_ONLY: true,
+  parseCommand(...args: Parameters<typeof transformByRankArguments>) {
+    args[0].push('TDIGEST.BYRANK');
+    transformByRankArguments(...args);
+  },
+  transformReply: transformDoubleArrayReply
+} as const satisfies Command;
+

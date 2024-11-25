@@ -1,13 +1,11 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, NumberReply, Command } from '../RESP/types';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(
-    key: RedisCommandArgument,
-    offset: number,
-    value: RedisCommandArgument
-): RedisCommandArguments {
-    return ['SETRANGE', key, offset.toString(), value];
-}
-
-export declare function transformReply(): number;
+export default {
+  parseCommand(parser: CommandParser, key: RedisArgument, offset: number, value: RedisArgument) {
+    parser.push('SETRANGE');
+    parser.pushKey(key);
+    parser.push(offset.toString(), value);
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

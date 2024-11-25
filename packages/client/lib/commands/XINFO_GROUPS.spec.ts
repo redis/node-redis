@@ -1,48 +1,37 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments, transformReply } from './XINFO_GROUPS';
+import XINFO_GROUPS from './XINFO_GROUPS';
+import { parseArgs } from './generic-transformers';
 
 describe('XINFO GROUPS', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key'),
-            ['XINFO', 'GROUPS', 'key']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(XINFO_GROUPS, 'key'),
+      ['XINFO', 'GROUPS', 'key']
+    );
+  });
 
-    it('transformReply', () => {
-        assert.deepEqual(
-            transformReply([
-                ['name', 'mygroup', 'consumers', 2, 'pending', 2, 'last-delivered-id', '1588152489012-0'],
-                ['name', 'some-other-group', 'consumers', 1, 'pending', 0, 'last-delivered-id', '1588152498034-0']
-            ]),
-            [{
-                name: 'mygroup',
-                consumers: 2,
-                pending: 2,
-                lastDeliveredId: '1588152489012-0'
-            }, {
-                name: 'some-other-group',
-                consumers: 1,
-                pending: 0,
-                lastDeliveredId: '1588152498034-0'
-            }]
-        );
-    });
-
-    testUtils.testWithClient('client.xInfoGroups', async client => {
-        await client.xGroupCreate('key', 'group', '$', {
-            MKSTREAM: true
-        });
-
-        assert.deepEqual(
-            await client.xInfoGroups('key'),
-            [{
-                name: 'group',
-                consumers: 0,
-                pending: 0,
-                lastDeliveredId: '0-0'
-            }]
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testAll('xInfoGroups', async client => {
+    const [, reply] = await Promise.all([
+      client.xGroupCreate('key', 'group', '$', {
+        MKSTREAM: true
+      }),
+      client.xInfoGroups('key')
+    ]);
+    
+    assert.deepEqual(
+      reply,
+      [{
+        name: 'group',
+        consumers: 0,
+        pending: 0,
+        'last-delivered-id': '0-0',
+        'entries-read': testUtils.isVersionGreaterThan([7, 0]) ? null : undefined,
+        lag: testUtils.isVersionGreaterThan([7, 0]) ? 0 : undefined
+      }]
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

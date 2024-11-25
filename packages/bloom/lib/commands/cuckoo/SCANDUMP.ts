@@ -1,22 +1,17 @@
-export const FIRST_KEY_INDEX = 1;
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { RedisArgument, TuplesReply, NumberReply, BlobStringReply, NullReply, UnwrapReply, Command } from '@redis/client/dist/lib/RESP/types';
 
-export function transformArguments(key: string, iterator: number): Array<string> {
-    return ['CF.SCANDUMP', key, iterator.toString()];
-}
-
-type ScanDumpRawReply = [
-    iterator: number,
-    chunk: string | null
-];
-
-interface ScanDumpReply {
-    iterator: number;
-    chunk: string | null;
-}
-
-export function transformReply([iterator, chunk]: ScanDumpRawReply): ScanDumpReply {
+export default {
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, key: RedisArgument, iterator: number) {
+    parser.push('CF.SCANDUMP');
+    parser.pushKey(key);
+    parser.push(iterator.toString());
+  },
+  transformReply(reply: UnwrapReply<TuplesReply<[NumberReply, BlobStringReply | NullReply]>>) {
     return {
-        iterator,
-        chunk
+      iterator: reply[0],
+      chunk: reply[1]
     };
-}
+  }
+} as const satisfies Command;

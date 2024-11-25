@@ -1,26 +1,23 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './RPOPLPUSH';
+import RPOPLPUSH from './RPOPLPUSH';
+import { parseArgs } from './generic-transformers';
 
 describe('RPOPLPUSH', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('source', 'destination'),
-            ['RPOPLPUSH', 'source', 'destination']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(RPOPLPUSH, 'source', 'destination'),
+      ['RPOPLPUSH', 'source', 'destination']
+    );
+  });
 
-    testUtils.testWithClient('client.rPopLPush', async client => {
-        assert.equal(
-            await client.rPopLPush('source', 'destination'),
-            null
-        );
-    }, GLOBAL.SERVERS.OPEN);
-
-    testUtils.testWithCluster('cluster.rPopLPush', async cluster => {
-        assert.equal(
-            await cluster.rPopLPush('{tag}source', '{tag}destination'),
-            null
-        );
-    }, GLOBAL.CLUSTERS.OPEN);
+  testUtils.testAll('rPopLPush', async client => {
+    assert.equal(
+      await client.rPopLPush('{tag}source', '{tag}destination'),
+      null
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

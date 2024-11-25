@@ -1,57 +1,42 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-
-export interface XReadGroupStream {
-    key: RedisCommandArgument;
-    id: RedisCommandArgument;
-}
+import { CommandParser } from '../client/parser';
+import { Command, RedisArgument, ReplyUnion } from '../RESP/types';
+import { XReadStreams, pushXReadStreams } from './XREAD';
+import { transformStreamsMessagesReplyResp2 } from './generic-transformers';
 
 export interface XReadGroupOptions {
-    COUNT?: number;
-    BLOCK?: number;
-    NOACK?: true;
+  COUNT?: number;
+  BLOCK?: number;
+  NOACK?: boolean;
 }
 
-export const FIRST_KEY_INDEX = (
-    _group: RedisCommandArgument,
-    _consumer: RedisCommandArgument,
-    streams: Array<XReadGroupStream> | XReadGroupStream
-): RedisCommandArgument => {
-    return Array.isArray(streams) ? streams[0].key : streams.key;
-};
-
-export const IS_READ_ONLY = true;
-
-export function transformArguments(
-    group: RedisCommandArgument,
-    consumer: RedisCommandArgument,
-    streams: Array<XReadGroupStream> | XReadGroupStream,
+export default {
+  IS_READ_ONLY: true,
+  parseCommand(
+    parser: CommandParser,
+    group: RedisArgument,
+    consumer: RedisArgument,
+    streams: XReadStreams,
     options?: XReadGroupOptions
-): RedisCommandArguments {
-    const args = ['XREADGROUP', 'GROUP', group, consumer];
+  ) {
+    parser.push('XREADGROUP', 'GROUP', group, consumer);
 
-    if (options?.COUNT) {
-        args.push('COUNT', options.COUNT.toString());
+    if (options?.COUNT !== undefined) {
+      parser.push('COUNT', options.COUNT.toString());
     }
 
-    if (typeof options?.BLOCK === 'number') {
-        args.push('BLOCK', options.BLOCK.toString());
+    if (options?.BLOCK !== undefined) {
+      parser.push('BLOCK', options.BLOCK.toString());
     }
 
     if (options?.NOACK) {
-        args.push('NOACK');
+      parser.push('NOACK');
     }
 
-    args.push('STREAMS');
-
-    const streamsArray = Array.isArray(streams) ? streams : [streams],
-        argsLength = args.length;
-    for (let i = 0; i < streamsArray.length; i++) {
-        const stream = streamsArray[i];
-        args[argsLength + i] = stream.key;
-        args[argsLength + streamsArray.length + i] = stream.id;
-    }
-
-    return args;
-}
-
-export { transformStreamsMessagesReply as transformReply } from './generic-transformers';
+    pushXReadStreams(parser, streams);
+  },
+  transformReply: {
+    2: transformStreamsMessagesReplyResp2,
+    3: undefined as unknown as () => ReplyUnion
+  },
+  unstableResp3: true,
+} as const satisfies Command;

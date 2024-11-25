@@ -1,18 +1,12 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, SimpleStringReply, BlobStringReply, Command } from '../RESP/types';
 
-export const IS_READ_ONLY = true;
-
-export function transformArguments(
-    username: RedisCommandArgument,
-    command: Array<RedisCommandArgument>
-): RedisCommandArguments {
-    return [
-        'ACL',
-        'DRYRUN',
-        username,
-        ...command
-    ];
-}
-
-export declare function transformReply(): RedisCommandArgument;
+export default {
+  NOT_KEYED_COMMAND: true,
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, username: RedisArgument, command: Array<RedisArgument>) {
+    parser.push('ACL', 'DRYRUN', username, ...command);
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'> | BlobStringReply
+} as const satisfies Command;
 

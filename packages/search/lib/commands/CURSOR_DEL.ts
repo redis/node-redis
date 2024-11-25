@@ -1,14 +1,11 @@
-import { RedisCommandArgument } from '@redis/client/dist/lib/commands';
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { SimpleStringReply, Command, RedisArgument, NumberReply, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(index: RedisCommandArgument, cursorId: number) {
-    return [
-        'FT.CURSOR',
-        'DEL',
-        index,
-        cursorId.toString()
-    ];
-}
-
-export declare function transformReply(): 'OK';
+export default {
+  NOT_KEYED_COMMAND: true,
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, index: RedisArgument, cursorId: UnwrapReply<NumberReply>) {
+    parser.push('FT.CURSOR', 'DEL', index, cursorId.toString());
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

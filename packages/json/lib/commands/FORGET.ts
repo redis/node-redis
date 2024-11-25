@@ -1,13 +1,19 @@
-export const FIRST_KEY_INDEX = 1;
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { RedisArgument, NumberReply, Command } from '@redis/client/dist/lib/RESP/types';
 
-export function transformArguments(key: string, path?: string): Array<string> {
-    const args = ['JSON.FORGET', key];
-
-    if (path) {
-        args.push(path);
-    }
-
-    return args;
+export interface JsonForgetOptions {
+  path?: RedisArgument;
 }
 
-export declare function transformReply(): number;
+export default {
+  IS_READ_ONLY: false,
+  parseCommand(parser: CommandParser, key: RedisArgument, options?: JsonForgetOptions) {
+    parser.push('JSON.FORGET');
+    parser.pushKey(key);
+
+    if (options?.path !== undefined) {
+      parser.push(options.path);
+    }
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

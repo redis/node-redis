@@ -1,19 +1,33 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './ZPOPMIN_COUNT';
+import ZPOPMIN_COUNT from './ZPOPMIN_COUNT';
+import { parseArgs } from './generic-transformers';
 
 describe('ZPOPMIN COUNT', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key', 1),
-            ['ZPOPMIN', 'key', '1']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(ZPOPMIN_COUNT, 'key', 1),
+      ['ZPOPMIN', 'key', '1']
+    );
+  });
 
-    testUtils.testWithClient('client.zPopMinCount', async client => {
-        assert.deepEqual(
-            await client.zPopMinCount('key', 1),
-            []
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testAll('zPopMinCount', async client => {
+    const members = [{
+      value: '1',
+      score: 1
+    }, {
+      value: '2',
+      score: 2
+    }];
+
+    const [ , reply] = await Promise.all([
+      client.zAdd('key', members),
+      client.zPopMinCount('key', members.length)
+    ]);
+
+    assert.deepEqual(reply, members);
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.SERVERS.OPEN
+  });
 });

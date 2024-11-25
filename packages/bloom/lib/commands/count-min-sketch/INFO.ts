@@ -1,30 +1,29 @@
-export const FIRST_KEY_INDEX = 1;
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { RedisArgument, TuplesToMapReply, NumberReply, UnwrapReply, Resp2Reply, Command, SimpleStringReply, TypeMapping } from '@redis/client/dist/lib/RESP/types';
+import { transformInfoV2Reply } from '../bloom';
 
-export const IS_READ_ONLY = true;
+export type CmsInfoReplyMap = TuplesToMapReply<[
+  [SimpleStringReply<'width'>, NumberReply],
+  [SimpleStringReply<'depth'>, NumberReply],
+  [SimpleStringReply<'count'>, NumberReply]
+]>;
 
-export function transformArguments(key: string): Array<string> {
-    return ['CMS.INFO', key];
+export interface CmsInfoReply {
+  width: NumberReply;
+  depth: NumberReply;
+  count: NumberReply;
 }
-
-export type InfoRawReply = [
-    _: string,
-    width: number,
-    _: string,
-    depth: number,
-    _: string,
-    count: number
-];
-
-export interface InfoReply {
-    width: number;
-    depth: number;
-    count: number;
-}
-
-export function transformReply(reply: InfoRawReply): InfoReply {
-    return {
-        width: reply[1],
-        depth: reply[3],
-        count: reply[5]
-    };
-}
+ 
+export default {
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, key: RedisArgument) {
+    parser.push('CMS.INFO');
+    parser.pushKey(key);
+  },
+  transformReply: {
+    2: (reply: UnwrapReply<Resp2Reply<CmsInfoReplyMap>>, _, typeMapping?: TypeMapping): CmsInfoReply => {
+      return transformInfoV2Reply<CmsInfoReply>(reply, typeMapping);
+    },
+    3: undefined as unknown as () => CmsInfoReply
+  }
+} as const satisfies Command;

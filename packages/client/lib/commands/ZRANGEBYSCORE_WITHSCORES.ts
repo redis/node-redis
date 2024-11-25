@@ -1,18 +1,15 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { ZRangeByScoreOptions, transformArguments as transformZRangeByScoreArguments } from './ZRANGEBYSCORE';
+import { Command } from '../RESP/types';
+import { transformSortedSetReply } from './generic-transformers';
+import ZRANGEBYSCORE from './ZRANGEBYSCORE';
 
-export { FIRST_KEY_INDEX, IS_READ_ONLY } from './ZRANGEBYSCORE';
+export default {
+  CACHEABLE: ZRANGEBYSCORE.CACHEABLE,
+  IS_READ_ONLY: ZRANGEBYSCORE.IS_READ_ONLY,
+  parseCommand(...args: Parameters<typeof ZRANGEBYSCORE.parseCommand>) {
+    const parser = args[0];
 
-export function transformArguments(
-    key: RedisCommandArgument,
-    min: string | number,
-    max: string | number,
-    options?: ZRangeByScoreOptions
-): RedisCommandArguments {
-    return [
-        ...transformZRangeByScoreArguments(key, min, max, options),
-        'WITHSCORES'
-    ];
-}
-
-export { transformSortedSetWithScoresReply as transformReply } from './generic-transformers';
+    ZRANGEBYSCORE.parseCommand(...args);
+    parser.push('WITHSCORES');
+  },
+  transformReply: transformSortedSetReply
+} as const satisfies Command;

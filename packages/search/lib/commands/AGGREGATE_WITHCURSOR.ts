@@ -1,44 +1,44 @@
-import {
-    AggregateOptions,
-    AggregateRawReply,
-    AggregateReply,
-    transformArguments as transformAggregateArguments,
-    transformReply as transformAggregateReply
-} from './AGGREGATE';
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { RedisArgument, Command, ReplyUnion, NumberReply } from '@redis/client/dist/lib/RESP/types';
+import AGGREGATE, { AggregateRawReply, AggregateReply, FtAggregateOptions } from './AGGREGATE';
 
-export { FIRST_KEY_INDEX, IS_READ_ONLY } from './AGGREGATE';
-
-interface AggregateWithCursorOptions extends AggregateOptions {
-    COUNT?: number;
+export interface FtAggregateWithCursorOptions extends FtAggregateOptions {
+  COUNT?: number;
+  MAXIDLE?: number;
 }
 
-export function transformArguments(
-    index: string,
-    query: string,
-    options?: AggregateWithCursorOptions
-) {
-    const args = transformAggregateArguments(index, query, options);
-
-    args.push('WITHCURSOR');
-    if (options?.COUNT) {
-        args.push('COUNT', options.COUNT.toString());
-    }
-
-    return args;
-}
 
 type AggregateWithCursorRawReply = [
-    result: AggregateRawReply,
-    cursor: number
+  result: AggregateRawReply,
+  cursor: NumberReply
 ];
 
-interface AggregateWithCursorReply extends AggregateReply {
-    cursor: number;
+export interface AggregateWithCursorReply extends AggregateReply {
+  cursor: NumberReply;
 }
 
-export function transformReply(reply: AggregateWithCursorRawReply): AggregateWithCursorReply {
-    return {
-        ...transformAggregateReply(reply[0]),
+export default {
+  IS_READ_ONLY: AGGREGATE.IS_READ_ONLY,
+  parseCommand(parser: CommandParser, index: RedisArgument, query: RedisArgument, options?: FtAggregateWithCursorOptions) {
+    AGGREGATE.parseCommand(parser, index, query, options);
+    parser.push('WITHCURSOR');
+
+    if (options?.COUNT !== undefined) {
+      parser.push('COUNT', options.COUNT.toString());
+    }
+
+    if(options?.MAXIDLE !== undefined) {
+      parser.push('MAXIDLE', options.MAXIDLE.toString());
+    }
+  },
+  transformReply: {
+    2: (reply: AggregateWithCursorRawReply): AggregateWithCursorReply => {
+      return {
+        ...AGGREGATE.transformReply[2](reply[0]),
         cursor: reply[1]
-    };
-}
+      };
+    },
+    3: undefined as unknown as () => ReplyUnion
+  },
+  unstableResp3: true
+} as const satisfies Command;

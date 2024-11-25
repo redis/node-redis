@@ -1,11 +1,23 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
+import DUMP from './DUMP';
+import { parseArgs } from './generic-transformers';
 
 describe('DUMP', () => {
-    testUtils.testWithClient('client.dump', async client => {
-        assert.equal(
-            await client.dump('key'),
-            null
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(DUMP, 'key'),
+      ['DUMP', 'key']
+    );
+  });
+
+  testUtils.testAll('client.dump', async client => {
+    assert.equal(
+      await client.dump('key'),
+      null
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

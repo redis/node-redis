@@ -1,9 +1,11 @@
-import { RedisCommandArgument, RedisCommandArguments } from '@redis/client/dist/lib/commands';
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { RedisArgument, SimpleStringReply, Command } from '@redis/client/dist/lib/RESP/types';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(key: RedisCommandArgument): RedisCommandArguments {
-    return ['TDIGEST.RESET', key];
-}
-
-export declare function transformReply(): 'OK';
+export default {
+  IS_READ_ONLY: false,
+  parseCommand(parser: CommandParser, key: RedisArgument) {
+    parser.push('TDIGEST.RESET');
+    parser.pushKey(key);
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

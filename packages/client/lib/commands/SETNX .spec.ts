@@ -1,26 +1,23 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './SETNX';
+import SETNX from './SETNX';
+import { parseArgs } from './generic-transformers';
 
 describe('SETNX', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key', 'value'),
-            ['SETNX', 'key', 'value']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(SETNX, 'key', 'value'),
+      ['SETNX', 'key', 'value']
+    );
+  });
 
-    testUtils.testWithClient('client.setNX', async client => {
-        assert.equal(
-            await client.setNX('key', 'value'),
-            true
-        );
-    }, GLOBAL.SERVERS.OPEN);
-
-    testUtils.testWithCluster('cluster.setNX', async cluster => {
-        assert.equal(
-            await cluster.setNX('key', 'value'),
-            true
-        );
-    }, GLOBAL.CLUSTERS.OPEN);
+  testUtils.testAll('setNX', async client => {
+    assert.equal(
+      await client.setNX('key', 'value'),
+      1
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

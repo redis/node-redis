@@ -1,10 +1,11 @@
-export function transformArguments(configKey: string, value: number): Array<string> {
-    return [
-        'GRAPH.CONFIG',
-        'SET',
-        configKey,
-        value.toString()
-    ];
-}
+import { RedisArgument, SimpleStringReply, Command } from '@redis/client/dist/lib/RESP/types';
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
 
-export declare function transformReply(): 'OK';
+export default {
+  NOT_KEYED_COMMAND: true,
+  IS_READ_ONLY: false,
+  parseCommand(parser: CommandParser, configKey: RedisArgument, value: number) {
+    parser.push('GRAPH.CONFIG', 'SET', configKey, value.toString());
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

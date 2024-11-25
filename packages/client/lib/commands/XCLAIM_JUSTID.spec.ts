@@ -1,23 +1,25 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './XCLAIM_JUSTID';
+import XCLAIM_JUSTID from './XCLAIM_JUSTID';
+import { parseArgs } from './generic-transformers';
 
 describe('XCLAIM JUSTID', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key', 'group', 'consumer', 1, '0-0'),
-            ['XCLAIM', 'key', 'group', 'consumer', '1', '0-0', 'JUSTID']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(XCLAIM_JUSTID, 'key', 'group', 'consumer', 1, '0-0'),
+      ['XCLAIM', 'key', 'group', 'consumer', '1', '0-0', 'JUSTID']
+    );
+  });
 
-    testUtils.testWithClient('client.xClaimJustId', async client => {
-        await client.xGroupCreate('key', 'group', '$', {
-            MKSTREAM: true
-        });
+  // TODO: test with messages
+  testUtils.testWithClient('client.xClaimJustId', async client => {
+    const [, reply] = await Promise.all([
+      client.xGroupCreate('key', 'group', '$', {
+        MKSTREAM: true
+      }),
+      client.xClaimJustId('key', 'group', 'consumer', 1, '0-0')
+    ]);
 
-        assert.deepEqual(
-            await client.xClaimJustId('key', 'group', 'consumer', 1, '0-0'),
-            []
-        );
-    }, GLOBAL.SERVERS.OPEN);
+    assert.deepEqual(reply, []);
+  }, GLOBAL.SERVERS.OPEN);
 });

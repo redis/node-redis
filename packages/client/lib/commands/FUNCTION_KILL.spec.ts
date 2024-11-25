@@ -1,14 +1,15 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils from '../test-utils';
-import { transformArguments } from './FUNCTION_KILL';
+import FUNCTION_KILL from './FUNCTION_KILL';
+import { parseArgs } from './generic-transformers';
 
 describe('FUNCTION KILL', () => {
-    testUtils.isVersionGreaterThanHook([7]);
+  testUtils.isVersionGreaterThanHook([7]);
 
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments(),
-            ['FUNCTION', 'KILL']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(FUNCTION_KILL),
+      ['FUNCTION', 'KILL']
+    );
+  });
 });

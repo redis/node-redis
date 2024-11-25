@@ -1,20 +1,19 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, NumberReply, Command } from '../RESP/types';
 
-export const FIRST_KEY_INDEX = 1;
-
-export const IS_READ_ONLY = true;
-
-export function transformArguments(
-    key: RedisCommandArgument,
-    min: RedisCommandArgument,
-    max: RedisCommandArgument
-): RedisCommandArguments {
-    return [
-        'ZLEXCOUNT',
-        key,
-        min,
-        max
-    ];
-}
-
-export declare function transformReply(): number;
+export default {
+  CACHEABLE: true,
+  IS_READ_ONLY: true,
+  parseCommand(
+    parser: CommandParser,
+    key: RedisArgument,
+    min: RedisArgument,
+    max: RedisArgument
+  ) {
+    parser.push('ZLEXCOUNT');
+    parser.pushKey(key);
+    parser.push(min);
+    parser.push(max);
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

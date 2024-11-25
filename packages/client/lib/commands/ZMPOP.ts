@@ -1,34 +1,65 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { SortedSetSide, transformSortedSetMemberReply, transformZMPopArguments, ZMember, ZMPopOptions } from './generic-transformers';
+import { CommandParser } from '../client/parser';
+import { NullReply, TuplesReply, BlobStringReply, DoubleReply, ArrayReply, UnwrapReply, Resp2Reply, Command, TypeMapping } from '../RESP/types';
+import { RedisVariadicArgument, SortedSetSide, transformSortedSetReply, transformDoubleReply, Tail } from './generic-transformers';
 
-export const FIRST_KEY_INDEX = 2;
+export interface ZMPopOptions {
+  COUNT?: number;
+}
 
-export function transformArguments(
-    keys: RedisCommandArgument | Array<RedisCommandArgument>,
+export type ZMPopRawReply = NullReply | TuplesReply<[
+  key: BlobStringReply,
+  members: ArrayReply<TuplesReply<[
+    value: BlobStringReply,
+    score: DoubleReply
+  ]>>
+]>;
+
+export function parseZMPopArguments(
+  parser: CommandParser,
+  keys: RedisVariadicArgument,
+  side: SortedSetSide,
+  options?: ZMPopOptions
+) {
+  parser.pushKeysLength(keys);
+
+  parser.push(side);
+
+  if (options?.COUNT) {
+    parser.push('COUNT', options.COUNT.toString());
+  }
+}
+
+export type ZMPopArguments = Tail<Parameters<typeof parseZMPopArguments>>;
+
+export default {
+  IS_READ_ONLY: false,
+  parseCommand(
+    parser: CommandParser,
+    keys: RedisVariadicArgument,
     side: SortedSetSide,
     options?: ZMPopOptions
-): RedisCommandArguments {
-    return transformZMPopArguments(
-        ['ZMPOP'],
-        keys,
-        side,
-        options
-    );
-}
-
-type ZMPopRawReply = null | [
-    key: string,
-    elements: Array<[RedisCommandArgument, RedisCommandArgument]>
-];
-
-type ZMPopReply = null | {
-    key: string,
-    elements: Array<ZMember>
-};
-
-export function transformReply(reply: ZMPopRawReply): ZMPopReply {
-    return reply === null ? null : {
+  ) {
+    parser.push('ZMPOP');
+    parseZMPopArguments(parser, keys, side, options)
+  },
+  transformReply: {
+    2(reply: UnwrapReply<Resp2Reply<ZMPopRawReply>>, preserve?: any, typeMapping?: TypeMapping) {
+      return reply === null ? null : {
         key: reply[0],
-        elements: reply[1].map(transformSortedSetMemberReply)
-    };
-}
+        members: (reply[1] as unknown as UnwrapReply<typeof reply[1]>).map(member => {
+          const [value, score] = member as unknown as UnwrapReply<typeof member>;
+          return {
+            value,
+            score: transformDoubleReply[2](score, preserve, typeMapping)
+          };
+        })
+      };
+    },
+    3(reply: UnwrapReply<ZMPopRawReply>) {
+      return reply === null ? null : {
+        key: reply[0],
+        members: transformSortedSetReply[3](reply[1])
+      };
+    }
+  }
+} as const satisfies Command;

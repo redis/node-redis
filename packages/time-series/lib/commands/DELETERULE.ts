@@ -1,11 +1,11 @@
-export const FIRST_KEY_INDEX = 1;
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { RedisArgument, SimpleStringReply, Command } from '@redis/client/dist/lib/RESP/types';
 
-export function transformArguments(sourceKey: string, destinationKey: string): Array<string> {
-    return [
-        'TS.DELETERULE',
-        sourceKey,
-        destinationKey
-    ];
-}
-
-export declare function transformReply(): 'OK';
+export default {
+  IS_READ_ONLY: false,
+  parseCommand(parser: CommandParser, sourceKey: RedisArgument, destinationKey: RedisArgument) {
+    parser.push('TS.DELETERULE');
+    parser.pushKeys([sourceKey, destinationKey]);
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

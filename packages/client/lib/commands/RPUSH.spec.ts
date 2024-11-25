@@ -1,35 +1,32 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './RPUSH';
+import RPUSH from './RPUSH';
+import { parseArgs } from './generic-transformers';
 
 describe('RPUSH', () => {
-    describe('transformArguments', () => {
-        it('string', () => {
-            assert.deepEqual(
-                transformArguments('key', 'element'),
-                ['RPUSH', 'key', 'element']
-            );
-        });
-
-        it('array', () => {
-            assert.deepEqual(
-                transformArguments('key', ['1', '2']),
-                ['RPUSH', 'key', '1', '2']
-            );
-        });
+  describe('transformArguments', () => {
+    it('string', () => {
+      assert.deepEqual(
+        parseArgs(RPUSH, 'key', 'element'),
+        ['RPUSH', 'key', 'element']
+      );
     });
 
-    testUtils.testWithClient('client.rPush', async client => {
-        assert.equal(
-            await client.rPush('key', 'element'),
-            1
-        );
-    }, GLOBAL.SERVERS.OPEN);
+    it('array', () => {
+      assert.deepEqual(
+        parseArgs(RPUSH, 'key', ['1', '2']),
+        ['RPUSH', 'key', '1', '2']
+      );
+    });
+  });
 
-    testUtils.testWithCluster('cluster.rPush', async cluster => {
-        assert.equal(
-            await cluster.rPush('key', 'element'),
-            1
-        );
-    }, GLOBAL.CLUSTERS.OPEN);
+  testUtils.testAll('rPush', async client => {
+    assert.equal(
+      await client.rPush('key', 'element'),
+      1
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

@@ -1,26 +1,29 @@
-import { strict as assert } from 'assert';
-import { SchemaFieldTypes } from '.';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './INFO';
+import INFO, { InfoReply } from './INFO';
+import { SCHEMA_FIELD_TYPE } from './CREATE';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('INFO', () => {
     it('transformArguments', () => {
         assert.deepEqual(
-            transformArguments('index'),
+            parseArgs(INFO, 'index'),
             ['FT.INFO', 'index']
         );
     });
 
     testUtils.testWithClient('client.ft.info', async client => {
         await client.ft.create('index', {
-            field: SchemaFieldTypes.TEXT
+            field: SCHEMA_FIELD_TYPE.TEXT
         });
+        const ret = await client.ft.info('index');
+        // effectively testing that stopwords_list is not in ret
         assert.deepEqual(
-            await client.ft.info('index'),
+            ret,
             {
-                indexName: 'index',
-                indexOptions: [],
-                indexDefinition: Object.create(null, {
+                index_name: 'index',
+                index_options: [],
+                index_definition: Object.create(null, {
                     default_score: {
                         value: '1',
                         configurable: true,
@@ -59,41 +62,48 @@ describe('INFO', () => {
                         enumerable: true
                     }
                 })],
-                numDocs: '0',
-                maxDocId: '0',
-                numTerms: '0',
-                numRecords: '0',
-                invertedSzMb: '0',
-                vectorIndexSzMb: '0',
-                totalInvertedIndexBlocks: '0',
-                offsetVectorsSzMb: '0',
-                docTableSizeMb: '0',
-                sortableValuesSizeMb: '0',
-                keyTableSizeMb: '0',
-                recordsPerDocAvg: '-nan',
-                bytesPerRecordAvg: '-nan',
-                offsetsPerTermAvg: '-nan',
-                offsetBitsPerRecordAvg: '-nan',
-                hashIndexingFailures: '0',
-                indexing: '0',
-                percentIndexed: '1',
-                gcStats: {
-                    bytesCollected: '0',
-                    totalMsRun: '0',
-                    totalCycles: '0',
-                    averageCycleTimeMs: '-nan',
-                    lastRunTimeMs: '0',
-                    gcNumericTreesMissed: '0',
-                    gcBlocksDenied: '0'
+                num_docs: 0,
+                max_doc_id: 0,
+                num_terms: 0,
+                num_records: 0,
+                inverted_sz_mb: 0,
+                vector_index_sz_mb: 0,
+                total_inverted_index_blocks: 0,
+                offset_vectors_sz_mb: 0,
+                doc_table_size_mb: 0,
+                sortable_values_size_mb: 0,
+                key_table_size_mb: 0,
+                records_per_doc_avg: NaN,
+                bytes_per_record_avg: NaN,
+                cleaning: 0,
+                offsets_per_term_avg: NaN,
+                offset_bits_per_record_avg: NaN,
+                geoshapes_sz_mb: 0,
+                hash_indexing_failures: 0,
+                indexing: 0,
+                percent_indexed: 1,
+                number_of_uses: 1,
+                tag_overhead_sz_mb: 0,
+                text_overhead_sz_mb: 0,
+                total_index_memory_sz_mb: 0,
+                total_indexing_time: 0,
+                gc_stats: {
+                    bytes_collected: 0,
+                    total_ms_run: 0,
+                    total_cycles: 0,
+                    average_cycle_time_ms: NaN,
+                    last_run_time_ms: 0,
+                    gc_numeric_trees_missed: 0,
+                    gc_blocks_denied: 0
                 },
-                cursorStats: {
-                    globalIdle: 0,
-                    globalTotal: 0,
-                    indexCapacity: 128,
-                    idnexTotal: 0
+                cursor_stats: {
+                    global_idle: 0,
+                    global_total: 0,
+                    index_capacity: 128,
+                    index_total: 0
                 },
-                stopWords: undefined
             }
         );
+
     }, GLOBAL.SERVERS.OPEN);
 });

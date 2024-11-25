@@ -1,25 +1,25 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { GeoUnits } from './generic-transformers';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, BlobStringReply, NullReply, Command } from '../RESP/types';
+import { GeoUnits } from './GEOSEARCH';
 
-export const FIRST_KEY_INDEX = 1;
-
-export const IS_READ_ONLY = true;
-
-export function transformArguments(
-    key: RedisCommandArgument,
-    member1: RedisCommandArgument,
-    member2: RedisCommandArgument,
+export default {
+  CACHEABLE: true,
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser,
+    key: RedisArgument,
+    member1: RedisArgument,
+    member2: RedisArgument,
     unit?: GeoUnits
-): RedisCommandArguments {
-    const args = ['GEODIST', key, member1, member2];
+  ) {
+    parser.push('GEODIST');
+    parser.pushKey(key);
+    parser.push(member1, member2);
 
     if (unit) {
-        args.push(unit);
+      parser.push(unit);
     }
-
-    return args;
-}
-
-export function transformReply(reply: RedisCommandArgument | null): number | null {
+  },
+  transformReply(reply: BlobStringReply | NullReply) {
     return reply === null ? null : Number(reply);
-}
+  }
+} as const satisfies Command;

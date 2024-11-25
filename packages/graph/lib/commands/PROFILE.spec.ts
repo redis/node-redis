@@ -1,18 +1,21 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './PROFILE';
+import PROFILE from './PROFILE';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
-describe('PROFILE', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key', 'RETURN 0'),
-            ['GRAPH.PROFILE', 'key', 'RETURN 0']
-        );
-    });
+describe('GRAPH.PROFILE', () => {
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(PROFILE, 'key', 'RETURN 0'),
+      ['GRAPH.PROFILE', 'key', 'RETURN 0']
+    );
+  });
 
-    testUtils.testWithClient('client.graph.profile', async client => {
-        const reply = await client.graph.profile('key', 'RETURN 0');
-        assert.ok(Array.isArray(reply));
-        assert.ok(!reply.find(x => typeof x !== 'string'));
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testWithClient('client.graph.profile', async client => {
+    const reply = await client.graph.profile('key', 'RETURN 0');
+    assert.ok(Array.isArray(reply));
+    for (const item of reply) {
+      assert.equal(typeof item, 'string');
+    }
+  }, GLOBAL.SERVERS.OPEN);
 });

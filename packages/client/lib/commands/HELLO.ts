@@ -1,65 +1,58 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { AuthOptions } from './AUTH';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, RespVersions, TuplesToMapReply, BlobStringReply, NumberReply, ArrayReply, UnwrapReply, Resp2Reply, Command } from '../RESP/types';
 
-interface HelloOptions {
-    protover: number;
-    auth?: Required<AuthOptions>;
-    clientName?: string;
+export interface HelloOptions {
+  protover?: RespVersions;
+  AUTH?: {
+    username: RedisArgument;
+    password: RedisArgument;
+  };
+  SETNAME?: string;
 }
 
-export function transformArguments(options?: HelloOptions): RedisCommandArguments {
-    const args: RedisCommandArguments = ['HELLO'];
+export type HelloReply = TuplesToMapReply<[
+  [BlobStringReply<'server'>, BlobStringReply],
+  [BlobStringReply<'version'>, BlobStringReply],
+  [BlobStringReply<'proto'>, NumberReply<RespVersions>],
+  [BlobStringReply<'id'>, NumberReply],
+  [BlobStringReply<'mode'>, BlobStringReply],
+  [BlobStringReply<'role'>, BlobStringReply],
+  [BlobStringReply<'modules'>, ArrayReply<BlobStringReply>]
+]>;
 
-    if (options) {
-        args.push(options.protover.toString());
+export default {
+  parseCommand(parser: CommandParser, protover?: RespVersions, options?: HelloOptions) {
+    parser.push('HELLO');
 
-        if (options.auth) {
-            args.push('AUTH', options.auth.username, options.auth.password);
-        }
+    if (protover) {
+      parser.push(protover.toString());
 
-        if (options.clientName) {
-            args.push('SETNAME', options.clientName);
-        }
+      if (options?.AUTH) {
+        parser.push(
+          'AUTH',
+          options.AUTH.username,
+          options.AUTH.password
+        );
+      }
+  
+      if (options?.SETNAME) {
+        parser.push(
+          'SETNAME',
+          options.SETNAME
+        );
+      }
     }
-
-    return args;
-}
-
-type HelloRawReply = [
-    _: never,
-    server: RedisCommandArgument,
-    _: never,
-    version: RedisCommandArgument,
-    _: never,
-    proto: number,
-    _: never,
-    id: number,
-    _: never,
-    mode: RedisCommandArgument,
-    _: never,
-    role: RedisCommandArgument,
-    _: never,
-    modules: Array<RedisCommandArgument>
-];
-
-interface HelloTransformedReply {
-    server: RedisCommandArgument;
-    version: RedisCommandArgument;
-    proto: number;
-    id: number;
-    mode: RedisCommandArgument;
-    role: RedisCommandArgument;
-    modules: Array<RedisCommandArgument>;
-}
-
-export function transformReply(reply: HelloRawReply): HelloTransformedReply {
-    return {
-        server: reply[1],
-        version: reply[3],
-        proto: reply[5],
-        id: reply[7],
-        mode: reply[9],
-        role: reply[11],
-        modules: reply[13]
-    };
-}
+  },
+  transformReply: {
+    2: (reply: UnwrapReply<Resp2Reply<HelloReply>>) => ({
+      server: reply[1],
+      version: reply[3],
+      proto: reply[5],
+      id: reply[7],
+      mode: reply[9],
+      role: reply[11],
+      modules: reply[13]
+    }),
+    3: undefined as unknown as () => HelloReply
+  }
+} as const satisfies Command;

@@ -1,19 +1,21 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { transformStringNumberInfinityArgument } from './generic-transformers';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, NumberReply, Command } from '../RESP/types';
+import { transformStringDoubleArgument } from './generic-transformers';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(
-    key: RedisCommandArgument,
-    min: RedisCommandArgument | number,
-    max: RedisCommandArgument | number,
-): RedisCommandArguments {
-    return [
-        'ZREMRANGEBYSCORE',
-        key,
-        transformStringNumberInfinityArgument(min),
-        transformStringNumberInfinityArgument(max)
-    ];
-}
-
-export declare function transformReply(): number;
+export default {
+  IS_READ_ONLY: false,
+  parseCommand(
+    parser: CommandParser,
+    key: RedisArgument,
+    min: RedisArgument | number,
+    max: RedisArgument | number,
+  ) {
+    parser.push('ZREMRANGEBYSCORE');
+    parser.pushKey(key);
+    parser.push(
+      transformStringDoubleArgument(min),
+      transformStringDoubleArgument(max)
+    );
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

@@ -1,26 +1,23 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './LINSERT';
+import LINSERT from './LINSERT';
+import { parseArgs } from './generic-transformers';
 
 describe('LINSERT', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key', 'BEFORE', 'pivot', 'element'),
-            ['LINSERT', 'key', 'BEFORE', 'pivot', 'element']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(LINSERT, 'key', 'BEFORE', 'pivot', 'element'),
+      ['LINSERT', 'key', 'BEFORE', 'pivot', 'element']
+    );
+  });
 
-    testUtils.testWithClient('client.lInsert', async client => {
-        assert.equal(
-            await client.lInsert('key', 'BEFORE', 'pivot', 'element'),
-            0
-        );
-    }, GLOBAL.SERVERS.OPEN);
-
-    testUtils.testWithCluster('cluster.lInsert', async cluster => {
-        assert.equal(
-            await cluster.lInsert('key', 'BEFORE', 'pivot', 'element'),
-            0
-        );
-    }, GLOBAL.CLUSTERS.OPEN);
+  testUtils.testAll('lInsert', async client => {
+    assert.equal(
+      await client.lInsert('key', 'BEFORE', 'pivot', 'element'),
+      0
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

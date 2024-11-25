@@ -1,13 +1,20 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, NumberReply, Command } from '../RESP/types';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(
-    key: RedisCommandArgument,
+export default {
+  IS_READ_ONLY: false,
+  parseCommand(
+    parser: CommandParser,
+    key: RedisArgument,
     start: number,
     stop: number
-): RedisCommandArguments {
-    return ['ZREMRANGEBYRANK', key, start.toString(), stop.toString()];
-}
-
-export declare function transformReply(): number;
+  ) {      
+    parser.push('ZREMRANGEBYRANK');
+    parser.pushKey(key);
+    parser.push(
+      start.toString(), 
+      stop.toString()
+    );
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

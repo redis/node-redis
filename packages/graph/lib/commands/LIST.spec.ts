@@ -1,19 +1,20 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './LIST';
+import LIST from './LIST';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
-describe('LIST', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments(),
-            ['GRAPH.LIST']
-        );
-    });
+describe('GRAPH.LIST', () => {
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(LIST),
+      ['GRAPH.LIST']
+    );
+  });
 
-    testUtils.testWithClient('client.graph.list', async client => {
-        assert.deepEqual(
-            await client.graph.list(),
-            []
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testWithClient('client.graph.list', async client => {
+    assert.deepEqual(
+      await client.graph.list(),
+      []
+    );
+  }, GLOBAL.SERVERS.OPEN);
 });

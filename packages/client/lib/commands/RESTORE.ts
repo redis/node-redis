@@ -1,39 +1,41 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
 
-export const FIRST_KEY_INDEX = 1;
-
-interface RestoreOptions {
-    REPLACE?: true;
-    ABSTTL?: true;
-    IDLETIME?: number;
-    FREQ?: number;
+export interface RestoreOptions {
+  REPLACE?: boolean;
+  ABSTTL?: boolean;
+  IDLETIME?: number;
+  FREQ?: number;
 }
 
-export function transformArguments(
-    key: RedisCommandArgument,
+export default {
+  IS_READ_ONLY: false,
+  parseCommand(
+    parser: CommandParser,
+    key: RedisArgument,
     ttl: number,
-    serializedValue: RedisCommandArgument,
+    serializedValue: RedisArgument,
     options?: RestoreOptions
-): RedisCommandArguments {
-    const args =  ['RESTORE', key, ttl.toString(), serializedValue];
+  ) {
+    parser.push('RESTORE');
+    parser.pushKey(key);
+    parser.push(ttl.toString(), serializedValue);
 
     if (options?.REPLACE) {
-        args.push('REPLACE');
+      parser.push('REPLACE');
     }
 
     if (options?.ABSTTL) {
-        args.push('ABSTTL');
+      parser.push('ABSTTL');
     }
 
     if (options?.IDLETIME) {
-        args.push('IDLETIME', options.IDLETIME.toString());
+      parser.push('IDLETIME', options.IDLETIME.toString());
     }
 
     if (options?.FREQ) {
-        args.push('FREQ', options.FREQ.toString());
+      parser.push('FREQ', options.FREQ.toString());
     }
-
-    return args;
-}
-
-export declare function transformReply(): 'OK';
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

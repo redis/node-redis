@@ -1,44 +1,48 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './BITCOUNT';
+import BITCOUNT from './BITCOUNT';
+import { parseArgs } from './generic-transformers';
 
 describe('BITCOUNT', () => {
-    describe('transformArguments', () => {
-        it('simple', () => {
-            assert.deepEqual(
-                transformArguments('key'),
-                ['BITCOUNT', 'key']
-            );
-        });
-
-        describe('with range', () => {
-            it('simple', () => {
-                assert.deepEqual(
-                    transformArguments('key', {
-                        start: 0,
-                        end: 1
-                    }),
-                    ['BITCOUNT', 'key', '0', '1']
-                );
-            });
-
-            it('with mode', () => {
-                assert.deepEqual(
-                    transformArguments('key', {
-                        start: 0,
-                        end: 1,
-                        mode: 'BIT'
-                    }),
-                    ['BITCOUNT', 'key', '0', '1', 'BIT']
-                );
-            });
-        });
+  describe('parseCommand', () => {
+    it('simple', () => {
+      assert.deepEqual(
+        parseArgs(BITCOUNT, 'key'),
+        ['BITCOUNT', 'key']
+      );
     });
 
-    testUtils.testWithClient('client.bitCount', async client => {
-        assert.equal(
-            await client.bitCount('key'),
-            0
+    describe('with range', () => {
+      it('simple', () => {
+        assert.deepEqual(
+          parseArgs(BITCOUNT, 'key', {
+            start: 0,
+            end: 1
+          }),
+          ['BITCOUNT', 'key', '0', '1']
         );
-    }, GLOBAL.SERVERS.OPEN);
+      });
+
+      it('with mode', () => {
+        assert.deepEqual(
+          parseArgs(BITCOUNT, 'key', {
+            start: 0,
+            end: 1,
+            mode: 'BIT'
+          }),
+          ['BITCOUNT', 'key', '0', '1', 'BIT']
+        );
+      });
+    });
+  });
+
+  testUtils.testAll('bitCount', async client => {
+    assert.equal(
+      await client.bitCount('key'),
+      0
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

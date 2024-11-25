@@ -1,21 +1,27 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { pushVerdictArgument } from './generic-transformers';
+import { CommandParser } from '../client/parser';
+import { NumberReply, Command } from '../RESP/types';
+import { RedisVariadicArgument } from './generic-transformers';
 
-export const FIRST_KEY_INDEX = 2;
-
-export const IS_READ_ONLY = true;
-
-export function transformArguments(
-    keys: Array<RedisCommandArgument> | RedisCommandArgument,
-    limit?: number
-): RedisCommandArguments {
-    const args = pushVerdictArgument(['ZINTERCARD'], keys);
-
-    if (limit) {
-        args.push('LIMIT', limit.toString());
-    }
-
-    return args;
+export interface ZInterCardOptions {
+  LIMIT?: number;
 }
 
-export declare function transformReply(): number;
+export default {
+  IS_READ_ONLY: true,
+  parseCommand(
+    parser: CommandParser,
+    keys: RedisVariadicArgument,
+    options?: ZInterCardOptions['LIMIT'] | ZInterCardOptions
+  ) {
+    parser.push('ZINTERCARD');
+    parser.pushKeysLength(keys);
+
+    // backwards compatibility
+    if (typeof options === 'number') {
+      parser.push('LIMIT', options.toString());
+    } else if (options?.LIMIT) {
+      parser.push('LIMIT', options.LIMIT.toString());
+    }
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

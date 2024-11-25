@@ -1,13 +1,17 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { pushVerdictArguments } from './generic-transformers';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, NumberReply, Command } from '../RESP/types';
+import { RedisVariadicArgument } from './generic-transformers';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(
-    key: RedisCommandArgument,
-    member: RedisCommandArgument | Array<RedisCommandArgument>
-): RedisCommandArguments {
-    return pushVerdictArguments(['ZREM', key], member);
-}
-
-export declare function transformReply(): number;
+export default {
+  IS_READ_ONLY: false,
+  parseCommand(
+    parser: CommandParser,
+    key: RedisArgument,
+    member: RedisVariadicArgument
+  ) {
+    parser.push('ZREM');
+    parser.pushKey(key);
+    parser.pushVariadic(member);
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

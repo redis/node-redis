@@ -1,9 +1,12 @@
-export const FIRST_KEY_INDEX = 1;
+import { RedisArgument, ArrayReply, BlobStringReply, Command } from '@redis/client/dist/lib/RESP/types';
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
 
-export const IS_READ_ONLY = true;
-
-export function transformArguments(key: string, query: string): Array<string> {
-    return ['GRAPH.EXPLAIN', key, query];
-}
-
-export declare function transformReply(): Array<string>;
+export default {
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, key: RedisArgument, query: RedisArgument) {
+    parser.push('GRAPH.EXPLAIN');
+    parser.pushKey(key);
+    parser.push(query);
+  },
+  transformReply: undefined as unknown as () => ArrayReply<BlobStringReply>
+} as const satisfies Command;

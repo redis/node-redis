@@ -1,30 +1,45 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './ZINTERCARD';
+import ZINTERCARD from './ZINTERCARD';
+import { parseArgs } from './generic-transformers';
 
 describe('ZINTERCARD', () => {
-    testUtils.isVersionGreaterThanHook([7]);
+  testUtils.isVersionGreaterThanHook([7]);
 
-    describe('transformArguments', () => {
-        it('simple', () => {
-            assert.deepEqual(
-                transformArguments(['1', '2']),
-                ['ZINTERCARD', '2', '1', '2']
-            );
-        });
-
-        it('with limit', () => {
-            assert.deepEqual(
-                transformArguments(['1', '2'], 1),
-                ['ZINTERCARD', '2', '1', '2', 'LIMIT', '1']
-            );
-        });
+  describe('transformArguments', () => {
+    it('simple', () => {
+      assert.deepEqual(
+        parseArgs(ZINTERCARD, ['1', '2']),
+        ['ZINTERCARD', '2', '1', '2']
+      );
     });
 
-    testUtils.testWithClient('client.zInterCard', async client => {
+    describe('with LIMIT', () => {
+      it('plain number (backwards compatibility)', () => {
         assert.deepEqual(
-            await client.zInterCard('key'),
-            0
+          parseArgs(ZINTERCARD, ['1', '2'], 1),
+          ['ZINTERCARD', '2', '1', '2', 'LIMIT', '1']
         );
-    }, GLOBAL.SERVERS.OPEN);
+      });
+
+      it('{ LIMIT: number }', () => {
+        assert.deepEqual(
+          parseArgs(ZINTERCARD, ['1', '2'], {
+            LIMIT: 1
+          }),
+          ['ZINTERCARD', '2', '1', '2', 'LIMIT', '1']
+        );
+      });
+    });
+  });
+
+  testUtils.testAll('zInterCard', async client => {
+    assert.deepEqual(
+      await client.zInterCard('key'),
+      0
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

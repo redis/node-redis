@@ -1,17 +1,18 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { SimpleStringReply, Command } from '../RESP/types';
 
-interface BgSaveOptions {
-    SCHEDULE?: true;
+export interface BgSaveOptions {
+  SCHEDULE?: boolean;
 }
 
-export function transformArguments(options?: BgSaveOptions): RedisCommandArguments {
-    const args = ['BGSAVE'];
-
+export default {
+  NOT_KEYED_COMMAND: true,
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, options?: BgSaveOptions) {
+    parser.push('BGSAVE');
     if (options?.SCHEDULE) {
-        args.push('SCHEDULE');
+      parser.push('SCHEDULE');
     }
-
-    return args;
-}
-
-export declare function transformReply(): RedisCommandArgument;
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply
+} as const satisfies Command;

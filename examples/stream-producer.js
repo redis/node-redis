@@ -47,4 +47,4 @@ console.log(`Length of mystream: ${await client.xLen('mystream')}.`);
 // Should be approximately 1000:
 console.log(`Length of mytrimmedstream: ${await client.xLen('mytrimmedstream')}.`);
 
-await client.quit();
+client.destroy();

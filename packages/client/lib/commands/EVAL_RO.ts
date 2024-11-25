@@ -1,9 +1,11 @@
-import { evalFirstKeyIndex, EvalOptions, pushEvalArguments } from './generic-transformers';
+import { Command } from '../RESP/types';
+import EVAL, { parseEvalArguments } from './EVAL';
 
-export const FIRST_KEY_INDEX = evalFirstKeyIndex;
-
-export const IS_READ_ONLY = true;
-
-export function transformArguments(script: string, options?: EvalOptions): Array<string> {
-    return pushEvalArguments(['EVAL_RO', script], options);
-}
+export default {
+  IS_READ_ONLY: true,
+  parseCommand(...args: Parameters<typeof parseEvalArguments>) {
+    args[0].push('EVAL_RO');
+    parseEvalArguments(...args);
+  },
+  transformReply: EVAL.transformReply
+} as const satisfies Command;

@@ -1,23 +1,8 @@
-import { RedisCommandArgument, RedisCommandArguments } from '@redis/client/dist/lib/commands';
-import { pushQueryArguments, QueryOptionsBackwardCompatible } from '.';
+import { Command } from '@redis/client/dist/lib/RESP/types';
+import QUERY, { parseQueryArguments } from './QUERY';
 
-export { FIRST_KEY_INDEX } from './QUERY';
-
-export const IS_READ_ONLY = true;
-
-export function transformArguments(
-    graph: RedisCommandArgument,
-    query: RedisCommandArgument,
-    options?: QueryOptionsBackwardCompatible,
-    compact?: boolean
-): RedisCommandArguments {
-    return pushQueryArguments(
-        ['GRAPH.RO_QUERY'],
-        graph,
-        query,
-        options,
-        compact
-    );
-}
-
-export { transformReply } from './QUERY';
+export default {
+  IS_READ_ONLY: true,
+  parseCommand: parseQueryArguments.bind(undefined, 'GRAPH.RO_QUERY'),
+  transformReply: QUERY.transformReply
+} as const satisfies Command;

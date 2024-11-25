@@ -1,7 +1,11 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { SimpleStringReply, Command } from '../RESP/types';
 
-export function transformArguments(): RedisCommandArguments {
-    return ['BGREWRITEAOF'];
-}
-
-export declare function transformReply(): RedisCommandArgument;
+export default {
+  NOT_KEYED_COMMAND: true,
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser) {
+    parser.push('BGREWRITEAOF');
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply
+} as const satisfies Command;

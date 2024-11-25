@@ -1,13 +1,15 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { BlobStringReply, Command } from '../RESP/types';
 
-export function transformArguments(bits?: number): RedisCommandArguments {
-    const args = ['ACL', 'GENPASS'];
-
+export default {
+  NOT_KEYED_COMMAND: true,
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, bits?: number) {
+    parser.push('ACL', 'GENPASS');
     if (bits) {
-        args.push(bits.toString());
+      parser.push(bits.toString());
     }
+  },
+  transformReply: undefined as unknown as () => BlobStringReply
+} as const satisfies Command;
 
-    return args;
-}
-
-export declare function transformReply(): RedisCommandArgument;

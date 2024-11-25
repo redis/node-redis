@@ -1,11 +1,12 @@
-import { strict as assert } from 'assert';
-import { transformArguments } from './CLUSTER_FORGET';
+import { strict as assert } from 'node:assert';
+import CLUSTER_FORGET from './CLUSTER_FORGET';
+import { parseArgs } from './generic-transformers';
 
 describe('CLUSTER FORGET', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('0'),
-            ['CLUSTER', 'FORGET', '0']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(CLUSTER_FORGET, '0'),
+      ['CLUSTER', 'FORGET', '0']
+    );
+  });
 });

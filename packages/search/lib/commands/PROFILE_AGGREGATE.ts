@@ -1,29 +1,37 @@
-import { pushAggregatehOptions, AggregateOptions, transformReply as transformAggregateReply, AggregateRawReply } from './AGGREGATE';
-import { ProfileOptions, ProfileRawReply, ProfileReply, transformProfile } from '.';
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { Command, ReplyUnion } from "@redis/client/dist/lib/RESP/types";
+import AGGREGATE, { AggregateRawReply, FtAggregateOptions, parseAggregateOptions } from "./AGGREGATE";
+import { ProfileOptions, ProfileRawReply, ProfileReply, transformProfile } from "./PROFILE_SEARCH";
 
-export const IS_READ_ONLY = true;
+export default {
+  NOT_KEYED_COMMAND: true,
+    IS_READ_ONLY: true,
+    parseCommand(
+      parser: CommandParser,
+      index: string,
+      query: string,
+      options?: ProfileOptions & FtAggregateOptions
+    ) {
+      parser.push('FT.PROFILE', index, 'AGGREGATE');
+    
+      if (options?.LIMITED) {
+        parser.push('LIMITED');
+      }
+    
+      parser.push('QUERY', query);
 
-export function transformArguments(
-    index: string,
-    query: string,
-    options?: ProfileOptions & AggregateOptions
-): Array<string> {
-    const args = ['FT.PROFILE', index, 'AGGREGATE'];
+      parseAggregateOptions(parser, options)
+    },
+    transformReply: {
+      2: (reply: ProfileAggeregateRawReply): ProfileReply => {
+        return {
+          results: AGGREGATE.transformReply[2](reply[0]),
+          profile: transformProfile(reply[1])
+        }
+      },
+      3: undefined as unknown as () => ReplyUnion
+    },
+    unstableResp3: true
+  } as const satisfies Command;
 
-    if (options?.LIMITED) {
-        args.push('LIMITED');
-    }
-
-    args.push('QUERY', query);
-    pushAggregatehOptions(args, options)
-    return args;
-}
-
-type ProfileAggeregateRawReply = ProfileRawReply<AggregateRawReply>;
-
-export function transformReply(reply: ProfileAggeregateRawReply): ProfileReply {
-    return {
-        results: transformAggregateReply(reply[0]),
-        profile: transformProfile(reply[1])
-    };
-}
+  type ProfileAggeregateRawReply = ProfileRawReply<AggregateRawReply>;

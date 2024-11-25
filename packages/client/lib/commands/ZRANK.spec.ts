@@ -1,19 +1,23 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './ZRANK';
+import ZRANK from './ZRANK';
+import { parseArgs } from './generic-transformers';
 
 describe('ZRANK', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key', 'member'),
-            ['ZRANK', 'key', 'member']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(ZRANK, 'key', 'member'),
+      ['ZRANK', 'key', 'member']
+    );
+  });
 
-    testUtils.testWithClient('client.zRank', async client => {
-        assert.equal(
-            await client.zRank('key', 'member'),
-            null
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testAll('zRank', async client => {
+    assert.equal(
+      await client.zRank('key', 'member'),
+      null
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

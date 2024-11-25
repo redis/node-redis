@@ -1,39 +1,42 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './MADD';
+import MADD from './MADD';
+import { SimpleError } from '@redis/client/lib/errors';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
-describe('MADD', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments([{
-                key: '1',
-                timestamp: 0,
-                value: 0
-            }, {
-                key: '2',
-                timestamp: 1,
-                value: 1
-            }]),
-            ['TS.MADD', '1', '0', '0', '2', '1', '1']
-        );
-    });
+describe('TS.MADD', () => {
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(MADD, [{
+        key: '1',
+        timestamp: 0,
+        value: 0
+      }, {
+        key: '2',
+        timestamp: 1,
+        value: 1
+      }]),
+      ['TS.MADD', '1', '0', '0', '2', '1', '1']
+    );
+  });
 
-    // Should we check empty array?
+  testUtils.testWithClient('client.ts.mAdd', async client => {
+    const [, reply] = await Promise.all([
+      client.ts.create('key'),
+      client.ts.mAdd([{
+        key: 'key',
+        timestamp: 0,
+        value: 1
+      }, {
+        key: 'key',
+        timestamp: 0,
+        value: 1
+      }])
+    ]);
 
-    testUtils.testWithClient('client.ts.mAdd', async client => {
-        await client.ts.create('key');
-
-        assert.deepEqual(
-            await client.ts.mAdd([{
-                key: 'key',
-                timestamp: 0,
-                value: 0
-            }, {
-                key: 'key',
-                timestamp: 1,
-                value: 1
-            }]),
-            [0, 1]
-        );
-    }, GLOBAL.SERVERS.OPEN);
+    assert.ok(Array.isArray(reply));
+    assert.equal(reply.length, 2);
+    assert.equal(reply[0], 0);
+    assert.ok(reply[1] instanceof SimpleError);
+  }, GLOBAL.SERVERS.OPEN);
 });

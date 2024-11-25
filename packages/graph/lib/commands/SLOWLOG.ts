@@ -1,30 +1,28 @@
-export const IS_READ_ONLY = true;
+import { RedisArgument, ArrayReply, TuplesReply, BlobStringReply, UnwrapReply, Command } from '@redis/client/dist/lib/RESP/types';
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
 
-export const FIRST_KEY_INDEX = 1;
+type SlowLogRawReply = ArrayReply<TuplesReply<[
+  timestamp: BlobStringReply,
+  command: BlobStringReply,
+  query: BlobStringReply,
+  took: BlobStringReply
+]>>;
 
-export function transformArguments(key: string) {
-    return ['GRAPH.SLOWLOG', key];
-}
-
-type SlowLogRawReply = Array<[
-    timestamp: string,
-    command: string,
-    query: string,
-    took: string
-]>;
-
-type SlowLogReply = Array<{
-    timestamp: Date;
-    command: string;
-    query: string;
-    took: number;
-}>;
-
-export function transformReply(logs: SlowLogRawReply): SlowLogReply {
-    return logs.map(([timestamp, command, query, took]) => ({
-        timestamp: new Date(Number(timestamp) * 1000),
+export default {
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, key: RedisArgument) {
+    parser.push('GRAPH.SLOWLOG');
+    parser.pushKey(key);
+  },
+  transformReply(reply: UnwrapReply<SlowLogRawReply>) {
+    return reply.map(log => {
+      const [timestamp, command, query, took] = log as unknown as UnwrapReply<typeof log>;
+      return {
+        timestamp: Number(timestamp),
         command,
         query,
         took: Number(took)
-    }));
-}
+      };
+    });
+  }
+} as const satisfies Command;

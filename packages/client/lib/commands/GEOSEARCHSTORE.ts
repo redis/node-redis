@@ -1,38 +1,27 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { GeoSearchFrom, GeoSearchBy, GeoSearchOptions, pushGeoSearchArguments } from './generic-transformers';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, NumberReply, Command } from '../RESP/types';
+import { GeoSearchFrom, GeoSearchBy, GeoSearchOptions, parseGeoSearchArguments } from './GEOSEARCH';
 
-export { FIRST_KEY_INDEX, IS_READ_ONLY } from './GEOSEARCH';
-
-interface GeoSearchStoreOptions extends GeoSearchOptions {
-    STOREDIST?: true;
+export interface GeoSearchStoreOptions extends GeoSearchOptions {
+  STOREDIST?: boolean;
 }
 
-export function transformArguments(
-    destination: RedisCommandArgument,
-    source: RedisCommandArgument,
+export default {
+  IS_READ_ONLY: false,
+  parseCommand(
+    parser: CommandParser,
+    destination: RedisArgument,
+    source: RedisArgument,
     from: GeoSearchFrom,
     by: GeoSearchBy,
     options?: GeoSearchStoreOptions
-): RedisCommandArguments {
-    const args = pushGeoSearchArguments(
-        ['GEOSEARCHSTORE', destination],
-        source,
-        from,
-        by,
-        options
-    );
+  ) {
+    parser.push('GEOSEARCHSTORE');
+    parseGeoSearchArguments(parser, source, from, by, options, destination);
 
     if (options?.STOREDIST) {
-        args.push('STOREDIST');
+      parser.push('STOREDIST');
     }
-
-    return args;
-}
-
-export function transformReply(reply: number): number {
-    if (typeof reply !== 'number') {
-        throw new TypeError(`https://github.com/redis/redis/issues/9261`);
-    }
-
-    return reply;
-}
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

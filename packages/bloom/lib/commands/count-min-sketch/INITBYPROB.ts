@@ -1,7 +1,12 @@
-export const FIRST_KEY_INDEX = 1;
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { RedisArgument, SimpleStringReply, Command } from '@redis/client/dist/lib/RESP/types';
 
-export function transformArguments(key: string, error: number, probability: number): Array<string> {
-    return ['CMS.INITBYPROB', key, error.toString(), probability.toString()];
-}
-
-export declare function transformReply(): 'OK';
+export default {
+  IS_READ_ONLY: false,
+  parseCommand(parser: CommandParser, key: RedisArgument, error: number, probability: number) {
+    parser.push('CMS.INITBYPROB');
+    parser.pushKey(key);
+    parser.push(error.toString(), probability.toString());
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

@@ -1,33 +1,37 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { pushVerdictArgument } from './generic-transformers';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, ArrayReply, BlobStringReply, Command } from '../RESP/types';
+import { ZKeys, parseZKeysArguments } from './generic-transformers';
 
-export const FIRST_KEY_INDEX = 2;
+export type ZInterKeyAndWeight = {
+  key: RedisArgument;
+  weight: number;
+};
 
-export const IS_READ_ONLY = true;
+export type ZInterKeys<T> = T | [T, ...Array<T>];
 
-interface ZInterOptions {
-    WEIGHTS?: Array<number>;
-    AGGREGATE?: 'SUM' | 'MIN' | 'MAX';
+export type ZInterKeysType = ZInterKeys<RedisArgument> | ZInterKeys<ZInterKeyAndWeight>;
+
+export interface ZInterOptions {
+  AGGREGATE?: 'SUM' | 'MIN' | 'MAX';
 }
 
-export function transformArguments(
-    keys: Array<RedisCommandArgument> | RedisCommandArgument,
-    options?: ZInterOptions
-): RedisCommandArguments {
-    const args = pushVerdictArgument(['ZINTER'], keys);
+export function parseZInterArguments(
+  parser: CommandParser,
+  keys: ZKeys,
+  options?: ZInterOptions
+) {
+  parseZKeysArguments(parser, keys);
 
-    if (options?.WEIGHTS) {
-        args.push(
-            'WEIGHTS',
-            ...options.WEIGHTS.map(weight => weight.toString())
-        );
-    }
-
-    if (options?.AGGREGATE) {
-        args.push('AGGREGATE', options.AGGREGATE);
-    }
-
-    return args;
+  if (options?.AGGREGATE) {
+    parser.push('AGGREGATE', options.AGGREGATE);
+  }
 }
 
-export declare function transformReply(): Array<RedisCommandArgument>;
+export default {
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, keys: ZInterKeysType, options?: ZInterOptions) {
+    parser.push('ZINTER');
+    parseZInterArguments(parser, keys, options);
+  },
+  transformReply: undefined as unknown as () => ArrayReply<BlobStringReply>
+} as const satisfies Command;

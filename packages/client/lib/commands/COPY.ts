@@ -1,28 +1,24 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, NumberReply, Command } from '../RESP/types';
 
-interface CopyCommandOptions {
-    destinationDb?: number;
-    replace?: boolean;
+export interface CopyCommandOptions {
+  DB?: number;
+  REPLACE?: boolean;
 }
 
-export const FIRST_KEY_INDEX = 1;
+export default {
+  IS_READ_ONLY: false,
+  parseCommand(parser: CommandParser, source: RedisArgument, destination: RedisArgument, options?: CopyCommandOptions) {
+    parser.push('COPY');
+    parser.pushKeys([source, destination]);
 
-export function transformArguments(
-    source: RedisCommandArgument,
-    destination: RedisCommandArgument,
-    options?: CopyCommandOptions
-): RedisCommandArguments {
-    const args = ['COPY', source, destination];
-
-    if (options?.destinationDb) {
-        args.push('DB', options.destinationDb.toString());
+    if (options?.DB) {
+      parser.push('DB', options.DB.toString());
     }
 
-    if (options?.replace) {
-        args.push('REPLACE');
+    if (options?.REPLACE) {
+      parser.push('REPLACE');
     }
-
-    return args;
-}
-
-export { transformBooleanReply as transformReply } from './generic-transformers';
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

@@ -1,20 +1,25 @@
-interface SugAddOptions {
-    INCR?: true;
-    PAYLOAD?: string;
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { RedisArgument, NumberReply, Command } from '@redis/client/dist/lib/RESP/types';
+
+export interface FtSugAddOptions {
+  INCR?: boolean;
+  PAYLOAD?: RedisArgument;
 }
 
-export function transformArguments(key: string, string: string, score: number, options?: SugAddOptions): Array<string> {
-    const args = ['FT.SUGADD', key, string, score.toString()];
+export default {
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, key: RedisArgument, string: RedisArgument, score: number, options?: FtSugAddOptions) {
+    parser.push('FT.SUGADD');
+    parser.pushKey(key);
+    parser.push(string, score.toString());
 
     if (options?.INCR) {
-        args.push('INCR');
+      parser.push('INCR');
     }
 
     if (options?.PAYLOAD) {
-        args.push('PAYLOAD', options.PAYLOAD);
+      parser.push('PAYLOAD', options.PAYLOAD);
     }
-
-    return args;
-}
-
-export declare function transformReply(): number;
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

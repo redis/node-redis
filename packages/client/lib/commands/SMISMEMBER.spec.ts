@@ -1,21 +1,25 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './SMISMEMBER';
+import SMISMEMBER from './SMISMEMBER';
+import { parseArgs } from './generic-transformers';
 
 describe('SMISMEMBER', () => {
-    testUtils.isVersionGreaterThanHook([6, 2]);
+  testUtils.isVersionGreaterThanHook([6, 2]);
 
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key', ['1', '2']),
-            ['SMISMEMBER', 'key', '1', '2']
-        );
-    });
+  it('processCommand', () => {
+    assert.deepEqual(
+      parseArgs(SMISMEMBER, 'key', ['1', '2']),
+      ['SMISMEMBER', 'key', '1', '2']
+    );
+  });
 
-    testUtils.testWithClient('client.smIsMember', async client => {
-        assert.deepEqual(
-            await client.smIsMember('key', ['1', '2']),
-            [false, false]
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testAll('smIsMember', async client => {
+    assert.deepEqual(
+      await client.smIsMember('key', ['1', '2']),
+      [0, 0]
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

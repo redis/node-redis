@@ -1,22 +1,22 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../../test-utils';
-import { transformArguments } from './ADD';
+import ADD from './ADD';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
-describe('TOPK ADD', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key', 'item'),
-            ['TOPK.ADD', 'key', 'item']
-        );
-    });
+describe('TOPK.ADD', () => {
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(ADD, 'key', 'item'),
+      ['TOPK.ADD', 'key', 'item']
+    );
+  });
 
-    testUtils.testWithClient('client.topK.add', async client => {
-        await client.topK.reserve('topK', 3);
+  testUtils.testWithClient('client.topK.add', async client => {
+    const [, reply] = await Promise.all([
+      client.topK.reserve('topK', 3),
+      client.topK.add('topK', 'item')
+    ]);
 
-        assert.deepEqual(
-            await client.topK.add('topK', 'item'),
-            [null]
-        );
-
-    }, GLOBAL.SERVERS.OPEN);
+    assert.deepEqual(reply, [null]);
+  }, GLOBAL.SERVERS.OPEN);
 });

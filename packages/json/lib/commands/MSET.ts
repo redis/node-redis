@@ -1,28 +1,22 @@
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { RedisArgument, SimpleStringReply, Command } from '@redis/client/dist/lib/RESP/types';
 import { RedisJSON, transformRedisJsonArgument } from '.';
-import { RedisCommandArgument } from '@redis/client/dist/lib/commands';
 
-export const FIRST_KEY_INDEX = 1;
-
-interface JsonMSetItem {
-    key: RedisCommandArgument;
-    path: RedisCommandArgument;
-    value: RedisJSON;
+export interface JsonMSetItem {
+  key: RedisArgument;
+  path: RedisArgument;
+  value: RedisJSON;
 }
 
-export function transformArguments(items: Array<JsonMSetItem>): Array<string> {
-  
-    const args = new Array(1 + items.length * 3);
-    args[0] = 'JSON.MSET';
+export default {
+  IS_READ_ONLY: false,
+  parseCommand(parser: CommandParser, items: Array<JsonMSetItem>) {
+    parser.push('JSON.MSET');
 
-    let argsIndex = 1;
     for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        args[argsIndex++] = item.key;
-        args[argsIndex++] = item.path;
-        args[argsIndex++] = transformRedisJsonArgument(item.value);
+      parser.pushKey(items[i].key);
+      parser.push(items[i].path, transformRedisJsonArgument(items[i].value));
     }
-
-    return args;
-}
-
-export declare function transformReply(): 'OK';
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

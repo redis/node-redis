@@ -1,5 +1,11 @@
-export function transformArguments(): Array<string> {
-    return ['CONFIG', 'REWRITE'];
-}
+import { CommandParser } from '../client/parser';
+import { SimpleStringReply, Command } from '../RESP/types';
 
-export declare function transformReply(): string;
+export default {
+  NOT_KEYED_COMMAND: true,
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser) {
+    parser.push('CONFIG', 'REWRITE');
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply
+} as const satisfies Command;

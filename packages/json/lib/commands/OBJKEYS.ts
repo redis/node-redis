@@ -1,13 +1,18 @@
-export const FIRST_KEY_INDEX = 1;
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { RedisArgument, ArrayReply, BlobStringReply, NullReply, Command } from '@redis/client/dist/lib/RESP/types';
 
-export function transformArguments(key: string, path?: string): Array<string> {
-    const args = ['JSON.OBJKEYS', key];
-
-    if (path) {
-        args.push(path);
-    }
-
-    return args;
+export interface JsonObjKeysOptions {
+  path?: RedisArgument;
 }
 
-export declare function transformReply(): Array<string> | null | Array<Array<string> | null>;
+export default {
+  IS_READ_ONLY: false,
+  parseCommand(parser: CommandParser, key: RedisArgument, options?: JsonObjKeysOptions) {
+    parser.push('JSON.OBJKEYS');
+    parser.pushKey(key);
+    if (options?.path !== undefined) {
+      parser.push(options.path);
+    }
+  },
+  transformReply: undefined as unknown as () => ArrayReply<BlobStringReply> | ArrayReply<ArrayReply<BlobStringReply> | NullReply>
+} as const satisfies Command;

@@ -1,12 +1,12 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, Command } from '../RESP/types';
+import ZPOPMAX from './ZPOPMAX';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(key: RedisCommandArgument): RedisCommandArguments {
-    return [
-        'ZPOPMIN',
-        key
-    ];
-}
-
-export { transformSortedSetMemberNullReply as transformReply } from './generic-transformers';
+export default {
+  IS_READ_ONLY: false,
+  parseCommand(parser: CommandParser, key: RedisArgument) {
+    parser.push('ZPOPMIN');
+    parser.pushKey(key);
+  },
+  transformReply: ZPOPMAX.transformReply
+} as const satisfies Command;

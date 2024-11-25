@@ -1,22 +1,22 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../../test-utils';
-import { transformArguments } from './QUERY';
+import QUERY from './QUERY';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
-describe('CMS QUERY', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key', 'item'),
-            ['CMS.QUERY', 'key', 'item']
-        );
-    });
+describe('CMS.QUERY', () => {
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(QUERY, 'key', 'item'),
+      ['CMS.QUERY', 'key', 'item']
+    );
+  });
 
-    testUtils.testWithClient('client.cms.query', async client => {
-        await client.cms.initByDim('key', 1000, 5);
+  testUtils.testWithClient('client.cms.query', async client => {
+    const [, reply] = await Promise.all([
+      client.cms.initByDim('key', 1000, 5),
+      client.cms.query('key', 'item')
+    ]);
 
-        assert.deepEqual(
-            await client.cms.query('key', 'item'),
-            [0]
-        );
-
-    }, GLOBAL.SERVERS.OPEN);
+    assert.deepEqual(reply, [0]);
+  }, GLOBAL.SERVERS.OPEN);
 });

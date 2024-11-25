@@ -1,13 +1,16 @@
-import { RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { SimpleStringReply, Command } from '../RESP/types';
+import { RedisFlushMode } from './FLUSHALL';
 
-export function transformArguments(mode?: 'ASYNC' | 'SYNC'): RedisCommandArguments {
-    const args = ['FUNCTION', 'FLUSH'];
+export default {
+  NOT_KEYED_COMMAND: true,
+  IS_READ_ONLY: false,
+  parseCommand(parser: CommandParser, mode?: RedisFlushMode) {
+    parser.push('FUNCTION', 'FLUSH');
 
     if (mode) {
-        args.push(mode);
+      parser.push(mode);
     }
-
-    return args;
-}
-
-export declare function transformReply(): 'OK';
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

@@ -1,13 +1,14 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, ArrayReply, BlobStringReply, Command } from '../RESP/types';
 
-export function transformArguments(categoryName?: RedisCommandArgument): RedisCommandArguments {
-    const args: RedisCommandArguments = ['ACL', 'CAT'];
-
+export default {
+  NOT_KEYED_COMMAND: true,
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, categoryName?: RedisArgument) {
+    parser.push('ACL', 'CAT');
     if (categoryName) {
-        args.push(categoryName);
+      parser.push(categoryName);
     }
-
-    return args;
-}
-
-export declare function transformReply(): Array<RedisCommandArgument>;
+  },
+  transformReply: undefined as unknown as () => ArrayReply<BlobStringReply>
+} as const satisfies Command;

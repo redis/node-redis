@@ -1,19 +1,23 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './HGET';
+import HGET from './HGET';
+import { parseArgs } from './generic-transformers';
 
 describe('HGET', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key', 'field'),
-            ['HGET', 'key', 'field']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(HGET, 'key', 'field'),
+      ['HGET', 'key', 'field']
+    );
+  });
 
-    testUtils.testWithClient('client.hGet', async client => {
-        assert.equal(
-            await client.hGet('key', 'field'),
-            null
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testAll('hGet', async client => {
+    assert.equal(
+      await client.hGet('key', 'field'),
+      null
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

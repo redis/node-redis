@@ -1,16 +1,20 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
 
 export interface AuthOptions {
-    username?: RedisCommandArgument;
-    password: RedisCommandArgument;
+  username?: RedisArgument;
+  password: RedisArgument;
 }
 
-export function transformArguments({ username, password }: AuthOptions): RedisCommandArguments {
-    if (!username) {
-        return ['AUTH', password];
+export default {
+  NOT_KEYED_COMMAND: true,
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, { username, password }: AuthOptions) {
+    parser.push('AUTH');
+    if (username !== undefined) {
+      parser.push(username);
     }
-
-    return ['AUTH', username, password];
-}
-
-export declare function transformReply(): RedisCommandArgument;
+    parser.push(password);
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

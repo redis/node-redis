@@ -1,12 +1,11 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, NumberReply, Command } from '../RESP/types';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(
-    key: RedisCommandArgument,
-    increment: number
-): RedisCommandArguments {
-    return ['INCRBY', key, increment.toString()];
-}
-
-export declare function transformReply(): number;
+export default {
+  parseCommand(parser: CommandParser, key: RedisArgument, increment: number) {
+    parser.push('INCRBY');
+    parser.pushKey(key);
+    parser.push(increment.toString());
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

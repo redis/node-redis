@@ -1,7 +1,11 @@
-export const IS_READ_ONLY = true;
+import { CommandParser } from '../client/parser';
+import { NumberReply, Command } from '../RESP/types';
 
-export function transformArguments(): Array<string> {
-    return ['DBSIZE'];
-}
-
-export declare function transformReply(): number;
+export default {
+  NOT_KEYED_COMMAND: true,
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser) {
+    parser.push('DBSIZE');
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

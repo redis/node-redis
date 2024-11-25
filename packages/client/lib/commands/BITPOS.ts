@@ -1,32 +1,32 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, NumberReply, Command } from '../RESP/types';
 import { BitValue } from './generic-transformers';
 
-export const FIRST_KEY_INDEX = 1;
-
-export const IS_READ_ONLY = true;
-
-export function transformArguments(
-    key: RedisCommandArgument,
+export default {
+  CACHEABLE: true,
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser,
+    key: RedisArgument,
     bit: BitValue,
     start?: number,
     end?: number,
     mode?: 'BYTE' | 'BIT'
-): RedisCommandArguments {
-    const args = ['BITPOS', key, bit.toString()];
+  ) {
+    parser.push('BITPOS');
+    parser.pushKey(key);
+    parser.push(bit.toString());
 
-    if (typeof start === 'number') {
-        args.push(start.toString());
+    if (start !== undefined) {
+      parser.push(start.toString());
     }
 
-    if (typeof end === 'number') {
-        args.push(end.toString());
+    if (end !== undefined) {
+      parser.push(end.toString());
     }
 
     if (mode) {
-        args.push(mode);
+      parser.push(mode);
     }
-
-    return args;
-}
-
-export declare function transformReply(): number;
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

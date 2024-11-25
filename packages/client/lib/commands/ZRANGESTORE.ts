@@ -1,62 +1,51 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { transformStringNumberInfinityArgument } from './generic-transformers';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, NumberReply, Command } from '../RESP/types';
+import { transformStringDoubleArgument } from './generic-transformers';
 
-export const FIRST_KEY_INDEX = 1;
-
-interface ZRangeStoreOptions {
-    BY?: 'SCORE' | 'LEX';
-    REV?: true;
-    LIMIT?: {
-        offset: number;
-        count: number;
-    };
-    WITHSCORES?: true;
+export interface ZRangeStoreOptions {
+  BY?: 'SCORE' | 'LEX';
+  REV?: true;
+  LIMIT?: {
+    offset: number;
+    count: number;
+  };
 }
 
-export function transformArguments(
-    dst: RedisCommandArgument,
-    src: RedisCommandArgument,
-    min: RedisCommandArgument | number,
-    max: RedisCommandArgument | number,
+export default {
+  IS_READ_ONLY: false,
+  parseCommand(
+    parser: CommandParser,
+    destination: RedisArgument,
+    source: RedisArgument,
+    min: RedisArgument | number,
+    max: RedisArgument | number,
     options?: ZRangeStoreOptions
-): RedisCommandArguments {
-    const args = [
-        'ZRANGESTORE',
-        dst,
-        src,
-        transformStringNumberInfinityArgument(min),
-        transformStringNumberInfinityArgument(max)
-    ];
+  ) {
+    parser.push('ZRANGESTORE');
+    parser.pushKey(destination);
+    parser.pushKey(source);
+    parser.push(
+      transformStringDoubleArgument(min), 
+      transformStringDoubleArgument(max)
+    );
 
     switch (options?.BY) {
-        case 'SCORE':
-            args.push('BYSCORE');
-            break;
+      case 'SCORE':
+        parser.push('BYSCORE');
+        break;
 
-        case 'LEX':
-            args.push('BYLEX');
-            break;
+      case 'LEX':
+        parser.push('BYLEX');
+        break;
     }
 
     if (options?.REV) {
-        args.push('REV');
+      parser.push('REV');
     }
 
     if (options?.LIMIT) {
-        args.push('LIMIT', options.LIMIT.offset.toString(), options.LIMIT.count.toString());
+      parser.push('LIMIT', options.LIMIT.offset.toString(), options.LIMIT.count.toString());
     }
-
-    if (options?.WITHSCORES) {
-        args.push('WITHSCORES');
-    }
-
-    return args;
-}
-
-export function transformReply(reply: number): number {
-    if (typeof reply !== 'number') {
-        throw new TypeError(`Upgrade to Redis 6.2.5 and up (https://github.com/redis/redis/pull/9089)`);
-    }
-
-    return reply;
-}
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

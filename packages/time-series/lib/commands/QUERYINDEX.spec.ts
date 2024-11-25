@@ -1,34 +1,35 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './QUERYINDEX';
+import QUERYINDEX from './QUERYINDEX';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
-describe('QUERYINDEX', () => {
-    describe('transformArguments', () => {
-        it('single filter', () => {
-            assert.deepEqual(
-                transformArguments('*'),
-                ['TS.QUERYINDEX', '*']
-            );
-        });
-        
-        it('multiple filters', () => {
-            assert.deepEqual(
-                transformArguments(['a=1', 'b=2']),
-                ['TS.QUERYINDEX', 'a=1', 'b=2']
-            );
-        });
+describe('TS.QUERYINDEX', () => {
+  describe('transformArguments', () => {
+    it('single filter', () => {
+      assert.deepEqual(
+        parseArgs(QUERYINDEX, '*'),
+        ['TS.QUERYINDEX', '*']
+      );
     });
 
-    testUtils.testWithClient('client.ts.queryIndex', async client => {
-        await client.ts.create('key', {
-            LABELS: {
-                label: 'value'
-            }
-        });
+    it('multiple filters', () => {
+      assert.deepEqual(
+        parseArgs(QUERYINDEX, ['a=1', 'b=2']),
+        ['TS.QUERYINDEX', 'a=1', 'b=2']
+      );
+    });
+  });
 
-        assert.deepEqual(
-            await client.ts.queryIndex('label=value'),
-            ['key']
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testWithClient('client.ts.queryIndex', async client => {
+    const [, reply] = await Promise.all([
+      client.ts.create('key', {
+        LABELS: {
+          label: 'value'
+        }
+      }),
+      client.ts.queryIndex('label=value')
+    ]);
+
+    assert.deepEqual(reply, ['key']);
+  }, GLOBAL.SERVERS.OPEN);
 });

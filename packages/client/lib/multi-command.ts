@@ -1,95 +1,70 @@
-import { fCallArguments } from './commander';
-import { RedisCommand, RedisCommandArguments, RedisCommandRawReply, RedisFunction, RedisScript } from './commands';
-import { ErrorReply, MultiErrorReply, WatchError } from './errors';
+import { CommandArguments, RedisScript, ReplyUnion, TransformReply, TypeMapping } from './RESP/types';
+import { ErrorReply, MultiErrorReply } from './errors';
+
+export type MULTI_REPLY = {
+  GENERIC: 'generic';
+  TYPED: 'typed';
+};
+
+export type MultiReply = MULTI_REPLY[keyof MULTI_REPLY];
+
+export type MultiReplyType<T extends MultiReply, REPLIES> = T extends MULTI_REPLY['TYPED'] ? REPLIES : Array<ReplyUnion>;
 
 export interface RedisMultiQueuedCommand {
-    args: RedisCommandArguments;
-    transformReply?: RedisCommand['transformReply'];
+  args: CommandArguments;
+  transformReply?: TransformReply;
 }
 
 export default class RedisMultiCommand {
-    static generateChainId(): symbol {
-        return Symbol('RedisMultiCommand Chain Id');
+  private readonly typeMapping?: TypeMapping;
+
+  constructor(typeMapping?: TypeMapping) {
+    this.typeMapping = typeMapping;
+  }
+
+  readonly queue: Array<RedisMultiQueuedCommand> = [];
+
+  readonly scriptsInUse = new Set<string>();
+
+  addCommand(args: CommandArguments, transformReply?: TransformReply) {
+    this.queue.push({
+      args,
+      transformReply
+    });
+  }
+
+  addScript(script: RedisScript, args: CommandArguments, transformReply?: TransformReply) {
+    const redisArgs: CommandArguments = [];
+    redisArgs.preserve = args.preserve;
+    if (this.scriptsInUse.has(script.SHA1)) {
+      redisArgs.push('EVALSHA', script.SHA1);
+    } else {
+      this.scriptsInUse.add(script.SHA1);
+      redisArgs.push('EVAL', script.SCRIPT);
     }
 
-    readonly queue: Array<RedisMultiQueuedCommand> = [];
-
-    readonly scriptsInUse = new Set<string>();
-
-    addCommand(args: RedisCommandArguments, transformReply?: RedisCommand['transformReply']): void {
-        this.queue.push({
-            args,
-            transformReply
-        });
+    if (script.NUMBER_OF_KEYS !== undefined) {
+      redisArgs.push(script.NUMBER_OF_KEYS.toString());
     }
 
-    addFunction(name: string, fn: RedisFunction, args: Array<unknown>): RedisCommandArguments {
-        const transformedArguments = fCallArguments(
-            name,
-            fn,
-            fn.transformArguments(...args)
-        );
-        this.queue.push({
-            args: transformedArguments,
-            transformReply: fn.transformReply
-        });
-        return transformedArguments;
-    }
+    redisArgs.push(...args);
 
-    addScript(script: RedisScript, args: Array<unknown>): RedisCommandArguments {
-        const transformedArguments: RedisCommandArguments = [];
-        if (this.scriptsInUse.has(script.SHA1)) {
-            transformedArguments.push(
-                'EVALSHA',
-                script.SHA1
-            );
-        } else {
-            this.scriptsInUse.add(script.SHA1);
-            transformedArguments.push(
-                'EVAL',
-                script.SCRIPT
-            );
+    this.addCommand(redisArgs, transformReply);
+  }
+  
+  transformReplies(rawReplies: Array<unknown>): Array<unknown> {
+    const errorIndexes: Array<number> = [],
+      replies = rawReplies.map((reply, i) => {
+        if (reply instanceof ErrorReply) {
+          errorIndexes.push(i);
+          return reply;
         }
 
-        if (script.NUMBER_OF_KEYS !== undefined) {
-            transformedArguments.push(script.NUMBER_OF_KEYS.toString());
-        }
+        const { transformReply, args } = this.queue[i];
+        return transformReply ? transformReply(reply, args.preserve, this.typeMapping) : reply;
+      });
 
-        const scriptArguments = script.transformArguments(...args);
-        transformedArguments.push(...scriptArguments);
-        if (scriptArguments.preserve) {
-            transformedArguments.preserve = scriptArguments.preserve;
-        }
-
-        this.addCommand(
-            transformedArguments,
-            script.transformReply
-        );
-
-        return transformedArguments;
-    }
-
-    handleExecReplies(rawReplies: Array<RedisCommandRawReply | ErrorReply>): Array<RedisCommandRawReply> {
-        const execReply = rawReplies[rawReplies.length - 1] as (null | Array<RedisCommandRawReply>);
-        if (execReply === null) {
-            throw new WatchError();
-        }
-
-        return this.transformReplies(execReply);
-    }
-
-    transformReplies(rawReplies: Array<RedisCommandRawReply | ErrorReply>): Array<RedisCommandRawReply> {
-        const errorIndexes: Array<number> = [],
-            replies = rawReplies.map((reply, i) => {
-                if (reply instanceof ErrorReply) {
-                    errorIndexes.push(i);
-                    return reply;
-                }
-                const { transformReply, args } = this.queue[i];
-                return transformReply ? transformReply(reply, args.preserve) : reply;
-            });
-
-        if (errorIndexes.length) throw new MultiErrorReply(replies, errorIndexes);
-        return replies;
-    }
+    if (errorIndexes.length) throw new MultiErrorReply(replies, errorIndexes);
+    return replies;
+  }
 }

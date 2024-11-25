@@ -1,30 +1,31 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './PUBSUB_SHARDCHANNELS';
+import PUBSUB_SHARDCHANNELS from './PUBSUB_SHARDCHANNELS';
+import { parseArgs } from './generic-transformers';
 
 describe('PUBSUB SHARDCHANNELS', () => {
-    testUtils.isVersionGreaterThanHook([7]);
-    
-    describe('transformArguments', () => {
-        it('without pattern', () => {
-            assert.deepEqual(
-                transformArguments(),
-                ['PUBSUB', 'SHARDCHANNELS']
-            );
-        });
+  testUtils.isVersionGreaterThanHook([7]);
 
-        it('with pattern', () => {
-            assert.deepEqual(
-                transformArguments('patter*'),
-                ['PUBSUB', 'SHARDCHANNELS', 'patter*']
-            );
-        });
+  describe('transformArguments', () => {
+    it('without pattern', () => {
+      assert.deepEqual(
+        parseArgs(PUBSUB_SHARDCHANNELS),
+        ['PUBSUB', 'SHARDCHANNELS']
+      );
     });
 
-    testUtils.testWithClient('client.pubSubShardChannels', async client => {
-        assert.deepEqual(
-            await client.pubSubShardChannels(),
-            []
-        );
-    }, GLOBAL.SERVERS.OPEN);
+    it('with pattern', () => {
+      assert.deepEqual(
+        parseArgs(PUBSUB_SHARDCHANNELS, 'patter*'),
+        ['PUBSUB', 'SHARDCHANNELS', 'patter*']
+      );
+    });
+  });
+
+  testUtils.testWithClient('client.pubSubShardChannels', async client => {
+    assert.deepEqual(
+      await client.pubSubShardChannels(),
+      []
+    );
+  }, GLOBAL.SERVERS.OPEN);
 });

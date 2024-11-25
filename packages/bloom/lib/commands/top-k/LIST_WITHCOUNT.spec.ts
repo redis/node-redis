@@ -1,30 +1,28 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../../test-utils';
-import { transformArguments } from './LIST_WITHCOUNT';
+import LIST_WITHCOUNT from './LIST_WITHCOUNT';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
-describe('TOPK LIST WITHCOUNT', () => {
-    testUtils.isVersionGreaterThanHook([2, 2, 9]);
-    
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key'),
-            ['TOPK.LIST', 'key', 'WITHCOUNT']
-        );
-    });
+describe('TOPK.LIST WITHCOUNT', () => {
+  testUtils.isVersionGreaterThanHook([2, 2, 9]);
 
-    testUtils.testWithClient('client.topK.listWithCount', async client => {
-        const [,, list] = await Promise.all([
-            client.topK.reserve('key', 3),
-            client.topK.add('key', 'item'),
-            client.topK.listWithCount('key')
-        ]);
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(LIST_WITHCOUNT, 'key'),
+      ['TOPK.LIST', 'key', 'WITHCOUNT']
+    );
+  });
 
-        assert.deepEqual(
-            list,
-            [{
-                item: 'item',
-                count: 1
-            }]
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testWithClient('client.topK.listWithCount', async client => {
+    const [, , list] = await Promise.all([
+      client.topK.reserve('key', 3),
+      client.topK.add('key', 'item'),
+      client.topK.listWithCount('key')
+    ]);
+
+    assert.deepEqual(list, [{
+      item: 'item',
+      count: 1
+    }]);
+  }, GLOBAL.SERVERS.OPEN);
 });

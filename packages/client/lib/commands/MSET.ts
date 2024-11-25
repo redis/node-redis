@@ -1,24 +1,41 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-
-export const FIRST_KEY_INDEX = 1;
+import { CommandParser } from '../client/parser';
+import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
 
 export type MSetArguments =
-    Array<[RedisCommandArgument, RedisCommandArgument]> |
-    Array<RedisCommandArgument> |
-    Record<string, RedisCommandArgument>;
+  Array<[RedisArgument, RedisArgument]> |
+  Array<RedisArgument> |
+  Record<string, RedisArgument>;
 
-export function transformArguments(toSet: MSetArguments): RedisCommandArguments {
-    const args: RedisCommandArguments = ['MSET'];
-
-    if (Array.isArray(toSet)) {
-        args.push(...toSet.flat());
-    } else {
-        for (const key of Object.keys(toSet)) {
-            args.push(key, toSet[key]);
-        }
+export function parseMSetArguments(parser: CommandParser, toSet: MSetArguments) {
+  if (Array.isArray(toSet)) {
+    if (toSet.length == 0) {
+      throw new Error("empty toSet Argument")
     }
-
-    return args;
+    if (Array.isArray(toSet[0])) {
+      for (const tuple of (toSet as Array<[RedisArgument, RedisArgument]>)) {
+        parser.pushKey(tuple[0]);
+        parser.push(tuple[1]);
+      }
+    } else {
+      const arr = toSet as Array<RedisArgument>;
+      for (let i=0; i < arr.length; i += 2) {
+        parser.pushKey(arr[i]);
+        parser.push(arr[i+1]);
+      }
+    }
+  } else {
+    for (const tuple of Object.entries(toSet)) {
+      parser.pushKey(tuple[0]);
+      parser.push(tuple[1]);
+    }
+  }
 }
 
-export declare function transformReply(): RedisCommandArgument;
+export default {
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, toSet: MSetArguments) {
+    parser.push('MSET');
+    return parseMSetArguments(parser, toSet);
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

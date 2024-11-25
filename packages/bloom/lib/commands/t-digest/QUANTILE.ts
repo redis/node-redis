@@ -1,23 +1,16 @@
-import { RedisCommandArgument, RedisCommandArguments } from '@redis/client/dist/lib/commands';
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { RedisArgument, Command } from '@redis/client/dist/lib/RESP/types';
+import { transformDoubleArrayReply } from '@redis/client/dist/lib/commands/generic-transformers';
 
-export const FIRST_KEY_INDEX = 1;
-
-export const IS_READ_ONLY = true;
-
-export function transformArguments(
-    key: RedisCommandArgument,
-    quantiles: Array<number>
-): RedisCommandArguments {
-    const args = [
-        'TDIGEST.QUANTILE',
-        key
-    ];
+export default {
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, key: RedisArgument, quantiles: Array<number>) {
+    parser.push('TDIGEST.QUANTILE');
+    parser.pushKey(key);
 
     for (const quantile of quantiles) {
-        args.push(quantile.toString());
+      parser.push(quantile.toString());
     }
-
-    return args;
-}
-
-export { transformDoublesReply as transformReply } from '.';
+  },
+  transformReply: transformDoubleArrayReply
+} as const satisfies Command;

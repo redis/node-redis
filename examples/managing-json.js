@@ -73,4 +73,4 @@ const numPets = await client.json.arrLen('noderedis:jsondata', '$.pets');
 // We now have 4 pets.
 console.log(`We now have ${numPets} pets.`);
 
-await client.quit();
+client.destroy();

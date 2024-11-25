@@ -1,37 +1,39 @@
-export const FIRST_KEY_INDEX = 1;
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { RedisArgument, SimpleStringReply, Command } from '@redis/client/dist/lib/RESP/types';
 
-interface Sketch {
-    name: string;
-    weight: number;
+interface BfMergeSketch {
+  name: RedisArgument;
+  weight: number;
 }
 
-type Sketches = Array<string> | Array<Sketch>;
+export type BfMergeSketches = Array<RedisArgument> | Array<BfMergeSketch>;
 
-export function transformArguments(dest: string, src: Sketches): Array<string> {
-    const args = [
-        'CMS.MERGE',
-        dest,
-        src.length.toString()
-    ];
+export default {
+  IS_READ_ONLY: false,
+  parseCommand(
+    parser: CommandParser,
+    destination: RedisArgument,
+    source: BfMergeSketches
+  ) {
+    parser.push('CMS.MERGE');
+    parser.pushKey(destination);
+    parser.push(source.length.toString());
 
-    if (isStringSketches(src)) {
-        args.push(...src);
+    if (isPlainSketches(source)) {
+      parser.pushVariadic(source);
     } else {
-        for (const sketch of src) {
-            args.push(sketch.name);
-        }
-
-        args.push('WEIGHTS');
-        for (const sketch of src) {
-            args.push(sketch.weight.toString());
-        }
+      for (let i = 0; i < source.length; i++) {
+        parser.push(source[i].name);
+      }
+      parser.push('WEIGHTS');
+      for (let i = 0; i < source.length; i++) {
+        parser.push(source[i].weight.toString())
+      }
     }
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;
 
-    return args;
+function isPlainSketches(src: BfMergeSketches): src is Array<RedisArgument> {
+  return typeof src[0] === 'string' || src[0] instanceof Buffer;
 }
-
-function isStringSketches(src: Sketches): src is Array<string> {
-    return typeof src[0] === 'string';
-}
-
-export declare function transformReply(): 'OK';

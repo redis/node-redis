@@ -1,36 +1,35 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../../test-utils';
-import { transformArguments } from './MERGE';
+import MERGE from './MERGE';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
-describe('CMS MERGE', () => {
-    describe('transformArguments', () => {
-        it('without WEIGHTS', () => {
-            assert.deepEqual(
-                transformArguments('dest', ['src']),
-                ['CMS.MERGE', 'dest', '1', 'src']
-            );
-        });
-
-        it('with WEIGHTS', () => {
-            assert.deepEqual(
-                transformArguments('dest', [{
-                    name: 'src',
-                    weight: 1
-                }]),
-                ['CMS.MERGE', 'dest', '1', 'src', 'WEIGHTS', '1']
-            );
-        });
+describe('CMS.MERGE', () => {
+  describe('transformArguments', () => {
+    it('without WEIGHTS', () => {
+      assert.deepEqual(
+        parseArgs(MERGE, 'destination', ['source']),
+        ['CMS.MERGE', 'destination', '1', 'source']
+      );
     });
 
-    testUtils.testWithClient('client.cms.merge', async client => {
-        await Promise.all([
-            client.cms.initByDim('src', 1000, 5),
-            client.cms.initByDim('dest', 1000, 5),
-        ]);
+    it('with WEIGHTS', () => {
+      assert.deepEqual(
+        parseArgs(MERGE, 'destination', [{
+          name: 'source',
+          weight: 1
+        }]),
+        ['CMS.MERGE', 'destination', '1', 'source', 'WEIGHTS', '1']
+      );
+    });
+  });
 
-        assert.equal(
-            await client.cms.merge('dest', ['src']),
-            'OK'
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testWithClient('client.cms.merge', async client => {
+    const [, , reply] = await Promise.all([
+      client.cms.initByDim('source', 1000, 5),
+      client.cms.initByDim('destination', 1000, 5),
+      client.cms.merge('destination', ['source'])
+    ]);
+
+    assert.equal(reply, 'OK');
+  }, GLOBAL.SERVERS.OPEN);
 });

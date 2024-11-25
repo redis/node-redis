@@ -1,19 +1,23 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './ZCARD';
+import ZCARD from './ZCARD';
+import { parseArgs } from './generic-transformers';
 
 describe('ZCARD', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key'),
-            ['ZCARD', 'key']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(ZCARD, 'key'),
+      ['ZCARD', 'key']
+    );
+  });
 
-    testUtils.testWithClient('client.zCard', async client => {
-        assert.equal(
-            await client.zCard('key'),
-            0
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testAll('zCard', async client => {
+    assert.equal(
+      await client.zCard('key'),
+      0
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

@@ -1,12 +1,10 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, BlobStringReply, NullReply, Command } from '../RESP/types';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(
-    source: RedisCommandArgument,
-    destination: RedisCommandArgument
-): RedisCommandArguments {
-    return ['RPOPLPUSH', source, destination];
-}
-
-export declare function transformReply(): RedisCommandArgument | null;
+export default {
+  parseCommand(parser: CommandParser, source: RedisArgument, destination: RedisArgument) {
+    parser.push('RPOPLPUSH');
+    parser.pushKeys([source, destination]);
+  },
+  transformReply: undefined as unknown as () => BlobStringReply | NullReply
+} as const satisfies Command;

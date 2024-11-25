@@ -1,13 +1,20 @@
 {
-  "extends": "@tsconfig/node14/tsconfig.json",
   "compilerOptions": {
+    "lib": ["ES2023"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "target": "ES2022",
+
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noUnusedLocals": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    
+    "composite": true,
+    "sourceMap": true,
     "declaration": true,
-    "allowJs": true,
-    "useDefineForClassFields": true,
-    "esModuleInterop": false,
-    "resolveJsonModule": true
-  },
-  "ts-node": {
-    "files": true
+    "declarationMap": true,
+    "allowJs": true
   }
 }

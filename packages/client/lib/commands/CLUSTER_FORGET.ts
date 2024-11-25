@@ -1,5 +1,11 @@
-export function transformArguments(nodeId: string): Array<string> {
-    return  ['CLUSTER', 'FORGET', nodeId];
-}
+import { CommandParser } from '../client/parser';
+import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
 
-export declare function transformReply(): 'OK';
+export default {
+  NOT_KEYED_COMMAND: true,
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, nodeId: RedisArgument) {
+    parser.push('CLUSTER', 'FORGET', nodeId);
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

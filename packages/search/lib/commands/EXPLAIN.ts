@@ -1,26 +1,28 @@
-import { Params, pushParamsArgs } from ".";
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { RedisArgument, SimpleStringReply, Command } from '@redis/client/dist/lib/RESP/types';
+import { FtSearchParams, parseParamsArgument } from './SEARCH';
 
-export const IS_READ_ONLY = true;
-
-interface ExplainOptions {
-    PARAMS?: Params;
-    DIALECT?: number;
+export interface FtExplainOptions {
+  PARAMS?: FtSearchParams;
+  DIALECT?: number;
 }
 
-export function transformArguments(
-    index: string,
-    query: string,
-    options?: ExplainOptions
-): Array<string> {
-    const args = ['FT.EXPLAIN', index, query];
+export default {
+  NOT_KEYED_COMMAND: true,
+  IS_READ_ONLY: true,
+  parseCommand(
+    parser: CommandParser,
+    index: RedisArgument,
+    query: RedisArgument,
+    options?: FtExplainOptions
+  ) {
+    parser.push('FT.EXPLAIN', index, query);
 
-    pushParamsArgs(args, options?.PARAMS);
+    parseParamsArgument(parser, options?.PARAMS);
 
     if (options?.DIALECT) {
-        args.push('DIALECT', options.DIALECT.toString());
+      parser.push('DIALECT', options.DIALECT.toString());
     }
-
-    return args;
-}
-
-export declare function transformReply(): string;
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply
+} as const satisfies Command;

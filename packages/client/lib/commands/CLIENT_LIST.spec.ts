@@ -1,78 +1,78 @@
-import { strict as assert } from 'assert';
-import { transformArguments, transformReply } from './CLIENT_LIST';
+import { strict as assert } from 'node:assert';
+import CLIENT_LIST from './CLIENT_LIST';
 import testUtils, { GLOBAL } from '../test-utils';
+import { parseArgs } from './generic-transformers';
 
 describe('CLIENT LIST', () => {
-    describe('transformArguments', () => {
-        it('simple', () => {
-            assert.deepEqual(
-                transformArguments(),
-                ['CLIENT', 'LIST']
-            );
-        });
-
-        it('with TYPE', () => {
-            assert.deepEqual(
-                transformArguments({
-                    TYPE: 'NORMAL' 
-                }),
-                ['CLIENT', 'LIST', 'TYPE', 'NORMAL']
-            );
-        });
-
-        it('with ID', () => {
-            assert.deepEqual(
-                transformArguments({
-                    ID: ['1', '2']
-                }),
-                ['CLIENT', 'LIST', 'ID', '1', '2']
-            );
-        });
+  describe('transformArguments', () => {
+    it('simple', () => {
+      assert.deepEqual(
+        parseArgs(CLIENT_LIST),
+        ['CLIENT', 'LIST']
+      );
     });
 
-    testUtils.testWithClient('client.clientList', async client => {
-        const reply = await client.clientList();
-        assert.ok(Array.isArray(reply));
+    it('with TYPE', () => {
+      assert.deepEqual(
+        parseArgs(CLIENT_LIST, {
+          TYPE: 'NORMAL'
+        }),
+        ['CLIENT', 'LIST', 'TYPE', 'NORMAL']
+      );
+    });
 
-        for (const item of reply) {
-            assert.equal(typeof item.id, 'number');
-            assert.equal(typeof item.addr, 'string');
-            assert.equal(typeof item.fd, 'number');
-            assert.equal(typeof item.name, 'string');
-            assert.equal(typeof item.age, 'number');
-            assert.equal(typeof item.idle, 'number');
-            assert.equal(typeof item.flags, 'string');
-            assert.equal(typeof item.db, 'number');
-            assert.equal(typeof item.sub, 'number');
-            assert.equal(typeof item.psub, 'number');
-            assert.equal(typeof item.multi, 'number');
-            assert.equal(typeof item.qbuf, 'number');
-            assert.equal(typeof item.qbufFree, 'number');
-            assert.equal(typeof item.obl, 'number');
-            assert.equal(typeof item.oll, 'number');
-            assert.equal(typeof item.omem, 'number');
-            assert.equal(typeof item.events, 'string');
-            assert.equal(typeof item.cmd, 'string');
+    it('with ID', () => {
+      assert.deepEqual(
+        parseArgs(CLIENT_LIST, {
+          ID: ['1', '2']
+        }),
+        ['CLIENT', 'LIST', 'ID', '1', '2']
+      );
+    });
+  });
 
-            if (testUtils.isVersionGreaterThan([6, 0])) {
-                assert.equal(typeof item.argvMem, 'number');
-                assert.equal(typeof item.totMem, 'number');
-                assert.equal(typeof item.user, 'string');
-            }
+  testUtils.testWithClient('client.clientList', async client => {
+    const reply = await client.clientList();
+    assert.ok(Array.isArray(reply));
+    for (const item of reply) {
+      assert.equal(typeof item.id, 'number');
+      assert.equal(typeof item.addr, 'string');
+      assert.equal(typeof item.fd, 'number');
+      assert.equal(typeof item.name, 'string');
+      assert.equal(typeof item.age, 'number');
+      assert.equal(typeof item.idle, 'number');
+      assert.equal(typeof item.flags, 'string');
+      assert.equal(typeof item.db, 'number');
+      assert.equal(typeof item.sub, 'number');
+      assert.equal(typeof item.psub, 'number');
+      assert.equal(typeof item.multi, 'number');
+      assert.equal(typeof item.qbuf, 'number');
+      assert.equal(typeof item.qbufFree, 'number');
+      assert.equal(typeof item.obl, 'number');
+      assert.equal(typeof item.oll, 'number');
+      assert.equal(typeof item.omem, 'number');
+      assert.equal(typeof item.events, 'string');
+      assert.equal(typeof item.cmd, 'string');
 
-            if (testUtils.isVersionGreaterThan([6, 2])) {
-                assert.equal(typeof item.redir, 'number');
-                assert.equal(typeof item.laddr, 'string');
-            }
-
-            if (testUtils.isVersionGreaterThan([7, 0])) {
-                assert.equal(typeof item.multiMem, 'number');
-                assert.equal(typeof item.resp, 'number');
-            }
+      if (testUtils.isVersionGreaterThan([6, 0])) {
+        assert.equal(typeof item.argvMem, 'number');
+        assert.equal(typeof item.totMem, 'number');
+        assert.equal(typeof item.user, 'string');
+        
+        if (testUtils.isVersionGreaterThan([6, 2])) {
+          assert.equal(typeof item.redir, 'number');
+          assert.equal(typeof item.laddr, 'string');
+          
+          if (testUtils.isVersionGreaterThan([7, 0])) {
+            assert.equal(typeof item.multiMem, 'number');
+            assert.equal(typeof item.resp, 'number');
 
             if (testUtils.isVersionGreaterThan([7, 0, 3])) {
-                assert.equal(typeof item.ssub, 'number');
+              assert.equal(typeof item.ssub, 'number');
             }
+          }
         }
-    }, GLOBAL.SERVERS.OPEN);
+      }
+    }
+  }, GLOBAL.SERVERS.OPEN);
 });

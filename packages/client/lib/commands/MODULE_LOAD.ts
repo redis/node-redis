@@ -1,11 +1,15 @@
-export function transformArguments(path: string, moduleArgs?: Array<string>): Array<string> {
-    const args = ['MODULE', 'LOAD', path];
+import { CommandParser } from '../client/parser';
+import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
 
-    if (moduleArgs) {
-        args.push(...moduleArgs);
+export default {
+  NOT_KEYED_COMMAND: true,
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, path: RedisArgument, moduleArguments?: Array<RedisArgument>) {
+    parser.push('MODULE', 'LOAD', path);
+
+    if (moduleArguments) {
+      parser.push(...moduleArguments);
     }
-
-    return args;
-}
-
-export declare function transformReply(): string;
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

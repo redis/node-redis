@@ -1,22 +1,35 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { transformLMPopArguments, LMPopOptions, ListSide } from './generic-transformers';
+import { CommandParser } from '../client/parser';
+import { NullReply, TuplesReply, BlobStringReply, Command } from '../RESP/types';
+import { ListSide, RedisVariadicArgument, Tail } from './generic-transformers';
 
-export const FIRST_KEY_INDEX = 2;
-
-export function transformArguments(
-    keys: RedisCommandArgument | Array<RedisCommandArgument>,
-    side: ListSide,
-    options?: LMPopOptions
-): RedisCommandArguments {
-    return transformLMPopArguments(
-        ['LMPOP'],
-        keys,
-        side,
-        options
-    );
+export interface LMPopOptions {
+  COUNT?: number;
 }
 
-export declare function transformReply(): null | [
-    key: string,
-    elements: Array<string>
-];
+export function parseLMPopArguments(
+  parser: CommandParser,
+  keys: RedisVariadicArgument,
+  side: ListSide,
+  options?: LMPopOptions
+) {
+  parser.pushKeysLength(keys);
+  parser.push(side);
+
+  if (options?.COUNT !== undefined) {
+    parser.push('COUNT', options.COUNT.toString());
+  }
+}
+
+export type LMPopArguments = Tail<Parameters<typeof parseLMPopArguments>>;
+
+export default {
+  IS_READ_ONLY: false,  
+  parseCommand(parser: CommandParser, ...args: LMPopArguments) {
+    parser.push('LMPOP');
+    parseLMPopArguments(parser, ...args);
+  },
+  transformReply: undefined as unknown as () => NullReply | TuplesReply<[
+    key: BlobStringReply,
+    elements: Array<BlobStringReply>
+  ]>
+} as const satisfies Command;

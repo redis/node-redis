@@ -1,15 +1,15 @@
-import { RedisJSON, transformRedisJsonNullReply } from '.';
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { RedisArgument, UnwrapReply, ArrayReply, NullReply, BlobStringReply, Command } from '@redis/client/dist/lib/RESP/types';
+import { transformRedisJsonNullReply } from '.';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(keys: Array<string>, path: string): Array<string> {
-    return [
-        'JSON.MGET',
-        ...keys,
-        path
-    ];
-}
-
-export function transformReply(reply: Array<string | null>): Array<RedisJSON | null> {
-    return reply.map(transformRedisJsonNullReply);
-}
+export default {
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, keys: Array<RedisArgument>, path: RedisArgument) {
+    parser.push('JSON.MGET');
+    parser.pushKeys(keys);
+    parser.push(path);
+  },
+  transformReply(reply: UnwrapReply<ArrayReply<NullReply | BlobStringReply>>) {
+    return reply.map(json => transformRedisJsonNullReply(json))
+  }
+} as const satisfies Command;

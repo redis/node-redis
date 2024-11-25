@@ -1,5 +1,11 @@
-export function transformArguments(name: string, index: string): Array<string> {
-    return ['FT.ALIASDEL', name, index];
-}
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { RedisArgument, SimpleStringReply, Command } from '@redis/client/dist/lib/RESP/types';
 
-export declare function transformReply(): 'OK';
+export default {
+  NOT_KEYED_COMMAND: true,
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, alias: RedisArgument) {
+    parser.push('FT.ALIASDEL', alias);
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

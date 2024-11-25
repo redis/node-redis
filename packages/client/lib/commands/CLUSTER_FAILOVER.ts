@@ -1,16 +1,26 @@
-export enum FailoverModes {
-    FORCE = 'FORCE',
-    TAKEOVER = 'TAKEOVER'
+import { CommandParser } from '../client/parser';
+import { SimpleStringReply, Command } from '../RESP/types';
+
+export const FAILOVER_MODES = {
+  FORCE: 'FORCE',
+  TAKEOVER: 'TAKEOVER'
+} as const;
+
+export type FailoverMode = typeof FAILOVER_MODES[keyof typeof FAILOVER_MODES];
+
+export interface ClusterFailoverOptions {
+  mode?: FailoverMode;
 }
 
-export function transformArguments(mode?: FailoverModes): Array<string> {
-    const args = ['CLUSTER', 'FAILOVER'];
+export default {
+  NOT_KEYED_COMMAND: true,
+  IS_READ_ONLY: true,
+  parseCommand(parser:CommandParser, options?: ClusterFailoverOptions) {
+    parser.push('CLUSTER', 'FAILOVER');
 
-    if (mode) {
-        args.push(mode);
+    if (options?.mode) {
+      parser.push(options.mode);
     }
-
-    return args;
-}
-
-export declare function transformReply(): 'OK';
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

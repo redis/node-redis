@@ -1,15 +1,19 @@
-export const FIRST_KEY_INDEX = 1;
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { RedisArgument, ArrayReply, NumberReply, NullReply, Command } from '@redis/client/dist/lib/RESP/types';
 
-export const IS_READ_ONLY = true;
-
-export function transformArguments(key: string, path?: string): Array<string> {
-    const args = ['JSON.STRLEN', key];
-
-    if (path) {
-        args.push(path);
-    }
-
-    return args;
+export interface JsonStrLenOptions {
+  path?: RedisArgument;
 }
 
-export declare function transformReply(): number;
+export default {
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, key: RedisArgument, options?: JsonStrLenOptions) {
+    parser.push('JSON.STRLEN');
+    parser.pushKey(key);
+
+    if (options?.path) {
+      parser.push(options.path);
+    }
+  },
+  transformReply: undefined as unknown as () => NumberReply | ArrayReply<NumberReply | NullReply>
+} as const satisfies Command;

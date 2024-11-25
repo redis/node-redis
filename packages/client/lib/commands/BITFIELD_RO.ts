@@ -1,26 +1,23 @@
+import { CommandParser } from '../client/parser';
+import { RedisArgument, ArrayReply, NumberReply, Command } from '../RESP/types';
 import { BitFieldGetOperation } from './BITFIELD';
 
-export const FIRST_KEY_INDEX = 1;
-
-export const IS_READ_ONLY = true;
-
-type BitFieldRoOperations = Array<
-    Omit<BitFieldGetOperation, 'operation'> &
-    Partial<Pick<BitFieldGetOperation, 'operation'>>
+export type BitFieldRoOperations = Array<
+  Omit<BitFieldGetOperation, 'operation'>
 >;
 
-export function transformArguments(key: string, operations: BitFieldRoOperations): Array<string> {
-    const args = ['BITFIELD_RO', key];
+export default {
+  CACHEABLE: true,
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, key: RedisArgument, operations: BitFieldRoOperations) {
+    parser.push('BITFIELD_RO');
+    parser.pushKey(key);
 
     for (const operation of operations) {
-        args.push(
-            'GET',
-            operation.encoding,
-            operation.offset.toString()
-        );
+      parser.push('GET');
+      parser.push(operation.encoding);
+      parser.push(operation.offset.toString())
     }
-
-    return args;
-}
-
-export declare function transformReply(): Array<number | null>;
+  },
+  transformReply: undefined as unknown as () => ArrayReply<NumberReply>
+} as const satisfies Command;

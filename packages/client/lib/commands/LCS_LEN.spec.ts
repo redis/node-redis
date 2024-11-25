@@ -1,28 +1,25 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './LCS_LEN';
+import LCS_LEN from './LCS_LEN';
+import { parseArgs } from './generic-transformers';
 
 describe('LCS_LEN', () => {
-    testUtils.isVersionGreaterThanHook([7]);
+  testUtils.isVersionGreaterThanHook([7]);
 
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('1', '2'),
-            ['LCS', '1', '2', 'LEN']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(LCS_LEN, '1', '2'),
+      ['LCS', '1', '2', 'LEN']
+    );
+  });
 
-    testUtils.testWithClient('client.lcsLen', async client => {
-        assert.equal(
-            await client.lcsLen('1', '2'),
-            0
-        );
-    }, GLOBAL.SERVERS.OPEN);
-
-    testUtils.testWithCluster('cluster.lcsLen', async cluster => {
-        assert.equal(
-            await cluster.lcsLen('{tag}1', '{tag}2'),
-            0
-        );
-    }, GLOBAL.CLUSTERS.OPEN);
+  testUtils.testAll('lcsLen', async client => {
+    assert.equal(
+      await client.lcsLen('{tag}1', '{tag}2'),
+      0
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

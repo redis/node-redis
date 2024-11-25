@@ -1,18 +1,11 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, SimpleStringReply, Command } from '../RESP/types';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(
-    key: RedisCommandArgument,
-    seconds: number,
-    value: RedisCommandArgument
-): RedisCommandArguments {
-    return [
-        'SETEX',
-        key,
-        seconds.toString(),
-        value
-    ];
-}
-
-export declare function transformReply(): RedisCommandArgument;
+export default {
+  parseCommand(parser: CommandParser, key: RedisArgument, seconds: number, value: RedisArgument) {
+    parser.push('SETEX');
+    parser.pushKey(key);
+    parser.push(seconds.toString(), value);
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

@@ -1,24 +1,25 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, ArrayReply, TuplesReply, BlobStringReply, SetReply, UnwrapReply, Command } from '../RESP/types';
 
-export const IS_READ_ONLY = true;
+export type CommandGetKeysAndFlagsRawReply = ArrayReply<TuplesReply<[
+  key: BlobStringReply,
+  flags: SetReply<BlobStringReply>
+]>>;
 
-export function transformArguments(args: Array<RedisCommandArgument>): RedisCommandArguments {
-    return ['COMMAND', 'GETKEYSANDFLAGS', ...args];
-}
-
-type KeysAndFlagsRawReply = Array<[
-    RedisCommandArgument,
-    RedisCommandArguments
-]>;
-
-type KeysAndFlagsReply = Array<{
-    key: RedisCommandArgument;
-    flags: RedisCommandArguments;
-}>;
-
-export function transformReply(reply: KeysAndFlagsRawReply): KeysAndFlagsReply {
-    return reply.map(([key, flags]) => ({
+export default {
+  NOT_KEYED_COMMAND: true,
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, args: Array<RedisArgument>) {
+    parser.push('COMMAND', 'GETKEYSANDFLAGS');
+    parser.push(...args);
+  },
+  transformReply(reply: UnwrapReply<CommandGetKeysAndFlagsRawReply>) {
+    return reply.map(entry => {
+      const [key, flags] = entry as unknown as UnwrapReply<typeof entry>;
+      return {
         key,
         flags
-    }));
-}
+      };
+    });
+  }
+} as const satisfies Command;

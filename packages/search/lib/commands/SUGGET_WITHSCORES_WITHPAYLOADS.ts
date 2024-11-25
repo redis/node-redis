@@ -1,30 +1,54 @@
-import { SugGetOptions, transformArguments as transformSugGetArguments } from './SUGGET';
-import { SuggestionWithPayload } from './SUGGET_WITHPAYLOADS';
-import { SuggestionWithScores } from './SUGGET_WITHSCORES';
+import { NullReply, ArrayReply, BlobStringReply, DoubleReply, UnwrapReply, Command, TypeMapping } from '@redis/client/dist/lib/RESP/types';
+import { isNullReply, transformDoubleReply } from '@redis/client/dist/lib/commands/generic-transformers';
+import SUGGET from './SUGGET';
 
-export { IS_READ_ONLY } from './SUGGET';
-
-export function transformArguments(key: string, prefix: string, options?: SugGetOptions): Array<string> {
-    return [
-        ...transformSugGetArguments(key, prefix, options),
-        'WITHSCORES',
-        'WITHPAYLOADS'
-    ];
+type SuggestScoreWithPayload = {
+  suggestion: BlobStringReply;
+  score: DoubleReply;
+  payload: BlobStringReply;
 }
 
-type SuggestionWithScoresAndPayloads = SuggestionWithScores & SuggestionWithPayload;
+export default {
+  IS_READ_ONLY: SUGGET.IS_READ_ONLY,
+  parseCommand(...args: Parameters<typeof SUGGET.parseCommand>) {
+    SUGGET.parseCommand(...args);
+    args[0].push(
+      'WITHSCORES',
+      'WITHPAYLOADS'
+    );
+  },
+  transformReply: {
+    2: (reply: NullReply | UnwrapReply<ArrayReply<BlobStringReply>>, preserve?: any, typeMapping?: TypeMapping) => {
+      if (isNullReply(reply)) return null;
 
-export function transformReply(rawReply: Array<string | null> | null): Array<SuggestionWithScoresAndPayloads> | null {
-    if (rawReply === null) return null;
+      const transformedReply: Array<SuggestScoreWithPayload> = new Array(reply.length / 3);
+      let replyIndex = 0,
+        arrIndex = 0;
+      while (replyIndex < reply.length) {
+        transformedReply[arrIndex++] = {
+          suggestion: reply[replyIndex++],
+          score: transformDoubleReply[2](reply[replyIndex++], preserve, typeMapping),
+          payload: reply[replyIndex++]
+        };
+      }
 
-    const transformedReply = [];
-    for (let i = 0; i < rawReply.length; i += 3) {
-        transformedReply.push({
-            suggestion: rawReply[i]!,
-            score: Number(rawReply[i + 1]!),
-            payload: rawReply[i + 2]
-        });
+      return transformedReply;
+    },
+    3: (reply: NullReply | UnwrapReply<ArrayReply<BlobStringReply | DoubleReply>>) => {
+      if (isNullReply(reply)) return null;
+
+      const transformedReply: Array<SuggestScoreWithPayload> = new Array(reply.length / 3);
+      let replyIndex = 0,
+        arrIndex = 0;
+      while (replyIndex < reply.length) {
+        transformedReply[arrIndex++] = {
+          suggestion: reply[replyIndex++] as BlobStringReply,
+          score: reply[replyIndex++] as DoubleReply,
+          payload: reply[replyIndex++] as BlobStringReply
+        };
+      }
+
+      return transformedReply;
     }
-
-    return transformedReply;
-}
+  }
+} as const satisfies Command;

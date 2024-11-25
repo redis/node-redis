@@ -1,21 +1,9 @@
-import { RedisCommandArguments } from '@redis/client/dist/lib/commands';
-import { Timestamp, MRangeWithLabelsOptions, pushMRangeWithLabelsArguments, Filter } from '.';
+import { Command } from '@redis/client/dist/lib/RESP/types';
+import MRANGE_WITHLABELS, { createTransformMRangeWithLabelsArguments } from './MRANGE_WITHLABELS';
 
-export const IS_READ_ONLY = true;
-
-export function transformArguments(
-    fromTimestamp: Timestamp,
-    toTimestamp: Timestamp,
-    filters: Filter,
-    options?: MRangeWithLabelsOptions
-): RedisCommandArguments {
-    return pushMRangeWithLabelsArguments(
-        ['TS.MREVRANGE'],
-        fromTimestamp,
-        toTimestamp,
-        filters,
-        options
-    );
-}
-
-export { transformMRangeWithLabelsReply as transformReply } from '.';
+export default {
+  NOT_KEYED_COMMAND: MRANGE_WITHLABELS.NOT_KEYED_COMMAND,
+  IS_READ_ONLY: MRANGE_WITHLABELS.IS_READ_ONLY,
+  parseCommand: createTransformMRangeWithLabelsArguments('TS.MREVRANGE'),
+  transformReply: MRANGE_WITHLABELS.transformReply,
+} as const satisfies Command;

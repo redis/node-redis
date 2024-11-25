@@ -1,27 +1,30 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../../test-utils';
-import { transformArguments } from './INFO';
+import INFO from './INFO';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
-describe('CF INFO', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('cuckoo'),
-            ['CF.INFO', 'cuckoo']
-        );
-    });
+describe('CF.INFO', () => {
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(INFO, 'cuckoo'),
+      ['CF.INFO', 'cuckoo']
+    );
+  });
 
-    testUtils.testWithClient('client.cf.info', async client => {
-        await client.cf.reserve('key', 4);
+  testUtils.testWithClient('client.cf.info', async client => {
+    const [, reply] = await Promise.all([
+      client.cf.reserve('key', 4),
+      client.cf.info('key')
+    ]);
 
-        const info = await client.cf.info('key');
-        assert.equal(typeof info, 'object');
-        assert.equal(typeof info.size, 'number');
-        assert.equal(typeof info.numberOfBuckets, 'number');
-        assert.equal(typeof info.numberOfFilters, 'number');
-        assert.equal(typeof info.numberOfInsertedItems, 'number');
-        assert.equal(typeof info.numberOfDeletedItems, 'number');
-        assert.equal(typeof info.bucketSize, 'number');
-        assert.equal(typeof info.expansionRate, 'number');
-        assert.equal(typeof info.maxIteration, 'number');
-    }, GLOBAL.SERVERS.OPEN);
+    assert.equal(typeof reply, 'object');
+    assert.equal(typeof reply['Size'], 'number');
+    assert.equal(typeof reply['Number of buckets'], 'number');
+    assert.equal(typeof reply['Number of filters'], 'number');
+    assert.equal(typeof reply['Number of items inserted'], 'number');
+    assert.equal(typeof reply['Number of items deleted'], 'number');
+    assert.equal(typeof reply['Bucket size'], 'number');
+    assert.equal(typeof reply['Expansion rate'], 'number');
+    assert.equal(typeof reply['Max iterations'], 'number');
+  }, GLOBAL.SERVERS.OPEN);
 });

@@ -1,27 +1,23 @@
-
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './LRANGE';
+import LRANGE from './LRANGE';
+import { parseArgs } from './generic-transformers';
 
 describe('LRANGE', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key', 0, -1),
-            ['LRANGE', 'key', '0', '-1']
-        );
-    });
+  it('processCommand', () => {
+    assert.deepEqual(
+      parseArgs(LRANGE, 'key', 0, -1),
+      ['LRANGE', 'key', '0', '-1']
+    );
+  });
 
-    testUtils.testWithClient('client.lRange', async client => {
-        assert.deepEqual(
-            await client.lRange('key', 0, -1),
-            []
-        );
-    }, GLOBAL.SERVERS.OPEN);
-
-    testUtils.testWithCluster('cluster.lRange', async cluster => {
-        assert.deepEqual(
-            await cluster.lRange('key', 0, -1),
-            []
-        );
-    }, GLOBAL.CLUSTERS.OPEN);
+  testUtils.testAll('lRange', async client => {
+    assert.deepEqual(
+      await client.lRange('key', 0, -1),
+      []
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

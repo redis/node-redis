@@ -1,14 +1,15 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils from '../test-utils';
-import { transformArguments } from './ACL_LOAD';
+import ACL_SAVE from './ACL_SAVE';
+import { parseArgs } from './generic-transformers';
 
-describe('ACL LOAD', () => {
-    testUtils.isVersionGreaterThanHook([6]);
+describe('ACL SAVE', () => {
+  testUtils.isVersionGreaterThanHook([6]);
 
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments(),
-            ['ACL', 'LOAD']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(ACL_SAVE),
+      ['ACL', 'SAVE']
+    );
+  });
 });

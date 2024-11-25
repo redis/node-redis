@@ -1,63 +1,87 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, SimpleStringReply, BlobStringReply, NullReply, Command } from '../RESP/types';
 
-export const FIRST_KEY_INDEX = 1;
+export interface SetOptions {
+  expiration?: {
+    type: 'EX' | 'PX' | 'EXAT' | 'PXAT';
+    value: number;
+  } | {
+    type: 'KEEPTTL';
+  } | 'KEEPTTL';
+  /**
+   * @deprecated Use `expiration` { type: 'EX', value: number } instead
+   */
+  EX?: number;
+  /**
+   * @deprecated Use `expiration` { type: 'PX', value: number } instead
+   */
+  PX?: number;
+  /**
+   * @deprecated Use `expiration` { type: 'EXAT', value: number } instead
+   */
+  EXAT?: number;
+  /**
+   * @deprecated Use `expiration` { type: 'PXAT', value: number } instead
+   */
+  PXAT?: number;
+  /**
+   * @deprecated Use `expiration` 'KEEPTTL' instead
+   */
+  KEEPTTL?: boolean;
 
-type MaximumOneOf<T, K extends keyof T = keyof T> =
-    K extends keyof T ? { [P in K]?: T[K] } & Partial<Record<Exclude<keyof T, K>, never>> : never;
-
-type SetTTL = MaximumOneOf<{
-    EX: number;
-    PX: number;
-    EXAT: number;
-    PXAT: number;
-    KEEPTTL: true;
-}>;
-
-type SetGuards = MaximumOneOf<{
-    NX: true;
-    XX: true;
-}>;
-
-interface SetCommonOptions {
-    GET?: true;
+  condition?: 'NX' | 'XX';
+  /**
+   * @deprecated Use `{ condition: 'NX' }` instead.
+   */
+  NX?: boolean;
+  /**
+   * @deprecated Use `{ condition: 'XX' }` instead.
+   */
+  XX?: boolean;
+  
+  GET?: boolean;
 }
 
-export type SetOptions = SetTTL & SetGuards & SetCommonOptions;
+export default {
+  parseCommand(parser: CommandParser, key: RedisArgument, value: RedisArgument | number, options?: SetOptions) {
+    parser.push('SET');
+    parser.pushKey(key);
+    parser.push(typeof value === 'number' ? value.toString() : value);
 
-export function transformArguments(
-    key: RedisCommandArgument,
-    value: RedisCommandArgument | number,
-    options?: SetOptions
-): RedisCommandArguments {
-    const args = [
-        'SET',
-        key,
-        typeof value === 'number' ? value.toString() : value
-    ];
-
-    if (options?.EX !== undefined) {
-        args.push('EX', options.EX.toString());
+    if (options?.expiration) {
+      if (typeof options.expiration === 'string') {
+        parser.push(options.expiration);
+      } else if (options.expiration.type === 'KEEPTTL') {
+        parser.push('KEEPTTL');
+      } else {
+        parser.push(
+          options.expiration.type,
+          options.expiration.value.toString()
+        );
+      }
+    } else if (options?.EX !== undefined) {
+      parser.push('EX', options.EX.toString());
     } else if (options?.PX !== undefined) {
-        args.push('PX', options.PX.toString());
+      parser.push('PX', options.PX.toString());
     } else if (options?.EXAT !== undefined) {
-        args.push('EXAT', options.EXAT.toString());
+      parser.push('EXAT', options.EXAT.toString());
     } else if (options?.PXAT !== undefined) {
-        args.push('PXAT', options.PXAT.toString());
+      parser.push('PXAT', options.PXAT.toString());
     } else if (options?.KEEPTTL) {
-        args.push('KEEPTTL');
+      parser.push('KEEPTTL');
     }
 
-    if (options?.NX) {
-        args.push('NX');
+    if (options?.condition) {
+      parser.push(options.condition);
+    } else if (options?.NX) {
+      parser.push('NX');
     } else if (options?.XX) {
-        args.push('XX');
+      parser.push('XX');
     }
 
     if (options?.GET) {
-        args.push('GET');
+      parser.push('GET');
     }
-
-    return args;
-}
-
-export declare function transformReply(): RedisCommandArgument | null;
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'> | BlobStringReply | NullReply
+} as const satisfies Command;

@@ -1,11 +1,12 @@
-import { strict as assert } from 'assert';
-import { transformArguments } from './CLIENT_GETREDIR';
+import { strict as assert } from 'node:assert';
+import CLIENT_GETREDIR from './CLIENT_GETREDIR';
+import { parseArgs } from './generic-transformers';
 
 describe('CLIENT GETREDIR', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments(),
-            ['CLIENT', 'GETREDIR']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(CLIENT_GETREDIR),
+      ['CLIENT', 'GETREDIR']
+    );
+  });
 });

@@ -1,38 +1,41 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './RANGE';
-import { TimeSeriesAggregationType } from '.';
+import RANGE from './RANGE';
+import { TIME_SERIES_AGGREGATION_TYPE } from './CREATERULE';
+import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
-describe('RANGE', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key', '-', '+', {
-                FILTER_BY_TS: [0],
-                FILTER_BY_VALUE: {
-                    min: 1,
-                    max: 2
-                },
-                COUNT: 1,
-                ALIGN: '-',
-                AGGREGATION: {
-                    type: TimeSeriesAggregationType.AVERAGE,
-                    timeBucket: 1
-                }
-            }),
-            ['TS.RANGE', 'key', '-', '+', 'FILTER_BY_TS', '0', 'FILTER_BY_VALUE',
-            '1', '2', 'COUNT', '1', 'ALIGN', '-', 'AGGREGATION', 'AVG', '1']
-        );
-    });
+describe('TS.RANGE', () => {
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(RANGE, 'key', '-', '+', {
+        FILTER_BY_TS: [0],
+        FILTER_BY_VALUE: {
+          min: 1,
+          max: 2
+        },
+        COUNT: 1,
+        ALIGN: '-',
+        AGGREGATION: {
+          type: TIME_SERIES_AGGREGATION_TYPE.AVG,
+          timeBucket: 1
+        }
+      }),
+      [
+        'TS.RANGE', 'key', '-', '+', 'FILTER_BY_TS', '0', 'FILTER_BY_VALUE',
+        '1', '2', 'COUNT', '1', 'ALIGN', '-', 'AGGREGATION', 'AVG', '1'
+      ]
+    );
+  });
 
-    testUtils.testWithClient('client.ts.range', async client => {
-        await client.ts.add('key', 1, 2);
+  testUtils.testWithClient('client.ts.range', async client => {
+    const [, reply] = await Promise.all([
+      client.ts.add('key', 1, 2),
+      client.ts.range('key', '-', '+')
+    ]);
 
-        assert.deepEqual(
-            await client.ts.range('key', '-', '+'),
-            [{
-                timestamp: 1,
-                value: 2
-            }]
-        );
-    }, GLOBAL.SERVERS.OPEN);
+    assert.deepEqual(reply, [{
+      timestamp: 1,
+      value: 2
+    }]);
+  }, GLOBAL.SERVERS.OPEN);
 });

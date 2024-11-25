@@ -1,21 +1,25 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './PEXPIRETIME';
+import PEXPIRETIME from './PEXPIRETIME';
+import { parseArgs } from './generic-transformers';
 
 describe('PEXPIRETIME', () => {
-    testUtils.isVersionGreaterThanHook([7]);
+  testUtils.isVersionGreaterThanHook([7]);
 
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key'),
-            ['PEXPIRETIME', 'key']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(PEXPIRETIME, 'key'),
+      ['PEXPIRETIME', 'key']
+    );
+  });
 
-    testUtils.testWithClient('client.pExpireTime', async client => {
-        assert.equal(
-            await client.pExpireTime('key'),
-            -2
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testAll('pExpireTime', async client => {
+    assert.equal(
+      await client.pExpireTime('key'),
+      -2
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

@@ -1,19 +1,23 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './SISMEMBER';
+import SISMEMBER from './SISMEMBER';
+import { parseArgs } from './generic-transformers';
 
 describe('SISMEMBER', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key', 'member'),
-            ['SISMEMBER', 'key', 'member']
-        );
-    });
+  it('processCommand', () => {
+    assert.deepEqual(
+      parseArgs(SISMEMBER, 'key', 'member'),
+      ['SISMEMBER', 'key', 'member']
+    );
+  });
 
-    testUtils.testWithClient('client.sIsMember', async client => {
-        assert.equal(
-            await client.sIsMember('key', 'member'),
-            false
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testAll('sIsMember', async client => {
+    assert.equal(
+      await client.sIsMember('key', 'member'),
+      0
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

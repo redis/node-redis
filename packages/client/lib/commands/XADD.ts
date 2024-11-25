@@ -1,52 +1,57 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, BlobStringReply, Command } from '../RESP/types';
+import { Tail } from './generic-transformers';
 
-export const FIRST_KEY_INDEX = 1;
-
-interface XAddOptions {
-    NOMKSTREAM?: true;
-    TRIM?: {
-        strategy?: 'MAXLEN' | 'MINID';
-        strategyModifier?: '=' | '~';
-        threshold: number;
-        limit?: number;
-    };
+export interface XAddOptions {
+  TRIM?: {
+    strategy?: 'MAXLEN' | 'MINID';
+    strategyModifier?: '=' | '~';
+    threshold: number;
+    limit?: number;
+  };
 }
 
-export function transformArguments(
-    key: RedisCommandArgument,
-    id: RedisCommandArgument,
-    message: Record<string, RedisCommandArgument>,
-    options?: XAddOptions
-): RedisCommandArguments {
-    const args = ['XADD', key];
+export function parseXAddArguments(
+  optional: RedisArgument | undefined,
+  parser: CommandParser,
+  key: RedisArgument,
+  id: RedisArgument,
+  message: Record<string, RedisArgument>,
+  options?: XAddOptions
+) {
+  parser.push('XADD');
+  parser.pushKey(key);
+  if (optional) {
+    parser.push(optional);
+  }
 
-    if (options?.NOMKSTREAM) {
-        args.push('NOMKSTREAM');
+  if (options?.TRIM) {
+    if (options.TRIM.strategy) {
+      parser.push(options.TRIM.strategy);
     }
 
-    if (options?.TRIM) {
-        if (options.TRIM.strategy) {
-            args.push(options.TRIM.strategy);
-        }
-
-        if (options.TRIM.strategyModifier) {
-            args.push(options.TRIM.strategyModifier);
-        }
-
-        args.push(options.TRIM.threshold.toString());
-
-        if (options.TRIM.limit) {
-            args.push('LIMIT', options.TRIM.limit.toString());
-        }
+    if (options.TRIM.strategyModifier) {
+      parser.push(options.TRIM.strategyModifier);
     }
 
-    args.push(id);
+    parser.push(options.TRIM.threshold.toString());
 
-    for (const [key, value] of Object.entries(message)) {
-        args.push(key, value);
+    if (options.TRIM.limit) {
+      parser.push('LIMIT', options.TRIM.limit.toString());
     }
+  }
 
-    return args;
+  parser.push(id);
+
+  for (const [key, value] of Object.entries(message)) {
+    parser.push(key, value);
+  }
 }
 
-export declare function transformReply(): string;
+export default {
+  IS_READ_ONLY: false,
+  parseCommand(...args: Tail<Parameters<typeof parseXAddArguments>>) {
+    return parseXAddArguments(undefined, ...args);
+  },
+  transformReply: undefined as unknown as () => BlobStringReply
+} as const satisfies Command;

@@ -1,19 +1,23 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './PERSIST';
+import PERSIST from './PERSIST';
+import { parseArgs } from './generic-transformers';
 
 describe('PERSIST', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key'),
-            ['PERSIST', 'key']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(PERSIST, 'key'),
+      ['PERSIST', 'key']
+    );
+  });
 
-    testUtils.testWithClient('client.persist', async client => {
-        assert.equal(
-            await client.persist('key'),
-            false
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testAll('persist', async client => {
+    assert.equal(
+      await client.persist('key'),
+      0
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

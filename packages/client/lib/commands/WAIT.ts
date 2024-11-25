@@ -1,7 +1,11 @@
-export const FIRST_KEY_INDEX = 1;
+import { CommandParser } from '../client/parser';
+import { NumberReply, Command } from '../RESP/types';
 
-export function transformArguments(numberOfReplicas: number, timeout: number): Array<string> {
-    return ['WAIT', numberOfReplicas.toString(), timeout.toString()];
-}
-
-export declare function transformReply(): number;
+export default {
+  NOT_KEYED_COMMAND: true,
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, numberOfReplicas: number, timeout: number) {
+    parser.push('WAIT', numberOfReplicas.toString(), timeout.toString());
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

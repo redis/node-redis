@@ -1,28 +1,24 @@
-import { RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { TuplesToMapReply, BlobStringReply, SetReply, NumberReply, ArrayReply, UnwrapReply, Resp2Reply, Command } from '../RESP/types';
 
-export function transformArguments(): RedisCommandArguments {
-    return ['CLIENT', 'TRACKINGINFO'];
-}
+type TrackingInfo = TuplesToMapReply<[
+  [BlobStringReply<'flags'>, SetReply<BlobStringReply>],
+  [BlobStringReply<'redirect'>, NumberReply],
+  [BlobStringReply<'prefixes'>, ArrayReply<BlobStringReply>]
+]>;
 
-type RawReply = [
-    'flags',
-    Array<string>,
-    'redirect',
-    number,
-    'prefixes',
-    Array<string>
-];
-
-interface Reply {
-    flags: Set<string>;
-    redirect: number;
-    prefixes: Array<string>;
-}
-
-export function transformReply(reply: RawReply): Reply {
-    return {
-        flags: new Set(reply[1]),
-        redirect: reply[3],
-        prefixes: reply[5]
-    };
-}
+export default {
+  NOT_KEYED_COMMAND: true,
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser) {
+    parser.push('CLIENT', 'TRACKINGINFO');
+  },
+  transformReply: {
+    2: (reply: UnwrapReply<Resp2Reply<TrackingInfo>>) => ({
+      flags: reply[1],
+      redirect: reply[3],
+      prefixes: reply[5]
+    }),
+    3: undefined as unknown as () => TrackingInfo
+  }
+} as const satisfies Command;

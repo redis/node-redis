@@ -1,11 +1,19 @@
-export function transformArguments(mode?: 'HARD' | 'SOFT'): Array<string> {
-    const args = ['CLUSTER', 'RESET'];
+import { CommandParser } from '../client/parser';
+import { SimpleStringReply, Command } from '../RESP/types';
 
-    if (mode) {
-        args.push(mode);
-    }
-
-    return args;
+export interface ClusterResetOptions {
+  mode?: 'HARD' | 'SOFT';
 }
 
-export declare function transformReply(): string;
+export default {
+  NOT_KEYED_COMMAND: true,
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, options?: ClusterResetOptions) {
+    parser.push('CLUSTER', 'RESET');
+
+    if (options?.mode) {
+      parser.push(options.mode);
+    }
+  },
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+} as const satisfies Command;

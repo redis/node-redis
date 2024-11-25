@@ -1,29 +1,32 @@
-export const FIRST_KEY_INDEX = 1;
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { RedisArgument, ArrayReply, SimpleStringReply, NullReply, Command } from '@redis/client/dist/lib/RESP/types';
 
-interface IncrByItem {
-    item: string;
-    incrementBy: number;
+export interface TopKIncrByItem {
+  item: string;
+  incrementBy: number;
 }
 
-export function transformArguments(
-    key: string,
-    items: IncrByItem | Array<IncrByItem>
-): Array<string> {
-    const args = ['TOPK.INCRBY', key];
+function pushIncrByItem(parser: CommandParser, { item, incrementBy }: TopKIncrByItem) {
+  parser.push(item, incrementBy.toString());
+}
+
+export default {
+  IS_READ_ONLY: false,
+  parseCommand(
+    parser: CommandParser,
+    key: RedisArgument,
+    items: TopKIncrByItem | Array<TopKIncrByItem>
+  ) {
+    parser.push('TOPK.INCRBY');
+    parser.pushKey(key);
 
     if (Array.isArray(items)) {
-        for (const item of items) {
-            pushIncrByItem(args, item);
-        }
+      for (const item of items) {
+        pushIncrByItem(parser, item);
+      }
     } else {
-        pushIncrByItem(args, items);
+      pushIncrByItem(parser, items);
     }
-
-    return args;
-}
-
-function pushIncrByItem(args: Array<string>, { item, incrementBy }: IncrByItem): void {
-    args.push(item, incrementBy.toString());
-}
-
-export declare function transformReply(): Array<string | null>;
+  },
+  transformReply: undefined as unknown as () => ArrayReply<SimpleStringReply | NullReply>
+} as const satisfies Command;

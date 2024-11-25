@@ -1,15 +1,13 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, BlobStringReply, NullReply, Command } from '../RESP/types';
 
-export const FIRST_KEY_INDEX = 1;
-
-export const IS_READ_ONLY = true;
-
-export function transformArguments(
-    key: RedisCommandArgument,
-    start: number,
-    end: number
-): RedisCommandArguments {
-    return ['GETRANGE', key, start.toString(), end.toString()];
-}
-
-export declare function transformReply(): RedisCommandArgument;
+export default {
+  CACHEABLE: true,
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, key: RedisArgument, start: number, end: number) {
+    parser.push('GETRANGE');
+    parser.pushKey(key);
+    parser.push(start.toString(), end.toString());
+  },
+  transformReply: undefined as unknown as () => BlobStringReply | NullReply
+} as const satisfies Command;

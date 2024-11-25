@@ -1,25 +1,27 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { GeoSearchOptions, GeoCoordinates, pushGeoRadiusArguments, GeoUnits } from './generic-transformers';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, ArrayReply, BlobStringReply, Command } from '../RESP/types';
+import { GeoCoordinates, GeoUnits, GeoSearchOptions, parseGeoSearchOptions } from './GEOSEARCH';
 
-export const FIRST_KEY_INDEX = 1;
+export function parseGeoRadiusArguments(
+  parser: CommandParser,
+  key: RedisArgument,
+  from: GeoCoordinates,
+  radius: number,
+  unit: GeoUnits,
+  options?: GeoSearchOptions
+) {
+  parser.pushKey(key);
+  parser.push(from.longitude.toString(), from.latitude.toString(), radius.toString(), unit);
 
-export const IS_READ_ONLY = true;
-
-export function transformArguments(
-    key: RedisCommandArgument,
-    coordinates: GeoCoordinates,
-    radius: number,
-    unit: GeoUnits,
-    options?: GeoSearchOptions
-): RedisCommandArguments {
-    return pushGeoRadiusArguments(
-        ['GEORADIUS'],
-        key,
-        coordinates,
-        radius,
-        unit,
-        options
-    );
+  parseGeoSearchOptions(parser, options)
 }
 
-export declare function transformReply(): Array<RedisCommandArgument>;
+export default {
+  IS_READ_ONLY: false,
+  parseCommand(...args: Parameters<typeof parseGeoRadiusArguments>) {
+    args[0].push('GEORADIUS');
+    return parseGeoRadiusArguments(...args);
+  },
+  transformReply: undefined as unknown as () => ArrayReply<BlobStringReply>
+} as const satisfies Command;
+

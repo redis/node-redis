@@ -1,21 +1,22 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './FUNCTION_DUMP';
+import FUNCTION_DUMP from './FUNCTION_DUMP';
+import { parseArgs } from './generic-transformers';
 
 describe('FUNCTION DUMP', () => {
-    testUtils.isVersionGreaterThanHook([7]);
+  testUtils.isVersionGreaterThanHook([7]);
 
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments(),
-            ['FUNCTION', 'DUMP']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(FUNCTION_DUMP),
+      ['FUNCTION', 'DUMP']
+    );
+  });
 
-    testUtils.testWithClient('client.functionDump', async client => {
-        assert.equal(
-            typeof await client.functionDump(),
-            'string'
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testWithClient('client.functionDump', async client => {
+    assert.equal(
+      typeof await client.functionDump(),
+      'string'
+    );
+  }, GLOBAL.SERVERS.OPEN);
 });

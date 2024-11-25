@@ -1,21 +1,25 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './RENAME';
+import RENAME from './RENAME';
+import { parseArgs } from './generic-transformers';
 
 describe('RENAME', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('from', 'to'),
-            ['RENAME', 'from', 'to']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(RENAME, 'source', 'destination'),
+      ['RENAME', 'source', 'destination']
+    );
+  });
 
-    testUtils.testWithClient('client.rename', async client => {
-        await client.set('from', 'value');
-
-        assert.equal(
-            await client.rename('from', 'to'),
-            'OK'
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testAll('rename', async client => {
+    const [, reply] = await Promise.all([
+      client.set('{tag}source', 'value'),
+      client.rename('{tag}source', '{tag}destination')
+    ]);
+    
+    assert.equal(reply, 'OK');
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

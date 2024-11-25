@@ -1,19 +1,23 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './ZINCRBY';
+import ZINCRBY from './ZINCRBY';
+import { parseArgs } from './generic-transformers';
 
 describe('ZINCRBY', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('key', 1, 'member'),
-            ['ZINCRBY', 'key', '1', 'member']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(ZINCRBY, 'key', 1, 'member'),
+      ['ZINCRBY', 'key', '1', 'member']
+    );
+  });
 
-    testUtils.testWithClient('client.zIncrBy', async client => {
-        assert.equal(
-            await client.zIncrBy('destination', 1, 'member'),
-            1
-        );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testAll('zIncrBy', async client => {
+    assert.equal(
+      await client.zIncrBy('destination', 1, 'member'),
+      1
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

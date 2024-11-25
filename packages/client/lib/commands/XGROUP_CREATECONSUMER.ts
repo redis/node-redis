@@ -1,13 +1,17 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, Command, NumberReply } from '../RESP/types';
 
-export const FIRST_KEY_INDEX = 2;
-
-export function transformArguments(
-    key: RedisCommandArgument,
-    group: RedisCommandArgument,
-    consumer: RedisCommandArgument
-): RedisCommandArguments {
-    return ['XGROUP', 'CREATECONSUMER', key, group, consumer];
-}
-
-export { transformBooleanReply as transformReply } from './generic-transformers';
+export default {
+  IS_READ_ONLY: false,
+  parseCommand(
+    parser: CommandParser,
+    key: RedisArgument,
+    group: RedisArgument,
+    consumer: RedisArgument
+  ) {
+    parser.push('XGROUP', 'CREATECONSUMER');
+    parser.pushKey(key);
+    parser.push(group, consumer);
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

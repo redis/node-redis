@@ -1,7 +1,12 @@
-export const FIRST_KEY_INDEX = 1;
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
+import { RedisArgument, NumberReply, Command } from '@redis/client/dist/lib/RESP/types';
 
-export function transformArguments(key: string, item: string): Array<string> {
-    return ['CF.COUNT', key, item];
-}
-
-export declare function transformReply(): number;
+export default {
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, key: RedisArgument, item: RedisArgument) {
+    parser.push('CF.COUNT');
+    parser.pushKey(key);
+    parser.push(item);
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

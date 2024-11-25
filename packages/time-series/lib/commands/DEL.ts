@@ -1,15 +1,13 @@
-import { RedisCommandArguments } from '@redis/client/dist/lib/commands';
+import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { Timestamp, transformTimestampArgument } from '.';
+import { RedisArgument, NumberReply, Command, } from '@redis/client/dist/lib/RESP/types';
 
-export const FIRTS_KEY_INDEX = 1;
-
-export function transformArguments(key: string, fromTimestamp: Timestamp, toTimestamp: Timestamp): RedisCommandArguments {
-    return [
-        'TS.DEL',
-        key,
-        transformTimestampArgument(fromTimestamp),
-        transformTimestampArgument(toTimestamp)
-    ];
-}
-
-export declare function transformReply(): number;
+export default {
+  IS_READ_ONLY: false,
+  parseCommand(parser: CommandParser, key: RedisArgument, fromTimestamp: Timestamp, toTimestamp: Timestamp) {
+    parser.push('TS.DEL');
+    parser.pushKey(key);
+    parser.push(transformTimestampArgument(fromTimestamp), transformTimestampArgument(toTimestamp));
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

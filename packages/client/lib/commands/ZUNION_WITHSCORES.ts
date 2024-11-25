@@ -1,13 +1,15 @@
-import { RedisCommandArguments } from '.';
-import { transformArguments as transformZUnionArguments } from './ZUNION';
+import { Command } from '../RESP/types';
+import { transformSortedSetReply } from './generic-transformers';
+import ZUNION from './ZUNION';
 
-export { FIRST_KEY_INDEX, IS_READ_ONLY } from './ZUNION';
 
-export function transformArguments(...args: Parameters<typeof transformZUnionArguments>): RedisCommandArguments {
-    return [
-        ...transformZUnionArguments(...args),
-        'WITHSCORES'
-    ];
-}
+export default {
+  IS_READ_ONLY: ZUNION.IS_READ_ONLY,
+  parseCommand(...args: Parameters<typeof ZUNION.parseCommand>) {
+    const parser = args[0];
 
-export { transformSortedSetWithScoresReply as transformReply } from './generic-transformers';
+    ZUNION.parseCommand(...args);
+    parser.push('WITHSCORES');
+  },
+  transformReply: transformSortedSetReply
+} as const satisfies Command;

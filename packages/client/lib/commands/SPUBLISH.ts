@@ -1,14 +1,12 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, NumberReply, Command } from '../RESP/types';
 
-export const IS_READ_ONLY = true;
-
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(
-    channel: RedisCommandArgument,
-    message: RedisCommandArgument
-): RedisCommandArguments {
-    return ['SPUBLISH', channel, message];
-}
-
-export declare function transformReply(): number;
+export default {
+  IS_READ_ONLY: true,
+  parseCommand(parser: CommandParser, channel: RedisArgument, message: RedisArgument) {
+    parser.push('SPUBLISH');
+    parser.pushKey(channel);
+    parser.push(message);
+  },
+  transformReply: undefined as unknown as () => NumberReply
+} as const satisfies Command;

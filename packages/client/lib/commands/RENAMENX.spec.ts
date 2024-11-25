@@ -1,21 +1,25 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { transformArguments } from './RENAMENX';
+import RENAMENX from './RENAMENX';
+import { parseArgs } from './generic-transformers';
 
 describe('RENAMENX', () => {
-    it('transformArguments', () => {
-        assert.deepEqual(
-            transformArguments('from', 'to'),
-            ['RENAMENX', 'from', 'to']
-        );
-    });
+  it('transformArguments', () => {
+    assert.deepEqual(
+      parseArgs(RENAMENX, 'source', 'destination'),
+      ['RENAMENX', 'source', 'destination']
+    );
+  });
 
-    testUtils.testWithClient('client.renameNX', async client => {
-        await client.set('from', 'value');
+  testUtils.testAll('renameNX', async client => {
+    const [, reply] = await Promise.all([
+      client.set('{tag}source', 'value'),
+      client.renameNX('{tag}source', '{tag}destination')
+    ]);
 
-        assert.equal(
-            await client.renameNX('from', 'to'),
-            true
-        );
-    }, GLOBAL.SERVERS.OPEN);
+    assert.equal(reply, 1);
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

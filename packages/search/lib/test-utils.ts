@@ -2,15 +2,15 @@ import TestUtils from '@redis/test-utils';
 import RediSearch from '.';
 
 export default new TestUtils({
-    dockerImageName: 'redislabs/redisearch',
+    dockerImageName: 'redis/redis-stack',
     dockerImageVersionArgument: 'redisearch-version',
-    defaultDockerVersion: '2.4.9'
+    defaultDockerVersion: '7.4.0-v1'
 });
 
 export const GLOBAL = {
     SERVERS: {
         OPEN: {
-            serverArguments: ['--loadmodule /usr/lib/redis/modules/redisearch.so'],
+            serverArguments: [],
             clientOptions: {
                 modules: {
                     ft: RediSearch

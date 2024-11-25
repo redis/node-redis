@@ -1,12 +1,11 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
+import { CommandParser } from '../client/parser';
+import { RedisArgument, BlobStringReply, Command } from '../RESP/types';
 
-export const FIRST_KEY_INDEX = 1;
-
-export function transformArguments(
-    key: RedisCommandArgument,
-    increment: number
-): RedisCommandArguments {
-    return ['INCRBYFLOAT', key, increment.toString()];
-}
-
-export declare function transformReply(): RedisCommandArgument;
+export default {
+  parseCommand(parser: CommandParser, key: RedisArgument, increment: number) {
+    parser.push('INCRBYFLOAT');
+    parser.pushKey(key);
+    parser.push(increment.toString());
+  },
+  transformReply: undefined as unknown as () => BlobStringReply
+} as const satisfies Command;

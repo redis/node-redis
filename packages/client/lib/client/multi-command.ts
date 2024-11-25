@@ -1,200 +1,239 @@
-import COMMANDS from './commands';
-import { RedisCommand, RedisCommandArguments, RedisCommandRawReply, RedisFunctions, RedisModules, RedisExtensions, RedisScript, RedisScripts, ExcludeMappedString, RedisFunction, RedisCommands } from '../commands';
-import RedisMultiCommand, { RedisMultiQueuedCommand } from '../multi-command';
-import { attachCommands, attachExtensions, transformLegacyCommandArguments } from '../commander';
+import COMMANDS from '../commands';
+import RedisMultiCommand, { MULTI_REPLY, MultiReply, MultiReplyType, RedisMultiQueuedCommand } from '../multi-command';
+import { ReplyWithTypeMapping, CommandReply, Command, CommandArguments, CommanderConfig, RedisFunctions, RedisModules, RedisScripts, RespVersions, TransformReply, RedisScript, RedisFunction, TypeMapping } from '../RESP/types';
+import { attachConfig, functionArgumentsPrefix, getTransformReply } from '../commander';
+import { BasicCommandParser } from './parser';
+import { Tail } from '../commands/generic-transformers';
 
 type CommandSignature<
-    C extends RedisCommand,
-    M extends RedisModules,
-    F extends RedisFunctions,
-    S extends RedisScripts
-> = (...args: Parameters<C['transformArguments']>) => RedisClientMultiCommandType<M, F, S>;
+  REPLIES extends Array<unknown>,
+  C extends Command,
+  M extends RedisModules,
+  F extends RedisFunctions,
+  S extends RedisScripts,
+  RESP extends RespVersions,
+  TYPE_MAPPING extends TypeMapping
+> = (...args: Tail<Parameters<C['parseCommand']>>) => RedisClientMultiCommandType<
+  [...REPLIES, ReplyWithTypeMapping<CommandReply<C, RESP>, TYPE_MAPPING>],
+  M,
+  F,
+  S,
+  RESP,
+  TYPE_MAPPING
+>;
 
 type WithCommands<
-    M extends RedisModules,
-    F extends RedisFunctions,
-    S extends RedisScripts
+  REPLIES extends Array<unknown>,
+  M extends RedisModules,
+  F extends RedisFunctions,
+  S extends RedisScripts,
+  RESP extends RespVersions,
+  TYPE_MAPPING extends TypeMapping
 > = {
-    [P in keyof typeof COMMANDS]: CommandSignature<(typeof COMMANDS)[P], M, F, S>;
+  [P in keyof typeof COMMANDS]: CommandSignature<REPLIES, (typeof COMMANDS)[P], M, F, S, RESP, TYPE_MAPPING>;
 };
 
 type WithModules<
-    M extends RedisModules,
-    F extends RedisFunctions,
-    S extends RedisScripts
+  REPLIES extends Array<unknown>,
+  M extends RedisModules,
+  F extends RedisFunctions,
+  S extends RedisScripts,
+  RESP extends RespVersions,
+  TYPE_MAPPING extends TypeMapping
 > = {
-    [P in keyof M as ExcludeMappedString<P>]: {
-        [C in keyof M[P] as ExcludeMappedString<C>]: CommandSignature<M[P][C], M, F, S>;
-    };
+  [P in keyof M]: {
+    [C in keyof M[P]]: CommandSignature<REPLIES, M[P][C], M, F, S, RESP, TYPE_MAPPING>;
+  };
 };
 
 type WithFunctions<
-    M extends RedisModules,
-    F extends RedisFunctions,
-    S extends RedisScripts
+  REPLIES extends Array<unknown>,
+  M extends RedisModules,
+  F extends RedisFunctions,
+  S extends RedisScripts,
+  RESP extends RespVersions,
+  TYPE_MAPPING extends TypeMapping
 > = {
-    [P in keyof F as ExcludeMappedString<P>]: {
-        [FF in keyof F[P] as ExcludeMappedString<FF>]: CommandSignature<F[P][FF], M, F, S>;
-    };
+  [L in keyof F]: {
+    [C in keyof F[L]]: CommandSignature<REPLIES, F[L][C], M, F, S, RESP, TYPE_MAPPING>;
+  };
 };
 
 type WithScripts<
-    M extends RedisModules,
-    F extends RedisFunctions,
-    S extends RedisScripts
+  REPLIES extends Array<unknown>,
+  M extends RedisModules,
+  F extends RedisFunctions,
+  S extends RedisScripts,
+  RESP extends RespVersions,
+  TYPE_MAPPING extends TypeMapping
 > = {
-    [P in keyof S as ExcludeMappedString<P>]: CommandSignature<S[P], M, F, S>;
+  [P in keyof S]: CommandSignature<REPLIES, S[P], M, F, S, RESP, TYPE_MAPPING>;
 };
 
 export type RedisClientMultiCommandType<
-    M extends RedisModules,
-    F extends RedisFunctions,
-    S extends RedisScripts
-> = RedisClientMultiCommand & WithCommands<M, F, S> & WithModules<M, F, S> & WithFunctions<M, F, S> & WithScripts<M, F, S>;
+  REPLIES extends Array<any>,
+  M extends RedisModules,
+  F extends RedisFunctions,
+  S extends RedisScripts,
+  RESP extends RespVersions,
+  TYPE_MAPPING extends TypeMapping
+> = (
+  RedisClientMultiCommand<REPLIES> &
+  WithCommands<REPLIES, M, F, S, RESP, TYPE_MAPPING> & 
+  WithModules<REPLIES, M, F, S, RESP, TYPE_MAPPING> &
+  WithFunctions<REPLIES, M, F, S, RESP, TYPE_MAPPING> &
+  WithScripts<REPLIES, M, F, S, RESP, TYPE_MAPPING>
+);
 
-type InstantiableRedisMultiCommand<
-    M extends RedisModules,
-    F extends RedisFunctions,
-    S extends RedisScripts
-> = new (...args: ConstructorParameters<typeof RedisClientMultiCommand>) => RedisClientMultiCommandType<M, F, S>;
+type ExecuteMulti = (commands: Array<RedisMultiQueuedCommand>, selectedDB?: number) => Promise<Array<unknown>>;
 
-export type RedisClientMultiExecutor = (
-    queue: Array<RedisMultiQueuedCommand>,
-    selectedDB?: number,
-    chainId?: symbol
-) => Promise<Array<RedisCommandRawReply>>;
+export default class RedisClientMultiCommand<REPLIES = []> {
+  static #createCommand(command: Command, resp: RespVersions) {
+    const transformReply = getTransformReply(command, resp);
 
-export default class RedisClientMultiCommand {
-    static extend<
-        M extends RedisModules,
-        F extends RedisFunctions,
-        S extends RedisScripts
-    >(extensions?: RedisExtensions<M, F, S>): InstantiableRedisMultiCommand<M, F, S> {
-        return attachExtensions({
-            BaseClass: RedisClientMultiCommand,
-            modulesExecutor: RedisClientMultiCommand.prototype.commandsExecutor,
-            modules: extensions?.modules,
-            functionsExecutor: RedisClientMultiCommand.prototype.functionsExecutor,
-            functions: extensions?.functions,
-            scriptsExecutor: RedisClientMultiCommand.prototype.scriptsExecutor,
-            scripts: extensions?.scripts
-        });
-    }
+    return function (this: RedisClientMultiCommand, ...args: Array<unknown>) {
+      const parser = new BasicCommandParser();
+      command.parseCommand(parser, ...args);
 
-    readonly #multi = new RedisMultiCommand();
-    readonly #executor: RedisClientMultiExecutor;
-    readonly v4: Record<string, any> = {};
-    #selectedDB?: number;
+      const redisArgs: CommandArguments = parser.redisArgs;
+      redisArgs.preserve = parser.preserve;
 
-    constructor(executor: RedisClientMultiExecutor, legacyMode = false) {
-        this.#executor = executor;
-        if (legacyMode) {
-            this.#legacyMode();
-        }
-    }
+      return this.addCommand(
+        redisArgs,
+        transformReply
+      );
+    };
+  }
 
-    #legacyMode(): void {
-        this.v4.addCommand = this.addCommand.bind(this);
-        (this as any).addCommand = (...args: Array<any>): this => {
-            this.#multi.addCommand(transformLegacyCommandArguments(args));
-            return this;
-        };
-        this.v4.exec = this.exec.bind(this);
-        (this as any).exec = (callback?: (err: Error | null, replies?: Array<unknown>) => unknown): void => {
-            this.v4.exec()
-                .then((reply: Array<unknown>) => {
-                    if (!callback) return;
+  static #createModuleCommand(command: Command, resp: RespVersions) {
+    const transformReply = getTransformReply(command, resp);
 
-                    callback(null, reply);
-                })
-                .catch((err: Error) => {
-                    if (!callback) {
-                        // this.emit('error', err);
-                        return;
-                    }
+    return function (this: { _self: RedisClientMultiCommand }, ...args: Array<unknown>) {
+      const parser = new BasicCommandParser();
+      command.parseCommand(parser, ...args);
 
-                    callback(err);
-                });
-        };
+      const redisArgs: CommandArguments = parser.redisArgs;
+      redisArgs.preserve = parser.preserve;
 
-        for (const [ name, command ] of Object.entries(COMMANDS as RedisCommands)) {
-            this.#defineLegacyCommand(name, command);
-            (this as any)[name.toLowerCase()] ??= (this as any)[name];
-        }
-    }
+      return this._self.addCommand(
+        redisArgs,
+        transformReply
+      );
+    };
+  }
 
-    #defineLegacyCommand(this: any, name: string, command?: RedisCommand): void {
-        this.v4[name] = this[name].bind(this.v4);
-        this[name] = command && command.TRANSFORM_LEGACY_REPLY && command.transformReply ?
-            (...args: Array<unknown>) => {
-                this.#multi.addCommand(
-                    [name, ...transformLegacyCommandArguments(args)],
-                    command.transformReply
-                );
-                return this;
-            } :
-            (...args: Array<unknown>) => this.addCommand(name, ...args);
-    }
+  static #createFunctionCommand(name: string, fn: RedisFunction, resp: RespVersions) {
+    const prefix = functionArgumentsPrefix(name, fn);
+    const transformReply = getTransformReply(fn, resp);
 
-    commandsExecutor(command: RedisCommand, args: Array<unknown>): this {
-        return this.addCommand(
-            command.transformArguments(...args),
-            command.transformReply
-        );
-    }
+    return function (this: { _self: RedisClientMultiCommand }, ...args: Array<unknown>) {
+      const parser = new BasicCommandParser();
+      parser.push(...prefix);
+      fn.parseCommand(parser, ...args);
 
-    SELECT(db: number, transformReply?: RedisCommand['transformReply']): this {
-        this.#selectedDB = db;
-        return this.addCommand(['SELECT', db.toString()], transformReply);
-    }
+      const redisArgs: CommandArguments = parser.redisArgs;
+      redisArgs.preserve = parser.preserve;
 
-    select = this.SELECT;
+      return this._self.addCommand(
+        redisArgs,
+        transformReply
+      );
+    };
+  }
 
-    addCommand(args: RedisCommandArguments, transformReply?: RedisCommand['transformReply']): this {
-        this.#multi.addCommand(args, transformReply);
-        return this;
-    }
+  static #createScriptCommand(script: RedisScript, resp: RespVersions) {
+    const transformReply = getTransformReply(script, resp);
 
-    functionsExecutor(fn: RedisFunction, args: Array<unknown>, name: string): this {
-        this.#multi.addFunction(name, fn, args);
-        return this;
-    }
+    return function (this: RedisClientMultiCommand, ...args: Array<unknown>) {
+      const parser = new BasicCommandParser();
+      script.parseCommand(parser, ...args);
 
-    scriptsExecutor(script: RedisScript, args: Array<unknown>): this {
-        this.#multi.addScript(script, args);
-        return this;
-    }
+      const redisArgs: CommandArguments = parser.redisArgs;
+      redisArgs.preserve = parser.preserve;
 
-    async exec(execAsPipeline = false): Promise<Array<RedisCommandRawReply>> {
-        if (execAsPipeline) {
-            return this.execAsPipeline();
-        }
+      return this.#addScript(
+        script,
+        redisArgs,
+        transformReply
+      );
+    };
+  }
 
-        return this.#multi.handleExecReplies(
-            await this.#executor(
-                this.#multi.queue,
-                this.#selectedDB,
-                RedisMultiCommand.generateChainId()
-            )
-        );
-    }
+  static extend<
+    M extends RedisModules = Record<string, never>,
+    F extends RedisFunctions = Record<string, never>,
+    S extends RedisScripts = Record<string, never>,
+    RESP extends RespVersions = 2
+  >(config?: CommanderConfig<M, F, S, RESP>) {
+    return attachConfig({
+      BaseClass: RedisClientMultiCommand,
+      commands: COMMANDS,
+      createCommand: RedisClientMultiCommand.#createCommand,
+      createModuleCommand: RedisClientMultiCommand.#createModuleCommand,
+      createFunctionCommand: RedisClientMultiCommand.#createFunctionCommand,
+      createScriptCommand: RedisClientMultiCommand.#createScriptCommand,
+      config
+    });
+  }
 
-    EXEC = this.exec;
+  readonly #multi: RedisMultiCommand
+  readonly #executeMulti: ExecuteMulti;
+  readonly #executePipeline: ExecuteMulti;
 
-    async execAsPipeline(): Promise<Array<RedisCommandRawReply>> {
-        if (this.#multi.queue.length === 0) return [];
-        
-        return this.#multi.transformReplies(
-            await this.#executor(
-                this.#multi.queue,
-                this.#selectedDB
-            )
-        );
-    }
+  #selectedDB?: number;
+
+  constructor(executeMulti: ExecuteMulti, executePipeline: ExecuteMulti, typeMapping?: TypeMapping) {
+    this.#multi = new RedisMultiCommand(typeMapping);
+    this.#executeMulti = executeMulti;
+    this.#executePipeline = executePipeline;
+  }
+
+  SELECT(db: number, transformReply?: TransformReply): this {
+    this.#selectedDB = db;
+    this.#multi.addCommand(['SELECT', db.toString()], transformReply);
+    return this;
+  }
+
+  select = this.SELECT;
+
+  addCommand(args: CommandArguments, transformReply?: TransformReply) {
+    this.#multi.addCommand(args, transformReply);
+    return this;
+  }
+
+  #addScript(
+    script: RedisScript,
+    args: CommandArguments,
+    transformReply?: TransformReply
+  ) {
+    this.#multi.addScript(script, args, transformReply);
+
+    return this;
+  }
+
+  async exec<T extends MultiReply = MULTI_REPLY['GENERIC']>(execAsPipeline = false): Promise<MultiReplyType<T, REPLIES>> {
+    if (execAsPipeline) return this.execAsPipeline<T>();
+
+    return this.#multi.transformReplies(
+      await this.#executeMulti(this.#multi.queue, this.#selectedDB)
+    ) as MultiReplyType<T, REPLIES>;
+  }
+
+  EXEC = this.exec;
+
+  execTyped(execAsPipeline = false) {
+    return this.exec<MULTI_REPLY['TYPED']>(execAsPipeline);
+  }
+
+  async execAsPipeline<T extends MultiReply = MULTI_REPLY['GENERIC']>(): Promise<MultiReplyType<T, REPLIES>> {
+    if (this.#multi.queue.length === 0) return [] as MultiReplyType<T, REPLIES>;
+
+    return this.#multi.transformReplies(
+      await this.#executePipeline(this.#multi.queue, this.#selectedDB)
+    ) as MultiReplyType<T, REPLIES>;
+  }
+
+  execAsPipelineTyped() {
+    return this.execAsPipeline<MULTI_REPLY['TYPED']>();
+  }
 }
-
-attachCommands({
-    BaseClass: RedisClientMultiCommand,
-    commands: COMMANDS,
-    executor: RedisClientMultiCommand.prototype.commandsExecutor
-});

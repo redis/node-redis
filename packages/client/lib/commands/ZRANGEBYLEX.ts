@@ -1,35 +1,34 @@
-import { RedisCommandArgument, RedisCommandArguments } from '.';
-import { transformStringNumberInfinityArgument } from './generic-transformers';
-
-export const FIRST_KEY_INDEX = 1;
-
-export const IS_READ_ONLY = true;
+import { CommandParser } from '../client/parser';
+import { RedisArgument, ArrayReply, BlobStringReply, Command } from '../RESP/types';
+import { transformStringDoubleArgument } from './generic-transformers';
 
 export interface ZRangeByLexOptions {
-    LIMIT?: {
-        offset: number;
-        count: number;
-    };
+  LIMIT?: {
+    offset: number;
+    count: number;
+  };
 }
 
-export function transformArguments(
-    key: RedisCommandArgument,
-    min: RedisCommandArgument,
-    max: RedisCommandArgument,
+export default {
+  CACHEABLE: true,
+  IS_READ_ONLY: true,
+  parseCommand(
+    parser: CommandParser,
+    key: RedisArgument,
+    min: RedisArgument,
+    max: RedisArgument,
     options?: ZRangeByLexOptions
-): RedisCommandArguments {
-    const args = [
-        'ZRANGEBYLEX',
-        key,
-        transformStringNumberInfinityArgument(min),
-        transformStringNumberInfinityArgument(max)
-    ];
+  ) {
+    parser.push('ZRANGEBYLEX');
+    parser.pushKey(key);
+    parser.push(
+      transformStringDoubleArgument(min),
+      transformStringDoubleArgument(max)
+    );
 
     if (options?.LIMIT) {
-        args.push('LIMIT', options.LIMIT.offset.toString(), options.LIMIT.count.toString());
+      parser.push('LIMIT', options.LIMIT.offset.toString(), options.LIMIT.count.toString());
     }
-
-    return args;
-}
-
-export declare function transformReply(): Array<RedisCommandArgument>;
+  },
+  transformReply: undefined as unknown as () => ArrayReply<BlobStringReply>
+} as const satisfies Command;

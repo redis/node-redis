@@ -1,96 +1,77 @@
-import { strict as assert } from 'assert';
+import { strict as assert } from 'node:assert';
 import RedisMultiCommand from './multi-command';
-import { WatchError } from './errors';
 import { SQUARE_SCRIPT } from './client/index.spec';
 
 describe('Multi Command', () => {
-    it('generateChainId', () => {
-        assert.equal(
-            typeof RedisMultiCommand.generateChainId(),
-            'symbol'
-        );
+  it('addCommand', () => {
+    const multi = new RedisMultiCommand();
+    multi.addCommand(['PING']);
+
+    assert.deepEqual(
+      multi.queue[0].args,
+      ['PING']
+    );
+  });
+
+  describe('addScript', () => {
+    const multi = new RedisMultiCommand();
+
+    it('should use EVAL', () => {
+      multi.addScript(SQUARE_SCRIPT, ['1']);
+      assert.deepEqual(
+        Array.from(multi.queue.at(-1).args),
+        ['EVAL', SQUARE_SCRIPT.SCRIPT, '1', '1']
+      );
     });
 
-    it('addCommand', () => {
-        const multi = new RedisMultiCommand();
-        multi.addCommand(['PING']);
-
-        assert.deepEqual(
-            multi.queue[0].args,
-            ['PING']
-        );
+    it('should use EVALSHA', () => {
+      multi.addScript(SQUARE_SCRIPT, ['2']);
+      assert.deepEqual(
+        Array.from(multi.queue.at(-1).args),
+        ['EVALSHA', SQUARE_SCRIPT.SHA1, '1', '2']
+      );
     });
 
-    it('addScript', () => {
-        const multi = new RedisMultiCommand();
+    it('without NUMBER_OF_KEYS', () => {
+      multi.addScript({
+        ...SQUARE_SCRIPT,
+        NUMBER_OF_KEYS: undefined
+      }, ['2']);
+      assert.deepEqual(
+        Array.from(multi.queue.at(-1).args),
+        ['EVALSHA', SQUARE_SCRIPT.SHA1, '2']
+      );
+    });
+  });
 
-        multi.addScript(SQUARE_SCRIPT, ['1']);
-        assert.equal(
-            multi.scriptsInUse.has(SQUARE_SCRIPT.SHA1),
-            true
-        );
-        assert.deepEqual(
-            multi.queue[0].args,
-            ['EVAL', SQUARE_SCRIPT.SCRIPT, '0', '1']
-        );
-
-        multi.addScript(SQUARE_SCRIPT, ['2']);
-        assert.equal(
-            multi.scriptsInUse.has(SQUARE_SCRIPT.SHA1),
-            true
-        );
-        assert.deepEqual(
-            multi.queue[1].args,
-            ['EVALSHA', SQUARE_SCRIPT.SHA1, '0', '2']
-        );
+  describe('exec', () => {
+    it('without commands', () => {
+      assert.deepEqual(
+        new RedisMultiCommand().queue,
+        []
+      );
     });
 
-    describe('exec', () => {
-        it('without commands', () => {
-            assert.deepEqual(
-                new RedisMultiCommand().queue,
-                []
-            );
-        });
+    it('with commands', () => {
+      const multi = new RedisMultiCommand();
+      multi.addCommand(['PING']);
 
-        it('with commands', () => {
-            const multi = new RedisMultiCommand();
-            multi.addCommand(['PING']);
-
-            assert.deepEqual(
-                multi.queue,
-                [{
-                    args: ['PING'],
-                    transformReply: undefined
-                }]
-            );
-        });
+      assert.deepEqual(
+        multi.queue,
+        [{
+          args: ['PING'],
+          transformReply: undefined
+        }]
+      );
     });
+  });
 
-    describe('handleExecReplies', () => {
-        it('WatchError', () => {
-            assert.throws(
-                () => new RedisMultiCommand().handleExecReplies([null]),
-                WatchError
-            );
-        });
-
-        it('with replies', () => {
-            const multi = new RedisMultiCommand();
-            multi.addCommand(['PING']);
-            assert.deepEqual(
-                multi.handleExecReplies(['OK', 'QUEUED', ['PONG']]),
-                ['PONG']
-            );
-        });
-    });
-
-    it('transformReplies', () => {
-        const multi = new RedisMultiCommand();
-        multi.addCommand(['PING'], (reply: string) => reply.substring(0, 2));
-        assert.deepEqual(
-            multi.transformReplies(['PONG']),
-            ['PO']
-        );
-    });
+  it('transformReplies', () => {
+    const multi = new RedisMultiCommand();
+    multi.addCommand(['PING'], (reply: string) => reply.substring(0, 2));
+    assert.deepEqual(
+      multi.transformReplies(['PONG']),
+      ['PO']
+    );
+  });
 });
