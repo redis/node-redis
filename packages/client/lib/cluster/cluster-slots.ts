@@ -261,10 +261,10 @@ export default class RedisClusterSlots<
 
     let socket;
     if (this.#options.defaults.socket) {
-      socket = options?.socket ? {
+      socket = {
         ...this.#options.defaults.socket,
-        ...options.socket
-      } : this.#options.defaults.socket;
+        ...options?.socket
+      };
     } else {
       socket = options?.socket;
     }
