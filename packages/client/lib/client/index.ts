@@ -1,6 +1,5 @@
 import COMMANDS from '../commands';
-import { BasicAuth, CredentialsError, CredentialsProvider, StreamingCredentialsProvider, UnableToObtainNewCredentialsError  } from './authx/credentials-provider';
-import {Disposable} from './authx/types';
+import { BasicAuth, CredentialsError, CredentialsProvider, StreamingCredentialsProvider, UnableToObtainNewCredentialsError, Disposable  } from './authx/';
 import RedisSocket, { RedisSocketOptions } from './socket';
 import RedisCommandsQueue, { CommandOptions } from './commands-queue';
 import { EventEmitter } from 'node:events';
