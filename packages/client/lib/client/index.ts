@@ -1,4 +1,5 @@
 import COMMANDS from '../commands';
+import { BasicAuth, CredentialsError, CredentialsProvider, StreamingCredentialsProvider, UnableToObtainNewCredentialsError, Disposable } from './authx/credentials-provider';
 import RedisSocket, { RedisSocketOptions } from './socket';
 import RedisCommandsQueue, { CommandOptions } from './commands-queue';
 import { EventEmitter } from 'node:events';
@@ -42,6 +43,13 @@ export interface RedisClientOptions<
    * ACL password or the old "--requirepass" password
    */
   password?: string;
+
+  /**
+   * Provides credentials for authentication. Can be set directly or will be created internally
+   * if username/password are provided instead. If both are supplied, this credentialsProvider
+   * takes precedence over username/password.
+   */
+  credentialsProvider?: CredentialsProvider;
   /**
    * Client name ([see `CLIENT SETNAME`](https://redis.io/commands/client-setname))
    */
@@ -261,6 +269,17 @@ export default class RedisClient<
       parsed.password = decodeURIComponent(password);
     }
 
+    if (username || password) {
+      parsed.credentialsProvider = {
+        type: 'async-credentials-provider',
+        credentials: async () => (
+          {
+            username: username ? decodeURIComponent(username) : undefined,
+            password: password ? decodeURIComponent(password) : undefined
+          })
+      };
+    }
+
     if (pathname.length > 1) {
       const database = Number(pathname.substring(1));
       if (isNaN(database)) {
@@ -283,6 +302,8 @@ export default class RedisClient<
   #dirtyWatch?: string;
   #epoch: number;
   #watchEpoch?: number; 
+
+  private credentialsSubscription: Disposable | null = null;
 
   get options(): RedisClientOptions<M, F, S, RESP> | undefined {
     return this._self.#options;
@@ -317,6 +338,19 @@ export default class RedisClient<
   }
 
   #initiateOptions(options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>): RedisClientOptions<M, F, S, RESP, TYPE_MAPPING> | undefined {
+
+    // Convert username/password to credentialsProvider if no credentialsProvider is already in place
+    if (!options?.credentialsProvider && (options?.username || options?.password)) {
+
+      options.credentialsProvider = {
+        type: 'async-credentials-provider',
+        credentials: async () => ({
+          username: options.username,
+          password: options.password
+        })
+      };
+    }
+
     if (options?.url) {
       const parsed = RedisClient.parseURL(options.url);
       if (options.socket) {
@@ -345,17 +379,60 @@ export default class RedisClient<
     );
   }
 
-  #handshake(selectedDB: number) {
+  /**
+   * TODO: Implement re-authentication to support refreshing credentials without reconnecting
+   * @param credentials
+   */
+  private reAuthenticate = async (credentials: BasicAuth) => {
+    throw new Error('Not implemented');
+  }
+
+  private subscribeForStreamingCredentials(cp: StreamingCredentialsProvider): Promise<[BasicAuth, Disposable]> {
+    return cp.subscribe({
+      onNext: credentials => {
+        this.reAuthenticate(credentials).catch(error => {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          console.error('Error during re-authentication', errorMessage);
+          cp.onReAuthenticationError(new CredentialsError(errorMessage));
+        });
+
+      },
+      onError: (e: Error) => {
+        const errorMessage = `Error from streaming credentials provider: ${e.message}`;
+        console.error(errorMessage);
+        cp.onReAuthenticationError(new UnableToObtainNewCredentialsError(errorMessage));
+      }
+    });
+  }
+
+  async #handshake(selectedDB: number) {
     const commands = [];
+    const cp = this.#options?.credentialsProvider;
 
     if (this.#options?.RESP) {
       const hello: HelloOptions = {};
 
-      if (this.#options.password) {
-        hello.AUTH = {
-          username: this.#options.username ?? 'default',
-          password: this.#options.password
-        };
+      if (cp && cp.type === 'async-credentials-provider') {
+        const credentials = await cp.credentials();
+        if (credentials.password) {
+          hello.AUTH = {
+            username: credentials.username ?? 'default',
+            password: credentials.password
+          };
+        }
+      }
+
+      if (cp && cp.type === 'streaming-credentials-provider') {
+
+        const [credentials, disposable]  = await this.subscribeForStreamingCredentials(cp)
+        this.credentialsSubscription = disposable;
+
+        if (credentials.password) {
+          hello.AUTH = {
+            username: credentials.username ?? 'default',
+            password: credentials.password
+          };
+        }
       }
 
       if (this.#options.name) {
@@ -366,13 +443,34 @@ export default class RedisClient<
         parseArgs(HELLO, this.#options.RESP, hello)
       );
     } else {
-      if (this.#options?.username || this.#options?.password) {
-        commands.push(
-          parseArgs(COMMANDS.AUTH, {
-            username: this.#options.username,
-            password: this.#options.password ?? ''
-          })
-        );
+
+      if (cp && cp.type === 'async-credentials-provider') {
+
+        const credentials = await cp.credentials();
+
+        if (credentials.username || credentials.password) {
+          commands.push(
+            parseArgs(COMMANDS.AUTH, {
+              username: credentials.username,
+              password: credentials.password ?? ''
+            })
+          );
+        }
+      }
+
+      if (cp && cp.type === 'streaming-credentials-provider') {
+
+        const [credentials, disposable]  = await this.subscribeForStreamingCredentials(cp)
+        this.credentialsSubscription = disposable;
+
+        if (credentials.username || credentials.password) {
+          commands.push(
+            parseArgs(COMMANDS.AUTH, {
+              username: credentials.username,
+              password: credentials.password ?? ''
+            })
+          );
+        }
       }
 
       if (this.#options?.name) {
@@ -396,7 +494,7 @@ export default class RedisClient<
   }
 
   #initiateSocket(): RedisSocket {
-    const socketInitiator = () => {
+    const socketInitiator = async () => {
       const promises = [],
         chainId = Symbol('Socket Initiator');
 
@@ -418,7 +516,7 @@ export default class RedisClient<
         );
       }
 
-      const commands = this.#handshake(this.#selectedDB);
+      const commands = await this.#handshake(this.#selectedDB);
       for (let i = commands.length - 1; i >= 0; --i) {
         promises.push(
           this.#queue.addCommand(commands[i], {
@@ -1000,7 +1098,9 @@ export default class RedisClient<
     const chainId = Symbol('Reset Chain'),
       promises = [this._self.#queue.reset(chainId)],
       selectedDB = this._self.#options?.database ?? 0;
-    for (const command of this._self.#handshake(selectedDB)) {
+    this.credentialsSubscription?.dispose();
+    this.credentialsSubscription = null;
+    for (const command of (await this._self.#handshake(selectedDB))) {
       promises.push(
         this._self.#queue.addCommand(command, {
           chainId
@@ -1051,6 +1151,8 @@ export default class RedisClient<
    * @deprecated use .close instead
    */
   QUIT(): Promise<string> {
+    this.credentialsSubscription?.dispose();
+    this.credentialsSubscription = null;
     return this._self.#socket.quit(async () => {
       clearTimeout(this._self.#pingTimer);
       const quitPromise = this._self.#queue.addCommand<string>(['QUIT']);
@@ -1089,6 +1191,8 @@ export default class RedisClient<
         resolve();
       };
       this._self.#socket.on('data', maybeClose);
+      this.credentialsSubscription?.dispose();
+      this.credentialsSubscription = null;
     });
   }
 
@@ -1099,6 +1203,8 @@ export default class RedisClient<
     clearTimeout(this._self.#pingTimer);
     this._self.#queue.flushAll(new DisconnectsClientError());
     this._self.#socket.destroy();
+    this.credentialsSubscription?.dispose();
+    this.credentialsSubscription = null;
   }
 
   ref() {
