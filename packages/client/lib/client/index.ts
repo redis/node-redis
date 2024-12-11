@@ -380,11 +380,18 @@ export default class RedisClient<
   }
 
   /**
-   * TODO: Implement re-authentication to support refreshing credentials without reconnecting
    * @param credentials
    */
   private reAuthenticate = async (credentials: BasicAuth) => {
-    throw new Error('Not implemented');
+    // Re-authentication is not supported on RESP2 with PubSub active
+    if (!(this.isPubSubActive && !this.#options?.RESP)) {
+      await this.sendCommand(
+        parseArgs(COMMANDS.AUTH, {
+          username: credentials.username,
+          password: credentials.password ?? ''
+        })
+      );
+    }
   }
 
   private subscribeForStreamingCredentials(cp: StreamingCredentialsProvider): Promise<[BasicAuth, Disposable]> {

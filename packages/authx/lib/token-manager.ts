@@ -35,7 +35,6 @@ export interface TokenManagerConfig {
   retry?: RetryPolicy;
 }
 
-
 /**
  * IDPError is an error that occurs while calling the underlying IdentityProvider.
  *
@@ -88,7 +87,7 @@ export class TokenManager<T> {
 
   constructor(
     private readonly identityProvider: IdentityProvider<T>,
-    private readonly config: TokenManagerConfig,
+    private readonly config: TokenManagerConfig
   ) {
     if (this.config.expirationRefreshRatio > 1) {
       throw new Error('expirationRefreshRatio must be less than or equal to 1');
@@ -186,25 +185,29 @@ export class TokenManager<T> {
     if (!this.listener) {
       throw new Error('TokenManager is not running, but a new token was received');
     }
-    const token = this.wrapNativeToken(nativeToken, ttlMs);
-    this.currentToken = token;
+    const token = this.wrapAndSetCurrentToken(nativeToken, ttlMs);
     this.listener.onNext(token);
 
     this.scheduleNextRefresh(this.calculateRefreshTime(token));
   }
 
   /**
-   * Wraps a native token obtained from identity provider.
-   * @param nativeToken
-   * @param ttlMs
+   * Creates a Token object from a native token and sets it as the current token.
+   *
+   * @param nativeToken - The raw token received from the identity provider
+   * @param ttlMs - Time-to-live in milliseconds for the token
+   *
+   * @returns A new Token instance containing the wrapped native token and expiration details
+   *
    */
-  public wrapNativeToken(nativeToken: T, ttlMs: number): Token<T> {
+  public wrapAndSetCurrentToken(nativeToken: T, ttlMs: number): Token<T> {
     const now = Date.now();
     const token = new Token(
       nativeToken,
       now + ttlMs,
       now
     );
+    this.currentToken = token;
     return token;
   }
 
@@ -228,7 +231,7 @@ export class TokenManager<T> {
    * @param token The token to calculate the refresh time for.
    * @param now The current time in milliseconds. Defaults to Date.now().
    */
-  public calculateRefreshTime(token: Token<T>, now:number = Date.now()): number {
+  public calculateRefreshTime(token: Token<T>, now: number = Date.now()): number {
     const ttlMs = token.getTtlMs(now);
     return Math.floor(ttlMs * this.config.expirationRefreshRatio);
   }
