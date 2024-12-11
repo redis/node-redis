@@ -27,6 +27,9 @@
     },
     {
       "path": "./packages/authx"
+    },
+    {
+      "path": "./packages/entraid"
     }
   ]
 
