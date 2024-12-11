@@ -1,5 +1,5 @@
 import COMMANDS from '../commands';
-import { BasicAuth, CredentialsError, CredentialsProvider, StreamingCredentialsProvider, UnableToObtainNewCredentialsError, Disposable } from './authx/credentials-provider';
+import { BasicAuth, CredentialsError, CredentialsProvider, StreamingCredentialsProvider, UnableToObtainNewCredentialsError  } from '@redis/authx';
 import RedisSocket, { RedisSocketOptions } from './socket';
 import RedisCommandsQueue, { CommandOptions } from './commands-queue';
 import { EventEmitter } from 'node:events';
@@ -1098,7 +1098,7 @@ export default class RedisClient<
     const chainId = Symbol('Reset Chain'),
       promises = [this._self.#queue.reset(chainId)],
       selectedDB = this._self.#options?.database ?? 0;
-    this.credentialsSubscription?.dispose();
+    this.credentialsSubscription?.[Symbol.dispose]();
     this.credentialsSubscription = null;
     for (const command of (await this._self.#handshake(selectedDB))) {
       promises.push(
@@ -1151,7 +1151,7 @@ export default class RedisClient<
    * @deprecated use .close instead
    */
   QUIT(): Promise<string> {
-    this.credentialsSubscription?.dispose();
+    this.credentialsSubscription?.[Symbol.dispose]();
     this.credentialsSubscription = null;
     return this._self.#socket.quit(async () => {
       clearTimeout(this._self.#pingTimer);
@@ -1191,7 +1191,7 @@ export default class RedisClient<
         resolve();
       };
       this._self.#socket.on('data', maybeClose);
-      this.credentialsSubscription?.dispose();
+      this.credentialsSubscription?.[Symbol.dispose]();
       this.credentialsSubscription = null;
     });
   }
@@ -1203,7 +1203,7 @@ export default class RedisClient<
     clearTimeout(this._self.#pingTimer);
     this._self.#queue.flushAll(new DisconnectsClientError());
     this._self.#socket.destroy();
-    this.credentialsSubscription?.dispose();
+    this.credentialsSubscription?.[Symbol.dispose]();
     this.credentialsSubscription = null;
   }
 
