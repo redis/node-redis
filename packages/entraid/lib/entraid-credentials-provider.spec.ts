@@ -1,8 +1,20 @@
-import { IdentityProvider, TokenManager, TokenResponse, TokenManagerConfig, BasicAuth } from '@redis/authx';
+import { AuthenticationResult } from '@azure/msal-node';
+import { IdentityProvider, TokenManager, TokenResponse, BasicAuth } from '@redis/authx';
 import { EntraidCredentialsProvider } from './entraid-credentials-provider';
-import { strict as assert } from 'node:assert';
 import { setTimeout } from 'timers/promises';
-import { AuthenticationResult } from '@azure/msal-common/node';
+import { strict as assert } from 'node:assert';
+import { GLOBAL, testUtils } from './test-utils'
+
+
+describe('EntraID authentication in cluster mode', () => {
+
+  testUtils.testWithCluster('sendCommand', async cluster => {
+    assert.equal(
+      await cluster.sendCommand(undefined, true, ['PING']),
+      'PONG'
+    );
+  }, GLOBAL.CLUSTERS.PASSWORD_WITH_REPLICAS);
+})
 
 describe('EntraID CredentialsProvider Subscription Behavior', () => {
 

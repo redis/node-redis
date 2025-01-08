@@ -27,7 +27,8 @@
     "@types/node": "^22.9.0",
     "dotenv": "^16.3.1",
     "express": "^4.21.1",
-    "express-session": "^1.18.1"
+    "express-session": "^1.18.1",
+    "@redis/test-utils": "*"
   },
   "engines": {
     "node": ">= 18"
