@@ -14,9 +14,6 @@
   "dependencies": {
     "cluster-key-slot": "1.1.2"
   },
-  "peerDependencies": {
-    "@redis/authx": "^5.0.0-next.5"
-  },
   "devDependencies": {
     "@redis/test-utils": "*",
     "@types/sinon": "^17.0.3",

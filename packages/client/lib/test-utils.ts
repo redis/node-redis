@@ -1,7 +1,7 @@
 import TestUtils from '@redis/test-utils';
 import { SinonSpy } from 'sinon';
 import { setTimeout } from 'node:timers/promises';
-import { CredentialsProvider } from '@redis/authx';
+import { CredentialsProvider } from './authx';
 import { Command } from './RESP/types';
 import { BasicCommandParser } from './client/parser';
 
@@ -30,7 +30,7 @@ const streamingCredentialsProvider: CredentialsProvider =
     subscribe : (observable) => ( Promise.resolve([
      { password: 'password' },
       {
-        [Symbol.dispose]: () => {
+       dispose: () => {
           console.log('disposing credentials provider subscription');
         }
       }

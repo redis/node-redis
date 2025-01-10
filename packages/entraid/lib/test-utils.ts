@@ -1,5 +1,5 @@
 import { AuthenticationResult } from '@azure/msal-node';
-import { IdentityProvider, StreamingCredentialsProvider, TokenManager, TokenResponse } from '@redis/authx';
+import { IdentityProvider, StreamingCredentialsProvider, TokenManager, TokenResponse } from '@redis/client/dist/lib/authx';
 import TestUtils from '@redis/test-utils';
 import { EntraidCredentialsProvider } from './entraid-credentials-provider';
 

@@ -1,4 +1,4 @@
-
+import { Disposable } from './disposable';
 /**
  * Provides credentials asynchronously.
  */

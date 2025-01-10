@@ -1,7 +1,7 @@
 import {
   AuthenticationResult
 } from '@azure/msal-node';
-import { IdentityProvider, TokenResponse } from '@redis/authx';
+import { IdentityProvider, TokenResponse } from '@redis/client/dist/lib/authx';
 
 export class MSALIdentityProvider implements IdentityProvider<AuthenticationResult> {
   private readonly getToken: () => Promise<AuthenticationResult>;
@@ -22,7 +22,6 @@ export class MSALIdentityProvider implements IdentityProvider<AuthenticationResu
         ttlMs: result.expiresOn.getTime() - Date.now()
       };
     } catch (error) {
-      console.error('Error acquiring token:', error);
       throw error;
     }
   }

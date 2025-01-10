@@ -1,5 +1,5 @@
 import { AuthenticationResult } from '@azure/msal-node';
-import { IdentityProvider, TokenManager, TokenResponse, BasicAuth } from '@redis/authx';
+import { IdentityProvider, TokenManager, TokenResponse, BasicAuth } from '@redis/client/dist/lib/authx';
 import { EntraidCredentialsProvider } from './entraid-credentials-provider';
 import { setTimeout } from 'timers/promises';
 import { strict as assert } from 'node:assert';
@@ -96,12 +96,12 @@ describe('EntraID CredentialsProvider Subscription Behavior', () => {
     // Cleanup
 
     assert.equal(tokenManager.isRunning(), true);
-    sub1Initial[1][Symbol.dispose]();
-    sub2Initial[1][Symbol.dispose]();
-    sub3Initial[1][Symbol.dispose]();
+    sub1Initial[1].dispose();
+    sub2Initial[1].dispose();
+    sub3Initial[1].dispose();
     assert.equal(entraid.hasActiveSubscriptions(), true, 'There should be active subscriptions');
     assert.equal(entraid.getSubscriptionsCount(), 1, 'There should be 1 subscriptions');
-    sub4Initial[1][Symbol.dispose]();
+    sub4Initial[1].dispose();
     assert.equal(entraid.hasActiveSubscriptions(), false, 'There should be no active subscriptions');
     assert.equal(entraid.getSubscriptionsCount(), 0, 'There should be 0 subscriptions');
     assert.equal(tokenManager.isRunning(), false)
@@ -134,15 +134,15 @@ describe('EntraID CredentialsProvider Subscription Behavior', () => {
       private readonly tokenSequence: AuthenticationResult[] = [
         {
           accessToken: 'initial-token',
-          account: { username: 'test-user' }
+          uniqueId: 'test-user'
         } as AuthenticationResult,
         {
           accessToken: 'refresh-token-1',
-          account: { username: 'test-user' }
+          uniqueId: 'test-user'
         } as AuthenticationResult,
         {
           accessToken: 'refresh-token-2',
-          account: { username: 'test-user' }
+          uniqueId: 'test-user'
         } as AuthenticationResult
       ]
     ) {}

@@ -23,14 +23,10 @@
       "path": "./packages/time-series"
     },
     {
-      "path": "./packages/redis"
-    },
-    {
-      "path": "./packages/authx"
-    },
-    {
       "path": "./packages/entraid"
+    },
+    {
+      "path": "./packages/redis"
     }
   ]
-
 }
