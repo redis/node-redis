@@ -1,6 +1,6 @@
 {
   "name": "@redis/bloom",
-  "version": "5.0.0-next.5",
+  "version": "5.0.0-next.6",
   "license": "MIT",
   "main": "./dist/lib/index.js",
   "types": "./dist/lib/index.d.ts",
