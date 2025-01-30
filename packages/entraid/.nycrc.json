@@ -1,0 +1,10 @@
+{
+  "extends": "@istanbuljs/nyc-config-typescript",
+  "exclude": [
+    "integration-tests",
+    "samples",
+    "dist",
+    "**/*.spec.ts",
+    "lib/test-utils.ts"
+  ]
+}
