@@ -125,7 +125,6 @@ export interface FtAggregateOptions {
   TIMEOUT?: number;
   STEPS?: Array<GroupByStep | SortStep | ApplyStep | LimitStep | FilterStep>;
   PARAMS?: FtSearchParams;
-  SKIPDIALECT?: boolean;
   DIALECT?: number;
 }
 
