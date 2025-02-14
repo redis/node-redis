@@ -2,9 +2,9 @@ import TestUtils from '@redis/test-utils';
 import RedisJSON from '.';
 
 export default new TestUtils({
-  dockerImageName: 'redis/redis-stack',
+  dockerImageName: 'redislabs/client-libs-test',
   dockerImageVersionArgument: 'redisgraph-version',
-  defaultDockerVersion: '7.4.0-v1'
+  defaultDockerVersion: '8.0-M04-pre'
 });
 
 export const GLOBAL = {

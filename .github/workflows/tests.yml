@@ -21,8 +21,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: ['18', '20', '22']
-        redis-version: ['6.2.6-v17', '7.2.0-v13', '7.4.0-v1']
+        node-version: [ '18', '20', '22' ]
+        redis-version: [ 'rs-7.2.0-v13', 'rs-7.4.0-v1', '8.0-M04-pre' ]
     steps:
       - uses: actions/checkout@v4
         with:
