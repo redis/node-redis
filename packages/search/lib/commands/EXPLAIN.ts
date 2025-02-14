@@ -1,7 +1,7 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument, SimpleStringReply, Command } from '@redis/client/dist/lib/RESP/types';
 import { FtSearchParams, parseParamsArgument } from './SEARCH';
-
+import { DefaultDialect } from '../dialect/default';
 export interface FtExplainOptions {
   PARAMS?: FtSearchParams;
   DIALECT?: number;
@@ -22,6 +22,8 @@ export default {
 
     if (options?.DIALECT) {
       parser.push('DIALECT', options.DIALECT.toString());
+    } else {
+      parser.push('DIALECT', DefaultDialect);
     }
   },
   transformReply: undefined as unknown as () => SimpleStringReply

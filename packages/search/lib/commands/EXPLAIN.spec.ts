@@ -3,13 +3,14 @@ import EXPLAIN from './EXPLAIN';
 import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 import testUtils, { GLOBAL } from '../test-utils';
 import { SCHEMA_FIELD_TYPE } from './CREATE';
+import { DefaultDialect } from '../dialect/default';
 
 describe('EXPLAIN', () => {
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
         parseArgs(EXPLAIN, 'index', '*'),
-        ['FT.EXPLAIN', 'index', '*']
+        ['FT.EXPLAIN', 'index', '*', 'DIALECT', DefaultDialect]
       );
     });
 
@@ -20,7 +21,7 @@ describe('EXPLAIN', () => {
             param: 'value'
           }
         }),
-        ['FT.EXPLAIN', 'index', '*', 'PARAMS', '2', 'param', 'value']
+        ['FT.EXPLAIN', 'index', '*', 'PARAMS', '2', 'param', 'value', 'DIALECT', DefaultDialect]
       );
     });
 

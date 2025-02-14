@@ -21,13 +21,14 @@ export default {
   IS_READ_ONLY: AGGREGATE.IS_READ_ONLY,
   parseCommand(parser: CommandParser, index: RedisArgument, query: RedisArgument, options?: FtAggregateWithCursorOptions) {
     AGGREGATE.parseCommand(parser, index, query, options);
+
     parser.push('WITHCURSOR');
 
-    if (options?.COUNT !== undefined) {
+    if (options?.COUNT) {
       parser.push('COUNT', options.COUNT.toString());
     }
 
-    if(options?.MAXIDLE !== undefined) {
+    if(options?.MAXIDLE) {
       parser.push('MAXIDLE', options.MAXIDLE.toString());
     }
   },

@@ -2,13 +2,15 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SEARCH from './SEARCH';
 import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
+import { DefaultDialect } from '../dialect/default';
+
 
 describe('FT.SEARCH', () => {
   describe('transformArguments', () => {
     it('without options', () => {
       assert.deepEqual(
         parseArgs(SEARCH, 'index', 'query'),
-        ['FT.SEARCH', 'index', 'query']
+        ['FT.SEARCH', 'index', 'query', 'DIALECT', DefaultDialect]
       );
     });
 
@@ -17,7 +19,7 @@ describe('FT.SEARCH', () => {
         parseArgs(SEARCH, 'index', 'query', {
           VERBATIM: true
         }),
-        ['FT.SEARCH', 'index', 'query', 'VERBATIM']
+        ['FT.SEARCH', 'index', 'query', 'VERBATIM', 'DIALECT', DefaultDialect]
       );
     });
 
@@ -26,7 +28,7 @@ describe('FT.SEARCH', () => {
         parseArgs(SEARCH, 'index', 'query', {
           NOSTOPWORDS: true
         }),
-        ['FT.SEARCH', 'index', 'query', 'NOSTOPWORDS']
+        ['FT.SEARCH', 'index', 'query', 'NOSTOPWORDS', 'DIALECT', DefaultDialect]
       );
     });
 
@@ -35,7 +37,7 @@ describe('FT.SEARCH', () => {
         parseArgs(SEARCH, 'index', 'query', {
           INKEYS: 'key'
         }),
-        ['FT.SEARCH', 'index', 'query', 'INKEYS', '1', 'key']
+        ['FT.SEARCH', 'index', 'query', 'INKEYS', '1', 'key', 'DIALECT', DefaultDialect]
       );
     });
 
@@ -44,7 +46,7 @@ describe('FT.SEARCH', () => {
         parseArgs(SEARCH, 'index', 'query', {
           INFIELDS: 'field'
         }),
-        ['FT.SEARCH', 'index', 'query', 'INFIELDS', '1', 'field']
+        ['FT.SEARCH', 'index', 'query', 'INFIELDS', '1', 'field', 'DIALECT', DefaultDialect]
       );
     });
 
@@ -53,7 +55,7 @@ describe('FT.SEARCH', () => {
         parseArgs(SEARCH, 'index', 'query', {
           RETURN: 'return'
         }),
-        ['FT.SEARCH', 'index', 'query', 'RETURN', '1', 'return']
+        ['FT.SEARCH', 'index', 'query', 'RETURN', '1', 'return', 'DIALECT', DefaultDialect]
       );
     });
 
@@ -63,7 +65,7 @@ describe('FT.SEARCH', () => {
           parseArgs(SEARCH, 'index', 'query', {
             SUMMARIZE: true
           }),
-          ['FT.SEARCH', 'index', 'query', 'SUMMARIZE']
+          ['FT.SEARCH', 'index', 'query', 'SUMMARIZE', 'DIALECT', DefaultDialect]
         );
       });
 
@@ -75,7 +77,7 @@ describe('FT.SEARCH', () => {
                 FIELDS: '@field'
               }
             }),
-            ['FT.SEARCH', 'index', 'query', 'SUMMARIZE', 'FIELDS', '1', '@field']
+            ['FT.SEARCH', 'index', 'query', 'SUMMARIZE', 'FIELDS', '1', '@field', 'DIALECT', DefaultDialect]
           );
         });
 
@@ -86,7 +88,7 @@ describe('FT.SEARCH', () => {
                 FIELDS: ['@1', '@2']
               }
             }),
-            ['FT.SEARCH', 'index', 'query', 'SUMMARIZE', 'FIELDS', '2', '@1', '@2']
+            ['FT.SEARCH', 'index', 'query', 'SUMMARIZE', 'FIELDS', '2', '@1', '@2', 'DIALECT', DefaultDialect]
           );
         });
       });
@@ -98,7 +100,7 @@ describe('FT.SEARCH', () => {
               FRAGS: 1
             }
           }),
-          ['FT.SEARCH', 'index', 'query', 'SUMMARIZE', 'FRAGS', '1']
+          ['FT.SEARCH', 'index', 'query', 'SUMMARIZE', 'FRAGS', '1', 'DIALECT', DefaultDialect]
         );
       });
 
@@ -109,7 +111,7 @@ describe('FT.SEARCH', () => {
               LEN: 1
             }
           }),
-          ['FT.SEARCH', 'index', 'query', 'SUMMARIZE', 'LEN', '1']
+          ['FT.SEARCH', 'index', 'query', 'SUMMARIZE', 'LEN', '1', 'DIALECT', DefaultDialect]
         );
       });
 
@@ -120,7 +122,7 @@ describe('FT.SEARCH', () => {
               SEPARATOR: 'separator'
             }
           }),
-          ['FT.SEARCH', 'index', 'query', 'SUMMARIZE', 'SEPARATOR', 'separator']
+          ['FT.SEARCH', 'index', 'query', 'SUMMARIZE', 'SEPARATOR', 'separator', 'DIALECT', DefaultDialect]
         );
       });
     });
@@ -131,7 +133,7 @@ describe('FT.SEARCH', () => {
           parseArgs(SEARCH, 'index', 'query', {
             HIGHLIGHT: true
           }),
-          ['FT.SEARCH', 'index', 'query', 'HIGHLIGHT']
+          ['FT.SEARCH', 'index', 'query', 'HIGHLIGHT', 'DIALECT', DefaultDialect]
         );
       });
 
@@ -143,7 +145,7 @@ describe('FT.SEARCH', () => {
                 FIELDS: ['@field']
               }
             }),
-            ['FT.SEARCH', 'index', 'query', 'HIGHLIGHT', 'FIELDS', '1', '@field']
+            ['FT.SEARCH', 'index', 'query', 'HIGHLIGHT', 'FIELDS', '1', '@field', 'DIALECT', DefaultDialect]
           );
         });
 
@@ -154,7 +156,7 @@ describe('FT.SEARCH', () => {
                 FIELDS: ['@1', '@2']
               }
             }),
-            ['FT.SEARCH', 'index', 'query', 'HIGHLIGHT', 'FIELDS', '2', '@1', '@2']
+            ['FT.SEARCH', 'index', 'query', 'HIGHLIGHT', 'FIELDS', '2', '@1', '@2', 'DIALECT', DefaultDialect]
           );
         });
       });
@@ -169,7 +171,7 @@ describe('FT.SEARCH', () => {
               }
             }
           }),
-          ['FT.SEARCH', 'index', 'query', 'HIGHLIGHT', 'TAGS', 'open', 'close']
+          ['FT.SEARCH', 'index', 'query', 'HIGHLIGHT', 'TAGS', 'open', 'close', 'DIALECT', DefaultDialect]
         );
       });
     });
@@ -179,7 +181,7 @@ describe('FT.SEARCH', () => {
         parseArgs(SEARCH, 'index', 'query', {
           SLOP: 1
         }),
-        ['FT.SEARCH', 'index', 'query', 'SLOP', '1']
+        ['FT.SEARCH', 'index', 'query', 'SLOP', '1', 'DIALECT', DefaultDialect]
       );
     });
 
@@ -188,7 +190,7 @@ describe('FT.SEARCH', () => {
         parseArgs(SEARCH, 'index', 'query', {
           TIMEOUT: 1
         }),
-        ['FT.SEARCH', 'index', 'query', 'TIMEOUT', '1']
+        ['FT.SEARCH', 'index', 'query', 'TIMEOUT', '1', 'DIALECT', DefaultDialect]
       );
     });
 
@@ -197,7 +199,7 @@ describe('FT.SEARCH', () => {
         parseArgs(SEARCH, 'index', 'query', {
           INORDER: true
         }),
-        ['FT.SEARCH', 'index', 'query', 'INORDER']
+        ['FT.SEARCH', 'index', 'query', 'INORDER', 'DIALECT', DefaultDialect]
       );
     });
 
@@ -206,7 +208,7 @@ describe('FT.SEARCH', () => {
         parseArgs(SEARCH, 'index', 'query', {
           LANGUAGE: 'Arabic'
         }),
-        ['FT.SEARCH', 'index', 'query', 'LANGUAGE', 'Arabic']
+        ['FT.SEARCH', 'index', 'query', 'LANGUAGE', 'Arabic', 'DIALECT', DefaultDialect]
       );
     });
 
@@ -215,7 +217,7 @@ describe('FT.SEARCH', () => {
         parseArgs(SEARCH, 'index', 'query', {
           EXPANDER: 'expender'
         }),
-        ['FT.SEARCH', 'index', 'query', 'EXPANDER', 'expender']
+        ['FT.SEARCH', 'index', 'query', 'EXPANDER', 'expender', 'DIALECT', DefaultDialect]
       );
     });
 
@@ -224,7 +226,7 @@ describe('FT.SEARCH', () => {
         parseArgs(SEARCH, 'index', 'query', {
           SCORER: 'scorer'
         }),
-        ['FT.SEARCH', 'index', 'query', 'SCORER', 'scorer']
+        ['FT.SEARCH', 'index', 'query', 'SCORER', 'scorer', 'DIALECT', DefaultDialect]
       );
     });
 
@@ -233,7 +235,7 @@ describe('FT.SEARCH', () => {
         parseArgs(SEARCH, 'index', 'query', {
           SORTBY: '@by'
         }),
-        ['FT.SEARCH', 'index', 'query', 'SORTBY', '@by']
+        ['FT.SEARCH', 'index', 'query', 'SORTBY', '@by', 'DIALECT', DefaultDialect]
       );
     });
 
@@ -245,7 +247,7 @@ describe('FT.SEARCH', () => {
             size: 1
           }
         }),
-        ['FT.SEARCH', 'index', 'query', 'LIMIT', '0', '1']
+        ['FT.SEARCH', 'index', 'query', 'LIMIT', '0', '1', 'DIALECT', DefaultDialect]
       );
     });
 
@@ -258,7 +260,7 @@ describe('FT.SEARCH', () => {
             number: 1
           }
         }),
-        ['FT.SEARCH', 'index', 'query', 'PARAMS', '6', 'string', 'string', 'buffer', Buffer.from('buffer'), 'number', '1']
+        ['FT.SEARCH', 'index', 'query', 'PARAMS', '6', 'string', 'string', 'buffer', Buffer.from('buffer'), 'number', '1', 'DIALECT', DefaultDialect]
       );
     });
 

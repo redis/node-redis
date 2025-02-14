@@ -2,13 +2,14 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SPELLCHECK from './SPELLCHECK';
 import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
+import { DefaultDialect } from '../dialect/default';
 
 describe('FT.SPELLCHECK', () => {
   describe('transformArguments', () => {
     it('without options', () => {
       assert.deepEqual(
         parseArgs(SPELLCHECK, 'index', 'query'),
-        ['FT.SPELLCHECK', 'index', 'query']
+        ['FT.SPELLCHECK', 'index', 'query', 'DIALECT', DefaultDialect]
       );
     });
 
@@ -17,7 +18,7 @@ describe('FT.SPELLCHECK', () => {
         parseArgs(SPELLCHECK, 'index', 'query', {
           DISTANCE: 2
         }),
-        ['FT.SPELLCHECK', 'index', 'query', 'DISTANCE', '2']
+        ['FT.SPELLCHECK', 'index', 'query', 'DISTANCE', '2', 'DIALECT', DefaultDialect]
       );
     });
 
@@ -30,7 +31,7 @@ describe('FT.SPELLCHECK', () => {
               dictionary: 'dictionary'
             }
           }),
-          ['FT.SPELLCHECK', 'index', 'query', 'TERMS', 'INCLUDE', 'dictionary']
+          ['FT.SPELLCHECK', 'index', 'query', 'TERMS', 'INCLUDE', 'dictionary', 'DIALECT', DefaultDialect]
         );
       });
 
@@ -45,7 +46,7 @@ describe('FT.SPELLCHECK', () => {
               dictionary: 'exclude'
             }]
           }),
-          ['FT.SPELLCHECK', 'index', 'query', 'TERMS', 'INCLUDE', 'include', 'TERMS', 'EXCLUDE', 'exclude']
+          ['FT.SPELLCHECK', 'index', 'query', 'TERMS', 'INCLUDE', 'include', 'TERMS', 'EXCLUDE', 'exclude', 'DIALECT', DefaultDialect]
         );
       });
     });
