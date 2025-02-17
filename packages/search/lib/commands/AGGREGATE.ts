@@ -3,6 +3,7 @@ import { ArrayReply, BlobStringReply, Command, MapReply, NumberReply, RedisArgum
 import { RediSearchProperty } from './CREATE';
 import { FtSearchParams, parseParamsArgument } from './SEARCH';
 import { transformTuplesReply } from '@redis/client/dist/lib/commands/generic-transformers';
+import { DEFAULT_DIALECT } from '../dialect/default';
 
 type LoadField = RediSearchProperty | {
   identifier: RediSearchProperty;
@@ -12,12 +13,12 @@ type LoadField = RediSearchProperty | {
 export const FT_AGGREGATE_STEPS = {
   GROUPBY: 'GROUPBY',
   SORTBY: 'SORTBY',
-  APPLY: 'APPLY',
+  APPLY: 'APPLY', 
   LIMIT: 'LIMIT',
   FILTER: 'FILTER'
 } as const;
 
-type FT_AGGREGATE_STEPS = typeof FT_AGGREGATE_STEPS;
+type FT_AGGREGATE_STEPS = typeof FT_AGGREGATE_STEPS;  
 
 export type FtAggregateStep = FT_AGGREGATE_STEPS[keyof FT_AGGREGATE_STEPS];
 
@@ -249,8 +250,10 @@ export function parseAggregateOptions(parser: CommandParser , options?: FtAggreg
 
   parseParamsArgument(parser, options?.PARAMS);
 
-  if (options?.DIALECT !== undefined) {
+  if (options?.DIALECT) {
     parser.push('DIALECT', options.DIALECT.toString());
+  } else {
+    parser.push('DIALECT', DEFAULT_DIALECT);
   }
 }
 

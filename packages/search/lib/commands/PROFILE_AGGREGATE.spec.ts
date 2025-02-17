@@ -4,13 +4,14 @@ import { FT_AGGREGATE_STEPS } from './AGGREGATE';
 import PROFILE_AGGREGATE from './PROFILE_AGGREGATE';
 import { SCHEMA_FIELD_TYPE } from './CREATE';
 import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
+import { DEFAULT_DIALECT } from '../dialect/default';
 
 describe('PROFILE AGGREGATE', () => {
     describe('transformArguments', () => {
         it('without options', () => {
             assert.deepEqual(
                 parseArgs(PROFILE_AGGREGATE, 'index', 'query'),
-                ['FT.PROFILE', 'index', 'AGGREGATE', 'QUERY', 'query']
+                ['FT.PROFILE', 'index', 'AGGREGATE', 'QUERY', 'query', 'DIALECT', DEFAULT_DIALECT]
             );
         });
 
@@ -25,7 +26,7 @@ describe('PROFILE AGGREGATE', () => {
                     }]
                 }),
                 ['FT.PROFILE', 'index', 'AGGREGATE', 'LIMITED', 'QUERY', 'query',
-                 'VERBATIM', 'SORTBY', '1', '@by']
+                 'VERBATIM', 'SORTBY', '1', '@by', 'DIALECT', DEFAULT_DIALECT]
             );
         });
     });

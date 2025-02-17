@@ -2,6 +2,7 @@ import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument, Command, ReplyUnion } from '@redis/client/dist/lib/RESP/types';
 import { RedisVariadicArgument, parseOptionalVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
 import { RediSearchProperty, RediSearchLanguage } from './CREATE';
+import { DEFAULT_DIALECT } from '../dialect/default';
 
 export type FtSearchParams = Record<string, RedisArgument | number>;
 
@@ -150,8 +151,10 @@ export function parseSearchOptions(parser: CommandParser, options?: FtSearchOpti
 
   parseParamsArgument(parser, options?.PARAMS);
 
-  if (options?.DIALECT !== undefined) {
+  if (options?.DIALECT) {
     parser.push('DIALECT', options.DIALECT.toString());
+  } else {
+    parser.push('DIALECT', DEFAULT_DIALECT);
   }
 }
 
