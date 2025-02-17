@@ -3,14 +3,14 @@ import testUtils, { GLOBAL } from '../test-utils';
 import PROFILE_SEARCH from './PROFILE_SEARCH';
 import { SCHEMA_FIELD_TYPE } from './CREATE';
 import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
-import { DefaultDialect } from '../dialect/default';
+import { DEFAULT_DIALECT } from '../dialect/default';
 
 describe('PROFILE SEARCH', () => {
     describe('transformArguments', () => {
         it('without options', () => {
             assert.deepEqual(
                 parseArgs(PROFILE_SEARCH, 'index', 'query'),
-                ['FT.PROFILE', 'index', 'SEARCH', 'QUERY', 'query', 'DIALECT', DefaultDialect]
+                ['FT.PROFILE', 'index', 'SEARCH', 'QUERY', 'query', 'DIALECT', DEFAULT_DIALECT]
             );
         });
 
@@ -22,7 +22,7 @@ describe('PROFILE SEARCH', () => {
                     INKEYS: 'key'
                 }),
                 ['FT.PROFILE', 'index', 'SEARCH', 'LIMITED', 'QUERY', 'query',
-                 'VERBATIM', 'INKEYS', '1', 'key', 'DIALECT', DefaultDialect]
+                 'VERBATIM', 'INKEYS', '1', 'key', 'DIALECT', DEFAULT_DIALECT]
             );
         });
     });

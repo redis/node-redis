@@ -3,7 +3,7 @@ import { ArrayReply, BlobStringReply, Command, MapReply, NumberReply, RedisArgum
 import { RediSearchProperty } from './CREATE';
 import { FtSearchParams, parseParamsArgument } from './SEARCH';
 import { transformTuplesReply } from '@redis/client/dist/lib/commands/generic-transformers';
-import { DefaultDialect } from '../dialect/default';
+import { DEFAULT_DIALECT } from '../dialect/default';
 
 type LoadField = RediSearchProperty | {
   identifier: RediSearchProperty;
@@ -253,7 +253,7 @@ export function parseAggregateOptions(parser: CommandParser , options?: FtAggreg
   if (options?.DIALECT) {
     parser.push('DIALECT', options.DIALECT.toString());
   } else {
-    parser.push('DIALECT', DefaultDialect);
+    parser.push('DIALECT', DEFAULT_DIALECT);
   }
 }
 

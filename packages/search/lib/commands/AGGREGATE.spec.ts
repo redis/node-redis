@@ -2,14 +2,14 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import AGGREGATE from './AGGREGATE';
 import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
-import { DefaultDialect } from '../dialect/default';
+import { DEFAULT_DIALECT } from '../dialect/default';
 
 describe('AGGREGATE', () => { 
   describe('transformArguments', () => {
     it('without options', () => {
       assert.deepEqual(
         parseArgs(AGGREGATE, 'index', '*'),
-        ['FT.AGGREGATE', 'index', '*', 'DIALECT', DefaultDialect]
+        ['FT.AGGREGATE', 'index', '*', 'DIALECT', DEFAULT_DIALECT]
       );
     });
 
@@ -18,14 +18,14 @@ describe('AGGREGATE', () => {
         parseArgs(AGGREGATE, 'index', '*', {
           VERBATIM: true
         }),
-        ['FT.AGGREGATE', 'index', '*', 'VERBATIM', 'DIALECT', DefaultDialect]
+        ['FT.AGGREGATE', 'index', '*', 'VERBATIM', 'DIALECT', DEFAULT_DIALECT]
       );
     });
 
     it('with ADDSCORES', () => {
       assert.deepEqual(
         parseArgs(AGGREGATE, 'index', '*', { ADDSCORES: true }),
-        ['FT.AGGREGATE', 'index', '*', 'ADDSCORES', 'DIALECT', DefaultDialect]
+        ['FT.AGGREGATE', 'index', '*', 'ADDSCORES', 'DIALECT', DEFAULT_DIALECT]
       );
     });  
 
@@ -37,7 +37,7 @@ describe('AGGREGATE', () => {
               parseArgs(AGGREGATE, 'index', '*', {
                 LOAD: '@property'
               }),
-              ['FT.AGGREGATE', 'index', '*', 'LOAD', '1', '@property', 'DIALECT', DefaultDialect]
+              ['FT.AGGREGATE', 'index', '*', 'LOAD', '1', '@property', 'DIALECT', DEFAULT_DIALECT]
             );
           });
 
@@ -48,7 +48,7 @@ describe('AGGREGATE', () => {
                   identifier: '@property'
                 }
               }),
-              ['FT.AGGREGATE', 'index', '*', 'LOAD', '1', '@property', 'DIALECT', DefaultDialect]
+              ['FT.AGGREGATE', 'index', '*', 'LOAD', '1', '@property', 'DIALECT', DEFAULT_DIALECT]
             );
           });
         });
@@ -61,7 +61,7 @@ describe('AGGREGATE', () => {
                 AS: 'alias'
               }
             }),
-            ['FT.AGGREGATE', 'index', '*', 'LOAD', '3', '@property', 'AS', 'alias', 'DIALECT', DefaultDialect]
+            ['FT.AGGREGATE', 'index', '*', 'LOAD', '3', '@property', 'AS', 'alias', 'DIALECT', DEFAULT_DIALECT]
           );
         });
       });
@@ -71,7 +71,7 @@ describe('AGGREGATE', () => {
           parseArgs(AGGREGATE, 'index', '*', {
             LOAD: ['@1', '@2']
           }),
-          ['FT.AGGREGATE', 'index', '*', 'LOAD', '2', '@1', '@2', 'DIALECT', DefaultDialect]
+          ['FT.AGGREGATE', 'index', '*', 'LOAD', '2', '@1', '@2', 'DIALECT', DEFAULT_DIALECT]
         );
       });
     });
@@ -90,7 +90,7 @@ describe('AGGREGATE', () => {
                     }
                   }]
                 }),
-                ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'COUNT', '0', 'DIALECT', DefaultDialect]
+                ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'COUNT', '0', 'DIALECT', DEFAULT_DIALECT]
               );
             });
 
@@ -105,7 +105,7 @@ describe('AGGREGATE', () => {
                     }
                   }]
                 }),
-                ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'COUNT', '0', 'AS', 'count', 'DIALECT', DefaultDialect]
+                ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'COUNT', '0', 'AS', 'count', 'DIALECT', DEFAULT_DIALECT]
               );
             });
           });
@@ -122,7 +122,7 @@ describe('AGGREGATE', () => {
                     }
                   }]
                 }),
-                ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '1', '@property', 'REDUCE', 'COUNT', '0', 'DIALECT', DefaultDialect]
+                ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '1', '@property', 'REDUCE', 'COUNT', '0', 'DIALECT', DEFAULT_DIALECT]
               );
             });
 
@@ -137,7 +137,7 @@ describe('AGGREGATE', () => {
                     }
                   }]
                 }),
-                ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '2', '@1', '@2', 'REDUCE', 'COUNT', '0', 'DIALECT', DefaultDialect]
+                ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '2', '@1', '@2', 'REDUCE', 'COUNT', '0', 'DIALECT', DEFAULT_DIALECT]
               );
             });
           });
@@ -154,7 +154,7 @@ describe('AGGREGATE', () => {
                 }
               }]
             }),
-            ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'COUNT_DISTINCT', '1', '@property', 'DIALECT', DefaultDialect]
+            ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'COUNT_DISTINCT', '1', '@property', 'DIALECT', DEFAULT_DIALECT]
           );
         });
 
@@ -169,7 +169,7 @@ describe('AGGREGATE', () => {
                 }
               }]
             }),
-            ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'COUNT_DISTINCTISH', '1', '@property', 'DIALECT', DefaultDialect]
+            ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'COUNT_DISTINCTISH', '1', '@property', 'DIALECT', DEFAULT_DIALECT]
           );
         });
 
@@ -184,7 +184,7 @@ describe('AGGREGATE', () => {
                 }
               }]
             }),
-            ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'SUM', '1', '@property', 'DIALECT', DefaultDialect]
+            ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'SUM', '1', '@property', 'DIALECT', DEFAULT_DIALECT]
           );
         });
 
@@ -199,7 +199,7 @@ describe('AGGREGATE', () => {
                 }
               }]
             }),
-            ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'MIN', '1', '@property', 'DIALECT', DefaultDialect]
+            ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'MIN', '1', '@property', 'DIALECT', DEFAULT_DIALECT]
           );
         });
 
@@ -214,7 +214,7 @@ describe('AGGREGATE', () => {
                 }
               }]
             }),
-            ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'MAX', '1', '@property', 'DIALECT', DefaultDialect]
+            ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'MAX', '1', '@property', 'DIALECT', DEFAULT_DIALECT]
           );
         });
 
@@ -229,7 +229,7 @@ describe('AGGREGATE', () => {
                 }
               }]
             }),
-            ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'AVG', '1', '@property', 'DIALECT', DefaultDialect]
+            ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'AVG', '1', '@property', 'DIALECT', DEFAULT_DIALECT]
           );
         });
         it('STDDEV', () => {
@@ -243,7 +243,7 @@ describe('AGGREGATE', () => {
                 }
               }]
             }),
-            ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'STDDEV', '1', '@property', 'DIALECT', DefaultDialect]
+            ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'STDDEV', '1', '@property', 'DIALECT', DEFAULT_DIALECT]
           );
         });
 
@@ -259,7 +259,7 @@ describe('AGGREGATE', () => {
                 }
               }]
             }),
-            ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'QUANTILE', '2', '@property', '0.5', 'DIALECT', DefaultDialect]
+            ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'QUANTILE', '2', '@property', '0.5', 'DIALECT', DEFAULT_DIALECT]
           );
         });
 
@@ -274,7 +274,7 @@ describe('AGGREGATE', () => {
                 }
               }]
             }),
-            ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'TOLIST', '1', '@property', 'DIALECT', DefaultDialect]
+            ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'TOLIST', '1', '@property', 'DIALECT', DEFAULT_DIALECT]
           );
         });
 
@@ -290,7 +290,7 @@ describe('AGGREGATE', () => {
                   }
                 }]
               }),
-              ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'FIRST_VALUE', '1', '@property', 'DIALECT', DefaultDialect]
+              ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'FIRST_VALUE', '1', '@property', 'DIALECT', DEFAULT_DIALECT]
             );
           });
 
@@ -308,7 +308,7 @@ describe('AGGREGATE', () => {
                       }
                     }]
                   }),
-                  ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'FIRST_VALUE', '3', '@property', 'BY', '@by', 'DIALECT', DefaultDialect]
+                  ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'FIRST_VALUE', '3', '@property', 'BY', '@by', 'DIALECT', DEFAULT_DIALECT]
                 );
               });
 
@@ -327,7 +327,7 @@ describe('AGGREGATE', () => {
                       }
                     }]
                   }),
-                  ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'FIRST_VALUE', '3', '@property', 'BY', '@by', 'DIALECT', DefaultDialect]
+                  ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'FIRST_VALUE', '3', '@property', 'BY', '@by', 'DIALECT', DEFAULT_DIALECT]
                 );
               });
             });
@@ -347,7 +347,7 @@ describe('AGGREGATE', () => {
                     }
                   }]
                 }),
-                ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'FIRST_VALUE', '4', '@property', 'BY', '@by', 'ASC', 'DIALECT', DefaultDialect]
+                ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'FIRST_VALUE', '4', '@property', 'BY', '@by', 'ASC', 'DIALECT', DEFAULT_DIALECT]
               );
             });
           });
@@ -365,7 +365,7 @@ describe('AGGREGATE', () => {
                 }
               }]
             }),
-            ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'RANDOM_SAMPLE', '2', '@property', '1', 'DIALECT', DefaultDialect]
+            ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'RANDOM_SAMPLE', '2', '@property', '1', 'DIALECT', DEFAULT_DIALECT]
           );
         });
       });
@@ -379,7 +379,7 @@ describe('AGGREGATE', () => {
                 BY: '@by'
               }]
             }),
-            ['FT.AGGREGATE', 'index', '*', 'SORTBY', '1', '@by', 'DIALECT', DefaultDialect]
+            ['FT.AGGREGATE', 'index', '*', 'SORTBY', '1', '@by', 'DIALECT', DEFAULT_DIALECT]
           );
         });
 
@@ -391,7 +391,7 @@ describe('AGGREGATE', () => {
                 BY: ['@1', '@2']
               }]
             }),
-            ['FT.AGGREGATE', 'index', '*', 'SORTBY', '2', '@1', '@2', 'DIALECT', DefaultDialect]
+            ['FT.AGGREGATE', 'index', '*', 'SORTBY', '2', '@1', '@2', 'DIALECT', DEFAULT_DIALECT]
           );
         });
 
@@ -404,7 +404,7 @@ describe('AGGREGATE', () => {
                 MAX: 1
               }]
             }),
-            ['FT.AGGREGATE', 'index', '*', 'SORTBY', '3', '@by', 'MAX', '1', 'DIALECT', DefaultDialect]
+            ['FT.AGGREGATE', 'index', '*', 'SORTBY', '3', '@by', 'MAX', '1', 'DIALECT', DEFAULT_DIALECT]
           );
         });
       });
@@ -418,7 +418,7 @@ describe('AGGREGATE', () => {
               AS: 'as'
             }]
           }),
-          ['FT.AGGREGATE', 'index', '*', 'APPLY', '@field + 1', 'AS', 'as', 'DIALECT', DefaultDialect]
+          ['FT.AGGREGATE', 'index', '*', 'APPLY', '@field + 1', 'AS', 'as', 'DIALECT', DEFAULT_DIALECT]
         );
       });
 
@@ -431,7 +431,7 @@ describe('AGGREGATE', () => {
               size: 1
             }]
           }),
-          ['FT.AGGREGATE', 'index', '*', 'LIMIT', '0', '1', 'DIALECT', DefaultDialect]
+          ['FT.AGGREGATE', 'index', '*', 'LIMIT', '0', '1', 'DIALECT', DEFAULT_DIALECT]
         );
       });
 
@@ -443,7 +443,7 @@ describe('AGGREGATE', () => {
               expression: '@field != ""'
             }]
           }),
-          ['FT.AGGREGATE', 'index', '*', 'FILTER', '@field != ""', 'DIALECT', DefaultDialect]
+          ['FT.AGGREGATE', 'index', '*', 'FILTER', '@field != ""', 'DIALECT', DEFAULT_DIALECT]
         );
       });
     });
@@ -455,7 +455,7 @@ describe('AGGREGATE', () => {
             param: 'value'
           }
         }),
-        ['FT.AGGREGATE', 'index', '*', 'PARAMS', '2', 'param', 'value', 'DIALECT', DefaultDialect]
+        ['FT.AGGREGATE', 'index', '*', 'PARAMS', '2', 'param', 'value', 'DIALECT', DEFAULT_DIALECT]
       );
     });
 
@@ -471,7 +471,7 @@ describe('AGGREGATE', () => {
     it('with TIMEOUT', () => {
       assert.deepEqual(
         parseArgs(AGGREGATE, 'index', '*', { TIMEOUT: 10 }),
-        ['FT.AGGREGATE', 'index', '*', 'TIMEOUT', '10', 'DIALECT', DefaultDialect]
+        ['FT.AGGREGATE', 'index', '*', 'TIMEOUT', '10', 'DIALECT', DEFAULT_DIALECT]
       );
     });
   });

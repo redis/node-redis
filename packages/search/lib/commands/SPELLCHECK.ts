@@ -1,6 +1,6 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument, Command, ReplyUnion } from '@redis/client/dist/lib/RESP/types';
-import { DefaultDialect } from '../dialect/default';
+import { DEFAULT_DIALECT } from '../dialect/default';
 
 export interface Terms {
   mode: 'INCLUDE' | 'EXCLUDE';
@@ -36,7 +36,7 @@ export default {
     if (options?.DIALECT) {
       parser.push('DIALECT', options.DIALECT.toString());
     } else {
-      parser.push('DIALECT', DefaultDialect);
+      parser.push('DIALECT', DEFAULT_DIALECT);
     }
   },
   transformReply: {

@@ -2,14 +2,14 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import AGGREGATE_WITHCURSOR from './AGGREGATE_WITHCURSOR';
 import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
-import { DefaultDialect } from '../dialect/default';
+import { DEFAULT_DIALECT } from '../dialect/default';
 
 describe('AGGREGATE WITHCURSOR', () => {
   describe('transformArguments', () => {
     it('without options', () => {
       assert.deepEqual(
         parseArgs(AGGREGATE_WITHCURSOR, 'index', '*'),
-        ['FT.AGGREGATE', 'index', '*', 'DIALECT', DefaultDialect, 'WITHCURSOR']
+        ['FT.AGGREGATE', 'index', '*', 'DIALECT', DEFAULT_DIALECT, 'WITHCURSOR']
       );
     });
 
@@ -18,7 +18,7 @@ describe('AGGREGATE WITHCURSOR', () => {
         parseArgs(AGGREGATE_WITHCURSOR, 'index', '*', {
           COUNT: 1
         }),
-        ['FT.AGGREGATE', 'index', '*', 'DIALECT', DefaultDialect, 'WITHCURSOR', 'COUNT', '1']
+        ['FT.AGGREGATE', 'index', '*', 'DIALECT', DEFAULT_DIALECT, 'WITHCURSOR', 'COUNT', '1']
       );
     });
 
@@ -27,7 +27,7 @@ describe('AGGREGATE WITHCURSOR', () => {
         parseArgs(AGGREGATE_WITHCURSOR, 'index', '*', {
           MAXIDLE: 1
         }),
-        ['FT.AGGREGATE', 'index', '*', 'DIALECT', DefaultDialect, 'WITHCURSOR', 'MAXIDLE', '1']
+        ['FT.AGGREGATE', 'index', '*', 'DIALECT', DEFAULT_DIALECT, 'WITHCURSOR', 'MAXIDLE', '1']
       );
     });
   });

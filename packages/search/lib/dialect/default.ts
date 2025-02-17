@@ -1,1 +1,1 @@
-export const DefaultDialect = '2';
+export const DEFAULT_DIALECT = '2';
