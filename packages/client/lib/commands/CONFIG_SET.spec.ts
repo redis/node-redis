@@ -30,4 +30,13 @@ describe('CONFIG SET', () => {
       'OK'
     );
   }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.configSet.setReadOnlySearchConfigTest | Redis >= 8',
+    async client => {
+      assert.rejects(
+        client.configSet('search-max-doctablesize', '0'),
+        new Error('ERR CONFIG SET failed (possibly related to argument \'search-max-doctablesize\') - can\'t set immutable config')
+      );
+    }, GLOBAL.SERVERS.OPEN);
+
 });
