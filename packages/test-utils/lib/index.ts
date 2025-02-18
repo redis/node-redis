@@ -19,12 +19,38 @@ import { RedisServerDockerConfig, spawnRedisServer, spawnRedisCluster } from './
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 
+
 interface TestUtilsConfig {
+  /**
+   * The name of the Docker image to use for spawning Redis test instances.
+   * This should be a valid Docker image name that contains a Redis server.
+   *
+   * @example 'redislabs/client-libs-test'
+   */
   dockerImageName: string;
+
+  /**
+   * The command-line argument name used to specify the Redis version.
+   * This argument can be passed when running tests / GH actions.
+   *
+   * @example
+   * If set to 'redis-version', you can run tests with:
+   * ```bash
+   * npm test -- --redis-version="6.2"
+   * ```
+   */
   dockerImageVersionArgument: string;
+
+  /**
+   * The default Redis version to use if no version is specified via command-line arguments.
+   * Can be a specific version number (e.g., '6.2'), 'latest', or 'edge'.
+   * If not provided, defaults to 'latest'.
+   *
+   * @optional
+   * @default 'latest'
+   */
   defaultDockerVersion?: string;
 }
-
 interface CommonTestOptions {
   serverArguments: Array<string>;
   minimumDockerVersion?: Array<number>;
@@ -83,22 +109,27 @@ interface Version {
 }
 
 export default class TestUtils {
-  static #parseVersionNumber(version: string): Array<number> {
+  static parseVersionNumber(version: string): Array<number> {
     if (version === 'latest' || version === 'edge') return [Infinity];
 
-    const dashIndex = version.indexOf('-');
-    return (dashIndex === -1 ? version : version.substring(0, dashIndex))
-      .split('.')
-      .map(x => {
-        const value = Number(x);
-        if (Number.isNaN(value)) {
-          throw new TypeError(`${version} is not a valid redis version`);
-        }
 
-        return value;
-      });
+    // Match complete version number patterns
+    const versionMatch = version.match(/(^|\-)\d+(\.\d+)*($|\-)/);
+    if (!versionMatch) {
+      throw new TypeError(`${version} is not a valid redis version`);
+    }
+
+    // Extract just the numbers and dots between first and last dash (or start/end)
+    const versionNumbers = versionMatch[0].replace(/^\-|\-$/g, '');
+
+    return versionNumbers.split('.').map(x => {
+      const value = Number(x);
+      if (Number.isNaN(value)) {
+        throw new TypeError(`${version} is not a valid redis version`);
+      }
+      return value;
+    });
   }
-
   static #getVersion(argumentName: string, defaultVersion = 'latest'): Version {
     return yargs(hideBin(process.argv))
       .option(argumentName, {
@@ -108,7 +139,7 @@ export default class TestUtils {
       .coerce(argumentName, (version: string) => {
         return {
           string: version,
-          numbers: TestUtils.#parseVersionNumber(version)
+          numbers: TestUtils.parseVersionNumber(version)
         };
       })
       .demandOption(argumentName)

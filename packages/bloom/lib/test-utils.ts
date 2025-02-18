@@ -2,9 +2,9 @@ import TestUtils from '@redis/test-utils';
 import RedisBloomModules from '.';
 
 export default new TestUtils({
-  dockerImageName: 'redis/redis-stack',
+  dockerImageName: 'redislabs/client-libs-test',
   dockerImageVersionArgument: 'redisbloom-version',
-  defaultDockerVersion: '7.4.0-v1'
+  defaultDockerVersion: '8.0-M04-pre'
 });
 
 export const GLOBAL = {

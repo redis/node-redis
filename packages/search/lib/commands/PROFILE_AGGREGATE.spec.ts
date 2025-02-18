@@ -31,19 +31,33 @@ describe('PROFILE AGGREGATE', () => {
         });
     });
 
-    testUtils.testWithClient('client.ft.search', async client => {
-        await Promise.all([
-            client.ft.create('index', {
-                field: SCHEMA_FIELD_TYPE.NUMERIC
-            }),
-            client.hSet('1', 'field', '1'),
-            client.hSet('2', 'field', '2')
-        ]);
-        
-        const res = await client.ft.profileAggregate('index', '*');
-        assert.deepEqual('None', res.profile.warning);
-        assert.ok(typeof res.profile.iteratorsProfile.counter === 'number');
-        assert.ok(typeof res.profile.parsingTime === 'string');
-        assert.ok(res.results.total == 1);
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testWithClient('client.ft.search', async client => {
+    await Promise.all([
+      client.ft.create('index', {
+        field: SCHEMA_FIELD_TYPE.NUMERIC
+      }),
+      client.hSet('1', 'field', '1'),
+      client.hSet('2', 'field', '2')
+    ]);
+
+
+    const normalizeObject = obj => JSON.parse(JSON.stringify(obj));
+    const res = await client.ft.profileAggregate('index', '*');
+
+    const normalizedRes = normalizeObject(res);
+    assert.equal(normalizedRes.results.total, 1);
+
+    assert.ok(normalizedRes.profile[0] === 'Shards');
+    assert.ok(Array.isArray(normalizedRes.profile[1]));
+    assert.ok(normalizedRes.profile[2] === 'Coordinator');
+    assert.ok(Array.isArray(normalizedRes.profile[3]));
+
+    const shardProfile = normalizedRes.profile[1][0];
+    assert.ok(shardProfile.includes('Total profile time'));
+    assert.ok(shardProfile.includes('Parsing time'));
+    assert.ok(shardProfile.includes('Pipeline creation time'));
+    assert.ok(shardProfile.includes('Warning'));
+    assert.ok(shardProfile.includes('Iterators profile'));
+
+  }, GLOBAL.SERVERS.OPEN);
 });

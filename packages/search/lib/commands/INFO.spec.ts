@@ -24,7 +24,14 @@ describe('INFO', () => {
                 index_name: 'index',
                 index_options: [],
                 index_definition: Object.create(null, {
-                    default_score: {
+
+                  indexes_all: {
+                    value: 'false',
+                    configurable: true,
+                    enumerable: true
+                  },
+
+                  default_score: {
                         value: '1',
                         configurable: true,
                         enumerable: true

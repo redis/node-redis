@@ -48,9 +48,21 @@ export default {
   aliasDel: ALIASDEL,
   ALIASUPDATE,
   aliasUpdate: ALIASUPDATE,
+  /**
+   * @deprecated Redis >=8 uses the standard CONFIG command 
+   */
   CONFIG_GET,
+  /**
+   * @deprecated Redis >=8 uses the standard CONFIG command 
+   */
   configGet: CONFIG_GET,
+  /**
+   * @deprecated Redis >=8 uses the standard CONFIG command 
+   */
   CONFIG_SET,
+  /**
+   * @deprecated Redis >=8 uses the standard CONFIG command 
+   */
   configSet: CONFIG_SET,
   CREATE,
   create: CREATE,

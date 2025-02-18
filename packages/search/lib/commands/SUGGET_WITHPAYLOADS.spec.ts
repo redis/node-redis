@@ -13,9 +13,9 @@ describe('FT.SUGGET WITHPAYLOADS', () => {
 
   describe('client.ft.sugGetWithPayloads', () => {
     testUtils.testWithClient('null', async client => {
-      assert.equal(
+      assert.deepStrictEqual(
         await client.ft.sugGetWithPayloads('key', 'prefix'),
-        null
+        []
       );
     }, GLOBAL.SERVERS.OPEN);
 
