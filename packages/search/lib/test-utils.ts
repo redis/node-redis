@@ -1,5 +1,6 @@
 import TestUtils from '@redis/test-utils';
 import RediSearch from '.';
+import { RespVersions } from '@redis/client';
 
 export default new TestUtils({
     dockerImageName: 'redislabs/client-libs-test',
@@ -8,14 +9,24 @@ export default new TestUtils({
 });
 
 export const GLOBAL = {
-    SERVERS: {
-        OPEN: {
-            serverArguments: [],
-            clientOptions: {
-                modules: {
-                    ft: RediSearch
-                }
-            }
+  SERVERS: {
+    OPEN: {
+      serverArguments: [],
+      clientOptions: {
+        modules: {
+          ft: RediSearch
         }
+      }
+    },
+    OPEN_3: {
+      serverArguments: [],
+      clientOptions: {
+        RESP: 3 as RespVersions,
+        unstableResp3:true,
+        modules: {
+          ft: RediSearch
+        }
+      }
     }
+  }
 };
