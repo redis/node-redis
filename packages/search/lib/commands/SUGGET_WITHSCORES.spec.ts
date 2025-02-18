@@ -13,9 +13,9 @@ describe('FT.SUGGET WITHSCORES', () => {
 
   describe('client.ft.sugGetWithScores', () => {
     testUtils.testWithClient('null', async client => {
-      assert.equal(
+      assert.deepStrictEqual(
         await client.ft.sugGetWithScores('key', 'prefix'),
-        null
+        []
       );
     }, GLOBAL.SERVERS.OPEN);
 
