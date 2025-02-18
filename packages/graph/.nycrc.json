@@ -1,4 +1,0 @@
-{
-  "extends": "@istanbuljs/nyc-config-typescript",
-  "exclude": ["dist", "**/*.spec.ts", "lib/test-utils.ts"]
-}

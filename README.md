@@ -48,7 +48,6 @@ npm install redis
 | [`redis`](./packages/redis)                    | The client with all the ["redis-stack"](https://github.com/redis-stack/redis-stack) modules |
 | [`@redis/client`](./packages/client)           | The base clients (i.e `RedisClient`, `RedisCluster`, etc.)                                  |
 | [`@redis/bloom`](./packages/bloom)             | [Redis Bloom](https://redis.io/docs/data-types/probabilistic/) commands                     |
-| [`@redis/graph`](./packages/graph)             | [Redis Graph](https://redis.io/docs/data-types/probabilistic/) commands                     |
 | [`@redis/json`](./packages/json)               | [Redis JSON](https://redis.io/docs/data-types/json/) commands                               |
 | [`@redis/search`](./packages/search)           | [RediSearch](https://redis.io/docs/interact/search-and-query/) commands                     |
 | [`@redis/time-series`](./packages/time-series) | [Redis Time-Series](https://redis.io/docs/data-types/timeseries/) commands                  |
