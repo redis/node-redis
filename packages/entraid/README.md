@@ -15,9 +15,10 @@ Secure token-based authentication for Redis clients using Microsoft Entra ID (fo
 
 ## Installation
 
+
 ```bash
-npm install @redis/client
-npm install @redis/entraid
+npm install "@redis/client@5.0.0-next.6"
+npm install "@redis/entraid@5.0.0-next.6"
 ```
 
 ## Getting Started
