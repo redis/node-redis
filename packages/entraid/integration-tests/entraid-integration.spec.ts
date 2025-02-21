@@ -1,6 +1,7 @@
+import { DefaultAzureCredential, EnvironmentCredential } from '@azure/identity';
 import { BasicAuth } from '@redis/client/dist/lib/authx';
 import { createClient } from '@redis/client';
-import { EntraIdCredentialsProviderFactory } from '../lib/entra-id-credentials-provider-factory';
+import { EntraIdCredentialsProviderFactory, REDIS_SCOPE_DEFAULT } from '../lib/entra-id-credentials-provider-factory';
 import { strict as assert } from 'node:assert';
 import { spy, SinonSpy } from 'sinon';
 import { randomUUID } from 'crypto';
@@ -51,6 +52,35 @@ describe('EntraID Integration Tests', () => {
     );
   });
 
+  it('client with DefaultAzureCredential should be able to authenticate/re-authenticate', async () => {
+
+    const azureCredential = new DefaultAzureCredential();
+
+    await runAuthenticationTest(() =>
+        EntraIdCredentialsProviderFactory.createForDefaultAzureCredential({
+          credential: azureCredential,
+          scopes: REDIS_SCOPE_DEFAULT,
+          tokenManagerConfig: {
+            expirationRefreshRatio: 0.00001
+          }
+        })
+      , { testingDefaultAzureCredential: true });
+  });
+
+  it('client with EnvironmentCredential should be able to authenticate/re-authenticate', async () => {
+    const envCredential = new EnvironmentCredential();
+
+    await runAuthenticationTest(() =>
+        EntraIdCredentialsProviderFactory.createForDefaultAzureCredential({
+          credential: envCredential,
+          scopes: REDIS_SCOPE_DEFAULT,
+          tokenManagerConfig: {
+            expirationRefreshRatio: 0.00001
+          }
+        })
+      , { testingDefaultAzureCredential: true });
+  });
+
   interface TestConfig {
     clientId: string;
     clientSecret: string;
@@ -83,15 +113,15 @@ describe('EntraID Integration Tests', () => {
     });
 
     return {
-      endpoints: await loadFromFile(requiredEnvVars.REDIS_ENDPOINTS_CONFIG_PATH),
-      clientId: requiredEnvVars.AZURE_CLIENT_ID,
-      clientSecret: requiredEnvVars.AZURE_CLIENT_SECRET,
-      authority: requiredEnvVars.AZURE_AUTHORITY,
-      tenantId: requiredEnvVars.AZURE_TENANT_ID,
-      redisScopes: requiredEnvVars.AZURE_REDIS_SCOPES,
-      cert: requiredEnvVars.AZURE_CERT,
-      privateKey: requiredEnvVars.AZURE_PRIVATE_KEY,
-      userAssignedManagedId: requiredEnvVars.AZURE_USER_ASSIGNED_MANAGED_ID
+      endpoints: await loadFromFile(requiredEnvVars.REDIS_ENDPOINTS_CONFIG_PATH as string),
+      clientId: requiredEnvVars.AZURE_CLIENT_ID as string,
+      clientSecret: requiredEnvVars.AZURE_CLIENT_SECRET as string,
+      authority: requiredEnvVars.AZURE_AUTHORITY as string,
+      tenantId: requiredEnvVars.AZURE_TENANT_ID as string,
+      redisScopes: requiredEnvVars.AZURE_REDIS_SCOPES as string,
+      cert: requiredEnvVars.AZURE_CERT as string,
+      privateKey: requiredEnvVars.AZURE_PRIVATE_KEY as string,
+      userAssignedManagedId: requiredEnvVars.AZURE_USER_ASSIGNED_MANAGED_ID as string
     };
   };
 
@@ -127,12 +157,22 @@ describe('EntraID Integration Tests', () => {
     }
   };
 
-  const validateTokens = (reAuthSpy: SinonSpy) => {
+  /**
+   * Validates authentication tokens generated during re-authentication
+   *
+   * @param reAuthSpy - The Sinon spy on the reAuthenticate method
+   * @param skipUniqueCheckForDefaultAzureCredential - Skip the unique check for DefaultAzureCredential as there are no guarantees that the tokens will be unique
+   * if the test is using default azure credential
+   */
+  const validateTokens = (reAuthSpy: SinonSpy, skipUniqueCheckForDefaultAzureCredential: boolean) => {
     assert(reAuthSpy.callCount >= 1,
       `reAuthenticate should have been called at least once, but was called ${reAuthSpy.callCount} times`);
 
     const tokenDetails: TokenDetail[] = reAuthSpy.getCalls().map(call => {
       const creds = call.args[0] as BasicAuth;
+      if (!creds.password) {
+        throw new Error('Expected password to be set in BasicAuth credentials');
+      }
       const tokenPayload = JSON.parse(
         Buffer.from(creds.password.split('.')[1], 'base64').toString()
       );
@@ -146,38 +186,43 @@ describe('EntraID Integration Tests', () => {
       };
     });
 
-    // Verify unique tokens
-    const uniqueTokens = new Set(tokenDetails.map(detail => detail.token));
-    assert.equal(
-      uniqueTokens.size,
-      reAuthSpy.callCount,
-      `Expected ${reAuthSpy.callCount} different tokens, but got ${uniqueTokens.size} unique tokens`
-    );
+    // we can't guarantee that the tokens will be unique when using DefaultAzureCredential
+    if (!skipUniqueCheckForDefaultAzureCredential) {
+      // Verify unique tokens
+      const uniqueTokens = new Set(tokenDetails.map(detail => detail.token));
+      assert.equal(
+        uniqueTokens.size,
+        reAuthSpy.callCount,
+        `Expected ${reAuthSpy.callCount} different tokens, but got ${uniqueTokens.size} unique tokens`
+      );
 
-    // Verify all tokens are not cached (i.e. have the same lifetime)
-    const uniqueLifetimes = new Set(tokenDetails.map(detail => detail.lifetime));
-    assert.equal(
-      uniqueLifetimes.size,
-      1,
-      `Expected all tokens to have the same lifetime, but found ${uniqueLifetimes.size} different lifetimes: ${[uniqueLifetimes].join(', ')} seconds`
-    );
+      // Verify all tokens are not cached (i.e. have the same lifetime)
+      const uniqueLifetimes = new Set(tokenDetails.map(detail => detail.lifetime));
+      assert.equal(
+        uniqueLifetimes.size,
+        1,
+        `Expected all tokens to have the same lifetime, but found ${uniqueLifetimes.size} different lifetimes: ${(Array.from(uniqueLifetimes).join(','))} seconds`
+      );
 
-    // Verify that all tokens have different uti (unique token identifier)
-    const uniqueUti = new Set(tokenDetails.map(detail => detail.uti));
-    assert.equal(
-      uniqueUti.size,
-      reAuthSpy.callCount,
-      `Expected all tokens to have different uti, but found ${uniqueUti.size} different uti in: ${[uniqueUti].join(', ')}`
-    );
+      // Verify that all tokens have different uti (unique token identifier)
+      const uniqueUti = new Set(tokenDetails.map(detail => detail.uti));
+      assert.equal(
+        uniqueUti.size,
+        reAuthSpy.callCount,
+        `Expected all tokens to have different uti, but found ${uniqueUti.size} different uti in: ${(Array.from(uniqueUti).join(','))}`
+      );
+    }
   };
 
-  const runAuthenticationTest = async (setupCredentialsProvider: () => any) => {
+  const runAuthenticationTest = async (setupCredentialsProvider: () => any, options: {
+    testingDefaultAzureCredential: boolean
+  } = { testingDefaultAzureCredential: false }) => {
     const { client, reAuthSpy } = await setupTestClient(setupCredentialsProvider());
 
     try {
       await client.connect();
       await runClientOperations(client);
-      validateTokens(reAuthSpy);
+      validateTokens(reAuthSpy, options.testingDefaultAzureCredential);
     } finally {
       await client.destroy();
     }

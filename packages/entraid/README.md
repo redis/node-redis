@@ -11,6 +11,7 @@ Secure token-based authentication for Redis clients using Microsoft Entra ID (fo
   - Managed identities (system-assigned and user-assigned)
   - Service principals (with or without certificates)
   - Authorization Code with PKCE flow
+  - DefaultAzureCredential from @azure/identity
 - Built-in retry mechanisms for transient failures
 
 ## Installation
@@ -30,6 +31,7 @@ The first step to using @redis/entraid is choosing the right credentials provide
 - `createForClientCredentials`: Use when authenticating with a service principal using client secret
 - `createForClientCredentialsWithCertificate`: Use when authenticating with a service principal using a certificate
 - `createForAuthorizationCodeWithPKCE`: Use for interactive authentication flows in user applications
+- `createForDefaultAzureCredential`: Use when you want to leverage Azure Identity's DefaultAzureCredential
 
 ## Usage Examples
 
@@ -81,6 +83,54 @@ const provider = EntraIdCredentialsProviderFactory.createForUserAssignedManagedI
   }
 });
 ```
+
+### DefaultAzureCredential Authentication
+
+tip: see a real sample here: [samples/interactive-browser/index.ts](./samples/interactive-browser/index.ts) 
+
+The DefaultAzureCredential from @azure/identity provides a simplified authentication experience that automatically tries different authentication methods based on the environment. This is especially useful for applications that need to work in different environments (local development, CI/CD, and production).
+
+```typescript
+import { createClient } from '@redis/client';
+import { DefaultAzureCredential } from '@azure/identity';
+import { EntraIdCredentialsProviderFactory, REDIS_SCOPE_DEFAULT } from '@redis/entraid/dist/lib/entra-id-credentials-provider-factory';
+
+// Create a DefaultAzureCredential instance
+const credential = new DefaultAzureCredential();
+
+// Create a provider using DefaultAzureCredential
+const provider = EntraIdCredentialsProviderFactory.createForDefaultAzureCredential({
+  // Use the same parameters you would pass to credential.getToken()
+  credential,
+  scopes: REDIS_SCOPE_DEFAULT, // The Redis scope
+  // Optional additional parameters for getToken
+  options: {
+    // Any options you would normally pass to credential.getToken()
+  },
+  tokenManagerConfig: {
+    expirationRefreshRatio: 0.8
+  }
+});
+
+const client = createClient({
+  url: 'redis://your-host',
+  credentialsProvider: provider
+});
+
+await client.connect();
+```
+
+#### Important Notes on Using DefaultAzureCredential
+
+When using the `createForDefaultAzureCredential` method, you need to:
+
+1. Create your own instance of `DefaultAzureCredential`
+2. Pass the same parameters to the factory method that you would use with the `getToken()` method:
+   - `scopes`: The Redis scope (use the exported `REDIS_SCOPE_DEFAULT` constant)
+   - `options`: Any additional options for the getToken method
+   
+This factory method creates a wrapper around DefaultAzureCredential that adapts it to the Redis client's
+authentication system, while maintaining all the flexibility of the original Azure Identity authentication.
 
 ## Important Limitations
 

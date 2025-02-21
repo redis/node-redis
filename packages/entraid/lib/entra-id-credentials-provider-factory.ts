@@ -1,3 +1,4 @@
+import type { GetTokenOptions, TokenCredential } from '@azure/core-auth';
 import { NetworkError } from '@azure/msal-common';
 import {
   LogLevel,
@@ -7,8 +8,9 @@ import {
   PublicClientApplication,
   ConfidentialClientApplication, AuthorizationUrlRequest, AuthorizationCodeRequest, CryptoProvider, Configuration, NodeAuthOptions, AccountInfo
 } from '@azure/msal-node';
-import { RetryPolicy, TokenManager, TokenManagerConfig, ReAuthenticationError } from '@redis/client/dist/lib/authx';
-import { EntraidCredentialsProvider } from './entraid-credentials-provider';
+import { RetryPolicy, TokenManager, TokenManagerConfig, ReAuthenticationError, BasicAuth } from '@redis/client/dist/lib/authx';
+import { AzureIdentityProvider } from './azure-identity-provider';
+import { AuthenticationResponse, DEFAULT_CREDENTIALS_MAPPER, EntraidCredentialsProvider, OID_CREDENTIALS_MAPPER } from './entraid-credentials-provider';
 import { MSALIdentityProvider } from './msal-identity-provider';
 
 /**
@@ -51,7 +53,11 @@ export class EntraIdCredentialsProviderFactory {
     return new EntraidCredentialsProvider(
       new TokenManager(idp, params.tokenManagerConfig),
       idp,
-      { onReAuthenticationError: params.onReAuthenticationError, credentialsMapper: OID_CREDENTIALS_MAPPER }
+      {
+        onReAuthenticationError: params.onReAuthenticationError,
+        credentialsMapper: params.credentialsMapper ?? OID_CREDENTIALS_MAPPER,
+        onRetryableError: params.onRetryableError
+      }
     );
   }
 
@@ -102,7 +108,8 @@ export class EntraIdCredentialsProviderFactory {
     return new EntraidCredentialsProvider(new TokenManager(idp, params.tokenManagerConfig), idp,
       {
         onReAuthenticationError: params.onReAuthenticationError,
-        credentialsMapper: OID_CREDENTIALS_MAPPER
+        credentialsMapper: params.credentialsMapper ?? OID_CREDENTIALS_MAPPER,
+        onRetryableError: params.onRetryableError
       });
   }
 
@@ -136,6 +143,42 @@ export class EntraIdCredentialsProviderFactory {
       },
       params
     );
+  }
+
+  /**
+   * This method is used to create a credentials provider using DefaultAzureCredential.
+   *
+   * The user needs to create a configured instance of DefaultAzureCredential ( or any other class that implements TokenCredential )and pass it to this method.
+   *
+   * The default credentials mapper for this method is OID_CREDENTIALS_MAPPER which extracts the object ID from JWT
+   * encoded token.
+   *
+   * Depending on the actual flow that DefaultAzureCredential uses, the user may need to provide different
+   * credential mapper via the credentialsMapper parameter.
+   *
+   */
+  static createForDefaultAzureCredential(
+    {
+      credential,
+      scopes,
+      options,
+      tokenManagerConfig,
+      onReAuthenticationError,
+      credentialsMapper,
+      onRetryableError
+    }: DefaultAzureCredentialsParams
+  ): EntraidCredentialsProvider {
+
+    const idp = new AzureIdentityProvider(
+      () => credential.getToken(scopes, options).then(x => x === null ? Promise.reject('Token is null') : x)
+    );
+
+    return new EntraidCredentialsProvider(new TokenManager(idp, tokenManagerConfig), idp,
+      {
+        onReAuthenticationError: onReAuthenticationError,
+        credentialsMapper: credentialsMapper ?? OID_CREDENTIALS_MAPPER,
+        onRetryableError: onRetryableError
+      });
   }
 
   /**
@@ -194,7 +237,11 @@ export class EntraIdCredentialsProviderFactory {
           }
         );
         const tm = new TokenManager(idp, params.tokenManagerConfig);
-        return new EntraidCredentialsProvider(tm, idp, { onReAuthenticationError: params.onReAuthenticationError });
+        return new EntraidCredentialsProvider(tm, idp, {
+          onReAuthenticationError: params.onReAuthenticationError,
+          credentialsMapper: params.credentialsMapper ?? DEFAULT_CREDENTIALS_MAPPER,
+          onRetryableError: params.onRetryableError
+        });
       }
     };
   }
@@ -214,8 +261,8 @@ export class EntraIdCredentialsProviderFactory {
 
 }
 
-const REDIS_SCOPE_DEFAULT = 'https://redis.azure.com/.default';
-const REDIS_SCOPE = 'https://redis.azure.com'
+export const REDIS_SCOPE_DEFAULT = 'https://redis.azure.com/.default';
+export const REDIS_SCOPE = 'https://redis.azure.com'
 
 export type AuthorityConfig =
   | { type: 'multi-tenant'; tenantId: string }
@@ -234,7 +281,19 @@ export type CredentialParams = {
   authorityConfig?: AuthorityConfig;
 
   tokenManagerConfig: TokenManagerConfig
-  onReAuthenticationError?: (error: ReAuthenticationError) => void;
+  onReAuthenticationError?: (error: ReAuthenticationError) => void
+  credentialsMapper?: (token: AuthenticationResponse) => BasicAuth
+  onRetryableError?: (error: string) => void
+}
+
+export type DefaultAzureCredentialsParams = {
+  scopes: string | string[],
+  options?: GetTokenOptions,
+  credential: TokenCredential
+  tokenManagerConfig: TokenManagerConfig
+  onReAuthenticationError?: (error: ReAuthenticationError) => void
+  credentialsMapper?: (token: AuthenticationResponse) => BasicAuth
+  onRetryableError?: (error: string) => void
 }
 
 export type AuthCodePKCEParams = CredentialParams & {
@@ -356,16 +415,3 @@ export class AuthCodeFlowHelper {
   }
 }
 
-const OID_CREDENTIALS_MAPPER = (token: AuthenticationResult) => {
-
-  // Client credentials flow is app-only authentication (no user context),
-  // so only access token is provided without user-specific claims (uniqueId, idToken, ...)
-  // this means that we need to extract the oid from the access token manually
-  const accessToken = JSON.parse(Buffer.from(token.accessToken.split('.')[1], 'base64').toString());
-
-  return ({
-    username: accessToken.oid,
-    password: token.accessToken
-  })
-
-}
