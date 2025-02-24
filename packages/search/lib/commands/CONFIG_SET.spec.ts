@@ -18,7 +18,7 @@ describe('FT.CONFIG SET', () => {
     );
   }, GLOBAL.SERVERS.OPEN);
 
-  testUtils.testWithClient('setSearchConfigGloballyTest', async client => {
+  testUtils.testWithClientIfVersionWithinRange([[8], 'LATEST'], 'setSearchConfigGloballyTest', async client => {
 
     const normalizeObject = obj => JSON.parse(JSON.stringify(obj));
     assert.equal(await client.configSet('search-default-dialect', '3'),

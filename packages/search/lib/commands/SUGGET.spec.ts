@@ -28,12 +28,22 @@ describe('FT.SUGGET', () => {
   });
 
   describe('client.ft.sugGet', () => {
-    testUtils.testWithClient('null', async client => {
+
+    testUtils.testWithClientIfVersionWithinRange([[8], 'LATEST'], 'null', async client => {
       assert.deepStrictEqual(
         await client.ft.sugGet('key', 'prefix'),
         []
       );
     }, GLOBAL.SERVERS.OPEN);
+
+
+
+    testUtils.testWithClientIfVersionWithinRange([[6, 2, 0], [7, 4, 0]], 'null', async client => {
+      assert.deepStrictEqual(
+        await client.ft.sugGet('key', 'prefix'),
+        null
+      );
+    }, GLOBAL.SERVERS.OPEN)
 
     testUtils.testWithClient('with suggestions', async client => {
       const [, reply] = await Promise.all([

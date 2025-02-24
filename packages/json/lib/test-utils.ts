@@ -1,9 +1,9 @@
 import TestUtils from '@redis/test-utils';
 import RedisJSON from '.';
 
-export default new TestUtils({
+export default TestUtils.createFromConfig({
   dockerImageName: 'redislabs/client-libs-test',
-  dockerImageVersionArgument: 'redisgraph-version',
+  dockerImageVersionArgument: 'redis-version',
   defaultDockerVersion: '8.0-M04-pre'
 });
 

@@ -149,37 +149,74 @@ export default class TestUtils {
   readonly #VERSION_NUMBERS: Array<number>;
   readonly #DOCKER_IMAGE: RedisServerDockerConfig;
 
-  constructor(config: TestUtilsConfig) {
-    const { string, numbers } = TestUtils.#getVersion(config.dockerImageVersionArgument, config.defaultDockerVersion);
+  constructor({ string, numbers }: Version, dockerImageName: string) {
     this.#VERSION_NUMBERS = numbers;
     this.#DOCKER_IMAGE = {
-      image: config.dockerImageName,
+      image: dockerImageName,
       version: string
     };
   }
 
+  /**
+   * Creates a new TestUtils instance from a configuration object.
+   *
+   * @param config - Configuration object containing Docker image and version settings
+   * @param config.dockerImageName - The name of the Docker image to use for tests
+   * @param config.dockerImageVersionArgument - The command-line argument name for specifying Redis version
+   * @param config.defaultDockerVersion - Optional default Redis version if not specified via arguments
+   * @returns A new TestUtils instance configured with the provided settings
+   */
+  public static createFromConfig(config: TestUtilsConfig) {
+    return new TestUtils(
+      TestUtils.#getVersion(config.dockerImageVersionArgument,
+        config.defaultDockerVersion), config.dockerImageName);
+  }
+
   isVersionGreaterThan(minimumVersion: Array<number> | undefined): boolean {
     if (minimumVersion === undefined) return true;
-
-    const lastIndex = Math.min(this.#VERSION_NUMBERS.length, minimumVersion.length) - 1;
-    for (let i = 0; i < lastIndex; i++) {
-      if (this.#VERSION_NUMBERS[i] > minimumVersion[i]) {
-        return true;
-      } else if (minimumVersion[i] > this.#VERSION_NUMBERS[i]) {
-        return false;
-      }
-    }
-
-    return this.#VERSION_NUMBERS[lastIndex] >= minimumVersion[lastIndex];
+    return TestUtils.compareVersions(this.#VERSION_NUMBERS, minimumVersion) >= 0;
   }
 
   isVersionGreaterThanHook(minimumVersion: Array<number> | undefined): void {
-    const isVersionGreaterThan = this.isVersionGreaterThan.bind(this);
+
+    const isVersionGreaterThanHook = this.isVersionGreaterThan.bind(this);
+    const versionNumber = this.#VERSION_NUMBERS.join('.');
+    const minimumVersionString = minimumVersion?.join('.');
     before(function () {
-      if (!isVersionGreaterThan(minimumVersion)) {
+      if (!isVersionGreaterThanHook(minimumVersion)) {
+        console.warn(`TestUtils: Version ${versionNumber} is less than minimum version ${minimumVersionString}, skipping test`);
         return this.skip();
       }
     });
+  }
+
+  isVersionInRange(minVersion: Array<number>, maxVersion: Array<number>): boolean {
+    return TestUtils.compareVersions(this.#VERSION_NUMBERS, minVersion) >= 0 &&
+      TestUtils.compareVersions(this.#VERSION_NUMBERS, maxVersion) <= 0
+  }
+
+  /**
+   * Compares two semantic version arrays and returns:
+   * -1 if version a is less than version b
+   *  0 if version a equals version b
+   *  1 if version a is greater than version b
+   *
+   * @param a First version array
+   * @param b Second version array
+   * @returns -1 | 0 | 1
+   */
+  static compareVersions(a: Array<number>, b: Array<number>): -1 | 0 | 1 {
+    const maxLength = Math.max(a.length, b.length);
+
+    const paddedA = [...a, ...Array(maxLength - a.length).fill(0)];
+    const paddedB = [...b, ...Array(maxLength - b.length).fill(0)];
+
+    for (let i = 0; i < maxLength; i++) {
+      if (paddedA[i] > paddedB[i]) return 1;
+      if (paddedA[i] < paddedB[i]) return -1;
+    }
+
+    return 0;
   }
 
   testWithClient<
@@ -233,6 +270,27 @@ export default class TestUtils {
         }
       }
     });
+  }
+
+  testWithClientIfVersionWithinRange<
+    M extends RedisModules = {},
+    F extends RedisFunctions = {},
+    S extends RedisScripts = {},
+    RESP extends RespVersions = 2,
+    TYPE_MAPPING extends TypeMapping = {}
+  >(
+    range: ([minVersion: Array<number>, maxVersion: Array<number>] | [minVersion: Array<number>, 'LATEST']),
+    title: string,
+    fn: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>) => unknown,
+    options: ClientTestOptions<M, F, S, RESP, TYPE_MAPPING>
+  ): void {
+
+    if (this.isVersionInRange(range[0], range[1] === 'LATEST' ? [Infinity, Infinity, Infinity] : range[1])) {
+      return this.testWithClient(`${title}  [${range[0].join('.')}] - [${(range[1] === 'LATEST') ? range[1] : range[1].join(".")}] `, fn, options)
+    } else {
+      console.warn(`Skipping test ${title} because server version ${this.#VERSION_NUMBERS.join('.')} is not within range ${range[0].join(".")} - ${range[1] !== 'LATEST' ? range[1].join(".") : 'LATEST'}`)
+    }
+
   }
 
   testWithClientPool<

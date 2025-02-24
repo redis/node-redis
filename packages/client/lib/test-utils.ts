@@ -5,7 +5,7 @@ import { CredentialsProvider } from './authx';
 import { Command } from './RESP/types';
 import { BasicCommandParser } from './client/parser';
 
-const utils = new TestUtils({
+const utils = TestUtils.createFromConfig({
   dockerImageName: 'redislabs/client-libs-test',
   dockerImageVersionArgument: 'redis-version',
   defaultDockerVersion: '8.0-M04-pre'

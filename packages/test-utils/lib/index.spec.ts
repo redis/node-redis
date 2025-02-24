@@ -35,3 +35,72 @@ describe('TestUtils', () => {
     });
   });
 });
+
+
+
+describe('Version Comparison', () => {
+  it('should correctly compare versions', () => {
+    const tests: [Array<number>, Array<number>, -1 | 0 | 1][] = [
+      [[1, 0, 0], [1, 0, 0], 0],    
+      [[2, 0, 0], [1, 9, 9], 1],   
+      [[1, 9, 9], [2, 0, 0], -1],  
+      [[1, 2, 3], [1, 2], 1],      
+      [[1, 2], [1, 2, 3], -1],      
+      [[1, 2, 0], [1, 2, 1], -1],   
+      [[1], [1, 0, 0], 0],         
+      [[2], [1, 9, 9], 1],          
+    ];
+
+    tests.forEach(([a, b, expected]) => {
+
+      assert.equal(
+        TestUtils.compareVersions(a, b),
+        expected,
+        `Failed comparing ${a.join('.')} with ${b.join('.')}: expected ${expected}`
+      );
+    });
+  });
+
+  it('should correctly compare versions', () => {
+    const tests: [Array<number>, Array<number>, -1 | 0 | 1][] = [
+      [[1, 0, 0], [1, 0, 0], 0],
+      [[2, 0, 0], [1, 9, 9], 1],
+      [[1, 9, 9], [2, 0, 0], -1],
+      [[1, 2, 3], [1, 2], 1],
+      [[1, 2], [1, 2, 3], -1],
+      [[1, 2, 0], [1, 2, 1], -1],
+      [[1], [1, 0, 0], 0],
+      [[2], [1, 9, 9], 1],
+    ];
+
+    tests.forEach(([a, b, expected]) => {
+
+      assert.equal(
+        TestUtils.compareVersions(a, b),
+        expected,
+        `Failed comparing ${a.join('.')} with ${b.join('.')}: expected ${expected}`
+      );
+    });
+  })
+  it('isVersionInRange should work correctly', () => {
+    const tests: [Array<number>, Array<number>, Array<number>, boolean][] = [
+      [[7, 0, 0], [7, 0, 0], [7, 0, 0], true],
+      [[7, 0, 1], [7, 0, 0], [7, 0, 2], true], 
+      [[7, 0, 0], [7, 0, 1], [7, 0, 2], false],
+      [[7, 0, 3], [7, 0, 1], [7, 0, 2], false],
+      [[7], [6, 0, 0], [8, 0, 0], true],
+      [[7, 1, 1], [7, 1, 0], [7, 1, 2], true],
+      [[6, 0, 0], [7, 0, 0], [8, 0, 0], false],
+      [[9, 0, 0], [7, 0, 0], [8, 0, 0], false]
+    ];
+
+    tests.forEach(([version, min, max, expected]) => {
+      const testUtils = new TestUtils({ string: version.join('.'), numbers: version }, "test")
+      assert.equal(
+        testUtils.isVersionInRange(min, max),
+        expected,
+        `Failed checking if ${version.join('.')} is between ${min.join('.')} and ${max.join('.')}: expected ${expected}`
+      );
+    });
+  })
+});
