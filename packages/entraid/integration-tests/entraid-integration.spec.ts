@@ -1,6 +1,8 @@
+import { DefaultAzureCredential } from '@azure/identity';
+import type { DefaultAzureCredentialClientIdOptions } from '@azure/identity/dist/commonjs/credentials/defaultAzureCredentialOptions';
 import { BasicAuth } from '@redis/client/dist/lib/authx';
 import { createClient } from '@redis/client';
-import { EntraIdCredentialsProviderFactory } from '../lib/entra-id-credentials-provider-factory';
+import { EntraIdCredentialsProviderFactory, REDIS_SCOPE_DEFAULT } from '../lib/entra-id-credentials-provider-factory';
 import { strict as assert } from 'node:assert';
 import { spy, SinonSpy } from 'sinon';
 import { randomUUID } from 'crypto';
