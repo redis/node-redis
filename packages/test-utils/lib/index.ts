@@ -19,12 +19,38 @@ import { RedisServerDockerConfig, spawnRedisServer, spawnRedisCluster } from './
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 
+
 interface TestUtilsConfig {
+  /**
+   * The name of the Docker image to use for spawning Redis test instances.
+   * This should be a valid Docker image name that contains a Redis server.
+   *
+   * @example 'redislabs/client-libs-test'
+   */
   dockerImageName: string;
+
+  /**
+   * The command-line argument name used to specify the Redis version.
+   * This argument can be passed when running tests / GH actions.
+   *
+   * @example
+   * If set to 'redis-version', you can run tests with:
+   * ```bash
+   * npm test -- --redis-version="6.2"
+   * ```
+   */
   dockerImageVersionArgument: string;
+
+  /**
+   * The default Redis version to use if no version is specified via command-line arguments.
+   * Can be a specific version number (e.g., '6.2'), 'latest', or 'edge'.
+   * If not provided, defaults to 'latest'.
+   *
+   * @optional
+   * @default 'latest'
+   */
   defaultDockerVersion?: string;
 }
-
 interface CommonTestOptions {
   serverArguments: Array<string>;
   minimumDockerVersion?: Array<number>;
@@ -83,22 +109,27 @@ interface Version {
 }
 
 export default class TestUtils {
-  static #parseVersionNumber(version: string): Array<number> {
+  static parseVersionNumber(version: string): Array<number> {
     if (version === 'latest' || version === 'edge') return [Infinity];
 
-    const dashIndex = version.indexOf('-');
-    return (dashIndex === -1 ? version : version.substring(0, dashIndex))
-      .split('.')
-      .map(x => {
-        const value = Number(x);
-        if (Number.isNaN(value)) {
-          throw new TypeError(`${version} is not a valid redis version`);
-        }
 
-        return value;
-      });
+    // Match complete version number patterns
+    const versionMatch = version.match(/(^|\-)\d+(\.\d+)*($|\-)/);
+    if (!versionMatch) {
+      throw new TypeError(`${version} is not a valid redis version`);
+    }
+
+    // Extract just the numbers and dots between first and last dash (or start/end)
+    const versionNumbers = versionMatch[0].replace(/^\-|\-$/g, '');
+
+    return versionNumbers.split('.').map(x => {
+      const value = Number(x);
+      if (Number.isNaN(value)) {
+        throw new TypeError(`${version} is not a valid redis version`);
+      }
+      return value;
+    });
   }
-
   static #getVersion(argumentName: string, defaultVersion = 'latest'): Version {
     return yargs(hideBin(process.argv))
       .option(argumentName, {
@@ -108,7 +139,7 @@ export default class TestUtils {
       .coerce(argumentName, (version: string) => {
         return {
           string: version,
-          numbers: TestUtils.#parseVersionNumber(version)
+          numbers: TestUtils.parseVersionNumber(version)
         };
       })
       .demandOption(argumentName)
@@ -118,37 +149,74 @@ export default class TestUtils {
   readonly #VERSION_NUMBERS: Array<number>;
   readonly #DOCKER_IMAGE: RedisServerDockerConfig;
 
-  constructor(config: TestUtilsConfig) {
-    const { string, numbers } = TestUtils.#getVersion(config.dockerImageVersionArgument, config.defaultDockerVersion);
+  constructor({ string, numbers }: Version, dockerImageName: string) {
     this.#VERSION_NUMBERS = numbers;
     this.#DOCKER_IMAGE = {
-      image: config.dockerImageName,
+      image: dockerImageName,
       version: string
     };
   }
 
+  /**
+   * Creates a new TestUtils instance from a configuration object.
+   *
+   * @param config - Configuration object containing Docker image and version settings
+   * @param config.dockerImageName - The name of the Docker image to use for tests
+   * @param config.dockerImageVersionArgument - The command-line argument name for specifying Redis version
+   * @param config.defaultDockerVersion - Optional default Redis version if not specified via arguments
+   * @returns A new TestUtils instance configured with the provided settings
+   */
+  public static createFromConfig(config: TestUtilsConfig) {
+    return new TestUtils(
+      TestUtils.#getVersion(config.dockerImageVersionArgument,
+        config.defaultDockerVersion), config.dockerImageName);
+  }
+
   isVersionGreaterThan(minimumVersion: Array<number> | undefined): boolean {
     if (minimumVersion === undefined) return true;
-
-    const lastIndex = Math.min(this.#VERSION_NUMBERS.length, minimumVersion.length) - 1;
-    for (let i = 0; i < lastIndex; i++) {
-      if (this.#VERSION_NUMBERS[i] > minimumVersion[i]) {
-        return true;
-      } else if (minimumVersion[i] > this.#VERSION_NUMBERS[i]) {
-        return false;
-      }
-    }
-
-    return this.#VERSION_NUMBERS[lastIndex] >= minimumVersion[lastIndex];
+    return TestUtils.compareVersions(this.#VERSION_NUMBERS, minimumVersion) >= 0;
   }
 
   isVersionGreaterThanHook(minimumVersion: Array<number> | undefined): void {
-    const isVersionGreaterThan = this.isVersionGreaterThan.bind(this);
+
+    const isVersionGreaterThanHook = this.isVersionGreaterThan.bind(this);
+    const versionNumber = this.#VERSION_NUMBERS.join('.');
+    const minimumVersionString = minimumVersion?.join('.');
     before(function () {
-      if (!isVersionGreaterThan(minimumVersion)) {
+      if (!isVersionGreaterThanHook(minimumVersion)) {
+        console.warn(`TestUtils: Version ${versionNumber} is less than minimum version ${minimumVersionString}, skipping test`);
         return this.skip();
       }
     });
+  }
+
+  isVersionInRange(minVersion: Array<number>, maxVersion: Array<number>): boolean {
+    return TestUtils.compareVersions(this.#VERSION_NUMBERS, minVersion) >= 0 &&
+      TestUtils.compareVersions(this.#VERSION_NUMBERS, maxVersion) <= 0
+  }
+
+  /**
+   * Compares two semantic version arrays and returns:
+   * -1 if version a is less than version b
+   *  0 if version a equals version b
+   *  1 if version a is greater than version b
+   *
+   * @param a First version array
+   * @param b Second version array
+   * @returns -1 | 0 | 1
+   */
+  static compareVersions(a: Array<number>, b: Array<number>): -1 | 0 | 1 {
+    const maxLength = Math.max(a.length, b.length);
+
+    const paddedA = [...a, ...Array(maxLength - a.length).fill(0)];
+    const paddedB = [...b, ...Array(maxLength - b.length).fill(0)];
+
+    for (let i = 0; i < maxLength; i++) {
+      if (paddedA[i] > paddedB[i]) return 1;
+      if (paddedA[i] < paddedB[i]) return -1;
+    }
+
+    return 0;
   }
 
   testWithClient<
@@ -202,6 +270,27 @@ export default class TestUtils {
         }
       }
     });
+  }
+
+  testWithClientIfVersionWithinRange<
+    M extends RedisModules = {},
+    F extends RedisFunctions = {},
+    S extends RedisScripts = {},
+    RESP extends RespVersions = 2,
+    TYPE_MAPPING extends TypeMapping = {}
+  >(
+    range: ([minVersion: Array<number>, maxVersion: Array<number>] | [minVersion: Array<number>, 'LATEST']),
+    title: string,
+    fn: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>) => unknown,
+    options: ClientTestOptions<M, F, S, RESP, TYPE_MAPPING>
+  ): void {
+
+    if (this.isVersionInRange(range[0], range[1] === 'LATEST' ? [Infinity, Infinity, Infinity] : range[1])) {
+      return this.testWithClient(`${title}  [${range[0].join('.')}] - [${(range[1] === 'LATEST') ? range[1] : range[1].join(".")}] `, fn, options)
+    } else {
+      console.warn(`Skipping test ${title} because server version ${this.#VERSION_NUMBERS.join('.')} is not within range ${range[0].join(".")} - ${range[1] !== 'LATEST' ? range[1].join(".") : 'LATEST'}`)
+    }
+
   }
 
   testWithClientPool<

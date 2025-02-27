@@ -1,10 +1,10 @@
 import TestUtils from '@redis/test-utils';
 import TimeSeries from '.';
 
-export default new TestUtils({
-  dockerImageName: 'redis/redis-stack',
-  dockerImageVersionArgument: 'timeseries-version',
-  defaultDockerVersion: '7.4.0-v1'
+export default TestUtils.createFromConfig({
+  dockerImageName: 'redislabs/client-libs-test',
+  dockerImageVersionArgument: 'redis-version',
+  defaultDockerVersion: '8.0-M04-pre'
 });
 
 export const GLOBAL = {

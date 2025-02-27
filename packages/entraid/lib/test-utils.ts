@@ -3,10 +3,10 @@ import { IdentityProvider, StreamingCredentialsProvider, TokenManager, TokenResp
 import TestUtils from '@redis/test-utils';
 import { EntraidCredentialsProvider } from './entraid-credentials-provider';
 
-export const testUtils = new TestUtils({
-  dockerImageName: 'redis/redis-stack',
+export const testUtils = TestUtils.createFromConfig({
+  dockerImageName: 'redislabs/client-libs-test',
   dockerImageVersionArgument: 'redis-version',
-  defaultDockerVersion: '7.4.0-v1'
+  defaultDockerVersion: '8.0-M04-pre'
 });
 
 const DEBUG_MODE_ARGS = testUtils.isVersionGreaterThan([7]) ?

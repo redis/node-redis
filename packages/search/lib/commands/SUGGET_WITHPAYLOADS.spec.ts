@@ -11,14 +11,21 @@ describe('FT.SUGGET WITHPAYLOADS', () => {
     );
   });
 
-  describe('client.ft.sugGetWithPayloads', () => {
-    testUtils.testWithClient('null', async client => {
-      assert.equal(
-        await client.ft.sugGetWithPayloads('key', 'prefix'),
-        null
-      );
-    }, GLOBAL.SERVERS.OPEN);
+  testUtils.testWithClientIfVersionWithinRange([[8], 'LATEST'], 'null', async client => {
+    assert.deepStrictEqual(
+      await client.ft.sugGetWithPayloads('key', 'prefix'),
+      []
+    );
+  }, GLOBAL.SERVERS.OPEN);
 
+  testUtils.testWithClientIfVersionWithinRange([[6], [7, 4, 0]], 'null', async client => {
+    assert.deepStrictEqual(
+      await client.ft.sugGetWithPayloads('key', 'prefix'),
+      null
+    );
+  }, GLOBAL.SERVERS.OPEN);
+
+  describe('with suggestions', () => {
     testUtils.testWithClient('with suggestions', async client => {
       const [, reply] = await Promise.all([
         client.ft.sugAdd('key', 'string', 1, {

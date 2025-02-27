@@ -19,7 +19,6 @@ describe('CONFIG GET', () => {
       );
     });
   });
-  
 
   testUtils.testWithClient('client.configGet', async client => {
     const config = await client.configGet('*');
@@ -29,4 +28,33 @@ describe('CONFIG GET', () => {
       assert.equal(typeof value, 'string');
     }
   }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.configSet.getSearchConfigSettingTest | Redis >= 8', async client => {
+    assert.ok(
+      await client.configGet('search-timeout'),
+      'OK'
+    );
+  }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.configSet.getTSConfigSettingTest | Redis >= 8', async client => {
+    assert.ok(
+      await client.configGet('ts-retention-policy'),
+      'OK'
+    );
+  }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.configSet.getBFConfigSettingTest | Redis >= 8', async client => {
+    assert.ok(
+      await client.configGet('bf-error-rate'),
+      'OK'
+    );
+  }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.configSet.getCFConfigSettingTest | Redis >= 8', async client => {
+    assert.ok(
+      await client.configGet('cf-initial-size'),
+      'OK'
+    );
+  }, GLOBAL.SERVERS.OPEN);
+
 });

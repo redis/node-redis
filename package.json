@@ -5,6 +5,7 @@
     "./packages/*"
   ],
   "scripts": {
+    "test-single": "TS_NODE_PROJECT='./packages/test-utils/tsconfig.json' mocha --require ts-node/register/transpile-only ",
     "test": "npm run test -ws --if-present",
     "build": "tsc --build",
     "documentation": "typedoc --out ./documentation",

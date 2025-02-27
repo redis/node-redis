@@ -4,9 +4,11 @@ import { once } from 'node:events';
 import { createClient } from '@redis/client/index';
 import { setTimeout } from 'node:timers/promises';
 // import { ClusterSlotsReply } from '@redis/client/dist/lib/commands/CLUSTER_SLOTS';
+
+import { execFile as execFileCallback } from 'node:child_process';
 import { promisify } from 'node:util';
-import { exec } from 'node:child_process';
-const execAsync = promisify(exec);
+
+const execAsync = promisify(execFileCallback);
 
 interface ErrorWithCode extends Error {
   code: string;
@@ -46,11 +48,29 @@ export interface RedisServerDocker {
   dockerId: string;
 }
 
-async function spawnRedisServerDocker({ image, version }: RedisServerDockerConfig, serverArguments: Array<string>): Promise<RedisServerDocker> {
-  const port = (await portIterator.next()).value,
-    { stdout, stderr } = await execAsync(
-      `docker run -e REDIS_ARGS="--port ${port.toString()} ${serverArguments.join(' ')}" -d --network host ${image}:${version}`
-    );
+async function spawnRedisServerDocker({
+  image,
+  version
+}: RedisServerDockerConfig, serverArguments: Array<string>): Promise<RedisServerDocker> {
+  const port = (await portIterator.next()).value;
+  const portStr = port.toString();
+
+  const dockerArgs = [
+    'run',
+    '-e', `PORT=${portStr}`,
+    '-d',
+    '--network', 'host',
+    `${image}:${version}`,
+    '--port', portStr
+  ];
+
+  if (serverArguments.length > 0) {
+    dockerArgs.push(...serverArguments);
+  }
+
+  console.log(`[Docker] Spawning Redis container - Image: ${image}:${version}, Port: ${port}`);
+
+  const { stdout, stderr } = await execAsync('docker', dockerArgs);
 
   if (!stdout) {
     throw new Error(`docker run error - ${stderr}`);
@@ -65,7 +85,6 @@ async function spawnRedisServerDocker({ image, version }: RedisServerDockerConfi
     dockerId: stdout.trim()
   };
 }
-
 const RUNNING_SERVERS = new Map<Array<string>, ReturnType<typeof spawnRedisServerDocker>>();
 
 export function spawnRedisServer(dockerConfig: RedisServerDockerConfig, serverArguments: Array<string>): Promise<RedisServerDocker> {
@@ -80,7 +99,7 @@ export function spawnRedisServer(dockerConfig: RedisServerDockerConfig, serverAr
 }
 
 async function dockerRemove(dockerId: string): Promise<void> {
-  const { stderr } = await execAsync(`docker rm -f ${dockerId}`);
+  const { stderr } = await execAsync('docker', ['rm', '-f', dockerId]);
   if (stderr) {
     throw new Error(`docker rm error - ${stderr}`);
   }
@@ -132,15 +151,15 @@ async function spawnRedisClusterNodeDockers(
         '5000'
       ], clientConfig).then(async replica => {
 
-        const requirePassIndex = serverArguments.findIndex((x)=>x==='--requirepass');
-        if(requirePassIndex!==-1) {
-          const password = serverArguments[requirePassIndex+1];
-          await replica.client.configSet({'masterauth': password})
+        const requirePassIndex = serverArguments.findIndex((x) => x === '--requirepass');
+        if (requirePassIndex !== -1) {
+          const password = serverArguments[requirePassIndex + 1];
+          await replica.client.configSet({ 'masterauth': password })
         }
         await replica.client.clusterMeet('127.0.0.1', master.docker.port);
 
         while ((await replica.client.clusterSlots()).length === 0) {
-          await setTimeout(50);
+          await setTimeout(25);
         }
 
         await replica.client.clusterReplicate(
@@ -224,7 +243,7 @@ async function spawnRedisClusterDockers(
       while (
         totalNodes(await client.clusterSlots()) !== nodes.length ||
         !(await client.sendCommand<string>(['CLUSTER', 'INFO'])).startsWith('cluster_state:ok') // TODO
-      ) {
+        ) {
         await setTimeout(50);
       }
 
@@ -257,7 +276,7 @@ export function spawnRedisCluster(
     return runningCluster;
   }
 
-  const dockersPromise = spawnRedisClusterDockers(dockersConfig, serverArguments,clientConfig);
+  const dockersPromise = spawnRedisClusterDockers(dockersConfig, serverArguments, clientConfig);
 
   RUNNING_CLUSTERS.set(serverArguments, dockersPromise);
   return dockersPromise;

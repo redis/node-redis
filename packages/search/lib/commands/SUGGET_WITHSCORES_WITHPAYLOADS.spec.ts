@@ -12,14 +12,14 @@ describe('FT.SUGGET WITHSCORES WITHPAYLOADS', () => {
   });
 
   describe('client.ft.sugGetWithScoresWithPayloads', () => {
-    testUtils.testWithClient('null', async client => {
-      assert.equal(
+    testUtils.testWithClientIfVersionWithinRange([[8], 'LATEST'], 'null', async client => {
+      assert.deepStrictEqual(
         await client.ft.sugGetWithScoresWithPayloads('key', 'prefix'),
-        null
+        []
       );
     }, GLOBAL.SERVERS.OPEN);
 
-    testUtils.testWithClient('with suggestions', async client => {
+    testUtils.testWithClientIfVersionWithinRange([[8], 'LATEST'], 'with suggestions', async client => {
       const [, reply] = await Promise.all([
         client.ft.sugAdd('key', 'string', 1, {
           PAYLOAD: 'payload'

@@ -5,10 +5,10 @@ import { CredentialsProvider } from './authx';
 import { Command } from './RESP/types';
 import { BasicCommandParser } from './client/parser';
 
-const utils = new TestUtils({
-  dockerImageName: 'redis/redis-stack',
+const utils = TestUtils.createFromConfig({
+  dockerImageName: 'redislabs/client-libs-test',
   dockerImageVersionArgument: 'redis-version',
-  defaultDockerVersion: '7.4.0-v1'
+  defaultDockerVersion: '8.0-M04-pre'
 });
 
 export default utils;
