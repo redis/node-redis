@@ -11,21 +11,15 @@ export class MSALIdentityProvider implements IdentityProvider<AuthenticationResu
   }
 
   async requestToken(): Promise<TokenResponse<AuthenticationResult>> {
-    try {
-      const result = await this.getToken();
+    const result = await this.getToken();
 
-      if (!result?.accessToken || !result?.expiresOn) {
-        throw new Error('Invalid token response');
-      }
-      return {
-        token: result,
-        ttlMs: result.expiresOn.getTime() - Date.now()
-      };
-    } catch (error) {
-      throw error;
+    if (!result?.accessToken || !result?.expiresOn) {
+      throw new Error('Invalid token response');
     }
+    return {
+      token: result,
+      ttlMs: result.expiresOn.getTime() - Date.now()
+    };
   }
 
 }
-
-
