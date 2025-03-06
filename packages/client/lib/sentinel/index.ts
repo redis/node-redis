@@ -683,6 +683,7 @@ class RedisSentinelInternal<
   async #connect() {
     let count = 0;
     while (true) {
+      count += 1;
       this.#trace("starting connect loop");
 
       if (this.#destroy) {

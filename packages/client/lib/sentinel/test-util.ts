@@ -180,9 +180,14 @@ export class SentinelFramework extends DockerBase {
     RedisScripts,
     RespVersions, 
     TypeMapping>>, errors = true) {
-    if (opts?.sentinelRootNodes !== undefined) {
-      throw new Error("cannot specify sentinelRootNodes here");
-    }
+    // remove this safeguard
+    // we want to test the case when
+    // we cannot connect to sentinel
+
+    // if (opts?.sentinelRootNodes !== undefined) {
+    //   throw new Error("cannot specify sentinelRootNodes here");
+    // }
+
     if (opts?.name !== undefined) {
       throw new Error("cannot specify sentinel db name here");
     }
