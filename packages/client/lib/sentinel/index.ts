@@ -404,14 +404,15 @@ export default class RedisSentinel<
     }
   }
 
-  async use<T>(fn: (sentinelClient: RedisSentinelClientType<M, F, S, RESP, TYPE_MAPPING>) => Promise<T>) {
+  async use<T>(id: string, fn: (sentinelClient: RedisSentinelClientType<M, F, S, RESP, TYPE_MAPPING>) => Promise<T>) {
     const clientInfo = await this._self.#internal.getClientLease();
-
+    console.log("leased client: %d from %s", clientInfo.id, id)
     try {
       return await fn(
         RedisSentinelClient.create(this._self.#options, this._self.#internal, clientInfo, this._self.#commandOptions)
       );
     } finally {
+      console.log("released client: %d from %s", clientInfo.id, id)
       const promise = this._self.#internal.releaseClientLease(clientInfo);
       if (promise) await promise;
     }
@@ -735,7 +736,7 @@ class RedisSentinelInternal<
       }
       const sockOpts = client.options?.socket as TcpNetConnectOpts | undefined;
       this.#trace("attemping to send command to " + sockOpts?.host + ":" + sockOpts?.port)
-
+      console.log("attempting to send command to %s:%s from %s", sockOpts?.host, sockOpts?.port, clientInfo?.id)
       try {
         /*
                 // force testing of READONLY errors        
