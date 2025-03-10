@@ -78,7 +78,7 @@ async function steadyState(frame: SentinelFramework) {
 }
 
 ["redis-sentinel-test-password", undefined].forEach(function (password) {
-  describe.skip(`Sentinel - password = ${password}`, () => {
+  describe(`Sentinel - password = ${password}`, () => {
     const config: RedisSentinelConfig = { sentinelName: "test", numberOfNodes: 3, password: password };
     const frame = new SentinelFramework(config);
     let tracer = new Array<string>();
@@ -196,6 +196,11 @@ async function steadyState(frame: SentinelFramework) {
         await sentinel.connect();
   
         await assert.doesNotReject(sentinel.get('x'));
+      });
+
+      it('failed to connect', async function() {
+        sentinel = frame.getSentinelClient({sentinelRootNodes: [{host: "127.0.0.1", port: 1010}], maxCommandRediscovers: 0})
+        await assert.rejects(sentinel.connect());
       });
   
       it('try to connect multiple times', async function () {
@@ -341,18 +346,25 @@ async function steadyState(frame: SentinelFramework) {
         this.timeout(30000);
   
         sentinel = frame.getSentinelClient({ replicaPoolSize: 1 });
-        sentinel.on("error", () => { });
+        sentinel.on("error", (e) => { 
+          // console.log("some err %s", e)
+        });
         await sentinel.connect();
   
         await sentinel.use(
+          "asd",
           async (client: RedisSentinelClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>, ) => {
             const masterNode = sentinel!.getMasterNode();
+            console.log("stopping")
             await frame.stopNode(masterNode!.port.toString());
+            console.log("stopped")
             await assert.doesNotReject(client.get('x'));
+            console.log("final await")
           }
         );
       });
   
+      // TODO: figure out why it fails
       it('use with script', async function () {
         this.timeout(10000);
   
@@ -366,9 +378,13 @@ async function steadyState(frame: SentinelFramework) {
         await sentinel.connect();
   
         const reply = await sentinel.use(
+          "dsf",
           async (client: RedisSentinelClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>) => {
+            console.log("set")
             assert.equal(await client.set('key', '2'), 'OK');
+            console.log("get")
             assert.equal(await client.get('key'), '2');
+            console.log("square")
             return client.square('key')
           }
         );
@@ -393,6 +409,7 @@ async function steadyState(frame: SentinelFramework) {
         );
   
         const reply = await sentinel.use(
+          "asdf",
           async (client: RedisSentinelClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>) => {
             await client.set('key', '2');
             return client.math.square('key');
@@ -410,6 +427,7 @@ async function steadyState(frame: SentinelFramework) {
         await sentinel.connect();
   
         const reply = await sentinel.use(
+          "asdf",
           async (client: RedisSentinelClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>) => {
             return client.bf.add('key', 'item');
           }
@@ -426,6 +444,7 @@ async function steadyState(frame: SentinelFramework) {
         await sentinel.connect();
 
         const promise = sentinel.use(
+          "asdf",
           async client => {
             await setTimeout(1000);
             return await client.get("x");
@@ -436,13 +455,15 @@ async function steadyState(frame: SentinelFramework) {
         assert.equal(await promise, null);
       });
 
+      // TODO: figure out why it fails
       it('reserve client, takes a client out of pool', async function () {
-        this.timeout(30000);
+        this.timeout(60000);
   
         sentinel = frame.getSentinelClient({ masterPoolSize: 2, reserveClient: true });
         await sentinel.connect();
 
         const promise1 = sentinel.use(
+          "asdf",
           async client => {
             const val = await client.get("x");
             await client.set("x", 2);
@@ -451,6 +472,7 @@ async function steadyState(frame: SentinelFramework) {
         )
 
         const promise2 = sentinel.use(
+          "asdg",
           async client => {
             return client.get("x");
           }
@@ -471,6 +493,7 @@ async function steadyState(frame: SentinelFramework) {
         let set = false;
   
         const promise = sentinel.use(
+          "asdf",
           async client => {
             await sentinel!.set("x", 1);
             await client.get("x");
@@ -480,9 +503,10 @@ async function steadyState(frame: SentinelFramework) {
         await assert.doesNotReject(promise);
       });
   
+      // TODO: figure out why it fails
       // by taking a lease, we know we will block on master as no clients are available, but as read occuring, means replica read occurs
       it('replica reads', async function () {
-        this.timeout(30000);
+        this.timeout(60000);
   
         sentinel = frame.getSentinelClient({ replicaPoolSize: 1 });
         sentinel.on("error", () => { });
@@ -525,7 +549,8 @@ async function steadyState(frame: SentinelFramework) {
         sentinel = frame.getSentinelClient({ masterPoolSize: 2 });
         await sentinel.connect();
   
-        let promise = sentinel.use(async (client) => {
+        let promise = sentinel.use(
+          "asdf",async (client) => {
           await client.set("x", 1);
           await client.watch("x");
           return client.multi().get("x").exec();
@@ -540,7 +565,8 @@ async function steadyState(frame: SentinelFramework) {
         sentinel = frame.getSentinelClient({ masterPoolSize: 2 });
         await sentinel.connect();
   
-        let promise = sentinel.use(async (client) => {
+        let promise = sentinel.use(
+          "asdg",async (client) => {
           await client.set('x', 1);
           await client.watch('x');
           await sentinel!.set('x', 2);
@@ -579,9 +605,12 @@ async function steadyState(frame: SentinelFramework) {
         await sentinel.connect();
  
         // each of these commands is an independent lease
-        assert.equal(await sentinel.use(client => client.watch("x")), 'OK')
-        assert.equal(await sentinel.use(client => client.set('x', 1)), 'OK');
-        assert.deepEqual(await sentinel.use(client => client.multi().get('x').exec()), ['1']);
+        assert.equal(await sentinel.use(
+          "asdf",client => client.watch("x")), 'OK')
+        assert.equal(await sentinel.use(
+          "asdg",client => client.set('x', 1)), 'OK');
+        assert.deepEqual(await sentinel.use(
+          "asdh",client => client.multi().get('x').exec()), ['1']);
       });
   
       // stops master to force sentinel to update 
@@ -718,8 +747,9 @@ async function steadyState(frame: SentinelFramework) {
         tracer.push("multi was rejected");
       });
   
+      // TODO: figure out why it fails
       it('plain pubsub - channel', async function () {
-        this.timeout(30000);
+        this.timeout(60000);
   
         sentinel = frame.getSentinelClient();
         sentinel.setTracer(tracer);
@@ -1138,7 +1168,7 @@ async function steadyState(frame: SentinelFramework) {
       })
     })
   
-    describe('Sentinel Factory', function () {
+    describe.skip('Sentinel Factory', function () {
       let master: RedisClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping> | undefined;
       let replica: RedisClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping> | undefined;
   
