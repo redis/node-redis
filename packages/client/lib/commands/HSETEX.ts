@@ -19,16 +19,12 @@ type HSETEXMap = Map<HashTypes, HashTypes>;
 
 type HSETEXTuples = Array<[HashTypes, HashTypes]> | Array<HashTypes>;
 
-type SingleFieldArguments = [field: HashTypes, value: HashTypes];
-
-type MultipleFieldsArguments = [value: HSETEXObject | HSETEXMap | HSETEXTuples];
-
 export default {
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,
-    options?: HSetExOptions,
-    ...[value, fieldValue]: SingleFieldArguments | MultipleFieldsArguments
+    fields: HSETEXObject | HSETEXMap | HSETEXTuples,
+    options?: HSetExOptions
   ) {
     parser.push('HSETEX');
     parser.pushKey(key);
@@ -50,21 +46,13 @@ export default {
     }
 
     parser.push('FIELDS')
-    if (typeof value === 'string' || typeof value === 'number' || value instanceof Buffer) {
-        parser.push(
-            '1',
-            convertValue(value),
-            convertValue(fieldValue!)
-        );
-      } else if (typeof value === 'undefined' || typeof value === null) {
-        throw Error('passed undefined or null object')
-      } else if (value instanceof Map) {
-        pushMap(parser, value);
-      } else if (Array.isArray(value)) {
-        pushTuples(parser, value);
-      } else {
-        pushObject(parser, value);
-      }
+    if (fields instanceof Map) {
+        pushMap(parser, fields);
+    } else if (Array.isArray(fields)) {
+        pushTuples(parser, fields);
+    } else {
+        pushObject(parser, fields);
+    }
   },
   transformReply: undefined as unknown as () => NumberReply<0 | 1>
 } as const satisfies Command;
