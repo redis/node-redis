@@ -89,9 +89,7 @@ function pushTuples(parser: CommandParser, tuples: HSETEXTuples): void {
     }
 
     parser.push((tmpParser.redisArgs.length/2).toString())
-    tmpParser.redisArgs.forEach(arg => {
-        parser.push(arg)
-    });
+    parser.push(...tmpParser.redisArgs)
 }
 
 function _pushTuples(parser: CommandParser, tuples: HSETEXTuples): void {

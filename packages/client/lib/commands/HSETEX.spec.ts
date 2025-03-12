@@ -70,7 +70,7 @@ describe('HSETEX parseCommand', () => {
 
 // TODO: enable when new test container is released
 describe.skip('HSETEX call', () => {
-    testUtils.testWithClientIfVersionWithinRange([[8], 'LATEST'], 'hSetEx empty single field', async client => {
+    testUtils.testWithClientIfVersionWithinRange([[8], 'LATEST'], 'hSetEx calls', async client => {
       assert.deepEqual(
         await client.hSetEx('key', {expiration: {type: "EX", value: 500}, mode: "FNX"}, 'filed1', 'value1'),
         1
