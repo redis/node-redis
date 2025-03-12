@@ -66,7 +66,7 @@ export default {
         pushObject(parser, value);
       }
   },
-  transformReply: undefined as unknown as () => NumberReply
+  transformReply: undefined as unknown as () => NumberReply<0 | 1>
 } as const satisfies Command;
 
 
