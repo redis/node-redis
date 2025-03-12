@@ -72,27 +72,27 @@ describe('HSETEX parseCommand', () => {
 describe.skip('HSETEX call', () => {
     testUtils.testWithClientIfVersionWithinRange([[8], 'LATEST'], 'hSetEx calls', async client => {
       assert.deepEqual(
-        await client.hSetEx('key',  ['f1', 'f2'], {expiration: {type: "EX", value: 500}, mode: "FNX"}),
+        await client.hSetEx('key_hsetex_call',  ['field1', 'value1'], {expiration: {type: "EX", value: 500}, mode: "FNX"}),
         1
       );
 
       assert.deepEqual(
-        await client.hSetEx('key', ['field1', 'value1', 'field2', 'value2'], {expiration: {type: "EX", value: 500}, mode: "FXX"}),
+        await client.hSetEx('key_hsetex_call', ['field1', 'value1', 'field2', 'value2'], {expiration: {type: "EX", value: 500}, mode: "FXX"}),
         0
       );
 
       assert.deepEqual(
-        await client.hSetEx('key', ['field1', 'value1', 'field2', 'value2'], {expiration: {type: "EX", value: 500}, mode: "FNX"}),
+        await client.hSetEx('key_hsetex_call', ['field1', 'value1', 'field2', 'value2'], {expiration: {type: "EX", value: 500}, mode: "FNX"}),
+        0
+      );
+
+      assert.deepEqual(
+        await client.hSetEx('key_hsetex_call', ['field2', 'value2'], {expiration: {type: "EX", value: 500}, mode: "FNX"}),
         1
       );
 
       assert.deepEqual(
-        await client.hSetEx('key', ['field2', 'value2'], {expiration: {type: "EX", value: 500}, mode: "FNX"}),
-        1
-      );
-
-      assert.deepEqual(
-        await client.hSetEx('key', ['field1', 'value1', 'field2', 'value2'], {expiration: {type: "EX", value: 500}, mode: "FXX"}),
+        await client.hSetEx('key_hsetex_call', ['field1', 'value1', 'field2', 'value2'], {expiration: {type: "EX", value: 500}, mode: "FXX"}),
         1
       );
     }, GLOBAL.SERVERS.OPEN);
