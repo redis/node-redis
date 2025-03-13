@@ -197,6 +197,11 @@ async function steadyState(frame: SentinelFramework) {
   
         await assert.doesNotReject(sentinel.get('x'));
       });
+
+      it('failed to connect', async function() {
+        sentinel = frame.getSentinelClient({sentinelRootNodes: [{host: "127.0.0.1", port: 1010}], maxCommandRediscovers: 0})
+        await assert.rejects(sentinel.connect());
+      });
   
       it('try to connect multiple times', async function () {
         sentinel = frame.getSentinelClient();

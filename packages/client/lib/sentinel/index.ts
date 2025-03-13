@@ -682,9 +682,10 @@ class RedisSentinelInternal<
 
   async #connect() {
     let count = 0;
-    while (true) {
+    while (true) {      
       this.#trace("starting connect loop");
 
+      count+=1;      
       if (this.#destroy) {
         this.#trace("in #connect and want to destroy")
         return;
@@ -1106,10 +1107,12 @@ class RedisSentinelInternal<
       this.#trace(`transform: opening a new master`);
       const masterPromises = [];
       const masterWatches: Array<boolean> = [];
+      const watchEpochs: Array<number|undefined> = [];
 
       this.#trace(`transform: destroying old masters if open`);
       for (const client of this.#masterClients) {
         masterWatches.push(client.isWatching);
+        watchEpochs.push(client.watchEpoch);
 
         if (client.isOpen) {
           client.destroy()
@@ -1135,6 +1138,7 @@ class RedisSentinelInternal<
         });
 
         if (masterWatches[i]) {
+          client.setWatchEpoch(watchEpochs[i])
           client.setDirtyWatch("sentinel config changed in middle of a WATCH Transaction");
         }
         this.#masterClients.push(client);
