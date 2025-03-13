@@ -325,6 +325,14 @@ export default class RedisClient<
     return this._self.#watchEpoch !== undefined;
   }
 
+  get watchEpoch() {
+    return this._self.#watchEpoch
+  }
+
+  setWatchEpoch(watchEpoch: number | undefined) {
+    this._self.#watchEpoch = watchEpoch
+  }
+
   setDirtyWatch(msg: string) {
     this._self.#dirtyWatch = msg;
   }
