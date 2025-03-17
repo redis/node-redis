@@ -11,6 +11,7 @@
   },
   "devDependencies": {
     "@types/yargs": "^17.0.32",
-    "yargs": "^17.7.2"
+    "yargs": "^17.7.2",
+    "fast-check": "^4.0.0"
   }
 }
