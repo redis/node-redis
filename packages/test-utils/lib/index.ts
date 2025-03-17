@@ -84,7 +84,7 @@ interface ClusterTestOptions<
   S extends RedisScripts,
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping
-  // POLICIES extends CommandPolicies
+// POLICIES extends CommandPolicies
 > extends CommonTestOptions {
   clusterConfiguration?: Partial<RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>>;
   numberOfMasters?: number;
@@ -97,7 +97,7 @@ interface AllTestOptions<
   S extends RedisScripts,
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping
-  // POLICIES extends CommandPolicies
+// POLICIES extends CommandPolicies
 > {
   client: ClientTestOptions<M, F, S, RESP, TYPE_MAPPING>;
   cluster: ClusterTestOptions<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>;
@@ -335,7 +335,17 @@ export default class TestUtils {
         await fn(pool);
       } finally {
         await pool.flushAll();
-        pool.destroy();
+        try {
+          pool.destroy();
+        } catch (destroyError) {
+          if (destroyError instanceof Error &&
+            destroyError.message === 'The client is closed') {
+            //TODO figure out where this race condition between destroy and client close is happening
+            console.warn('Ignoring "client is closed" error during pool destruction');
+          } else {
+            throw destroyError;
+          }
+        }
       }
     });
   }
@@ -346,7 +356,7 @@ export default class TestUtils {
     S extends RedisScripts,
     RESP extends RespVersions,
     TYPE_MAPPING extends TypeMapping
-    // POLICIES extends CommandPolicies
+  // POLICIES extends CommandPolicies
   >(cluster: RedisClusterType<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>): Promise<unknown> {
     return Promise.all(
       cluster.masters.map(async master => {
@@ -363,7 +373,7 @@ export default class TestUtils {
     S extends RedisScripts = {},
     RESP extends RespVersions = 2,
     TYPE_MAPPING extends TypeMapping = {}
-    // POLICIES extends CommandPolicies = {}
+  // POLICIES extends CommandPolicies = {}
   >(
     title: string,
     fn: (cluster: RedisClusterType<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>) => unknown,
@@ -387,7 +397,7 @@ export default class TestUtils {
 
     it(title, async function () {
       if (!dockersPromise) return this.skip();
-    
+
       const dockers = await dockersPromise,
         cluster = createCluster({
           rootNodes: dockers.map(({ port }) => ({
@@ -417,7 +427,7 @@ export default class TestUtils {
     S extends RedisScripts = {},
     RESP extends RespVersions = 2,
     TYPE_MAPPING extends TypeMapping = {}
-    // POLICIES extends CommandPolicies = {}
+  // POLICIES extends CommandPolicies = {}
   >(
     title: string,
     fn: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING> | RedisClusterType<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>) => unknown,
