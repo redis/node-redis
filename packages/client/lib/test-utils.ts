@@ -13,8 +13,6 @@ const utils = TestUtils.createFromConfig({
 
 export default utils;
 
-export const sleep = (delay) => new Promise((resolve: any) => setTimeout((resolve), delay))
-
 const DEBUG_MODE_ARGS = utils.isVersionGreaterThan([7]) ?
   ['--enable-debug-command', 'yes'] :
   [];

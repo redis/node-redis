@@ -1,7 +1,8 @@
 import { strict as assert } from 'node:assert';
-import testUtils,{ GLOBAL, sleep } from '../test-utils';
+import testUtils,{ GLOBAL } from '../test-utils';
 import { BasicCommandParser } from '../client/parser';
 import HGETEX from './HGETEX';
+import { setTimeout } from 'timers/promises';
 
 describe('HGETEX parseCommand', () => {
   it('hGetEx parseCommand base', () => {
@@ -36,18 +37,17 @@ describe('HGETEX parseCommand', () => {
 });
 
 
-// TODO: enable when new test container is released
-describe.skip('HGETEX call', () => {
+describe('HGETEX call', () => {
     testUtils.testWithClientIfVersionWithinRange([[8], 'LATEST'], 'hGetEx empty single field', async client => {
       assert.deepEqual(
-        await client.hGetEx('key', 'filed1', {expiration: 'PERSIST'}),
+        await client.hGetEx('key', 'field1', {expiration: 'PERSIST'}),
         [null]
       );
     }, GLOBAL.SERVERS.OPEN);
   
     testUtils.testWithClientIfVersionWithinRange([[8], 'LATEST'], 'hGetEx empty multiple fields', async client => {
       assert.deepEqual(
-        await client.hGetEx('key', ['filed1', 'field2'], {expiration: 'PERSIST'}),
+        await client.hGetEx('key', ['field1', 'field2'], {expiration: 'PERSIST'}),
         [null, null]
       );
     }, GLOBAL.SERVERS.OPEN);
@@ -55,11 +55,10 @@ describe.skip('HGETEX call', () => {
     testUtils.testWithClientIfVersionWithinRange([[8], 'LATEST'], 'hGetEx set expiry', async client => {
         await client.hSet('key', 'field', 'value')
         assert.deepEqual(
-            await client.hGetEx('key', 'field', {expiration: {type: 'PX', value: 500}}),
+            await client.hGetEx('key', 'field', {expiration: {type: 'PX', value: 50}}),
             ['value']
         );
-
-        await sleep(600)
+        await setTimeout(100)
         assert.deepEqual(
             await client.hGet('key', 'field'),
             null
@@ -68,9 +67,9 @@ describe.skip('HGETEX call', () => {
 
     testUtils.testWithClientIfVersionWithinRange([[8], 'LATEST'], 'gGetEx set expiry PERSIST', async client => {
         await client.hSet('key', 'field', 'value')
-        await client.hGetEx('key', 'field', {expiration: {type: 'PX', value: 500}})
+        await client.hGetEx('key', 'field', {expiration: {type: 'PX', value: 50}})
         await client.hGetEx('key', 'field', {expiration: 'PERSIST'})
-        await sleep(600)
+        await setTimeout(100)
         assert.deepEqual(
             await client.hGet('key', 'field'),
             'value'

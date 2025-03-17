@@ -18,8 +18,7 @@ describe('HGETDEL parseCommand', () => {
 });
 
 
-// TODO: enable when new test container is released
-describe.skip('HGETDEL call', () => {
+describe('HGETDEL call', () => {
   testUtils.testWithClientIfVersionWithinRange([[8], 'LATEST'], 'hGetDel empty single field', async client => {
     assert.deepEqual(
         await client.hGetDel('key', 'filed1'),
@@ -37,7 +36,7 @@ describe.skip('HGETDEL call', () => {
   testUtils.testWithClientIfVersionWithinRange([[8], 'LATEST'], 'hGetDel partially populated multiple fields', async client => {
     await client.hSet('key', 'field1', 'value1')
     assert.deepEqual(
-        await client.hGetDel('key', ['filed1', 'field2']),
+        await client.hGetDel('key', ['field1', 'field2']),
         ['value1', null]
     );
     

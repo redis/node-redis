@@ -1,5 +1,5 @@
 import { strict as assert } from 'node:assert';
-import testUtils,{ GLOBAL, sleep } from '../test-utils';
+import testUtils,{ GLOBAL } from '../test-utils';
 import { BasicCommandParser } from '../client/parser';
 import HSETEX from './HSETEX';
 
@@ -68,8 +68,7 @@ describe('HSETEX parseCommand', () => {
 });
 
 
-// TODO: enable when new test container is released
-describe.skip('HSETEX call', () => {
+describe('HSETEX call', () => {
     testUtils.testWithClientIfVersionWithinRange([[8], 'LATEST'], 'hSetEx calls', async client => {
       assert.deepEqual(
         await client.hSetEx('key_hsetex_call',  ['field1', 'value1'], {expiration: {type: "EX", value: 500}, mode: "FNX"}),
