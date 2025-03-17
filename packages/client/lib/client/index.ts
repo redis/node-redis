@@ -82,7 +82,20 @@ export interface RedisClientOptions<
    */
   commandOptions?: CommandOptions<TYPE_MAPPING>;
   /**
-   * TODO
+   * Client-side Caching configuration
+   * 
+   * Enables client-side caching functionality for the client to reduce network
+   * round-trips and improve performance for frequently accessed data.
+   * 
+   * You can either:
+   * 1. Provide an instance that implements the `ClientSideCacheProvider` abstract class
+   *    for complete control over cache behavior, or
+   * 2. Provide a configuration object (`ClientSideCacheConfig`) to customize the
+   *    built-in cache implementation with your preferred settings
+   * 
+   * 
+   * @see {@link ClientSideCacheProvider} - Abstract class for implementing custom cache providers
+   * @see {@link ClientSideCacheConfig} - Configuration options for the built-in cache implementation
    */
   clientSideCache?: ClientSideCacheProvider | ClientSideCacheConfig;
 }

@@ -62,10 +62,24 @@ export interface RedisSentinelOptions<
    * When `false`, the sentinel object will wait for the first available client from the pool.
    */
   reserveClient?: boolean;
+  
   /**
-   * TODO
+   * Client-side Caching configuration
+   * 
+   * Enables client-side caching functionality for the client to reduce network
+   * round-trips and improve performance for frequently accessed data.
+   * 
+   * You can either:
+   * 1. Provide an instance that implements the `PooledClientSideCacheProvider` abstract class
+   *    for complete control over cache behavior, or
+   * 2. Provide a configuration object (`ClientSideCacheConfig`) to customize the
+   *    built-in cache implementation with your preferred settings
+   * 
+   * 
+   * @see {@link PooledClientSideCacheProvider} - Abstract class for implementing custom pooled cache providers
+   * @see {@link ClientSideCacheConfig} - Configuration options for the built-in cache implementation
    */
-  clientSideCache?: PooledClientSideCacheProvider | ClientSideCacheConfig;
+   clientSideCache?: PooledClientSideCacheProvider | ClientSideCacheConfig;
 }
 
 export interface SentinelCommander<

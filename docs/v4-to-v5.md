@@ -225,6 +225,8 @@ In v5, any unwritten commands (in the same pipeline) will be discarded.
 
 - `FT.SUGDEL`: [^boolean-to-number]
 - `FT.CURSOR READ`: `cursor` type changed from `number` to `string` (in and out) to avoid issues when the number is bigger than `Number.MAX_SAFE_INTEGER`. See [here](https://github.com/redis/node-redis/issues/2561).
+- `FT.PROFILE`: `profile` type is now `ReplyUnion`, which preserves the server's original response format. This change helps prevent issues with future updates to the debug response structure.
+- `FT.SUGGET`: Since Redis 8, the server returns `[]` instead of `null` when there are no suggestions
 
 ### Time Series
 
