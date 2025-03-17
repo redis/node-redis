@@ -21,6 +21,7 @@
     "release-it": "^17.0.3",
     "tsx": "^4.7.0",
     "typedoc": "^0.25.7",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "ts-node": "^10.9.2"
   }
 }

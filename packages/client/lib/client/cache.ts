@@ -24,12 +24,12 @@ interface ClientSideCacheEntry {
   validate(): boolean;
 }
 
-function generateCacheKey(redisArgs: ReadonlyArray<RedisArgument>): string {
-  const tmp = new Array(redisArgs.length*2);
+export function generateCacheKey(redisArgs: ReadonlyArray<RedisArgument>): string {
+  const tmp = new Array(redisArgs.length * 2);
 
   for (let i = 0; i < redisArgs.length; i++) {
     tmp[i] = redisArgs[i].length;
-    tmp[i+redisArgs.length] = redisArgs[i];
+    tmp[i + redisArgs.length] = redisArgs[i];
   }
 
   return tmp.join('_');
@@ -155,7 +155,7 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
       }
     } else { // 3/3a
       this.#cacheMiss();
-      
+
       const promise = fn();
 
       cacheEntry = this.createPromiseEntry(client, promise);
@@ -167,7 +167,7 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
         if (cacheEntry.validate()) { // on error, have to remove promise from cache
           this.delete(cacheKey!);
         }
-        
+
         throw err;
       }
     }
@@ -187,7 +187,7 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
       this.set(cacheKey, cacheEntry, parser.keys);
       this.emit("cached-key", cacheKey);
     } else {
-//      console.log("cache entry for key got invalidated between execution and saving, so not saving");
+      //      console.log("cache entry for key got invalidated between execution and saving, so not saving");
     }
 
     return structuredClone(val);
@@ -206,7 +206,7 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
     }
 
     const keySet = this.#keyToCacheKeySetMap.get(key.toString());
-    if (keySet) {     
+    if (keySet) {
       for (const cacheKey of keySet) {
         const entry = this.#cacheKeyToEntryMap.get(cacheKey);
         if (entry) {
@@ -371,8 +371,8 @@ export abstract class PooledClientSideCacheProvider extends BasicClientSideCache
     }
 
     return super.has(cacheKey);
-  }  
-  
+  }
+
   onPoolClose() {
     this.clear();
   };
@@ -419,7 +419,7 @@ class PooledClientSideCacheEntryPromise extends ClientSideCacheEntryPromise {
 
   override validate(): boolean {
     let ret = super.validate();
-    
+
     return ret && this.#creator.client.isReady && this.#creator.client.socketEpoch == this.#creator.epoch
   }
 }
@@ -445,7 +445,7 @@ export class PooledNoRedirectClientSideCache extends BasicPooledClientSideCache 
   }
 
   // don't clear cache on error here
-  override onError() {}
+  override onError() { }
 
-  override onClose() {}
+  override onClose() { }
 }
