@@ -229,7 +229,7 @@ export default class TestUtils {
     title: string,
     fn: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>) => unknown,
     options: ClientTestOptions<M, F, S, RESP, TYPE_MAPPING>,
-    skip?: boolean,
+    skipTest?: boolean,
   ): void {
     let dockerPromise: ReturnType<typeof spawnRedisServer>;
     if (this.isVersionGreaterThan(options.minimumDockerVersion)) {
@@ -243,7 +243,7 @@ export default class TestUtils {
     }
 
     it(title, async function () {
-      if (skip) return this.skip();
+      if (skipTest) return this.skip();
       if (!dockerPromise) return this.skip();
 
       const client = createClient({
@@ -285,11 +285,11 @@ export default class TestUtils {
     title: string,
     fn: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>) => unknown,
     options: ClientTestOptions<M, F, S, RESP, TYPE_MAPPING>,
-    skip?: boolean
+    skipTest?: boolean
   ): void {
 
     if (this.isVersionInRange(range[0], range[1] === 'LATEST' ? [Infinity, Infinity, Infinity] : range[1])) {
-      return this.testWithClient(`${title}  [${range[0].join('.')}] - [${(range[1] === 'LATEST') ? range[1] : range[1].join(".")}] `, fn, options, skip)
+      return this.testWithClient(`${title}  [${range[0].join('.')}] - [${(range[1] === 'LATEST') ? range[1] : range[1].join(".")}] `, fn, options, skipTest)
     } else {
       console.warn(`Skipping test ${title} because server version ${this.#VERSION_NUMBERS.join('.')} is not within range ${range[0].join(".")} - ${range[1] !== 'LATEST' ? range[1].join(".") : 'LATEST'}`)
     }
