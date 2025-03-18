@@ -54,6 +54,7 @@ interface TestUtilsConfig {
 interface CommonTestOptions {
   serverArguments: Array<string>;
   minimumDockerVersion?: Array<number>;
+  skipTest?: boolean;
 }
 
 interface ClientTestOptions<
@@ -228,8 +229,7 @@ export default class TestUtils {
   >(
     title: string,
     fn: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>) => unknown,
-    options: ClientTestOptions<M, F, S, RESP, TYPE_MAPPING>,
-    skipTest?: boolean,
+    options: ClientTestOptions<M, F, S, RESP, TYPE_MAPPING>
   ): void {
     let dockerPromise: ReturnType<typeof spawnRedisServer>;
     if (this.isVersionGreaterThan(options.minimumDockerVersion)) {
@@ -243,7 +243,7 @@ export default class TestUtils {
     }
 
     it(title, async function () {
-      if (skipTest) return this.skip();
+      if (options.skipTest) return this.skip();
       if (!dockerPromise) return this.skip();
 
       const client = createClient({
@@ -284,12 +284,11 @@ export default class TestUtils {
     range: ([minVersion: Array<number>, maxVersion: Array<number>] | [minVersion: Array<number>, 'LATEST']),
     title: string,
     fn: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>) => unknown,
-    options: ClientTestOptions<M, F, S, RESP, TYPE_MAPPING>,
-    skipTest?: boolean
+    options: ClientTestOptions<M, F, S, RESP, TYPE_MAPPING>
   ): void {
 
     if (this.isVersionInRange(range[0], range[1] === 'LATEST' ? [Infinity, Infinity, Infinity] : range[1])) {
-      return this.testWithClient(`${title}  [${range[0].join('.')}] - [${(range[1] === 'LATEST') ? range[1] : range[1].join(".")}] `, fn, options, skipTest)
+      return this.testWithClient(`${title}  [${range[0].join('.')}] - [${(range[1] === 'LATEST') ? range[1] : range[1].join(".")}] `, fn, options)
     } else {
       console.warn(`Skipping test ${title} because server version ${this.#VERSION_NUMBERS.join('.')} is not within range ${range[0].join(".")} - ${range[1] !== 'LATEST' ? range[1].join(".") : 'LATEST'}`)
     }
@@ -319,6 +318,7 @@ export default class TestUtils {
     }
 
     it(title, async function () {
+      if (options.skipTest) return this.skip();
       if (!dockerPromise) return this.skip();
 
       const pool = createClientPool({
