@@ -54,6 +54,7 @@ interface TestUtilsConfig {
 interface CommonTestOptions {
   serverArguments: Array<string>;
   minimumDockerVersion?: Array<number>;
+  skipTest?: boolean;
 }
 
 interface ClientTestOptions<
@@ -242,6 +243,7 @@ export default class TestUtils {
     }
 
     it(title, async function () {
+      if (options.skipTest) return this.skip();
       if (!dockerPromise) return this.skip();
 
       const client = createClient({
@@ -316,6 +318,7 @@ export default class TestUtils {
     }
 
     it(title, async function () {
+      if (options.skipTest) return this.skip();
       if (!dockerPromise) return this.skip();
 
       const pool = createClientPool({
