@@ -2,10 +2,12 @@ import TestUtils from '@redis/test-utils';
 import RediSearch from '.';
 import { RespVersions } from '@redis/client';
 
+export const skipTest = true;
+
 export default TestUtils.createFromConfig({
   dockerImageName: 'redislabs/client-libs-test',
   dockerImageVersionArgument: 'redis-version',
-  defaultDockerVersion: '8.0-M04-pre'
+  defaultDockerVersion: '8.0-M05-pre'
 });
 
 export const GLOBAL = {

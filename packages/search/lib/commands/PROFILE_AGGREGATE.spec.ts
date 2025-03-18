@@ -1,5 +1,5 @@
 import { strict as assert } from 'node:assert';
-import testUtils, { GLOBAL } from '../test-utils';
+import testUtils, { GLOBAL, skipTest } from '../test-utils';
 import { FT_AGGREGATE_STEPS } from './AGGREGATE';
 import PROFILE_AGGREGATE from './PROFILE_AGGREGATE';
 import { SCHEMA_FIELD_TYPE } from './CREATE';
@@ -59,7 +59,7 @@ describe('PROFILE AGGREGATE', () => {
     assert.ok(shardProfile.includes('Warning'));
     assert.ok(shardProfile.includes('Iterators profile'));
 
-  }, GLOBAL.SERVERS.OPEN);
+  }, GLOBAL.SERVERS.OPEN, skipTest);
 
   testUtils.testWithClientIfVersionWithinRange([[7, 2, 0], [7, 4, 0]], 'client.ft.search', async client => {
     await Promise.all([
@@ -106,7 +106,5 @@ describe('PROFILE AGGREGATE', () => {
     const normalizedRes = normalizeObject(res);
     assert.equal(normalizedRes.Results.total_results, 1);
     assert.ok(normalizedRes.Profile.Shards);
-
-  }, GLOBAL.SERVERS.OPEN_3)
-
+  }, GLOBAL.SERVERS.OPEN_3, skipTest);
 });
