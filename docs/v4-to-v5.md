@@ -211,10 +211,6 @@ In v5, any unwritten commands (in the same pipeline) will be discarded.
 
 - `TOPK.QUERY`: `Array<number>` -> `Array<boolean>`
 
-### Graph
-
-- `GRAPH.SLOWLOG`: `timestamp` has been changed from `Date` to `number`
-
 ### JSON
 
 - `JSON.ARRINDEX`: `start` and `end` arguments moved to `{ range: { start: number; end: number; }; }` [^future-proofing]

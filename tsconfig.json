@@ -11,9 +11,6 @@
       "path": "./packages/bloom"
     },
     {
-      "path": "./packages/graph"
-    },
-    {
       "path": "./packages/json"
     },
     {

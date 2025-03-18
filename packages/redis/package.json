@@ -12,7 +12,6 @@
   "dependencies": {
     "@redis/bloom": "5.0.0-next.6",
     "@redis/client": "5.0.0-next.6",
-    "@redis/graph": "5.0.0-next.6",
     "@redis/json": "5.0.0-next.6",
     "@redis/search": "5.0.0-next.6",
     "@redis/time-series": "5.0.0-next.6"
