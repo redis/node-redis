@@ -269,7 +269,7 @@ export function pushVariadicArgument(
   return args;
 }
 
-export function   parseOptionalVariadicArgument(
+export function parseOptionalVariadicArgument(
   parser: CommandParser,
   name: RedisArgument,
   value?: RedisVariadicArgument

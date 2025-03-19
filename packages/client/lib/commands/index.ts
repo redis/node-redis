@@ -138,6 +138,8 @@ import HEXPIREAT from './HEXPIREAT';
 import HEXPIRETIME from './HEXPIRETIME';
 import HGET from './HGET';
 import HGETALL from './HGETALL';
+import HGETDEL from './HGETDEL';
+import HGETEX from './HGETEX';
 import HINCRBY from './HINCRBY';
 import HINCRBYFLOAT from './HINCRBYFLOAT';
 import HKEYS from './HKEYS';
@@ -154,6 +156,7 @@ import HRANDFIELD from './HRANDFIELD';
 import HSCAN from './HSCAN';
 import HSCAN_NOVALUES from './HSCAN_NOVALUES';
 import HSET from './HSET';
+import HSETEX from './HSETEX';
 import HSETNX from './HSETNX';
 import HSTRLEN from './HSTRLEN';
 import HTTL from './HTTL';
@@ -621,6 +624,10 @@ export default {
   hGet: HGET,
   HGETALL,
   hGetAll: HGETALL,
+  HGETDEL,
+  hGetDel: HGETDEL,
+  HGETEX,
+  hGetEx: HGETEX,
   HINCRBY,
   hIncrBy: HINCRBY,
   HINCRBYFLOAT,
@@ -653,6 +660,8 @@ export default {
   hScanNoValues: HSCAN_NOVALUES,
   HSET,
   hSet: HSET,
+  HSETEX,
+  hSetEx: HSETEX,
   HSETNX,
   hSetNX: HSETNX,
   HSTRLEN,
