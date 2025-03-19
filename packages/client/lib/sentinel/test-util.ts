@@ -55,7 +55,7 @@ export interface RedisServerDocker {
 abstract class DockerBase {
   async spawnRedisServerDocker({ image, version }: RedisServerDockerConfig, serverArguments: Array<string>, environment?: string): Promise<RedisServerDocker> {
     const port = (await portIterator.next()).value;
-    let cmdLine = `docker run --init -d --network host `;
+    let cmdLine = `docker run --init -d --network host -e PORT=${port.toString()} `;
     if (environment !== undefined) {
       cmdLine += `-e ${environment} `;
     }
@@ -250,13 +250,13 @@ export class SentinelFramework extends DockerBase {
   }
 
   protected async spawnRedisSentinelNodeDocker() {
-    const imageInfo: RedisServerDockerConfig = this.config.nodeDockerConfig ?? { image: "redis/redis-stack-server", version: "latest" };
+    const imageInfo: RedisServerDockerConfig = this.config.nodeDockerConfig ?? { image: "redislabs/client-libs-test", version: "8.0-M05-pre" };
     const serverArguments: Array<string> = this.config.nodeServerArguments ?? [];
     let environment;
     if (this.config.password !== undefined) {
-      environment = `REDIS_ARGS="{port} --requirepass ${this.config.password}"`;
+      environment = `REDIS_PASSWORD=${this.config.password}`;
     } else {
-      environment = 'REDIS_ARGS="{port}"';
+      environment = undefined;
     }
   
     const docker = await this.spawnRedisServerDocker(imageInfo, serverArguments, environment);
@@ -281,9 +281,6 @@ export class SentinelFramework extends DockerBase {
     for (let i = 0; i < (this.config.numberOfNodes ?? 0) - 1; i++) {
       promises.push(
         this.spawnRedisSentinelNodeDocker().then(async node => {
-          if (this.config.password !== undefined) {
-            await node.client.configSet({'masterauth': this.config.password})
-          }
           await node.client.replicaOf('127.0.0.1', master.docker.port);
           return node;
         })
@@ -406,9 +403,6 @@ export class SentinelFramework extends DockerBase {
     const masterPort = await this.getMasterPort();
     const newNode = await this.spawnRedisSentinelNodeDocker();
 
-    if (this.config.password !== undefined) {
-      await newNode.client.configSet({'masterauth': this.config.password})
-    }
     await newNode.client.replicaOf('127.0.0.1', masterPort);
 
     this.#nodeList.push(newNode);

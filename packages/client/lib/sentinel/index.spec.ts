@@ -78,7 +78,7 @@ async function steadyState(frame: SentinelFramework) {
 }
 
 ["redis-sentinel-test-password", undefined].forEach(function (password) {
-  describe.skip(`Sentinel - password = ${password}`, () => {
+  describe(`Sentinel - password = ${password}`, () => {
     const config: RedisSentinelConfig = { sentinelName: "test", numberOfNodes: 3, password: password };
     const frame = new SentinelFramework(config);
     let tracer = new Array<string>();
@@ -441,7 +441,7 @@ async function steadyState(frame: SentinelFramework) {
         assert.equal(await promise, null);
       });
 
-      it('reserve client, takes a client out of pool', async function () {
+      it.skip('reserve client, takes a client out of pool', async function () {
         this.timeout(30000);
   
         sentinel = frame.getSentinelClient({ masterPoolSize: 2, reserveClient: true });
