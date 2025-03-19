@@ -45,7 +45,7 @@ describe('PROFILE AGGREGATE', () => {
     const res = await client.ft.profileAggregate('index', '*');
 
     const normalizedRes = normalizeObject(res);
-    assert.equal(normalizedRes.results.total, 1);
+    assert.equal(normalizedRes.results.total, 2);
 
     assert.ok(normalizedRes.profile[0] === 'Shards');
     assert.ok(Array.isArray(normalizedRes.profile[1]));
@@ -59,7 +59,7 @@ describe('PROFILE AGGREGATE', () => {
     assert.ok(shardProfile.includes('Warning'));
     assert.ok(shardProfile.includes('Iterators profile'));
 
-  }, Object.assign(GLOBAL.SERVERS.OPEN, {skipTest: true}));
+  }, GLOBAL.SERVERS.OPEN);
 
   testUtils.testWithClientIfVersionWithinRange([[7, 2, 0], [7, 4, 0]], 'client.ft.search', async client => {
     await Promise.all([
@@ -104,7 +104,7 @@ describe('PROFILE AGGREGATE', () => {
     const res = await client.ft.profileAggregate('index', '*');
 
     const normalizedRes = normalizeObject(res);
-    assert.equal(normalizedRes.Results.total_results, 1);
+    assert.equal(normalizedRes.Results.total_results, 2);
     assert.ok(normalizedRes.Profile.Shards);
-  }, Object.assign(GLOBAL.SERVERS.OPEN_3, {skipTest: true}));
+  }, GLOBAL.SERVERS.OPEN_3);
 });
