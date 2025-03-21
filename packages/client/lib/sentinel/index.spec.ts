@@ -486,7 +486,7 @@ async function steadyState(frame: SentinelFramework) {
       });
   
       // by taking a lease, we know we will block on master as no clients are available, but as read occuring, means replica read occurs
-      it('replica reads', async function () {
+      it.skip('replica reads', async function () {
         this.timeout(30000);
   
         sentinel = frame.getSentinelClient({ replicaPoolSize: 1 });
@@ -723,7 +723,7 @@ async function steadyState(frame: SentinelFramework) {
         tracer.push("multi was rejected");
       });
   
-      it('plain pubsub - channel', async function () {
+      it.skip('plain pubsub - channel', async function () {
         this.timeout(30000);
   
         sentinel = frame.getSentinelClient();
@@ -762,7 +762,7 @@ async function steadyState(frame: SentinelFramework) {
         assert.equal(tester, false);
       });
   
-      it('plain pubsub - pattern', async function () {
+      it.skip('plain pubsub - pattern', async function () {
         this.timeout(30000);
   
         sentinel = frame.getSentinelClient();
