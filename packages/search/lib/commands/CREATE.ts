@@ -61,7 +61,7 @@ export type SchemaVectorFieldAlgorithm = typeof SCHEMA_VECTOR_FIELD_ALGORITHM[ke
 
 interface SchemaVectorField extends SchemaField<typeof SCHEMA_FIELD_TYPE['VECTOR']> {
   ALGORITHM: SchemaVectorFieldAlgorithm;
-  TYPE: string;
+  TYPE: 'FLOAT32' | 'FLOAT64' | 'BFLOAT16' | 'FLOAT16' | 'INT8' | 'UINT8';
   DIM: number;
   DISTANCE_METRIC: 'L2' | 'IP' | 'COSINE';
   INITIAL_CAP?: number;
