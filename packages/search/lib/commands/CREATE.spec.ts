@@ -474,7 +474,7 @@ describe('FT.CREATE', () => {
     );
   }, GLOBAL.SERVERS.OPEN);
 
-  testUtils.testWithClientIfVersionWithinRange([[7], 'LATEST'], 'client.ft.create vector types floats', async client => {
+  testUtils.testWithClientIfVersionWithinRange([[7], 'LATEST'], 'client.ft.create vector types big floats', async client => {
     assert.equal(
       await client.ft.create("index_float32", {
         field: {
@@ -500,7 +500,10 @@ describe('FT.CREATE', () => {
       }),
       "OK"
     );
+  }, GLOBAL.SERVERS.OPEN);
 
+
+  testUtils.testWithClientIfVersionWithinRange([[8], 'LATEST'], 'client.ft.create vector types small floats and ints', async client => {
     assert.equal(
       await client.ft.create("index_float16", {
         field: {
@@ -526,10 +529,7 @@ describe('FT.CREATE', () => {
       }),
       "OK"
     );
-  }, GLOBAL.SERVERS.OPEN);
-
-
-  testUtils.testWithClientIfVersionWithinRange([[8], 'LATEST'], 'client.ft.create vector types ints', async client => {
+   
     assert.equal(
       await client.ft.create("index_int8", {
         field: {
