@@ -473,4 +473,87 @@ describe('FT.CREATE', () => {
       'OK'
     );
   }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClientIfVersionWithinRange([[7], 'LATEST'], 'client.ft.create vector types floats', async client => {
+    assert.equal(
+      await client.ft.create("index_float32", {
+        field: {
+          ALGORITHM: "FLAT",
+          TYPE: "FLOAT32",
+          DIM: 1,
+          DISTANCE_METRIC: 'COSINE',
+          type: 'VECTOR'
+        },
+      }),
+      "OK"
+    );
+
+    assert.equal(
+      await client.ft.create("index_float64", {
+        field: {
+          ALGORITHM: "FLAT",
+          TYPE: "FLOAT64",
+          DIM: 1,
+          DISTANCE_METRIC: 'COSINE',
+          type: 'VECTOR'
+        },
+      }),
+      "OK"
+    );
+
+    assert.equal(
+      await client.ft.create("index_float16", {
+        field: {
+          ALGORITHM: "FLAT",
+          TYPE: "FLOAT16",
+          DIM: 1,
+          DISTANCE_METRIC: 'COSINE',
+          type: 'VECTOR'
+        },
+      }),
+      "OK"
+    );
+
+    assert.equal(
+      await client.ft.create("index_bloat16", {
+        field: {
+          ALGORITHM: "FLAT",
+          TYPE: "BFLOAT16",
+          DIM: 1,
+          DISTANCE_METRIC: 'COSINE',
+          type: 'VECTOR'
+        },
+      }),
+      "OK"
+    );
+  }, GLOBAL.SERVERS.OPEN);
+
+
+  testUtils.testWithClientIfVersionWithinRange([[8], 'LATEST'], 'client.ft.create vector types ints', async client => {
+    assert.equal(
+      await client.ft.create("index_int8", {
+        field: {
+          ALGORITHM: "FLAT",
+          TYPE: "INT8",
+          DIM: 1,
+          DISTANCE_METRIC: 'COSINE',
+          type: 'VECTOR'
+        },
+      }),
+      "OK"
+    );
+
+    assert.equal(
+      await client.ft.create("index_uint8", {
+        field: {
+          ALGORITHM: "FLAT",
+          TYPE: "UINT8",
+          DIM: 1,
+          DISTANCE_METRIC: 'COSINE',
+          type: 'VECTOR'
+        },
+      }),
+      "OK"
+    );
+  }, GLOBAL.SERVERS.OPEN);
 });
