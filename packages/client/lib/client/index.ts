@@ -325,6 +325,10 @@ export default class RedisClient<
     return this._self.#watchEpoch !== undefined;
   }
 
+  get isDirtyWatch() {
+    return this._self.#dirtyWatch !== undefined
+  }
+
   setDirtyWatch(msg: string) {
     this._self.#dirtyWatch = msg;
   }
