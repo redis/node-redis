@@ -39,7 +39,7 @@ The first step to using @redis/entraid is choosing the right credentials provide
 
 ```typescript
 import { createClient } from '@redis/client';
-import { EntraIdCredentialsProviderFactory } from '@redis/entraid/dist/lib';
+import { EntraIdCredentialsProviderFactory } from '@redis/entraid';
 
 const provider = EntraIdCredentialsProviderFactory.createForClientCredentials({
   clientId: 'your-client-id',
@@ -86,7 +86,7 @@ const provider = EntraIdCredentialsProviderFactory.createForUserAssignedManagedI
 
 ### DefaultAzureCredential Authentication
 
-tip: see a real sample here: [samples/interactive-browser/index.ts](./samples/interactive-browser/index.ts) 
+tip: see a real sample here: [samples/interactive-browser/index.ts](./samples/interactive-browser/index.ts)
 
 The DefaultAzureCredential from @azure/identity provides a simplified authentication experience that automatically tries different authentication methods based on the environment. This is especially useful for applications that need to work in different environments (local development, CI/CD, and production).
 
@@ -128,7 +128,7 @@ When using the `createForDefaultAzureCredential` method, you need to:
 2. Pass the same parameters to the factory method that you would use with the `getToken()` method:
    - `scopes`: The Redis scope (use the exported `REDIS_SCOPE_DEFAULT` constant)
    - `options`: Any additional options for the getToken method
-   
+
 This factory method creates a wrapper around DefaultAzureCredential that adapts it to the Redis client's
 authentication system, while maintaining all the flexibility of the original Azure Identity authentication.
 
