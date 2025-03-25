@@ -10,11 +10,11 @@
     "!dist/tsconfig.tsbuildinfo"
   ],
   "dependencies": {
-    "@redis/bloom": "5.0.0-next.6",
-    "@redis/client": "5.0.0-next.6",
-    "@redis/json": "5.0.0-next.6",
-    "@redis/search": "5.0.0-next.6",
-    "@redis/time-series": "5.0.0-next.6"
+    "@redis/bloom": "5.0.0-next.7",
+    "@redis/client": "5.0.0-next.7",
+    "@redis/json": "5.0.0-next.7",
+    "@redis/search": "5.0.0-next.7",
+    "@redis/time-series": "5.0.0-next.7"
   },
   "engines": {
     "node": ">= 18"
