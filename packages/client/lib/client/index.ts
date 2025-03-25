@@ -299,6 +299,9 @@ export default class RedisClient<
   #monitorCallback?: MonitorCallback<TYPE_MAPPING>;
   private _self = this;
   private _commandOptions?: CommandOptions<TYPE_MAPPING>;
+  // flag used to annotate that the client 
+  // was in a watch transaction when 
+  // a topology change occured
   #dirtyWatch?: string;
   #epoch: number;
   #watchEpoch?: number; 
