@@ -250,8 +250,6 @@ export default class TestUtils {
         ...options.clientOptions,
         socket: {
           ...options.clientOptions?.socket,
-          // TODO
-          // @ts-ignore
           port: (await dockerPromise).port
         }
       });
@@ -325,8 +323,6 @@ export default class TestUtils {
         ...options.clientOptions,
         socket: {
           ...options.clientOptions?.socket,
-          // TODO
-          // @ts-ignore
           port: (await dockerPromise).port
         }
       }, options.poolOptions);
