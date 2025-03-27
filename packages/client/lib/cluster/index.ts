@@ -13,6 +13,14 @@ import ASKING from '../commands/ASKING';
 import { BasicCommandParser } from '../client/parser';
 import { parseArgs } from '../commands/generic-transformers';
 
+/**
+ * Interface extending CommanderConfig for Redis cluster commands.
+ * @template M - Redis modules type
+ * @template F - Redis functions type
+ * @template S - Redis scripts type
+ * @template RESP - RESP protocol version
+ * @template TYPE_MAPPING - Type mapping for Redis responses
+ */
 interface ClusterCommander<
   M extends RedisModules,
   F extends RedisFunctions,
@@ -24,11 +32,18 @@ interface ClusterCommander<
   commandOptions?: ClusterCommandOptions<TYPE_MAPPING/*, POLICIES*/>;
 }
 
+/**
+ * Type definition for Redis cluster client options.
+ * Omits cluster-specific options from the base client options.
+ */
 export type RedisClusterClientOptions = Omit<
   RedisClientOptions<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping, RedisTcpSocketOptions>,
   keyof ClusterCommander<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping/*, CommandPolicies*/>
 >;
 
+/**
+ * Interface defining options for creating a Redis cluster client.
+ */
 export interface RedisClusterOptions<
   M extends RedisModules = RedisModules,
   F extends RedisFunctions = RedisFunctions,
@@ -68,7 +83,11 @@ export interface RedisClusterOptions<
   nodeAddressMap?: NodeAddressMap;
 }
 
-// remove once request & response policies are ready
+/**
+ * Type mapping cluster commands to their signatures.
+ * @template NAME - The command name
+ * @template COMMAND - The command type
+ */
 type ClusterCommand<
   NAME extends PropertyKey,
   COMMAND extends Command
@@ -84,6 +103,12 @@ type WithCommands<
   [P in keyof typeof COMMANDS as ClusterCommand<P, (typeof COMMANDS)[P]>]: CommandSignature<(typeof COMMANDS)[P], RESP, TYPE_MAPPING>;
 };
 
+/**
+ * Type mapping Redis modules to their command signatures in a cluster context.
+ * @template M - Redis modules type
+ * @template RESP - RESP protocol version
+ * @template TYPE_MAPPING - Type mapping for Redis responses
+ */
 type WithModules<
   M extends RedisModules,
   RESP extends RespVersions,
@@ -94,6 +119,12 @@ type WithModules<
   };
 };
 
+/**
+ * Type mapping Redis functions to their command signatures in a cluster context.
+ * @template F - Redis functions type
+ * @template RESP - RESP protocol version
+ * @template TYPE_MAPPING - Type mapping for Redis responses
+ */
 type WithFunctions<
   F extends RedisFunctions,
   RESP extends RespVersions,
@@ -104,6 +135,12 @@ type WithFunctions<
   };
 };
 
+/**
+ * Type mapping Redis scripts to their command signatures in a cluster context.
+ * @template S - Redis scripts type
+ * @template RESP - RESP protocol version
+ * @template TYPE_MAPPING - Type mapping for Redis responses
+ */
 type WithScripts<
   S extends RedisScripts,
   RESP extends RespVersions,
@@ -112,21 +149,26 @@ type WithScripts<
   [P in keyof S as ClusterCommand<P, S[P]>]: CommandSignature<S[P], RESP, TYPE_MAPPING>;
 };
 
+/**
+ * Type definition for a Redis cluster client with all its extensions.
+ */
 export type RedisClusterType<
   M extends RedisModules = {},
   F extends RedisFunctions = {},
   S extends RedisScripts = {},
   RESP extends RespVersions = 2,
-  TYPE_MAPPING extends TypeMapping = {},
-  // POLICIES extends CommandPolicies = {}
+  TYPE_MAPPING extends TypeMapping = {}
 > = (
-  RedisCluster<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/> &
+  RedisCluster<M, F, S, RESP, TYPE_MAPPING> &
   WithCommands<RESP, TYPE_MAPPING> &
   WithModules<M, RESP, TYPE_MAPPING> &
   WithFunctions<F, RESP, TYPE_MAPPING> &
   WithScripts<S, RESP, TYPE_MAPPING>
 );
 
+/**
+ * Interface defining options for cluster commands.
+ */
 export interface ClusterCommandOptions<
   TYPE_MAPPING extends TypeMapping = TypeMapping
   // POLICIES extends CommandPolicies = CommandPolicies
@@ -134,10 +176,19 @@ export interface ClusterCommandOptions<
   // policies?: POLICIES;
 }
 
+/**
+ * Type for a proxy cluster that can handle any Redis modules, functions, scripts, and RESP versions.
+ */
 type ProxyCluster = RedisCluster<any, any, any, any, any/*, any*/>;
 
+/**
+ * Type for a namespace proxy cluster that contains a reference to the underlying proxy cluster.
+ */
 type NamespaceProxyCluster = { _self: ProxyCluster };
 
+/**
+ * The main Redis cluster client class that handles cluster connections, commands, and pub/sub functionality.
+ */
 export default class RedisCluster<
   M extends RedisModules,
   F extends RedisFunctions,
