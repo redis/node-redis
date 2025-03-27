@@ -18,6 +18,9 @@ import { RedisPoolOptions, RedisClientPool } from './pool';
 import { RedisVariadicArgument, parseArgs, pushVariadicArguments } from '../commands/generic-transformers';
 import { BasicCommandParser, CommandParser } from './parser';
 
+/**
+ * Interface defining options for creating a Redis client.
+ */
 export interface RedisClientOptions<
   M extends RedisModules = RedisModules,
   F extends RedisFunctions = RedisFunctions,
@@ -82,6 +85,11 @@ export interface RedisClientOptions<
   commandOptions?: CommandOptions<TYPE_MAPPING>;
 }
 
+/**
+ * Type mapping Redis commands to their signatures.
+ * @template RESP - RESP protocol version
+ * @template TYPE_MAPPING - Type mapping for Redis responses
+ */
 type WithCommands<
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping
@@ -89,6 +97,12 @@ type WithCommands<
   [P in keyof typeof COMMANDS]: CommandSignature<(typeof COMMANDS)[P], RESP, TYPE_MAPPING>;
 };
 
+/**
+ * Type mapping Redis modules to their command signatures.
+ * @template M - Redis modules type
+ * @template RESP - RESP protocol version
+ * @template TYPE_MAPPING - Type mapping for Redis responses
+ */
 type WithModules<
   M extends RedisModules,
   RESP extends RespVersions,
@@ -99,6 +113,12 @@ type WithModules<
   };
 };
 
+/**
+ * Type mapping Redis functions to their command signatures.
+ * @template F - Redis functions type
+ * @template RESP - RESP protocol version
+ * @template TYPE_MAPPING - Type mapping for Redis responses
+ */
 type WithFunctions<
   F extends RedisFunctions,
   RESP extends RespVersions,
@@ -109,6 +129,12 @@ type WithFunctions<
   };
 };
 
+/**
+ * Type mapping Redis scripts to their command signatures.
+ * @template S - Redis scripts type
+ * @template RESP - RESP protocol version
+ * @template TYPE_MAPPING - Type mapping for Redis responses
+ */
 type WithScripts<
   S extends RedisScripts,
   RESP extends RespVersions,
@@ -117,6 +143,9 @@ type WithScripts<
   [P in keyof S]: CommandSignature<S[P], RESP, TYPE_MAPPING>;
 };
 
+/**
+ * Type combining all Redis client extensions (commands, modules, functions, scripts).
+ */
 export type RedisClientExtensions<
   M extends RedisModules = {},
   F extends RedisFunctions = {},
@@ -130,6 +159,9 @@ export type RedisClientExtensions<
   WithScripts<S, RESP, TYPE_MAPPING>
 );
 
+/**
+ * Type definition for a Redis client with all its extensions.
+ */
 export type RedisClientType<
   M extends RedisModules = {},
   F extends RedisFunctions = {},
@@ -141,16 +173,31 @@ export type RedisClientType<
   RedisClientExtensions<M, F, S, RESP, TYPE_MAPPING>
 );
 
+/**
+ * Type for a proxy client that can handle any Redis modules, functions, scripts, and RESP versions.
+ */
 type ProxyClient = RedisClient<any, any, any, any, any>;
 
+/**
+ * Type for a namespace proxy client that contains a reference to the underlying proxy client.
+ */
 type NamespaceProxyClient = { _self: ProxyClient };
 
+/**
+ * Interface defining options for scan iterators.
+ */
 interface ScanIteratorOptions {
   cursor?: RedisArgument;
 }
 
+/**
+ * Type definition for a monitor callback function.
+ */
 export type MonitorCallback<TYPE_MAPPING extends TypeMapping = TypeMapping> = (reply: ReplyWithTypeMapping<SimpleStringReply, TYPE_MAPPING>) => unknown;
 
+/**
+ * The main Redis client class that handles connections, commands, and pub/sub functionality.
+ */
 export default class RedisClient<
   M extends RedisModules,
   F extends RedisFunctions,

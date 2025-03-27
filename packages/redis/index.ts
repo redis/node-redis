@@ -32,8 +32,15 @@ const modules = {
   ts: RedisTimeSeries
 };
 
+/**
+ * The default Redis modules available in this package.
+ * Includes RedisBloom, RedisJSON, RediSearch, and RedisTimeSeries modules.
+ */
 export type RedisDefaultModules = typeof modules;
 
+/**
+ * Type definition for a Redis client with support for modules, functions, and scripts.
+ */
 export type RedisClientType<
   M extends RedisModules = RedisDefaultModules,
   F extends RedisFunctions = {},
@@ -42,6 +49,11 @@ export type RedisClientType<
   TYPE_MAPPING extends TypeMapping = {}
 > = GenericRedisClientType<M, F, S, RESP, TYPE_MAPPING>;
 
+/**
+ * Creates a new Redis client.
+ * @param options - The options for the Redis client.
+ * @returns A new Redis client.
+ */
 export function createClient<
   M extends RedisModules,
   F extends RedisFunctions,
@@ -60,14 +72,11 @@ export function createClient<
   });
 }
 
-export type RedisClusterType<
-  M extends RedisModules = RedisDefaultModules,
-  F extends RedisFunctions = {},
-  S extends RedisScripts = {},
-  RESP extends RespVersions = 2,
-  TYPE_MAPPING extends TypeMapping = {}
-> = genericRedisClusterType<M, F, S, RESP, TYPE_MAPPING>;
-
+/**
+ * Creates a new Redis cluster client.
+ * @param options - Configuration options for the Redis cluster client
+ * @returns A new Redis cluster client instance
+ */
 export function createCluster<
   M extends RedisModules,
   F extends RedisFunctions,
@@ -86,6 +95,20 @@ export function createCluster<
   });
 }
 
+/**
+ * Type definition for a Redis cluster client.
+ */
+export type RedisClusterType<
+  M extends RedisModules = RedisDefaultModules,
+  F extends RedisFunctions = {},
+  S extends RedisScripts = {},
+  RESP extends RespVersions = 2,
+  TYPE_MAPPING extends TypeMapping = {}
+> = genericRedisClusterType<M, F, S, RESP, TYPE_MAPPING>;
+
+/**
+ * Type definition for a Redis Sentinel client.
+ */
 export type RedisSentinelType<
   M extends RedisModules = RedisDefaultModules,
   F extends RedisFunctions = {},
@@ -94,6 +117,11 @@ export type RedisSentinelType<
   TYPE_MAPPING extends TypeMapping = {}
 > = genericRedisSentinelType<M, F, S, RESP, TYPE_MAPPING>;
 
+/**
+ * Creates a new Redis Sentinel client.
+ * @param options - Configuration options for the Redis Sentinel client
+ * @returns A new Redis Sentinel client instance
+ */
 export function createSentinel<
   M extends RedisModules,
   F extends RedisFunctions,

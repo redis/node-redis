@@ -5,13 +5,22 @@ import { RedisScriptConfig, SHA1 } from '../lua-script';
 import { RESP_TYPES } from './decoder';
 import { VerbatimString } from './verbatim-string';
 
+/**
+ * Type definition for RESP (Redis Serialization Protocol) types.
+ */
 export type RESP_TYPES = typeof RESP_TYPES;
 
+/**
+ * Union type of all possible RESP types.
+ */
 export type RespTypes = RESP_TYPES[keyof RESP_TYPES];
 
 // using interface(s) to allow circular references
 // type X = BlobStringReply | ArrayReply<X>;
 
+/**
+ * Base interface for all RESP types.
+ */
 export interface RespType<
   RESP_TYPE extends RespTypes,
   DEFAULT,
@@ -24,11 +33,17 @@ export interface RespType<
   TYPE_MAPPING: MappedType<TYPE_MAPPING>;
 }
 
+/**
+ * Represents a NULL response in Redis.
+ */
 export interface NullReply extends RespType<
   RESP_TYPES['NULL'],
   null
 > {}
 
+/**
+ * Represents a boolean response in Redis.
+ */
 export interface BooleanReply<
   T extends boolean = boolean
 > extends RespType<
@@ -36,6 +51,9 @@ export interface BooleanReply<
   T
 > {}
 
+/**
+ * Represents a numeric response in Redis.
+ */
 export interface NumberReply<
   T extends number = number
 > extends RespType<
@@ -45,6 +63,9 @@ export interface NumberReply<
   number | string
 > {}
 
+/**
+ * Represents a big number response in Redis.
+ */
 export interface BigNumberReply<
   T extends bigint = bigint
 > extends RespType<
@@ -54,6 +75,9 @@ export interface BigNumberReply<
   bigint | number | string
 > {}
 
+/**
+ * Represents a double-precision floating point response in Redis.
+ */
 export interface DoubleReply<
   T extends number = number
 > extends RespType<
@@ -63,6 +87,9 @@ export interface DoubleReply<
   number | string
 > {}
 
+/**
+ * Represents a simple string response in Redis.
+ */
 export interface SimpleStringReply<
   T extends string = string
 > extends RespType<
@@ -72,6 +99,9 @@ export interface SimpleStringReply<
   string | Buffer
 > {}
 
+/**
+ * Represents a bulk string response in Redis.
+ */
 export interface BlobStringReply<
   T extends string = string
 > extends RespType<
@@ -83,6 +113,9 @@ export interface BlobStringReply<
   toString(): string
 }
 
+/**
+ * Represents a verbatim string response in Redis.
+ */
 export interface VerbatimStringReply<
   T extends string = string
 > extends RespType<
@@ -92,18 +125,27 @@ export interface VerbatimStringReply<
   string | Buffer | VerbatimString
 > {}
 
+/**
+ * Represents a simple error response in Redis.
+ */
 export interface SimpleErrorReply extends RespType<
   RESP_TYPES['SIMPLE_ERROR'],
   SimpleError,
   Buffer
 > {}
 
+/**
+ * Represents a bulk error response in Redis.
+ */
 export interface BlobErrorReply extends RespType<
   RESP_TYPES['BLOB_ERROR'],
   BlobError,
   Buffer
 > {}
 
+/**
+ * Represents an array response in Redis.
+ */
 export interface ArrayReply<T> extends RespType<
   RESP_TYPES['ARRAY'],
   Array<T>,
@@ -111,6 +153,9 @@ export interface ArrayReply<T> extends RespType<
   Array<any>
 > {}
 
+/**
+ * Represents a tuple response in Redis.
+ */
 export interface TuplesReply<T extends [...Array<unknown>]> extends RespType<
   RESP_TYPES['ARRAY'],
   T,
@@ -118,6 +163,9 @@ export interface TuplesReply<T extends [...Array<unknown>]> extends RespType<
   Array<any>
 > {}
 
+/**
+ * Represents a set response in Redis.
+ */
 export interface SetReply<T> extends RespType<
   RESP_TYPES['SET'],
   Array<T>,
@@ -125,6 +173,9 @@ export interface SetReply<T> extends RespType<
   Array<any> | Set<any>
 > {}
 
+/**
+ * Represents a map response in Redis.
+ */
 export interface MapReply<K, V> extends RespType<
   RESP_TYPES['MAP'],
   { [key: string]: V },
@@ -222,8 +273,14 @@ export type ReplyWithTypeMapping<
 
 export type TransformReply = (this: void, reply: any, preserve?: any, typeMapping?: TypeMapping) => any; // TODO;
 
+/**
+ * Type definition for Redis command arguments.
+ */
 export type RedisArgument = string | Buffer;
 
+/**
+ * Type definition for Redis command arguments with optional preserve flag.
+ */
 export type CommandArguments = Array<RedisArgument> & { preserve?: unknown };
 
 // export const REQUEST_POLICIES = {
@@ -273,6 +330,9 @@ export type CommandArguments = Array<RedisArgument> & { preserve?: unknown };
 //   response?: ResponsePolicies | null;
 // };
 
+/**
+ * Interface defining a Redis command.
+ */
 export type Command = {
   CACHEABLE?: boolean;
   IS_READ_ONLY?: boolean;
@@ -289,21 +349,41 @@ export type Command = {
   unstableResp3?: boolean;
 };
 
+/**
+ * Type definition for Redis commands.
+ */
 export type RedisCommands = Record<string, Command>;
 
+/**
+ * Type definition for Redis modules.
+ */
 export type RedisModules = Record<string, RedisCommands>;
 
+/**
+ * Interface extending Command for Redis functions.
+ */
 export interface RedisFunction extends Command {
   NUMBER_OF_KEYS?: number;
 }
 
+/**
+ * Type definition for Redis functions.
+ */
 export type RedisFunctions = Record<string, Record<string, RedisFunction>>;
 
+/**
+ * Type definition for Redis scripts.
+ */
 export type RedisScript = RedisScriptConfig & SHA1;
 
+/**
+ * Type definition for Redis scripts collection.
+ */
 export type RedisScripts = Record<string, RedisScript>;
 
-// TODO: move to Commander?
+/**
+ * Interface for Redis commander configuration.
+ */
 export interface CommanderConfig<
   M extends RedisModules,
   F extends RedisFunctions,
@@ -314,11 +394,11 @@ export interface CommanderConfig<
   functions?: F;
   scripts?: S;
   /**
-   * TODO
+   * The RESP protocol version to use (2 or 3)
    */
   RESP?: RESP;
   /**
-   * TODO
+   * Whether to use unstable RESP3 features
    */
   unstableResp3?: boolean;
 }
@@ -350,8 +430,14 @@ export type Resp2Reply<RESP3REPLY> = (
   RESP3REPLY
 );
 
+/**
+ * Type definition for RESP protocol versions (2 or 3).
+ */
 export type RespVersions = 2 | 3;
 
+/**
+ * Type definition for command replies.
+ */
 export type CommandReply<
   COMMAND extends Command,
   RESP extends RespVersions
@@ -364,6 +450,9 @@ export type CommandReply<
   ReplyUnion
 );
 
+/**
+ * Type definition for command signatures.
+ */
 export type CommandSignature<
   COMMAND extends Command,
   RESP extends RespVersions,

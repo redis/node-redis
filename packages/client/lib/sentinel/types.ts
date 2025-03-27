@@ -5,11 +5,17 @@ import COMMANDS from '../commands';
 import RedisSentinel, { RedisSentinelClient } from '.';
 import { RedisTcpSocketOptions } from '../client/socket';
 
+/**
+ * Interface defining a Redis node with host and port.
+ */
 export interface RedisNode {
   host: string;
   port: number;
 }
 
+/**
+ * Interface defining options for creating a Redis Sentinel client.
+ */
 export interface RedisSentinelOptions<
   M extends RedisModules = RedisModules,
   F extends RedisFunctions = RedisFunctions,
@@ -63,6 +69,9 @@ export interface RedisSentinelOptions<
   reserveClient?: boolean;
 }
 
+/**
+ * Interface extending CommanderConfig for Redis Sentinel commands.
+ */
 export interface SentinelCommander<
   M extends RedisModules,
   F extends RedisFunctions,
@@ -74,11 +83,20 @@ export interface SentinelCommander<
   commandOptions?: CommandOptions<TYPE_MAPPING>;
 }
 
+/**
+ * Type definition for Redis Sentinel client options.
+ * Omits sentinel-specific options from the base client options.
+ */
 export type RedisSentinelClientOptions = Omit<
   RedisClientOptions,
   keyof SentinelCommander<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping/*, CommandPolicies*/>
 >;
 
+/**
+ * Type mapping Redis commands to their signatures in a sentinel context.
+ * @template RESP - RESP protocol version
+ * @template TYPE_MAPPING - Type mapping for Redis responses
+ */
 type WithCommands<
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping
@@ -86,6 +104,12 @@ type WithCommands<
   [P in keyof typeof COMMANDS]: CommandSignature<(typeof COMMANDS)[P], RESP, TYPE_MAPPING>;
 };
 
+/**
+ * Type mapping Redis modules to their command signatures in a sentinel context.
+ * @template M - Redis modules type
+ * @template RESP - RESP protocol version
+ * @template TYPE_MAPPING - Type mapping for Redis responses
+ */
 type WithModules<
   M extends RedisModules,
   RESP extends RespVersions,
@@ -96,6 +120,12 @@ type WithModules<
   };
 };
 
+/**
+ * Type mapping Redis functions to their command signatures in a sentinel context.
+ * @template F - Redis functions type
+ * @template RESP - RESP protocol version
+ * @template TYPE_MAPPING - Type mapping for Redis responses
+ */
 type WithFunctions<
   F extends RedisFunctions,
   RESP extends RespVersions,
@@ -106,6 +136,12 @@ type WithFunctions<
   };
 };
 
+/**
+ * Type mapping Redis scripts to their command signatures in a sentinel context.
+ * @template S - Redis scripts type
+ * @template RESP - RESP protocol version
+ * @template TYPE_MAPPING - Type mapping for Redis responses
+ */
 type WithScripts<
   S extends RedisScripts,
   RESP extends RespVersions,
@@ -114,6 +150,9 @@ type WithScripts<
   [P in keyof S]: CommandSignature<S[P], RESP, TYPE_MAPPING>;
 };
 
+/**
+ * Type definition for a Redis Sentinel client with all its extensions.
+ */
 export type RedisSentinelClientType<
   M extends RedisModules = {},
   F extends RedisFunctions = {},
@@ -128,13 +167,15 @@ export type RedisSentinelClientType<
   WithScripts<S, RESP, TYPE_MAPPING>
 );
 
+/**
+ * Type definition for a Redis Sentinel with all its extensions.
+ */
 export type RedisSentinelType<
   M extends RedisModules = {},
   F extends RedisFunctions = {},
   S extends RedisScripts = {},
   RESP extends RespVersions = 2,
   TYPE_MAPPING extends TypeMapping = {},
-  // POLICIES extends CommandPolicies = {}
 > = (
   RedisSentinel<M, F, S, RESP, TYPE_MAPPING> &
   WithCommands<RESP, TYPE_MAPPING> &
@@ -143,33 +184,66 @@ export type RedisSentinelType<
   WithScripts<S, RESP, TYPE_MAPPING>
 );
 
+/**
+ * Interface defining options for sentinel commands.
+ */
 export interface SentinelCommandOptions<
   TYPE_MAPPING extends TypeMapping = TypeMapping
 > extends CommandOptions<TYPE_MAPPING> {}
 
+/**
+ * Type for a proxy sentinel that can handle any Redis modules, functions, scripts, and RESP versions.
+ */
 export type ProxySentinel = RedisSentinel<any, any, any, any, any>;
+
+/**
+ * Type for a proxy sentinel client that can handle any Redis modules, functions, scripts, and RESP versions.
+ */
 export type ProxySentinelClient = RedisSentinelClient<any, any, any, any, any>;
+
+/**
+ * Type for a namespace proxy sentinel that contains a reference to the underlying proxy sentinel.
+ */
 export type NamespaceProxySentinel = { _self: ProxySentinel };
+
+/**
+ * Type for a namespace proxy sentinel client that contains a reference to the underlying proxy sentinel client.
+ */
 export type NamespaceProxySentinelClient = { _self: ProxySentinelClient };
 
+/**
+ * Type definition for Redis node information.
+ */
 export type NodeInfo = {
   ip: any,
   port: any,
   flags: any,
 };
 
+/**
+ * Type definition for Redis Sentinel events.
+ */
 export type RedisSentinelEvent = NodeChangeEvent | SizeChangeEvent;
- 
+
+/**
+ * Type definition for node change events in Redis Sentinel.
+ */
 export type NodeChangeEvent = {
   type: "SENTINEL_CHANGE" | "MASTER_CHANGE" | "REPLICA_ADD" | "REPLICA_REMOVE";
   node: RedisNode;
 }
 
+/**
+ * Type definition for size change events in Redis Sentinel.
+ */
 export type SizeChangeEvent = {
   type: "SENTINE_LIST_CHANGE";
   size: Number;
 }
 
+/**
+ * Type definition for client error events in Redis Sentinel.
+ */
 export type ClientErrorEvent = {
   type: 'MASTER' | 'REPLICA' | 'SENTINEL' | 'PUBSUBPROXY';
   node: RedisNode;
