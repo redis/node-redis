@@ -17,7 +17,7 @@
     "test": "nyc -r text-summary -r lcov mocha -r tsx './lib/**/*.spec.ts'"
   },
   "dependencies": {
-    "@azure/identity": "4.7.0",
+    "@azure/identity": "^4.7.0",
     "@azure/msal-node": "^2.16.1"
   },
   "peerDependencies": {
