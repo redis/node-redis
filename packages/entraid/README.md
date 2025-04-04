@@ -18,8 +18,8 @@ Secure token-based authentication for Redis clients using Microsoft Entra ID (fo
 
 
 ```bash
-npm install "@redis/client@5.0.0-next.6"
-npm install "@redis/entraid@5.0.0-next.6"
+npm install "@redis/client@5.0.0-next.7"
+npm install "@redis/entraid@5.0.0-next.7"
 ```
 
 ## Getting Started
@@ -92,11 +92,11 @@ The DefaultAzureCredential from @azure/identity provides a simplified authentica
 
 ```typescript
 import { createClient } from '@redis/client';
-import { DefaultAzureCredential } from '@azure/identity';
-import { EntraIdCredentialsProviderFactory, REDIS_SCOPE_DEFAULT } from '@redis/entraid/dist/lib/entra-id-credentials-provider-factory';
+import { getDefaultAzureCredential } from '@azure/identity';
+import { EntraIdCredentialsProviderFactory, REDIS_SCOPE_DEFAULT } from '@redis/entraid';
 
 // Create a DefaultAzureCredential instance
-const credential = new DefaultAzureCredential();
+const credential = getDefaultAzureCredential();
 
 // Create a provider using DefaultAzureCredential
 const provider = EntraIdCredentialsProviderFactory.createForDefaultAzureCredential({
