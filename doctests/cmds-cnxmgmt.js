@@ -39,6 +39,7 @@ console.log(res3); // OK
 
 // REMOVE_START
 assert.equal(res3, "OK");
+await client.auth({ username: 'default', password: '' })
 await client.sendCommand(['ACL', 'DELUSER', 'test-user']);
 // REMOVE_END
 // STEP_END
