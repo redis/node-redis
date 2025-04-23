@@ -80,6 +80,10 @@ export interface RedisClientOptions<
    * TODO
    */
   commandOptions?: CommandOptions<TYPE_MAPPING>;
+    /**
+   * Provides a timeout in milliseconds.
+   */
+  commandTimeout?: number;
 }
 
 type WithCommands<
@@ -678,19 +682,43 @@ export default class RedisClient<
   /**
    * @internal
    */
-  async _executeCommand(
+  async _executeCommand<T>(
     command: Command,
     parser: CommandParser,
     commandOptions: CommandOptions<TYPE_MAPPING> | undefined,
     transformReply: TransformReply | undefined,
   ) {
+    // If no timeout is set, execute the command normally
+    if (!this._self.#options?.commandTimeout) {
     const reply = await this.sendCommand(parser.redisArgs, commandOptions);
+    
 
     if (transformReply) {
       return transformReply(reply, parser.preserve, commandOptions?.typeMapping);
     }
 
     return reply;
+    }
+
+    // Wrap the command execution in a timeout
+    return new Promise<T>((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        reject(new Error(`Command timed out after ${this._self.#options?.commandTimeout}ms`));
+      }, this._self.#options?.commandTimeout);
+
+      this.sendCommand(parser.redisArgs, commandOptions)
+        .then(reply => {
+          clearTimeout(timeoutId); // Clear the timeout if the command succeeds
+          const transformedReply = transformReply
+            ? transformReply(reply, parser.preserve, commandOptions?.typeMapping)
+            : reply;
+          resolve(transformedReply);
+        })
+        .catch(err => {
+          clearTimeout(timeoutId); // Clear the timeout if the command fails
+          reject(err);
+        });
+    });
   }
 
   /**
