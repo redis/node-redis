@@ -33,8 +33,9 @@ const client = createClient({
       add: {
         NUMBER_OF_KEYS: 1,
         FIRST_KEY_INDEX: 1,
-        transformArguments(key: string, toAdd: number): Array<string> {
-          return [key, toAdd.toString()];
+        parseCommand(parser: CommandParser, key: RedisArgument, toAdd: RedisArgument) {
+          parser.pushKey(key);
+          parser.push(toAdd);
         },
         transformReply: undefined as unknown as () => NumberReply
       }
@@ -61,8 +62,9 @@ const client = createClient({
       SCRIPT: 'return redis.call("GET", KEYS[1]) + ARGV[1];',
       NUMBER_OF_KEYS: 1,
       FIRST_KEY_INDEX: 1,
-      transformArguments(key: string, toAdd: number): Array<string> {
-        return [key, toAdd.toString()];
+      parseCommand(parser: CommandParser, key: RedisArgument, toAdd: RedisArgument) {
+        parser.pushKey(key);
+        parser.push(toAdd);
       },
       transformReply: undefined as unknown as () => NumberReply
     })
