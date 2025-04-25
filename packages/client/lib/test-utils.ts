@@ -4,7 +4,6 @@ import { setTimeout } from 'node:timers/promises';
 import { CredentialsProvider } from './authx';
 import { Command, NumberReply } from './RESP/types';
 import { BasicCommandParser, CommandParser } from './client/parser';
-import { MATH_FUNCTION } from './commands/FUNCTION_LOAD.spec';
 import { defineScript } from './lua-script';
 import RedisBloomModules from '@redis/bloom';
 const utils = TestUtils.createFromConfig({
@@ -55,6 +54,33 @@ const SQUARE_SCRIPT = defineScript({
   },
   transformReply: undefined as unknown as () => NumberReply
 });
+
+export const MATH_FUNCTION = {
+  name: 'math',
+  engine: 'LUA',
+  code:
+    `#!LUA name=math
+    redis.register_function {
+      function_name = "square",
+      callback = function(keys, args)
+        local number = redis.call('GET', keys[1])
+        return number * number
+      end,
+      flags = { "no-writes" }
+    }`,
+  library: {
+    square: {
+      NAME: 'square',
+      IS_READ_ONLY: true,
+      NUMBER_OF_KEYS: 1,
+      FIRST_KEY_INDEX: 0,
+      parseCommand(parser: CommandParser, key: string) {
+        parser.pushKey(key);
+      },
+      transformReply: undefined as unknown as () => NumberReply
+    }
+  }
+};
 
 export const GLOBAL = {
   SERVERS: {
@@ -122,7 +148,7 @@ export const GLOBAL = {
       password: undefined,
       functions: {
         math: MATH_FUNCTION.library,
-      } 
+      },
     },
     WITH_MODULE: {
       serverArguments: [...DEBUG_MODE_ARGS],

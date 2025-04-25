@@ -1,12 +1,11 @@
 import { strict as assert } from 'node:assert';
 import { setTimeout } from 'node:timers/promises';
-import testUtils, { GLOBAL } from '../test-utils';
+import testUtils, { GLOBAL, MATH_FUNCTION } from '../test-utils';
 import { RESP_TYPES } from '../RESP/decoder';
 import { WatchError } from "../errors";
-import { MATH_FUNCTION } from '../commands/FUNCTION_LOAD.spec';
 import { RedisSentinelConfig, SentinelFramework } from "./test-util";
 import { RedisSentinelEvent, RedisSentinelType, RedisSentinelClientType, RedisNode } from "./types";
-import { RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
+import { RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping, NumberReply } from '../RESP/types';
 import { promisify } from 'node:util';
 import { exec } from 'node:child_process';
 const execAsync = promisify(exec);
@@ -417,7 +416,7 @@ describe('legacy tests', () => {
   })
 
   describe('Sentinel Client', function () {
-    let sentinel: RedisSentinelType<    RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping> | undefined;
+    let sentinel: RedisSentinelType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping> | undefined;
 
     beforeEach(async function () {
       this.timeout(0);
