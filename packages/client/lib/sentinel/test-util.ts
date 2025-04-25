@@ -80,7 +80,7 @@ abstract class DockerBase {
 
   async dockerRemove(dockerId: string): Promise<void> {
     try {
-      await this.dockerStop(dockerId); ``
+      await this.dockerStop(dockerId);
     } catch (err) {
       // its ok if stop failed, as we are just going to remove, will just be slower
       console.log(`dockerStop failed in remove: ${err}`);

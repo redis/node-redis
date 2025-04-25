@@ -124,8 +124,11 @@ export class RedisSentinelClient<
     value: V
   ) {
     const proxy = Object.create(this);
-    proxy._commandOptions = Object.create(this._self.#commandOptions ?? null);
-    proxy._commandOptions[key] = value;
+    // Create new commandOptions object with the inherited properties
+    proxy._self.#commandOptions = {
+      ...(this._self.#commandOptions || {}),
+      [key]: value
+    };
     return proxy as RedisSentinelClientType<
       M,
       F,
@@ -328,7 +331,7 @@ export default class RedisSentinel<
     TYPE_MAPPING extends TypeMapping,
   >(options: OPTIONS) {
     const proxy = Object.create(this);
-    proxy._commandOptions = options;
+    proxy._self.#commandOptions = options;
     return proxy as RedisSentinelType<
       M,
       F,
@@ -345,9 +348,12 @@ export default class RedisSentinel<
     key: K,
     value: V
   ) {
-    const proxy = Object.create(this._self);
-    proxy._commandOptions = Object.create(this._self.#commandOptions ?? null);
-    proxy._commandOptions[key] = value;
+    const proxy = Object.create(this);
+    // Create new commandOptions object with the inherited properties
+    proxy._self.#commandOptions = {
+      ...(this._self.#commandOptions || {}),
+      [key]: value
+    };
     return proxy as RedisSentinelType<
       M,
       F,

@@ -2,9 +2,11 @@ import TestUtils from '@redis/test-utils';
 import { SinonSpy } from 'sinon';
 import { setTimeout } from 'node:timers/promises';
 import { CredentialsProvider } from './authx';
-import { Command } from './RESP/types';
-import { BasicCommandParser } from './client/parser';
-
+import { Command, NumberReply } from './RESP/types';
+import { BasicCommandParser, CommandParser } from './client/parser';
+import { MATH_FUNCTION } from './commands/FUNCTION_LOAD.spec';
+import { defineScript } from './lua-script';
+import RedisBloomModules from '@redis/bloom';
 const utils = TestUtils.createFromConfig({
   dockerImageName: 'redislabs/client-libs-test',
   dockerImageVersionArgument: 'redis-version',
@@ -41,6 +43,18 @@ const streamingCredentialsProvider: CredentialsProvider =
     }
 
   } as const;
+
+const SQUARE_SCRIPT = defineScript({
+  SCRIPT:
+    `local number = redis.call('GET', KEYS[1])
+    return number * number`,
+  NUMBER_OF_KEYS: 1,
+  FIRST_KEY_INDEX: 0,
+  parseCommand(parser: CommandParser, key: string) {
+    parser.pushKey(key);
+  },
+  transformReply: undefined as unknown as () => NumberReply
+});
 
 export const GLOBAL = {
   SERVERS: {
@@ -85,6 +99,51 @@ export const GLOBAL = {
       clusterConfiguration: {
         useReplicas: true
       }
+    }
+  },
+  SENTINEL: {
+    OPEN: {
+      serverArguments: [...DEBUG_MODE_ARGS],
+      password: undefined,
+    },
+    PASSWORD: {
+      serverArguments: [...DEBUG_MODE_ARGS],
+      password: 'test_password',
+    },
+    WITH_SCRIPT: {
+      serverArguments: [...DEBUG_MODE_ARGS],
+      password: undefined,
+      scripts: {
+        square: SQUARE_SCRIPT,
+      },
+    },
+    WITH_FUNCTION: {
+      serverArguments: [...DEBUG_MODE_ARGS],
+      password: undefined,
+      functions: {
+        math: MATH_FUNCTION.library,
+      } 
+    },
+    WITH_MODULE: {
+      serverArguments: [...DEBUG_MODE_ARGS],
+      password: undefined,
+      modules: RedisBloomModules,
+    },
+    WITH_REPLICA_POOL_SIZE_1: {
+      serverArguments: [...DEBUG_MODE_ARGS],
+      password: undefined,
+      replicaPoolSize: 1,
+    },
+    WITH_RESERVE_CLIENT_MASTER_POOL_SIZE_2: {
+      serverArguments: [...DEBUG_MODE_ARGS],
+      password: undefined,
+      masterPoolSize: 2,
+      reserveClient: true,
+    },
+    WITH_MASTER_POOL_SIZE_2: {
+      serverArguments: [...DEBUG_MODE_ARGS],
+      password: undefined,
+      masterPoolSize: 2,
     }
   }
 };

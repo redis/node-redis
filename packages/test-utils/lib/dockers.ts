@@ -4,7 +4,6 @@ import { once } from 'node:events';
 import { createClient } from '@redis/client/index';
 import { setTimeout } from 'node:timers/promises';
 // import { ClusterSlotsReply } from '@redis/client/dist/lib/commands/CLUSTER_SLOTS';
-
 import { execFile as execFileCallback } from 'node:child_process';
 import { promisify } from 'node:util';
 
@@ -51,21 +50,30 @@ export interface RedisServerDocker {
 async function spawnRedisServerDocker({
   image,
   version
-}: RedisServerDockerConfig, serverArguments: Array<string>): Promise<RedisServerDocker> {
+}: RedisServerDockerConfig, serverArguments: Array<string>, dockerEnv?: Map<string, string>): Promise<RedisServerDocker> {
   const port = (await portIterator.next()).value;
   const portStr = port.toString();
 
   const dockerArgs = [
     'run',
-    '-e', `PORT=${portStr}`,
-    '-d',
-    '--network', 'host',
-    `${image}:${version}`,
-    '--port', portStr
+    '--init',
+    '-e', `PORT=${portStr}`
   ];
 
+  dockerEnv?.forEach((key: string, value: string) => {
+    dockerArgs.push('-e', `${key}:${value}`);
+  });
+
+  dockerArgs.push(
+    '-d',
+    '--network', 'host',
+    `${image}:${version}`
+  );
+
   if (serverArguments.length > 0) {
-    dockerArgs.push(...serverArguments);
+    for (let i = 0; i < serverArguments.length; i++) {
+      dockerArgs.push(serverArguments[i].replace('{port}', `${portStr}`))
+    }
   }
 
   console.log(`[Docker] Spawning Redis container - Image: ${image}:${version}, Port: ${port}`);
@@ -287,6 +295,94 @@ after(() => {
     [...RUNNING_CLUSTERS.values()].map(async dockersPromise => {
       return Promise.all(
         (await dockersPromise).map(({ dockerId }) => dockerRemove(dockerId))
+      );
+    })
+  );
+});
+
+
+const RUNNING_NODES = new Map<Array<string>, Array<RedisServerDocker>>();
+const RUNNING_SENTINELS = new Map<Array<string>, Array<RedisServerDocker>>();
+
+export async function spawnRedisSentinel(
+  dockerConfigs: RedisServerDockerConfig,
+  serverArguments: Array<string>,
+  password?: string,
+): Promise<Array<RedisServerDocker>> {
+    const runningNodes = RUNNING_SENTINELS.get(serverArguments);
+    if (runningNodes) {
+      return runningNodes;
+    }
+
+    const dockerEnv: Map<string, string> = new Map();
+    
+    if (password !== undefined) {
+      dockerEnv.set("REDIS_PASSWORD", password);
+      serverArguments.push("--requirepass", password)
+    }
+
+    const master = await spawnRedisServerDocker(dockerConfigs, serverArguments, dockerEnv);
+    const redisNodes: Array<RedisServerDocker> = [master];
+    const replicaPromises: Array<Promise<RedisServerDocker>> = [];
+    
+    const replicasCount = 2;
+    for (let i = 0; i < replicasCount; i++) {
+      replicaPromises.push((async () => {
+        const replica = await spawnRedisServerDocker(dockerConfigs, serverArguments, dockerEnv);
+        const client = createClient({
+          socket: {
+            port: replica.port
+          },
+          password: password
+        });
+
+        await client.connect();
+        await client.replicaOf("127.0.0.1", master.port);
+        await client.close();
+        
+        return replica;
+      })());
+    }
+    
+    const replicas = await Promise.all(replicaPromises);
+    redisNodes.push(...replicas);
+    RUNNING_NODES.set(serverArguments, redisNodes);
+
+    const sentinelPromises: Array<Promise<RedisServerDocker>> = [];
+    const sentinelCount = 3;
+    
+    for (let i = 0; i < sentinelCount; i++) {
+      sentinelPromises.push((async () => {
+        const sentinelArgs: Array<string> = ["sh", "-c"];
+        
+        let sentinelConfig = `
+port {port}
+sentinel monitor mymaster 127.0.0.1 ${master.port} 2
+sentinel down-after-milliseconds mymaster 5000
+sentinel failover-timeout mymaster 6000
+`;
+        if (password !== undefined) {
+          sentinelConfig += `requirepass ${password}\n`
+          sentinelConfig += `sentinel auth-pass mymaster ${password}\n`
+        }
+
+        sentinelArgs.push(`echo "${sentinelConfig}" > /tmp/sentinel.conf && redis-sentinel /tmp/sentinel.conf`);
+        return await spawnRedisServerDocker({image: "redis", version: "latest"}, sentinelArgs);
+      })());
+    }
+    
+    const sentinelNodes = await Promise.all(sentinelPromises);
+    RUNNING_SENTINELS.set(serverArguments, sentinelNodes);
+    
+    return sentinelNodes;
+}
+
+
+after(() => {
+  return Promise.all(
+    [...RUNNING_NODES.values(), ...RUNNING_SENTINELS.values()].map(async dockersPromise => {
+      return Promise.all(
+        dockersPromise.map(({ dockerId }) => dockerRemove(dockerId))
       );
     })
   );
