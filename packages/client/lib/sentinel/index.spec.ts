@@ -448,6 +448,7 @@ describe('legacy tests', () => {
           frame.sentinelMaster(),
           frame.sentinelReplicas()
         ])
+        
         console.log(`sentinel sentinels:\n${JSON.stringify(results[0], undefined, '\t')}`);
         console.log(`sentinel master:\n${JSON.stringify(results[1], undefined, '\t')}`);
         console.log(`sentinel replicas:\n${JSON.stringify(results[2], undefined, '\t')}`);
