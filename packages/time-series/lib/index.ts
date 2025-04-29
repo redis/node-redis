@@ -5,4 +5,4 @@ export {
 } from './commands';
 export { TIME_SERIES_AGGREGATION_TYPE, TimeSeriesAggregationType } from './commands/CREATERULE';
 export { TIME_SERIES_BUCKET_TIMESTAMP, TimeSeriesBucketTimestamp } from './commands/RANGE';
-export { TIME_SERIES_REDUCERS } from './commands/MRANGE_GROUPBY';
+export { TIME_SERIES_REDUCERS, TimeSeriesReducer } from './commands/MRANGE_GROUPBY';
