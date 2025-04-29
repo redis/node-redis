@@ -10,7 +10,7 @@ import { promisify } from 'node:util';
 import { exec } from 'node:child_process';
 const execAsync = promisify(exec);
 
-[GLOBAL.SENTINEL.PASSWORD, GLOBAL.SENTINEL.OPEN].forEach(testOptions => {
+[GLOBAL.SENTINEL.OPEN, GLOBAL.SENTINEL.PASSWORD].forEach(testOptions => {
   describe(`test with password - ${testOptions.password}`, () => {
     testUtils.testWithClientSentinel('client should be authenticated', async sentinel => {
       await assert.doesNotReject(sentinel.set('x', 1));
@@ -427,7 +427,7 @@ describe('legacy tests', () => {
     })
 
     afterEach(async function () {
-      this.timeout(30000);
+      this.timeout(60000);
       // avoid errors in afterEach that end testing
       if (sentinel !== undefined) {
         sentinel.on('error', () => { });
@@ -471,7 +471,7 @@ describe('legacy tests', () => {
     })
 
     it('use', async function () {
-      this.timeout(30000);
+      this.timeout(60000);
 
       sentinel = frame.getSentinelClient({ replicaPoolSize: 1 });
       sentinel.on("error", () => { });
@@ -488,7 +488,7 @@ describe('legacy tests', () => {
 
     // stops master to force sentinel to update 
     it('stop master', async function () {
-      this.timeout(30000);
+      this.timeout(60000);
 
       sentinel = frame.getSentinelClient();
       sentinel.setTracer(tracer);
@@ -523,7 +523,7 @@ describe('legacy tests', () => {
 
     // if master changes, client should make sure user knows watches are invalid
     it('watch across master change', async function () {
-      this.timeout(30000);
+      this.timeout(60000);
 
       sentinel = frame.getSentinelClient({ masterPoolSize: 2 });
       sentinel.setTracer(tracer);
@@ -572,7 +572,7 @@ describe('legacy tests', () => {
 
     // same as above, but set a watch before and after master change, shouldn't change the fact that watches are invalid
     it('watch before and after master change', async function () {
-      this.timeout(30000);
+      this.timeout(60000);
 
       sentinel = frame.getSentinelClient({ masterPoolSize: 2 });
       sentinel.setTracer(tracer);
@@ -623,7 +623,7 @@ describe('legacy tests', () => {
 
     // pubsub continues to work, even with a master change
     it('pubsub - channel - with master change', async function () {
-      this.timeout(30000);
+      this.timeout(60000);
 
       sentinel = frame.getSentinelClient();
       sentinel.setTracer(tracer);
@@ -685,7 +685,7 @@ describe('legacy tests', () => {
     });
 
     it('pubsub - pattern - with master change', async function () {
-      this.timeout(30000);
+      this.timeout(60000);
 
       sentinel = frame.getSentinelClient();
       sentinel.setTracer(tracer);
@@ -747,7 +747,7 @@ describe('legacy tests', () => {
 
     // if we stop a node, the comand should "retry" until we reconfigure topology and execute on new topology
     it('command immeaditely after stopping master', async function () {
-      this.timeout(30000);
+      this.timeout(60000);
 
       sentinel = frame.getSentinelClient();
       sentinel.setTracer(tracer);
@@ -808,7 +808,7 @@ describe('legacy tests', () => {
     });
 
     it('shutdown sentinel node', async function () {
-      this.timeout(30000);
+      this.timeout(60000);
 
       sentinel = frame.getSentinelClient();
       sentinel.setTracer(tracer);
@@ -841,7 +841,7 @@ describe('legacy tests', () => {
     });
 
     it('timer works, and updates sentinel list', async function () {
-      this.timeout(30000);
+      this.timeout(60000);
 
       sentinel = frame.getSentinelClient({ scanInterval: 1000 });
       sentinel.setTracer(tracer);
@@ -870,7 +870,7 @@ describe('legacy tests', () => {
     });
 
     it('stop replica, bring back replica', async function () {
-      this.timeout(30000);
+      this.timeout(60000);
 
       sentinel = frame.getSentinelClient({ replicaPoolSize: 1 });
       sentinel.setTracer(tracer);
@@ -926,7 +926,7 @@ describe('legacy tests', () => {
     })
 
     it('add a node / new replica', async function () {
-      this.timeout(30000);
+      this.timeout(60000);
 
       sentinel = frame.getSentinelClient({ scanInterval: 2000, replicaPoolSize: 1 });
       sentinel.setTracer(tracer);

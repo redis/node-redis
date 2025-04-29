@@ -328,10 +328,20 @@ export default class RedisClient<
     return this._self.#watchEpoch !== undefined;
   }
 
-  get isDirtyWatch() {
+  /**
+   * Indicates whether the client's WATCH command has been invalidated by a topology change.
+   * When this returns true, any transaction using WATCH will fail with a WatchError.
+   * @returns true if the watched keys have been modified, false otherwise
+   */
+  get isDirtyWatch(): boolean {
     return this._self.#dirtyWatch !== undefined
   }
 
+  /**
+   * Marks the client's WATCH command as invalidated due to a topology change.
+   * This will cause any subsequent EXEC in a transaction to fail with a WatchError.
+   * @param msg - The error message explaining why the WATCH is dirty
+   */
   setDirtyWatch(msg: string) {
     this._self.#dirtyWatch = msg;
   }

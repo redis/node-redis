@@ -349,34 +349,156 @@ export class SentinelFramework extends DockerBase {
       );
     }
 
-    return [
-      ...await Promise.all(promises)
-    ]
+    const sentinels = await Promise.all(promises);
+
+    await this.validateSentinelConfiguration(sentinels);
+  
+    return sentinels;
   }
 
-  async getAllRunning() {
-    for (const port of this.getAllNodesPort()) {
-      let first = true;
-      while (await isPortAvailable(port)) {        
-        if (!first) {
-          console.log(`problematic restart ${port}`);
-          await setTimeout(500);
-        } else {
-          first = false;
+  // Add this new method to validate sentinel configuration
+private async validateSentinelConfiguration(
+  sentinels: Awaited<ReturnType<SentinelFramework['spawnRedisSentinelSentinelDocker']>>[]
+): Promise<void> {
+  const maxRetries = 10;
+  const retryDelay = 2000;
+  
+  // Wait for all sentinels to recognize each other
+  for (let retry = 0; retry < maxRetries; retry++) {
+    try {
+      let allConfigured = true;
+      
+      // Check that each sentinel recognizes all other sentinels
+      for (const sentinel of sentinels) {
+        if (!sentinel.client.isReady) {
+          allConfigured = false;
+          break;
         }
-        await this.restartNode(port.toString());
+        
+        // Check if this sentinel can see the master
+        const masterInfo = await sentinel.client.sentinel.sentinelMaster(this.config.sentinelName)
+          .catch(() => null);
+          
+        if (!masterInfo) {
+          allConfigured = false;
+          break;
+        }
+        
+        // Check if this sentinel can see other sentinels
+        const knownSentinels = await sentinel.client.sentinel.sentinelSentinels(this.config.sentinelName)
+          .catch(() => []);
+          
+        // Ensure this sentinel knows about all other sentinels (minus itself)
+        if (knownSentinels.length < sentinels.length - 1) {
+          allConfigured = false;
+          break;
+        }
+      }
+      
+      if (allConfigured) {
+        // All sentinels are properly configured
+        return;
+      }
+      
+      // Wait before retrying
+      await setTimeout(retryDelay);
+    } catch (err) {
+      // Wait before retrying after an error
+      await setTimeout(retryDelay);
+    }
+  }
+  
+  throw new Error('Sentinel configuration did not propagate correctly within the timeout period');
+}
+
+  async getAllRunning(): Promise<void> {
+    const MAX_RETRIES = 5;
+    const RETRY_DELAY = 500;
+    
+    // Fix for Redis nodes
+    for (const port of this.getAllNodesPort()) {
+      let retries = 0;
+      
+      while (await isPortAvailable(port)) {
+        if (retries >= MAX_RETRIES) {
+          throw new Error(`Failed to restart Redis node at port ${port} after ${MAX_RETRIES} attempts`);
+        }
+        
+        try {
+          await this.restartNode(port.toString());
+          await setTimeout(RETRY_DELAY); // Give the node time to start
+        } catch (err) {
+          console.error(`Error restarting Redis node at port ${port}:`, err);
+        }
+        
+        retries++;
       }
     }
 
+    // Fix for Sentinel nodes  
     for (const port of this.getAllSentinelsPort()) {
-      let first = true;
-      while (await isPortAvailable(port)) {        
-        if (!first) {
-          await setTimeout(500);
-        } else {
-          first = false;
+      let retries = 0;
+      
+      while (await isPortAvailable(port)) {
+        if (retries >= MAX_RETRIES) {
+          throw new Error(`Failed to restart Sentinel node at port ${port} after ${MAX_RETRIES} attempts`);
         }
-        await this.restartSentinel(port.toString());
+        
+        try {
+          await this.restartSentinel(port.toString());
+          await setTimeout(RETRY_DELAY); // Give the sentinel time to start
+        } catch (err) {
+          console.error(`Error restarting Sentinel at port ${port}:`, err);
+        }
+        
+        retries++;
+      }
+    }
+    
+    // Verify all nodes are actually responsive
+    await this.verifyNodesResponsive();
+  }
+
+  // Add a method to verify nodes are responsive
+  private async verifyNodesResponsive(): Promise<void> {
+    const MAX_ATTEMPTS = 10;
+    const ATTEMPT_DELAY = 2000;
+    
+    // Check Redis nodes
+    for (const nodeInfo of this.#nodeMap.values()) {
+      if (!nodeInfo.client.isReady) {
+        // Try to reconnect client if not ready
+        for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+          try {
+            await nodeInfo.client.connect();
+            await nodeInfo.client.ping();
+            break;
+          } catch (err) {
+            if (attempt === MAX_ATTEMPTS - 1) {
+              throw new Error(`Node at port ${nodeInfo.docker.port} is not responsive after ${MAX_ATTEMPTS} attempts`);
+            }
+            await setTimeout(ATTEMPT_DELAY);
+          }
+        }
+      }
+    }
+    
+    // Check Sentinel nodes
+    for (const sentinelInfo of this.#sentinelMap.values()) {
+      if (!sentinelInfo.client.isReady) {
+        // Try to reconnect client if not ready
+        for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+          try {
+            await sentinelInfo.client.connect();
+            await sentinelInfo.client.ping();
+            break;
+          } catch (err) {
+            if (attempt === MAX_ATTEMPTS - 1) {
+              throw new Error(`Sentinel at port ${sentinelInfo.docker.port} is not responsive after ${MAX_ATTEMPTS} attempts`);
+            }
+            await setTimeout(ATTEMPT_DELAY);
+          }
+        }
       }
     }
   }
@@ -486,8 +608,16 @@ export class SentinelFramework extends DockerBase {
     if (node === undefined) {
       throw new Error("unknown node: " + id);
     }
-
+  
+    let masterPort: number | null = null;
+    try {
+      masterPort = await this.getMasterPort();
+    } catch (err) {
+      console.log(`Could not determine master before restarting node ${id}: ${err}`);
+    }
+  
     await this.dockerStart(node.docker.dockerId);
+    
     if (!node.client.isOpen) {
       node.client = await RedisClient.create({
         password: this.config.password,
@@ -495,6 +625,17 @@ export class SentinelFramework extends DockerBase {
           port: node.docker.port
         }
       }).on("error", () => { }).connect();
+    }
+  
+    // Wait for node to be ready
+    await setTimeout(500);
+    
+    if (masterPort && node.docker.port !== masterPort) {
+      try {
+        await node.client.replicaOf('127.0.0.1', masterPort);
+      } catch (err) {
+        console.error(`Failed to reconfigure node ${id} as replica: ${err}`);
+      }
     }
   }
 
