@@ -394,7 +394,11 @@ sentinel failover-timeout mymaster 6000
         }
 
         const dir = fs.mkdtempSync(path.join(tmpDir, i.toString()));
-        fs.writeFile(`${dir}/redis.conf`, sentinelConfig, err => {});
+        fs.writeFile(`${dir}/redis.conf`, sentinelConfig, err => {
+          if (err) {
+            console.error("failed to create temporary config file", err);
+          }
+        });
 
         return await spawnRedisServerDocker(
           {
