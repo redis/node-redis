@@ -6,6 +6,9 @@ import { setTimeout } from 'node:timers/promises';
 // import { ClusterSlotsReply } from '@redis/client/dist/lib/commands/CLUSTER_SLOTS';
 import { execFile as execFileCallback } from 'node:child_process';
 import { promisify } from 'node:util';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 
 const execAsync = promisify(execFileCallback);
 
@@ -37,21 +40,37 @@ const portIterator = (async function* (): AsyncIterableIterator<number> {
   throw new Error('All ports are in use');
 })();
 
-export interface RedisServerDockerConfig {
+interface RedisServerDockerConfig {
   image: string;
   version: string;
 }
+
+interface SentinelConfig {
+  mode: "sentinel";
+  mounts: Array<string>;
+  port: number;
+}
+
+interface ServerConfig {
+  mode: "server";
+}
+
+export type RedisServerDockerOptions = RedisServerDockerConfig & (SentinelConfig | ServerConfig)
 
 export interface RedisServerDocker {
   port: number;
   dockerId: string;
 }
 
-async function spawnRedisServerDocker({
-  image,
-  version
-}: RedisServerDockerConfig, serverArguments: Array<string>, dockerEnv?: Map<string, string>): Promise<RedisServerDocker> {
-  const port = (await portIterator.next()).value;
+async function spawnRedisServerDocker(
+options: RedisServerDockerOptions, serverArguments: Array<string>, dockerEnv?: Map<string, string>): Promise<RedisServerDocker> {
+  let port;
+  if (options.mode == "sentinel") {
+    port = options.port;
+  } else {
+    port = (await portIterator.next()).value;
+  }
+
   const portStr = port.toString();
 
   const dockerArgs = [
@@ -60,6 +79,12 @@ async function spawnRedisServerDocker({
     '-e', `PORT=${portStr}`
   ];
 
+  if (options.mode == "sentinel") {
+    options.mounts.forEach(mount => {
+      dockerArgs.push('-v', mount);
+    });
+  }
+
   dockerEnv?.forEach((key: string, value: string) => {
     dockerArgs.push('-e', `${key}:${value}`);
   });
@@ -67,16 +92,16 @@ async function spawnRedisServerDocker({
   dockerArgs.push(
     '-d',
     '--network', 'host',
-    `${image}:${version}`
+    `${options.image}:${options.version}`
   );
 
   if (serverArguments.length > 0) {
     for (let i = 0; i < serverArguments.length; i++) {
-      dockerArgs.push(serverArguments[i].replace('{port}', `${portStr}`))
+      dockerArgs.push(serverArguments[i])
     }
   }
 
-  console.log(`[Docker] Spawning Redis container - Image: ${image}:${version}, Port: ${port}`);
+  console.log(`[Docker] Spawning Redis container - Image: ${options.image}:${options.version}, Port: ${port}, Mode: ${options.mode}`);
 
   const { stdout, stderr } = await execAsync('docker', dockerArgs);
 
@@ -95,7 +120,7 @@ async function spawnRedisServerDocker({
 }
 const RUNNING_SERVERS = new Map<Array<string>, ReturnType<typeof spawnRedisServerDocker>>();
 
-export function spawnRedisServer(dockerConfig: RedisServerDockerConfig, serverArguments: Array<string>): Promise<RedisServerDocker> {
+export function spawnRedisServer(dockerConfig: RedisServerDockerOptions, serverArguments: Array<string>): Promise<RedisServerDocker> {
   const runningServer = RUNNING_SERVERS.get(serverArguments);
   if (runningServer) {
     return runningServer;
@@ -121,7 +146,7 @@ after(() => {
   );
 });
 
-export interface RedisClusterDockersConfig extends RedisServerDockerConfig {
+export type RedisClusterDockersConfig = RedisServerDockerOptions & {
   numberOfMasters?: number;
   numberOfReplicas?: number;
 }
@@ -186,7 +211,7 @@ async function spawnRedisClusterNodeDockers(
 }
 
 async function spawnRedisClusterNodeDocker(
-  dockersConfig: RedisClusterDockersConfig,
+  dockersConfig: RedisServerDockerOptions,
   serverArguments: Array<string>,
   clientConfig?: Partial<RedisClusterClientOptions>
 ) {
@@ -305,7 +330,7 @@ const RUNNING_NODES = new Map<Array<string>, Array<RedisServerDocker>>();
 const RUNNING_SENTINELS = new Map<Array<string>, Array<RedisServerDocker>>();
 
 export async function spawnRedisSentinel(
-  dockerConfigs: RedisServerDockerConfig,
+  dockerConfigs: RedisServerDockerOptions,
   serverArguments: Array<string>,
   password?: string,
 ): Promise<Array<RedisServerDocker>> {
@@ -351,32 +376,46 @@ export async function spawnRedisSentinel(
     const sentinelPromises: Array<Promise<RedisServerDocker>> = [];
     const sentinelCount = 3;
     
+    const appPrefix = 'sentinel-config-dir';
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), appPrefix));
+
     for (let i = 0; i < sentinelCount; i++) {
       sentinelPromises.push((async () => {
-        const sentinelArgs: Array<string> = ["sh", "-c"];
-        
-        let sentinelConfig = `
-port {port}
+        const port = (await portIterator.next()).value;
+
+        let sentinelConfig = `port ${port}
 sentinel monitor mymaster 127.0.0.1 ${master.port} 2
 sentinel down-after-milliseconds mymaster 5000
 sentinel failover-timeout mymaster 6000
 `;
         if (password !== undefined) {
-          sentinelConfig += `requirepass ${password}\n`
-          sentinelConfig += `sentinel auth-pass mymaster ${password}\n`
+          sentinelConfig += `requirepass ${password}\n`;
+          sentinelConfig += `sentinel auth-pass mymaster ${password}\n`;
         }
 
-        sentinelArgs.push(`echo "${sentinelConfig}" > /tmp/sentinel.conf && redis-sentinel /tmp/sentinel.conf`);
-        return await spawnRedisServerDocker({image: "redis", version: "latest"}, sentinelArgs);
+        const dir = fs.mkdtempSync(path.join(tmpDir, i.toString()));
+        fs.writeFile(`${dir}/redis.conf`, sentinelConfig, err => {});
+
+        return await spawnRedisServerDocker(
+          {
+            image: dockerConfigs.image, 
+            version: dockerConfigs.version, 
+            mode: "sentinel",
+             mounts: [`${dir}/redis.conf:/redis/config/node-sentinel-1/redis.conf`], 
+             port: port,
+            }, serverArguments, dockerEnv);
       })());
     }
     
     const sentinelNodes = await Promise.all(sentinelPromises);
     RUNNING_SENTINELS.set(serverArguments, sentinelNodes);
     
+    if (tmpDir) {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+
     return sentinelNodes;
 }
-
 
 after(() => {
   return Promise.all(

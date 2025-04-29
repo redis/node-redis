@@ -19,7 +19,7 @@ import {
   RedisClusterType
 } from '@redis/client/index';
 import { RedisNode } from '@redis/client/lib/sentinel/types'
-import { RedisServerDockerConfig, spawnRedisServer, spawnRedisCluster, spawnRedisSentinel } from './dockers';
+import { spawnRedisServer, spawnRedisCluster, spawnRedisSentinel, RedisServerDockerOptions } from './dockers';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 
@@ -171,13 +171,14 @@ export default class TestUtils {
   }
 
   readonly #VERSION_NUMBERS: Array<number>;
-  readonly #DOCKER_IMAGE: RedisServerDockerConfig;
+  readonly #DOCKER_IMAGE: RedisServerDockerOptions;
 
   constructor({ string, numbers }: Version, dockerImageName: string) {
     this.#VERSION_NUMBERS = numbers;
     this.#DOCKER_IMAGE = {
       image: dockerImageName,
-      version: string
+      version: string, 
+      mode: "server"
     };
   }
 
