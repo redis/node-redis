@@ -141,6 +141,8 @@ In older versions, if the socket disconnects during the pipeline execution, i.e.
 
 In v5, any unwritten commands (in the same pipeline) will be discarded.
 
+- `RedisFlushModes` ->  `REDIS_FLUSH_MODES` [^enum-to-constants]
+
 ## Commands
 
 ### Redis
@@ -221,6 +223,13 @@ In v5, any unwritten commands (in the same pipeline) will be discarded.
 
 - `FT.SUGDEL`: [^boolean-to-number]
 - `FT.CURSOR READ`: `cursor` type changed from `number` to `string` (in and out) to avoid issues when the number is bigger than `Number.MAX_SAFE_INTEGER`. See [here](https://github.com/redis/node-redis/issues/2561).
+- `AggregateGroupByReducers` -> `FT_AGGREGATE_GROUP_BY_REDUCERS` [^enum-to-constants]
+- `AggregateSteps` -> `FT_AGGREGATE_STEPS` [^enum-to-constants]
+- `RedisSearchLanguages` -> `REDISEARCH_LANGUAGE` [^enum-to-constants]
+- `SchemaFieldTypes` -> `SCHEMA_FIELD_TYPE` [^enum-to-constants]
+- `SchemaTextFieldPhonetics` -> `SCHEMA_TEXT_FIELD_PHONETIC` [^enum-to-constants]
+- `SearchOptions` -> `FtSearchOptions`
+- `VectorAlgorithms` -> `SCHEMA_VECTOR_FIELD_ALGORITHM` [^enum-to-constants]
 
 ### Time Series
 
