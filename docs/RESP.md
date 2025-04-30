@@ -23,7 +23,7 @@ By default, each type is mapped to the first option in the lists below. To chang
 - Double (`,`) => `number | string`
 - Simple String (`+`) => `string | Buffer`
 - Blob String (`$`) => `string | Buffer`
-- Verbatim String (`=`) => `string | Buffer | VerbatimString` (TODO: `VerbatimString` typedoc link)
+- Verbatim String (`=`) => `string | Buffer | VerbatimString` 
 - Simple Error (`-`) => `ErrorReply`
 - Blob Error (`!`) => `ErrorReply`
 - Array (`*`) => `Array`

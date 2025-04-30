@@ -234,12 +234,12 @@ In v5, any unwritten commands (in the same pipeline) will be discarded.
 ### Time Series
 
 - `TS.ADD`: `boolean` -> `number` [^boolean-to-number]
-- `TS.[M][REV]RANGE`: `enum TimeSeriesBucketTimestamp` -> `const TIME_SERIES_BUCKET_TIMESTAMP` [^enum-to-constants], `enum TimeSeriesReducers` -> `const TIME_SERIES_REDUCERS` [^enum-to-constants], the `ALIGN` argument has been moved into `AGGREGRATION`
+- `TS.[M][REV]RANGE`: the `ALIGN` argument has been moved into `AGGREGATION`
 - `TS.SYNUPDATE`: `Array<string | Array<string>>` -> `Record<string, Array<string>>`
-- `TS.M[REV]RANGE[_WITHLABELS]`, `TS.MGET[_WITHLABELS]`: TODO
-
-[^enum-to-constants]: TODO
+- `TimeSeriesDuplicatePolicies` -> `TIME_SERIES_DUPLICATE_POLICIES` [^enum-to-constants]
+- `TimeSeriesEncoding` -> `TIME_SERIES_ENCODING` [^enum-to-constants]
+- `TimeSeriesAggregationType` -> `TIME_SERIES_AGGREGATION_TYPE` [^enum-to-constants]
+- `TimeSeriesReducers` -> `TIME_SERIES_REDUCERS` [^enum-to-constants]
+- `TimeSeriesBucketTimestamp` -> `TIME_SERIES_BUCKET_TIMESTAMP` [^enum-to-constants]
 
 [^map-keys]: To avoid unnecessary transformations and confusion, map keys will not be transformed to "js friendly" names (i.e. `number-of-keys` will not be renamed to `numberOfKeys`). See [here](https://github.com/redis/node-redis/discussions/2506).
-
-[^future-proofing]: TODO
