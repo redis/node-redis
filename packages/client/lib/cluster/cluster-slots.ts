@@ -518,7 +518,7 @@ export default class RedisClusterSlots<
       node = index < this.masters.length ?
         this.masters[index] :
         this.replicas[index - this.masters.length],
-        client = this.#createClient(node, node.readonly);
+        client = this.#createClient(node, index >= this.masters.length);
       
     this.pubSubNode = {
       address: node.address,
