@@ -250,6 +250,10 @@ await Promise.all([
 ]);
 ```
 
+### Programmability
+
+See the [Programmability overview](./docs/programmability.md).
+
 ### Clustering
 
 Check out the [Clustering Guide](./docs/clustering.md) when using Node Redis to connect to a Redis Cluster.
