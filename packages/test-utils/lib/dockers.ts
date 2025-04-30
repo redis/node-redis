@@ -43,6 +43,7 @@ const portIterator = (async function* (): AsyncIterableIterator<number> {
 interface RedisServerDockerConfig {
   image: string;
   version: string;
+  env?: Map<string, string>;
 }
 
 interface SentinelConfig {
@@ -63,7 +64,7 @@ export interface RedisServerDocker {
 }
 
 async function spawnRedisServerDocker(
-options: RedisServerDockerOptions, serverArguments: Array<string>, dockerEnv?: Map<string, string>): Promise<RedisServerDocker> {
+options: RedisServerDockerOptions, serverArguments: Array<string>): Promise<RedisServerDocker> {
   let port;
   if (options.mode == "sentinel") {
     port = options.port;
@@ -85,7 +86,7 @@ options: RedisServerDockerOptions, serverArguments: Array<string>, dockerEnv?: M
     });
   }
 
-  dockerEnv?.forEach((key: string, value: string) => {
+  options.env?.forEach((key: string, value: string) => {
     dockerArgs.push('-e', `${key}:${value}`);
   });
 
@@ -339,21 +340,23 @@ export async function spawnRedisSentinel(
       return runningNodes;
     }
 
-    const dockerEnv: Map<string, string> = new Map();
+    if (!dockerConfigs.env) {
+      dockerConfigs.env = new Map();
+    }
     
     if (password !== undefined) {
-      dockerEnv.set("REDIS_PASSWORD", password);
+      dockerConfigs.env.set("REDIS_PASSWORD", password);
       serverArguments.push("--requirepass", password)
     }
 
-    const master = await spawnRedisServerDocker(dockerConfigs, serverArguments, dockerEnv);
+    const master = await spawnRedisServerDocker(dockerConfigs, serverArguments);
     const redisNodes: Array<RedisServerDocker> = [master];
     const replicaPromises: Array<Promise<RedisServerDocker>> = [];
     
     const replicasCount = 2;
     for (let i = 0; i < replicasCount; i++) {
       replicaPromises.push((async () => {
-        const replica = await spawnRedisServerDocker(dockerConfigs, serverArguments, dockerEnv);
+        const replica = await spawnRedisServerDocker(dockerConfigs, serverArguments);
         const client = createClient({
           socket: {
             port: replica.port
@@ -407,7 +410,7 @@ sentinel failover-timeout mymaster 6000
             mode: "sentinel",
              mounts: [`${dir}/redis.conf:/redis/config/node-sentinel-1/redis.conf`], 
              port: port,
-            }, serverArguments, dockerEnv);
+            }, serverArguments);
       })());
     }
     

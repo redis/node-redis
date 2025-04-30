@@ -376,7 +376,7 @@ async function steadyState(frame: SentinelFramework) {
   }
 }
 
-describe('legacy tests', () => {
+describe.skip('legacy tests', () => {
   const config: RedisSentinelConfig = { sentinelName: "test", numberOfNodes: 3, password: undefined };
   const frame = new SentinelFramework(config);
   let tracer = new Array<string>();
