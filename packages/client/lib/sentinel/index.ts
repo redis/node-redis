@@ -32,14 +32,30 @@ export class RedisSentinelClient<
   #internal: RedisSentinelInternal<M, F, S, RESP, TYPE_MAPPING>;
   readonly _self: RedisSentinelClient<M, F, S, RESP, TYPE_MAPPING>;
 
+  /**
+   * Indicates if the client connection is open
+   * 
+   * @returns `true` if the client connection is open, `false` otherwise
+   */
+
   get isOpen() {
     return this._self.#internal.isOpen;
   }
 
+  /**
+   * Indicates if the client connection is ready to accept commands
+   * 
+   * @returns `true` if the client connection is ready, `false` otherwise
+   */
   get isReady() {
     return this._self.#internal.isReady;
   }
 
+  /**
+   * Gets the command options configured for this client
+   * 
+   * @returns The command options for this client or `undefined` if none were set
+   */
   get commandOptions() {
     return this._self.#commandOptions;
   }
@@ -222,6 +238,16 @@ export class RedisSentinelClient<
 
   unwatch = this.UNWATCH;
 
+  /**
+   * Releases the client lease back to the pool
+   * 
+   * After calling this method, the client instance should no longer be used as it
+   * will be returned to the client pool and may be given to other operations.
+   * 
+   * @returns A promise that resolves when the client is ready to be reused, or undefined
+   *          if the client was immediately ready
+   * @throws Error if the lease has already been released
+   */
   release() {
     if (this._self.#clientInfo === undefined) {
       throw new Error('RedisSentinelClient lease already released');
@@ -245,10 +271,20 @@ export default class RedisSentinel<
   #internal: RedisSentinelInternal<M, F, S, RESP, TYPE_MAPPING>;
   #options: RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>;
 
+  /**
+   * Indicates if the sentinel connection is open
+   * 
+   * @returns `true` if the sentinel connection is open, `false` otherwise
+   */
   get isOpen() {
     return this._self.#internal.isOpen;
   }
 
+  /**
+   * Indicates if the sentinel connection is ready to accept commands
+   * 
+   * @returns `true` if the sentinel connection is ready, `false` otherwise
+   */
   get isReady() {
     return this._self.#internal.isReady;
   }
@@ -511,7 +547,28 @@ export default class RedisSentinel<
 
   pUnsubscribe = this.PUNSUBSCRIBE;
 
-  async aquire(): Promise<RedisSentinelClientType<M, F, S, RESP, TYPE_MAPPING>> {
+  /**
+   * Acquires a master client lease for exclusive operations
+   * 
+   * Used when multiple commands need to run on an exclusive client (for example, using `WATCH/MULTI/EXEC`).
+   * The returned client must be released after use with the `release()` method.
+   * 
+   * @returns A promise that resolves to a Redis client connected to the master node
+   * @example
+   * ```javascript
+   * const clientLease = await sentinel.acquire();
+   * 
+   * try {
+   *   await clientLease.watch('key');
+   *   const resp = await clientLease.multi()
+   *     .get('key')
+   *     .exec();
+   * } finally {
+   *   clientLease.release();
+   * }
+   * ```
+   */
+  async acquire(): Promise<RedisSentinelClientType<M, F, S, RESP, TYPE_MAPPING>> {
     const clientInfo = await this._self.#internal.getClientLease();
     return RedisSentinelClient.create(this._self.#options, this._self.#internal, clientInfo, this._self.#commandOptions);
   }
@@ -641,6 +698,12 @@ class RedisSentinelInternal<
     });
   }
 
+  /**
+   * Gets a client lease from the master client pool
+   * 
+   * @returns A client info object or a promise that resolves to a client info object
+   *          when a client becomes available
+   */
   getClientLease(): ClientInfo | Promise<ClientInfo> {
     const id = this.#masterClientQueue.shift();
     if (id !== undefined) {
@@ -650,6 +713,16 @@ class RedisSentinelInternal<
     return this.#masterClientQueue.wait().then(id => ({ id }));
   }
 
+  /**
+   * Releases a client lease back to the pool
+   * 
+   * If the client was used for a transaction that might have left it in a dirty state,
+   * it will be reset before being returned to the pool.
+   * 
+   * @param clientInfo The client info object representing the client to release
+   * @returns A promise that resolves when the client is ready to be reused, or undefined
+   *          if the client was immediately ready or no longer exists
+   */
   releaseClientLease(clientInfo: ClientInfo) {
     const client = this.#masterClients[clientInfo.id];
     // client can be undefined if releasing in middle of a reconfigure

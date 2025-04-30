@@ -49,11 +49,17 @@ export interface RedisSentinelOptions<
    */
   replicaPoolSize?: number;
   /**
-   * TODO
+   * Interval in milliseconds to periodically scan for changes in the sentinel topology.
+   * The client will query the sentinel for changes at this interval.
+   * 
+   * Default: 10000 (10 seconds)
    */
   scanInterval?: number;
   /**
-   * TODO
+   * When `true`, error events from client instances inside the sentinel will be propagated to the sentinel instance.
+   * This allows handling all client errors through a single error handler on the sentinel instance.
+   * 
+   * Default: false
    */
   passthroughClientErrorEvents?: boolean;
   /**

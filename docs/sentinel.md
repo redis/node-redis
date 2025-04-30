@@ -14,7 +14,7 @@ const sentinel = await createSentinel({
       port: 1234
     }]
   })
-  .on('error', err => console.error('Redis Sentinel Error', err));
+  .on('error', err => console.error('Redis Sentinel Error', err))
   .connect();
 
 await sentinel.set('key', 'value');
@@ -26,16 +26,19 @@ In the above example, we configure the sentinel object to fetch the configuratio
 
 ## `createSentinel` configuration
 
-| Property              | Default | Description                                                                                                                                                                                                                                                                                                           |
-|-----------------------|---------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| name                  |         | The sentinel identifier for a particular database cluster                                                                                                                                                                                                                                                             |
-| sentinelRootNodes     |         | An array of root nodes that are part of the sentinel cluster, which will be used to get the topology. Each element in the array is a client configuration object. There is no need to specify every node in the cluster: 3 should be enough to reliably connect and obtain the sentinel configuration from the server |
-| maxCommandRediscovers | `16`    | The maximum number of times a command will retry due to topology changes.                                                                                                                                                                                                                                             |
-| nodeClientOptions     |         | The configuration values for every node in the cluster. Use this for example when specifying an ACL user to connect with                                                                                                                                                                                              |
-| sentinelClientOptions |         | The configuration values for every sentinel in the cluster. Use this for example when specifying an ACL user to connect with                                                                                                                                                                                          |
-| masterPoolSize        | `1`     | The number of clients connected to the master node                                                                                                                                                                                                                                                                    |
-| replicaPoolSize       | `0`     | The number of clients connected to each replica node. When greater than 0, the client will distribute the load by executing read-only commands (such as `GET`, `GEOSEARCH`, etc.) across all the cluster nodes.                                                                                                       |
-| reserveClient         | `false` | When `true`, one client will be reserved for the sentinel object. When `false`, the sentinel object will wait for the first available client from the pool.                                                                                                                                                           |
+| Property                   | Default   | Description                                                                                                                                                                                                                                                                                                           |
+|----------------------------|-----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| name                       |           | The sentinel identifier for a particular database cluster                                                                                                                                                                                                                                                             |
+| sentinelRootNodes          |           | An array of root nodes that are part of the sentinel cluster, which will be used to get the topology. Each element in the array is a client configuration object. There is no need to specify every node in the cluster: 3 should be enough to reliably connect and obtain the sentinel configuration from the server |
+| maxCommandRediscovers      | `16`      | The maximum number of times a command will retry due to topology changes.                                                                                                                                                                                                                                             |
+| nodeClientOptions          |           | The configuration values for every node in the cluster. Use this for example when specifying an ACL user to connect with                                                                                                                                                                                              |
+| sentinelClientOptions      |           | The configuration values for every sentinel in the cluster. Use this for example when specifying an ACL user to connect with                                                                                                                                                                                          |
+| masterPoolSize             | `1`       | The number of clients connected to the master node                                                                                                                                                                                                                                                                    |
+| replicaPoolSize            | `0`       | The number of clients connected to each replica node. When greater than 0, the client will distribute the load by executing read-only commands (such as `GET`, `GEOSEARCH`, etc.) across all the cluster nodes.                                                                                                       |
+| scanInterval               | `10000`   | Interval in milliseconds to periodically scan for changes in the sentinel topology. The client will query the sentinel for changes at this interval.                                                                                                                                                                 |
+| passthroughClientErrorEvents | `false` | When `true`, error events from client instances inside the sentinel will be propagated to the sentinel instance. This allows handling all client errors through a single error handler on the sentinel instance.                                                                                                     |
+| reserveClient              | `false`   | When `true`, one client will be reserved for the sentinel object. When `false`, the sentinel object will wait for the first available client from the pool.                                                                                                                                                           |
+
 ## PubSub
 
 It supports PubSub via the normal mechanisms, including migrating the listeners if the node they are connected to goes down.
@@ -60,7 +63,7 @@ createSentinel({
 });
 ```
 
-In addition, it also provides the ability have a pool of clients connected to the replica nodes, and to  direct all read-only commands to them:
+In addition, it also provides the ability have a pool of clients connected to the replica nodes, and to direct all read-only commands to them:
 
 ```javascript
 createSentinel({
@@ -85,9 +88,9 @@ const result = await sentinel.use(async client => {
 });
 ```
 
-`.getMasterClientLease()`
+`.acquire()`
 ```javascript
-const clientLease = await sentinel.getMasterClientLease();
+const clientLease = await sentinel.acquire();
 
 try {
   await clientLease.watch('key');

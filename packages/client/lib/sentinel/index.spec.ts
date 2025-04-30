@@ -134,7 +134,7 @@ describe(`test with scripts`, () => {
   }, GLOBAL.SENTINEL.WITH_SCRIPT);
 
   testUtils.testWithClientSentinel('with script multi', async sentinel => {
-    const reply = await sentinel.multi().set('key', 2).square('key').exec(); 
+    const reply = await sentinel.multi().set('key', 2).square('key').exec();
     assert.deepEqual(reply, ['OK', 4]);
   }, GLOBAL.SENTINEL.WITH_SCRIPT);
 
@@ -148,7 +148,7 @@ describe(`test with scripts`, () => {
     );
   }, GLOBAL.SENTINEL.WITH_SCRIPT)
 });
-  
+
 
 describe(`test with functions`, () => {
   testUtils.testWithClientSentinel('with function', async sentinel => {
@@ -178,14 +178,14 @@ describe(`test with functions`, () => {
       MATH_FUNCTION.code,
       { REPLACE: true }
     );
-  
+
     const reply = await sentinel.use(
       async (client: any) => {
         await client.set('key', '2');
         return client.math.square('key');
       }
     );
-  
+
     assert.equal(reply, 4);
   }, GLOBAL.SENTINEL.WITH_FUNCTION);
 });
@@ -216,7 +216,7 @@ describe(`test with replica pool size 1`, () => {
   testUtils.testWithClientSentinel('client lease', async sentinel => {
     sentinel.on("error", () => { });
 
-    const clientLease = await sentinel.aquire();
+    const clientLease = await sentinel.acquire();
     clientLease.set('x', 456);
 
     let matched = false;
@@ -243,7 +243,7 @@ describe(`test with replica pool size 1`, () => {
         return await client.get("x");
       }
     )
-    
+
     await sentinel.set("x", 1);
     assert.equal(await promise, null);
   }, GLOBAL.SENTINEL.WITH_REPLICA_POOL_SIZE_1);
@@ -276,7 +276,7 @@ describe(`test with masterPoolSize 2, reserve client true`, () => {
     assert.equal(await promise2, "2");
   }, Object.assign(GLOBAL.SENTINEL.WITH_RESERVE_CLIENT_MASTER_POOL_SIZE_2, {skipTest: true}));
 });
-  
+
 describe(`test with masterPoolSize 2`, () => {
   testUtils.testWithClientSentinel('multple clients', async sentinel => {
     sentinel.on("error", () => { });
@@ -313,14 +313,14 @@ describe(`test with masterPoolSize 2`, () => {
   }, GLOBAL.SENTINEL.WITH_MASTER_POOL_SIZE_2);
 
   testUtils.testWithClientSentinel('lease - watch - clean', async sentinel => {
-    const leasedClient = await sentinel.aquire();
+    const leasedClient = await sentinel.acquire();
     await leasedClient.set('x', 1);
     await leasedClient.watch('x');
     assert.deepEqual(await leasedClient.multi().get('x').exec(), ['1'])
   }, GLOBAL.SENTINEL.WITH_MASTER_POOL_SIZE_2);
 
   testUtils.testWithClientSentinel('lease - watch - dirty', async sentinel => {
-    const leasedClient = await sentinel.aquire();
+    const leasedClient = await sentinel.acquire();
     await leasedClient.set('x', 1);
     await leasedClient.watch('x');
     await leasedClient.set('x', 2);
@@ -328,11 +328,11 @@ describe(`test with masterPoolSize 2`, () => {
     await assert.rejects(leasedClient.multi().get('x').exec(), new WatchError());
   }, GLOBAL.SENTINEL.WITH_MASTER_POOL_SIZE_2);
 });
-  
+
 
 // TODO: Figure out how to modify the test utils
 // so it would have fine grained controll over
-// sentinel 
+// sentinel
 // it should somehow replicate the `SentinelFramework` object functionallities
 async function steadyState(frame: SentinelFramework) {
   let checkedMaster = false;
@@ -439,7 +439,7 @@ describe.skip('legacy tests', () => {
         sentinel.on('error', () => { });
       }
 
-      if (this!.currentTest!.state === 'failed') {          
+      if (this!.currentTest!.state === 'failed') {
         console.log(`longest event loop blocked delta: ${longestDelta}`);
         console.log(`longest event loop blocked in failing test: ${longestTestDelta}`);
         console.log("trace:");
@@ -454,7 +454,7 @@ describe.skip('legacy tests', () => {
           frame.sentinelMaster(),
           frame.sentinelReplicas()
         ])
-        
+
         console.log(`sentinel sentinels:\n${JSON.stringify(results[0], undefined, '\t')}`);
         console.log(`sentinel master:\n${JSON.stringify(results[1], undefined, '\t')}`);
         console.log(`sentinel replicas:\n${JSON.stringify(results[2], undefined, '\t')}`);
@@ -492,7 +492,7 @@ describe.skip('legacy tests', () => {
       );
     });
 
-    // stops master to force sentinel to update 
+    // stops master to force sentinel to update
     it('stop master', async function () {
       this.timeout(60000);
 
@@ -538,8 +538,8 @@ describe.skip('legacy tests', () => {
 
       tracer.push("connected");
 
-      const client = await sentinel.aquire();
-      tracer.push("aquired lease");
+      const client = await sentinel.acquire();
+      tracer.push("acquired lease");
 
       await client.set("x", 1);
       await client.watch("x");
@@ -586,7 +586,7 @@ describe.skip('legacy tests', () => {
       await sentinel.connect();
       tracer.push("connected");
 
-      const client = await sentinel.aquire();
+      const client = await sentinel.acquire();
       tracer.push("got leased client");
       await client.set("x", 1);
       await client.watch("x");
@@ -965,10 +965,10 @@ describe.skip('legacy tests', () => {
       tracer.push("adding node");
       await frame.addNode();
       tracer.push("added node and waiting on added promise");
-      await nodeAddedPromise; 
+      await nodeAddedPromise;
     })
   });
 });
 
 
-  
+
