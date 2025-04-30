@@ -43,7 +43,6 @@ const portIterator = (async function* (): AsyncIterableIterator<number> {
 interface RedisServerDockerConfig {
   image: string;
   version: string;
-  env?: Map<string, string>;
 }
 
 interface SentinelConfig {
@@ -85,10 +84,6 @@ options: RedisServerDockerOptions, serverArguments: Array<string>): Promise<Redi
       dockerArgs.push('-v', mount);
     });
   }
-
-  options.env?.forEach((key: string, value: string) => {
-    dockerArgs.push('-e', `${key}:${value}`);
-  });
 
   dockerArgs.push(
     '-d',
@@ -338,19 +333,11 @@ export async function spawnRedisSentinel(
     if (runningNodes) {
       return runningNodes;
     }
-
-    if (!dockerConfigs.env) {
-      dockerConfigs.env = new Map();
-    }
     
     const passIndex = serverArguments.indexOf('--requirepass')+1;
     let password: string | undefined = undefined;
     if (passIndex != 0) {
       password = serverArguments[passIndex];
-    }
-
-    if (password !== undefined) {
-      dockerConfigs.env.set("REDIS_PASSWORD", password);
     }
 
     const master = await spawnRedisServerDocker(dockerConfigs, serverArguments);
