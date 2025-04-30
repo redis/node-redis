@@ -25,17 +25,22 @@ FUNCTION LOAD "#!lua name=library\nredis.register_function{function_name='add', 
 Load the prior redis function on the _redis server_ before running the example below.
 
 ```typescript
-import { createClient } from 'redis';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { NumberReply } from '@redis/client/lib/RESP/types';
+import { createClient, RedisArgument } from 'redis';
 
 const client = createClient({
   functions: {
     library: {
       add: {
         NUMBER_OF_KEYS: 1,
-        FIRST_KEY_INDEX: 1,
-        parseCommand(parser: CommandParser, key: RedisArgument, toAdd: RedisArgument) {
-          parser.pushKey(key);
-          parser.push(toAdd);
+        parseCommand(
+          parser: CommandParser,
+          key: RedisArgument,
+          toAdd: RedisArgument
+        ) {
+          parser.pushKey(key)
+          parser.push(toAdd)
         },
         transformReply: undefined as unknown as () => NumberReply
       }
@@ -44,9 +49,8 @@ const client = createClient({
 });
 
 await client.connect();
-
 await client.set('key', '1');
-await client.library.add('key', 2); // 3
+await client.library.add('key', '2'); // 3
 ```
 
 ## [Lua Scripts](https://redis.io/docs/manual/programmability/eval-intro/)
@@ -54,7 +58,9 @@ await client.library.add('key', 2); // 3
 The following is an end-to-end example of the prior concept.
 
 ```typescript
-import { createClient, defineScript, NumberReply } from 'redis';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { NumberReply } from '@redis/client/lib/RESP/types';
+import { createClient, defineScript, RedisArgument } from 'redis';
 
 const client = createClient({
   scripts: {
@@ -62,9 +68,13 @@ const client = createClient({
       SCRIPT: 'return redis.call("GET", KEYS[1]) + ARGV[1];',
       NUMBER_OF_KEYS: 1,
       FIRST_KEY_INDEX: 1,
-      parseCommand(parser: CommandParser, key: RedisArgument, toAdd: RedisArgument) {
-        parser.pushKey(key);
-        parser.push(toAdd);
+      parseCommand(
+        parser: CommandParser,
+        key: RedisArgument,
+        toAdd: RedisArgument
+      ) {
+        parser.pushKey(key)
+        parser.push(toAdd)
       },
       transformReply: undefined as unknown as () => NumberReply
     })
@@ -72,7 +82,6 @@ const client = createClient({
 });
 
 await client.connect();
-
 await client.set('key', '1');
-await client.add('key', 2); // 3
+await client.add('key', '2'); // 3
 ```
