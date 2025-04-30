@@ -6,8 +6,11 @@ import {
   TypeMapping,
   // CommandPolicies,
   createClient,
+  createSentinel,
   RedisClientOptions,
   RedisClientType,
+  RedisSentinelOptions,
+  RedisSentinelType,
   RedisPoolOptions,
   RedisClientPoolType,
   createClientPool,
@@ -15,7 +18,8 @@ import {
   RedisClusterOptions,
   RedisClusterType
 } from '@redis/client/index';
-import { RedisServerDockerConfig, spawnRedisServer, spawnRedisCluster } from './dockers';
+import { RedisNode } from '@redis/client/lib/sentinel/types'
+import { spawnRedisServer, spawnRedisCluster, spawnRedisSentinel, RedisServerDockerOptions } from './dockers';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 
@@ -66,6 +70,24 @@ interface ClientTestOptions<
 > extends CommonTestOptions {
   clientOptions?: Partial<RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>>;
   disableClientSetup?: boolean;
+}
+
+interface SentinelTestOptions<
+  M extends RedisModules,
+  F extends RedisFunctions,
+  S extends RedisScripts,
+  RESP extends RespVersions,
+  TYPE_MAPPING extends TypeMapping
+> extends CommonTestOptions {
+  sentinelOptions?: Partial<RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>>;
+  clientOptions?: Partial<RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>>;
+  scripts?: S;
+  functions?: F;
+  modules?: M;
+  disableClientSetup?: boolean;
+  replicaPoolSize?: number;
+  masterPoolSize?: number;
+  reserveClient?: boolean;
 }
 
 interface ClientPoolTestOptions<
@@ -148,13 +170,14 @@ export default class TestUtils {
   }
 
   readonly #VERSION_NUMBERS: Array<number>;
-  readonly #DOCKER_IMAGE: RedisServerDockerConfig;
+  readonly #DOCKER_IMAGE: RedisServerDockerOptions;
 
   constructor({ string, numbers }: Version, dockerImageName: string) {
     this.#VERSION_NUMBERS = numbers;
     this.#DOCKER_IMAGE = {
       image: dockerImageName,
-      version: string
+      version: string, 
+      mode: "server"
     };
   }
 
@@ -179,7 +202,6 @@ export default class TestUtils {
   }
 
   isVersionGreaterThanHook(minimumVersion: Array<number> | undefined): void {
-
     const isVersionGreaterThanHook = this.isVersionGreaterThan.bind(this);
     const versionNumber = this.#VERSION_NUMBERS.join('.');
     const minimumVersionString = minimumVersion?.join('.');
@@ -272,6 +294,81 @@ export default class TestUtils {
     });
   }
 
+  testWithClientSentinel<
+    M extends RedisModules = {},
+    F extends RedisFunctions = {},
+    S extends RedisScripts = {},
+    RESP extends RespVersions = 2,
+    TYPE_MAPPING extends TypeMapping = {}
+  >(
+    title: string,
+    fn: (sentinel: RedisSentinelType<M, F, S, RESP, TYPE_MAPPING>) => unknown,
+    options: SentinelTestOptions<M, F, S, RESP, TYPE_MAPPING>
+  ): void {
+    let dockerPromises: ReturnType<typeof spawnRedisSentinel>;
+
+    const passIndex = options.serverArguments.indexOf('--requirepass')+1;
+    let password: string | undefined = undefined;
+    if (passIndex != 0) {
+      password = options.serverArguments[passIndex];
+    }
+    
+    if (this.isVersionGreaterThan(options.minimumDockerVersion)) {
+      const dockerImage = this.#DOCKER_IMAGE;
+      before(function () {
+        this.timeout(30000);
+        dockerPromises = spawnRedisSentinel(dockerImage, options.serverArguments);
+        return dockerPromises;
+      });
+    }
+
+    it(title, async function () {
+      this.timeout(30000);
+      if (options.skipTest) return this.skip();
+      if (!dockerPromises) return this.skip();
+
+
+      const promises = await dockerPromises;
+      const rootNodes: Array<RedisNode> = promises.map(promise => ({
+        host: "127.0.0.1", 
+        port: promise.port
+      }));
+
+      const sentinel = createSentinel({
+        name: 'mymaster', 
+        sentinelRootNodes: rootNodes, 
+        nodeClientOptions: { 
+          password: password || undefined,
+        },
+        sentinelClientOptions: { 
+          password: password || undefined,
+        },
+        replicaPoolSize: options?.replicaPoolSize || 0,
+        scripts: options?.scripts || {},
+        modules: options?.modules || {},
+        functions: options?.functions || {},
+        masterPoolSize: options?.masterPoolSize || undefined,
+        reserveClient: options?.reserveClient || false,
+      }) as RedisSentinelType<M, F, S, RESP, TYPE_MAPPING>;
+
+      if (options.disableClientSetup) {
+        return fn(sentinel);
+      }
+
+      await sentinel.connect();
+
+      try {
+        await sentinel.flushAll();
+        await fn(sentinel);
+      } finally {
+        if (sentinel.isOpen) {
+          await sentinel.flushAll();
+          sentinel.destroy();
+        }
+      }
+    });
+  }
+
   testWithClientIfVersionWithinRange<
     M extends RedisModules = {},
     F extends RedisFunctions = {},
@@ -290,8 +387,27 @@ export default class TestUtils {
     } else {
       console.warn(`Skipping test ${title} because server version ${this.#VERSION_NUMBERS.join('.')} is not within range ${range[0].join(".")} - ${range[1] !== 'LATEST' ? range[1].join(".") : 'LATEST'}`)
     }
-
   }
+
+  testWithClienSentineltIfVersionWithinRange<
+  M extends RedisModules = {},
+  F extends RedisFunctions = {},
+  S extends RedisScripts = {},
+  RESP extends RespVersions = 2,
+  TYPE_MAPPING extends TypeMapping = {}
+>(
+  range: ([minVersion: Array<number>, maxVersion: Array<number>] | [minVersion: Array<number>, 'LATEST']),
+  title: string,
+  fn: (sentinel: RedisSentinelType<M, F, S, RESP, TYPE_MAPPING>) => unknown,
+  options: SentinelTestOptions<M, F, S, RESP, TYPE_MAPPING>
+): void {
+
+  if (this.isVersionInRange(range[0], range[1] === 'LATEST' ? [Infinity, Infinity, Infinity] : range[1])) {
+    return this.testWithClientSentinel(`${title}  [${range[0].join('.')}] - [${(range[1] === 'LATEST') ? range[1] : range[1].join(".")}] `, fn, options)
+  } else {
+    console.warn(`Skipping test ${title} because server version ${this.#VERSION_NUMBERS.join('.')} is not within range ${range[0].join(".")} - ${range[1] !== 'LATEST' ? range[1].join(".") : 'LATEST'}`)
+  }
+}
 
   testWithClientPool<
     M extends RedisModules = {},

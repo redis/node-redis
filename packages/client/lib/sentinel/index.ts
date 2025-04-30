@@ -345,9 +345,12 @@ export default class RedisSentinel<
     key: K,
     value: V
   ) {
-    const proxy = Object.create(this._self);
-    proxy._commandOptions = Object.create(this._self.#commandOptions ?? null);
-    proxy._commandOptions[key] = value;
+    const proxy = Object.create(this);
+    // Create new commandOptions object with the inherited properties
+    proxy._self.#commandOptions = {
+      ...(this._self.#commandOptions || {}),
+      [key]: value
+    };
     return proxy as RedisSentinelType<
       M,
       F,
@@ -682,9 +685,10 @@ class RedisSentinelInternal<
 
   async #connect() {
     let count = 0;
-    while (true) {
+    while (true) {      
       this.#trace("starting connect loop");
 
+      count+=1;      
       if (this.#destroy) {
         this.#trace("in #connect and want to destroy")
         return;
@@ -1109,7 +1113,7 @@ class RedisSentinelInternal<
 
       this.#trace(`transform: destroying old masters if open`);
       for (const client of this.#masterClients) {
-        masterWatches.push(client.isWatching);
+        masterWatches.push(client.isWatching || client.isDirtyWatch);
 
         if (client.isOpen) {
           client.destroy()
