@@ -333,7 +333,6 @@ const RUNNING_SENTINELS = new Map<Array<string>, Array<RedisServerDocker>>();
 export async function spawnRedisSentinel(
   dockerConfigs: RedisServerDockerOptions,
   serverArguments: Array<string>,
-  password?: string,
 ): Promise<Array<RedisServerDocker>> {
     const runningNodes = RUNNING_SENTINELS.get(serverArguments);
     if (runningNodes) {
@@ -344,9 +343,14 @@ export async function spawnRedisSentinel(
       dockerConfigs.env = new Map();
     }
     
+    const passIndex = serverArguments.indexOf('--requirepass')+1;
+    let password: string | undefined = undefined;
+    if (passIndex != 0) {
+      password = serverArguments[passIndex];
+    }
+
     if (password !== undefined) {
       dockerConfigs.env.set("REDIS_PASSWORD", password);
-      serverArguments.push("--requirepass", password)
     }
 
     const master = await spawnRedisServerDocker(dockerConfigs, serverArguments);

@@ -84,7 +84,6 @@ interface SentinelTestOptions<
   scripts?: S;
   functions?: F;
   modules?: M;
-  password?: string;
   disableClientSetup?: boolean;
   replicaPoolSize?: number;
   masterPoolSize?: number;
@@ -310,12 +309,17 @@ export default class TestUtils {
   ): void {
     let dockerPromises: ReturnType<typeof spawnRedisSentinel>;
 
+    const passIndex = options.serverArguments.indexOf('--requirepass')+1;
+    let password: string | undefined = undefined;
+    if (passIndex != 0) {
+      password = options.serverArguments[passIndex];
+    }
+    
     if (this.isVersionGreaterThan(options.minimumDockerVersion)) {
       const dockerImage = this.#DOCKER_IMAGE;
       before(function () {
         this.timeout(30000);
-
-        dockerPromises = spawnRedisSentinel(dockerImage, options.serverArguments, options?.password);
+        dockerPromises = spawnRedisSentinel(dockerImage, options.serverArguments);
         return dockerPromises;
       });
     }
@@ -336,10 +340,10 @@ export default class TestUtils {
         name: 'mymaster', 
         sentinelRootNodes: rootNodes, 
         nodeClientOptions: { 
-          password: options?.password || undefined,
+          password: password || undefined,
         },
         sentinelClientOptions: { 
-          password: options?.password || undefined,
+          password: password || undefined,
         },
         replicaPoolSize: options?.replicaPoolSize || 0,
         scripts: options?.scripts || {},

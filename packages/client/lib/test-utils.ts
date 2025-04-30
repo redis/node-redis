@@ -130,45 +130,37 @@ export const GLOBAL = {
   SENTINEL: {
     OPEN: {
       serverArguments: [...DEBUG_MODE_ARGS],
-      password: undefined,
     },
     PASSWORD: {
-      serverArguments: [...DEBUG_MODE_ARGS],
-      password: 'test_password',
+      serverArguments: ['--requirepass', 'test_password', ...DEBUG_MODE_ARGS],
     },
     WITH_SCRIPT: {
       serverArguments: [...DEBUG_MODE_ARGS],
-      password: undefined,
       scripts: {
         square: SQUARE_SCRIPT,
       },
     },
     WITH_FUNCTION: {
       serverArguments: [...DEBUG_MODE_ARGS],
-      password: undefined,
       functions: {
         math: MATH_FUNCTION.library,
       },
     },
     WITH_MODULE: {
       serverArguments: [...DEBUG_MODE_ARGS],
-      password: undefined,
       modules: RedisBloomModules,
     },
     WITH_REPLICA_POOL_SIZE_1: {
       serverArguments: [...DEBUG_MODE_ARGS],
-      password: undefined,
       replicaPoolSize: 1,
     },
     WITH_RESERVE_CLIENT_MASTER_POOL_SIZE_2: {
       serverArguments: [...DEBUG_MODE_ARGS],
-      password: undefined,
       masterPoolSize: 2,
       reserveClient: true,
     },
     WITH_MASTER_POOL_SIZE_2: {
       serverArguments: [...DEBUG_MODE_ARGS],
-      password: undefined,
       masterPoolSize: 2,
     }
   }

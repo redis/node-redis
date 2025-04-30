@@ -11,7 +11,13 @@ import { exec } from 'node:child_process';
 const execAsync = promisify(exec);
 
 [GLOBAL.SENTINEL.OPEN, GLOBAL.SENTINEL.PASSWORD].forEach(testOptions => {
-  describe(`test with password - ${testOptions.password}`, () => {
+  const passIndex = testOptions.serverArguments.indexOf('--requirepass')+1;
+  let password: string | undefined = undefined;
+  if (passIndex != 0) {
+    password = testOptions.serverArguments[passIndex];
+  }
+
+  describe(`test with password - ${password}`, () => {
     testUtils.testWithClientSentinel('client should be authenticated', async sentinel => {
       await assert.doesNotReject(sentinel.set('x', 1));
     }, testOptions);
