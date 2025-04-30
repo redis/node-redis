@@ -124,8 +124,13 @@ await client.hVals("key"); // ['value1', 'value2']
 `Buffer`s are supported as well:
 
 ```typescript
+const client = createClient().withTypeMapping({
+  [RESP_TYPES.BLOB_STRING]: Buffer
+});
+
 await client.hSet("key", "field", Buffer.from("value")); // 'OK'
-await client.hGetAll(commandOptions({ returnBuffers: true }), "key"); // { field: <Buffer 76 61 6c 75 65> }
+await client.hGet("key", "field"); // { field: <Buffer 76 61 6c 75 65> }
+
 ```
 
 ### Unsupported Redis Commands
