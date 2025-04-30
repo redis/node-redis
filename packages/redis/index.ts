@@ -19,11 +19,11 @@ import RedisJSON from '@redis/json';
 import RediSearch from '@redis/search';
 import RedisTimeSeries from '@redis/time-series';
 
-// export * from '@redis/client';
-// export * from '@redis/bloom';
-// export * from '@redis/json';
-// export * from '@redis/search';
-// export * from '@redis/time-series';
+export * from '@redis/client';
+export * from '@redis/bloom';
+export * from '@redis/json';
+export * from '@redis/search';
+export * from '@redis/time-series';
 
 const modules = {
   ...RedisBloomModules,
