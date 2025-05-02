@@ -45,13 +45,13 @@ npm install redis
 
 | Name                                           | Description                                                                                 |
 | ---------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| [`redis`](./packages/redis)                    | The client with all the ["redis-stack"](https://github.com/redis-stack/redis-stack) modules |
-| [`@redis/client`](./packages/client)           | The base clients (i.e `RedisClient`, `RedisCluster`, etc.)                                  |
-| [`@redis/bloom`](./packages/bloom)             | [Redis Bloom](https://redis.io/docs/data-types/probabilistic/) commands                     |
-| [`@redis/json`](./packages/json)               | [Redis JSON](https://redis.io/docs/data-types/json/) commands                               |
-| [`@redis/search`](./packages/search)           | [RediSearch](https://redis.io/docs/interact/search-and-query/) commands                     |
-| [`@redis/time-series`](./packages/time-series) | [Redis Time-Series](https://redis.io/docs/data-types/timeseries/) commands                  |
-| [`@redis/entraid`](./packages/entraid)         | Secure token-based authentication for Redis clients using Microsoft Entra ID                |
+| [`redis`](../redis)                    | The client with all the ["redis-stack"](https://github.com/redis-stack/redis-stack) modules |
+| [`@redis/client`](../client)           | The base clients (i.e `RedisClient`, `RedisCluster`, etc.)                                  |
+| [`@redis/bloom`](../bloom)             | [Redis Bloom](https://redis.io/docs/data-types/probabilistic/) commands                     |
+| [`@redis/json`](../json)               | [Redis JSON](https://redis.io/docs/data-types/json/) commands                               |
+| [`@redis/search`](../search)           | [RediSearch](https://redis.io/docs/interact/search-and-query/) commands                     |
+| [`@redis/time-series`](../time-series) | [Redis Time-Series](https://redis.io/docs/data-types/timeseries/) commands                  |
+| [`@redis/entraid`](../entraid)         | Secure token-based authentication for Redis clients using Microsoft Entra ID                |
 
 > Looking for a high-level library to handle object mapping?
 > See [redis-om-node](https://github.com/redis/redis-om-node)!
@@ -83,7 +83,7 @@ createClient({
 ```
 
 You can also use discrete parameters, UNIX sockets, and even TLS to connect. Details can be found in
-the [client configuration guide](./docs/client-configuration.md).
+the [client configuration guide](../../docs/client-configuration.md).
 
 To check if the the client is connected and ready to send commands, use `client.isReady` which returns a boolean.
 `client.isOpen` is also available. This returns `true` when the client's underlying socket is open, and `false` when it
@@ -188,7 +188,7 @@ await pool.ping();
 
 ### Pub/Sub
 
-See the [Pub/Sub overview](./docs/pub-sub.md).
+See the [Pub/Sub overview](../../docs/pub-sub.md).
 
 ### Scan Iterator
 
@@ -257,11 +257,11 @@ await Promise.all([
 
 ### Programmability
 
-See the [Programmability overview](./docs/programmability.md).
+See the [Programmability overview](../../docs/programmability.md).
 
 ### Clustering
 
-Check out the [Clustering Guide](./docs/clustering.md) when using Node Redis to connect to a Redis Cluster.
+Check out the [Clustering Guide](../../docs/clustering.md) when using Node Redis to connect to a Redis Cluster.
 
 ### Events
 
@@ -274,12 +274,12 @@ The Node Redis client class is an Nodejs EventEmitter and it emits an event each
 | `end`                   | Connection has been closed (via `.disconnect()`)                                   | _No arguments_                                            |
 | `error`                 | An error has occurred—usually a network issue such as "Socket closed unexpectedly" | `(error: Error)`                                          |
 | `reconnecting`          | Client is trying to reconnect to the server                                        | _No arguments_                                            |
-| `sharded-channel-moved` | See [here](./docs/pub-sub.md#sharded-channel-moved-event)                          | See [here](./docs/pub-sub.md#sharded-channel-moved-event) |
+| `sharded-channel-moved` | See [here](../../docs/pub-sub.md#sharded-channel-moved-event)                          | See [here](../../docs/pub-sub.md#sharded-channel-moved-event) |
 
 > :warning: You **MUST** listen to `error` events. If a client doesn't have at least one `error` listener registered and
 > an `error` occurs, that error will be thrown and the Node.js process will exit. See the [ > `EventEmitter` docs](https://nodejs.org/api/events.html#events_error_events) for more details.
 
-> The client will not emit [any other events](./docs/v3-to-v4.md#all-the-removed-events) beyond those listed above.
+> The client will not emit [any other events](../../docs/v3-to-v4.md#all-the-removed-events) beyond those listed above.
 
 ## Supported Redis versions
 
@@ -298,13 +298,13 @@ Node Redis is supported with the following versions of Redis:
 
 ## Migration
 
-- [From V3 to V4](docs/v3-to-v4.md)
-- [From V4 to V5](docs/v4-to-v5.md)
-- [V5](docs/v5.md)
+- [From V3 to V4](../../docs/v3-to-v4.md)
+- [From V4 to V5](../../docs/v4-to-v5.md)
+- [V5](../../docs/v5.md)
 
 ## Contributing
 
-If you'd like to contribute, check out the [contributing guide](CONTRIBUTING.md).
+If you'd like to contribute, check out the [contributing guide](../../CONTRIBUTING.md).
 
 Thank you to all the people who already contributed to Node Redis!
 
@@ -312,4 +312,4 @@ Thank you to all the people who already contributed to Node Redis!
 
 ## License
 
-This repository is licensed under the "MIT" license. See [LICENSE](LICENSE).
+This repository is licensed under the "MIT" license. See [LICENSE](../../LICENSE).
