@@ -8,8 +8,14 @@ const client = createClient();
 await client.connect();
 
 const setName = 'setName';
-for await (const member of client.sScanIterator(setName)) {
-  console.log(member);
+
+for await (const members of client.sScanIterator(setName)) {
+  console.log('Batch of members:', members);
+
+  // Process each member in the batch if needed
+  for (const member of members) {
+    console.log('Individual member:', member);
+  }
 }
 
-client.destroy();
+client.close();

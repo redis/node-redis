@@ -12,9 +12,11 @@ const client = createClient({
         'redis.pcall("INCRBY", KEYS[1], ARGV[1]),' +
         'redis.pcall("INCRBY", KEYS[2], ARGV[1])' +
         '}',
-      transformArguments(key1, key2, increment) {
-        return [key1, key2, increment.toString()];
-      },
+        parseCommand(parser, key1, key2, increment) {
+          parser.pushKey(key1);
+          parser.pushKey(key2);
+          parser.push(increment.toString());
+        },
     }),
   },
 });

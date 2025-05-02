@@ -6,7 +6,13 @@ const client = createClient();
 await client.connect();
 
 const serverTime = await client.time();
-// 2022-02-25T12:57:40.000Z { microseconds: 351346 }
+// In v5, TIME returns [unixTimestamp: string, microseconds: string] instead of Date
+// Example: ['1708956789', '123456']
 console.log(serverTime);
 
-client.destroy();
+// Convert to JavaScript Date if needed
+const [seconds, microseconds] = serverTime;
+const date = new Date(parseInt(seconds) * 1000 + parseInt(microseconds) / 1000);
+console.log('Converted to Date:', date);
+
+client.close();

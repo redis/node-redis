@@ -57,7 +57,7 @@ results = await client.json.get('noderedis:jsondata', {
 });
 
 // Goldie is 3 years old now.
-console.log(`Goldie is ${JSON.stringify(results[0])} years old now.`);
+console.log(`Goldie is ${JSON.parse(results)[0]} years old now.`);
 
 // Add a new pet...
 await client.json.arrAppend('noderedis:jsondata', '$.pets', {
@@ -68,9 +68,14 @@ await client.json.arrAppend('noderedis:jsondata', '$.pets', {
 });
 
 // How many pets do we have now?
-const numPets = await client.json.arrLen('noderedis:jsondata', '$.pets');
+const numPets = await client.json.arrLen('noderedis:jsondata', { path: '$.pets' });
 
 // We now have 4 pets.
 console.log(`We now have ${numPets} pets.`);
 
-client.destroy();
+const rex = { name: 'Rex', species: 'dog', age: 3, isMammal: true }
+
+const index = await client.json.arrIndex( 'noderedis:jsondata', '$.pets', rex);
+console.log(`Rex is at index ${index}`);
+
+client.close();

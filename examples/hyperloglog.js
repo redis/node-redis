@@ -9,7 +9,7 @@ const client = createClient();
 await client.connect();
 
 // Use `pfAdd` to add an element to a Hyperloglog, creating the Hyperloglog if necessary.
-// await client.pfAdd(key, value)
+// await client.pfAdd(key, value) // returns 1 or 0
 
 // To get a count, the `pfCount` method is used.
 // await client.pfCount(key)
@@ -48,4 +48,4 @@ try {
   console.error(e);
 }
 
-client.destroy();
+client.close();

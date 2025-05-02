@@ -40,12 +40,12 @@ We'd love to see more examples here. If you have an idea that you'd like to see 
 
 To set up the examples folder so that you can run an example / develop one of your own:
 
-```
-$ git clone https://github.com/redis/node-redis.git
-$ cd node-redis
-$ npm install -ws && npm run build-all
-$ cd examples
-$ npm install
+```bash
+git clone https://github.com/redis/node-redis.git
+cd node-redis
+npm install -ws && npm run build
+cd examples
+npm install
 ```
 
 ### Coding Guidelines for Examples
@@ -91,5 +91,5 @@ await client.connect();
 
 // Add your example code here...
 
-client.destroy();
+client.close();
 ```

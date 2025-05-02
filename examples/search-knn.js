@@ -4,7 +4,7 @@
 // Inspired by RediSearch Python tests:
 // https://github.com/RediSearch/RediSearch/blob/06e36d48946ea08bd0d8b76394a4e82eeb919d78/tests/pytests/test_vecsim.py#L96
 
-import { createClient, SchemaFieldTypes, VectorAlgorithms } from 'redis';
+import { createClient, SCHEMA_FIELD_TYPE, SCHEMA_VECTOR_FIELD_ALGORITHM } from 'redis';
 
 const client = createClient();
 
@@ -15,8 +15,8 @@ try {
   // Documentation: https://redis.io/docs/stack/search/reference/vectors/
   await client.ft.create('idx:knn-example', {
     v: {
-      type: SchemaFieldTypes.VECTOR,
-      ALGORITHM: VectorAlgorithms.HNSW,
+      type: SCHEMA_FIELD_TYPE.VECTOR,
+      ALGORITHM: SCHEMA_VECTOR_FIELD_ALGORITHM.HNSW,
       TYPE: 'FLOAT32',
       DIM: 2,
       DISTANCE_METRIC: 'COSINE'
