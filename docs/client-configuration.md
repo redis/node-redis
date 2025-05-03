@@ -25,7 +25,7 @@
 | disableOfflineQueue          | `false`                                  | Disables offline queuing, see [FAQ](./FAQ.md#what-happens-when-the-network-goes-down)                                                                                                                                                               |
 | readonly                     | `false`                                  | Connect in [`READONLY`](https://redis.io/commands/readonly) mode                                                                                                                                                                                    |
 | legacyMode                   | `false`                                  | Maintain some backwards compatibility (see the [Migration Guide](./v3-to-v4.md))                                                                                                                                                                    |
-| isolationPoolOptions         |                                          | See the [Isolated Execution Guide](./isolated-execution.md)                                                                                                                                                                                         |
+| isolationPoolOptions         |                                          | An object that configures a pool of isolated connections, If you frequently need isolated connections, consider using [createClientPool](https://github.com/redis/node-redis/blob/master/docs/pool.md#creating-a-pool) instead                                                                                                     |
 | pingInterval                 |                                          | Send `PING` command at interval (in ms). Useful with ["Azure Cache for Redis"](https://learn.microsoft.com/en-us/azure/azure-cache-for-redis/cache-best-practices-connection#idle-timeout)                                                          |
 
 ## Reconnect Strategy
@@ -81,3 +81,9 @@ createClient({
   }
 });
 ```
+## Connection Pooling
+
+In most cases, a single Redis connection is sufficient, as the node-redis client efficiently handles commands using an underlying socket. Unlike traditional databases, Redis does not require connection pooling for optimal performance.
+
+However, if your use case requires exclusive connections see [RedisClientPool](https://github.com/redis/node-redis/blob/master/docs/pool.md), which allows you to create and manage multiple dedicated connections.
+
