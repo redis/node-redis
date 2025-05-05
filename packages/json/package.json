@@ -1,6 +1,6 @@
 {
   "name": "@redis/json",
-  "version": "5.0.0",
+  "version": "5.0.1",
   "license": "MIT",
   "main": "./dist/lib/index.js",
   "types": "./dist/lib/index.d.ts",
