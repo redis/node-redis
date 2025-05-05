@@ -12,6 +12,12 @@ const client = await createClient({
   console.log('Redis Client Error', err);
 }).connect();
 
+// Make sure the source key exists
+await client.set('source', 'value');
+
+// Make sure destination doesnt exist
+await client.del('destination');
+
 // DUMP a specific key into a local variable
 const dump = await client.dump('source');
 

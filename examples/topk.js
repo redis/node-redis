@@ -1,4 +1,4 @@
-// This example demonstrates the use of the Top K 
+// This example demonstrates the use of the Top K
 // in the RedisBloom module (https://redis.io/docs/stack/bloom/)
 
 import { createClient } from 'redis';
@@ -95,10 +95,10 @@ const [ steve, suze, leibale, frederick ] = await client.topK.query('mytopk', [
   'frederick'
 ]);
 
-console.log(`steve ${steve === 1 ? 'is': 'is not'} in the top 10.`);
-console.log(`suze ${suze === 1 ? 'is': 'is not'} in the top 10.`);
-console.log(`leibale ${leibale === 1 ? 'is': 'is not'} in the top 10.`);
-console.log(`frederick ${frederick === 1 ? 'is': 'is not'} in the top 10.`);
+console.log(`steve ${steve ? 'is': 'is not'} in the top 10.`);
+console.log(`suze ${suze ? 'is': 'is not'} in the top 10.`);
+console.log(`leibale ${leibale ? 'is': 'is not'} in the top 10.`);
+console.log(`frederick ${frederick ? 'is': 'is not'} in the top 10.`);
 
 // Get count estimate for some team members with TOPK.COUNT:
 // https://redis.io/commands/topk.count/
@@ -110,4 +110,4 @@ const [ simonCount, lanceCount ] = await client.topK.count('mytopk', [
 console.log(`Count estimate for simon: ${simonCount}.`);
 console.log(`Count estimate for lance: ${lanceCount}.`);
 
-client.destroy();
+client.close();

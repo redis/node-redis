@@ -1,7 +1,7 @@
 // Define a custom script that shows example of SET command
 // with several modifiers.
 
-import { createClient } from '../packages/client';
+import { createClient } from 'redis';
 
 const client = createClient();
 

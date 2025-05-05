@@ -13,9 +13,11 @@ function restrictFunctionCalls(fn, maxCalls) {
 
 const fn = restrictFunctionCalls(transaction, 4);
 
+const pool = await client.createPool();
+
 async function transaction() {
   try {
-    await client.executeIsolated(async (isolatedClient) => {
+    await pool.execute(async (isolatedClient) => {
       await isolatedClient.watch('paymentId:1259');
       const multi = isolatedClient
         .multi()

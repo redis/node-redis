@@ -20,7 +20,7 @@
 //
 // $ node stream-consumer-group.js consumer2
 
-import { createClient, commandOptions } from 'redis';
+import { createClient } from 'redis';
 
 const client = createClient();
 
@@ -46,14 +46,13 @@ try {
 
 console.log(`Starting consumer ${consumerName}.`);
 
+const pool = client.createPool();
+
 while (true) {
   try {
     // https://redis.io/commands/xreadgroup/
-    let response = await client.xReadGroup(
-      commandOptions({
-        isolated: true
-      }),
-      'myconsumergroup', 
+    let response = await pool.xReadGroup(
+      'myconsumergroup',
       consumerName, [
         // XREADGROUP can read from multiple streams, starting at a
         // different ID for each...
@@ -91,9 +90,10 @@ while (true) {
       // stream entry.
       // https://redis.io/commands/xack/
       const entryId = response[0].messages[0].id;
-      await client.xAck('mystream', 'myconsumergroup', entryId);
+      const ackResult = await pool.xAck('mystream', 'myconsumergroup', entryId);
 
-      console.log(`Acknowledged processing of entry ${entryId}.`);
+      // ackResult will be 1 if the message was successfully acknowledged, 0 otherwise
+      console.log(`Acknowledged processing of entry ${entryId}. Result: ${ackResult}`);
     } else {
       // Response is null, we have read everything that is
       // in the stream right now...

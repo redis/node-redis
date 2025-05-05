@@ -4,16 +4,15 @@
 // The script will be blocked until the LPUSH command is executed.
 // After which we log the list and quit the client.
 
-import { createClient, commandOptions } from 'redis';
+import {  createClientPool } from 'redis';
 
-const client = createClient();
+const client = createClientPool();
 
 await client.connect();
 
 const keyName = 'keyName';
 
 const blpopPromise = client.blPop(
-  commandOptions({ isolated: true }),
   keyName,
   0
 );

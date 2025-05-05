@@ -2,7 +2,7 @@
 // Requires the RedisTimeSeries module: https://redis.io/docs/stack/timeseries/
 
 import { createClient } from 'redis';
-import { TimeSeriesDuplicatePolicies, TimeSeriesEncoding, TimeSeriesAggregationType } from '@redis/time-series';
+import { TIME_SERIES_DUPLICATE_POLICIES, TIME_SERIES_ENCODING, TIME_SERIES_AGGREGATION_TYPE } from '@redis/time-series';
 
 const client = createClient();
 
@@ -14,8 +14,8 @@ try {
   // https://redis.io/commands/ts.create/
   const created = await client.ts.create('mytimeseries', {
     RETENTION: 86400000, // 1 day in milliseconds
-    ENCODING: TimeSeriesEncoding.UNCOMPRESSED, // No compression
-    DUPLICATE_POLICY: TimeSeriesDuplicatePolicies.BLOCK // No duplicates
+    ENCODING: TIME_SERIES_ENCODING.UNCOMPRESSED, // No compression
+    DUPLICATE_POLICY: TIME_SERIES_DUPLICATE_POLICIES.BLOCK // No duplicates
   });
 
   if (created === 'OK') {
@@ -74,7 +74,7 @@ try {
   const rangeResponse = await client.ts.range('mytimeseries', fromTimestamp, toTimestamp, {
     // Group into 10 second averages.
     AGGREGATION: {
-      type: TimeSeriesAggregationType.AVERAGE,
+      type: TIME_SERIES_AGGREGATION_TYPE.AVG,
       timeBucket: 10000
     }
   });
@@ -119,4 +119,4 @@ try {
   console.error(e);
 }
 
-client.destroy();
+client.close();

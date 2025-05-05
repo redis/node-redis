@@ -24,8 +24,30 @@ await client.zAdd('mysortedset', [
 // Get all of the values/scores from the sorted set using
 // the scan approach:
 // https://redis.io/commands/zscan
-for await (const memberWithScore of client.zScanIterator('mysortedset')) {
-  console.log(memberWithScore);
+for await (const membersWithScores of client.zScanIterator('mysortedset')) {
+  console.log('Batch of members with scores:', membersWithScores);
+
+  for (const memberWithScore of membersWithScores) {
+    console.log('Individual member with score:', memberWithScore);
+  }
 }
 
-client.destroy();
+await client.zAdd('anothersortedset', [
+  {
+    score: 99,
+    value: 'Ninety Nine'
+  },
+  {
+    score: 102,
+    value: 'One Hundred and Two'
+  }
+]);
+
+// Intersection of two sorted sets
+const intersection = await client.zInter([
+  { key: 'mysortedset', weight: 1 },
+  { key: 'anothersortedset', weight: 1 }
+]);
+console.log('Intersection:', intersection);
+
+client.close();

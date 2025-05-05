@@ -3,7 +3,7 @@
 // https://redis.io/docs/stack/search/
 // https://redis.io/docs/stack/json/
 
-import { createClient, SchemaFieldTypes, AggregateGroupByReducers, AggregateSteps } from 'redis';
+import { createClient, SCHEMA_FIELD_TYPE, FT_AGGREGATE_GROUP_BY_REDUCERS, FT_AGGREGATE_STEPS } from 'redis';
 
 const client = createClient();
 
@@ -14,19 +14,19 @@ await client.connect();
 try {
   await client.ft.create('idx:users', {
     '$.name': {
-      type: SchemaFieldTypes.TEXT,
+      type: SCHEMA_FIELD_TYPE.TEXT,
       SORTABLE: true
     },
     '$.age': {
-      type: SchemaFieldTypes.NUMERIC,
+      type: SCHEMA_FIELD_TYPE.NUMERIC,
       AS: 'age'
     },
     '$.coins': {
-      type: SchemaFieldTypes.NUMERIC,
+      type: SCHEMA_FIELD_TYPE.NUMERIC,
       AS: 'coins'
     },
     '$.email': {
-      type: SchemaFieldTypes.TAG,
+      type: SCHEMA_FIELD_TYPE.TAG,
       AS: 'email'
     }
   }, {
@@ -119,13 +119,13 @@ console.log(
   JSON.stringify(
     await client.ft.aggregate('idx:users', '*', {
       STEPS: [{
-        type: AggregateSteps.GROUPBY,
+        type: FT_AGGREGATE_STEPS.GROUPBY,
         REDUCE: [{
-          type: AggregateGroupByReducers.AVG,
+          type: FT_AGGREGATE_GROUP_BY_REDUCERS.AVG,
           property: 'age',
           AS: 'averageAge'
         }, {
-          type: AggregateGroupByReducers.SUM,
+          type: FT_AGGREGATE_GROUP_BY_REDUCERS.SUM,
           property: 'coins',
           AS: 'totalCoins'
         }]

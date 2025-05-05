@@ -1,12 +1,12 @@
 {
   "name": "node-redis-examples",
   "version": "1.0.0",
-  "description": "node-redis 4 example script",
+  "description": "node-redis 5 example script",
   "main": "index.js",
   "private": true,
   "type": "module",
   "dependencies": {
-    "redis": "../packages/client"
+    "redis": "../packages/redis"
   }
 }
 

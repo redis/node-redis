@@ -1,7 +1,7 @@
 // This example demonstrates how to use RediSearch to index and query data 
 // stored in Redis hashes.
 
-import { createClient, SchemaFieldTypes } from 'redis';
+import { createClient, SCHEMA_FIELD_TYPE } from 'redis';
 
 const client = createClient();
 
@@ -12,11 +12,11 @@ try {
   // Documentation: https://redis.io/commands/ft.create/
   await client.ft.create('idx:animals', {
     name: {
-      type: SchemaFieldTypes.TEXT,
+      type: SCHEMA_FIELD_TYPE.TEXT,
       SORTABLE: true
     },
-    species: SchemaFieldTypes.TAG,
-    age: SchemaFieldTypes.NUMERIC
+    species: SCHEMA_FIELD_TYPE.TAG,
+    age: SCHEMA_FIELD_TYPE.NUMERIC
   }, {
     ON: 'HASH',
     PREFIX: 'noderedis:animals'
