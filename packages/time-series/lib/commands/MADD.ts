@@ -1,5 +1,5 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
-import { Timestamp, transformTimestampArgument } from '.';
+import { Timestamp, transformTimestampArgument } from './helpers';
 import { ArrayReply, NumberReply, SimpleErrorReply, Command } from '@redis/client/dist/lib/RESP/types';
 
 export interface TsMAddSample {

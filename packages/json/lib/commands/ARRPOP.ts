@@ -1,7 +1,7 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument, ArrayReply, NullReply, BlobStringReply, Command, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
 import { isArrayReply } from '@redis/client/dist/lib/commands/generic-transformers';
-import { transformRedisJsonNullReply } from '.';
+import { transformRedisJsonNullReply } from './helpers';
 
 export interface RedisArrPopOptions {
   path: RedisArgument;

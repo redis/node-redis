@@ -1,7 +1,7 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { Command, ArrayReply, BlobStringReply, Resp2Reply, MapReply, TuplesReply, TypeMapping, NullReply, RedisArgument } from '@redis/client/dist/lib/RESP/types';
 import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
-import { parseSelectedLabelsArguments, resp2MapToValue, resp3MapToValue, SampleRawReply, Timestamp, transformRESP2Labels, transformSamplesReply } from '.';
+import { parseSelectedLabelsArguments, resp2MapToValue, resp3MapToValue, SampleRawReply, Timestamp, transformRESP2Labels, transformSamplesReply } from './helpers';
 import { TsRangeOptions, parseRangeArguments } from './RANGE';
 import { parseFilterArgument } from './MGET';
 

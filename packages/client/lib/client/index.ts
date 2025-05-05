@@ -704,7 +704,8 @@ export default class RedisClient<
     const reply = await this.sendCommand(parser.redisArgs, commandOptions);
 
     if (transformReply) {
-      return transformReply(reply, parser.preserve, commandOptions?.typeMapping);
+      const res = transformReply(reply, parser.preserve, commandOptions?.typeMapping);
+      return res
     }
 
     return reply;

@@ -2,7 +2,7 @@ import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { Command, BlobStringReply, ArrayReply, Resp2Reply, MapReply, TuplesReply, TypeMapping } from '@redis/client/dist/lib/RESP/types';
 import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
 import { TsMGetOptions, parseLatestArgument, parseFilterArgument } from './MGET';
-import { RawLabelValue, resp2MapToValue, resp3MapToValue, SampleRawReply, transformRESP2Labels, transformSampleReply } from '.';
+import { RawLabelValue, resp2MapToValue, resp3MapToValue, SampleRawReply, transformRESP2Labels, transformSampleReply } from './helpers';
 
 export interface TsMGetWithLabelsOptions extends TsMGetOptions {
   SELECTED_LABELS?: RedisVariadicArgument;

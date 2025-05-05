@@ -24,7 +24,7 @@
 //     TimeSeriesDuplicatePolicies,
 //     pushLatestArgument,
 //     TimeSeriesBucketTimestamp
-// } from '.';
+// } from './helpers';
 
 // describe('transformTimestampArgument', () => {
 //     it('number', () => {

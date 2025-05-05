@@ -1,6 +1,6 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { ArrayReply, BlobStringReply, Command, DoubleReply, NumberReply, ReplyUnion, SimpleStringReply, TypeMapping } from "@redis/client/dist/lib/RESP/types";
-import { TimeSeriesDuplicatePolicies } from ".";
+import { TimeSeriesDuplicatePolicies } from "./helpers";
 import { TimeSeriesAggregationType } from "./CREATERULE";
 import { transformDoubleReply } from '@redis/client/dist/lib/commands/generic-transformers';
 

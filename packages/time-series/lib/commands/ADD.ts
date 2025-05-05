@@ -11,7 +11,7 @@ import {
   parseLabelsArgument,
   Timestamp,
   parseIgnoreArgument
-} from '.';
+} from './helpers';
 
 export interface TsIgnoreOptions {
   maxTimeDiff: number;

@@ -2,7 +2,7 @@ import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { Command, BlobStringReply, NullReply } from '@redis/client/dist/lib/RESP/types';
 import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
 import { TsMGetOptions, parseLatestArgument, parseFilterArgument } from './MGET';
-import { parseSelectedLabelsArguments } from '.';
+import { parseSelectedLabelsArguments } from './helpers';
 import { createTransformMGetLabelsReply } from './MGET_WITHLABELS';
 
 export default {

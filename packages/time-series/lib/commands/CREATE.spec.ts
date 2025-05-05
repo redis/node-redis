@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import CREATE from './CREATE';
-import { TIME_SERIES_ENCODING, TIME_SERIES_DUPLICATE_POLICIES } from '.';
+import { TIME_SERIES_ENCODING, TIME_SERIES_DUPLICATE_POLICIES } from './helpers';
 import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('TS.CREATE', () => {

@@ -1,5 +1,5 @@
 import { strict as assert } from 'node:assert';
-import { TIME_SERIES_DUPLICATE_POLICIES } from '.';
+import { TIME_SERIES_DUPLICATE_POLICIES } from './helpers';
 import testUtils, { GLOBAL } from '../test-utils';
 import INFO, { InfoReply } from './INFO';
 import { TIME_SERIES_AGGREGATION_TYPE } from './CREATERULE';
