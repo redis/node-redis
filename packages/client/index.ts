@@ -7,6 +7,7 @@ export * from './lib/errors';
 import RedisClient, { RedisClientOptions, RedisClientType } from './lib/client';
 export { RedisClientOptions, RedisClientType };
 export const createClient = RedisClient.create;
+export { CommandParser } from './lib/client/parser';
 
 import { RedisClientPool, RedisPoolOptions, RedisClientPoolType } from './lib/client/pool';
 export { RedisClientPoolType, RedisPoolOptions };
