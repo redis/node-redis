@@ -25,9 +25,8 @@ FUNCTION LOAD "#!lua name=library\nredis.register_function{function_name='add', 
 Load the prior redis function on the _redis server_ before running the example below.
 
 ```typescript
-import { CommandParser } from '@redis/client/lib/client/parser';
-import { NumberReply } from '@redis/client/lib/RESP/types';
-import { createClient, RedisArgument } from 'redis';
+import { CommandParser, createClient, RedisArgument } from '@redis/client';
+import { NumberReply } from '@redis/client/dist/lib/RESP/types.js';
 
 const client = createClient({
   functions: {
@@ -58,9 +57,8 @@ await client.library.add('key', '2'); // 3
 The following is an end-to-end example of the prior concept.
 
 ```typescript
-import { CommandParser } from '@redis/client/lib/client/parser';
-import { NumberReply } from '@redis/client/lib/RESP/types';
-import { createClient, defineScript, RedisArgument } from 'redis';
+import { CommandParser, createClient, defineScript, RedisArgument } from '@redis/client';
+import { NumberReply } from '@redis/client/dist/lib/RESP/types.js';
 
 const client = createClient({
   scripts: {
