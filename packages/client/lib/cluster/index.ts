@@ -548,7 +548,7 @@ export default class RedisCluster<
 
   SUNSUBSCRIBE<T extends boolean = false>(
     channels: string | Array<string>,
-    listener: PubSubListener<T>,
+    listener?: PubSubListener<T>,
     bufferMode?: T
   ) {
     return this._self.#slots.executeShardedUnsubscribeCommand(
