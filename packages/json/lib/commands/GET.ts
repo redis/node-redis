@@ -7,7 +7,7 @@ export interface JsonGetOptions {
   path?: RedisVariadicArgument;
 }
 
-const foo = {
+export default {
   IS_READ_ONLY: false,
   parseCommand(
     parser: CommandParser,
@@ -22,5 +22,3 @@ const foo = {
   },
   transformReply: transformRedisJsonNullReply
 } as const satisfies Command;
-
-export default foo;
