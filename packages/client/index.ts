@@ -35,6 +35,5 @@ export { SetOptions } from './lib/commands/SET';
 
 export { REDIS_FLUSH_MODES } from './lib/commands/FLUSHALL';
 
-import { BasicClientSideCache, BasicPooledClientSideCache } from './lib/client/cache';
-export { BasicClientSideCache, BasicPooledClientSideCache };
+export { BasicClientSideCache, BasicPooledClientSideCache } from './lib/client/cache';
 
