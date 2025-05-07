@@ -518,7 +518,7 @@ export default class RedisClusterSlots<
       node = index < this.masters.length ?
         this.masters[index] :
         this.replicas[index - this.masters.length],
-        client = this.#createClient(node, index >= this.masters.length);
+        client = this.#createClient(node, false);
       
     this.pubSubNode = {
       address: node.address,
@@ -563,7 +563,7 @@ export default class RedisClusterSlots<
   }
 
   async #initiateShardedPubSubClient(master: MasterNode<M, F, S, RESP, TYPE_MAPPING>) {
-    const client = this.#createClient(master, true)
+    const client = this.#createClient(master, false)
       .on('server-sunsubscribe', async (channel, listeners) => {
         try {
           await this.rediscover(client);
