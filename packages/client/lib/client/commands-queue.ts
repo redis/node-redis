@@ -109,6 +109,7 @@ export default class RedisCommandsQueue {
     return new Decoder({
       onReply: reply => this.#onReply(reply),
       onErrorReply: err => this.#onErrorReply(err),
+      //TODO: we can shave off a few cycles by not adding onPush handler at all if CSC is not used
       onPush: push => {
         if (!this.#onPush(push)) {
           // currently only supporting "invalidate" over RESP3 push messages
