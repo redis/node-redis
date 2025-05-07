@@ -10,7 +10,7 @@ export default {
     parser.pushVariadic(parameters);
   },
   transformReply: {
-    2: transformTuplesReply,
+    2: transformTuplesReply<BlobStringReply>,
     3: undefined as unknown as () => MapReply<BlobStringReply, BlobStringReply>
   }
 } as const satisfies Command;
