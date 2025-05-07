@@ -234,6 +234,23 @@ of sending a `QUIT` command to the server, the client can simply close the netwo
 ```typescript
 client.destroy();
 ```
+### Client Side Caching
+
+Node Redis v5 adds support for [Client Side Caching](https://redis.io/docs/manual/client-side-caching/), which enables clients to cache query results locally. The Redis server will notify the client when cached results are no longer valid.
+
+```typescript
+// Enable client side caching with RESP3
+const client = createClient({
+  RESP: 3, 
+  clientSideCache: {
+    ttl: 0,             // Time-to-live (0 = no expiration)
+    maxEntries: 0,      // Maximum entries (0 = unlimited)
+    evictPolicy: "LRU"  // Eviction policy: "LRU" or "FIFO"
+  }
+});
+```
+
+See the [V5 documentation](../../docs/v5.md#client-side-caching) for more details and advanced usage.
 
 ### Auto-Pipelining
 
