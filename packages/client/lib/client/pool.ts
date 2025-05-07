@@ -25,15 +25,55 @@ export interface RedisPoolOptions {
    */
   acquireTimeout: number;
   /**
-   * TODO
+   * The delay in milliseconds before a cleanup operation is performed on idle clients.
+   * 
+   * After this delay, the pool will check if there are too many idle clients and destroy 
+   * excess ones to maintain optimal pool size.
    */
   cleanupDelay: number;
   /**
-   * TODO
+   * Client Side Caching configuration for the pool.
+   * 
+   * Enables Redis Servers and Clients to work together to cache results from commands 
+   * sent to a server. The server will notify the client when cached results are no longer valid.
+   * In pooled mode, the cache is shared across all clients in the pool.
+   * 
+   * Note: Client Side Caching is only supported with RESP3.
+   * 
+   * @example Anonymous cache configuration
+   * ```
+   * const client = createClientPool({RESP: 3}, {
+   *   clientSideCache: {
+   *     ttl: 0,
+   *     maxEntries: 0,
+   *     evictPolicy: "LRU"
+   *   },
+   *   minimum: 5
+   * });
+   * ```
+   * 
+   * @example Using a controllable cache
+   * ```
+   * const cache = new BasicPooledClientSideCache({
+   *   ttl: 0,
+   *   maxEntries: 0,
+   *   evictPolicy: "LRU"
+   * });
+   * const client = createClientPool({RESP: 3}, {
+   *   clientSideCache: cache,
+   *   minimum: 5
+   * });
+   * ```
    */
   clientSideCache?: PooledClientSideCacheProvider | ClientSideCacheConfig;
   /**
-   * TODO
+   * Enable experimental support for RESP3 module commands.
+   * 
+   * When enabled, allows the use of module commands that have been adapted 
+   * for the RESP3 protocol. This is an unstable feature and may change in 
+   * future versions.
+   * 
+   * @default false
    */
   unstableResp3Modules?: boolean;
 }

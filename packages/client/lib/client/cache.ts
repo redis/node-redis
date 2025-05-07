@@ -8,10 +8,31 @@ type CmdFunc = () => Promise<ReplyUnion>;
 
 type EvictionPolicy = "LRU" | "FIFO"
 
+/**
+ * Configuration options for Client Side Cache
+ */
 export interface ClientSideCacheConfig {
+  /**
+   * Time-to-live in milliseconds for cached entries.
+   * Use 0 for no expiration.
+   * @default 0
+   */
   ttl?: number;
+  
+  /**
+   * Maximum number of entries to store in the cache.
+   * Use 0 for unlimited entries.
+   * @default 0
+   */
   maxEntries?: number;
-  evictPolocy?: EvictionPolicy;
+  
+  /**
+   * Eviction policy to use when the cache reaches its capacity.
+   * - "LRU" (Least Recently Used): Evicts least recently accessed entries first
+   * - "FIFO" (First In First Out): Evicts oldest entries first
+   * @default "LRU"
+   */
+  evictPolicy?: EvictionPolicy;
 }
 
 type CacheCreator = {
@@ -109,7 +130,7 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
     this.#keyToCacheKeySetMap = new Map<string, Set<string>>();
     this.ttl = config?.ttl ?? 0;
     this.maxEntries = config?.maxEntries ?? 0;
-    this.lru = config?.evictPolocy !== "FIFO"
+    this.lru = config?.evictPolicy !== "FIFO"
   }
 
   /* logic of how caching works:

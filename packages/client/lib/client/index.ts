@@ -79,11 +79,60 @@ export interface RedisClientOptions<
    */
   pingInterval?: number;
   /**
-   * TODO
+   * Default command options to be applied to all commands executed through this client.
+   * 
+   * These options can be overridden on a per-command basis when calling specific commands.
+   * 
+   * @property {symbol} [chainId] - Identifier for chaining commands together
+   * @property {boolean} [asap] - When true, the command is executed as soon as possible
+   * @property {AbortSignal} [abortSignal] - AbortSignal to cancel the command
+   * @property {TypeMapping} [typeMapping] - Custom type mappings between RESP and JavaScript types
+   * 
+   * @example Setting default command options
+   * ```
+   * const client = createClient({
+   *   commandOptions: {
+   *     asap: true,
+   *     typeMapping: {
+   *       // Custom type mapping configuration
+   *     }
+   *   }
+   * });
+   * ```
    */
   commandOptions?: CommandOptions<TYPE_MAPPING>;
   /**
-   * TODO
+   * Client Side Caching configuration.
+   * 
+   * Enables Redis Servers and Clients to work together to cache results from commands 
+   * sent to a server. The server will notify the client when cached results are no longer valid.
+   * 
+   * Note: Client Side Caching is only supported with RESP3.
+   * 
+   * @example Anonymous cache configuration
+   * ```
+   * const client = createClient({
+   *   RESP: 3, 
+   *   clientSideCache: {
+   *     ttl: 0,
+   *     maxEntries: 0,
+   *     evictPolicy: "LRU" 
+   *   }
+   * });
+   * ```
+   * 
+   * @example Using a controllable cache
+   * ```
+   * const cache = new BasicClientSideCache({ 
+   *   ttl: 0, 
+   *   maxEntries: 0, 
+   *   evictPolicy: "LRU" 
+   * });
+   * const client = createClient({
+   *   RESP: 3, 
+   *   clientSideCache: cache
+   * });
+   * ```
    */
   clientSideCache?: ClientSideCacheProvider | ClientSideCacheConfig;
 }
