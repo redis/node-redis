@@ -1,4 +1,3 @@
-import { BlobStringReply, NullReply, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
 import ARRAPPEND from './ARRAPPEND';
 import ARRINDEX from './ARRINDEX';
 import ARRINSERT from './ARRINSERT';
@@ -23,7 +22,8 @@ import STRAPPEND from './STRAPPEND';
 import STRLEN from './STRLEN';
 import TOGGLE from './TOGGLE';
 import TYPE from './TYPE';
-import { isNullReply } from '@redis/client/dist/lib/commands/generic-transformers';
+
+export * from './helpers';
 
 export default {
   ARRAPPEND,
@@ -82,19 +82,3 @@ export default {
   type: TYPE
 };
 
-export type RedisJSON = null | boolean | number | string | Date | Array<RedisJSON> | {
-  [key: string]: RedisJSON;
-  [key: number]: RedisJSON;
-};
-
-export function transformRedisJsonArgument(json: RedisJSON): string {
-  return JSON.stringify(json);
-}
-
-export function transformRedisJsonReply(json: BlobStringReply): RedisJSON {
-  return JSON.parse((json as unknown as UnwrapReply<typeof json>).toString());
-}
-
-export function transformRedisJsonNullReply(json: NullReply | BlobStringReply): NullReply | RedisJSON {
-  return isNullReply(json) ? json : transformRedisJsonReply(json);
-}

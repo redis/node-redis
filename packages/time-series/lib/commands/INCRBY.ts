@@ -1,6 +1,6 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument, NumberReply, Command } from '@redis/client/dist/lib/RESP/types';
-import { Timestamp, transformTimestampArgument, parseRetentionArgument, parseChunkSizeArgument, Labels, parseLabelsArgument, parseIgnoreArgument } from '.';
+import { Timestamp, transformTimestampArgument, parseRetentionArgument, parseChunkSizeArgument, Labels, parseLabelsArgument, parseIgnoreArgument } from './helpers';
 import { TsIgnoreOptions } from './ADD';
 
 export interface TsIncrByOptions {

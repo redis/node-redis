@@ -1,6 +1,6 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { Command, BlobStringReply, ArrayReply, Resp2Reply, MapReply, TuplesReply, TypeMapping } from '@redis/client/dist/lib/RESP/types';
-import { resp2MapToValue, resp3MapToValue, SampleRawReply, transformSampleReply } from '.';
+import { resp2MapToValue, resp3MapToValue, SampleRawReply, transformSampleReply } from './helpers';
 import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
 
 export interface TsMGetOptions {

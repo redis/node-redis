@@ -1,5 +1,5 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
-import { Timestamp, transformTimestampArgument } from '.';
+import { Timestamp, transformTimestampArgument } from './helpers';
 import { RedisArgument, NumberReply, Command, } from '@redis/client/dist/lib/RESP/types';
 
 export default {

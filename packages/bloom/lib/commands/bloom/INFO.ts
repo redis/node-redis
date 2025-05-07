@@ -1,6 +1,6 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument, Command, UnwrapReply, NullReply, NumberReply, TuplesToMapReply, Resp2Reply, SimpleStringReply, TypeMapping } from '@redis/client/dist/lib/RESP/types';
-import { transformInfoV2Reply } from '.';
+import { transformInfoV2Reply } from './helpers';
 
 export type BfInfoReplyMap = TuplesToMapReply<[
   [SimpleStringReply<'Capacity'>, NumberReply],

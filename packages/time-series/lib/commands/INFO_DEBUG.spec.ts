@@ -1,5 +1,5 @@
 import { strict as assert } from 'node:assert';
-import { TIME_SERIES_DUPLICATE_POLICIES } from '.';
+import { TIME_SERIES_DUPLICATE_POLICIES } from './helpers';
 import testUtils, { GLOBAL } from '../test-utils';
 import { assertInfo } from './INFO.spec';
 import INFO_DEBUG from './INFO_DEBUG';

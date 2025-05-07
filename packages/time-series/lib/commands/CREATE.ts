@@ -10,7 +10,7 @@ import {
   Labels,
   parseLabelsArgument,
   parseIgnoreArgument
-} from '.';
+} from './helpers';
 import { TsIgnoreOptions } from './ADD';
 
 export interface TsCreateOptions {

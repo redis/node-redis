@@ -1,7 +1,8 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument, SimpleStringReply, Command } from '@redis/client/dist/lib/RESP/types';
 import { TsCreateOptions } from './CREATE';
-import { parseRetentionArgument, parseChunkSizeArgument, parseDuplicatePolicy, parseLabelsArgument, parseIgnoreArgument } from '.';
+import { parseRetentionArgument, parseChunkSizeArgument, parseDuplicatePolicy, parseLabelsArgument, parseIgnoreArgument } from './helpers';
+
 
 export type TsAlterOptions = Pick<TsCreateOptions, 'RETENTION' | 'CHUNK_SIZE' | 'DUPLICATE_POLICY' | 'LABELS' | 'IGNORE'>;
 

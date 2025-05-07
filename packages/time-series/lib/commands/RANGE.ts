@@ -1,6 +1,6 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument, Command } from '@redis/client/dist/lib/RESP/types';
-import { Timestamp, transformTimestampArgument, SamplesRawReply, transformSamplesReply } from '.';
+import { Timestamp, transformTimestampArgument, SamplesRawReply, transformSamplesReply } from './helpers';
 import { TimeSeriesAggregationType } from './CREATERULE';
 import { Resp2Reply } from '@redis/client/dist/lib/RESP/types';
 

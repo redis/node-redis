@@ -34,5 +34,11 @@ describe('JSON.GET', () => {
       await client.json.get('key'),
       null
     );
+
+    await client.json.set('noderedis:users:1', '$', { name: 'Alice', age: 32, })
+    const res = await client.json.get('noderedis:users:1');
+    assert.equal(typeof res, 'object')
+    assert.deepEqual(res, { name: 'Alice', age: 32, })
+
   }, GLOBAL.SERVERS.OPEN);
 });

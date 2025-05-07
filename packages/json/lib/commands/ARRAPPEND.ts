@@ -1,5 +1,5 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
-import { RedisJSON, transformRedisJsonArgument } from '.';
+import { RedisJSON, transformRedisJsonArgument } from './helpers';
 import { RedisArgument, NumberReply, ArrayReply, NullReply, Command } from '@redis/client/dist/lib/RESP/types';
 
 export default {
