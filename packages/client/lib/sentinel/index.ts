@@ -660,9 +660,17 @@ class RedisSentinelInternal<
     return this.#clientSideCache;
   }
 
+  #validateOptions(options?: RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>) {
+    if (options?.clientSideCache && options?.RESP !== 3) {
+      throw new Error('Client Side Caching is only supported with RESP3');
+    }
+  }
+
   constructor(options: RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>) {
     super();
 
+    this.#validateOptions(options);
+    
     this.#name = options.name;
 
     this.#sentinelRootNodes = Array.from(options.sentinelRootNodes);

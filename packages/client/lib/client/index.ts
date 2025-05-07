@@ -80,14 +80,14 @@ export interface RedisClientOptions<
   pingInterval?: number;
   /**
    * Default command options to be applied to all commands executed through this client.
-   * 
+   *
    * These options can be overridden on a per-command basis when calling specific commands.
-   * 
+   *
    * @property {symbol} [chainId] - Identifier for chaining commands together
    * @property {boolean} [asap] - When true, the command is executed as soon as possible
    * @property {AbortSignal} [abortSignal] - AbortSignal to cancel the command
    * @property {TypeMapping} [typeMapping] - Custom type mappings between RESP and JavaScript types
-   * 
+   *
    * @example Setting default command options
    * ```
    * const client = createClient({
@@ -103,33 +103,33 @@ export interface RedisClientOptions<
   commandOptions?: CommandOptions<TYPE_MAPPING>;
   /**
    * Client Side Caching configuration.
-   * 
-   * Enables Redis Servers and Clients to work together to cache results from commands 
+   *
+   * Enables Redis Servers and Clients to work together to cache results from commands
    * sent to a server. The server will notify the client when cached results are no longer valid.
-   * 
+   *
    * Note: Client Side Caching is only supported with RESP3.
-   * 
+   *
    * @example Anonymous cache configuration
    * ```
    * const client = createClient({
-   *   RESP: 3, 
+   *   RESP: 3,
    *   clientSideCache: {
    *     ttl: 0,
    *     maxEntries: 0,
-   *     evictPolicy: "LRU" 
+   *     evictPolicy: "LRU"
    *   }
    * });
    * ```
-   * 
+   *
    * @example Using a controllable cache
    * ```
-   * const cache = new BasicClientSideCache({ 
-   *   ttl: 0, 
-   *   maxEntries: 0, 
-   *   evictPolicy: "LRU" 
+   * const cache = new BasicClientSideCache({
+   *   ttl: 0,
+   *   maxEntries: 0,
+   *   evictPolicy: "LRU"
    * });
    * const client = createClient({
-   *   RESP: 3, 
+   *   RESP: 3,
    *   clientSideCache: cache
    * });
    * ```
@@ -141,36 +141,36 @@ type WithCommands<
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping
 > = {
-  [P in keyof typeof COMMANDS]: CommandSignature<(typeof COMMANDS)[P], RESP, TYPE_MAPPING>;
-};
+    [P in keyof typeof COMMANDS]: CommandSignature<(typeof COMMANDS)[P], RESP, TYPE_MAPPING>;
+  };
 
 type WithModules<
   M extends RedisModules,
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping
 > = {
-  [P in keyof M]: {
-    [C in keyof M[P]]: CommandSignature<M[P][C], RESP, TYPE_MAPPING>;
+    [P in keyof M]: {
+      [C in keyof M[P]]: CommandSignature<M[P][C], RESP, TYPE_MAPPING>;
+    };
   };
-};
 
 type WithFunctions<
   F extends RedisFunctions,
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping
 > = {
-  [L in keyof F]: {
-    [C in keyof F[L]]: CommandSignature<F[L][C], RESP, TYPE_MAPPING>;
+    [L in keyof F]: {
+      [C in keyof F[L]]: CommandSignature<F[L][C], RESP, TYPE_MAPPING>;
+    };
   };
-};
 
 type WithScripts<
   S extends RedisScripts,
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping
 > = {
-  [P in keyof S]: CommandSignature<S[P], RESP, TYPE_MAPPING>;
-};
+    [P in keyof S]: CommandSignature<S[P], RESP, TYPE_MAPPING>;
+  };
 
 export type RedisClientExtensions<
   M extends RedisModules = {},
@@ -179,11 +179,11 @@ export type RedisClientExtensions<
   RESP extends RespVersions = 2,
   TYPE_MAPPING extends TypeMapping = {}
 > = (
-  WithCommands<RESP, TYPE_MAPPING> &
-  WithModules<M, RESP, TYPE_MAPPING> &
-  WithFunctions<F, RESP, TYPE_MAPPING> &
-  WithScripts<S, RESP, TYPE_MAPPING>
-);
+    WithCommands<RESP, TYPE_MAPPING> &
+    WithModules<M, RESP, TYPE_MAPPING> &
+    WithFunctions<F, RESP, TYPE_MAPPING> &
+    WithScripts<S, RESP, TYPE_MAPPING>
+  );
 
 export type RedisClientType<
   M extends RedisModules = {},
@@ -192,9 +192,9 @@ export type RedisClientType<
   RESP extends RespVersions = 2,
   TYPE_MAPPING extends TypeMapping = {}
 > = (
-  RedisClient<M, F, S, RESP, TYPE_MAPPING> &
-  RedisClientExtensions<M, F, S, RESP, TYPE_MAPPING>
-);
+    RedisClient<M, F, S, RESP, TYPE_MAPPING> &
+    RedisClientExtensions<M, F, S, RESP, TYPE_MAPPING>
+  );
 
 type ProxyClient = RedisClient<any, any, any, any, any>;
 
@@ -363,8 +363,8 @@ export default class RedisClient<
   #monitorCallback?: MonitorCallback<TYPE_MAPPING>;
   private _self = this;
   private _commandOptions?: CommandOptions<TYPE_MAPPING>;
-  // flag used to annotate that the client 
-  // was in a watch transaction when 
+  // flag used to annotate that the client
+  // was in a watch transaction when
   // a topology change occured
   #dirtyWatch?: string;
   #watchEpoch?: number;
@@ -419,7 +419,7 @@ export default class RedisClient<
 
   constructor(options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>) {
     super();
-
+    this.#validateOptions(options)
     this.#options = this.#initiateOptions(options);
     this.#queue = this.#initiateQueue();
     this.#socket = this.#initiateSocket();
@@ -435,6 +435,12 @@ export default class RedisClient<
     }
   }
 
+  #validateOptions(options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>) {
+    if (options?.clientSideCache && options?.RESP !== 3) {
+      throw new Error('Client Side Caching is only supported with RESP3');
+    }
+
+  }
   #initiateOptions(options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>): RedisClientOptions<M, F, S, RESP, TYPE_MAPPING> | undefined {
 
     // Convert username/password to credentialsProvider if no credentialsProvider is already in place
@@ -492,7 +498,7 @@ export default class RedisClient<
     }
   }
 
-   #subscribeForStreamingCredentials(cp: StreamingCredentialsProvider): Promise<[BasicAuth, Disposable]> {
+  #subscribeForStreamingCredentials(cp: StreamingCredentialsProvider): Promise<[BasicAuth, Disposable]> {
     return cp.subscribe({
       onNext: credentials => {
         this.reAuthenticate(credentials).catch(error => {
@@ -527,7 +533,7 @@ export default class RedisClient<
 
       if (cp && cp.type === 'streaming-credentials-provider') {
 
-        const [credentials, disposable]  = await this.#subscribeForStreamingCredentials(cp)
+        const [credentials, disposable] = await this.#subscribeForStreamingCredentials(cp)
         this.#credentialsSubscription = disposable;
 
         if (credentials.password) {
@@ -563,7 +569,7 @@ export default class RedisClient<
 
       if (cp && cp.type === 'streaming-credentials-provider') {
 
-        const [credentials, disposable]  = await this.#subscribeForStreamingCredentials(cp)
+        const [credentials, disposable] = await this.#subscribeForStreamingCredentials(cp)
         this.#credentialsSubscription = disposable;
 
         if (credentials.username || credentials.password) {
@@ -1024,7 +1030,7 @@ export default class RedisClient<
    * @internal
    */
   async _executePipeline(
-    commands: Array<RedisMultiQueuedCommand>,  
+    commands: Array<RedisMultiQueuedCommand>,
     selectedDB?: number
   ) {
     if (!this._self.#socket.isOpen) {
@@ -1075,8 +1081,8 @@ export default class RedisClient<
     const typeMapping = this._commandOptions?.typeMapping;
     const chainId = Symbol('MULTI Chain');
     const promises = [
-        this._self.#queue.addCommand(['MULTI'], { chainId }),
-      ];
+      this._self.#queue.addCommand(['MULTI'], { chainId }),
+    ];
 
     for (const { args } of commands) {
       promises.push(

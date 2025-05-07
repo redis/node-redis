@@ -24,10 +24,44 @@ export const SQUARE_SCRIPT = defineScript({
 });
 
 describe('Client', () => {
+  describe('initialization', () => {
+    describe('clientSideCache validation', () => {
+      const clientSideCacheConfig = { ttl: 0, maxEntries: 0 };
+
+      it('should throw error when clientSideCache is enabled with RESP 2', () => {
+        assert.throws(
+          () => new RedisClient({
+            clientSideCache: clientSideCacheConfig,
+            RESP: 2,
+          }),
+          new Error('Client Side Caching is only supported with RESP3')
+        );
+      });
+
+      it('should throw error when clientSideCache is enabled with RESP undefined', () => {
+        assert.throws(
+          () => new RedisClient({
+            clientSideCache: clientSideCacheConfig,
+          }),
+          new Error('Client Side Caching is only supported with RESP3')
+        );
+      });
+
+      it('should not throw when clientSideCache is enabled with RESP 3', () => {
+        assert.doesNotThrow(() =>
+          new RedisClient({
+            clientSideCache: clientSideCacheConfig,
+            RESP: 3,
+          })
+        );
+      });
+    });
+  });
+
   describe('parseURL', () => {
     it('redis://user:secret@localhost:6379/0', async () => {
       const result = RedisClient.parseURL('redis://user:secret@localhost:6379/0');
-      const expected : RedisClientOptions = {
+      const expected: RedisClientOptions = {
         socket: {
           host: 'localhost',
           port: 6379
@@ -51,8 +85,8 @@ describe('Client', () => {
       // Compare non-function properties
       assert.deepEqual(resultRest, expectedRest);
 
-      if(result.credentialsProvider.type === 'async-credentials-provider'
-        && expected.credentialsProvider.type === 'async-credentials-provider') {
+      if (result?.credentialsProvider?.type === 'async-credentials-provider'
+        && expected?.credentialsProvider?.type === 'async-credentials-provider') {
 
         // Compare the actual output of the credentials functions
         const resultCreds = await result.credentialsProvider.credentials();
@@ -91,10 +125,10 @@ describe('Client', () => {
 
       // Compare non-function properties
       assert.deepEqual(resultRest, expectedRest);
-      assert.equal(resultCredProvider.type, expectedCredProvider.type);
+      assert.equal(resultCredProvider?.type, expectedCredProvider?.type);
 
-      if (result.credentialsProvider.type === 'async-credentials-provider' &&
-        expected.credentialsProvider.type === 'async-credentials-provider') {
+      if (result?.credentialsProvider?.type === 'async-credentials-provider' &&
+        expected?.credentialsProvider?.type === 'async-credentials-provider') {
 
         // Compare the actual output of the credentials functions
         const resultCreds = await result.credentialsProvider.credentials();
@@ -150,11 +184,11 @@ describe('Client', () => {
 
     testUtils.testWithClient('Client can authenticate using the streaming credentials provider for initial token acquisition',
       async client => {
-      assert.equal(
-        await client.ping(),
-        'PONG'
-      );
-    }, GLOBAL.SERVERS.STREAMING_AUTH);
+        assert.equal(
+          await client.ping(),
+          'PONG'
+        );
+      }, GLOBAL.SERVERS.STREAMING_AUTH);
 
     testUtils.testWithClient('should execute AUTH before SELECT', async client => {
       assert.equal(
@@ -408,7 +442,7 @@ describe('Client', () => {
   });
 
   testUtils.testWithClient('functions', async client => {
-    const [,, reply] = await Promise.all([
+    const [, , reply] = await Promise.all([
       loadMathFunction(client),
       client.set('key', '2'),
       client.math.square('key')
@@ -522,8 +556,8 @@ describe('Client', () => {
     const hash: Record<string, string> = {};
     const expectedFields: Array<string> = [];
     for (let i = 0; i < 100; i++) {
-       hash[i.toString()] = i.toString();
-       expectedFields.push(i.toString());
+      hash[i.toString()] = i.toString();
+      expectedFields.push(i.toString());
     }
 
     await client.hSet('key', hash);
@@ -842,7 +876,7 @@ describe('Client', () => {
 
     testUtils.testWithClient('should be able to go back to "normal mode"', async client => {
       await Promise.all([
-        client.monitor(() => {}),
+        client.monitor(() => { }),
         client.reset()
       ]);
       await assert.doesNotReject(client.ping());
