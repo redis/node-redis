@@ -314,11 +314,17 @@ export interface CommanderConfig<
   functions?: F;
   scripts?: S;
   /**
-   * TODO
+   * Specifies the Redis Serialization Protocol version to use.
+   * RESP2 is the default (value 2), while RESP3 (value 3) provides
+   * additional data types and features introduced in Redis 6.0.
    */
   RESP?: RESP;
   /**
-   * TODO
+   * When set to true, enables commands that have unstable RESP3 implementations.
+   * When using RESP3 protocol, commands marked as having unstable RESP3 support
+   * will throw an error unless this flag is explicitly set to true.
+   * This primarily affects modules like Redis Search where response formats
+   * in RESP3 mode may change in future versions.
    */
   unstableResp3?: boolean;
 }
