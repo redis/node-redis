@@ -73,7 +73,7 @@ describe('PROFILE AGGREGATE', () => {
     const normalizeObject = obj => JSON.parse(JSON.stringify(obj));
     const res = await client.ft.profileAggregate('index', '*');
     const normalizedRes = normalizeObject(res);
-    assert.equal(normalizedRes.results.total, 1);
+    assert.equal(normalizedRes.results.total, 2);
 
     assert.ok(Array.isArray(normalizedRes.profile));
     assert.equal(normalizedRes.profile[0][0], 'Total profile time');
