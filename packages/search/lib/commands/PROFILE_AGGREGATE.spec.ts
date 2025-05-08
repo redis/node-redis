@@ -45,7 +45,9 @@ describe('PROFILE AGGREGATE', () => {
     const res = await client.ft.profileAggregate('index', '*');
 
     const normalizedRes = normalizeObject(res);
-    assert.equal(normalizedRes.results.total, 2);
+    // TODO uncomment after https://redis.io/docs/latest/commands/ft.aggregate/#return
+    // starts returning valid values
+    // assert.equal(normalizedRes.results.total, 2);
 
     assert.ok(normalizedRes.profile[0] === 'Shards');
     assert.ok(Array.isArray(normalizedRes.profile[1]));
@@ -73,7 +75,10 @@ describe('PROFILE AGGREGATE', () => {
     const normalizeObject = obj => JSON.parse(JSON.stringify(obj));
     const res = await client.ft.profileAggregate('index', '*');
     const normalizedRes = normalizeObject(res);
-    assert.equal(normalizedRes.results.total, 2);
+
+    // TODO uncomment after https://redis.io/docs/latest/commands/ft.aggregate/#return
+    // starts returning valid values
+    // assert.equal(normalizedRes.results.total, 2);
 
     assert.ok(Array.isArray(normalizedRes.profile));
     assert.equal(normalizedRes.profile[0][0], 'Total profile time');
@@ -103,8 +108,11 @@ describe('PROFILE AGGREGATE', () => {
     const normalizeObject = obj => JSON.parse(JSON.stringify(obj));
     const res = await client.ft.profileAggregate('index', '*');
 
+    // TODO uncomment after https://redis.io/docs/latest/commands/ft.aggregate/#return
+    // starts returning valid values
+    // assert.equal(res.Results.total_results, 2);
+
     const normalizedRes = normalizeObject(res);
-    assert.equal(normalizedRes.Results.total_results, 2);
     assert.ok(normalizedRes.Profile.Shards);
   }, GLOBAL.SERVERS.OPEN_3);
 });
