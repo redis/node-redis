@@ -535,7 +535,7 @@ export default class RedisClusterSlots<
     
         this.pubSubNode = {
             address: node.address,
-            client: this.#createClient(node, true)
+            client: this.#createClient(node, false)
                 .then(async client => {
                     if (toResubscribe) {
                         await Promise.all([
@@ -574,7 +574,7 @@ export default class RedisClusterSlots<
     }
 
     #initiateShardedPubSubClient(master: MasterNode<M, F, S>) {
-        const promise = this.#createClient(master, true)
+        const promise = this.#createClient(master, false)
             .then(client => {
                 client.on('server-sunsubscribe', async (channel, listeners) => {
                     try {
