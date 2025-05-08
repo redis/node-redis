@@ -156,7 +156,7 @@ export default {
       }
   
       return {
-        total: Number(rawReply[0]),
+        total: results.length,
         results
       };
     },
