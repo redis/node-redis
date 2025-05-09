@@ -69,7 +69,38 @@ export interface RedisSentinelOptions<
    */
   reserveClient?: boolean;
   /**
-   * TODO
+   * Client Side Caching configuration for the pool.
+   * 
+   * Enables Redis Servers and Clients to work together to cache results from commands 
+   * sent to a server. The server will notify the client when cached results are no longer valid.
+   * In pooled mode, the cache is shared across all clients in the pool.
+   * 
+   * Note: Client Side Caching is only supported with RESP3.
+   * 
+   * @example Anonymous cache configuration
+   * ```
+   * const client = createSentinel({
+   *   clientSideCache: {
+   *     ttl: 0,
+   *     maxEntries: 0,
+   *     evictPolicy: "LRU"
+   *   },
+   *   minimum: 5
+   * });
+   * ```
+   * 
+   * @example Using a controllable cache
+   * ```
+   * const cache = new BasicPooledClientSideCache({
+   *   ttl: 0,
+   *   maxEntries: 0,
+   *   evictPolicy: "LRU"
+   * });
+   * const client = createSentinel({
+   *   clientSideCache: cache,
+   *   minimum: 5
+   * });
+   * ```
    */
   clientSideCache?: PooledClientSideCacheProvider | ClientSideCacheConfig;
 }

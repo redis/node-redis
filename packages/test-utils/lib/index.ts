@@ -450,7 +450,7 @@ export default class TestUtils {
         await fn(pool);
       } finally {
         await pool.flushAll();
-        pool.destroy();
+        pool.close();
       }
     });
   }

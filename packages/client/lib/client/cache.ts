@@ -3,6 +3,369 @@ import RedisClient from '.';
 import { RedisArgument, ReplyUnion, TransformReply, TypeMapping } from '../RESP/types';
 import { BasicCommandParser } from './parser';
 
+/**
+ * A snapshot of cache statistics.
+ *
+ * This class provides an immutable view of the cache's operational statistics at a particular
+ * point in time. It is heavily inspired by the statistics reporting capabilities found in
+ * Ben Manes's Caffeine cache (https://github.com/ben-manes/caffeine).
+ *
+ * Instances of `CacheStats` are typically obtained from a {@link StatsCounter} and can be used
+ * for performance monitoring, debugging, or logging. It includes metrics such as hit rate,
+ * miss rate, load success/failure rates, average load penalty, and eviction counts.
+ *
+ * All statistics are non-negative. Rates and averages are typically in the range `[0.0, 1.0]`,
+ * or `0` if the an operation has not occurred (e.g. hit rate is 0 if there are no requests).
+ *
+ * Cache statistics are incremented according to specific rules:
+ * - When a cache lookup encounters an existing entry, hitCount is incremented.
+ * - When a cache lookup encounters a missing entry, missCount is incremented.
+ * - When a new entry is successfully loaded, loadSuccessCount is incremented and the
+ *   loading time is added to totalLoadTime.
+ * - When an entry fails to load, loadFailureCount is incremented and the
+ *   loading time is added to totalLoadTime.
+ * - When an entry is evicted due to size constraints or expiration,
+ *   evictionCount is incremented.
+ */
+export class CacheStats {
+  /**
+   * Creates a new CacheStats instance with the specified statistics.
+   */
+  private constructor(
+    public readonly hitCount: number,
+    public readonly missCount: number,
+    public readonly loadSuccessCount: number,
+    public readonly loadFailureCount: number,
+    public readonly totalLoadTime: number,
+    public readonly evictionCount: number
+  ) {
+    if (
+      hitCount < 0 ||
+      missCount < 0 ||
+      loadSuccessCount < 0 ||
+      loadFailureCount < 0 ||
+      totalLoadTime < 0 ||
+      evictionCount < 0
+    ) {
+      throw new Error('All statistics values must be non-negative');
+    }
+  }
+
+  /**
+   * Creates a new CacheStats instance with the specified statistics.
+   *
+   * @param hitCount - Number of cache hits
+   * @param missCount - Number of cache misses
+   * @param loadSuccessCount - Number of successful cache loads
+   * @param loadFailureCount - Number of failed cache loads
+   * @param totalLoadTime - Total load time in milliseconds
+   * @param evictionCount - Number of cache evictions
+   */
+  static of(
+    hitCount = 0,
+    missCount = 0,
+    loadSuccessCount = 0,
+    loadFailureCount = 0,
+    totalLoadTime = 0,
+    evictionCount = 0
+  ): CacheStats {
+    return new CacheStats(
+      hitCount,
+      missCount,
+      loadSuccessCount,
+      loadFailureCount,
+      totalLoadTime,
+      evictionCount
+    );
+  }
+
+  /**
+   * Returns a statistics instance where no cache events have been recorded.
+   *
+   * @returns An empty statistics instance
+   */
+  static empty(): CacheStats {
+    return CacheStats.EMPTY_STATS;
+  }
+
+  /**
+   * An empty stats instance with all counters set to zero.
+   */
+  private static readonly EMPTY_STATS = new CacheStats(0, 0, 0, 0, 0, 0);
+
+  /**
+  * Returns the total number of times cache lookup methods have returned
+  * either a cached or uncached value.
+  *
+  * @returns Total number of requests (hits + misses)
+  */
+  requestCount(): number {
+    return this.hitCount + this.missCount;
+  }
+
+  /**
+   * Returns the hit rate of the cache.
+   * This is defined as hitCount / requestCount, or 1.0 when requestCount is 0.
+   *
+   * @returns The ratio of cache requests that were hits (between 0.0 and 1.0)
+   */
+  hitRate(): number {
+    const requestCount = this.requestCount();
+    return requestCount === 0 ? 1.0 : this.hitCount / requestCount;
+  }
+
+  /**
+   * Returns the miss rate of the cache.
+   * This is defined as missCount / requestCount, or 0.0 when requestCount is 0.
+   *
+   * @returns The ratio of cache requests that were misses (between 0.0 and 1.0)
+   */
+  missRate(): number {
+    const requestCount = this.requestCount();
+    return requestCount === 0 ? 0.0 : this.missCount / requestCount;
+  }
+
+  /**
+  * Returns the total number of load operations (successful + failed).
+  *
+  * @returns Total number of load operations
+  */
+  loadCount(): number {
+    return this.loadSuccessCount + this.loadFailureCount;
+  }
+
+  /**
+   * Returns the ratio of cache loading attempts that failed.
+   * This is defined as loadFailureCount / loadCount, or 0.0 when loadCount is 0.
+   *
+   * @returns Ratio of load operations that failed (between 0.0 and 1.0)
+   */
+  loadFailureRate(): number {
+    const loadCount = this.loadCount();
+    return loadCount === 0 ? 0.0 : this.loadFailureCount / loadCount;
+  }
+
+  /**
+   * Returns the average time spent loading new values, in milliseconds.
+   * This is defined as totalLoadTime / loadCount, or 0.0 when loadCount is 0.
+   *
+   * @returns Average load time in milliseconds
+   */
+  averageLoadPenalty(): number {
+    const loadCount = this.loadCount();
+    return loadCount === 0 ? 0.0 : this.totalLoadTime / loadCount;
+  }
+
+  /**
+  * Returns a new CacheStats representing the difference between this CacheStats
+  * and another. Negative values are rounded up to zero.
+  *
+  * @param other - The statistics to subtract from this instance
+  * @returns The difference between this instance and other
+  */
+  minus(other: CacheStats): CacheStats {
+    return CacheStats.of(
+      Math.max(0, this.hitCount - other.hitCount),
+      Math.max(0, this.missCount - other.missCount),
+      Math.max(0, this.loadSuccessCount - other.loadSuccessCount),
+      Math.max(0, this.loadFailureCount - other.loadFailureCount),
+      Math.max(0, this.totalLoadTime - other.totalLoadTime),
+      Math.max(0, this.evictionCount - other.evictionCount)
+    );
+  }
+
+  /**
+   * Returns a new CacheStats representing the sum of this CacheStats and another.
+   *
+   * @param other - The statistics to add to this instance
+   * @returns The sum of this instance and other
+   */
+  plus(other: CacheStats): CacheStats {
+    return CacheStats.of(
+      this.hitCount + other.hitCount,
+      this.missCount + other.missCount,
+      this.loadSuccessCount + other.loadSuccessCount,
+      this.loadFailureCount + other.loadFailureCount,
+      this.totalLoadTime + other.totalLoadTime,
+      this.evictionCount + other.evictionCount
+    );
+  }
+}
+
+/**
+ * An accumulator for cache statistics.
+ *
+ * This interface defines the contract for objects that record cache-related events
+ * such as hits, misses, loads (successes and failures), and evictions. The design
+ * is inspired by the statistics collection mechanisms in Ben Manes's Caffeine cache
+ * (https://github.com/ben-manes/caffeine).
+ *
+ * Implementations of this interface are responsible for aggregating these events.
+ * A snapshot of the current statistics can be obtained by calling the `snapshot()`
+ * method, which returns an immutable {@link CacheStats} object.
+ *
+ * Common implementations include `DefaultStatsCounter` for active statistics collection
+ * and `DisabledStatsCounter` for a no-op version when stats are not needed.
+ */
+export interface StatsCounter {
+  /**
+   * Records cache hits. This should be called when a cache request returns a cached value.
+   *
+   * @param count - The number of hits to record
+   */
+  recordHits(count: number): void;
+
+  /**
+   * Records cache misses. This should be called when a cache request returns a value that was not
+   * found in the cache.
+   *
+   * @param count - The number of misses to record
+   */
+  recordMisses(count: number): void;
+
+  /**
+   * Records the successful load of a new entry. This method should be called when a cache request
+   * causes an entry to be loaded and the loading completes successfully.
+   *
+   * @param loadTime - The number of milliseconds the cache spent computing or retrieving the new value
+   */
+  recordLoadSuccess(loadTime: number): void;
+
+  /**
+   * Records the failed load of a new entry. This method should be called when a cache request
+   * causes an entry to be loaded, but an exception is thrown while loading the entry.
+   *
+   * @param loadTime - The number of milliseconds the cache spent computing or retrieving the new value
+   *                   prior to the failure
+   */
+  recordLoadFailure(loadTime: number): void;
+
+  /**
+   * Records the eviction of an entry from the cache. This should only be called when an entry is
+   * evicted due to the cache's eviction strategy, and not as a result of manual invalidations.
+   *
+   * @param count - The number of evictions to record
+   */
+  recordEvictions(count: number): void;
+
+  /**
+   * Returns a snapshot of this counter's values. Note that this may be an inconsistent view, as it
+   * may be interleaved with update operations.
+   *
+   * @return A snapshot of this counter's values
+   */
+  snapshot(): CacheStats;
+}
+
+/**
+ * A StatsCounter implementation that does nothing and always returns empty stats.
+ */
+class DisabledStatsCounter implements StatsCounter {
+  static readonly INSTANCE = new DisabledStatsCounter();
+
+  private constructor() { }
+
+  recordHits(count: number): void { }
+  recordMisses(count: number): void { }
+  recordLoadSuccess(loadTime: number): void { }
+  recordLoadFailure(loadTime: number): void { }
+  recordEvictions(count: number): void { }
+  snapshot(): CacheStats { return CacheStats.empty(); }
+}
+
+/**
+ * Returns a StatsCounter that does not record any cache events.
+ *
+ * @return A StatsCounter that does not record metrics
+ */
+function disabledStatsCounter(): StatsCounter {
+  return DisabledStatsCounter.INSTANCE;
+}
+
+/**
+ * A StatsCounter implementation that maintains cache statistics.
+ */
+class DefaultStatsCounter implements StatsCounter {
+  #hitCount = 0;
+  #missCount = 0;
+  #loadSuccessCount = 0;
+  #loadFailureCount = 0;
+  #totalLoadTime = 0;
+  #evictionCount = 0;
+
+  /**
+   * Records cache hits.
+   *
+   * @param count - The number of hits to record
+   */
+  recordHits(count: number): void {
+    this.#hitCount += count;
+  }
+
+  /**
+   * Records cache misses.
+   *
+   * @param count - The number of misses to record
+   */
+  recordMisses(count: number): void {
+    this.#missCount += count;
+  }
+
+  /**
+   * Records the successful load of a new entry.
+   *
+   * @param loadTime - The number of milliseconds spent loading the entry
+   */
+  recordLoadSuccess(loadTime: number): void {
+    this.#loadSuccessCount++;
+    this.#totalLoadTime += loadTime;
+  }
+
+  /**
+   * Records the failed load of a new entry.
+   *
+   * @param loadTime - The number of milliseconds spent attempting to load the entry
+   */
+  recordLoadFailure(loadTime: number): void {
+    this.#loadFailureCount++;
+    this.#totalLoadTime += loadTime;
+  }
+
+  /**
+   * Records cache evictions.
+   *
+   * @param count - The number of evictions to record
+   */
+  recordEvictions(count: number): void {
+    this.#evictionCount += count;
+  }
+
+  /**
+   * Returns a snapshot of the current statistics.
+   *
+   * @returns A snapshot of the current statistics
+   */
+  snapshot(): CacheStats {
+    return CacheStats.of(
+      this.#hitCount,
+      this.#missCount,
+      this.#loadSuccessCount,
+      this.#loadFailureCount,
+      this.#totalLoadTime,
+      this.#evictionCount
+    );
+  }
+
+  /**
+   * Creates a new DefaultStatsCounter.
+   *
+   * @returns A new DefaultStatsCounter instance
+   */
+  static create(): DefaultStatsCounter {
+    return new DefaultStatsCounter();
+  }
+}
+
 type CachingClient = RedisClient<any, any, any, any, any>;
 type CmdFunc = () => Promise<ReplyUnion>;
 
@@ -18,14 +381,14 @@ export interface ClientSideCacheConfig {
    * @default 0
    */
   ttl?: number;
-  
+
   /**
    * Maximum number of entries to store in the cache.
    * Use 0 for unlimited entries.
    * @default 0
    */
   maxEntries?: number;
-  
+
   /**
    * Eviction policy to use when the cache reaches its capacity.
    * - "LRU" (Least Recently Used): Evicts least recently accessed entries first
@@ -33,24 +396,36 @@ export interface ClientSideCacheConfig {
    * @default "LRU"
    */
   evictPolicy?: EvictionPolicy;
+
+  /**
+   * Whether to collect statistics about cache operations.
+   * @default true
+   */
+  recordStats?: boolean;
 }
 
-type CacheCreator = {
+interface CacheCreator {
   epoch: number;
   client: CachingClient;
-};
+}
 
 interface ClientSideCacheEntry {
   invalidate(): void;
   validate(): boolean;
 }
 
+/**
+ * Generates a unique cache key from Redis command arguments
+ *
+ * @param redisArgs - Array of Redis command arguments
+ * @returns A unique string key for caching
+ */
 function generateCacheKey(redisArgs: ReadonlyArray<RedisArgument>): string {
-  const tmp = new Array(redisArgs.length*2);
+  const tmp = new Array(redisArgs.length * 2);
 
   for (let i = 0; i < redisArgs.length; i++) {
     tmp[i] = redisArgs[i].length;
-    tmp[i+redisArgs.length] = redisArgs[i];
+    tmp[i + redisArgs.length] = redisArgs[i];
   }
 
   return tmp.join('_');
@@ -108,8 +483,7 @@ export abstract class ClientSideCacheProvider extends EventEmitter {
   abstract trackingOn(): Array<RedisArgument>;
   abstract invalidate(key: RedisArgument | null): void;
   abstract clear(): void;
-  abstract cacheHits(): number;
-  abstract cacheMisses(): number;
+  abstract stats(): CacheStats;
   abstract onError(): void;
   abstract onClose(): void;
 }
@@ -120,8 +494,20 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
   readonly ttl: number;
   readonly maxEntries: number;
   readonly lru: boolean;
-  #cacheHits = 0;
-  #cacheMisses = 0;
+  #statsCounter: StatsCounter;
+
+
+  recordEvictions(count: number): void {
+    this.#statsCounter.recordEvictions(count);
+  }
+
+  recordHits(count: number): void {
+    this.#statsCounter.recordHits(count);
+  }
+
+  recordMisses(count: number): void {
+    this.#statsCounter.recordMisses(count);
+  }
 
   constructor(config?: ClientSideCacheConfig) {
     super();
@@ -130,7 +516,10 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
     this.#keyToCacheKeySetMap = new Map<string, Set<string>>();
     this.ttl = config?.ttl ?? 0;
     this.maxEntries = config?.maxEntries ?? 0;
-    this.lru = config?.evictPolicy !== "FIFO"
+    this.lru = config?.evictPolicy !== "FIFO";
+
+    const recordStats = config?.recordStats !== false;
+    this.#statsCounter = recordStats ? DefaultStatsCounter.create() : disabledStatsCounter();
   }
 
   /* logic of how caching works:
@@ -153,8 +542,8 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
     client: CachingClient,
     parser: BasicCommandParser,
     fn: CmdFunc,
-    transformReply: TransformReply | undefined,
-    typeMapping: TypeMapping | undefined
+    transformReply?: TransformReply,
+    typeMapping?: TypeMapping
   ) {
     let reply: ReplyUnion;
 
@@ -165,18 +554,20 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
     if (cacheEntry) {
       // If instanceof is "too slow", can add a "type" and then use an "as" cast to call proper getters.
       if (cacheEntry instanceof ClientSideCacheEntryValue) { // "2b1"
-        this.#cacheHit();
+        this.#statsCounter.recordHits(1);
 
         return structuredClone(cacheEntry.value);
       } else if (cacheEntry instanceof ClientSideCacheEntryPromise) { // 2b2
-        // unsure if this should be considered a cache hit, a miss, or neither?
+        // This counts as a miss since the value hasn't been fully loaded yet.
+        this.#statsCounter.recordMisses(1);
         reply = await cacheEntry.promise;
       } else {
         throw new Error("unknown cache entry type");
       }
     } else { // 3/3a
-      this.#cacheMiss();
-      
+      this.#statsCounter.recordMisses(1);
+
+      const startTime = performance.now();
       const promise = fn();
 
       cacheEntry = this.createPromiseEntry(client, promise);
@@ -184,11 +575,16 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
 
       try {
         reply = await promise;
+        const loadTime = performance.now() - startTime;
+        this.#statsCounter.recordLoadSuccess(loadTime);
       } catch (err) {
-        if (cacheEntry.validate()) { // on error, have to remove promise from cache
+        const loadTime = performance.now() - startTime;
+        this.#statsCounter.recordLoadFailure(loadTime);
+
+        if (cacheEntry.validate()) {
           this.delete(cacheKey!);
         }
-        
+
         throw err;
       }
     }
@@ -208,7 +604,7 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
       this.set(cacheKey, cacheEntry, parser.keys);
       this.emit("cached-key", cacheKey);
     } else {
-//      console.log("cache entry for key got invalidated between execution and saving, so not saving");
+      //   cache entry for key got invalidated between execution and saving, so not saving
     }
 
     return structuredClone(val);
@@ -227,7 +623,7 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
     }
 
     const keySet = this.#keyToCacheKeySetMap.get(key.toString());
-    if (keySet) {     
+    if (keySet) {
       for (const cacheKey of keySet) {
         const entry = this.#cacheKeyToEntryMap.get(cacheKey);
         if (entry) {
@@ -242,11 +638,19 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
   }
 
   override clear(resetStats = true) {
+    const oldSize = this.#cacheKeyToEntryMap.size;
     this.#cacheKeyToEntryMap.clear();
     this.#keyToCacheKeySetMap.clear();
+
     if (resetStats) {
-      this.#cacheHits = 0;
-      this.#cacheMisses = 0;
+      if (!(this.#statsCounter instanceof DisabledStatsCounter)) {
+        this.#statsCounter = DefaultStatsCounter.create();
+      }
+    } else {
+      // If old entries were evicted due to clear, record them as evictions
+      if (oldSize > 0) {
+        this.#statsCounter.recordEvictions(oldSize);
+      }
     }
   }
 
@@ -255,6 +659,7 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
 
     if (val && !val.validate()) {
       this.delete(cacheKey);
+      this.#statsCounter.recordEvictions(1);
       this.emit("cache-evict", cacheKey);
 
       return undefined;
@@ -291,6 +696,7 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
 
     if (this.maxEntries > 0 && count >= this.maxEntries) {
       this.deleteOldest();
+      this.#statsCounter.recordEvictions(1);
     }
 
     this.#cacheKeyToEntryMap.set(cacheKey, cacheEntry);
@@ -317,20 +723,8 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
     return new ClientSideCacheEntryPromise(this.ttl, sendCommandPromise);
   }
 
-  #cacheHit(): void {
-    this.#cacheHits++;
-  }
-
-  #cacheMiss(): void {
-    this.#cacheMisses++;
-  }
-
-  override cacheHits(): number {
-    return this.#cacheHits;
-  }
-
-  override cacheMisses(): number {
-    return this.#cacheMisses;
+  override stats(): CacheStats {
+    return this.#statsCounter.snapshot();
   }
 
   override onError(): void {
@@ -348,21 +742,28 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
     const it = this.#cacheKeyToEntryMap[Symbol.iterator]();
     const n = it.next();
     if (!n.done) {
-      this.#cacheKeyToEntryMap.delete(n.value[0]);
+      const key = n.value[0];
+      const entry = this.#cacheKeyToEntryMap.get(key);
+      if (entry) {
+        entry.invalidate();
+      }
+      this.#cacheKeyToEntryMap.delete(key);
     }
   }
 
   /**
+   * Get cache entries for debugging
    * @internal
    */
-  entryEntries() {
+  entryEntries(): IterableIterator<[string, ClientSideCacheEntry]> {
     return this.#cacheKeyToEntryMap.entries();
   }
 
   /**
+   * Get key set entries for debugging
    * @internal
    */
-  keySetEntries() {
+  keySetEntries(): IterableIterator<[string, Set<string>]> {
     return this.#keyToCacheKeySetMap.entries();
   }
 }
@@ -370,15 +771,15 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
 export abstract class PooledClientSideCacheProvider extends BasicClientSideCache {
   #disabled = false;
 
-  disable() {
+  disable(): void {
     this.#disabled = true;
   }
 
-  enable() {
+  enable(): void {
     this.#disabled = false;
   }
 
-  override get(cacheKey: string) {
+  override get(cacheKey: string): ClientSideCacheEntry | undefined {
     if (this.#disabled) {
       return undefined;
     }
@@ -386,20 +787,19 @@ export abstract class PooledClientSideCacheProvider extends BasicClientSideCache
     return super.get(cacheKey);
   }
 
-  override has(cacheKey: string) {
+  override has(cacheKey: string): boolean {
     if (this.#disabled) {
       return false;
     }
 
     return super.has(cacheKey);
-  }  
-  
-  onPoolClose() {
+  }
+
+  onPoolClose(): void {
     this.clear();
-  };
+  }
 }
 
-// doesn't do anything special in pooling, clears cache on every client disconnect
 export class BasicPooledClientSideCache extends PooledClientSideCacheProvider {
   override onError() {
     this.clear(false);
@@ -440,12 +840,11 @@ class PooledClientSideCacheEntryPromise extends ClientSideCacheEntryPromise {
 
   override validate(): boolean {
     let ret = super.validate();
-    
+
     return ret && this.#creator.client.isReady && this.#creator.client.socketEpoch == this.#creator.epoch
   }
 }
 
-// Doesn't clear cache on client disconnect, validates entries on retrieval
 export class PooledNoRedirectClientSideCache extends BasicPooledClientSideCache {
   override createValueEntry(client: CachingClient, value: any): ClientSideCacheEntryValue {
     const creator = {
@@ -465,8 +864,7 @@ export class PooledNoRedirectClientSideCache extends BasicPooledClientSideCache 
     return new PooledClientSideCacheEntryPromise(this.ttl, creator, sendCommandPromise);
   }
 
-  // don't clear cache on error here
-  override onError() {}
+  override onError() { }
 
-  override onClose() {}
+  override onClose() { }
 }
