@@ -156,7 +156,10 @@ export default {
       }
   
       return {
-        total: results.length,
+        //  https://redis.io/docs/latest/commands/ft.aggregate/#return
+        //  FT.AGGREGATE returns an array reply where each row is an array reply and represents a single aggregate result.
+        // The integer reply at position 1 does not represent a valid value.
+        total: Number(rawReply[0]),
         results
       };
     },
