@@ -4,7 +4,7 @@ import { BasicAuth, CredentialsError, CredentialsProvider, StreamingCredentialsP
 import RedisCommandsQueue, { CommandOptions } from './commands-queue';
 import { EventEmitter } from 'node:events';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
-import { ClientClosedError, ClientOfflineError, DisconnectsClientError, WatchError } from '../errors';
+import { ClientClosedError, ClientOfflineError, DisconnectsClientError, SimpleError, WatchError } from '../errors';
 import { URL } from 'node:url';
 import { TcpSocketConnectOpts } from 'node:net';
 import { PUBSUB_TYPE, PubSubType, PubSubListener, PubSubTypeListeners, ChannelListeners } from './pub-sub';
@@ -18,6 +18,7 @@ import { RedisPoolOptions, RedisClientPool } from './pool';
 import { RedisVariadicArgument, parseArgs, pushVariadicArguments } from '../commands/generic-transformers';
 import { BasicCommandParser, CommandParser } from './parser';
 import SingleEntryCache from '../single-entry-cache';
+import { version } from '../../package.json'
 
 export interface RedisClientOptions<
   M extends RedisModules = RedisModules,
@@ -81,6 +82,14 @@ export interface RedisClientOptions<
    * TODO
    */
   commandOptions?: CommandOptions<TYPE_MAPPING>;
+  /**
+   * If set to true, disables sending client identifier (user-agent like message) to the redis server
+   */
+  disableClientInfo?: boolean;
+  /**
+   * Tag to append to library name that is sent to the Redis server
+   */
+  clientInfoTag?: string;
 }
 
 type WithCommands<
@@ -546,6 +555,36 @@ export default class RedisClient<
             }
           )
         );
+      }
+
+      if (!this.#options?.disableClientInfo) {
+        this.#queue.addCommand([
+          'CLIENT',
+          'SETINFO',
+          'LIB-NAME',
+          this.#options?.clientInfoTag
+          ? `node-redis(${this.#options.clientInfoTag})` : 'node-redis'
+        ], {
+          chainId,
+          asap: true
+        }).catch(err => {
+          // Client libraries are expected to ignore failures since they could be
+          // connected to an older server that doesn't support them.
+          if (err !instanceof SimpleError || !err.isUnknownCommand()) {
+            return;
+          }
+        });
+
+        this.#queue.addCommand(['CLIENT', 'SETINFO', 'LIB-VER', version],{
+          chainId,
+          asap: true
+        }).catch(err => {
+          // Client libraries are expected to ignore failures since they could be
+          // connected to an older server that doesn't support them.
+          if (err !instanceof SimpleError || !err.isUnknownCommand()) {
+            return;
+          }
+        });
       }
 
       const commands = await this.#handshake(this.#selectedDB);

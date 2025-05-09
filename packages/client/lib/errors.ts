@@ -64,7 +64,11 @@ export class ErrorReply extends Error {
   }
 }
 
-export class SimpleError extends ErrorReply {}
+export class SimpleError extends ErrorReply {
+  isUnknownCommand(): boolean {
+    return this.message.indexOf('ERR unknown command') !== -1;
+  }
+}
 
 export class BlobError extends ErrorReply {}
 

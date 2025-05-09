@@ -1,11 +1,12 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "outDir": "./dist"
+    "outDir": "./dist",
   },
   "include": [
     "./index.ts",
-    "./lib/**/*.ts"
+    "./lib/**/*.ts",
+    "./package.json"
   ],
   "exclude": [
     "./lib/test-utils.ts",
@@ -18,6 +19,6 @@
       "./lib"
     ],
     "entryPointStrategy": "expand",
-    "out": "../../documentation/client"
+    "out": "../../documentation/client",
   }
 }
