@@ -15,6 +15,7 @@
     "sourceMap": true,
     "declaration": true,
     "declarationMap": true,
-    "allowJs": true
+    "allowJs": true,
+    "resolveJsonModule": true
   }
 }
