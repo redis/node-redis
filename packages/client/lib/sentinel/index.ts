@@ -16,6 +16,7 @@ import { RedisVariadicArgument } from '../commands/generic-transformers';
 import { WaitQueue } from './wait-queue';
 import { TcpNetConnectOpts } from 'node:net';
 import { RedisTcpSocketOptions } from '../client/socket';
+import { BasicPooledClientSideCache, PooledClientSideCacheProvider } from '../client/cache';
 
 interface ClientInfo {
   id: number;
@@ -300,6 +301,10 @@ export default class RedisSentinel<
   #reservedClientInfo?: ClientInfo;
   #masterClientCount = 0;
   #masterClientInfo?: ClientInfo;
+
+  get clientSideCache() {
+    return this._self.#internal.clientSideCache;
+  }
 
   constructor(options: RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>) {
     super();
@@ -617,7 +622,7 @@ class RedisSentinelInternal<
 
   readonly #name: string;
   readonly #nodeClientOptions: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING, RedisTcpSocketOptions>;
-  readonly #sentinelClientOptions: RedisClientOptions<typeof RedisSentinelModule, F, S, RESP, TYPE_MAPPING, RedisTcpSocketOptions>;
+  readonly #sentinelClientOptions: RedisClientOptions<typeof RedisSentinelModule, RedisFunctions, RedisScripts, RespVersions, TypeMapping, RedisTcpSocketOptions>;
   readonly #scanInterval: number;
   readonly #passthroughClientErrorEvents: boolean;
 
@@ -650,9 +655,22 @@ class RedisSentinelInternal<
 
   #trace: (msg: string) => unknown = () => { };
 
+  #clientSideCache?: PooledClientSideCacheProvider;
+  get clientSideCache() {
+    return this.#clientSideCache;
+  }
+
+  #validateOptions(options?: RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>) {
+    if (options?.clientSideCache && options?.RESP !== 3) {
+      throw new Error('Client Side Caching is only supported with RESP3');
+    }
+  }
+
   constructor(options: RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>) {
     super();
 
+    this.#validateOptions(options);
+    
     this.#name = options.name;
 
     this.#sentinelRootNodes = Array.from(options.sentinelRootNodes);
@@ -662,9 +680,19 @@ class RedisSentinelInternal<
     this.#scanInterval = options.scanInterval ?? 0;
     this.#passthroughClientErrorEvents = options.passthroughClientErrorEvents ?? false;
 
-    this.#nodeClientOptions = options.nodeClientOptions ? Object.assign({} as RedisClientOptions<M, F, S, RESP, TYPE_MAPPING, RedisTcpSocketOptions>, options.nodeClientOptions) : {};
+    this.#nodeClientOptions = (options.nodeClientOptions ? {...options.nodeClientOptions} : {}) as RedisClientOptions<M, F, S, RESP, TYPE_MAPPING, RedisTcpSocketOptions>;
     if (this.#nodeClientOptions.url !== undefined) {
       throw new Error("invalid nodeClientOptions for Sentinel");
+    }
+
+    if (options.clientSideCache) {
+      if (options.clientSideCache instanceof PooledClientSideCacheProvider) {
+        this.#clientSideCache = this.#nodeClientOptions.clientSideCache = options.clientSideCache;
+      } else {
+        const cscConfig = options.clientSideCache;
+        this.#clientSideCache = this.#nodeClientOptions.clientSideCache = new BasicPooledClientSideCache(cscConfig);
+//        this.#clientSideCache = this.#nodeClientOptions.clientSideCache = new PooledNoRedirectClientSideCache(cscConfig);
+      }
     }
 
     this.#sentinelClientOptions = options.sentinelClientOptions ? Object.assign({} as RedisClientOptions<typeof RedisSentinelModule, F, S, RESP, TYPE_MAPPING, RedisTcpSocketOptions>, options.sentinelClientOptions) : {};
@@ -904,6 +932,8 @@ class RedisSentinelInternal<
 
     this.#isReady = false;
 
+    this.#clientSideCache?.onPoolClose();
+
     if (this.#scanTimer) {
       clearInterval(this.#scanTimer);
       this.#scanTimer = undefined;
@@ -951,6 +981,8 @@ class RedisSentinelInternal<
     }
 
     this.#isReady = false;
+
+    this.#clientSideCache?.onPoolClose();
 
     if (this.#scanTimer) {
       clearInterval(this.#scanTimer);

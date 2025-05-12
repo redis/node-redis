@@ -5,10 +5,58 @@ import { RESP_TYPES } from '../RESP/decoder';
 import { WatchError } from "../errors";
 import { RedisSentinelConfig, SentinelFramework } from "./test-util";
 import { RedisSentinelEvent, RedisSentinelType, RedisSentinelClientType, RedisNode } from "./types";
+import RedisSentinel from "./index";
 import { RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping, NumberReply } from '../RESP/types';
 import { promisify } from 'node:util';
 import { exec } from 'node:child_process';
+import { BasicPooledClientSideCache } from '../client/cache'
+import { once } from 'node:events'
 const execAsync = promisify(exec);
+
+describe('RedisSentinel', () => {
+  describe('initialization', () => {
+    describe('clientSideCache validation', () => {
+      const clientSideCacheConfig = { ttl: 0, maxEntries: 0 };
+      const options = {
+        name: 'mymaster',
+        sentinelRootNodes: [
+          { host: 'localhost', port: 26379 }
+        ]
+      };
+      
+      it('should throw error when clientSideCache is enabled with RESP 2', () => {
+        assert.throws(
+          () => RedisSentinel.create({
+            ...options,
+            clientSideCache: clientSideCacheConfig,
+            RESP: 2 as const,
+          }),
+          new Error('Client Side Caching is only supported with RESP3')
+        );
+      });
+
+      it('should throw error when clientSideCache is enabled with RESP undefined', () => {
+        assert.throws(
+          () => RedisSentinel.create({
+            ...options,
+            clientSideCache: clientSideCacheConfig,
+          }),
+          new Error('Client Side Caching is only supported with RESP3')
+        );
+      });
+
+      it('should not throw when clientSideCache is enabled with RESP 3', () => {
+        assert.doesNotThrow(() => 
+          RedisSentinel.create({
+            ...options,
+            clientSideCache: clientSideCacheConfig,
+            RESP: 3 as const,
+          })
+        );
+      });
+    });
+  });
+});
 
 [GLOBAL.SENTINEL.OPEN, GLOBAL.SENTINEL.PASSWORD].forEach(testOptions => {
   const passIndex = testOptions.serverArguments.indexOf('--requirepass')+1;
@@ -966,6 +1014,34 @@ describe.skip('legacy tests', () => {
       await frame.addNode();
       tracer.push("added node and waiting on added promise");
       await nodeAddedPromise;
+    })
+
+    it('with client side caching', async function() {
+      this.timeout(30000);
+      const csc = new BasicPooledClientSideCache();
+
+      sentinel = frame.getSentinelClient({nodeClientOptions: {RESP: 3}, clientSideCache: csc, masterPoolSize: 5});
+      await sentinel.connect();
+
+      await sentinel.set('x', 1);
+      await sentinel.get('x');
+      await sentinel.get('x');
+      await sentinel.get('x');
+      await sentinel.get('x');
+
+      assert.equal(1, csc.cacheMisses());
+      assert.equal(3, csc.cacheHits());
+
+      const invalidatePromise = once(csc, 'invalidate');
+      await sentinel.set('x', 2);
+      await invalidatePromise;
+      await sentinel.get('x');
+      await sentinel.get('x');
+      await sentinel.get('x');
+      await sentinel.get('x');
+
+      assert.equal(csc.cacheMisses(), 2);
+      assert.equal(csc.cacheHits(), 6);
     })
   });
 });

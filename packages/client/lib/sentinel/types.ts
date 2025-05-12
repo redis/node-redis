@@ -4,6 +4,7 @@ import { CommandSignature, CommanderConfig, RedisFunctions, RedisModules, RedisS
 import COMMANDS from '../commands';
 import RedisSentinel, { RedisSentinelClient } from '.';
 import { RedisTcpSocketOptions } from '../client/socket';
+import { ClientSideCacheConfig, PooledClientSideCacheProvider } from '../client/cache';
 
 export interface RedisNode {
   host: string;
@@ -67,6 +68,41 @@ export interface RedisSentinelOptions<
    * When `false`, the sentinel object will wait for the first available client from the pool.
    */
   reserveClient?: boolean;
+  /**
+   * Client Side Caching configuration for the pool.
+   * 
+   * Enables Redis Servers and Clients to work together to cache results from commands 
+   * sent to a server. The server will notify the client when cached results are no longer valid.
+   * In pooled mode, the cache is shared across all clients in the pool.
+   * 
+   * Note: Client Side Caching is only supported with RESP3.
+   * 
+   * @example Anonymous cache configuration
+   * ```
+   * const client = createSentinel({
+   *   clientSideCache: {
+   *     ttl: 0,
+   *     maxEntries: 0,
+   *     evictPolicy: "LRU"
+   *   },
+   *   minimum: 5
+   * });
+   * ```
+   * 
+   * @example Using a controllable cache
+   * ```
+   * const cache = new BasicPooledClientSideCache({
+   *   ttl: 0,
+   *   maxEntries: 0,
+   *   evictPolicy: "LRU"
+   * });
+   * const client = createSentinel({
+   *   clientSideCache: cache,
+   *   minimum: 5
+   * });
+   * ```
+   */
+  clientSideCache?: PooledClientSideCacheProvider | ClientSideCacheConfig;
 }
 
 export interface SentinelCommander<
