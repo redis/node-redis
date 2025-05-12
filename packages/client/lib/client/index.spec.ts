@@ -89,8 +89,8 @@ describe('Client', () => {
         && expected?.credentialsProvider?.type === 'async-credentials-provider') {
 
         // Compare the actual output of the credentials functions
-        const resultCreds = await result.credentialsProvider.credentials();
-        const expectedCreds = await expected.credentialsProvider.credentials();
+        const resultCreds = await result.credentialsProvider?.credentials();
+        const expectedCreds = await expected.credentialsProvider?.credentials();
         assert.deepEqual(resultCreds, expectedCreds);
       } else {
         assert.fail('Credentials provider type mismatch');

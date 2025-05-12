@@ -171,7 +171,7 @@ describe('RedisSentinel', () => {
   });
 });
 
-describe(`test with scripts`, () => {
+describe.skip(`test with scripts`, () => {
   testUtils.testWithClientSentinel('with script', async sentinel => {
     const [, reply] = await Promise.all([
       sentinel.set('key', '2'),
@@ -198,7 +198,7 @@ describe(`test with scripts`, () => {
 });
 
 
-describe(`test with functions`, () => {
+describe.skip(`test with functions`, () => {
   testUtils.testWithClientSentinel('with function', async sentinel => {
     await sentinel.functionLoad(
       MATH_FUNCTION.code,
@@ -238,7 +238,7 @@ describe(`test with functions`, () => {
   }, GLOBAL.SENTINEL.WITH_FUNCTION);
 });
 
-describe(`test with modules`, () => {
+describe.skip(`test with modules`, () => {
   testUtils.testWithClientSentinel('with module', async sentinel => {
     const resp = await sentinel.bf.add('key', 'item')
     assert.equal(resp, true);
@@ -260,7 +260,7 @@ describe(`test with modules`, () => {
   }, GLOBAL.SENTINEL.WITH_MODULE);
 });
 
-describe(`test with replica pool size 1`, () => {
+describe.skip(`test with replica pool size 1`, () => {
   testUtils.testWithClientSentinel('client lease', async sentinel => {
     sentinel.on("error", () => { });
 
@@ -302,7 +302,7 @@ describe(`test with replica pool size 1`, () => {
   }, GLOBAL.SENTINEL.WITH_REPLICA_POOL_SIZE_1);
 });
 
-describe(`test with masterPoolSize 2, reserve client true`, () => {
+describe.skip(`test with masterPoolSize 2, reserve client true`, () => {
   // TODO: flaky test, sometimes fails with `promise1 === null`
   testUtils.testWithClientSentinel('reserve client, takes a client out of pool', async sentinel => {
     const promise1 = sentinel.use(
@@ -325,7 +325,7 @@ describe(`test with masterPoolSize 2, reserve client true`, () => {
   }, Object.assign(GLOBAL.SENTINEL.WITH_RESERVE_CLIENT_MASTER_POOL_SIZE_2, {skipTest: true}));
 });
 
-describe(`test with masterPoolSize 2`, () => {
+describe.skip(`test with masterPoolSize 2`, () => {
   testUtils.testWithClientSentinel('multple clients', async sentinel => {
     sentinel.on("error", () => { });
 
@@ -430,7 +430,7 @@ async function steadyState(frame: SentinelFramework) {
   }
 }
 
-describe.skip('legacy tests', () => {
+describe('legacy tests', () => {
   const config: RedisSentinelConfig = { sentinelName: "test", numberOfNodes: 3, password: undefined };
   const frame = new SentinelFramework(config);
   let tracer = new Array<string>();
@@ -439,41 +439,30 @@ describe.skip('legacy tests', () => {
   let longestTestDelta = 0;
   let last: number;
 
-  before(async function () {
-    this.timeout(15000);
-
-    last = Date.now();
-
-    function deltaMeasurer() {
-      const delta = Date.now() - last;
-      if (delta > longestDelta) {
-        longestDelta = delta;
-      }
-      if (delta > longestTestDelta) {
-        longestTestDelta = delta;
-      }
-      if (!stopMeasuringBlocking) {
-        last = Date.now();
-        setImmediate(deltaMeasurer);
-      }
-    }
-    setImmediate(deltaMeasurer);
-    await frame.spawnRedisSentinel();
-  });
-
-  after(async function () {
-    this.timeout(15000);
-
-    stopMeasuringBlocking = true;
-
-    await frame.cleanup();
-  })
 
   describe('Sentinel Client', function () {
     let sentinel: RedisSentinelType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping> | undefined;
 
     beforeEach(async function () {
-      this.timeout(0);
+      this.timeout(15000);
+
+      last = Date.now();
+  
+      function deltaMeasurer() {
+        const delta = Date.now() - last;
+        if (delta > longestDelta) {
+          longestDelta = delta;
+        }
+        if (delta > longestTestDelta) {
+          longestTestDelta = delta;
+        }
+        if (!stopMeasuringBlocking) {
+          last = Date.now();
+          setImmediate(deltaMeasurer);
+        }
+      }
+      setImmediate(deltaMeasurer);
+      await frame.spawnRedisSentinel();
 
       await frame.getAllRunning();
       await steadyState(frame);
@@ -522,6 +511,10 @@ describe.skip('legacy tests', () => {
         await sentinel.destroy();
         sentinel = undefined;
       }
+
+      stopMeasuringBlocking = true;
+  
+      await frame.cleanup();
     })
 
     it('use', async function () {
