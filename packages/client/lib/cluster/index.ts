@@ -12,6 +12,7 @@ import { RedisTcpSocketOptions } from '../client/socket';
 import ASKING from '../commands/ASKING';
 import { BasicCommandParser } from '../client/parser';
 import { parseArgs } from '../commands/generic-transformers';
+import SingleEntryCache from '../single-entry-cache';
 
 interface ClusterCommander<
   M extends RedisModules,
@@ -213,6 +214,8 @@ export default class RedisCluster<
     };
   }
 
+  static #SingleEntryCache = new SingleEntryCache();
+
   static factory<
     M extends RedisModules = {},
     F extends RedisFunctions = {},
@@ -221,17 +224,22 @@ export default class RedisCluster<
     TYPE_MAPPING extends TypeMapping = {},
     // POLICIES extends CommandPolicies = {}
   >(config?: ClusterCommander<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>) {
-    const Cluster = attachConfig({
-      BaseClass: RedisCluster,
-      commands: COMMANDS,
-      createCommand: RedisCluster.#createCommand,
-      createModuleCommand: RedisCluster.#createModuleCommand,
-      createFunctionCommand: RedisCluster.#createFunctionCommand,
-      createScriptCommand: RedisCluster.#createScriptCommand,
-      config
-    });
 
-    Cluster.prototype.Multi = RedisClusterMultiCommand.extend(config);
+    let Cluster = RedisCluster.#SingleEntryCache.get(config);
+    if (!Cluster) {
+      Cluster = attachConfig({
+        BaseClass: RedisCluster,
+        commands: COMMANDS,
+        createCommand: RedisCluster.#createCommand,
+        createModuleCommand: RedisCluster.#createModuleCommand,
+        createFunctionCommand: RedisCluster.#createFunctionCommand,
+        createScriptCommand: RedisCluster.#createScriptCommand,
+        config
+      });
+
+      Cluster.prototype.Multi = RedisClusterMultiCommand.extend(config);
+      RedisCluster.#SingleEntryCache.set(config, Cluster);
+    }
 
     return (options?: Omit<RedisClusterOptions, keyof Exclude<typeof config, undefined>>) => {
       // returning a "proxy" to prevent the namespaces._self to leak between "proxies"

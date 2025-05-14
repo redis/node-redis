@@ -17,6 +17,7 @@ import { RedisLegacyClient, RedisLegacyClientType } from './legacy-mode';
 import { RedisPoolOptions, RedisClientPool } from './pool';
 import { RedisVariadicArgument, parseArgs, pushVariadicArguments } from '../commands/generic-transformers';
 import { BasicCommandParser, CommandParser } from './parser';
+import SingleEntryCache from '../single-entry-cache';
 
 export interface RedisClientOptions<
   M extends RedisModules = RedisModules,
@@ -206,23 +207,32 @@ export default class RedisClient<
     }
   }
 
+  static #SingleEntryCache = new SingleEntryCache()
+
   static factory<
     M extends RedisModules = {},
     F extends RedisFunctions = {},
     S extends RedisScripts = {},
     RESP extends RespVersions = 2
   >(config?: CommanderConfig<M, F, S, RESP>) {
-    const Client = attachConfig({
-      BaseClass: RedisClient,
-      commands: COMMANDS,
-      createCommand: RedisClient.#createCommand,
-      createModuleCommand: RedisClient.#createModuleCommand,
-      createFunctionCommand: RedisClient.#createFunctionCommand,
-      createScriptCommand: RedisClient.#createScriptCommand,
-      config
-    });
 
-    Client.prototype.Multi = RedisClientMultiCommand.extend(config);
+
+    let Client = RedisClient.#SingleEntryCache.get(config);
+    if (!Client) {
+      Client = attachConfig({
+        BaseClass: RedisClient,
+        commands: COMMANDS,
+        createCommand: RedisClient.#createCommand,
+        createModuleCommand: RedisClient.#createModuleCommand,
+        createFunctionCommand: RedisClient.#createFunctionCommand,
+        createScriptCommand: RedisClient.#createScriptCommand,
+        config
+      });
+
+      Client.prototype.Multi = RedisClientMultiCommand.extend(config);
+
+      RedisClient.#SingleEntryCache.set(config, Client);
+    }
 
     return <TYPE_MAPPING extends TypeMapping = {}>(
       options?: Omit<RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>, keyof Exclude<typeof config, undefined>>
