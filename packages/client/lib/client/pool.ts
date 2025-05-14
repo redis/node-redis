@@ -8,6 +8,7 @@ import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumen
 import { CommandOptions } from './commands-queue';
 import RedisClientMultiCommand, { RedisClientMultiCommandType } from './multi-command';
 import { BasicCommandParser } from './parser';
+import SingleEntryCache from '../single-entry-cache';
 
 export interface RedisPoolOptions {
   /**
@@ -110,6 +111,8 @@ export class RedisClientPool<
     };
   }
 
+  static #SingleEntryCache = new SingleEntryCache<any, any>();
+
   static create<
     M extends RedisModules,
     F extends RedisFunctions,
@@ -120,17 +123,21 @@ export class RedisClientPool<
     clientOptions?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>,
     options?: Partial<RedisPoolOptions>
   ) {
-    const Pool = attachConfig({
-      BaseClass: RedisClientPool,
-      commands: COMMANDS,
-      createCommand: RedisClientPool.#createCommand,
-      createModuleCommand: RedisClientPool.#createModuleCommand,
-      createFunctionCommand: RedisClientPool.#createFunctionCommand,
-      createScriptCommand: RedisClientPool.#createScriptCommand,
-      config: clientOptions
-    });
 
-    Pool.prototype.Multi = RedisClientMultiCommand.extend(clientOptions);
+    let Pool = RedisClientPool.#SingleEntryCache.get(clientOptions);
+    if(!Pool) {
+      Pool = attachConfig({
+        BaseClass: RedisClientPool,
+        commands: COMMANDS,
+        createCommand: RedisClientPool.#createCommand,
+        createModuleCommand: RedisClientPool.#createModuleCommand,
+        createFunctionCommand: RedisClientPool.#createFunctionCommand,
+        createScriptCommand: RedisClientPool.#createScriptCommand,
+        config: clientOptions
+      });
+      Pool.prototype.Multi = RedisClientMultiCommand.extend(clientOptions);
+      RedisClientPool.#SingleEntryCache.set(clientOptions, Pool);
+    }
 
     // returning a "proxy" to prevent the namespaces._self to leak between "proxies"
     return Object.create(
