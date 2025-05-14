@@ -214,7 +214,7 @@ export default class RedisCluster<
     };
   }
 
-  static #SingleEntryCache = new SingleEntryCache();
+  static #SingleEntryCache = new SingleEntryCache<any, any>();
 
   static factory<
     M extends RedisModules = {},

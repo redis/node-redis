@@ -207,7 +207,7 @@ export default class RedisClient<
     }
   }
 
-  static #SingleEntryCache = new SingleEntryCache()
+  static #SingleEntryCache = new SingleEntryCache<any, any>()
 
   static factory<
     M extends RedisModules = {},

@@ -111,7 +111,7 @@ export class RedisClientPool<
     };
   }
 
-  static #SingleEntryCache = new SingleEntryCache();
+  static #SingleEntryCache = new SingleEntryCache<any, any>();
 
   static create<
     M extends RedisModules,
