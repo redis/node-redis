@@ -70,4 +70,16 @@ describe('SingleEntryCache', () => {
     
     assert.strictEqual(cache.get(keyObj2), undefined);
   });
+
+  it('should handle circular structures', () => {
+    const keyObj: any = {};
+    keyObj.self = keyObj;
+
+    const instance = { data: 'test data' };
+    
+    cache.set(keyObj, instance);
+    
+    assert.strictEqual(cache.get(keyObj), instance);
+  });
+
 });
