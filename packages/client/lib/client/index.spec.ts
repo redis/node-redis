@@ -34,6 +34,7 @@ describe('Client', () => {
         },
         username: 'user',
         password: 'secret',
+        commandTimeout: 1000,
         database: 0,
         credentialsProvider: {
           type: 'async-credentials-provider',
