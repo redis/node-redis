@@ -65,8 +65,8 @@ export class ErrorReply extends Error {
 }
 
 export class SimpleError extends ErrorReply {
-  isUnknownCommand(): boolean {
-    return this.message.indexOf('ERR unknown command') !== -1;
+  isUnknownSubcommand(): boolean {
+    return this.message.toLowerCase().indexOf('err unknown subcommand') !== -1;
   }
 }
 

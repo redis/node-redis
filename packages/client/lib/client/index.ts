@@ -558,33 +558,40 @@ export default class RedisClient<
       }
 
       if (!this.#options?.disableClientInfo) {
-        this.#queue.addCommand([
-          'CLIENT',
-          'SETINFO',
-          'LIB-NAME',
-          this.#options?.clientInfoTag
-          ? `node-redis(${this.#options.clientInfoTag})` : 'node-redis'
-        ], {
-          chainId,
-          asap: true
-        }).catch(err => {
-          // Client libraries are expected to ignore failures since they could be
-          // connected to an older server that doesn't support them.
-          if (err !instanceof SimpleError || !err.isUnknownCommand()) {
-            return;
-          }
-        });
-
-        this.#queue.addCommand(['CLIENT', 'SETINFO', 'LIB-VER', version],{
-          chainId,
-          asap: true
-        }).catch(err => {
-          // Client libraries are expected to ignore failures since they could be
-          // connected to an older server that doesn't support them.
-          if (err !instanceof SimpleError || !err.isUnknownCommand()) {
-            return;
-          }
-        });
+        promises.push(
+          this.#queue.addCommand([
+            'CLIENT',
+            'SETINFO',
+            'LIB-NAME',
+            this.#options?.clientInfoTag
+            ? `node-redis(${this.#options.clientInfoTag})` : 'node-redis'
+          ], {
+            chainId,
+            asap: true
+          }).catch(err => {
+            // Only throw if not a SimpleError - unknown subcommand
+            // Client libraries are expected to ignore failures 
+            // of type SimpleError - unknown subcommand, which are 
+            // expected from older servers ( < v7 )
+            if (!(err instanceof SimpleError) || !err.isUnknownSubcommand()) {
+              throw err;
+            }
+          })
+        );
+        promises.push(
+          this.#queue.addCommand(['CLIENT', 'SETINFO', 'LIB-VER', version],{
+            chainId,
+            asap: true
+          }).catch(err => {
+            // Only throw if not a SimpleError - unknown subcommand
+            // Client libraries are expected to ignore failures 
+            // of type SimpleError - unknown subcommand, which are 
+            // expected from older servers ( < v7 )
+            if (!(err instanceof SimpleError) || !err.isUnknownSubcommand()) {
+              throw err;
+            }
+          })
+        );
       }
 
       const commands = await this.#handshake(this.#selectedDB);
