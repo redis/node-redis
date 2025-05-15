@@ -52,6 +52,14 @@ export interface ClientInfoReply {
    * available since 7.0
    */
   resp?: number;
+  /**
+   * available since 7.0
+   */
+  libName?: string;
+  /**
+   * available since 7.0
+   */
+  libVer?: string;
 }
 
 const CLIENT_INFO_REGEX = /([^\s=]+)=([^\s]*)/g;
@@ -67,7 +75,6 @@ export default {
     for (const item of rawReply.toString().matchAll(CLIENT_INFO_REGEX)) {
       map[item[1]] = item[2];
     }
-
     const reply: ClientInfoReply = {
       id: Number(map.id),
       addr: map.addr,
@@ -89,7 +96,9 @@ export default {
       totMem: Number(map['tot-mem']),
       events: map.events,
       cmd: map.cmd,
-      user: map.user
+      user: map.user,
+      libName: map['lib-name'],
+      libVer: map['lib-ver']
     };
 
     if (map.laddr !== undefined) {
