@@ -8,7 +8,7 @@ import { ClientClosedError, ClientOfflineError, DisconnectsClientError, SimpleEr
 import { URL } from 'node:url';
 import { TcpSocketConnectOpts } from 'node:net';
 import { PUBSUB_TYPE, PubSubType, PubSubListener, PubSubTypeListeners, ChannelListeners } from './pub-sub';
-import { Command, CommandSignature, TypeMapping, CommanderConfig, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions, RedisArgument, ReplyWithTypeMapping, SimpleStringReply, TransformReply } from '../RESP/types';
+import { Command, CommandSignature, TypeMapping, CommanderConfig, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions, RedisArgument, ReplyWithTypeMapping, SimpleStringReply, TransformReply, CommandArguments } from '../RESP/types';
 import RedisClientMultiCommand, { RedisClientMultiCommandType } from './multi-command';
 import { RedisMultiQueuedCommand } from '../multi-command';
 import HELLO, { HelloOptions } from '../commands/HELLO';
@@ -446,7 +446,30 @@ export default class RedisClient<
     });
   }
 
-  async #handshake(selectedDB: number) {
+  async #handshake(chainId: symbol, asap: boolean) {
+    const promises = [];
+    const commandsWithErrorHandlers = await this.#getHandshakeCommands(this.#selectedDB ?? 0);
+    
+    if (asap) commandsWithErrorHandlers.reverse()
+
+    for (const { cmd, errorHandler } of commandsWithErrorHandlers) {
+      promises.push(
+        this.#queue
+          .addCommand(cmd, {
+            chainId,
+            asap
+          })
+          .catch(errorHandler)
+      );
+    }
+    return promises;
+  }
+
+  async #getHandshakeCommands(
+    selectedDB: number
+  ): Promise<
+    Array<{ cmd: CommandArguments } & { errorHandler?: (err: Error) => void }>
+  > {
     const commands = [];
     const cp = this.#options?.credentialsProvider;
 
@@ -464,8 +487,8 @@ export default class RedisClient<
       }
 
       if (cp && cp.type === 'streaming-credentials-provider') {
-
-        const [credentials, disposable]  = await this.#subscribeForStreamingCredentials(cp)
+        const [credentials, disposable] =
+          await this.#subscribeForStreamingCredentials(cp);
         this.#credentialsSubscription = disposable;
 
         if (credentials.password) {
@@ -480,55 +503,84 @@ export default class RedisClient<
         hello.SETNAME = this.#options.name;
       }
 
-      commands.push(
-        parseArgs(HELLO, this.#options.RESP, hello)
-      );
+      commands.push({ cmd: parseArgs(HELLO, this.#options.RESP, hello) });
     } else {
-
       if (cp && cp.type === 'async-credentials-provider') {
-
         const credentials = await cp.credentials();
 
         if (credentials.username || credentials.password) {
-          commands.push(
-            parseArgs(COMMANDS.AUTH, {
+          commands.push({
+            cmd: parseArgs(COMMANDS.AUTH, {
               username: credentials.username,
               password: credentials.password ?? ''
             })
-          );
+          });
         }
       }
 
       if (cp && cp.type === 'streaming-credentials-provider') {
-
-        const [credentials, disposable]  = await this.#subscribeForStreamingCredentials(cp)
+        const [credentials, disposable] =
+          await this.#subscribeForStreamingCredentials(cp);
         this.#credentialsSubscription = disposable;
 
         if (credentials.username || credentials.password) {
-          commands.push(
-            parseArgs(COMMANDS.AUTH, {
+          commands.push({
+            cmd: parseArgs(COMMANDS.AUTH, {
               username: credentials.username,
               password: credentials.password ?? ''
             })
-          );
+          });
         }
       }
 
       if (this.#options?.name) {
-        commands.push(
-          parseArgs(COMMANDS.CLIENT_SETNAME, this.#options.name)
-        );
+        commands.push({
+          cmd: parseArgs(COMMANDS.CLIENT_SETNAME, this.#options.name)
+        });
       }
     }
 
     if (selectedDB !== 0) {
-      commands.push(['SELECT', this.#selectedDB.toString()]);
+      commands.push({ cmd: ['SELECT', this.#selectedDB.toString()] });
     }
 
     if (this.#options?.readonly) {
-      commands.push(
-        parseArgs(COMMANDS.READONLY)
-      );
+      commands.push({ cmd: parseArgs(COMMANDS.READONLY) });
+    }
+
+    if (!this.#options?.disableClientInfo) {
+      commands.push({
+        cmd: ['CLIENT', 'SETINFO', 'LIB-VER', version],
+        errorHandler: (err: Error) => {
+          // Only throw if not a SimpleError - unknown subcommand
+          // Client libraries are expected to ignore failures
+          // of type SimpleError - unknown subcommand, which are
+          // expected from older servers ( < v7 )
+          if (!(err instanceof SimpleError) || !err.isUnknownSubcommand()) {
+            throw err;
+          }
+        }
+      });
+      
+      commands.push({
+        cmd: [
+          'CLIENT',
+          'SETINFO',
+          'LIB-NAME',
+          this.#options?.clientInfoTag
+            ? `node-redis(${this.#options.clientInfoTag})`
+            : 'node-redis'
+        ],
+        errorHandler: (err: Error) => {
+          // Only throw if not a SimpleError - unknown subcommand
+          // Client libraries are expected to ignore failures
+          // of type SimpleError - unknown subcommand, which are
+          // expected from older servers ( < v7 )
+          if (!(err instanceof SimpleError) || !err.isUnknownSubcommand()) {
+            throw err;
+          }
+        }
+      });
     }
 
     return commands;
@@ -557,52 +609,7 @@ export default class RedisClient<
         );
       }
 
-      if (!this.#options?.disableClientInfo) {
-        promises.push(
-          this.#queue.addCommand([
-            'CLIENT',
-            'SETINFO',
-            'LIB-NAME',
-            this.#options?.clientInfoTag
-            ? `node-redis(${this.#options.clientInfoTag})` : 'node-redis'
-          ], {
-            chainId,
-            asap: true
-          }).catch(err => {
-            // Only throw if not a SimpleError - unknown subcommand
-            // Client libraries are expected to ignore failures 
-            // of type SimpleError - unknown subcommand, which are 
-            // expected from older servers ( < v7 )
-            if (!(err instanceof SimpleError) || !err.isUnknownSubcommand()) {
-              throw err;
-            }
-          })
-        );
-        promises.push(
-          this.#queue.addCommand(['CLIENT', 'SETINFO', 'LIB-VER', version],{
-            chainId,
-            asap: true
-          }).catch(err => {
-            // Only throw if not a SimpleError - unknown subcommand
-            // Client libraries are expected to ignore failures 
-            // of type SimpleError - unknown subcommand, which are 
-            // expected from older servers ( < v7 )
-            if (!(err instanceof SimpleError) || !err.isUnknownSubcommand()) {
-              throw err;
-            }
-          })
-        );
-      }
-
-      const commands = await this.#handshake(this.#selectedDB);
-      for (let i = commands.length - 1; i >= 0; --i) {
-        promises.push(
-          this.#queue.addCommand(commands[i], {
-            chainId,
-            asap: true
-          })
-        );
-      }
+      promises.push(...(await this.#handshake(chainId, true)));
 
       if (promises.length) {
         this.#write();
@@ -1179,13 +1186,7 @@ export default class RedisClient<
       selectedDB = this._self.#options?.database ?? 0;
     this._self.#credentialsSubscription?.dispose();
     this._self.#credentialsSubscription = null;
-    for (const command of (await this._self.#handshake(selectedDB))) {
-      promises.push(
-        this._self.#queue.addCommand(command, {
-          chainId
-        })
-      );
-    }
+    promises.push(...(await this._self.#handshake(chainId, false)));
     this._self.#scheduleWrite();
     await Promise.all(promises);
     this._self.#selectedDB = selectedDB;
