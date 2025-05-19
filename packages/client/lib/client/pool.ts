@@ -7,6 +7,7 @@ import { TimeoutError } from '../errors';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
 import { CommandOptions } from './commands-queue';
 import RedisClientMultiCommand, { RedisClientMultiCommandType } from './multi-command';
+import { BasicPooledClientSideCache, ClientSideCacheConfig, PooledClientSideCacheProvider } from './cache';
 import { BasicCommandParser } from './parser';
 import SingleEntryCache from '../single-entry-cache';
 
@@ -24,11 +25,55 @@ export interface RedisPoolOptions {
    */
   acquireTimeout: number;
   /**
-   * TODO
+   * The delay in milliseconds before a cleanup operation is performed on idle clients.
+   * 
+   * After this delay, the pool will check if there are too many idle clients and destroy 
+   * excess ones to maintain optimal pool size.
    */
   cleanupDelay: number;
   /**
-   * TODO
+   * Client Side Caching configuration for the pool.
+   * 
+   * Enables Redis Servers and Clients to work together to cache results from commands 
+   * sent to a server. The server will notify the client when cached results are no longer valid.
+   * In pooled mode, the cache is shared across all clients in the pool.
+   * 
+   * Note: Client Side Caching is only supported with RESP3.
+   * 
+   * @example Anonymous cache configuration
+   * ```
+   * const client = createClientPool({RESP: 3}, {
+   *   clientSideCache: {
+   *     ttl: 0,
+   *     maxEntries: 0,
+   *     evictPolicy: "LRU"
+   *   },
+   *   minimum: 5
+   * });
+   * ```
+   * 
+   * @example Using a controllable cache
+   * ```
+   * const cache = new BasicPooledClientSideCache({
+   *   ttl: 0,
+   *   maxEntries: 0,
+   *   evictPolicy: "LRU"
+   * });
+   * const client = createClientPool({RESP: 3}, {
+   *   clientSideCache: cache,
+   *   minimum: 5
+   * });
+   * ```
+   */
+  clientSideCache?: PooledClientSideCacheProvider | ClientSideCacheConfig;
+  /**
+   * Enable experimental support for RESP3 module commands.
+   * 
+   * When enabled, allows the use of module commands that have been adapted 
+   * for the RESP3 protocol. This is an unstable feature and may change in 
+   * future versions.
+   * 
+   * @default false
    */
   unstableResp3Modules?: boolean;
 }
@@ -120,7 +165,7 @@ export class RedisClientPool<
     RESP extends RespVersions,
     TYPE_MAPPING extends TypeMapping = {}
   >(
-    clientOptions?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>,
+    clientOptions?: Omit<RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>, "clientSideCache">,
     options?: Partial<RedisPoolOptions>
   ) {
 
@@ -142,7 +187,7 @@ export class RedisClientPool<
     // returning a "proxy" to prevent the namespaces._self to leak between "proxies"
     return Object.create(
       new Pool(
-        RedisClient.factory(clientOptions).bind(undefined, clientOptions),
+        clientOptions,
         options
       )
     ) as RedisClientPoolType<M, F, S, RESP, TYPE_MAPPING>;
@@ -216,22 +261,41 @@ export class RedisClientPool<
     return this._self.#isClosing;
   }
 
+  #clientSideCache?: PooledClientSideCacheProvider;
+  get clientSideCache() {
+    return this._self.#clientSideCache;
+  }
+
   /**
    * You are probably looking for {@link RedisClient.createPool `RedisClient.createPool`},
    * {@link RedisClientPool.fromClient `RedisClientPool.fromClient`},
    * or {@link RedisClientPool.fromOptions `RedisClientPool.fromOptions`}...
    */
   constructor(
-    clientFactory: () => RedisClientType<M, F, S, RESP, TYPE_MAPPING>,
+    clientOptions?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>,
     options?: Partial<RedisPoolOptions>
   ) {
     super();
 
-    this.#clientFactory = clientFactory;
     this.#options = {
       ...RedisClientPool.#DEFAULTS,
       ...options
     };
+    if (options?.clientSideCache) {
+      if (clientOptions === undefined) {
+        clientOptions = {};
+      }
+
+      if (options.clientSideCache instanceof PooledClientSideCacheProvider) {
+        this.#clientSideCache = clientOptions.clientSideCache = options.clientSideCache;
+      } else {
+        const cscConfig = options.clientSideCache;
+        this.#clientSideCache = clientOptions.clientSideCache = new BasicPooledClientSideCache(cscConfig);
+//        this.#clientSideCache = clientOptions.clientSideCache = new PooledNoRedirectClientSideCache(cscConfig);
+      }
+    }
+
+    this.#clientFactory = RedisClient.factory(clientOptions).bind(undefined, clientOptions) as () => RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
   }
 
   private _self = this;
@@ -295,7 +359,6 @@ export class RedisClientPool<
 
   async connect() {
     if (this._self.#isOpen) return; // TODO: throw error?
-
     this._self.#isOpen = true;
 
     const promises = [];
@@ -305,11 +368,12 @@ export class RedisClientPool<
 
     try {
       await Promise.all(promises);
-      return this as unknown as RedisClientPoolType<M, F, S, RESP, TYPE_MAPPING>;
     } catch (err) {
       this.destroy();
       throw err;
     }
+
+    return this as unknown as RedisClientPoolType<M, F, S, RESP, TYPE_MAPPING>;
   }
 
   async #create() {
@@ -319,7 +383,8 @@ export class RedisClientPool<
     );
 
     try {
-      await node.value.connect();
+      const client = node.value;
+      await client.connect();
     } catch (err) {
       this._self.#clientsInUse.remove(node);
       throw err;
@@ -408,7 +473,8 @@ export class RedisClientPool<
     const toDestroy = Math.min(this.#idleClients.length, this.totalClients - this.#options.minimum);
     for (let i = 0; i < toDestroy; i++) {
       // TODO: shift vs pop
-      this.#idleClients.shift()!.destroy();
+      const client = this.#idleClients.shift()!
+      client.destroy();
     }
   }
 
@@ -446,8 +512,10 @@ export class RedisClientPool<
       for (const client of this._self.#clientsInUse) {
         promises.push(client.close());
       }
-  
+
       await Promise.all(promises);
+
+      this.#clientSideCache?.onPoolClose();
   
       this._self.#idleClients.reset();
       this._self.#clientsInUse.reset();
@@ -467,6 +535,9 @@ export class RedisClientPool<
     for (const client of this._self.#clientsInUse) {
       client.destroy();
     }
+
+    this._self.#clientSideCache?.onPoolClose();
+
     this._self.#clientsInUse.reset();
 
     this._self.#isOpen = false;
