@@ -13,7 +13,7 @@
     "test-sourcemap": "mocha -r ts-node/register/transpile-only './lib/**/*.spec.ts'"
   },
   "peerDependencies": {
-    "@redis/client": "^5.0.1"
+    "@redis/client": "^5.1.0"
   },
   "devDependencies": {
     "@redis/test-utils": "*"
