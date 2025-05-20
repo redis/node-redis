@@ -9,6 +9,7 @@
 | socket.family                | `0`                                      | IP Stack version (one of `4 \| 6 \| 0`)                                                                                                                                                                                                             |
 | socket.path                  |                                          | Path to the UNIX Socket                                                                                                                                                                                                                             |
 | socket.connectTimeout        | `5000`                                   | Connection timeout (in milliseconds)                                                                                                                                                                                                                |
+| socket.socketTimeout           |                                          | The maximum duration (in milliseconds) that the socket can remain idle (i.e., with no data sent or received) before being automatically closed |
 | socket.noDelay               | `true`                                   | Toggle [`Nagle's algorithm`](https://nodejs.org/api/net.html#net_socket_setnodelay_nodelay)                                                                                                                                                         |
 | socket.keepAlive             | `true`                                   | Toggle [`keep-alive`](https://nodejs.org/api/net.html#socketsetkeepaliveenable-initialdelay) functionality                                                                                                                                          |
 | socket.keepAliveInitialDelay | `5000`                                   | If set to a positive number, it sets the initial delay before the first keepalive probe is sent on an idle socket                                                                                                                                   |
@@ -40,7 +41,12 @@ By default the strategy uses exponential backoff, but it can be overwritten like
 ```javascript
 createClient({
   socket: {
-    reconnectStrategy: retries => {
+    reconnectStrategy: (retries, cause) => {
+        // By default, do not reconnect on socket timeout.
+        if (cause instanceof SocketTimeoutError) {
+          return false;
+        }
+
         // Generate a random jitter between 0 – 200 ms:
         const jitter = Math.floor(Math.random() * 200);
         // Delay is an exponential back off, (times^2) * 50 ms, with a maximum value of 2000 ms:
