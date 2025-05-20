@@ -525,7 +525,7 @@ export default class RedisClient<
 
   async #handshake(chainId: symbol, asap: boolean) {
     const promises = [];
-    const commandsWithErrorHandlers = await this.#getHandshakeCommands(this.#selectedDB ?? 0);
+    const commandsWithErrorHandlers = await this.#getHandshakeCommands();
     
     if (asap) commandsWithErrorHandlers.reverse()
 
@@ -542,9 +542,7 @@ export default class RedisClient<
     return promises;
   }
 
-  async #getHandshakeCommands(
-    selectedDB: number
-  ): Promise<
+  async #getHandshakeCommands(): Promise<
     Array<{ cmd: CommandArguments } & { errorHandler?: (err: Error) => void }>
   > {
     const commands = [];
@@ -617,7 +615,7 @@ export default class RedisClient<
       }
     }
 
-    if (selectedDB !== 0) {
+    if (this.#selectedDB !== 0) {
       commands.push({ cmd: ['SELECT', this.#selectedDB.toString()] });
     }
 
