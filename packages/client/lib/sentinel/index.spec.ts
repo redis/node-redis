@@ -1029,8 +1029,8 @@ describe.skip('legacy tests', () => {
       await sentinel.get('x');
       await sentinel.get('x');
 
-      assert.equal(1, csc.cacheMisses());
-      assert.equal(3, csc.cacheHits());
+      assert.equal(1, csc.stats().missCount);
+      assert.equal(3, csc.stats().hitCount);
 
       const invalidatePromise = once(csc, 'invalidate');
       await sentinel.set('x', 2);
@@ -1040,8 +1040,8 @@ describe.skip('legacy tests', () => {
       await sentinel.get('x');
       await sentinel.get('x');
 
-      assert.equal(csc.cacheMisses(), 2);
-      assert.equal(csc.cacheHits(), 6);
+      assert.equal(csc.stats().missCount, 2);
+      assert.equal(csc.stats().hitCount, 6);
     })
   });
 });
