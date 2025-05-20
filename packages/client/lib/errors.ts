@@ -16,6 +16,12 @@ export class ConnectionTimeoutError extends Error {
   }
 }
 
+export class SocketTimeoutError extends Error {
+  constructor(timeout: number) {
+    super(`Socket timeout timeout. Expecting data, but didn't receive any in ${timeout}ms.`);
+  }
+}
+
 export class ClientClosedError extends Error {
   constructor() {
     super('The client is closed');

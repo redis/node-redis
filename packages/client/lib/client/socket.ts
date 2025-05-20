@@ -1,7 +1,7 @@
 import { EventEmitter, once } from 'node:events';
 import net from 'node:net';
 import tls from 'node:tls';
-import { ConnectionTimeoutError, ClientClosedError, SocketClosedUnexpectedlyError, ReconnectStrategyError } from '../errors';
+import { ConnectionTimeoutError, ClientClosedError, SocketClosedUnexpectedlyError, ReconnectStrategyError, SocketTimeoutError } from '../errors';
 import { setTimeout } from 'node:timers/promises';
 import { RedisArgument } from '../RESP/types';
 
@@ -23,6 +23,10 @@ type RedisSocketOptionsCommon = {
    * 3. `(retries: number, cause: Error) => false | number | Error` -> `number` is the same as configuring a `number` directly, `Error` is the same as `false`, but with a custom error.
    */
   reconnectStrategy?: false | number | ReconnectStrategyFunction;
+  /**
+   * The timeout (in milliseconds) after which the socket will be closed. `undefined` means no timeout.
+   */
+  socketTimeout?: number;
 }
 
 type RedisTcpOptions = RedisSocketOptionsCommon & NetOptions & Omit<
@@ -55,6 +59,7 @@ export default class RedisSocket extends EventEmitter {
   readonly #connectTimeout;
   readonly #reconnectStrategy;
   readonly #socketFactory;
+  readonly #socketTimeout;
 
   #socket?: net.Socket | tls.TLSSocket;
 
@@ -85,6 +90,7 @@ export default class RedisSocket extends EventEmitter {
     this.#connectTimeout = options?.connectTimeout ?? 5000;
     this.#reconnectStrategy = this.#createReconnectStrategy(options);
     this.#socketFactory = this.#createSocketFactory(options);
+    this.#socketTimeout = options?.socketTimeout;
   }
 
   #createReconnectStrategy(options?: RedisSocketOptions): ReconnectStrategyFunction {
@@ -103,7 +109,7 @@ export default class RedisSocket extends EventEmitter {
           return retryIn;
         } catch (err) {
           this.emit('error', err);
-          return this.defaultReconnectStrategy(retries);
+          return this.defaultReconnectStrategy(retries, err);
         }
       };
     }
@@ -253,6 +259,13 @@ export default class RedisSocket extends EventEmitter {
       socket.removeListener('timeout', onTimeout);
     }
 
+    if (this.#socketTimeout) {
+      socket.once('timeout', () => {
+        socket.destroy(new SocketTimeoutError(this.#socketTimeout!));
+      });
+      socket.setTimeout(this.#socketTimeout);
+    }
+
     socket
       .once('error', err => this.#onSocketError(err))
       .once('close', hadError => {
@@ -341,7 +354,12 @@ export default class RedisSocket extends EventEmitter {
     this.#socket?.unref();
   }
 
-  defaultReconnectStrategy(retries: number) {
+  defaultReconnectStrategy(retries: number, cause: unknown) {
+    // By default, do not reconnect on socket timeout.
+    if (cause instanceof SocketTimeoutError) {
+      return false;
+    }
+
     // Generate a random jitter between 0 – 200 ms:
     const jitter = Math.floor(Math.random() * 200);
     // Delay is an exponential back off, (times^2) * 50 ms, with a maximum value of 2000 ms:
