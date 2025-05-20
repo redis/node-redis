@@ -1,7 +1,7 @@
 {
   "name": "redis",
   "description": "A modern, high performance Redis client",
-  "version": "5.0.1",
+  "version": "5.1.0",
   "license": "MIT",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
