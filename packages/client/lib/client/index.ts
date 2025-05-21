@@ -4,7 +4,7 @@ import { BasicAuth, CredentialsError, CredentialsProvider, StreamingCredentialsP
 import RedisCommandsQueue, { CommandOptions } from './commands-queue';
 import { EventEmitter } from 'node:events';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
-import { ClientClosedError, ClientOfflineError, DisconnectsClientError, SimpleError, WatchError } from '../errors';
+import { ClientClosedError, ClientOfflineError, DisconnectsClientError, WatchError } from '../errors';
 import { URL } from 'node:url';
 import { TcpSocketConnectOpts } from 'node:net';
 import { PUBSUB_TYPE, PubSubType, PubSubListener, PubSubTypeListeners, ChannelListeners } from './pub-sub';
@@ -626,14 +626,10 @@ export default class RedisClient<
     if (!this.#options?.disableClientInfo) {
       commands.push({
         cmd: ['CLIENT', 'SETINFO', 'LIB-VER', version],
-        errorHandler: (err: Error) => {
-          // Only throw if not a SimpleError - unknown subcommand
-          // Client libraries are expected to ignore failures
-          // of type SimpleError - unknown subcommand, which are
-          // expected from older servers ( < v7 )
-          if (!(err instanceof SimpleError) || !err.isUnknownSubcommand()) {
-            throw err;
-          }
+        errorHandler: () => {
+          // Client libraries are expected to pipeline this command
+          // after authentication on all connections and ignore failures
+          // since they could be connected to an older version that doesn't support them.
         }
       });
       
@@ -646,14 +642,10 @@ export default class RedisClient<
             ? `node-redis(${this.#options.clientInfoTag})`
             : 'node-redis'
         ],
-        errorHandler: (err: Error) => {
-          // Only throw if not a SimpleError - unknown subcommand
-          // Client libraries are expected to ignore failures
-          // of type SimpleError - unknown subcommand, which are
-          // expected from older servers ( < v7 )
-          if (!(err instanceof SimpleError) || !err.isUnknownSubcommand()) {
-            throw err;
-          }
+        errorHandler: () => {
+          // Client libraries are expected to pipeline this command
+          // after authentication on all connections and ignore failures
+          // since they could be connected to an older version that doesn't support them.
         }
       });
     }

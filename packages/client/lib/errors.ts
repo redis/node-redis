@@ -70,11 +70,7 @@ export class ErrorReply extends Error {
   }
 }
 
-export class SimpleError extends ErrorReply {
-  isUnknownSubcommand(): boolean {
-    return this.message.toLowerCase().indexOf('err unknown subcommand') !== -1;
-  }
-}
+export class SimpleError extends ErrorReply {}
 
 export class BlobError extends ErrorReply {}
 
