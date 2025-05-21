@@ -2,7 +2,6 @@ import { isNullReply } from "@redis/client/dist/lib/commands/generic-transformer
 import { BlobStringReply, NullReply, UnwrapReply } from "@redis/client/dist/lib/RESP/types";
 
 export function transformRedisJsonNullReply(json: NullReply | BlobStringReply): NullReply | RedisJSON {
-  console.log('transformRedisJsonNullReply', json)
   return isNullReply(json) ? json : transformRedisJsonReply(json);
 }
 
@@ -17,6 +16,5 @@ export function transformRedisJsonArgument(json: RedisJSON): string {
 
 export function transformRedisJsonReply(json: BlobStringReply): RedisJSON {
   const res =  JSON.parse((json as unknown as UnwrapReply<typeof json>).toString());
-  console.log('transformRedisJsonReply', json, res)
   return res;
 }
