@@ -1,11 +1,15 @@
 {
-  "git": {
-    "tagName": "entraid@${version}",
-    "commitMessage": "Release ${tagName}",
-    "tagAnnotation": "Release ${tagName}"
-  },
+  "git": false,
   "npm": {
-    "versionArgs": ["--workspaces-update=false"],
+    "publish": true,
     "publishArgs": ["--access", "public"]
+  },
+  "plugins": {
+    "@release-it/bumper": {
+      "out": {
+        "file": "package.json",
+        "path": ["peerDependencies.@redis/client"]
+      }
+    }
   }
 }

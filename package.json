@@ -9,10 +9,12 @@
     "test": "npm run test -ws --if-present",
     "build": "tsc --build",
     "documentation": "typedoc --out ./documentation",
-    "gh-pages": "gh-pages -d ./documentation -e ./documentation -u 'documentation-bot <documentation@bot>'"
+    "gh-pages": "gh-pages -d ./documentation -e ./documentation -u 'documentation-bot <documentation@bot>'",
+    "release": "npm run release --workspaces && release-it"
   },
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
+    "@release-it/bumper": "^5.1.0",
     "@types/mocha": "^10.0.6",
     "@types/node": "^20.11.16",
     "gh-pages": "^6.1.1",

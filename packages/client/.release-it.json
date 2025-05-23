@@ -1,11 +1,7 @@
 {
-  "git": {
-    "tagName": "client@${version}",
-    "commitMessage": "Release ${tagName}",
-    "tagAnnotation": "Release ${tagName}"
-  },
+  "git": false,
   "npm": {
-    "versionArgs": ["--workspaces-update=false"],
+    "publish": true,
     "publishArgs": ["--access", "public"]
   }
 }
