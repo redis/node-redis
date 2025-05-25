@@ -2,7 +2,14 @@
   "name": "redis-monorepo",
   "private": true,
   "workspaces": [
-    "./packages/*"
+    "./packages/client",
+    "./packages/test-utils",
+    "./packages/bloom",
+    "./packages/json",
+    "./packages/search",
+    "./packages/time-series",
+    "./packages/entraid",
+    "./packages/redis"
   ],
   "scripts": {
     "test-single": "TS_NODE_PROJECT='./packages/test-utils/tsconfig.json' mocha --require ts-node/register/transpile-only ",
