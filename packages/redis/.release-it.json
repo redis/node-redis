@@ -1,5 +1,4 @@
 {
-  "git": false,
   "npm": {
     "publish": true,
     "publishArgs": ["--access", "public"]
