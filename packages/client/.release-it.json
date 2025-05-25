@@ -4,6 +4,6 @@
     "publishArgs": ["--access", "public"]
   },
   "git": {
-    "add": "--all"
+    "commitArgs": "--all"
   }
 }
