@@ -68,7 +68,7 @@ const res12 = await client.json.get("newbike", "$");
 console.log(res12); //  [ 'Deimos', { crashes: 0 }, null ]
 
 const res13 = await client.json.get("newbike", "$[1].crashes");
-console.log(res13); //  [ 'Deimos', { crashes: 0 }, null ]
+console.log(res13); //  [0]
 
 const res14 = await client.json.del("newbike", "$.[-1]");
 console.log(res14); //  [1]
