@@ -3,6 +3,9 @@
     "publish": true,
     "publishArgs": ["--access", "public"]
   },
+  "git": {
+    "commitArgs": "--all"
+  },
   "plugins": {
     "@release-it/bumper": {
       "out": {
