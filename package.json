@@ -14,16 +14,16 @@
   },
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
-    "@release-it/bumper": "^5.1.0",
+    "@release-it/bumper": "^7.0.5",
     "@types/mocha": "^10.0.6",
     "@types/node": "^20.11.16",
     "gh-pages": "^6.1.1",
     "mocha": "^10.2.0",
     "nyc": "^15.1.0",
-    "release-it": "^17.0.3",
+    "release-it": "^19.0.2",
+    "ts-node": "^10.9.2",
     "tsx": "^4.7.0",
     "typedoc": "^0.25.7",
-    "typescript": "^5.3.3",
-    "ts-node": "^10.9.2"
+    "typescript": "^5.3.3"
   }
 }
