@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to release (e.g., 5.2.0)'
+        description: 'Version to release ("major", "minor", "patch", or "pre*" version; or specify version like "5.3.3" [default: "patch"])'
         required: true
         type: string
 
@@ -40,7 +40,7 @@ jobs:
 
       # Release using the monorepo approach
       - name: Release packages
-        run: npm run release -- ${{ github.event.inputs.version }} --ci
+        run: npm run release -- --dry-run --VV --ci -i ${{ github.event.inputs.version }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
