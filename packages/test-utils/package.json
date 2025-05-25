@@ -4,8 +4,7 @@
   "main": "./dist/lib/index.js",
   "types": "./dist/lib/index.d.ts",
   "scripts": {
-    "test": "nyc -r text-summary -r lcov mocha -r tsx './lib/**/*.spec.ts'",
-    "release": "echo 'Skipping release, not a public package'"
+    "test": "nyc -r text-summary -r lcov mocha -r tsx './lib/**/*.spec.ts'"
   },
   "peerDependencies": {
     "@redis/client": "*"
