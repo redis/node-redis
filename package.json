@@ -17,7 +17,7 @@
     "build": "tsc --build",
     "documentation": "typedoc --out ./documentation",
     "gh-pages": "gh-pages -d ./documentation -e ./documentation -u 'documentation-bot <documentation@bot>'",
-    "release": "npm run release --workspaces --if-present"
+    "release": "npm run release --workspaces --if-present --"
   },
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
