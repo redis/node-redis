@@ -4,6 +4,9 @@
     "publishArgs": ["--access", "public"]
   },
   "git": {
+    "tagName": "time-series@${version}",
+    "commitMessage": "Release ${tagName}",
+    "tagAnnotation": "Release ${tagName}",
     "commitArgs": "--all"
   },
   "plugins": {

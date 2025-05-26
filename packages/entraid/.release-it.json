@@ -4,6 +4,9 @@
     "publishArgs": ["--access", "public"]
   },
   "git": {
+    "tagName": "entraid@${version}",
+    "commitMessage": "Release ${tagName}",
+    "tagAnnotation": "Release ${tagName}",
     "commitArgs": "--all"
   },
   "plugins": {
