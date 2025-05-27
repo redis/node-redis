@@ -5,6 +5,7 @@
   },
   "git": {
     "tagName": "json@${version}",
+    "tagMatch": "json@*",
     "commitMessage": "Release ${tagName}",
     "tagAnnotation": "Release ${tagName}",
     "commitArgs": "--all"

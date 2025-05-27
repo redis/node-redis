@@ -5,6 +5,7 @@
   },
   "git": {
     "tagName": "client@${version}",
+    "tagMatch": "client@*",
     "commitMessage": "Release ${tagName}",
     "tagAnnotation": "Release ${tagName}",
     "commitArgs": "--all"

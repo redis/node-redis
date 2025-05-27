@@ -5,6 +5,7 @@
   },
   "git": {
     "tagName": "bloom@${version}",
+    "tagMatch": "bloom@*",
     "commitMessage": "Release ${tagName}",
     "tagAnnotation": "Release ${tagName}",
     "commitArgs": "--all"

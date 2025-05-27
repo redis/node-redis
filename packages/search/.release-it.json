@@ -5,6 +5,7 @@
   },
   "git": {
     "tagName": "search@${version}",
+    "tagMatch": "search@*",
     "commitMessage": "Release ${tagName}",
     "tagAnnotation": "Release ${tagName}",
     "commitArgs": "--all"

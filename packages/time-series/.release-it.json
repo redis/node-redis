@@ -5,6 +5,7 @@
   },
   "git": {
     "tagName": "time-series@${version}",
+    "tagMatch": "time-series@*",
     "commitMessage": "Release ${tagName}",
     "tagAnnotation": "Release ${tagName}",
     "commitArgs": "--all"

@@ -5,6 +5,7 @@
   },
   "git": {
     "tagName": "redis@${version}",
+    "tagMatch": "redis@*",
     "commitMessage": "Release ${tagName}",
     "tagAnnotation": "Release ${tagName}",
     "commitArgs": "--all"
