@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to release ("major", "minor", "patch", or "pre*" version; or specify version like "5.3.3" [default: "patch"])'
+        description: 'Version to release ("major", "minor", "patch", or "pre*" version; or specify version like "5.3.3")'
         required: true
         type: string
       args:
