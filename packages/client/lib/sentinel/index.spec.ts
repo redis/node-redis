@@ -171,7 +171,7 @@ describe('RedisSentinel', () => {
   });
 });
 
-describe.skip(`test with scripts`, () => {
+describe(`test with scripts`, () => {
   testUtils.testWithClientSentinel('with script', async sentinel => {
     const [, reply] = await Promise.all([
       sentinel.set('key', '2'),
@@ -197,8 +197,7 @@ describe.skip(`test with scripts`, () => {
   }, GLOBAL.SENTINEL.WITH_SCRIPT)
 });
 
-
-describe.skip(`test with functions`, () => {
+describe(`test with functions`, () => {
   testUtils.testWithClientSentinel('with function', async sentinel => {
     await sentinel.functionLoad(
       MATH_FUNCTION.code,
@@ -238,7 +237,7 @@ describe.skip(`test with functions`, () => {
   }, GLOBAL.SENTINEL.WITH_FUNCTION);
 });
 
-describe.skip(`test with modules`, () => {
+describe(`test with modules`, () => {
   testUtils.testWithClientSentinel('with module', async sentinel => {
     const resp = await sentinel.bf.add('key', 'item')
     assert.equal(resp, true);
@@ -260,7 +259,7 @@ describe.skip(`test with modules`, () => {
   }, GLOBAL.SENTINEL.WITH_MODULE);
 });
 
-describe.skip(`test with replica pool size 1`, () => {
+describe(`test with replica pool size 1`, () => {
   testUtils.testWithClientSentinel('client lease', async sentinel => {
     sentinel.on("error", () => { });
 
@@ -302,7 +301,7 @@ describe.skip(`test with replica pool size 1`, () => {
   }, GLOBAL.SENTINEL.WITH_REPLICA_POOL_SIZE_1);
 });
 
-describe.skip(`test with masterPoolSize 2, reserve client true`, () => {
+describe(`test with masterPoolSize 2, reserve client true`, () => {
   // TODO: flaky test, sometimes fails with `promise1 === null`
   testUtils.testWithClientSentinel('reserve client, takes a client out of pool', async sentinel => {
     const promise1 = sentinel.use(
@@ -325,7 +324,7 @@ describe.skip(`test with masterPoolSize 2, reserve client true`, () => {
   }, Object.assign(GLOBAL.SENTINEL.WITH_RESERVE_CLIENT_MASTER_POOL_SIZE_2, {skipTest: true}));
 });
 
-describe.skip(`test with masterPoolSize 2`, () => {
+describe(`test with masterPoolSize 2`, () => {
   testUtils.testWithClientSentinel('multple clients', async sentinel => {
     sentinel.on("error", () => { });
 
@@ -383,6 +382,8 @@ describe.skip(`test with masterPoolSize 2`, () => {
 // sentinel
 // it should somehow replicate the `SentinelFramework` object functionallities
 async function steadyState(frame: SentinelFramework) {
+  // wait a bit to ensure that sentinels are seeing eachother
+  await setTimeout(2000)
   let checkedMaster = false;
   let checkedReplicas = false;
   while (!checkedMaster || !checkedReplicas) {
@@ -463,7 +464,6 @@ describe('legacy tests', () => {
       }
       setImmediate(deltaMeasurer);
       await frame.spawnRedisSentinel();
-
       await frame.getAllRunning();
       await steadyState(frame);
       longestTestDelta = 0;
@@ -856,7 +856,6 @@ describe('legacy tests', () => {
 
     it('shutdown sentinel node', async function () {
       this.timeout(60000);
-
       sentinel = frame.getSentinelClient();
       sentinel.setTracer(tracer);
       sentinel.on("error", () => { });
@@ -1013,7 +1012,7 @@ describe('legacy tests', () => {
       this.timeout(30000);
       const csc = new BasicPooledClientSideCache();
 
-      sentinel = frame.getSentinelClient({nodeClientOptions: {RESP: 3}, clientSideCache: csc, masterPoolSize: 5});
+      sentinel = frame.getSentinelClient({nodeClientOptions: {RESP: 3 as const}, RESP: 3 as const, clientSideCache: csc, masterPoolSize: 5});
       await sentinel.connect();
 
       await sentinel.set('x', 1);

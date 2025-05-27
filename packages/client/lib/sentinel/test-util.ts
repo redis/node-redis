@@ -4,12 +4,13 @@ import { once } from 'node:events';
 import { promisify } from 'node:util';
 import { exec } from 'node:child_process';
 import { RedisSentinelOptions, RedisSentinelType } from './types';
-import RedisClient from '../client';
+import RedisClient, {RedisClientType} from '../client';
 import RedisSentinel from '.';
 import { RedisArgument, RedisFunctions, RedisModules, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
 const execAsync = promisify(exec);
 import RedisSentinelModule from './module'
-
+import TestUtils from '@redis/test-utils';
+import { DEBUG_MODE_ARGS } from '../test-utils'
 interface ErrorWithCode extends Error {
   code: string;
 }
@@ -125,7 +126,6 @@ export interface RedisSentinelConfig {
   sentinelServerArgument?: Array<string>
 
   sentinelName: string;
-  sentinelQuorum?: number;
 
   password?: string;
 }
@@ -151,6 +151,7 @@ export interface SentinelController {
 }
 
 export class SentinelFramework extends DockerBase {
+  #testUtils: TestUtils;
   #nodeList: Awaited<ReturnType<SentinelFramework['spawnRedisSentinelNodes']>> = [];
   /* port -> docker info/client */
   #nodeMap: Map<string, ArrayElement<Awaited<ReturnType<SentinelFramework['spawnRedisSentinelNodes']>>>>;
@@ -170,7 +171,11 @@ export class SentinelFramework extends DockerBase {
     super();
 
     this.config = config;
-
+    this.#testUtils = TestUtils.createFromConfig({
+      dockerImageName: 'redislabs/client-libs-test',
+      dockerImageVersionArgument: 'redis-version',
+      defaultDockerVersion: '8.0-M05-pre'
+    });
     this.#nodeMap = new Map<string, ArrayElement<Awaited<ReturnType<SentinelFramework['spawnRedisSentinelNodes']>>>>();
     this.#sentinelMap = new Map<string, ArrayElement<Awaited<ReturnType<SentinelFramework['spawnRedisSentinelSentinels']>>>>();
   }
@@ -190,7 +195,7 @@ export class SentinelFramework extends DockerBase {
     const options: RedisSentinelOptions<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping> = {
       ...opts,
       name: this.config.sentinelName,
-      sentinelRootNodes: this.#sentinelList.map((sentinel) => { return { host: '127.0.0.1', port: sentinel.docker.port } }),
+      sentinelRootNodes: this.#sentinelList.map((sentinel) => { return { host: '127.0.0.1', port: sentinel.port } }),
       passthroughClientErrorEvents: errors
     }
 
@@ -218,11 +223,11 @@ export class SentinelFramework extends DockerBase {
       throw new Error("inconsistent state with partial setup");
     }
 
-    this.#nodeList = await this.spawnRedisSentinelNodes();
-    this.#nodeList.map((value) => this.#nodeMap.set(value.docker.port.toString(), value));
+    this.#nodeList = await this.spawnRedisSentinelNodes(2);
+    this.#nodeList.map((value) => this.#nodeMap.set(value.port.toString(), value));
 
-    this.#sentinelList = await this.spawnRedisSentinelSentinels();
-    this.#sentinelList.map((value) => this.#sentinelMap.set(value.docker.port.toString(), value));
+    this.#sentinelList = await this.spawnRedisSentinelSentinels(this.#nodeList[0].port, 3)
+    this.#sentinelList.map((value) => this.#sentinelMap.set(value.port.toString(), value));
 
     this.#spawned = true;
   }
@@ -234,11 +239,8 @@ export class SentinelFramework extends DockerBase {
 
     return Promise.all(
       [...this.#nodeMap!.values(), ...this.#sentinelMap!.values()].map(
-        async ({ docker, client }) => {
-          if (client.isOpen) {
-            client.destroy();
-          }
-          this.dockerRemove(docker.dockerId);
+        async ({ dockerId }) => {
+          this.dockerRemove(dockerId);
         }
       )
     ).finally(async () => {
@@ -248,112 +250,33 @@ export class SentinelFramework extends DockerBase {
     });
   }
 
-  protected async spawnRedisSentinelNodeDocker() {
-    const imageInfo: RedisServerDockerConfig = this.config.nodeDockerConfig ?? { image: "redis/redis-stack-server", version: "latest" };
-    const serverArguments: Array<string> = this.config.nodeServerArguments ?? [];
-    let environment;
-    if (this.config.password !== undefined) {
-      environment = `REDIS_ARGS="{port} --requirepass ${this.config.password}"`;
-    } else {
-      environment = 'REDIS_ARGS="{port}"';
-    }
-  
-    const docker = await this.spawnRedisServerDocker(imageInfo, serverArguments, environment);
-    const client = await RedisClient.create({
-      password: this.config.password,
-      socket: {
-        port: docker.port
-      }
-    }).on("error", () => { }).connect();
+  protected async spawnRedisSentinelNodes(replicasCount: number) {
+    const master = await this.#testUtils.spawnRedisServer({serverArguments: DEBUG_MODE_ARGS})
+    
+    const replicas: Array<RedisServerDocker> = []
+    for (let i = 0; i < replicasCount; i++) {
+      const replica = await this.#testUtils.spawnRedisServer({serverArguments: DEBUG_MODE_ARGS})
+      replicas.push(replica)
 
-    return {
-      docker,
-      client
-    };
-  }
+      const client = RedisClient.create({
+        socket: {
+          port: replica.port
+        }
+      })
 
-  protected async spawnRedisSentinelNodes() {
-    const master = await this.spawnRedisSentinelNodeDocker();
-
-    const promises: Array<ReturnType<SentinelFramework['spawnRedisSentinelNodeDocker']>> = [];
-
-    for (let i = 0; i < (this.config.numberOfNodes ?? 0) - 1; i++) {
-      promises.push(
-        this.spawnRedisSentinelNodeDocker().then(async node => {
-          if (this.config.password !== undefined) {
-            await node.client.configSet({'masterauth': this.config.password})
-          }
-          await node.client.replicaOf('127.0.0.1', master.docker.port);
-          return node;
-        })
-      );
+      await client.connect();
+      await client.replicaOf("127.0.0.1", master.port);
+      await client.close();
     }
 
     return [
       master,
-      ...await Promise.all(promises)
-    ];
-  }
-
-  protected async spawnRedisSentinelSentinelDocker() {
-    const imageInfo: RedisServerDockerConfig = this.config.sentinelDockerConfig ?? { image: "redis", version: "latest" }
-    let serverArguments: Array<string>;
-    if (this.config.password === undefined) {
-      serverArguments = this.config.sentinelServerArgument ??
-        [
-          "/bin/bash",
-          "-c",
-          "\"touch /tmp/sentinel.conf ; /usr/local/bin/redis-sentinel /tmp/sentinel.conf {port} \""
-        ];
-    } else {
-      serverArguments = this.config.sentinelServerArgument ??
-        [
-          "/bin/bash",
-          "-c",
-          `"touch /tmp/sentinel.conf ; /usr/local/bin/redis-sentinel /tmp/sentinel.conf {port} --requirepass ${this.config.password}"`
-        ];
-    }
-    
-    const docker = await this.spawnRedisServerDocker(imageInfo, serverArguments);
-    const client = await RedisClient.create({
-      modules: RedisSentinelModule,
-      password: this.config.password,
-      socket: {
-        port: docker.port
-      }
-    }).on("error", () => { }).connect();
-
-    return {
-      docker,
-      client
-    };
-  }
-
-  protected async spawnRedisSentinelSentinels() {
-    const quorum = this.config.sentinelQuorum?.toString() ?? "2";
-    const node = this.#nodeList[0];
-
-    const promises: Array<ReturnType<SentinelFramework['spawnRedisSentinelSentinelDocker']>> = [];
-
-    for (let i = 0; i < (this.config.numberOfSentinels ?? 3); i++) {
-      promises.push(
-        this.spawnRedisSentinelSentinelDocker().then(async sentinel => {
-          await sentinel.client.sentinel.sentinelMonitor(this.config.sentinelName, '127.0.0.1', node.docker.port.toString(), quorum);
-          const options: Array<{option: RedisArgument, value: RedisArgument}> = [];
-          options.push({ option: "down-after-milliseconds", value: "100" });
-          options.push({ option: "failover-timeout", value: "5000" });
-          if (this.config.password !== undefined) {
-            options.push({ option: "auth-pass", value: this.config.password });
-          }
-          await sentinel.client.sentinel.sentinelSet(this.config.sentinelName, options)
-          return sentinel;
-        })
-      );
-    }
-
-    return [
-      ...await Promise.all(promises)
+      ...replicas
     ]
+  }
+
+  protected async spawnRedisSentinelSentinels(masterPort: number, sentinels: number) {
+    return this.#testUtils.spawnRedisSentinels({serverArguments: DEBUG_MODE_ARGS}, masterPort, this.config.sentinelName, sentinels)
   }
 
   async getAllRunning() {
@@ -384,90 +307,71 @@ export class SentinelFramework extends DockerBase {
   }
 
   async addSentinel() {
-    const quorum = this.config.sentinelQuorum?.toString() ?? "2";
-    const node = this.#nodeList[0];
-    const sentinel = await this.spawnRedisSentinelSentinelDocker();
-
-    await sentinel.client.sentinel.sentinelMonitor(this.config.sentinelName, '127.0.0.1', node.docker.port.toString(), quorum);
-    const options: Array<{option: RedisArgument, value: RedisArgument}> = [];
-    options.push({ option: "down-after-milliseconds", value: "100" });
-    options.push({ option: "failover-timeout", value: "5000" });
-    if (this.config.password !== undefined) {
-      options.push({ option: "auth-pass", value: this.config.password });
-    }
-    await sentinel.client.sentinel.sentinelSet(this.config.sentinelName, options);
-
-    this.#sentinelList.push(sentinel);
-    this.#sentinelMap.set(sentinel.docker.port.toString(), sentinel);
+    const nodes = await this.#testUtils.spawnRedisSentinels({serverArguments: DEBUG_MODE_ARGS}, this.#nodeList[0].port, this.config.sentinelName, 1)
+    this.#sentinelList.push(nodes[0]);
+    this.#sentinelMap.set(nodes[0].port.toString(), nodes[0]);
   }
 
   async addNode() {
     const masterPort = await this.getMasterPort();
-    const newNode = await this.spawnRedisSentinelNodeDocker();
+    const replica = await this.#testUtils.spawnRedisServer({serverArguments: DEBUG_MODE_ARGS})
 
-    if (this.config.password !== undefined) {
-      await newNode.client.configSet({'masterauth': this.config.password})
-    }
-    await newNode.client.replicaOf('127.0.0.1', masterPort);
+    const client = RedisClient.create({
+      socket: {
+        port: replica.port
+      }
+    })
 
-    this.#nodeList.push(newNode);
-    this.#nodeMap.set(newNode.docker.port.toString(), newNode);
+    await client.connect();
+    await client.replicaOf("127.0.0.1", masterPort);
+    await client.close();
+    
+
+    this.#nodeList.push(replica);
+    this.#nodeMap.set(replica.port.toString(), replica);
   }
 
   async getMaster(tracer?: Array<string>): Promise<string | undefined> {
-    for (const sentinel of this.#sentinelMap!.values()) {
-      let info;
+    const client = RedisClient.create({
+      name: this.config.sentinelName, 
+      socket: {
+        host: "127.0.0.1", 
+        port: this.#sentinelList[0].port,
+      },
+      modules: RedisSentinelModule,
+    });
+    await client.connect()
+    const info = await client.sentinel.sentinelMaster(this.config.sentinelName);
+    await client.close()
 
-      try {
-        if (!sentinel.client.isReady) {
-          continue;
-        }
-
-        info = await sentinel.client.sentinel.sentinelMaster(this.config.sentinelName);
-        if (tracer) {
-          tracer.push('getMaster: master data returned from sentinel');
-          tracer.push(JSON.stringify(info, undefined, '\t'))
-        }
-      } catch (err) {
-        console.log("getMaster: sentinelMaster call failed: " + err);
-        continue;
-      }
-
-      const master = this.#nodeMap.get(info.port); 
-      if (master === undefined) {
-        throw new Error(`couldn't find master node for ${info.port}`);
-      }
-
-      if (tracer) {
-        tracer.push(`getMaster: master port is either ${info.port} or ${master.docker.port}`);
-      }
-
-      if (!master.client.isOpen) {
-        throw new Error(`Sentinel's expected master node (${info.port}) is now down`);
-      }
-
-      return info.port;
+    const master = this.#nodeMap.get(info.port);
+    if (master === undefined) {
+      throw new Error(`couldn't find master node for ${info.port}`);
     }
 
-    throw new Error("Couldn't get master");
+    if (tracer) {
+      tracer.push(`getMaster: master port is either ${info.port} or ${master.port}`);
+    }
+
+    return info.port;
   }
 
   async getMasterPort(tracer?: Array<string>): Promise<number> {
     const data = await this.getMaster(tracer)
 
-    return this.#nodeMap.get(data!)!.docker.port;
+    return this.#nodeMap.get(data!)!.port;
   }
 
   getRandomNode() {
-    return this.#nodeList[Math.floor(Math.random() * this.#nodeList.length)].docker.port.toString();
+    return this.#nodeList[Math.floor(Math.random() * this.#nodeList.length)].port.toString();
   }
 
   async getRandonNonMasterNode(): Promise<string> {
     const masterPort = await this.getMasterPort();
     while (true) {
       const node = this.#nodeList[Math.floor(Math.random() * this.#nodeList.length)];
-      if (node.docker.port != masterPort) {
-        return node.docker.port.toString();
+      if (node.port != masterPort) {
+        return node.port.toString();
       }
     }
   }
@@ -479,11 +383,7 @@ export class SentinelFramework extends DockerBase {
       throw new Error("unknown node: " + id);
     }
 
-    if (node.client.isOpen) {
-      node.client.destroy();
-    }
-
-    return await this.dockerStop(node.docker.dockerId);
+    return await this.dockerStop(node.dockerId);
   }
 
   async restartNode(id: string) {
@@ -492,15 +392,7 @@ export class SentinelFramework extends DockerBase {
       throw new Error("unknown node: " + id);
     }
 
-    await this.dockerStart(node.docker.dockerId);
-    if (!node.client.isOpen) {
-      node.client = await RedisClient.create({
-        password: this.config.password,
-        socket: {
-          port: node.docker.port
-        }
-      }).on("error", () => { }).connect();
-    }
+    await this.dockerStart(node.dockerId);
   }
 
   async stopSentinel(id: string) {
@@ -509,11 +401,7 @@ export class SentinelFramework extends DockerBase {
       throw new Error("unknown sentinel: " + id);
     }
 
-    if (sentinel.client.isOpen) {
-      sentinel.client.destroy();
-    }
-
-    return await this.dockerStop(sentinel.docker.dockerId);
+    return await this.dockerStop(sentinel.dockerId);
   }
 
   async restartSentinel(id: string) {
@@ -522,16 +410,7 @@ export class SentinelFramework extends DockerBase {
       throw new Error("unknown sentinel: " + id);
     }
 
-    await this.dockerStart(sentinel.docker.dockerId);
-    if (!sentinel.client.isOpen) {
-      sentinel.client = await RedisClient.create({
-        modules: RedisSentinelModule,
-        password: this.config.password,
-        socket: {
-          port: sentinel.docker.port
-        }
-      }).on("error", () => { }).connect();
-    }
+    await this.dockerStart(sentinel.dockerId);
   }
 
   getNodePort(id: string) {
@@ -540,13 +419,13 @@ export class SentinelFramework extends DockerBase {
       throw new Error("unknown node: " + id);
     }
 
-    return node.docker.port;
+    return node.port;
   }
 
   getAllNodesPort() {
     let ports: Array<number> = [];
     for (const node of this.#nodeList) {
-      ports.push(node.docker.port);
+      ports.push(node.port);
     }
 
     return ports
@@ -555,7 +434,7 @@ export class SentinelFramework extends DockerBase {
   getAllDockerIds() {
     let ids = new Map<string, number>();
     for (const node of this.#nodeList) {
-      ids.set(node.docker.dockerId, node.docker.port);
+      ids.set(node.dockerId, node.port);
     }
 
     return ids;
@@ -567,43 +446,67 @@ export class SentinelFramework extends DockerBase {
       throw new Error("unknown sentinel: " + id);
     }
 
-    return sentinel.docker.port;
+    return sentinel.port;
   }
 
   getAllSentinelsPort() {
     let ports: Array<number> = [];
     for (const sentinel of this.#sentinelList) {
-      ports.push(sentinel.docker.port);
+      ports.push(sentinel.port);
     }
 
     return ports
   }
 
   getSetinel(i: number): string {
-    return this.#sentinelList[i].docker.port.toString();
+    return this.#sentinelList[i].port.toString();
   }
 
-  sentinelSentinels() {
-    for (const sentinel of this.#sentinelList) {
-      if (sentinel.client.isReady) {
-        return sentinel.client.sentinel.sentinelSentinels(this.config.sentinelName);
-      }
-    }
+  async sentinelSentinels() {
+    const client = RedisClient.create({
+      name: this.config.sentinelName, 
+      socket: {
+        host: "127.0.0.1", 
+        port: this.#sentinelList[0].port,
+      },
+      modules: RedisSentinelModule,
+    });
+    await client.connect()
+    const sentinels = client.sentinel.sentinelSentinels(this.config.sentinelName)
+    await client.close()
+
+    return sentinels
   }
 
-  sentinelMaster() {
-    for (const sentinel of this.#sentinelList) {
-      if (sentinel.client.isReady) {
-        return sentinel.client.sentinel.sentinelMaster(this.config.sentinelName);
-      }
-    }
+  async sentinelMaster() {
+    const client = RedisClient.create({
+      name: this.config.sentinelName, 
+      socket: {
+        host: "127.0.0.1", 
+        port: this.#sentinelList[0].port,
+      },
+      modules: RedisSentinelModule,
+    });
+    await client.connect()
+    const master = client.sentinel.sentinelMaster(this.config.sentinelName)
+    await client.close()
+
+    return master
   }
 
-  sentinelReplicas() {
-    for (const sentinel of this.#sentinelList) {
-      if (sentinel.client.isReady) {
-        return sentinel.client.sentinel.sentinelReplicas(this.config.sentinelName);
-      }
-    }
+  async sentinelReplicas() {
+    const client = RedisClient.create({
+      name: this.config.sentinelName, 
+      socket: {
+        host: "127.0.0.1", 
+        port: this.#sentinelList[0].port,
+      },
+      modules: RedisSentinelModule,
+    });
+    await client.connect()
+    const replicas = client.sentinel.sentinelReplicas(this.config.sentinelName)
+    await client.close()
+
+    return replicas
   }
 }

@@ -62,7 +62,7 @@ export interface RedisServerDocker {
   dockerId: string;
 }
 
-async function spawnRedisServerDocker(
+export async function spawnRedisServerDocker(
 options: RedisServerDockerOptions, serverArguments: Array<string>): Promise<RedisServerDocker> {
   let port;
   if (options.mode == "sentinel") {
@@ -374,35 +374,16 @@ export async function spawnRedisSentinel(
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), appPrefix));
 
     for (let i = 0; i < sentinelCount; i++) {
-      sentinelPromises.push((async () => {
-        const port = (await portIterator.next()).value;
-
-        let sentinelConfig = `port ${port}
-sentinel monitor mymaster 127.0.0.1 ${master.port} 2
-sentinel down-after-milliseconds mymaster 5000
-sentinel failover-timeout mymaster 6000
-`;
-        if (password !== undefined) {
-          sentinelConfig += `requirepass ${password}\n`;
-          sentinelConfig += `sentinel auth-pass mymaster ${password}\n`;
-        }
-
-        const dir = fs.mkdtempSync(path.join(tmpDir, i.toString()));
-        fs.writeFile(`${dir}/redis.conf`, sentinelConfig, err => {
-          if (err) {
-            console.error("failed to create temporary config file", err);
-          }
-        });
-
-        return await spawnRedisServerDocker(
-          {
-            image: dockerConfigs.image, 
-            version: dockerConfigs.version, 
-            mode: "sentinel",
-             mounts: [`${dir}/redis.conf:/redis/config/node-sentinel-1/redis.conf`], 
-             port: port,
-            }, serverArguments);
-      })());
+      sentinelPromises.push(
+        spawnSentinelNode(
+          dockerConfigs, 
+          serverArguments, 
+          master.port,
+          "mymaster",
+          path.join(tmpDir, i.toString()),
+          password,
+        ),
+      )
     }
     
     const sentinelNodes = await Promise.all(sentinelPromises);
@@ -424,3 +405,43 @@ after(() => {
     })
   );
 });
+
+
+export async function spawnSentinelNode(
+  dockerConfigs: RedisServerDockerOptions,
+  serverArguments: Array<string>,
+  masterPort: number, 
+  sentinelName: string,
+  tmpDir: string,
+  password?: string,
+) {
+  const port = (await portIterator.next()).value;
+
+  let sentinelConfig = `port ${port}
+sentinel monitor ${sentinelName} 127.0.0.1 ${masterPort} 2
+sentinel down-after-milliseconds ${sentinelName} 5000
+sentinel failover-timeout ${sentinelName} 6000
+`;
+  if (password !== undefined) {
+    sentinelConfig += `requirepass ${password}\n`;
+    sentinelConfig += `sentinel auth-pass ${sentinelName} ${password}\n`;
+  }
+
+  const dir = fs.mkdtempSync(tmpDir);
+  fs.writeFile(`${dir}/redis.conf`, sentinelConfig, err => {
+    if (err) {
+      console.error("failed to create temporary config file", err);
+    }
+  });
+
+  return await spawnRedisServerDocker(
+    {
+      image: dockerConfigs.image, 
+      version: dockerConfigs.version, 
+      mode: "sentinel",
+        mounts: [`${dir}/redis.conf:/redis/config/node-sentinel-1/redis.conf`], 
+        port: port,
+    }, 
+    serverArguments,
+  );
+}
