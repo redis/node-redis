@@ -25,6 +25,7 @@ import { hideBin } from 'yargs/helpers';
 
 import * as fs from 'node:fs';
 import * as os from 'node:os';
+import * as path from 'node:path';
 
 interface TestUtilsConfig {
   /**
@@ -573,8 +574,11 @@ export default class TestUtils {
   ): Promise<Array<RedisServerDocker>> {
     const sentinels: Array<RedisServerDocker> = [];
     for (let i = 0; i < count; i++) {
-      const tmpDir = fs.mkdtempSync(os.tmpdir())
+      const appPrefix = 'sentinel-config-dir';
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), appPrefix));
+
       sentinels.push(await spawnSentinelNode(this.#DOCKER_IMAGE, options.serverArguments, masterPort, sentinelName, tmpDir))
+      
       if (tmpDir) {
         fs.rmSync(tmpDir, { recursive: true });
       }
