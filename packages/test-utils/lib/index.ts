@@ -19,10 +19,13 @@ import {
   RedisClusterType
 } from '@redis/client/index';
 import { RedisNode } from '@redis/client/lib/sentinel/types'
-import { spawnRedisServer, spawnRedisCluster, spawnRedisSentinel, RedisServerDockerOptions } from './dockers';
+import { spawnRedisServer, spawnRedisCluster, spawnRedisSentinel, RedisServerDockerOptions, RedisServerDocker, spawnSentinelNode, spawnRedisServerDocker } from './dockers';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 
 interface TestUtilsConfig {
   /**
@@ -395,19 +398,19 @@ export default class TestUtils {
   S extends RedisScripts = {},
   RESP extends RespVersions = 2,
   TYPE_MAPPING extends TypeMapping = {}
->(
-  range: ([minVersion: Array<number>, maxVersion: Array<number>] | [minVersion: Array<number>, 'LATEST']),
-  title: string,
-  fn: (sentinel: RedisSentinelType<M, F, S, RESP, TYPE_MAPPING>) => unknown,
-  options: SentinelTestOptions<M, F, S, RESP, TYPE_MAPPING>
-): void {
+  >(
+    range: ([minVersion: Array<number>, maxVersion: Array<number>] | [minVersion: Array<number>, 'LATEST']),
+    title: string,
+    fn: (sentinel: RedisSentinelType<M, F, S, RESP, TYPE_MAPPING>) => unknown,
+    options: SentinelTestOptions<M, F, S, RESP, TYPE_MAPPING>
+  ): void {
 
-  if (this.isVersionInRange(range[0], range[1] === 'LATEST' ? [Infinity, Infinity, Infinity] : range[1])) {
-    return this.testWithClientSentinel(`${title}  [${range[0].join('.')}] - [${(range[1] === 'LATEST') ? range[1] : range[1].join(".")}] `, fn, options)
-  } else {
-    console.warn(`Skipping test ${title} because server version ${this.#VERSION_NUMBERS.join('.')} is not within range ${range[0].join(".")} - ${range[1] !== 'LATEST' ? range[1].join(".") : 'LATEST'}`)
+    if (this.isVersionInRange(range[0], range[1] === 'LATEST' ? [Infinity, Infinity, Infinity] : range[1])) {
+      return this.testWithClientSentinel(`${title}  [${range[0].join('.')}] - [${(range[1] === 'LATEST') ? range[1] : range[1].join(".")}] `, fn, options)
+    } else {
+      console.warn(`Skipping test ${title} because server version ${this.#VERSION_NUMBERS.join('.')} is not within range ${range[0].join(".")} - ${range[1] !== 'LATEST' ? range[1].join(".") : 'LATEST'}`)
+    }
   }
-}
 
   testWithClientPool<
     M extends RedisModules = {},
@@ -540,5 +543,47 @@ export default class TestUtils {
   ) {
     this.testWithClient(`client.${title}`, fn, options.client);
     this.testWithCluster(`cluster.${title}`, fn, options.cluster);
+  }
+
+
+  spawnRedisServer<
+    M extends RedisModules = {},
+    F extends RedisFunctions = {},
+    S extends RedisScripts = {},
+    RESP extends RespVersions = 2,
+    TYPE_MAPPING extends TypeMapping = {}
+    // POLICIES extends CommandPolicies = {}
+  >(
+    options: ClientPoolTestOptions<M, F, S, RESP, TYPE_MAPPING>
+  ): Promise<RedisServerDocker> {
+    return spawnRedisServerDocker(this.#DOCKER_IMAGE, options.serverArguments)
+  }
+
+  async spawnRedisSentinels<
+    M extends RedisModules = {},
+    F extends RedisFunctions = {},
+    S extends RedisScripts = {},
+    RESP extends RespVersions = 2,
+    TYPE_MAPPING extends TypeMapping = {}
+    // POLICIES extends CommandPolicies = {}
+  >(
+    options: ClientPoolTestOptions<M, F, S, RESP, TYPE_MAPPING>,
+    masterPort: number,
+    sentinelName: string,
+    count: number
+  ): Promise<Array<RedisServerDocker>> {
+    const sentinels: Array<RedisServerDocker> = [];
+    for (let i = 0; i < count; i++) {
+      const appPrefix = 'sentinel-config-dir';
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), appPrefix));
+
+      sentinels.push(await spawnSentinelNode(this.#DOCKER_IMAGE, options.serverArguments, masterPort, sentinelName, tmpDir))
+      
+      if (tmpDir) {
+        fs.rmSync(tmpDir, { recursive: true });
+      }
+    }
+    
+    return sentinels
   }
 }

@@ -14,7 +14,7 @@ const utils = TestUtils.createFromConfig({
 
 export default utils;
 
-const DEBUG_MODE_ARGS = utils.isVersionGreaterThan([7]) ?
+export const DEBUG_MODE_ARGS = utils.isVersionGreaterThan([7]) ?
   ['--enable-debug-command', 'yes'] :
   [];
 

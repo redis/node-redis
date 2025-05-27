@@ -197,7 +197,6 @@ describe(`test with scripts`, () => {
   }, GLOBAL.SENTINEL.WITH_SCRIPT)
 });
 
-
 describe(`test with functions`, () => {
   testUtils.testWithClientSentinel('with function', async sentinel => {
     await sentinel.functionLoad(
@@ -377,12 +376,9 @@ describe(`test with masterPoolSize 2`, () => {
   }, GLOBAL.SENTINEL.WITH_MASTER_POOL_SIZE_2);
 });
 
-
-// TODO: Figure out how to modify the test utils
-// so it would have fine grained controll over
-// sentinel
-// it should somehow replicate the `SentinelFramework` object functionallities
 async function steadyState(frame: SentinelFramework) {
+  // wait a bit to ensure that sentinels are seeing eachother
+  await setTimeout(2000)
   let checkedMaster = false;
   let checkedReplicas = false;
   while (!checkedMaster || !checkedReplicas) {
@@ -430,7 +426,7 @@ async function steadyState(frame: SentinelFramework) {
   }
 }
 
-describe.skip('legacy tests', () => {
+describe('legacy tests', () => {
   const config: RedisSentinelConfig = { sentinelName: "test", numberOfNodes: 3, password: undefined };
   const frame = new SentinelFramework(config);
   let tracer = new Array<string>();
@@ -439,42 +435,30 @@ describe.skip('legacy tests', () => {
   let longestTestDelta = 0;
   let last: number;
 
-  before(async function () {
-    this.timeout(15000);
-
-    last = Date.now();
-
-    function deltaMeasurer() {
-      const delta = Date.now() - last;
-      if (delta > longestDelta) {
-        longestDelta = delta;
-      }
-      if (delta > longestTestDelta) {
-        longestTestDelta = delta;
-      }
-      if (!stopMeasuringBlocking) {
-        last = Date.now();
-        setImmediate(deltaMeasurer);
-      }
-    }
-    setImmediate(deltaMeasurer);
-    await frame.spawnRedisSentinel();
-  });
-
-  after(async function () {
-    this.timeout(15000);
-
-    stopMeasuringBlocking = true;
-
-    await frame.cleanup();
-  })
 
   describe('Sentinel Client', function () {
     let sentinel: RedisSentinelType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping> | undefined;
 
     beforeEach(async function () {
-      this.timeout(0);
+      this.timeout(15000);
 
+      last = Date.now();
+  
+      function deltaMeasurer() {
+        const delta = Date.now() - last;
+        if (delta > longestDelta) {
+          longestDelta = delta;
+        }
+        if (delta > longestTestDelta) {
+          longestTestDelta = delta;
+        }
+        if (!stopMeasuringBlocking) {
+          last = Date.now();
+          setImmediate(deltaMeasurer);
+        }
+      }
+      setImmediate(deltaMeasurer);
+      await frame.spawnRedisSentinel();
       await frame.getAllRunning();
       await steadyState(frame);
       longestTestDelta = 0;
@@ -522,6 +506,10 @@ describe.skip('legacy tests', () => {
         await sentinel.destroy();
         sentinel = undefined;
       }
+
+      stopMeasuringBlocking = true;
+  
+      await frame.cleanup();
     })
 
     it('use', async function () {
@@ -863,7 +851,6 @@ describe.skip('legacy tests', () => {
 
     it('shutdown sentinel node', async function () {
       this.timeout(60000);
-
       sentinel = frame.getSentinelClient();
       sentinel.setTracer(tracer);
       sentinel.on("error", () => { });
@@ -1020,7 +1007,7 @@ describe.skip('legacy tests', () => {
       this.timeout(30000);
       const csc = new BasicPooledClientSideCache();
 
-      sentinel = frame.getSentinelClient({nodeClientOptions: {RESP: 3}, clientSideCache: csc, masterPoolSize: 5});
+      sentinel = frame.getSentinelClient({nodeClientOptions: {RESP: 3 as const}, RESP: 3 as const, clientSideCache: csc, masterPoolSize: 5});
       await sentinel.connect();
 
       await sentinel.set('x', 1);
