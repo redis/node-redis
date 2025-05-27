@@ -376,11 +376,6 @@ describe(`test with masterPoolSize 2`, () => {
   }, GLOBAL.SENTINEL.WITH_MASTER_POOL_SIZE_2);
 });
 
-
-// TODO: Figure out how to modify the test utils
-// so it would have fine grained controll over
-// sentinel
-// it should somehow replicate the `SentinelFramework` object functionallities
 async function steadyState(frame: SentinelFramework) {
   // wait a bit to ensure that sentinels are seeing eachother
   await setTimeout(2000)

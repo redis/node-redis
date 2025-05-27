@@ -419,8 +419,8 @@ export async function spawnSentinelNode(
 
   let sentinelConfig = `port ${port}
 sentinel monitor ${sentinelName} 127.0.0.1 ${masterPort} 2
-sentinel down-after-milliseconds ${sentinelName} 5000
-sentinel failover-timeout ${sentinelName} 6000
+sentinel down-after-milliseconds ${sentinelName} 500
+sentinel failover-timeout ${sentinelName} 1000
 `;
   if (password !== undefined) {
     sentinelConfig += `requirepass ${password}\n`;
