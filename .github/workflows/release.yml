@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       args:
-        description: 'Additional arguments to pass to release-it (e.g. "--dry-run")'
+        description: 'Additional arguments to pass to release-it (e.g. "--dry-run"). See docs: https://github.com/release-it/release-it/blob/main/docs/git.md#configuration-options'
         required: false
         type: string
 
