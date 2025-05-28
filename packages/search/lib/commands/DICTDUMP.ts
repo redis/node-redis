@@ -4,6 +4,11 @@ import { RedisArgument, ArrayReply, SetReply, BlobStringReply, Command } from '@
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
+  /**
+   * Returns all terms in a dictionary.
+   * @param parser - The command parser
+   * @param dictionary - Name of the dictionary to dump
+   */
   parseCommand(parser: CommandParser, dictionary: RedisArgument) {
     parser.push('FT.DICTDUMP', dictionary);
   },

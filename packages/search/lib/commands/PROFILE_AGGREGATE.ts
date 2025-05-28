@@ -6,6 +6,15 @@ import { ProfileOptions, ProfileRawReplyResp2, ProfileReplyResp2, } from './PROF
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
+  /**
+   * Profiles the execution of an aggregation query for performance analysis.
+   * @param parser - The command parser
+   * @param index - Name of the index to profile query against
+   * @param query - The aggregation query to profile
+   * @param options - Optional parameters:
+   *   - LIMITED: Collect limited timing information only
+   *   - All options supported by FT.AGGREGATE command
+   */
   parseCommand(
     parser: CommandParser,
     index: string,

@@ -4,6 +4,12 @@ import { RedisArgument, ArrayReply, SetReply, BlobStringReply, Command } from '@
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
+  /**
+   * Returns the distinct values in a TAG field.
+   * @param parser - The command parser
+   * @param index - Name of the index
+   * @param fieldName - Name of the TAG field to get values from
+   */
   parseCommand(parser: CommandParser, index: RedisArgument, fieldName: RedisArgument) {
     parser.push('FT.TAGVALS', index, fieldName);
   },

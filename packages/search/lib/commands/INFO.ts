@@ -7,6 +7,11 @@ import { TuplesReply } from '@redis/client/dist/lib/RESP/types';
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
+  /**
+   * Returns information and statistics about an index.
+   * @param parser - The command parser
+   * @param index - Name of the index to get information about
+   */
   parseCommand(parser: CommandParser, index: RedisArgument) {
     parser.push('FT.INFO', index);
   },

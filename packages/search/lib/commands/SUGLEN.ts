@@ -3,6 +3,11 @@ import { RedisArgument, NumberReply, Command } from '@redis/client/dist/lib/RESP
 
 export default {
   IS_READ_ONLY: true,
+  /**
+   * Gets the size of a suggestion dictionary.
+   * @param parser - The command parser
+   * @param key - The suggestion dictionary key
+   */
   parseCommand(parser: CommandParser, key: RedisArgument) {
     parser.push('FT.SUGLEN', key);
   },

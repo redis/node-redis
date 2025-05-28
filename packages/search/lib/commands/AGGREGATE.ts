@@ -141,6 +141,18 @@ export interface AggregateReply {
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: false,
+  /**
+   * Performs an aggregation query on a RediSearch index.
+   * @param parser - The command parser
+   * @param index - The index name to query
+   * @param query - The text query to use as filter, use * to indicate no filtering
+   * @param options - Optional parameters for aggregation:
+   *   - VERBATIM: disable stemming in query evaluation
+   *   - LOAD: specify fields to load from documents
+   *   - STEPS: sequence of aggregation steps (GROUPBY, SORTBY, APPLY, LIMIT, FILTER)
+   *   - PARAMS: bind parameters for query evaluation
+   *   - TIMEOUT: maximum time to run the query
+   */
   parseCommand(parser: CommandParser, index: RedisArgument, query: RedisArgument, options?: FtAggregateOptions) {
     parser.push('FT.AGGREGATE', index, query);
 
