@@ -16,6 +16,12 @@ export class ConnectionTimeoutError extends Error {
   }
 }
 
+export class CommandTimeoutError extends Error {
+  constructor() {
+    super('Command timeout');
+  }
+}
+
 export class ClientClosedError extends Error {
   constructor() {
     super('The client is closed');
