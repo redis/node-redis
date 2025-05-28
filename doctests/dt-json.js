@@ -16,15 +16,15 @@ await client.flushDb();
 const res1 = await client.json.set("bike", "$", '"Hyperion"');
 console.log(res1); // OK
 
-const res2 = await client.json.get("bike", "$");
-console.log(res2); // "Hyperion"
+const res2 = await client.json.get("bike", { path: "$" });
+console.log(res2); // ['"Hyperion"']
 
 const res3 = await client.json.type("bike", "$");
 console.log(res3); //  [ 'string' ]
 // STEP_END
 
 // REMOVE_START
-assert.equal(res2, '"Hyperion"');
+assert.deepEqual(res2, ['"Hyperion"']);
 // REMOVE_END
 
 // STEP_START str
@@ -34,12 +34,12 @@ console.log(res4) //  [10]
 const res5 = await client.json.strAppend("bike", '" (Enduro bikes)"');
 console.log(res5) //  27
 
-const res6 = await client.json.get("bike", "$");
+const res6 = await client.json.get("bike", { path: "$" });
 console.log(res6) //  ['"Hyperion"" (Enduro bikes)"']
 // STEP_END
 
 // REMOVE_START
-assert.equal(res6, ['"Hyperion"" (Enduro bikes)"']);
+assert.deepEqual(res6, ['"Hyperion"" (Enduro bikes)"']);
 // REMOVE_END
 
 // STEP_START num
@@ -64,23 +64,23 @@ assert.deepEqual(res10, [1.75])
 const res11 = await client.json.set("newbike", "$", ["Deimos", {"crashes": 0 }, null]);
 console.log(res11); //  OK
 
-const res12 = await client.json.get("newbike", "$");
-console.log(res12); //  [ 'Deimos', { crashes: 0 }, null ]
+const res12 = await client.json.get("newbike", { path: "$" });
+console.log(res12); //  [[ 'Deimos', { crashes: 0 }, null ]]
 
-const res13 = await client.json.get("newbike", "$[1].crashes");
+const res13 = await client.json.get("newbike", { path: "$[1].crashes" });
 console.log(res13); //  [0]
 
 const res14 = await client.json.del("newbike", "$.[-1]");
 console.log(res14); //  [1]
 
-const res15 = await client.json.get("newbike", "$");
-console.log(res15); //  [ 'Deimos', { crashes: 0 } ]
+const res15 = await client.json.get("newbike", { path: "$" });
+console.log(res15); //  [[ 'Deimos', { crashes: 0 } ]]
 // STEP_END
 
 // REMOVE_START
-assert.deepEqual(res15, ["Deimos", {
+assert.deepEqual(res15, [["Deimos", {
   "crashes": 0
-}]);
+}]]);
 // REMOVE_END
 
 // STEP_START arr2
@@ -90,20 +90,20 @@ console.log(res16); //  OK
 const res17 = await client.json.arrAppend("riders", "$", "Norem");
 console.log(res17); //  [1]
 
-const res18 = await client.json.get("riders", "$");
-console.log(res18); //  [ 'Norem' ]
+const res18 = await client.json.get("riders", { path: "$" });
+console.log(res18); //  [[ 'Norem' ]]
 
 const res19 = await client.json.arrInsert("riders", "$", 1, "Prickett", "Royse", "Castilla");
 console.log(res19); //  [4]
 
-const res20 = await client.json.get("riders", "$");
-console.log(res20); //  [ 'Norem', 'Prickett', 'Royse', 'Castilla' ]
+const res20 = await client.json.get("riders", { path: "$" });
+console.log(res20); //  [[ 'Norem', 'Prickett', 'Royse', 'Castilla' ]]
 
 const res21 = await client.json.arrTrim("riders", "$", 1, 1);
 console.log(res21); //  [1]
 
-const res22 = await client.json.get("riders", "$");
-console.log(res22); //  [ 'Prickett' ]
+const res22 = await client.json.get("riders", { path: "$" });
+console.log(res22); //  [[ 'Prickett' ]]
 
 const res23 = await client.json.arrPop("riders", "$");
 console.log(res23); //  [ 'Prickett' ]
@@ -366,7 +366,7 @@ const res37c = await client.json.set(
 
 const res37d = await client.json.get(
   'bikes:inventory',
-  '$.inventory.mountain_bikes[?(@.specs.material =~ @.regex_pat)].model'
+  { path: '$.inventory.mountain_bikes[?(@.specs.material =~ @.regex_pat)].model' }
 );
 console.log(res37d); // ['Quaoar', 'Weywot']
 // STEP_END
@@ -398,7 +398,7 @@ const res40a = await client.json.set(
 // Get all prices from the inventory
 const res40b = await client.json.get(
   'bikes:inventory',
-  '$..price'
+  { path: "$..price" }
 );
 console.log(res40b); // [1500, 2072, 3264, 1500, 3941]
 // STEP_END
