@@ -27,6 +27,7 @@
 | legacyMode                   | `false`                                  | Maintain some backwards compatibility (see the [Migration Guide](./v3-to-v4.md))                                                                                                                                                                    |
 | isolationPoolOptions         |                                          | See the [Isolated Execution Guide](./isolated-execution.md)                                                                                                                                                                                         |
 | pingInterval                 |                                          | Send `PING` command at interval (in ms). Useful with ["Azure Cache for Redis"](https://learn.microsoft.com/en-us/azure/azure-cache-for-redis/cache-best-practices-connection#idle-timeout)                                                          |
+| commandTimeout               |                                          | Throw an error and abort a command if it takes longer than the specified time (in milliseconds).                                                                                                                                                    |
 
 ## Reconnect Strategy
 
