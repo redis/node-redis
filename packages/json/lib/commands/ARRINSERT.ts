@@ -4,6 +4,17 @@ import { RedisJSON, transformRedisJsonArgument } from './helpers';
 
 export default {
   IS_READ_ONLY: false,
+  /**
+   * Inserts one or more values into an array at the specified index.
+   * Returns the new array length after insert, or null if the path does not exist.
+   * 
+   * @param parser - The Redis command parser
+   * @param key - The key containing the array
+   * @param path - Path to the array in the JSON document
+   * @param index - The position where to insert the values
+   * @param json - The first value to insert
+   * @param jsons - Additional values to insert
+   */
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

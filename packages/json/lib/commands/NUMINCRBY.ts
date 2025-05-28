@@ -3,6 +3,15 @@ import { RedisArgument, ArrayReply, NumberReply, DoubleReply, NullReply, BlobStr
 
 export default {
   IS_READ_ONLY: false,
+  /**
+   * Increments a numeric value stored in a JSON document by a given number.
+   * Returns the value after increment, or null if the key/path doesn't exist or value is not numeric.
+   * 
+   * @param parser - The Redis command parser
+   * @param key - The key containing the JSON document
+   * @param path - Path to the numeric value
+   * @param by - Amount to increment by
+   */
   parseCommand(parser: CommandParser, key: RedisArgument, path: RedisArgument, by: number) {
     parser.push('JSON.NUMINCRBY');
     parser.pushKey(key);

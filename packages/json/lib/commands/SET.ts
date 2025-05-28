@@ -16,6 +16,19 @@ export interface JsonSetOptions {
 
 export default {
   IS_READ_ONLY: false,
+  /**
+   * Sets a JSON value at a specific path in a JSON document.
+   * Returns OK on success, or null if condition (NX/XX) is not met.
+   * 
+   * @param parser - The Redis command parser
+   * @param key - The key containing the JSON document
+   * @param path - Path in the document to set
+   * @param json - JSON value to set at the path
+   * @param options - Optional parameters
+   * @param options.condition - Set condition: NX (only if doesn't exist) or XX (only if exists)
+   * @deprecated options.NX - Use options.condition instead
+   * @deprecated options.XX - Use options.condition instead
+   */
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

@@ -4,6 +4,16 @@ import { RedisArgument, NumberReply, ArrayReply, NullReply, Command } from '@red
 
 export default {
   IS_READ_ONLY: false,
+  /**
+   * Appends one or more values to the end of an array in a JSON document.
+   * Returns the new array length after append, or null if the path does not exist.
+   * 
+   * @param parser - The Redis command parser
+   * @param key - The key to append to
+   * @param path - Path to the array in the JSON document
+   * @param json - The first value to append
+   * @param jsons - Additional values to append
+   */
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,
