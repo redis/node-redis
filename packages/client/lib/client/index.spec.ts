@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL, waitTillBeenCalled } from '../test-utils';
 import RedisClient, { RedisClientOptions, RedisClientType } from '.';
-import { AbortError, ClientClosedError, ClientOfflineError, ConnectionTimeoutError, DisconnectsClientError, ErrorReply, MultiErrorReply, SocketClosedUnexpectedlyError, WatchError } from '../errors';
+import { AbortError, ClientClosedError, ClientOfflineError, ConnectionTimeoutError, CommandTimeoutError, DisconnectsClientError, ErrorReply, MultiErrorReply, SocketClosedUnexpectedlyError, WatchError } from '../errors';
 import { defineScript } from '../lua-script';
 import { spy } from 'sinon';
 import { once } from 'node:events';
@@ -264,6 +264,22 @@ describe('Client', () => {
         );
       }, GLOBAL.SERVERS.OPEN);
     });
+
+  testUtils.testWithClient('CommandTimeoutError', async client => {
+    const promise = assert.rejects(client.sendCommand(['PING']), CommandTimeoutError),
+      start = process.hrtime.bigint();
+
+    while (process.hrtime.bigint() - start < 50_000_000) {
+      // block the event loop for 1ms, to make sure the connection will timeout
+    }
+
+    await promise;
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    clientOptions: {
+      commandTimeout: 50,
+    }
+  });
 
     testUtils.testWithClient('undefined and null should not break the client', async client => {
       await assert.rejects(
