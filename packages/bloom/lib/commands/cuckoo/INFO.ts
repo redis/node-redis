@@ -15,6 +15,11 @@ export type CfInfoReplyMap = TuplesToMapReply<[
 
 export default {
   IS_READ_ONLY: true,
+  /**
+   * Returns detailed information about a Cuckoo Filter including size, buckets, filters count, items statistics and configuration
+   * @param parser - The command parser
+   * @param key - The name of the Cuckoo filter to get information about
+   */
   parseCommand(parser: CommandParser, key: RedisArgument) {
     parser.push('CF.INFO');
     parser.pushKey(key);

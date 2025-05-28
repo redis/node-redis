@@ -16,6 +16,11 @@ export interface CmsInfoReply {
  
 export default {
   IS_READ_ONLY: true,
+  /**
+   * Returns width, depth, and total count of items in a Count-Min Sketch
+   * @param parser - The command parser
+   * @param key - The name of the sketch to get information about
+   */
   parseCommand(parser: CommandParser, key: RedisArgument) {
     parser.push('CMS.INFO');
     parser.pushKey(key);

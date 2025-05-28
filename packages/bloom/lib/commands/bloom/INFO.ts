@@ -12,6 +12,11 @@ export type BfInfoReplyMap = TuplesToMapReply<[
 
 export default {
   IS_READ_ONLY: true,
+  /**
+   * Returns information about a Bloom Filter, including capacity, size, number of filters, items inserted, and expansion rate
+   * @param parser - The command parser
+   * @param key - The name of the Bloom filter to get information about
+   */
   parseCommand(parser: CommandParser, key: RedisArgument) {
     parser.push('BF.INFO');
     parser.pushKey(key);

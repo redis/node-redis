@@ -5,6 +5,12 @@ import { transformBooleanArrayReply } from '@redis/client/dist/lib/commands/gene
 
 export default {
   IS_READ_ONLY: false,
+  /**
+   * Adds multiple items to a Bloom Filter in a single call
+   * @param parser - The command parser
+   * @param key - The name of the Bloom filter
+   * @param items - One or more items to add to the filter
+   */
   parseCommand(parser: CommandParser, key: RedisArgument, items: RedisVariadicArgument) {
     parser.push('BF.MADD');
     parser.pushKey(key);

@@ -4,6 +4,11 @@ import { transformDoubleReply } from '@redis/client/dist/lib/commands/generic-tr
 
 export default {
   IS_READ_ONLY: true,
+  /**
+   * Returns the minimum value from a t-digest sketch
+   * @param parser - The command parser
+   * @param key - The name of the t-digest sketch
+   */
   parseCommand(parser: CommandParser, key: RedisArgument) {
     parser.push('TDIGEST.MIN');
     parser.pushKey(key);

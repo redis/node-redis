@@ -7,6 +7,13 @@ export interface TDigestCreateOptions {
 
 export default {
   IS_READ_ONLY: false,
+  /**
+   * Creates a new t-digest sketch for storing distributions
+   * @param parser - The command parser
+   * @param key - The name of the t-digest sketch
+   * @param options - Optional parameters for sketch creation
+   * @param options.COMPRESSION - Compression parameter that affects performance and accuracy
+   */
   parseCommand(parser: CommandParser, key: RedisArgument, options?: TDigestCreateOptions) {
     parser.push('TDIGEST.CREATE');
     parser.pushKey(key);
