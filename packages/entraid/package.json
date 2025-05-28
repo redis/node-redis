@@ -14,7 +14,8 @@
     "start:auth-pkce": "tsx --tsconfig tsconfig.samples.json ./samples/auth-code-pkce/index.ts",
     "start:interactive-browser": "tsx --tsconfig tsconfig.samples.json ./samples/interactive-browser/index.ts",
     "test-integration": "mocha -r tsx --tsconfig tsconfig.integration-tests.json './integration-tests/**/*.spec.ts'",
-    "test": "nyc -r text-summary -r lcov mocha -r tsx './lib/**/*.spec.ts'"
+    "test": "nyc -r text-summary -r lcov mocha -r tsx './lib/**/*.spec.ts'",
+    "release": "release-it"
   },
   "dependencies": {
     "@azure/identity": "^4.7.0",

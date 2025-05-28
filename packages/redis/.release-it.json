@@ -1,7 +1,27 @@
 {
+  "npm": {
+    "publish": true,
+    "publishArgs": ["--access", "public"]
+  },
   "git": {
     "tagName": "redis@${version}",
+    "tagMatch": "redis@*",
     "commitMessage": "Release ${tagName}",
-    "tagAnnotation": "Release ${tagName}"
+    "tagAnnotation": "Release ${tagName}",
+    "commitArgs": "--all"
+  },
+  "plugins": {
+    "@release-it/bumper": {
+      "out": {
+        "file": "package.json",
+        "path": [
+          "dependencies.@redis/client",
+          "dependencies.@redis/bloom",
+          "dependencies.@redis/json",
+          "dependencies.@redis/search",
+          "dependencies.@redis/time-series"
+        ]
+      }
+    }
   }
 }

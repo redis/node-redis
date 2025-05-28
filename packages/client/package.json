@@ -9,7 +9,8 @@
     "!dist/tsconfig.tsbuildinfo"
   ],
   "scripts": {
-    "test": "nyc -r text-summary -r lcov mocha -r tsx './lib/**/*.spec.ts'"
+    "test": "nyc -r text-summary -r lcov mocha -r tsx './lib/**/*.spec.ts'",
+    "release": "release-it"
   },
   "dependencies": {
     "cluster-key-slot": "1.1.2"

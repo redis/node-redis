@@ -9,6 +9,9 @@
     "dist/",
     "!dist/tsconfig.tsbuildinfo"
   ],
+  "scripts": {
+    "release": "release-it"
+  },
   "dependencies": {
     "@redis/bloom": "5.1.1",
     "@redis/client": "5.1.1",
