@@ -14,7 +14,8 @@
     "@release-it/bumper": {
       "out": {
         "file": "package.json",
-        "path": ["peerDependencies.@redis/client"]
+        "path": ["peerDependencies.@redis/client"],
+        "versionPrefix": "^"
       }
     }
   }
