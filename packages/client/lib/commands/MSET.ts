@@ -33,6 +33,13 @@ export function parseMSetArguments(parser: CommandParser, toSet: MSetArguments) 
 
 export default {
   IS_READ_ONLY: true,
+  /**
+   * Constructs the MSET command
+   * 
+   * @param parser - The command parser
+   * @param toSet - Key-value pairs to set (array of tuples, flat array, or object)
+   * @see https://redis.io/commands/mset/
+   */
   parseCommand(parser: CommandParser, toSet: MSetArguments) {
     parser.push('MSET');
     return parseMSetArguments(parser, toSet);

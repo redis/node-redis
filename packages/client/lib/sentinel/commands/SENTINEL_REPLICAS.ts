@@ -3,6 +3,11 @@ import { RedisArgument, ArrayReply, BlobStringReply, MapReply, Command, TypeMapp
 import { transformTuplesReply } from '../../commands/generic-transformers';
 
 export default {
+  /**
+   * Returns a list of replicas for the specified master.
+   * @param parser - The Redis command parser.
+   * @param dbname - Name of the master.
+   */
   parseCommand(parser: CommandParser, dbname: RedisArgument) {
     parser.push('SENTINEL', 'REPLICAS', dbname);
   },

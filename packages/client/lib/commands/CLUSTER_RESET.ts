@@ -8,6 +8,11 @@ export interface ClusterResetOptions {
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
+  /**
+   * Resets a Redis Cluster node, clearing all information and returning it to a brand new state
+   * @param parser - The Redis command parser
+   * @param options - Options for the reset operation
+   */
   parseCommand(parser: CommandParser, options?: ClusterResetOptions) {
     parser.push('CLUSTER', 'RESET');
 

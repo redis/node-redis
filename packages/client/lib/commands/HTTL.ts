@@ -4,6 +4,12 @@ import { RedisVariadicArgument } from './generic-transformers';
 
 export default {
   IS_READ_ONLY: true,
+  /**
+   * Returns the remaining time to live of field(s) in a hash.
+   * @param parser - The Redis command parser.
+   * @param key - Key of the hash.
+   * @param fields - Fields to check time to live.
+   */
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

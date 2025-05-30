@@ -6,6 +6,13 @@ import { parseZInterArguments, ZInterOptions } from './ZINTER';
 
 export default {
   IS_READ_ONLY: false,
+  /**
+   * Stores the result of intersection of multiple sorted sets in a new sorted set.
+   * @param parser - The Redis command parser.
+   * @param destination - Destination key where the result will be stored.
+   * @param keys - Keys of the sorted sets to intersect.
+   * @param options - Optional parameters for the intersection operation.
+   */
   parseCommand(
     parser: CommandParser,
     destination: RedisArgument,

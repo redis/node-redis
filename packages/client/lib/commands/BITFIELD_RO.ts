@@ -9,6 +9,12 @@ export type BitFieldRoOperations = Array<
 export default {
   CACHEABLE: true,
   IS_READ_ONLY: true,
+  /**
+   * Performs read-only bitfield integer operations on strings
+   * @param parser - The Redis command parser
+   * @param key - The key holding the string
+   * @param operations - Array of GET operations to perform on the bitfield
+   */
   parseCommand(parser: CommandParser, key: RedisArgument, operations: BitFieldRoOperations) {
     parser.push('BITFIELD_RO');
     parser.pushKey(key);

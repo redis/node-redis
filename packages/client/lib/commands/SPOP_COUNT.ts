@@ -3,6 +3,14 @@ import { RedisArgument, BlobStringReply, NullReply, Command } from '../RESP/type
 
 export default {
   IS_READ_ONLY: false,
+  /**
+   * Constructs the SPOP command to remove and return multiple random members from a set
+   *
+   * @param parser - The command parser
+   * @param key - The key of the set to pop from
+   * @param count - The number of members to pop
+   * @see https://redis.io/commands/spop/
+   */
   parseCommand(parser: CommandParser, key: RedisArgument, count: number) {
     parser.push('SPOP');
     parser.pushKey(key);

@@ -20,6 +20,15 @@ type HSETEXMap = Map<HashTypes, HashTypes>;
 type HSETEXTuples = Array<[HashTypes, HashTypes]> | Array<HashTypes>;
 
 export default {
+  /**
+   * Constructs the HSETEX command
+   * 
+   * @param parser - The command parser
+   * @param key - The key of the hash
+   * @param fields - Object, Map, or Array of field-value pairs to set
+   * @param options - Optional configuration for expiration and mode settings
+   * @see https://redis.io/commands/hsetex/
+   */
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

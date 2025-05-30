@@ -25,6 +25,15 @@ export type LcsIdxReply = TuplesToMapReply<[
 
 export default {
   IS_READ_ONLY: LCS.IS_READ_ONLY,
+  /**
+   * Constructs the LCS command with IDX option
+   * 
+   * @param parser - The command parser
+   * @param key1 - First key containing the first string
+   * @param key2 - Second key containing the second string
+   * @param options - Additional options for the LCS IDX command
+   * @see https://redis.io/commands/lcs/
+   */
   parseCommand(
     parser: CommandParser,
     key1: RedisArgument,

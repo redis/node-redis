@@ -2,6 +2,13 @@ import { CommandParser } from '../client/parser';
 import { RedisArgument, BlobStringReply, Command } from '../RESP/types';
 
 export default {
+  /**
+   * Increments the float value of a field in a hash by the given amount
+   * @param parser - The Redis command parser
+   * @param key - Key of the hash
+   * @param field - Field to increment
+   * @param increment - Increment amount (float)
+   */
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

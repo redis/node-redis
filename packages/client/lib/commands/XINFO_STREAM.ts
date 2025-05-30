@@ -2,6 +2,20 @@ import { CommandParser } from '../client/parser';
 import { RedisArgument, TuplesToMapReply, BlobStringReply, NumberReply, NullReply, TuplesReply, ArrayReply, UnwrapReply, Command } from '../RESP/types';
 import { isNullReply, transformTuplesReply } from './generic-transformers';
 
+/**
+ * Reply structure for XINFO STREAM command containing detailed information about a stream
+ * 
+ * @property length - Number of entries in the stream
+ * @property radix-tree-keys - Number of radix tree keys
+ * @property radix-tree-nodes - Number of radix tree nodes
+ * @property last-generated-id - Last generated message ID
+ * @property max-deleted-entry-id - Highest message ID deleted (Redis 7.2+)
+ * @property entries-added - Total number of entries added (Redis 7.2+)
+ * @property recorded-first-entry-id - ID of the first recorded entry (Redis 7.2+)
+ * @property groups - Number of consumer groups
+ * @property first-entry - First entry in the stream
+ * @property last-entry - Last entry in the stream
+ */
 export type XInfoStreamReply = TuplesToMapReply<[
   [BlobStringReply<'length'>, NumberReply],
   [BlobStringReply<'radix-tree-keys'>, NumberReply],
@@ -20,6 +34,14 @@ export type XInfoStreamReply = TuplesToMapReply<[
 
 export default {
   IS_READ_ONLY: true,
+  /**
+   * Constructs the XINFO STREAM command to get detailed information about a stream
+   *
+   * @param parser - The command parser
+   * @param key - The stream key
+   * @returns Detailed information about the stream including its length, structure, and entries
+   * @see https://redis.io/commands/xinfo-stream/
+   */
   parseCommand(parser: CommandParser, key: RedisArgument) {
     parser.push('XINFO', 'STREAM');
     parser.pushKey(key);
@@ -67,11 +89,20 @@ export default {
   }
 } as const satisfies Command;
 
+/**
+ * Raw entry structure from Redis stream
+ */
 type RawEntry = TuplesReply<[
   id: BlobStringReply,
   message: ArrayReply<BlobStringReply>
 ]> | NullReply;
 
+/**
+ * Transforms a raw stream entry into a structured object
+ * 
+ * @param entry - Raw entry from Redis
+ * @returns Structured object with id and message, or null if entry is null
+ */
 function transformEntry(entry: RawEntry) {
   if (isNullReply(entry)) return entry;
 

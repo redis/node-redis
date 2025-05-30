@@ -5,6 +5,11 @@ import { transformTuplesReply } from './generic-transformers';
 export default {
   CACHEABLE: true,
   IS_READ_ONLY: true,
+  /**
+   * Gets all fields and values in a hash
+   * @param parser - The Redis command parser
+   * @param key - Key of the hash
+   */
   parseCommand(parser: CommandParser, key: RedisArgument) {
     parser.push('HGETALL');
     parser.pushKey(key);

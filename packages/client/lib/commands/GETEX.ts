@@ -39,6 +39,12 @@ export type GetExOptions = {
 
 export default {
   IS_READ_ONLY: true,
+  /**
+   * Gets the value of a key and optionally sets its expiration
+   * @param parser - The Redis command parser
+   * @param key - Key to get value from
+   * @param options - Options for setting expiration
+   */
   parseCommand(parser: CommandParser, key: RedisArgument, options: GetExOptions) {
     parser.push('GETEX');
     parser.pushKey(key);

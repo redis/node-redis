@@ -8,6 +8,12 @@ export interface ZUnionOptions {
 
 export default {
   IS_READ_ONLY: true,
+  /**
+   * Returns the union of multiple sorted sets.
+   * @param parser - The Redis command parser.
+   * @param keys - Keys of the sorted sets to combine.
+   * @param options - Optional parameters for the union operation.
+   */
   parseCommand(parser: CommandParser, keys: ZKeys, options?: ZUnionOptions) {
     parser.push('ZUNION');
     parseZKeysArguments(parser, keys);

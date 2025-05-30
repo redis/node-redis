@@ -23,6 +23,10 @@ type FunctionStatsReply = TuplesToMapReply<[
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
+  /**
+   * Returns information about the function that is currently running and information about the available execution engines
+   * @param parser - The Redis command parser
+   */
   parseCommand(parser: CommandParser) {
     parser.push('FUNCTION', 'STATS');
   },

@@ -20,6 +20,11 @@ export type FunctionListReply = ArrayReply<TuplesToMapReply<FunctionListReplyIte
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: false,
+  /**
+   * Returns all libraries and functions
+   * @param parser - The Redis command parser
+   * @param options - Options for listing functions
+   */
   parseCommand(parser: CommandParser, options?: FunctionListOptions) {
     parser.push('FUNCTION', 'LIST');
 

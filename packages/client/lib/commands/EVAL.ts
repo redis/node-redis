@@ -25,6 +25,12 @@ export function parseEvalArguments(
 
 export default {
   IS_READ_ONLY: false,
+  /**
+   * Executes a Lua script server side
+   * @param parser - The Redis command parser
+   * @param script - Lua script to execute
+   * @param options - Script execution options including keys and arguments
+   */
   parseCommand(...args: Parameters<typeof parseEvalArguments>) {
     args[0].push('EVAL');
     parseEvalArguments(...args);

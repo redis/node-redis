@@ -3,6 +3,11 @@ import { CommandParser } from '../../client/parser';
 import { transformTuplesReply } from '../../commands/generic-transformers';
 
 export default {
+  /**
+   * Returns information about the specified master.
+   * @param parser - The Redis command parser.
+   * @param dbname - Name of the master.
+   */
   parseCommand(parser: CommandParser, dbname: RedisArgument) {
     parser.push('SENTINEL', 'MASTER', dbname);
   },

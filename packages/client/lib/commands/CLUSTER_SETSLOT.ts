@@ -13,6 +13,13 @@ export type ClusterSlotState = typeof CLUSTER_SLOT_STATES[keyof typeof CLUSTER_S
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
+  /**
+   * Assigns a hash slot to a specific Redis Cluster node
+   * @param parser - The Redis command parser
+   * @param slot - The slot number to assign
+   * @param state - The state to set for the slot (IMPORTING, MIGRATING, STABLE, NODE)
+   * @param nodeId - Node ID (required for IMPORTING, MIGRATING, and NODE states)
+   */
   parseCommand(parser: CommandParser, slot: number, state: ClusterSlotState, nodeId?: RedisArgument) {
     parser.push('CLUSTER', 'SETSLOT', slot.toString(), state);
 

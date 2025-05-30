@@ -8,6 +8,13 @@ export interface CopyCommandOptions {
 
 export default {
   IS_READ_ONLY: false,
+  /**
+   * Copies the value stored at the source key to the destination key
+   * @param parser - The Redis command parser
+   * @param source - Source key
+   * @param destination - Destination key
+   * @param options - Options for the copy operation
+   */
   parseCommand(parser: CommandParser, source: RedisArgument, destination: RedisArgument, options?: CopyCommandOptions) {
     parser.push('COPY');
     parser.pushKeys([source, destination]);

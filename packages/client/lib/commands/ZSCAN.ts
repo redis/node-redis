@@ -10,6 +10,13 @@ export interface HScanEntry {
 
 export default {
   IS_READ_ONLY: true,
+  /**
+   * Incrementally iterates over a sorted set.
+   * @param parser - The Redis command parser.
+   * @param key - Key of the sorted set.
+   * @param cursor - Cursor position to start the scan from.
+   * @param options - Optional scan parameters (COUNT, MATCH, TYPE).
+   */
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

@@ -2,6 +2,15 @@ import { CommandParser } from '../client/parser';
 import { RedisArgument, BlobStringReply, Command } from '../RESP/types';
 import { Tail } from './generic-transformers';
 
+/**
+ * Options for the XADD command
+ * 
+ * @property TRIM - Optional trimming configuration
+ * @property TRIM.strategy - Trim strategy: MAXLEN (by length) or MINID (by ID)
+ * @property TRIM.strategyModifier - Exact ('=') or approximate ('~') trimming
+ * @property TRIM.threshold - Maximum stream length or minimum ID to retain
+ * @property TRIM.limit - Maximum number of entries to trim in one call
+ */
 export interface XAddOptions {
   TRIM?: {
     strategy?: 'MAXLEN' | 'MINID';
@@ -11,6 +20,16 @@ export interface XAddOptions {
   };
 }
 
+/**
+ * Parses arguments for the XADD command
+ *
+ * @param optional - Optional command modifier
+ * @param parser - The command parser
+ * @param key - The stream key
+ * @param id - Message ID (* for auto-generation)
+ * @param message - Key-value pairs representing the message fields
+ * @param options - Additional options for stream trimming
+ */
 export function parseXAddArguments(
   optional: RedisArgument | undefined,
   parser: CommandParser,
@@ -50,6 +69,17 @@ export function parseXAddArguments(
 
 export default {
   IS_READ_ONLY: false,
+  /**
+   * Constructs the XADD command to append a new entry to a stream
+   *
+   * @param parser - The command parser
+   * @param key - The stream key
+   * @param id - Message ID (* for auto-generation)
+   * @param message - Key-value pairs representing the message fields
+   * @param options - Additional options for stream trimming
+   * @returns The ID of the added entry
+   * @see https://redis.io/commands/xadd/
+   */
   parseCommand(...args: Tail<Parameters<typeof parseXAddArguments>>) {
     return parseXAddArguments(undefined, ...args);
   },

@@ -4,6 +4,12 @@ import { RedisVariadicArgument } from './generic-transformers';
 
 export default {
   IS_READ_ONLY: false,
+  /**
+   * Removes the specified members from the sorted set.
+   * @param parser - The Redis command parser.
+   * @param key - Key of the sorted set.
+   * @param member - One or more members to remove.
+   */
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

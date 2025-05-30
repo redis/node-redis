@@ -18,6 +18,15 @@ type MultipleFieldsArguments = [...generic: GenericArguments, value: HSETObject 
 export type HSETArguments = SingleFieldArguments | MultipleFieldsArguments;
 
 export default {
+  /**
+   * Constructs the HSET command
+   * 
+   * @param parser - The command parser
+   * @param key - The key of the hash
+   * @param value - Either the field name (when using single field) or an object/map/array of field-value pairs
+   * @param fieldValue - The value to set (only used with single field variant)
+   * @see https://redis.io/commands/hset/
+   */
   parseCommand(parser: CommandParser, ...[key, value, fieldValue]: SingleFieldArguments | MultipleFieldsArguments) {
     parser.push('HSET');
     parser.pushKey(key);

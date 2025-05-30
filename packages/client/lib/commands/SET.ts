@@ -43,6 +43,15 @@ export interface SetOptions {
 }
 
 export default {
+  /**
+   * Constructs the SET command
+   * 
+   * @param parser - The command parser
+   * @param key - The key to set
+   * @param value - The value to set
+   * @param options - Additional options for the SET command
+   * @see https://redis.io/commands/set/
+   */
   parseCommand(parser: CommandParser, key: RedisArgument, value: RedisArgument | number, options?: SetOptions) {
     parser.push('SET');
     parser.pushKey(key);

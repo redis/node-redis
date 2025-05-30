@@ -11,6 +11,12 @@ export const HASH_EXPIRATION_TIME = {
 
 export default {
   IS_READ_ONLY: true,
+  /**
+   * Returns the absolute Unix timestamp (since January 1, 1970) at which the given hash fields will expire
+   * @param parser - The Redis command parser
+   * @param key - Key of the hash
+   * @param fields - Fields to check expiration time
+   */
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

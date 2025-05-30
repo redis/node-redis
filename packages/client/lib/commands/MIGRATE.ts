@@ -10,6 +10,18 @@ export interface MigrateOptions {
 
 export default {
   IS_READ_ONLY: false,
+  /**
+   * Constructs the MIGRATE command
+   * 
+   * @param parser - The command parser
+   * @param host - Target Redis instance host
+   * @param port - Target Redis instance port
+   * @param key - Key or keys to migrate
+   * @param destinationDb - Target database index
+   * @param timeout - Timeout in milliseconds
+   * @param options - Optional parameters including COPY, REPLACE, and AUTH
+   * @see https://redis.io/commands/migrate/
+   */
   parseCommand(
     parser: CommandParser,
     host: RedisArgument,

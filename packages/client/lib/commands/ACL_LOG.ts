@@ -21,6 +21,11 @@ export type AclLogReply = ArrayReply<TuplesToMapReply<[
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
+  /**
+   * Returns ACL security events log entries
+   * @param parser - The Redis command parser
+   * @param count - Optional maximum number of entries to return
+   */
   parseCommand(parser: CommandParser, count?: number) {
     parser.push('ACL', 'LOG');
     if (count != undefined) {

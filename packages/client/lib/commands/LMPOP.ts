@@ -24,6 +24,13 @@ export type LMPopArguments = Tail<Parameters<typeof parseLMPopArguments>>;
 
 export default {
   IS_READ_ONLY: false,  
+  /**
+   * Constructs the LMPOP command
+   * 
+   * @param parser - The command parser
+   * @param args - Arguments including keys, side (LEFT or RIGHT), and options
+   * @see https://redis.io/commands/lmpop/
+   */
   parseCommand(parser: CommandParser, ...args: LMPopArguments) {
     parser.push('LMPOP');
     parseLMPopArguments(parser, ...args);

@@ -33,6 +33,13 @@ export type ZMPopArguments = Tail<Parameters<typeof parseZMPopArguments>>;
 
 export default {
   IS_READ_ONLY: false,
+  /**
+   * Removes and returns up to count members with the highest/lowest scores from the first non-empty sorted set.
+   * @param parser - The Redis command parser.
+   * @param keys - Keys of the sorted sets to pop from.
+   * @param side - Side to pop from (MIN or MAX).
+   * @param options - Optional parameters including COUNT.
+   */
   parseCommand(
     parser: CommandParser,
     keys: RedisVariadicArgument,

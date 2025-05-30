@@ -5,6 +5,10 @@ import ACL_LOG from './ACL_LOG';
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: ACL_LOG.IS_READ_ONLY,
+  /**
+   * Clears the ACL security events log
+   * @param parser - The Redis command parser
+   */
   parseCommand(parser: CommandParser) {
     parser.push('ACL', 'LOG', 'RESET');
   },
