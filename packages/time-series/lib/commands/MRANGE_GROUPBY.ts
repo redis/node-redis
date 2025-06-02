@@ -25,6 +25,11 @@ export interface TsMRangeGroupBy {
   REDUCE: TimeSeriesReducer;
 }
 
+/**
+ * Adds GROUPBY arguments to command
+ * @param parser - The command parser
+ * @param groupBy - Group by parameters
+ */
 export function parseGroupByArguments(parser: CommandParser, groupBy: TsMRangeGroupBy) {
   parser.push('GROUPBY', groupBy.label, 'REDUCE', groupBy.REDUCE);
 }
@@ -51,6 +56,10 @@ export type TsMRangeGroupByRawReply3 = MapReply<
   ]>
 >;
 
+/**
+ * Creates a function that parses arguments for multi-range commands with grouping
+ * @param command - The command name to use (TS.MRANGE or TS.MREVRANGE)
+ */
 export function createTransformMRangeGroupByArguments(command: RedisArgument) {
   return (
     parser: CommandParser,
@@ -69,6 +78,10 @@ export function createTransformMRangeGroupByArguments(command: RedisArgument) {
   };
 }
 
+/**
+ * Extracts source keys from RESP3 metadata reply
+ * @param raw - Raw metadata from RESP3 reply
+ */
 export function extractResp3MRangeSources(raw: TsMRangeGroupByRawMetadataReply3) {
   const unwrappedMetadata2 = raw as unknown as UnwrapReply<typeof raw>;
   if (unwrappedMetadata2 instanceof Map) {
@@ -82,6 +95,15 @@ export function extractResp3MRangeSources(raw: TsMRangeGroupByRawMetadataReply3)
 
 export default {
   IS_READ_ONLY: true,
+  /**
+   * Gets samples for time series matching a filter within a time range with grouping
+   * @param parser - The command parser
+   * @param fromTimestamp - Start timestamp for range
+   * @param toTimestamp - End timestamp for range
+   * @param filter - Filter to match time series keys
+   * @param groupBy - Group by parameters
+   * @param options - Optional parameters for the command
+   */
   parseCommand: createTransformMRangeGroupByArguments('TS.MRANGE'),
   transformReply: {
     2(reply: TsMRangeGroupByRawReply2, _?: any, typeMapping?: TypeMapping) {

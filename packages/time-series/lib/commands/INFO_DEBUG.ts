@@ -38,6 +38,11 @@ export interface InfoDebugReply extends InfoReply {
 
 export default {
   IS_READ_ONLY: INFO.IS_READ_ONLY,
+  /**
+   * Gets debug information about a time series
+   * @param parser - The command parser
+   * @param key - The key name of the time series
+   */
   parseCommand(parser: CommandParser, key: string) {
     INFO.parseCommand(parser, key);
     parser.push('DEBUG');

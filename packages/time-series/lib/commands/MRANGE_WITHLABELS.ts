@@ -25,6 +25,10 @@ export type TsMRangeWithLabelsRawReply3 = MapReply<
   ]>
 >;
 
+/**
+ * Creates a function that parses arguments for multi-range commands with labels
+ * @param command - The command name to use (TS.MRANGE or TS.MREVRANGE)
+ */
 export function createTransformMRangeWithLabelsArguments(command: RedisArgument) {
   return (
     parser: CommandParser,
@@ -50,6 +54,14 @@ export function createTransformMRangeWithLabelsArguments(command: RedisArgument)
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
+  /**
+   * Gets samples for time series matching a filter with labels
+   * @param parser - The command parser
+   * @param fromTimestamp - Start timestamp for range
+   * @param toTimestamp - End timestamp for range
+   * @param filter - Filter to match time series keys
+   * @param options - Optional parameters for the command
+   */
   parseCommand: createTransformMRangeWithLabelsArguments('TS.MRANGE'),
   transformReply: {
     2(reply: TsMRangeWithLabelsRawReply2, _?: any, typeMapping?: TypeMapping) {

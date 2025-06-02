@@ -101,6 +101,10 @@ export function transformRangeArguments(
 
 export default {
   IS_READ_ONLY: true,
+  /**
+   * Gets samples from a time series within a time range
+   * @param args - Arguments passed to the {@link transformRangeArguments} function
+   */
   parseCommand(...args: Parameters<typeof transformRangeArguments>) {
     const parser = args[0];
 

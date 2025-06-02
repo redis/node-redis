@@ -29,6 +29,14 @@ export interface TsAddOptions {
 
 export default {
   IS_READ_ONLY: false,
+  /**
+   * Creates or appends a sample to a time series
+   * @param parser - The command parser
+   * @param key - The key name for the time series
+   * @param timestamp - The timestamp of the sample
+   * @param value - The value of the sample
+   * @param options - Optional configuration parameters
+   */
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

@@ -24,6 +24,12 @@ export interface TsCreateOptions {
 
 export default {
   IS_READ_ONLY: false,
+  /**
+   * Creates a new time series
+   * @param parser - The command parser
+   * @param key - The key name for the new time series
+   * @param options - Optional configuration parameters
+   */
   parseCommand(parser: CommandParser, key: RedisArgument, options?: TsCreateOptions) {
     parser.push('TS.CREATE');
     parser.pushKey(key);
