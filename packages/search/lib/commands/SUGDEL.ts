@@ -3,6 +3,12 @@ import { RedisArgument, NumberReply, Command } from '@redis/client/dist/lib/RESP
 
 export default {
   IS_READ_ONLY: true,
+  /**
+   * Deletes a string from a suggestion dictionary.
+   * @param parser - The command parser
+   * @param key - The suggestion dictionary key
+   * @param string - The suggestion string to delete
+   */
   parseCommand(parser: CommandParser, key: RedisArgument, string: RedisArgument) {
     parser.push('FT.SUGDEL');
     parser.pushKey(key);

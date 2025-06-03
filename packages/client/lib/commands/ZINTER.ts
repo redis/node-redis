@@ -29,6 +29,12 @@ export function parseZInterArguments(
 
 export default {
   IS_READ_ONLY: true,
+  /**
+   * Intersects multiple sorted sets and returns the result as a new sorted set.
+   * @param parser - The Redis command parser.
+   * @param keys - Keys of the sorted sets to intersect.
+   * @param options - Optional parameters for the intersection operation.
+   */
   parseCommand(parser: CommandParser, keys: ZInterKeysType, options?: ZInterOptions) {
     parser.push('ZINTER');
     parseZInterArguments(parser, keys, options);

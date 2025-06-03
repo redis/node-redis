@@ -4,6 +4,10 @@ import ZRANK from './ZRANK';
 export default {
   CACHEABLE: ZRANK.CACHEABLE,
   IS_READ_ONLY: ZRANK.IS_READ_ONLY,
+  /**
+   * Returns the rank of a member in the sorted set with its score.
+   * @param args - Same parameters as the ZRANK command.
+   */
   parseCommand(...args: Parameters<typeof ZRANK.parseCommand>) {
     const parser = args[0];
 

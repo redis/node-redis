@@ -9,6 +9,14 @@ export interface FtCursorReadOptions {
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
+  /**
+   * Reads from an existing cursor to get more results from an index.
+   * @param parser - The command parser
+   * @param index - The index name that contains the cursor
+   * @param cursor - The cursor ID to read from
+   * @param options - Optional parameters:
+   *   - COUNT: Maximum number of results to return
+   */
   parseCommand(parser: CommandParser, index: RedisArgument, cursor: UnwrapReply<NumberReply>, options?: FtCursorReadOptions) {
     parser.push('FT.CURSOR', 'READ', index, cursor.toString());
 

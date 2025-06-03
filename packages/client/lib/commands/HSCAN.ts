@@ -9,6 +9,15 @@ export interface HScanEntry {
 
 export default {
   IS_READ_ONLY: true,
+  /**
+   * Constructs the HSCAN command
+   * 
+   * @param parser - The command parser
+   * @param key - The key of the hash to scan
+   * @param cursor - The cursor position to start scanning from
+   * @param options - Options for the scan (COUNT, MATCH, TYPE)
+   * @see https://redis.io/commands/hscan/
+   */
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

@@ -52,6 +52,12 @@ export function createTransformMGetLabelsReply<T extends RawLabelValue>() {
 
 export default {
   IS_READ_ONLY: true,
+  /**
+   * Gets the last samples matching a specific filter with labels
+   * @param parser - The command parser
+   * @param filter - Filter to match time series keys
+   * @param options - Optional parameters for the command
+   */
   parseCommand(parser: CommandParser, filter: RedisVariadicArgument, options?: TsMGetWithLabelsOptions) {
     parser.push('TS.MGET');
     parseLatestArgument(parser, options?.LATEST);

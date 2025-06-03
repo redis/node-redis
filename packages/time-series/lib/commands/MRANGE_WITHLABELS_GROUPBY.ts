@@ -54,6 +54,15 @@ export function createMRangeWithLabelsGroupByTransformArguments(command: RedisAr
 
 export default {
   IS_READ_ONLY: true,
+  /**
+   * Gets samples for time series matching a filter with labels and grouping
+   * @param parser - The command parser
+   * @param fromTimestamp - Start timestamp for range
+   * @param toTimestamp - End timestamp for range
+   * @param filter - Filter to match time series keys
+   * @param groupBy - Group by parameters
+   * @param options - Optional parameters for the command
+   */
   parseCommand: createMRangeWithLabelsGroupByTransformArguments('TS.MRANGE'),
   transformReply: {
     2(reply: TsMRangeWithLabelsGroupByRawReply2, _?: any, typeMapping?: TypeMapping) {

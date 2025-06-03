@@ -16,6 +16,12 @@ export type LcsIdxWithMatchLenReply = TuplesToMapReply<[
 
 export default {
   IS_READ_ONLY: LCS_IDX.IS_READ_ONLY,
+  /**
+   * Constructs the LCS command with IDX and WITHMATCHLEN options
+   * 
+   * @param args - The same parameters as LCS_IDX command
+   * @see https://redis.io/commands/lcs/
+   */
   parseCommand(...args: Parameters<typeof LCS_IDX.parseCommand>) {
     const parser = args[0];
     LCS_IDX.parseCommand(...args);

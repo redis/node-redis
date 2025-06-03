@@ -21,6 +21,13 @@ export interface GeoAddOptions {
 
 export default {
   IS_READ_ONLY: false,
+  /**
+   * Adds geospatial items to the specified key
+   * @param parser - The Redis command parser
+   * @param key - Key to add the geospatial items to
+   * @param toAdd - Geospatial member(s) to add
+   * @param options - Options for the GEOADD command
+   */
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

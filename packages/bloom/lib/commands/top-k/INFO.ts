@@ -12,6 +12,11 @@ export type TopKInfoReplyMap = TuplesToMapReply<[
 
 export default {
   IS_READ_ONLY: true,
+  /**
+   * Returns configuration and statistics of a Top-K filter, including k, width, depth, and decay parameters
+   * @param parser - The command parser
+   * @param key - The name of the Top-K filter to get information about
+   */
   parseCommand(parser: CommandParser, key: RedisArgument) {
     parser.push('TOPK.INFO');
     parser.pushKey(key);

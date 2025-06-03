@@ -8,6 +8,12 @@ export type TsAlterOptions = Pick<TsCreateOptions, 'RETENTION' | 'CHUNK_SIZE' | 
 
 export default {
   IS_READ_ONLY: false,
+  /**
+   * Alters the configuration of an existing time series
+   * @param parser - The command parser
+   * @param key - The key name for the time series
+   * @param options - Configuration parameters to alter
+   */
   parseCommand(parser: CommandParser, key: RedisArgument, options?: TsAlterOptions) {
     parser.push('TS.ALTER');
     parser.pushKey(key);

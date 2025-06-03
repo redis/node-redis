@@ -10,6 +10,12 @@ export type BfMergeSketches = Array<RedisArgument> | Array<BfMergeSketch>;
 
 export default {
   IS_READ_ONLY: false,
+  /**
+   * Merges multiple Count-Min Sketches into a single sketch, with optional weights
+   * @param parser - The command parser
+   * @param destination - The name of the destination sketch
+   * @param source - Array of sketch names or array of sketches with weights
+   */
   parseCommand(
     parser: CommandParser,
     destination: RedisArgument,

@@ -22,6 +22,15 @@ export interface GeoReplyWithMember {
 
 export default {
   IS_READ_ONLY: GEOSEARCH.IS_READ_ONLY,
+  /**
+   * Queries members inside an area of a geospatial index with additional information
+   * @param parser - The Redis command parser
+   * @param key - Key of the geospatial index
+   * @param from - Center point of the search (member name or coordinates)
+   * @param by - Search area specification (radius or box dimensions)
+   * @param replyWith - Information to include with each returned member
+   * @param options - Additional search options
+   */
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

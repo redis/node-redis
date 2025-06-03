@@ -2,6 +2,9 @@ import { CommandParser } from '../client/parser';
 import { RedisArgument, Command } from '../RESP/types';
 import { SortedSetMember, transformDoubleArgument, transformDoubleReply } from './generic-transformers';
 
+/**
+ * Options for the ZADD command
+ */
 export interface ZAddOptions {
   condition?: 'NX' | 'XX';
   /**
@@ -24,7 +27,20 @@ export interface ZAddOptions {
   CH?: boolean;
 }
 
+/**
+ * Command for adding members to a sorted set
+ */
 export default {
+  /**
+   * Constructs the ZADD command to add one or more members to a sorted set
+   *
+   * @param parser - The command parser
+   * @param key - The sorted set key
+   * @param members - One or more members to add with their scores
+   * @param options - Additional options for adding members
+   * @returns Number of new members added (or changed members if CH is set)
+   * @see https://redis.io/commands/zadd/
+   */
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,
@@ -59,6 +75,12 @@ export default {
   transformReply: transformDoubleReply
 } as const satisfies Command;
 
+/**
+ * Helper function to push sorted set members to the command
+ * 
+ * @param parser - The command parser
+ * @param members - One or more members with their scores
+ */
 export function pushMembers(
   parser: CommandParser,
   members: SortedSetMember | Array<SortedSetMember>) {
@@ -71,6 +93,12 @@ export function pushMembers(
   }
 }
 
+/**
+ * Helper function to push a single sorted set member to the command
+ * 
+ * @param parser - The command parser
+ * @param member - Member with its score
+ */
 function pushMember(
   parser: CommandParser,
   member: SortedSetMember

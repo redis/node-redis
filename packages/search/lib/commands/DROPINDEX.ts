@@ -8,6 +8,13 @@ export interface FtDropIndexOptions {
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
+  /**
+   * Deletes an index and all associated documents.
+   * @param parser - The command parser
+   * @param index - Name of the index to delete
+   * @param options - Optional parameters:
+   *   - DD: Also delete the indexed documents themselves
+   */
   parseCommand(parser: CommandParser, index: RedisArgument, options?: FtDropIndexOptions) {
     parser.push('FT.DROPINDEX', index);
 

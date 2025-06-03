@@ -18,6 +18,15 @@ export function parseGeoRadiusArguments(
 
 export default {
   IS_READ_ONLY: false,
+  /**
+   * Queries members in a geospatial index based on a radius from a center point
+   * @param parser - The Redis command parser
+   * @param key - Key of the geospatial index
+   * @param from - Center coordinates for the search
+   * @param radius - Radius of the search area
+   * @param unit - Unit of distance (m, km, ft, mi)
+   * @param options - Additional search options
+   */
   parseCommand(...args: Parameters<typeof parseGeoRadiusArguments>) {
     args[0].push('GEORADIUS');
     return parseGeoRadiusArguments(...args);

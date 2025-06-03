@@ -5,6 +5,13 @@ import { transformStringDoubleArgument } from './generic-transformers';
 export default {
   CACHEABLE: true,
   IS_READ_ONLY: true,
+  /**
+   * Returns the number of elements in the sorted set with a score between min and max.
+   * @param parser - The Redis command parser.
+   * @param key - Key of the sorted set.
+   * @param min - Minimum score to count from (inclusive).
+   * @param max - Maximum score to count to (inclusive).
+   */
   parseCommand(
     parser: CommandParser, 
     key: RedisArgument,

@@ -7,6 +7,12 @@ export type SentinelSetOptions = Array<{
 }>;
 
 export default {
+  /**
+   * Sets configuration parameters for a specific master.
+   * @param parser - The Redis command parser.
+   * @param dbname - Name of the master.
+   * @param options - Configuration options to set as option-value pairs.
+   */
   parseCommand(parser: CommandParser, dbname: RedisArgument, options: SentinelSetOptions) {
     parser.push('SENTINEL', 'SET', dbname);
 

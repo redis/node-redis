@@ -10,6 +10,16 @@ export interface RedisArrPopOptions {
 
 export default {
   IS_READ_ONLY: false,
+  /**
+   * Removes and returns an element from an array in a JSON document.
+   * Returns null if the path does not exist or the value is not an array.
+   * 
+   * @param parser - The Redis command parser
+   * @param key - The key containing the array
+   * @param options - Optional parameters
+   * @param options.path - Path to the array in the JSON document
+   * @param options.index - Optional index to pop from. Default is -1 (last element)
+   */
   parseCommand(parser: CommandParser, key: RedisArgument, options?: RedisArrPopOptions) {
     parser.push('JSON.ARRPOP');
     parser.pushKey(key);

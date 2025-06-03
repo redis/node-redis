@@ -4,6 +4,10 @@ import { ArrayReply, SetReply, BlobStringReply, Command } from '@redis/client/di
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
+  /**
+   * Lists all existing indexes in the database.
+   * @param parser - The command parser
+   */
   parseCommand(parser: CommandParser) {
     parser.push('FT._LIST');
   },

@@ -80,6 +80,14 @@ export function parseGeoSearchOptions(
 
 export default {
   IS_READ_ONLY: true,
+  /**
+   * Queries members inside an area of a geospatial index
+   * @param parser - The Redis command parser
+   * @param key - Key of the geospatial index
+   * @param from - Center point of the search (member name or coordinates)
+   * @param by - Search area specification (radius or box dimensions)
+   * @param options - Additional search options
+   */
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

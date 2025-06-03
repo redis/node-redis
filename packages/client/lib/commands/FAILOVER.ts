@@ -12,6 +12,11 @@ interface FailoverOptions {
 }
 
 export default {
+  /**
+   * Starts a coordinated failover between the primary and a replica
+   * @param parser - The Redis command parser
+   * @param options - Failover options including target host, abort flag, and timeout
+   */
   parseCommand(parser: CommandParser, options?: FailoverOptions) {
     parser.push('FAILOVER');
 

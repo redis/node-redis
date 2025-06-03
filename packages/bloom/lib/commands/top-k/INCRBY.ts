@@ -12,6 +12,12 @@ function pushIncrByItem(parser: CommandParser, { item, incrementBy }: TopKIncrBy
 
 export default {
   IS_READ_ONLY: false,
+  /**
+   * Increases the score of one or more items in a Top-K filter by specified increments
+   * @param parser - The command parser
+   * @param key - The name of the Top-K filter
+   * @param items - A single item or array of items to increment, each with an item name and increment value
+   */
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

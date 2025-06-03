@@ -4,6 +4,12 @@ import { RedisVariadicArgument, transformDoubleReply } from './generic-transform
 
 export default {
   IS_READ_ONLY: false,
+  /**
+   * Removes and returns the member with the highest score in a sorted set, or blocks until one is available
+   * @param parser - The Redis command parser
+   * @param keys - Key of the sorted set, or array of keys to try sequentially
+   * @param timeout - Maximum seconds to block, 0 to block indefinitely
+   */
   parseCommand(parser: CommandParser, keys: RedisVariadicArgument, timeout: number) {
     parser.push('BZPOPMAX');
     parser.pushKeys(keys);

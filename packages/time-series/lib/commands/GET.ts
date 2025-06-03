@@ -9,6 +9,12 @@ export type TsGetReply = TuplesReply<[]> | TuplesReply<[NumberReply, DoubleReply
 
 export default {
   IS_READ_ONLY: true,
+  /**
+   * Gets the last sample of a time series
+   * @param parser - The command parser
+   * @param key - The key name of the time series
+   * @param options - Optional parameters for the command
+   */
   parseCommand(parser: CommandParser, key: RedisArgument, options?: TsGetOptions) {
     parser.push('TS.GET');
     parser.pushKey(key);

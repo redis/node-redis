@@ -21,6 +21,15 @@ export type TimeSeriesAggregationType = typeof TIME_SERIES_AGGREGATION_TYPE[keyo
 
 export default {
   IS_READ_ONLY: false,
+  /**
+   * Creates a compaction rule from source time series to destination time series
+   * @param parser - The command parser
+   * @param sourceKey - The source time series key
+   * @param destinationKey - The destination time series key
+   * @param aggregationType - The aggregation type to use
+   * @param bucketDuration - The duration of each bucket in milliseconds
+   * @param alignTimestamp - Optional timestamp for alignment
+   */
   parseCommand(
     parser: CommandParser,
     sourceKey: RedisArgument,

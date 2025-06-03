@@ -3,6 +3,11 @@ import { RedisArgument, ArrayReply, MapReply, BlobStringReply, Command, TypeMapp
 import { transformTuplesReply } from '../../commands/generic-transformers';
 
 export default {
+  /**
+   * Returns a list of Sentinel instances for the specified master.
+   * @param parser - The Redis command parser.
+   * @param dbname - Name of the master.
+   */
   parseCommand(parser: CommandParser, dbname: RedisArgument) {
     parser.push('SENTINEL', 'SENTINELS', dbname);
   },

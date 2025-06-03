@@ -15,6 +15,11 @@ export interface ClusterFailoverOptions {
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
+  /**
+   * Forces a replica to perform a manual failover of its master
+   * @param parser - The Redis command parser
+   * @param options - Optional configuration with FORCE or TAKEOVER mode
+   */
   parseCommand(parser:CommandParser, options?: ClusterFailoverOptions) {
     parser.push('CLUSTER', 'FAILOVER');
 

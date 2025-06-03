@@ -9,6 +9,12 @@ export type ModuleListReply = ArrayReply<TuplesToMapReply<[
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
+  /**
+   * Constructs the MODULE LIST command
+   * 
+   * @param parser - The command parser
+   * @see https://redis.io/commands/module-list/
+   */
   parseCommand(parser: CommandParser) {
     parser.push('MODULE', 'LIST');
   },

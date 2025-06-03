@@ -29,6 +29,12 @@ export type ClientTrackingOptions = CommonOptions & (
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
+  /**
+   * Controls server-assisted client side caching for the current connection
+   * @param parser - The Redis command parser
+   * @param mode - Whether to enable (true) or disable (false) tracking
+   * @param options - Optional configuration including REDIRECT, BCAST, PREFIX, OPTIN, OPTOUT, and NOLOOP options
+   */
   parseCommand<M extends boolean>(
     parser: CommandParser,
     mode: M,

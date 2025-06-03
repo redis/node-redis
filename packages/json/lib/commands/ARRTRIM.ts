@@ -3,6 +3,16 @@ import { RedisArgument, ArrayReply, NumberReply, NullReply, Command } from '@red
 
 export default {
   IS_READ_ONLY: false,
+  /**
+   * Trims an array in a JSON document to include only elements within the specified range.
+   * Returns the new array length after trimming, or null if the path does not exist.
+   * 
+   * @param parser - The Redis command parser
+   * @param key - The key containing the array
+   * @param path - Path to the array in the JSON document
+   * @param start - Starting index (inclusive)
+   * @param stop - Ending index (inclusive)
+   */
   parseCommand(parser: CommandParser, key: RedisArgument, path: RedisArgument, start: number, stop: number) {
     parser.push('JSON.ARRTRIM');
     parser.pushKey(key);

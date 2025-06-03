@@ -19,6 +19,11 @@ export interface CommandListOptions {
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
+  /**
+   * Returns a list of all commands supported by the Redis server
+   * @param parser - The Redis command parser
+   * @param options - Options for filtering the command list
+   */
   parseCommand(parser: CommandParser, options?: CommandListOptions) {
     parser.push('COMMAND', 'LIST');
 

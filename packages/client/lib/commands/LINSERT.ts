@@ -5,6 +5,16 @@ type LInsertPosition = 'BEFORE' | 'AFTER';
 
 export default {
   IS_READ_ONLY: true,
+  /**
+   * Constructs the LINSERT command
+   * 
+   * @param parser - The command parser
+   * @param key - The key of the list
+   * @param position - The position where to insert (BEFORE or AFTER)
+   * @param pivot - The element to find in the list
+   * @param element - The element to insert
+   * @see https://redis.io/commands/linsert/
+   */
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

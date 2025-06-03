@@ -1,12 +1,18 @@
 import { CommandParser } from '../client/parser';
 import { BlobStringReply, NumberReply, ArrayReply, TuplesReply, UnwrapReply, Command } from '../RESP/types';
 
+/**
+ * Role information returned for a Redis master
+ */
 type MasterRole = [
   role: BlobStringReply<'master'>,
   replicationOffest: NumberReply,
   replicas: ArrayReply<TuplesReply<[host: BlobStringReply, port: BlobStringReply, replicationOffest: BlobStringReply]>>
 ];
 
+/**
+ * Role information returned for a Redis slave
+ */
 type SlaveRole = [
   role: BlobStringReply<'slave'>,
   masterHost: BlobStringReply,
@@ -15,19 +21,37 @@ type SlaveRole = [
   dataReceived: NumberReply
 ];
 
+/**
+ * Role information returned for a Redis sentinel
+ */
 type SentinelRole = [
   role: BlobStringReply<'sentinel'>,
   masterNames: ArrayReply<BlobStringReply>
 ];
 
+/**
+ * Combined role type for Redis instance role information
+ */
 type Role = TuplesReply<MasterRole | SlaveRole | SentinelRole>;
 
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
+  /**
+   * Constructs the ROLE command
+   * 
+   * @param parser - The command parser
+   * @see https://redis.io/commands/role/
+   */
   parseCommand(parser: CommandParser) {
     parser.push('ROLE');
   },
+  /**
+   * Transforms the ROLE reply into a structured object
+   * 
+   * @param reply - The raw reply from Redis
+   * @returns Structured object representing role information
+   */
   transformReply(reply: UnwrapReply<Role>) {
     switch (reply[0] as unknown as UnwrapReply<typeof reply[0]>) {
       case 'master': {

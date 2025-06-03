@@ -18,6 +18,15 @@ export function parseGeoRadiusByMemberArguments(
 
 export default {
   IS_READ_ONLY: false,
+  /**
+   * Queries members in a geospatial index based on a radius from a member
+   * @param parser - The Redis command parser
+   * @param key - Key of the geospatial index
+   * @param from - Member name to use as center point
+   * @param radius - Radius of the search area
+   * @param unit - Unit of distance (m, km, ft, mi)
+   * @param options - Additional search options
+   */
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

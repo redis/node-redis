@@ -38,6 +38,12 @@ export type MemoryStatsReply = TuplesToMapReply<[
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
+  /**
+   * Constructs the MEMORY STATS command
+   * 
+   * @param parser - The command parser
+   * @see https://redis.io/commands/memory-stats/
+   */
   parseCommand(parser: CommandParser) {
     parser.push('MEMORY', 'STATS');
   },

@@ -10,6 +10,11 @@ export interface TsMAddSample {
 
 export default {
   IS_READ_ONLY: false,
+  /**
+   * Adds multiple samples to multiple time series
+   * @param parser - The command parser
+   * @param toAdd - Array of samples to add to different time series
+   */
   parseCommand(parser: CommandParser, toAdd: Array<TsMAddSample>) {
     parser.push('TS.MADD');
 

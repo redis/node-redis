@@ -6,6 +6,10 @@ export const ASKING_CMD = 'ASKING';
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
+  /**
+   * Tells a Redis cluster node that the client is ok receiving such redirects
+   * @param parser - The Redis command parser
+   */
   parseCommand(parser: CommandParser) {
     parser.push(ASKING_CMD);
   },

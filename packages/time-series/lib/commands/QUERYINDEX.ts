@@ -5,6 +5,11 @@ import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-t
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
+  /**
+   * Queries the index for time series matching a specific filter
+   * @param parser - The command parser
+   * @param filter - Filter to match time series labels
+   */
   parseCommand(parser: CommandParser, filter: RedisVariadicArgument) {
     parser.push('TS.QUERYINDEX');
     parser.pushVariadic(filter);

@@ -25,6 +25,13 @@ export type LatencyEvent = typeof LATENCY_EVENTS[keyof typeof LATENCY_EVENTS];
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
+  /**
+   * Constructs the LATENCY GRAPH command
+   * 
+   * @param parser - The command parser
+   * @param event - The latency event to get the graph for
+   * @see https://redis.io/commands/latency-graph/
+   */
   parseCommand(parser: CommandParser, event: LatencyEvent) {
     parser.push('LATENCY', 'GRAPH', event);
   },

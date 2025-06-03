@@ -16,6 +16,11 @@ export type TdInfoReplyMap = TuplesToMapReply<[
 
 export default {
   IS_READ_ONLY: true,
+  /**
+   * Returns information about a t-digest sketch including compression, capacity, nodes, weights, observations and memory usage
+   * @param parser - The command parser
+   * @param key - The name of the t-digest sketch to get information about
+   */
   parseCommand(parser: CommandParser, key: RedisArgument) {
     parser.push('TDIGEST.INFO');
     parser.pushKey(key);

@@ -8,6 +8,12 @@ export interface ZInterCardOptions {
 
 export default {
   IS_READ_ONLY: true,
+  /**
+   * Returns the cardinality of the intersection of multiple sorted sets.
+   * @param parser - The Redis command parser.
+   * @param keys - Keys of the sorted sets to intersect.
+   * @param options - Limit option or options object with limit.
+   */
   parseCommand(
     parser: CommandParser,
     keys: RedisVariadicArgument,

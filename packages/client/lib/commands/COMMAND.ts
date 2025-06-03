@@ -5,6 +5,10 @@ import { CommandRawReply, CommandReply, transformCommandReply } from './generic-
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
+  /**
+   * Returns an array with details about all Redis commands
+   * @param parser - The Redis command parser
+   */
   parseCommand(parser: CommandParser) {
     parser.push('COMMAND');
   },

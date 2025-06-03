@@ -16,6 +16,14 @@ export const HASH_EXPIRATION = {
 export type HashExpiration = typeof HASH_EXPIRATION[keyof typeof HASH_EXPIRATION];
 
 export default {
+  /**
+   * Sets a timeout on hash fields. After the timeout has expired, the fields will be automatically deleted
+   * @param parser - The Redis command parser
+   * @param key - Key of the hash
+   * @param fields - Fields to set expiration on
+   * @param seconds - Number of seconds until field expiration
+   * @param mode - Expiration mode: NX (only if field has no expiry), XX (only if field has existing expiry), GT (only if new expiry is greater than current), LT (only if new expiry is less than current)
+   */
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

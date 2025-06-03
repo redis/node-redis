@@ -13,6 +13,10 @@ type ClusterLinksReply = ArrayReply<TuplesToMapReply<[
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
+  /**
+   * Returns information about all cluster links (lower level connections to other nodes)
+   * @param parser - The Redis command parser
+   */
   parseCommand(parser: CommandParser) {
     parser.push('CLUSTER', 'LINKS');
   },

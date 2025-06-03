@@ -161,6 +161,21 @@ export function parseSearchOptions(parser: CommandParser, options?: FtSearchOpti
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
+  /**
+   * Searches a RediSearch index with the given query.
+   * @param parser - The command parser
+   * @param index - The index name to search
+   * @param query - The text query to search. For syntax, see https://redis.io/docs/stack/search/reference/query_syntax
+   * @param options - Optional search parameters including:
+   *   - VERBATIM: do not try to use stemming for query expansion
+   *   - NOSTOPWORDS: do not filter stopwords from the query
+   *   - INKEYS/INFIELDS: restrict the search to specific keys/fields
+   *   - RETURN: limit which fields are returned
+   *   - SUMMARIZE/HIGHLIGHT: create search result highlights
+   *   - LIMIT: pagination control
+   *   - SORTBY: sort results by a specific field
+   *   - PARAMS: bind parameters to the query
+   */
   parseCommand(parser: CommandParser, index: RedisArgument, query: RedisArgument, options?: FtSearchOptions) {
     parser.push('FT.SEARCH', index, query);
 

@@ -21,6 +21,12 @@ export type HelloReply = TuplesToMapReply<[
 ]>;
 
 export default {
+  /**
+   * Handshakes with the Redis server and switches to the specified protocol version
+   * @param parser - The Redis command parser
+   * @param protover - Protocol version to use
+   * @param options - Additional options for authentication and connection naming
+   */
   parseCommand(parser: CommandParser, protover?: RespVersions, options?: HelloOptions) {
     parser.push('HELLO');
 

@@ -7,6 +7,15 @@ export interface JsonTypeOptions {
 
 export default {
   IS_READ_ONLY: true,
+  /**
+   * Returns the type of JSON value at a specific path in a JSON document.
+   * Returns the type as a string, array of types for multiple paths, or null if path doesn't exist.
+   * 
+   * @param parser - The Redis command parser
+   * @param key - The key containing the JSON document
+   * @param options - Optional parameters
+   * @param options.path - Path to examine
+   */
   parseCommand(parser: CommandParser, key: RedisArgument, options?: JsonTypeOptions) {
     parser.push('JSON.TYPE');
     parser.pushKey(key);

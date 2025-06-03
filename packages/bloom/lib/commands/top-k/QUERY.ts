@@ -4,6 +4,12 @@ import { RedisVariadicArgument, transformBooleanArrayReply } from '@redis/client
 
 export default {
   IS_READ_ONLY: false,
+  /**
+   * Checks if one or more items are in the Top-K list
+   * @param parser - The command parser
+   * @param key - The name of the Top-K filter
+   * @param items - One or more items to check in the filter
+   */
   parseCommand(parser: CommandParser, key: RedisArgument, items: RedisVariadicArgument) {
     parser.push('TOPK.QUERY');
     parser.pushKey(key);

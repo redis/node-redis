@@ -20,6 +20,11 @@ type AclUser = TuplesToMapReply<[
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
+  /**
+   * Returns ACL information about a specific user
+   * @param parser - The Redis command parser
+   * @param username - Username to get information for
+   */
   parseCommand(parser: CommandParser, username: RedisArgument) {
     parser.push('ACL', 'GETUSER', username);
   },

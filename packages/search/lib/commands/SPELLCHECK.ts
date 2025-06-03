@@ -16,6 +16,16 @@ export interface FtSpellCheckOptions {
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
+  /**
+   * Performs spelling correction on a search query.
+   * @param parser - The command parser
+   * @param index - Name of the index to use for spelling corrections
+   * @param query - The search query to check for spelling
+   * @param options - Optional parameters:
+   *   - DISTANCE: Maximum Levenshtein distance for spelling suggestions
+   *   - TERMS: Custom dictionary terms to include/exclude
+   *   - DIALECT: Version of query dialect to use (defaults to 1)
+   */
   parseCommand(parser: CommandParser, index: RedisArgument, query: RedisArgument, options?: FtSpellCheckOptions) {
     parser.push('FT.SPELLCHECK', index, query);
 

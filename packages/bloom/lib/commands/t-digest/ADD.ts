@@ -3,6 +3,12 @@ import { SimpleStringReply, Command, RedisArgument } from '@redis/client/dist/li
 
 export default {
   IS_READ_ONLY: false,
+  /**
+   * Adds one or more observations to a t-digest sketch
+   * @param parser - The command parser
+   * @param key - The name of the t-digest sketch
+   * @param values - Array of numeric values to add to the sketch
+   */
   parseCommand(parser: CommandParser, key: RedisArgument, values: Array<number>) {
     parser.push('TDIGEST.ADD');
     parser.pushKey(key);

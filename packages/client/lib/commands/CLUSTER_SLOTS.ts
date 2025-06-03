@@ -19,6 +19,10 @@ export type ClusterSlotsNode = ReturnType<typeof transformNode>;
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
+  /**
+   * Returns information about which Redis Cluster node handles which hash slots
+   * @param parser - The Redis command parser
+   */
   parseCommand(parser: CommandParser) {
     parser.push('CLUSTER', 'SLOTS');
   },

@@ -4,6 +4,14 @@ import LPOP from './LPOP';
 
 export default {
   IS_READ_ONLY: false,
+  /**
+   * Constructs the LPOP command with count parameter
+   * 
+   * @param parser - The command parser
+   * @param key - The key of the list to pop from
+   * @param count - The number of elements to pop
+   * @see https://redis.io/commands/lpop/
+   */
   parseCommand(parser: CommandParser, key: RedisArgument, count: number) {
     LPOP.parseCommand(parser, key);
     parser.push(count.toString())
