@@ -10,7 +10,8 @@
   ],
   "scripts": {
     "test": "nyc -r text-summary -r lcov mocha -r tsx './lib/**/*.spec.ts'",
-    "test-sourcemap": "mocha -r ts-node/register/transpile-only './lib/**/*.spec.ts'"
+    "test-sourcemap": "mocha -r ts-node/register/transpile-only './lib/**/*.spec.ts'",
+    "release": "release-it"
   },
   "peerDependencies": {
     "@redis/client": "^5.1.1"

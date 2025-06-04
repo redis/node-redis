@@ -1,11 +1,13 @@
 {
+  "npm": {
+    "publish": true,
+    "publishArgs": ["--access", "public"]
+  },
   "git": {
     "tagName": "client@${version}",
+    "tagMatch": "client@*",
     "commitMessage": "Release ${tagName}",
-    "tagAnnotation": "Release ${tagName}"
-  },
-  "npm": {
-    "versionArgs": ["--workspaces-update=false"],
-    "publishArgs": ["--access", "public"]
+    "tagAnnotation": "Release ${tagName}",
+    "commitArgs": "--all"
   }
 }

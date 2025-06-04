@@ -2,26 +2,35 @@
   "name": "redis-monorepo",
   "private": true,
   "workspaces": [
-    "./packages/*"
+    "./packages/client",
+    "./packages/test-utils",
+    "./packages/bloom",
+    "./packages/json",
+    "./packages/search",
+    "./packages/time-series",
+    "./packages/entraid",
+    "./packages/redis"
   ],
   "scripts": {
     "test-single": "TS_NODE_PROJECT='./packages/test-utils/tsconfig.json' mocha --require ts-node/register/transpile-only ",
     "test": "npm run test -ws --if-present",
     "build": "tsc --build",
     "documentation": "typedoc --out ./documentation",
-    "gh-pages": "gh-pages -d ./documentation -e ./documentation -u 'documentation-bot <documentation@bot>'"
+    "gh-pages": "gh-pages -d ./documentation -e ./documentation -u 'documentation-bot <documentation@bot>'",
+    "release": "npm run release --workspaces --if-present --"
   },
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
+    "@release-it/bumper": "^7.0.5",
     "@types/mocha": "^10.0.6",
     "@types/node": "^20.11.16",
     "gh-pages": "^6.1.1",
     "mocha": "^10.2.0",
     "nyc": "^15.1.0",
-    "release-it": "^17.0.3",
+    "release-it": "^19.0.2",
+    "ts-node": "^10.9.2",
     "tsx": "^4.7.0",
     "typedoc": "^0.25.7",
-    "typescript": "^5.3.3",
-    "ts-node": "^10.9.2"
+    "typescript": "^5.3.3"
   }
 }

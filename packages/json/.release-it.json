@@ -1,11 +1,22 @@
 {
+  "npm": {
+    "publish": true,
+    "publishArgs": ["--access", "public"]
+  },
   "git": {
     "tagName": "json@${version}",
+    "tagMatch": "json@*",
     "commitMessage": "Release ${tagName}",
-    "tagAnnotation": "Release ${tagName}"
+    "tagAnnotation": "Release ${tagName}",
+    "commitArgs": "--all"
   },
-  "npm": {
-    "versionArgs": ["--workspaces-update=false"],
-    "publishArgs": ["--access", "public"]
+  "plugins": {
+    "@release-it/bumper": {
+      "out": {
+        "file": "package.json",
+        "path": ["peerDependencies.@redis/client"],
+        "versionPrefix": "^"
+      }
+    }
   }
 }
