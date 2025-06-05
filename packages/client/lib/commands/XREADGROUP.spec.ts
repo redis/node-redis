@@ -155,4 +155,36 @@ describe('XREADGROUP', () => {
     client: GLOBAL.SERVERS.OPEN,
     cluster: GLOBAL.CLUSTERS.OPEN
   });
+
+  testUtils.testWithClient('client.xReadGroup should throw with resp3 and unstableResp3: false', async client => {
+    assert.throws(
+      () => client.xReadGroup('group', 'consumer', {
+        key: 'key',
+        id: '>'
+      }),
+      {
+        message: 'Some RESP3 results for Redis Query Engine responses may change. Refer to the readme for guidance'
+      }
+    );
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    clientOptions: {
+      RESP: 3
+    }
+  });
+
+  testUtils.testWithClient('client.xReadGroup should not throw with resp3 and unstableResp3: true', async client => {
+    assert.doesNotThrow(
+      () => client.xReadGroup('group', 'consumer', {
+        key: 'key',
+        id: '>'
+      })
+    );
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    clientOptions: {
+      RESP: 3,
+      unstableResp3: true
+    }
+  });
 });

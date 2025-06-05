@@ -38,7 +38,11 @@ export function attachConfig<
     Class: any = class extends BaseClass {};
 
   for (const [name, command] of Object.entries(commands)) {
-    Class.prototype[name] = createCommand(command, RESP);
+    if (config?.RESP == 3 && command.unstableResp3 && !config.unstableResp3) {
+      Class.prototype[name] = throwResp3SearchModuleUnstableError;
+    } else {
+      Class.prototype[name] = createCommand(command, RESP);
+    }
   }
 
   if (config?.modules) {
