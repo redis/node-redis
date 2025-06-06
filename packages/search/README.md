@@ -19,11 +19,11 @@ Before we can perform any searches, we need to tell RediSearch how to index our 
 ```javascript
 await client.ft.create('idx:animals', {
   name: {
-    type: SchemaFieldTypes.TEXT,
+    type: SCHEMA_FIELD_TYPE.TEXT,
     SORTABLE: true
   },
-  species: SchemaFieldTypes.TAG,
-  age: SchemaFieldTypes.NUMERIC
+  species: SCHEMA_FIELD_TYPE.TAG,
+  age: SCHEMA_FIELD_TYPE.NUMERIC
 }, {
   ON: 'HASH',
   PREFIX: 'noderedis:animals'
@@ -91,15 +91,15 @@ One way we might choose to index these documents is as follows:
 ```javascript
 await client.ft.create('idx:users', {
   '$.name': {
-    type: SchemaFieldTypes.TEXT,
+    type: SCHEMA_FIELD_TYPE.TEXT,
     SORTABLE: 'UNF'
   },
   '$.age': {
-    type: SchemaFieldTypes.NUMERIC,
+    type: SCHEMA_FIELD_TYPE.NUMERIC,
     AS: 'age'
   },
   '$.coins': {
-    type: SchemaFieldTypes.NUMERIC,
+    type: SCHEMA_FIELD_TYPE.NUMERIC,
     AS: 'coins'
   }
 }, {
