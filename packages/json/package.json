@@ -13,7 +13,7 @@
     "release": "release-it"
   },
   "peerDependencies": {
-    "@redis/client": "^5.1.1"
+    "@redis/client": "^5.5.6"
   },
   "devDependencies": {
     "@redis/test-utils": "*"
