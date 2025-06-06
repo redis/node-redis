@@ -131,4 +131,37 @@ describe('XREAD', () => {
     client: GLOBAL.SERVERS.OPEN,
     cluster: GLOBAL.CLUSTERS.OPEN
   });
+
+  testUtils.testWithClient('client.xRead should throw with resp3 and unstableResp3: false', async client => {
+    assert.throws(
+      () => client.xRead({
+        key: 'key',
+        id: '0-0'
+      }),
+      {
+        message: 'Some RESP3 results for Redis Query Engine responses may change. Refer to the readme for guidance'
+      }
+    );
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    clientOptions: {
+      RESP: 3
+    }
+  });
+
+  testUtils.testWithClient('client.xRead should not throw with resp3 and unstableResp3: true', async client => {
+    assert.doesNotThrow(
+      () => client.xRead({
+        key: 'key',
+        id: '0-0'
+      })
+    );
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    clientOptions: {
+      RESP: 3,
+      unstableResp3: true
+    }
+  });
+
 });
