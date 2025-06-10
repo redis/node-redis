@@ -16,6 +16,7 @@ import SingleEntryCache from '../single-entry-cache'
 import { publish, CHANNELS } from '../client/tracing';
 import { ClientIdentity, ClientRole, generateClusterClientId } from '../client/identity';
 import { DEFAULT_COMMAND_TIMEOUT } from '../defaults';
+import { POLICIES, PolicyResolver, StaticPolicyResolver } from './request-response-policies';
 
 export type ClusterTopologyRefreshOnReconnectionAttemptStrategy =
   false |
@@ -28,7 +29,6 @@ type WithCommands<
 > = {
   [P in keyof typeof NON_STICKY_COMMANDS]: CommandSignature<(typeof NON_STICKY_COMMANDS)[P], RESP, TYPE_MAPPING>;
 };
-
 
 interface ClusterCommander<
   M extends RedisModules,
@@ -179,6 +179,7 @@ export default class RedisCluster<
     return async function (this: ProxyCluster, ...args: Array<unknown>) {
       const parser = new BasicCommandParser(this._self._keyPrefix);
       command.parseCommand(parser, ...args);
+      console.log(parser, parser.redisArgs[0]);
 
       return this._self._execute(
         parser.firstKey,
@@ -294,6 +295,7 @@ export default class RedisCluster<
 
   private _self = this;
   private _commandOptions?: ClusterCommandOptions<TYPE_MAPPING/*, POLICIES*/>;
+  private _policyResolver: PolicyResolver;
 
   /**
    * An array of the cluster slots, each slot contain its `master` and `replicas`.
@@ -370,6 +372,8 @@ export default class RedisCluster<
     this.on(RESUBSCRIBE_LISTENERS_EVENT, this.resubscribeAllPubSubListeners.bind(this));
 
     this._commandOptions = { timeout: DEFAULT_COMMAND_TIMEOUT, ...options?.commandOptions };
+
+    this._policyResolver = new StaticPolicyResolver(POLICIES);
   }
 
   duplicate<
@@ -469,7 +473,11 @@ export default class RedisCluster<
     options: ClusterCommandOptions | undefined,
     fn: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>, opts?: ClusterCommandOptions) => Promise<T>
   ): Promise<T> {
+    console.log(`executing command `, firstKey, isReadonly, options);
     const maxCommandRedirections = this._options.maxCommandRedirections ?? 16;
+    const p = this._policyResolver.resolvePolicy("ping")
+    console.log(`ping policy `, p);
+
     let { client, slotNumber } = await this._slots.getClientAndSlotNumber(firstKey, isReadonly);
     let i = 0;
 
