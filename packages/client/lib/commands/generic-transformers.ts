@@ -342,7 +342,9 @@ export type CommandRawReply = [
   firstKeyIndex: number,
   lastKeyIndex: number,
   step: number,
-  categories: Array<CommandCategories>
+  categories: Array<CommandCategories>,
+  tips: Array<string>,
+  keySpecifications: string
 ];
 
 export type CommandReply = {
@@ -352,12 +354,13 @@ export type CommandReply = {
   firstKeyIndex: number,
   lastKeyIndex: number,
   step: number,
-  categories: Set<CommandCategories>
+  categories: Set<CommandCategories>,
+  keySpecifications: string
 };
 
 export function transformCommandReply(
   this: void,
-  [name, arity, flags, firstKeyIndex, lastKeyIndex, step, categories]: CommandRawReply
+  [name, arity, flags, firstKeyIndex, lastKeyIndex, step, categories, _tips, keySpecifications]: CommandRawReply
 ): CommandReply {
   return {
     name,
@@ -366,7 +369,8 @@ export function transformCommandReply(
     firstKeyIndex,
     lastKeyIndex,
     step,
-    categories: new Set(categories)
+    categories: new Set(categories),
+    keySpecifications
   };
 }
 
