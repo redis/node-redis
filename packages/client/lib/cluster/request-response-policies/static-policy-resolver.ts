@@ -22,19 +22,22 @@ export class StaticPolicyResolver implements PolicyResolver {
   }
 
   resolvePolicy(command: string): PolicyResult {
-    const parts = command.split('.');
+    const parts = command.toLowerCase().split('.');
+
 
     if (parts.length > 2) {
       return { ok: false, error: 'wrong-command-or-module-name' };
     }
 
     const [moduleName, commandName] = parts.length === 1
-      ? ['std', command]
+      ? ['std', parts[0]]
       : parts;
+
+    console.log(`module name `, moduleName, `command name `, commandName);
 
     if (!this.policies[moduleName]) {
       if (this.fallbackResolver) {
-        return this.fallbackResolver.resolvePolicy(command);
+        return this.fallbackResolver.resolvePolicy(commandName);
       }
 
       // For std module commands, return 'unknown-command' instead of 'unknown-module'
@@ -48,7 +51,7 @@ export class StaticPolicyResolver implements PolicyResolver {
     if (!this.policies[moduleName][commandName]) {
       // Try fallback resolver if available
       if (this.fallbackResolver) {
-        return this.fallbackResolver.resolvePolicy(command);
+        return this.fallbackResolver.resolvePolicy(commandName);
       }
       return { ok: false, error: 'unknown-command' };
     }
