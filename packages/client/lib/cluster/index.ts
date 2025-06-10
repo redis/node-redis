@@ -179,12 +179,12 @@ export default class RedisCluster<
     return async function (this: ProxyCluster, ...args: Array<unknown>) {
       const parser = new BasicCommandParser(this._self._keyPrefix);
       command.parseCommand(parser, ...args);
-      console.log(parser, parser.redisArgs[0]);
 
       return this._self._execute(
         parser.firstKey,
         command.IS_READ_ONLY,
         this._commandOptions,
+        parser.commandName!,
         (client, opts) => client._executeCommand(command, parser, opts, transformReply)
       );
     };
@@ -201,6 +201,7 @@ export default class RedisCluster<
         parser.firstKey,
         command.IS_READ_ONLY,
         this._self._commandOptions,
+        parser.commandName!,
         (client, opts) => client._executeCommand(command, parser, opts, transformReply)
       );
     };
@@ -219,6 +220,7 @@ export default class RedisCluster<
         parser.firstKey,
         fn.IS_READ_ONLY,
         this._self._commandOptions,
+        parser.commandName!,
         (client, opts) => client._executeCommand(fn, parser, opts, transformReply)
       );
     };
@@ -237,6 +239,7 @@ export default class RedisCluster<
         parser.firstKey,
         script.IS_READ_ONLY,
         this._commandOptions,
+        parser.commandName!,
         (client, opts) => client._executeScript(script, parser, opts, transformReply)
       );
     };
@@ -471,12 +474,16 @@ export default class RedisCluster<
     firstKey: RedisArgument | undefined,
     isReadonly: boolean | undefined,
     options: ClusterCommandOptions | undefined,
+    commandName: string,
     fn: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>, opts?: ClusterCommandOptions) => Promise<T>
   ): Promise<T> {
-    console.log(`executing command `, firstKey, isReadonly, options);
     const maxCommandRedirections = this._options.maxCommandRedirections ?? 16;
-    const p = this._policyResolver.resolvePolicy("ping")
-    console.log(`ping policy `, p);
+    const policyResult = this._policyResolver.resolvePolicy(commandName)
+    if(policyResult.ok) {
+      //TODO
+    } else {
+      //TODO
+    }
 
     let { client, slotNumber } = await this._slots.getClientAndSlotNumber(firstKey, isReadonly);
     let i = 0;
@@ -567,6 +574,7 @@ export default class RedisCluster<
       firstKey,
       isReadonly,
       opts,
+      args[0] instanceof Buffer ? args[0].toString() : args[0],
       (client, opts) => client.sendCommand(args, opts)
     );
   }
