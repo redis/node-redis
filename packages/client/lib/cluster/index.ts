@@ -13,6 +13,7 @@ import { ClientSideCacheConfig, PooledClientSideCacheProvider } from '../client/
 import { BasicCommandParser } from '../client/parser';
 import { ASKING_CMD } from '../commands/ASKING';
 import SingleEntryCache from '../single-entry-cache'
+import { POLICIES, PolicyResolver, StaticPolicyResolver } from './request-response-policies';
 interface ClusterCommander<
   M extends RedisModules,
   F extends RedisFunctions,
@@ -187,6 +188,7 @@ export default class RedisCluster<
     return async function (this: ProxyCluster, ...args: Array<unknown>) {
       const parser = new BasicCommandParser();
       command.parseCommand(parser, ...args);
+      console.log(parser, parser.redisArgs[0]);
 
       return this._self._execute(
         parser.firstKey,
@@ -299,6 +301,7 @@ export default class RedisCluster<
 
   private _self = this;
   private _commandOptions?: ClusterCommandOptions<TYPE_MAPPING/*, POLICIES*/>;
+  private _policyResolver: PolicyResolver;
 
   /**
    * An array of the cluster slots, each slot contain its `master` and `replicas`.
@@ -356,6 +359,8 @@ export default class RedisCluster<
     if (options?.commandOptions) {
       this._commandOptions = options.commandOptions;
     }
+
+    this._policyResolver = new StaticPolicyResolver(POLICIES);
   }
 
   duplicate<
@@ -456,7 +461,11 @@ export default class RedisCluster<
     options: ClusterCommandOptions | undefined,
     fn: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>, opts?: ClusterCommandOptions) => Promise<T>
   ): Promise<T> {
+    console.log(`executing command `, firstKey, isReadonly, options);
     const maxCommandRedirections = this._options.maxCommandRedirections ?? 16;
+    const p = this._policyResolver.resolvePolicy("ping")
+    console.log(`ping policy `, p);
+    
     let client = await this._slots.getClient(firstKey, isReadonly);
     let i = 0;
 
