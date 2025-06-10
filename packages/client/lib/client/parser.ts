@@ -44,6 +44,14 @@ export class BasicCommandParser implements CommandParser {
     return tmp.join('_');
   }
 
+  get commandName(): string | undefined {
+    let cmdName = this.#redisArgs[0];
+    if (cmdName instanceof Buffer) {
+      return cmdName.toString();
+    }
+    return cmdName;
+  }
+
   push(...arg: Array<RedisArgument>) {
     this.#redisArgs.push(...arg);
   };
