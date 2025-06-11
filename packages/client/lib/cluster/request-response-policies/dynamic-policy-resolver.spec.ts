@@ -21,7 +21,8 @@ describe('DynamicPolicyResolverFactory', () => {
         std: {
           ping: {
             request: REQUEST_POLICIES_WITH_DEFAULTS.DEFAULT_KEYLESS,
-            response: RESPONSE_POLICIES_WITH_DEFAULTS.DEFAULT_KEYLESS
+            response: RESPONSE_POLICIES_WITH_DEFAULTS.DEFAULT_KEYLESS,
+            isKeyless: true
           }
         }
       });
@@ -50,7 +51,8 @@ describe('DynamicPolicyResolverFactory', () => {
           step: 0,
           categories: new Set(),
           policies: { request: undefined, response: undefined },
-          isKeyless: true
+          isKeyless: true,
+          subcommands: []
         }
       ];
 
@@ -76,7 +78,8 @@ describe('DynamicPolicyResolverFactory', () => {
           step: 1,
           categories: new Set(),
           policies: { request: undefined, response: undefined },
-          isKeyless: false
+          isKeyless: false,
+          subcommands: []
         }
       ];
 
@@ -102,7 +105,8 @@ describe('DynamicPolicyResolverFactory', () => {
           step: 0,
           categories: new Set(),
           policies: { request: 'all_shards', response: 'agg_sum' },
-          isKeyless: true
+          isKeyless: true,
+          subcommands: []
         }
       ];
 
@@ -128,7 +132,8 @@ describe('DynamicPolicyResolverFactory', () => {
           step: 1,
           categories: new Set(),
           policies: { request: 'all_shards', response: 'special' },
-          isKeyless: false
+          isKeyless: false,
+          subcommands: []
         }
       ];
 
@@ -154,7 +159,8 @@ describe('DynamicPolicyResolverFactory', () => {
           step: 0,
           categories: new Set(),
           policies: { request: undefined, response: undefined },
-          isKeyless: true
+          isKeyless: true,
+          subcommands: []
         }
       ];
 
@@ -182,7 +188,8 @@ describe('DynamicPolicyResolverFactory', () => {
           step: 0,
           categories: new Set(),
           policies: { request: undefined, response: undefined },
-          isKeyless: true
+          isKeyless: true,
+          subcommands: []
         }
       ];
 
@@ -233,7 +240,8 @@ describe('DynamicPolicyResolverFactory', () => {
           step: 0,
           categories: new Set(),
           policies: { request: 'all_nodes', response: undefined },
-          isKeyless: false
+          isKeyless: false,
+          subcommands: []
         },
         {
           name: 'partial-response',
@@ -244,7 +252,8 @@ describe('DynamicPolicyResolverFactory', () => {
           step: 0,
           categories: new Set(),
           policies: { request: undefined, response: 'agg_sum' },
-          isKeyless: true
+          isKeyless: true,
+          subcommands: []
         }
       ];
 
