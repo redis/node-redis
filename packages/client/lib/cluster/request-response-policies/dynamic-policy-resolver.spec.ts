@@ -49,8 +49,8 @@ describe('DynamicPolicyResolverFactory', () => {
           lastKeyIndex: 0,
           step: 0,
           categories: new Set(),
-          // policies: { request: undefined, response: undefined },
-          keySpecifications: 'keyless'
+          policies: { request: undefined, response: undefined },
+          isKeyless: true
         }
       ];
 
@@ -75,8 +75,8 @@ describe('DynamicPolicyResolverFactory', () => {
           lastKeyIndex: 1,
           step: 1,
           categories: new Set(),
-          // policies: { request: undefined, response: undefined },
-          keySpecifications: [Buffer.from('key')] as any
+          policies: { request: undefined, response: undefined },
+          isKeyless: false
         }
       ];
 
@@ -101,8 +101,8 @@ describe('DynamicPolicyResolverFactory', () => {
           lastKeyIndex: 0,
           step: 0,
           categories: new Set(),
-          // policies: { request: 'all_shards', response: 'agg_sum' },
-          keySpecifications: 'keyless'
+          policies: { request: 'all_shards', response: 'agg_sum' },
+          isKeyless: true
         }
       ];
 
@@ -127,8 +127,8 @@ describe('DynamicPolicyResolverFactory', () => {
           lastKeyIndex: 1,
           step: 1,
           categories: new Set(),
-          // policies: { request: 'all_shards', response: 'special' },
-          keySpecifications: [Buffer.from('key')] as any
+          policies: { request: 'all_shards', response: 'special' },
+          isKeyless: false
         }
       ];
 
@@ -153,8 +153,8 @@ describe('DynamicPolicyResolverFactory', () => {
           lastKeyIndex: 0,
           step: 0,
           categories: new Set(),
-          // policies: { request: undefined, response: undefined },
-          keySpecifications: 'keyless'
+          policies: { request: undefined, response: undefined },
+          isKeyless: true
         }
       ];
 
@@ -181,8 +181,8 @@ describe('DynamicPolicyResolverFactory', () => {
           lastKeyIndex: 0,
           step: 0,
           categories: new Set(),
-          // policies: { request: undefined, response: undefined },
-          keySpecifications: 'keyless'
+          policies: { request: undefined, response: undefined },
+          isKeyless: true
         }
       ];
 
@@ -232,8 +232,8 @@ describe('DynamicPolicyResolverFactory', () => {
           lastKeyIndex: 0,
           step: 0,
           categories: new Set(),
-          // policies: { request: 'all_nodes', response: undefined },
-          keySpecifications: [Buffer.from('key')] as any
+          policies: { request: 'all_nodes', response: undefined },
+          isKeyless: false
         },
         {
           name: 'partial-response',
@@ -243,8 +243,8 @@ describe('DynamicPolicyResolverFactory', () => {
           lastKeyIndex: 0,
           step: 0,
           categories: new Set(),
-          // policies: { request: undefined, response: 'agg_sum' },
-          keySpecifications: 'keyless'
+          policies: { request: undefined, response: 'agg_sum' },
+          isKeyless: true
         }
       ];
 
