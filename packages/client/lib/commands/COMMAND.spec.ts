@@ -15,7 +15,7 @@ describe('COMMAND', () => {
     const testCases = [
       {
         name: 'without policies',
-        input: ['ping', -1, [CommandFlags.STALE], 0, 0, 0, [CommandCategories.FAST], [], []] satisfies CommandRawReply,
+        input: ['ping', -1, [CommandFlags.STALE], 0, 0, 0, [CommandCategories.FAST], [], [], []] satisfies CommandRawReply,
         expected: {
           name: 'ping',
           arity: -1,
@@ -25,12 +25,13 @@ describe('COMMAND', () => {
           step: 0,
           categories: new Set([CommandCategories.FAST]),
           policies: { request: undefined, response: undefined },
-		  isKeyless: true
+          isKeyless: true,
+          subcommands: []
         }
       },
       {
         name: 'with valid policies',
-        input: ['dbsize', 1, [], 0, 0, 0, [], ['request_policy:all_shards', 'response_policy:agg_sum'], []] satisfies CommandRawReply,
+        input: ['dbsize', 1, [], 0, 0, 0, [], ['request_policy:all_shards', 'response_policy:agg_sum'], [], []] satisfies CommandRawReply,
         expected: {
           name: 'dbsize',
           arity: 1,
@@ -40,12 +41,13 @@ describe('COMMAND', () => {
           step: 0,
           categories: new Set([]),
           policies: { request: 'all_shards', response: 'agg_sum' },
-		  isKeyless: true
+          isKeyless: true,
+          subcommands: []
         }
       },
       {
         name: 'with invalid policies',
-        input: ['test', 0, [], 0, 0, 0, [], ['request_policy:invalid', 'response_policy:invalid'], ['some key specification']] satisfies CommandRawReply,
+        input: ['test', 0, [], 0, 0, 0, [], ['request_policy:invalid', 'response_policy:invalid'], ['some key specification'], []] satisfies CommandRawReply,
         expected: {
           name: 'test',
           arity: 0,
@@ -55,12 +57,13 @@ describe('COMMAND', () => {
           step: 0,
           categories: new Set([]),
           policies: { request: undefined, response: undefined },
-		  isKeyless: false
+          isKeyless: false,
+          subcommands: []
         }
       },
       {
         name: 'with request policy only',
-        input: ['test', 0, [], 0, 0, 0, [], ['request_policy:all_nodes'], ['some key specification']] satisfies CommandRawReply,
+        input: ['test', 0, [], 0, 0, 0, [], ['request_policy:all_nodes'], ['some key specification'], []] satisfies CommandRawReply,
         expected: {
           name: 'test',
           arity: 0,
@@ -70,12 +73,13 @@ describe('COMMAND', () => {
           step: 0,
           categories: new Set([]),
           policies: { request: 'all_nodes', response: undefined },
-		  isKeyless: false
+          isKeyless: false,
+          subcommands: []
         }
       },
       {
         name: 'with response policy only',
-        input: ['test', 0, [], 0, 0, 0, [], ['', 'response_policy:agg_max'], []] satisfies CommandRawReply,
+        input: ['test', 0, [], 0, 0, 0, [], ['', 'response_policy:agg_max'], [], []] satisfies CommandRawReply,
         expected: {
           name: 'test',
           arity: 0,
@@ -85,12 +89,13 @@ describe('COMMAND', () => {
           step: 0,
           categories: new Set([]),
           policies: { request: undefined, response: 'agg_max' },
-		  isKeyless: true
+          isKeyless: true,
+          subcommands: []
         }
       },
       {
         name: 'with response policy only',
-        input: ['test', 0, [], 0, 0, 0, [], ['', 'response_policy:agg_max'], []] satisfies CommandRawReply,
+        input: ['test', 0, [], 0, 0, 0, [], ['', 'response_policy:agg_max'], [], []] satisfies CommandRawReply,
         expected: {
           name: 'test',
           arity: 0,
@@ -100,7 +105,8 @@ describe('COMMAND', () => {
           step: 0,
           categories: new Set([]),
           policies: { request: undefined, response: 'agg_max' },
-		  isKeyless: true
+          isKeyless: true,
+          subcommands: []
         }
       }
     ];
