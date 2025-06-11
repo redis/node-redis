@@ -27,4 +27,6 @@ export type ResponsePolicyWithDefaults = typeof RESPONSE_POLICIES_WITH_DEFAULTS[
 export interface CommandPolicies {
   readonly request: RequestPolicyWithDefaults;
   readonly response: ResponsePolicyWithDefaults;
+  readonly subcommands?: Record<string, CommandPolicies>;
+  readonly isKeyless: boolean;
 }
