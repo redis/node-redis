@@ -1,4 +1,5 @@
 import { BasicCommandParser, CommandParser } from '../client/parser';
+import { REQUEST_POLICIES_WITH_DEFAULTS, RequestPolicyWithDefaults, RESPONSE_POLICIES_WITH_DEFAULTS, ResponsePolicyWithDefaults } from '../cluster/request-response-policies';
 import { RESP_TYPES } from '../RESP/decoder';
 import { UnwrapReply, ArrayReply, BlobStringReply, BooleanReply, CommandArguments, DoubleReply, NullReply, NumberReply, RedisArgument, TuplesReply, MapReply, TypeMapping, Command } from '../RESP/types';
 
@@ -331,8 +332,9 @@ export type CommandRawReply = [
   step: number,
   categories: Array<CommandCategories>,
   tips: Array<string>,
-  keySpecifications: string
+  keySpecifications: Array<string>
 ];
+
 
 export type CommandReply = {
   name: string,
@@ -342,13 +344,25 @@ export type CommandReply = {
   lastKeyIndex: number,
   step: number,
   categories: Set<CommandCategories>,
-  keySpecifications: string
+  policies: { request: RequestPolicyWithDefaults | undefined, response: ResponsePolicyWithDefaults | undefined }
+  isKeyless: boolean
 };
 
 export function transformCommandReply(
   this: void,
-  [name, arity, flags, firstKeyIndex, lastKeyIndex, step, categories, _tips, keySpecifications]: CommandRawReply
+  [name, arity, flags, firstKeyIndex, lastKeyIndex, step, categories, tips, keySpecifications]: CommandRawReply
 ): CommandReply {
+
+  const requestPolicyRaw = tips[0]?.replace('request_policy:', '');
+  const requestPolicy = requestPolicyRaw && Object.values(REQUEST_POLICIES_WITH_DEFAULTS).includes(requestPolicyRaw as RequestPolicyWithDefaults)
+    ? requestPolicyRaw as RequestPolicyWithDefaults
+    : undefined;
+
+  const responsePolicyRaw = tips[1]?.replace('response_policy:', '');
+  const responsePolicy = responsePolicyRaw && Object.values(RESPONSE_POLICIES_WITH_DEFAULTS).includes(responsePolicyRaw as ResponsePolicyWithDefaults)
+    ? responsePolicyRaw as ResponsePolicyWithDefaults
+    : undefined;
+
   return {
     name,
     arity,
@@ -357,7 +371,11 @@ export function transformCommandReply(
     lastKeyIndex,
     step,
     categories: new Set(categories),
-    keySpecifications
+    policies: {
+      request: requestPolicy,
+      response: responsePolicy
+    },
+    isKeyless: keySpecifications.length === 0
   };
 }
 

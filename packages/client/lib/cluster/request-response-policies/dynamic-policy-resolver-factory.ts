@@ -89,7 +89,7 @@ export class DynamicPolicyResolverFactory {
    */
   static #buildCommandPolicies(command: CommandReply): CommandPolicies {
     // Determine if command is keyless based on keySpecification
-    const isKeyless = command.keySpecifications === 'keyless';
+    const isKeyless = command.isKeyless
 
     // Determine default policies based on key specification
     const defaultRequest = isKeyless
