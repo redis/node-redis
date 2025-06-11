@@ -465,8 +465,10 @@ export default class RedisCluster<
     commandName: string,
     fn: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>, opts?: ClusterCommandOptions) => Promise<T>
   ): Promise<T> {
+
     const maxCommandRedirections = this._options.maxCommandRedirections ?? 16;
     const policyResult = this._policyResolver.resolvePolicy(commandName)
+
     if(policyResult.ok) {
       //TODO
     } else {
