@@ -332,7 +332,8 @@ export type CommandRawReply = [
   step: number,
   categories: Array<CommandCategories>,
   tips: Array<string>,
-  keySpecifications: Array<string>
+  keySpecifications: Array<string>,
+  subcommands: Array<CommandRawReply>
 ];
 
 
@@ -345,13 +346,15 @@ export type CommandReply = {
   step: number,
   categories: Set<CommandCategories>,
   policies: { request: RequestPolicyWithDefaults | undefined, response: ResponsePolicyWithDefaults | undefined }
-  isKeyless: boolean
+  isKeyless: boolean,
+  subcommands: Array<CommandReply>
 };
 
 export function transformCommandReply(
   this: void,
-  [name, arity, flags, firstKeyIndex, lastKeyIndex, step, categories, tips, keySpecifications]: CommandRawReply
+  [name, arity, flags, firstKeyIndex, lastKeyIndex, step, categories, tips, keySpecifications, subcommandsReply]: CommandRawReply
 ): CommandReply {
+
 
   const requestPolicyRaw = tips[0]?.replace('request_policy:', '');
   const requestPolicy = requestPolicyRaw && Object.values(REQUEST_POLICIES_WITH_DEFAULTS).includes(requestPolicyRaw as RequestPolicyWithDefaults)
@@ -362,6 +365,8 @@ export function transformCommandReply(
   const responsePolicy = responsePolicyRaw && Object.values(RESPONSE_POLICIES_WITH_DEFAULTS).includes(responsePolicyRaw as ResponsePolicyWithDefaults)
     ? responsePolicyRaw as ResponsePolicyWithDefaults
     : undefined;
+
+  const subcommands = subcommandsReply.map(transformCommandReply);
 
   return {
     name,
@@ -375,7 +380,8 @@ export function transformCommandReply(
       request: requestPolicy,
       response: responsePolicy
     },
-    isKeyless: keySpecifications.length === 0
+    isKeyless: keySpecifications.length === 0,
+    subcommands
   };
 }
 

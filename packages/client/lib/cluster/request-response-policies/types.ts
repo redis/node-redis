@@ -20,3 +20,8 @@ export interface PolicyResolver {
    */
   withFallback(fallbackResolver: PolicyResolver): PolicyResolver;
 }
+
+export type CommandPolicyRecords = Record<string, CommandPolicies>;
+// The response of the COMMAND command uses "." to separate the module name from the command name.
+// For example, "ft.search" refers to the "search" command in the "ft" module. It is important to use the same naming convention here.
+export type ModulePolicyRecords = Record<string, CommandPolicyRecords>;

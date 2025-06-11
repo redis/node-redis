@@ -1,9 +1,8 @@
 import type { CommandReply } from '../../commands/generic-transformers';
 import type { CommandPolicies } from './policies-constants';
 import { REQUEST_POLICIES_WITH_DEFAULTS, RESPONSE_POLICIES_WITH_DEFAULTS } from './policies-constants';
-import type { PolicyResolver } from './types';
+import type { PolicyResolver, ModulePolicyRecords } from './types';
 import { StaticPolicyResolver } from './static-policy-resolver';
-import type { ModulePolicyRecords } from './static-policies-data';
 
 /**
  * Function type that returns command information from Redis
@@ -28,7 +27,7 @@ export class DynamicPolicyResolverFactory {
   static async create(
     commandFetcher: CommandFetcher,
     fallbackResolver?: PolicyResolver
-  ): Promise<StaticPolicyResolver> {
+  ): Promise<PolicyResolver> {
     const commands = await commandFetcher();
     const policies: ModulePolicyRecords = {};
 
@@ -98,10 +97,28 @@ export class DynamicPolicyResolverFactory {
     const defaultResponse = isKeyless
       ? RESPONSE_POLICIES_WITH_DEFAULTS.DEFAULT_KEYLESS
       : RESPONSE_POLICIES_WITH_DEFAULTS.DEFAULT_KEYED;
+    
+    let subcommands: Record<string, CommandPolicies> | undefined;
+    if(command.subcommands.length > 0) {
+      subcommands = {};
+      for (const subcommand of command.subcommands) {
+
+        // Subcommands are in format "parentCommand|subcommand"
+        const parts = subcommand.name.split("\|")
+        if(parts.length !== 2) {
+          throw new Error(`Invalid subcommand name: ${subcommand.name}`);
+        }
+        const subcommandName = parts[1];
+
+        subcommands[subcommandName] = DynamicPolicyResolverFactory.#buildCommandPolicies(subcommand);
+      }
+    }
 
     return {
       request: command.policies.request ?? defaultRequest,
-      response: command.policies.response ?? defaultResponse
+      response: command.policies.response ?? defaultResponse,
+      isKeyless,
+      subcommands
     };
   }
 }
