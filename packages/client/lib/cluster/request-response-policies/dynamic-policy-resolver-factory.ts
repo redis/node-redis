@@ -100,10 +100,8 @@ export class DynamicPolicyResolverFactory {
       : RESPONSE_POLICIES_WITH_DEFAULTS.DEFAULT_KEYED;
 
     return {
-      // request: command.policies.request ?? defaultRequest,
-      // response: command.policies.response ?? defaultResponse
-      request: defaultRequest,
-      response: defaultResponse
+      request: command.policies.request ?? defaultRequest,
+      response: command.policies.response ?? defaultResponse
     };
   }
 }
