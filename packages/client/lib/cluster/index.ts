@@ -13,6 +13,7 @@ import { ClientSideCacheConfig, PooledClientSideCacheProvider } from '../client/
 import { BasicCommandParser } from '../client/parser';
 import { ASKING_CMD } from '../commands/ASKING';
 import SingleEntryCache from '../single-entry-cache'
+import { POLICIES, PolicyResolver, StaticPolicyResolver } from './request-response-policies';
 interface ClusterCommander<
   M extends RedisModules,
   F extends RedisFunctions,
@@ -192,6 +193,7 @@ export default class RedisCluster<
         parser.firstKey,
         command.IS_READ_ONLY,
         this._commandOptions,
+        parser.commandName!,
         (client, opts) => client._executeCommand(command, parser, opts, transformReply)
       );
     };
@@ -208,6 +210,7 @@ export default class RedisCluster<
         parser.firstKey,
         command.IS_READ_ONLY,
         this._self._commandOptions,
+        parser.commandName!,
         (client, opts) => client._executeCommand(command, parser, opts, transformReply)
       );
     };
@@ -226,6 +229,7 @@ export default class RedisCluster<
         parser.firstKey,
         fn.IS_READ_ONLY,
         this._self._commandOptions,
+        parser.commandName!,
         (client, opts) => client._executeCommand(fn, parser, opts, transformReply)
       );
     };
@@ -244,6 +248,7 @@ export default class RedisCluster<
         parser.firstKey,
         script.IS_READ_ONLY,
         this._commandOptions,
+        parser.commandName!,
         (client, opts) => client._executeScript(script, parser, opts, transformReply)
       );
     };
@@ -299,6 +304,7 @@ export default class RedisCluster<
 
   private _self = this;
   private _commandOptions?: ClusterCommandOptions<TYPE_MAPPING/*, POLICIES*/>;
+  private _policyResolver: PolicyResolver;
 
   /**
    * An array of the cluster slots, each slot contain its `master` and `replicas`.
@@ -356,6 +362,8 @@ export default class RedisCluster<
     if (options?.commandOptions) {
       this._commandOptions = options.commandOptions;
     }
+
+    this._policyResolver = new StaticPolicyResolver(POLICIES);
   }
 
   duplicate<
@@ -454,9 +462,19 @@ export default class RedisCluster<
     firstKey: RedisArgument | undefined,
     isReadonly: boolean | undefined,
     options: ClusterCommandOptions | undefined,
+    commandName: string,
     fn: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>, opts?: ClusterCommandOptions) => Promise<T>
   ): Promise<T> {
+
     const maxCommandRedirections = this._options.maxCommandRedirections ?? 16;
+    const policyResult = this._policyResolver.resolvePolicy(commandName)
+
+    if(policyResult.ok) {
+      //TODO
+    } else {
+      //TODO
+    }
+    
     let client = await this._slots.getClient(firstKey, isReadonly);
     let i = 0;
 
@@ -512,6 +530,7 @@ export default class RedisCluster<
       firstKey,
       isReadonly,
       options,
+      args[0] instanceof Buffer ? args[0].toString() : args[0],
       (client, opts) => client.sendCommand(args, opts)
     );
   }
