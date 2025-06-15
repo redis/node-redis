@@ -4,7 +4,7 @@ import TimeSeries from '.';
 export default TestUtils.createFromConfig({
   dockerImageName: 'redislabs/client-libs-test',
   dockerImageVersionArgument: 'redis-version',
-  defaultDockerVersion: '8.0-M05-pre'
+  defaultDockerVersion: '8.0.2'
 });
 
 export const GLOBAL = {

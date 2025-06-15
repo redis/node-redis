@@ -9,7 +9,7 @@ import RedisBloomModules from '@redis/bloom';
 const utils = TestUtils.createFromConfig({
   dockerImageName: 'redislabs/client-libs-test',
   dockerImageVersionArgument: 'redis-version',
-  defaultDockerVersion: '8.0-M05-pre'
+  defaultDockerVersion: '8.0.2'
 });
 
 export default utils;
