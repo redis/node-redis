@@ -5,26 +5,43 @@ import { parseArgs } from './generic-transformers';
 
 describe('VADD', () => {
   describe('transformArguments', () => {
-    it('with VALUES', () => {
+    it('basic usage', () => {
       assert.deepEqual(
         parseArgs(VADD, 'key', [1.0, 2.0, 3.0], 'element'),
         ['VADD', 'key', 'VALUES', '3', '1', '2', '3', 'element']
       );
     });
 
-    it('with FP32', () => {
+    it('with REDUCE option', () => {
       assert.deepEqual(
-        parseArgs(VADD, 'key', Buffer.from([0x3f, 0x80, 0x00, 0x00]), 'element'),
-        ['VADD', 'key', 'FP32', Buffer.from([0x3f, 0x80, 0x00, 0x00]), 'element']
+        parseArgs(VADD, 'key', [1.0, 2.0], 'element', { REDUCE: 50 }),
+        ['VADD', 'key', 'REDUCE', '50', 'VALUES', '2', '1', '2', 'element']
       );
     });
 
-    it('with options', () => {
+    it('with quantization options', () => {
+      assert.deepEqual(
+        parseArgs(VADD, 'key', [1.0, 2.0], 'element', { QUANT: 'Q8' }),
+        ['VADD', 'key', 'VALUES', '2', '1', '2', 'element', 'Q8']
+      );
+
+      assert.deepEqual(
+        parseArgs(VADD, 'key', [1.0, 2.0], 'element', { QUANT: 'BIN' }),
+        ['VADD', 'key', 'VALUES', '2', '1', '2', 'element', 'BIN']
+      );
+
+      assert.deepEqual(
+        parseArgs(VADD, 'key', [1.0, 2.0], 'element', { QUANT: 'NOQUANT' }),
+        ['VADD', 'key', 'VALUES', '2', '1', '2', 'element', 'NOQUANT']
+      );
+    });
+
+    it('with all options', () => {
       assert.deepEqual(
         parseArgs(VADD, 'key', [1.0, 2.0], 'element', {
           REDUCE: 50,
           CAS: true,
-          Q8: true,
+          QUANT: 'Q8',
           EF: 200,
           SETATTR: { name: 'test', value: 42 },
           M: 16
