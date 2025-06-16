@@ -57,8 +57,15 @@ describe('VADD', () => {
   testUtils.testAll('vAdd', async client => {
     assert.equal(
       await client.vAdd('key', [1.0, 2.0, 3.0], 'element'),
-      1
+      true
     );
+
+    // same element should not be added again
+    assert.equal(
+      await client.vAdd('key', [1, 2 , 3], 'element'),
+      false
+    );
+
   }, {
     client: GLOBAL.SERVERS.OPEN,
     cluster: GLOBAL.CLUSTERS.OPEN
@@ -69,6 +76,12 @@ describe('VADD', () => {
     assert.equal(
       await client.vAdd('resp3-key', [1.5, 2.5, 3.5], 'resp3-element'),
       true
+    );
+
+    // same element should not be added again
+    assert.equal(
+      await client.vAdd('resp3-key', [1, 2 , 3], 'resp3-element'),
+      false
     );
 
     // Test with options to ensure complex parameters work with RESP3

@@ -19,6 +19,8 @@ describe('VCARD', () => {
       await client.vCard('key'),
       2
     );
+
+    assert.equal(await client.vCard('unknown'), 0);
   }, {
     client: GLOBAL.SERVERS.OPEN,
     cluster: GLOBAL.CLUSTERS.OPEN
@@ -44,6 +46,8 @@ describe('VCARD', () => {
       await client.vCard('resp3-key'),
       3
     );
+
+    assert.equal(await client.vCard('unknown'), 0);
   }, {
     ...GLOBAL.SERVERS.OPEN,
     clientOptions: {
