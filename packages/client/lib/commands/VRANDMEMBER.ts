@@ -1,5 +1,5 @@
 import { CommandParser } from '../client/parser';
-import { RedisArgument, BlobStringReply, ArrayReply, Command } from '../RESP/types';
+import { RedisArgument, BlobStringReply, ArrayReply, Command, NullReply } from '../RESP/types';
 
 export default {
   IS_READ_ONLY: true,
@@ -19,5 +19,5 @@ export default {
       parser.push(count.toString());
     }
   },
-  transformReply: undefined as unknown as () => BlobStringReply | ArrayReply<BlobStringReply>
+  transformReply: undefined as unknown as () => BlobStringReply | ArrayReply<BlobStringReply> | NullReply
 } as const satisfies Command;
