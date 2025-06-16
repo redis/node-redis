@@ -1,5 +1,5 @@
 import { CommandParser } from '../client/parser';
-import { RedisArgument, NumberReply, Command, BooleanReply } from '../RESP/types';
+import { RedisArgument, Command } from '../RESP/types';
 import { transformBooleanReply, transformDoubleArgument } from './generic-transformers';
 
 export interface VAddOptions {
