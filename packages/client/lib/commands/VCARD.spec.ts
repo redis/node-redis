@@ -23,4 +23,31 @@ describe('VCARD', () => {
     client: GLOBAL.SERVERS.OPEN,
     cluster: GLOBAL.CLUSTERS.OPEN
   });
+
+  testUtils.testWithClient('vCard with RESP3', async client => {
+    // Test empty vector set
+    assert.equal(
+      await client.vCard('resp3-empty-key'),
+      0
+    );
+
+    // Add elements and test cardinality
+    await client.vAdd('resp3-key', [1.0, 2.0], 'elem1');
+    assert.equal(
+      await client.vCard('resp3-key'),
+      1
+    );
+
+    await client.vAdd('resp3-key', [3.0, 4.0], 'elem2');
+    await client.vAdd('resp3-key', [5.0, 6.0], 'elem3');
+    assert.equal(
+      await client.vCard('resp3-key'),
+      3
+    );
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    clientOptions: {
+      RESP: 3
+    }
+  });
 });

@@ -14,7 +14,7 @@ describe('VADD', () => {
 
     it('with REDUCE option', () => {
       assert.deepEqual(
-        parseArgs(VADD, 'key', [1.0, 2.0], 'element', { REDUCE: 50 }),
+        parseArgs(VADD, 'key', [1.0, 2], 'element', { REDUCE: 50 }),
         ['VADD', 'key', 'REDUCE', '50', 'VALUES', '2', '1', '2', 'element']
       );
     });
@@ -62,5 +62,34 @@ describe('VADD', () => {
   }, {
     client: GLOBAL.SERVERS.OPEN,
     cluster: GLOBAL.CLUSTERS.OPEN
+  });
+
+  testUtils.testWithClient('vAdd with RESP3', async client => {
+    // Test basic functionality with RESP3
+    assert.equal(
+      await client.vAdd('resp3-key', [1.5, 2.5, 3.5], 'resp3-element'),
+      true
+    );
+
+    // Test with options to ensure complex parameters work with RESP3
+    assert.equal(
+      await client.vAdd('resp3-key', [4.0, 5.0, 6.0], 'resp3-element2', {
+        QUANT: 'Q8',
+        CAS: true,
+        SETATTR: { type: 'test', value: 123 }
+      }),
+      true
+    );
+
+    // Verify the vector set was created correctly
+    assert.equal(
+      await client.vCard('resp3-key'),
+      2
+    );
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    clientOptions: {
+      RESP: 3
+    }
   });
 });
