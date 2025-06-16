@@ -1,5 +1,5 @@
 import { CommandParser } from '../client/parser';
-import { RedisArgument, NumberReply, Command } from '../RESP/types';
+import { RedisArgument, NumberReply, Command, BooleanReply } from '../RESP/types';
 
 export default {
   /**
@@ -15,5 +15,8 @@ export default {
     parser.pushKey(key);
     parser.push(element);
   },
-  transformReply: undefined as unknown as () => NumberReply
+  transformReply: {
+    2: undefined as unknown as () => NumberReply,
+    3: undefined as unknown as () => BooleanReply
+  }
 } as const satisfies Command;
