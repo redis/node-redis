@@ -1,5 +1,6 @@
 import { CommandParser } from '../client/parser';
-import { RedisArgument, BlobStringReply, NullReply, Command } from '../RESP/types';
+import { RedisArgument, Command } from '../RESP/types';
+import { transformRedisJsonNullReply } from './generic-transformers';
 
 export default {
   CACHEABLE: true,
@@ -17,5 +18,5 @@ export default {
     parser.pushKey(key);
     parser.push(element);
   },
-  transformReply: undefined as unknown as () => BlobStringReply | NullReply
+  transformReply: transformRedisJsonNullReply
 } as const satisfies Command;

@@ -20,7 +20,14 @@ describe('VGETATTR', () => {
     await client.vSetAttr('key', 'element', { name: 'test' });
 
     const result = await client.vGetAttr('key', 'element');
+
     assert.ok(result !== null);
+    assert.equal(typeof result, 'object')
+    
+    assert.deepEqual(result, {
+      name: 'test'
+    })
+
 
   }, {
     client: GLOBAL.SERVERS.OPEN,
@@ -48,13 +55,16 @@ describe('VGETATTR', () => {
     const result = await client.vGetAttr('resp3-key', 'resp3-element');
 
     assert.ok(result !== null);
+    assert.equal(typeof result, 'object')
+    
+    assert.deepEqual(result, {
+      name: 'test-item',
+      category: 'electronics',
+      price: 99.99,
+      inStock: true,
+      tags: ['new', 'featured']
+    })
 
-    // Parse the JSON result and verify structure
-    const parsedAttrs = JSON.parse(result.toString());
-    assert.equal(parsedAttrs.name, 'test-item');
-    assert.equal(parsedAttrs.price, 99.99);
-    assert.equal(parsedAttrs.inStock, true);
-    assert.ok(Array.isArray(parsedAttrs.tags));
   }, {
     ...GLOBAL.SERVERS.OPEN,
     clientOptions: {
