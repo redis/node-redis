@@ -49,4 +49,30 @@ describe('VSIM', () => {
     client: GLOBAL.SERVERS.OPEN,
     cluster: GLOBAL.CLUSTERS.OPEN
   });
+
+  testUtils.testWithClient('vSim with RESP3', async client => {
+    await client.vAdd('resp3-key', [1.0, 2.0, 3.0], 'element1');
+    await client.vAdd('resp3-key', [1.1, 2.1, 3.1], 'element2');
+    await client.vAdd('resp3-key', [2.0, 3.0, 4.0], 'element3');
+
+    // Test similarity search with vector
+    const resultWithVector = await client.vSim('resp3-key', [1.05, 2.05, 3.05]);
+    assert.ok(Array.isArray(resultWithVector));
+    assert.ok(resultWithVector.length > 0);
+
+    // Test similarity search with element
+    const resultWithElement = await client.vSim('resp3-key', 'element1');
+    assert.ok(Array.isArray(resultWithElement));
+    assert.ok(resultWithElement.includes('element1'));
+
+    // Test with options
+    const resultWithOptions = await client.vSim('resp3-key', 'element1', { COUNT: 2 });
+    assert.ok(Array.isArray(resultWithOptions));
+    assert.ok(resultWithOptions.length <= 2);
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    clientOptions: {
+      RESP: 3
+    }
+  });
 });
