@@ -31,4 +31,23 @@ describe('VSETATTR', () => {
     client: GLOBAL.SERVERS.OPEN,
     cluster: GLOBAL.CLUSTERS.OPEN
   });
+
+  testUtils.testWithClient('vSetAttr with RESP3 - returns boolean', async client => {
+    await client.vAdd('resp3-key', [1.0, 2.0, 3.0], 'resp3-element');
+
+    const result = await client.vSetAttr('resp3-key', 'resp3-element', {
+      name: 'test-item',
+      category: 'electronics',
+      price: 99.99
+    });
+
+    // RESP3 returns boolean instead of number
+    assert.equal(typeof result, 'boolean');
+    assert.equal(result, true);
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    clientOptions: {
+      RESP: 3
+    }
+  });
 });
