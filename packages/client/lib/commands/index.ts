@@ -351,6 +351,7 @@ import VEMB from './VEMB';
 import VGETATTR from './VGETATTR';
 import VINFO from './VINFO';
 import VLINKS from './VLINKS';
+import VLINKS_WITHSCORES from './VLINKS_WITHSCORES';
 import VRANDMEMBER from './VRANDMEMBER';
 import VREM from './VREM';
 import VSETATTR from './VSETATTR';
@@ -1064,6 +1065,8 @@ export default {
   vInfo: VINFO,
   VLINKS,
   vLinks: VLINKS,
+  VLINKS_WITHSCORES,
+  vLinksWithScores: VLINKS_WITHSCORES,
   VRANDMEMBER,
   vRandMember: VRANDMEMBER,
   VREM,
