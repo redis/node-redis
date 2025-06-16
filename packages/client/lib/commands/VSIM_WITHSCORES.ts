@@ -4,7 +4,6 @@ import {
   Command,
   DoubleReply,
   MapReply,
-  TuplesReply,
   UnwrapReply
 } from '../RESP/types';
 import { transformDoubleReply } from './generic-transformers';
