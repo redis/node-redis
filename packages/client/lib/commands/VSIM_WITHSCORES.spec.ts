@@ -5,23 +5,55 @@ import { parseArgs } from './generic-transformers';
 
 describe('VSIM WITHSCORES', () => {
   it('transformArguments', () => {
-    assert.deepEqual(
-      parseArgs(VSIM_WITHSCORES, 'key', 'element'),
-      ['VSIM', 'key', 'ELE', 'element', 'WITHSCORES']
-    );
+    assert.deepEqual(parseArgs(VSIM_WITHSCORES, 'key', 'element'), [
+      'VSIM',
+      'key',
+      'ELE',
+      'element',
+      'WITHSCORES'
+    ]);
   });
 
-  testUtils.testAll('vSimWithScores', async client => {
-    await client.vAdd('key', [1.0, 2.0, 3.0], 'element1');
-    await client.vAdd('key', [1.1, 2.1, 3.1], 'element2');
+  testUtils.testAll(
+    'vSimWithScores',
+    async client => {
+      await client.vAdd('key', [1.0, 2.0, 3.0], 'element1');
+      await client.vAdd('key', [1.1, 2.1, 3.1], 'element2');
 
-    const result = await client.vSimWithScores('key', 'element1');
-    assert.ok(Array.isArray(result));
-    assert.ok(result.length > 0);
-    assert.ok(typeof result[0] === 'object');
-    assert.ok('value' in result[0] && 'score' in result[0]);
-  }, {
-    client: GLOBAL.SERVERS.OPEN,
-    cluster: GLOBAL.CLUSTERS.OPEN
-  });
+      const result = await client.vSimWithScores('key', 'element1');
+
+      assert.ok(typeof result === 'object');
+      assert.ok('element1' in result);
+      assert.ok('element2' in result);
+      assert.equal(typeof result['element1'], 'number');
+      assert.equal(typeof result['element2'], 'number');
+    },
+    {
+      client: GLOBAL.SERVERS.OPEN,
+      cluster: GLOBAL.CLUSTERS.OPEN
+    }
+  );
+
+  testUtils.testWithClient(
+    'vSimWithScores with RESP3 - returns Map with scores',
+    async client => {
+      await client.vAdd('resp3-key', [1.0, 2.0, 3.0], 'element1');
+      await client.vAdd('resp3-key', [1.1, 2.1, 3.1], 'element2');
+      await client.vAdd('resp3-key', [2.0, 3.0, 4.0], 'element3');
+
+      const result = await client.vSimWithScores('resp3-key', 'element1');
+
+      assert.ok(typeof result === 'object');
+      assert.ok('element1' in result);
+      assert.ok('element2' in result);
+      assert.equal(typeof result['element1'], 'number');
+      assert.equal(typeof result['element2'], 'number');
+    },
+    {
+      ...GLOBAL.SERVERS.OPEN,
+      clientOptions: {
+        RESP: 3
+      }
+    }
+  );
 });
