@@ -12,7 +12,6 @@ export interface VSimOptions {
 }
 
 export default {
-  CACHEABLE: true,
   IS_READ_ONLY: true,
   /**
    * Retrieve elements similar to a given vector or element with optional filtering

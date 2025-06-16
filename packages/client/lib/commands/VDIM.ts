@@ -2,7 +2,6 @@ import { CommandParser } from '../client/parser';
 import { RedisArgument, NumberReply, Command } from '../RESP/types';
 
 export default {
-  CACHEABLE: true,
   IS_READ_ONLY: true,
   /**
    * Retrieve the dimension of the vectors in a vector set

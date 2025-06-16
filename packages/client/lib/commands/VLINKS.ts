@@ -2,7 +2,6 @@ import { CommandParser } from '../client/parser';
 import { RedisArgument, ArrayReply, BlobStringReply, Command } from '../RESP/types';
 
 export default {
-  CACHEABLE: true,
   IS_READ_ONLY: true,
   /**
    * Retrieve the neighbors of a specified element in a vector set; the connections for each layer of the HNSW graph

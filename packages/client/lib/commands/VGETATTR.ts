@@ -3,7 +3,6 @@ import { RedisArgument, Command } from '../RESP/types';
 import { transformRedisJsonNullReply } from './generic-transformers';
 
 export default {
-  CACHEABLE: true,
   IS_READ_ONLY: true,
   /**
    * Retrieve the attributes of a vector set element
