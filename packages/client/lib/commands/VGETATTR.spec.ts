@@ -21,4 +21,38 @@ describe('VGETATTR', () => {
     client: GLOBAL.SERVERS.OPEN,
     cluster: GLOBAL.CLUSTERS.OPEN
   });
+
+  testUtils.testWithClient('vGetAttr with RESP3', async client => {
+    // Test getting attributes with RESP3
+    await client.vAdd('resp3-key', [1.0, 2.0], 'resp3-element');
+
+    // Test null case (no attributes set)
+    const nullResult = await client.vGetAttr('resp3-key', 'resp3-element');
+    assert.equal(nullResult, null);
+
+    // Set complex attributes and retrieve them
+    const complexAttrs = {
+      name: 'test-item',
+      category: 'electronics',
+      price: 99.99,
+      inStock: true,
+      tags: ['new', 'featured']
+    };
+    await client.vSetAttr('resp3-key', 'resp3-element', complexAttrs);
+
+    const result = await client.vGetAttr('resp3-key', 'resp3-element');
+    assert.ok(result !== null);
+
+    // Parse the JSON result and verify structure
+    const parsedAttrs = JSON.parse(result.toString());
+    assert.equal(parsedAttrs.name, 'test-item');
+    assert.equal(parsedAttrs.price, 99.99);
+    assert.equal(parsedAttrs.inStock, true);
+    assert.ok(Array.isArray(parsedAttrs.tags));
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    clientOptions: {
+      RESP: 3
+    }
+  });
 });
