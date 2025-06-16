@@ -3,7 +3,6 @@ import { RedisArgument, Command } from '../RESP/types';
 import { transformDoubleArrayReply } from './generic-transformers';
 
 export default {
-  CACHEABLE: true,
   IS_READ_ONLY: true,
   /**
    * Retrieve the approximate vector associated with a vector set element

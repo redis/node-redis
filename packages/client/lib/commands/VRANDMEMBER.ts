@@ -2,7 +2,6 @@ import { CommandParser } from '../client/parser';
 import { RedisArgument, BlobStringReply, ArrayReply, Command } from '../RESP/types';
 
 export default {
-  CACHEABLE: true,
   IS_READ_ONLY: true,
   /**
    * Retrieve random elements of a vector set
