@@ -1,6 +1,6 @@
 import { CommandParser } from '../client/parser';
 import { RedisArgument, NumberReply, Command, BooleanReply } from '../RESP/types';
-import { transformDoubleArgument } from './generic-transformers';
+import { transformBooleanReply, transformDoubleArgument } from './generic-transformers';
 
 export interface VAddOptions {
   REDUCE?: number;
@@ -61,8 +61,5 @@ export default {
       parser.push('M', options.M.toString());
     }
   },
-  transformReply: {
-    2: undefined as unknown as () => NumberReply,
-    3: undefined as unknown as () => BooleanReply
-  }
+  transformReply: transformBooleanReply
 } as const satisfies Command;

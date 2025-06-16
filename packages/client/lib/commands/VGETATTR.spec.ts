@@ -13,21 +13,26 @@ describe('VGETATTR', () => {
 
   testUtils.testAll('vGetAttr', async client => {
     await client.vAdd('key', [1.0, 2.0, 3.0], 'element');
+
+    const nullResult = await client.vGetAttr('key', 'element');
+    assert.equal(nullResult, null);
+
     await client.vSetAttr('key', 'element', { name: 'test' });
 
     const result = await client.vGetAttr('key', 'element');
     assert.ok(result !== null);
+
   }, {
     client: GLOBAL.SERVERS.OPEN,
     cluster: GLOBAL.CLUSTERS.OPEN
   });
 
   testUtils.testWithClient('vGetAttr with RESP3', async client => {
-    // Test getting attributes with RESP3
     await client.vAdd('resp3-key', [1.0, 2.0], 'resp3-element');
 
     // Test null case (no attributes set)
     const nullResult = await client.vGetAttr('resp3-key', 'resp3-element');
+
     assert.equal(nullResult, null);
 
     // Set complex attributes and retrieve them
@@ -41,6 +46,7 @@ describe('VGETATTR', () => {
     await client.vSetAttr('resp3-key', 'resp3-element', complexAttrs);
 
     const result = await client.vGetAttr('resp3-key', 'resp3-element');
+
     assert.ok(result !== null);
 
     // Parse the JSON result and verify structure

@@ -1,5 +1,6 @@
 import { CommandParser } from '../client/parser';
-import { RedisArgument, ArrayReply, DoubleReply, Command } from '../RESP/types';
+import { RedisArgument, Command } from '../RESP/types';
+import { transformDoubleArrayReply } from './generic-transformers';
 
 export default {
   CACHEABLE: true,
@@ -17,5 +18,5 @@ export default {
     parser.pushKey(key);
     parser.push(element);
   },
-  transformReply: undefined as unknown as () => ArrayReply<DoubleReply>
+  transformReply: transformDoubleArrayReply
 } as const satisfies Command;
