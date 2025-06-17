@@ -67,8 +67,8 @@ describe('VADD', () => {
     );
 
   }, {
-    client: GLOBAL.SERVERS.OPEN,
-    cluster: GLOBAL.CLUSTERS.OPEN
+    client: { ...GLOBAL.SERVERS.OPEN, minimumDockerVersion: [8, 0] },
+    cluster: { ...GLOBAL.CLUSTERS.OPEN, minimumDockerVersion: [8, 0] },
   });
 
   testUtils.testWithClient('vAdd with RESP3', async client => {
@@ -103,6 +103,7 @@ describe('VADD', () => {
     ...GLOBAL.SERVERS.OPEN,
     clientOptions: {
       RESP: 3
-    }
+    },
+    minimumDockerVersion: [8, 0]
   });
 });

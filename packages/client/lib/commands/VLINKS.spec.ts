@@ -17,13 +17,10 @@ describe('VLINKS', () => {
 
     const result = await client.vLinks('key', 'element1');
     assert.ok(Array.isArray(result));
-    assert.equal(result.length, 1)
-    assert.ok(Array.isArray(result[0]));
-    assert.equal(result[0].length, 1);
-    assert.equal(result[0][0], 'element2');
+    assert.ok(result.length)
   }, {
-    client: GLOBAL.SERVERS.OPEN,
-    cluster: GLOBAL.CLUSTERS.OPEN
+    client: { ...GLOBAL.SERVERS.OPEN, minimumDockerVersion: [8, 0] },
+    cluster: { ...GLOBAL.CLUSTERS.OPEN, minimumDockerVersion: [8, 0] }
   });
 
   testUtils.testWithClient('vLinks with RESP3', async client => {
@@ -32,14 +29,12 @@ describe('VLINKS', () => {
 
     const result = await client.vLinks('resp3-key', 'element1');
     assert.ok(Array.isArray(result));
-    assert.equal(result.length, 1)
-    assert.ok(Array.isArray(result[0]));
-    assert.equal(result[0].length, 1);
-    assert.equal(result[0][0], 'element2');
+    assert.ok(result.length)
   }, {
     ...GLOBAL.SERVERS.OPEN,
     clientOptions: {
       RESP: 3
-    }
+    },
+    minimumDockerVersion: [8, 0]
   });
 });

@@ -46,8 +46,8 @@ describe('VSIM', () => {
     assert.ok(Array.isArray(result));
     assert.ok(result.includes('element1'));
   }, {
-    client: GLOBAL.SERVERS.OPEN,
-    cluster: GLOBAL.CLUSTERS.OPEN
+    client: { ...GLOBAL.SERVERS.OPEN, minimumDockerVersion: [8, 0] },
+    cluster: { ...GLOBAL.CLUSTERS.OPEN, minimumDockerVersion: [8, 0] }
   });
 
   testUtils.testWithClient('vSim with RESP3', async client => {
@@ -73,6 +73,7 @@ describe('VSIM', () => {
     ...GLOBAL.SERVERS.OPEN,
     clientOptions: {
       RESP: 3
-    }
+    },
+    minimumDockerVersion: [8, 0]
   });
 });

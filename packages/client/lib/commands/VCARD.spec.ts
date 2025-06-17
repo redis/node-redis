@@ -22,8 +22,8 @@ describe('VCARD', () => {
 
     assert.equal(await client.vCard('unknown'), 0);
   }, {
-    client: GLOBAL.SERVERS.OPEN,
-    cluster: GLOBAL.CLUSTERS.OPEN
+    client: { ...GLOBAL.SERVERS.OPEN, minimumDockerVersion: [8, 0] },
+    cluster: { ...GLOBAL.CLUSTERS.OPEN, minimumDockerVersion: [8, 0] }
   });
 
   testUtils.testWithClient('vCard with RESP3', async client => {
@@ -52,6 +52,7 @@ describe('VCARD', () => {
     ...GLOBAL.SERVERS.OPEN,
     clientOptions: {
       RESP: 3
-    }
+    },
+    minimumDockerVersion: [8, 0]
   });
 });

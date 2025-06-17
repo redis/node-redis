@@ -27,8 +27,8 @@ describe('VINFO', () => {
     assert.ok('vset-uid' in result);
     assert.ok('hnsw-max-node-uid' in result);
   }, {
-    client: GLOBAL.SERVERS.OPEN,
-    cluster: GLOBAL.CLUSTERS.OPEN
+    client: { ...GLOBAL.SERVERS.OPEN, minimumDockerVersion: [8, 0] },
+    cluster: { ...GLOBAL.CLUSTERS.OPEN, minimumDockerVersion: [8, 0] }
   });
 
   testUtils.testWithClient('vInfo with RESP3', async client => {
@@ -50,6 +50,7 @@ describe('VINFO', () => {
     ...GLOBAL.SERVERS.OPEN,
     clientOptions: {
       RESP: 3
-    }
+    },
+    minimumDockerVersion: [8, 0]
   });
 });
