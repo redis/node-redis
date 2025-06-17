@@ -19,8 +19,8 @@ describe('VEMB', () => {
     assert.equal(result.length, 3);
     assert.equal(typeof result[0], 'number');
   }, {
-    client: GLOBAL.SERVERS.OPEN,
-    cluster: GLOBAL.CLUSTERS.OPEN
+    client: { ...GLOBAL.SERVERS.OPEN, minimumDockerVersion: [8, 0] },
+    cluster: { ...GLOBAL.CLUSTERS.OPEN, minimumDockerVersion: [8, 0] }
   });
 
   testUtils.testWithClient('vEmb with RESP3', async client => {
@@ -34,6 +34,7 @@ describe('VEMB', () => {
     ...GLOBAL.SERVERS.OPEN,
     clientOptions: {
       RESP: 3
-    }
+    },
+    minimumDockerVersion: [8, 0]
   });
 });

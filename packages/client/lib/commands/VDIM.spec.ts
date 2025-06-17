@@ -19,8 +19,8 @@ describe('VDIM', () => {
       3
     );
   }, {
-    client: GLOBAL.SERVERS.OPEN,
-    cluster: GLOBAL.CLUSTERS.OPEN
+    client: { ...GLOBAL.SERVERS.OPEN, minimumDockerVersion: [8, 0] },
+    cluster: { ...GLOBAL.CLUSTERS.OPEN, minimumDockerVersion: [8, 0] }
   });
 
   testUtils.testWithClient('vDim with RESP3', async client => {
@@ -35,6 +35,7 @@ describe('VDIM', () => {
     ...GLOBAL.SERVERS.OPEN,
     clientOptions: {
       RESP: 3
-    }
+    },
+    minimumDockerVersion: [8, 0]
   });
 });

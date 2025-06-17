@@ -30,8 +30,8 @@ describe('VRANDMEMBER', () => {
       assert.equal(typeof result, 'string');
       assert.ok(['element1', 'element2', 'element3'].includes(result as string));
     }, {
-      client: GLOBAL.SERVERS.OPEN,
-      cluster: GLOBAL.CLUSTERS.OPEN
+      client: { ...GLOBAL.SERVERS.OPEN, minimumDockerVersion: [8, 0] },
+      cluster: { ...GLOBAL.CLUSTERS.OPEN, minimumDockerVersion: [8, 0] }
     });
 
     testUtils.testAll('vRandMember with positive count - returns distinct elements', async client => {
@@ -44,8 +44,8 @@ describe('VRANDMEMBER', () => {
       assert.equal(result.length, 2);
 
     }, {
-      client: GLOBAL.SERVERS.OPEN,
-      cluster: GLOBAL.CLUSTERS.OPEN
+      client: { ...GLOBAL.SERVERS.OPEN, minimumDockerVersion: [8, 0] },
+      cluster: { ...GLOBAL.CLUSTERS.OPEN, minimumDockerVersion: [8, 0] }
     });
 
     testUtils.testAll('vRandMember with negative count - allows duplicates', async client => {
@@ -61,8 +61,8 @@ describe('VRANDMEMBER', () => {
         assert.ok(['element1', 'element2'].includes(element));
       });
     }, {
-      client: GLOBAL.SERVERS.OPEN,
-      cluster: GLOBAL.CLUSTERS.OPEN
+      client: { ...GLOBAL.SERVERS.OPEN, minimumDockerVersion: [8, 0] },
+      cluster: { ...GLOBAL.CLUSTERS.OPEN, minimumDockerVersion: [8, 0] }
     });
 
     testUtils.testAll('vRandMember count exceeds set size - returns entire set', async client => {
@@ -77,8 +77,8 @@ describe('VRANDMEMBER', () => {
       assert.ok(result.includes('element1'));
       assert.ok(result.includes('element2'));
     }, {
-      client: GLOBAL.SERVERS.OPEN,
-      cluster: GLOBAL.CLUSTERS.OPEN
+      client: { ...GLOBAL.SERVERS.OPEN, minimumDockerVersion: [8, 0] },
+      cluster: { ...GLOBAL.CLUSTERS.OPEN, minimumDockerVersion: [8, 0] }
     });
 
     testUtils.testAll('vRandMember on non-existent key', async client => {
@@ -91,8 +91,8 @@ describe('VRANDMEMBER', () => {
       assert.ok(Array.isArray(resultWithCount));
       assert.equal(resultWithCount.length, 0);
     }, {
-      client: GLOBAL.SERVERS.OPEN,
-      cluster: GLOBAL.CLUSTERS.OPEN
+      client: { ...GLOBAL.SERVERS.OPEN, minimumDockerVersion: [8, 0] },
+      cluster: { ...GLOBAL.CLUSTERS.OPEN, minimumDockerVersion: [8, 0] }
     });
   });
 
@@ -109,7 +109,8 @@ describe('VRANDMEMBER', () => {
       ...GLOBAL.SERVERS.OPEN,
       clientOptions: {
         RESP: 3
-      }
+      },
+      minimumDockerVersion: [8, 0]
     });
 
     testUtils.testWithClient('vRandMember with positive count - returns distinct elements', async client => {
@@ -133,7 +134,8 @@ describe('VRANDMEMBER', () => {
       ...GLOBAL.SERVERS.OPEN,
       clientOptions: {
         RESP: 3
-      }
+      },
+      minimumDockerVersion: [8, 0]
     });
 
     testUtils.testWithClient('vRandMember with negative count - allows duplicates', async client => {
@@ -152,7 +154,8 @@ describe('VRANDMEMBER', () => {
       ...GLOBAL.SERVERS.OPEN,
       clientOptions: {
         RESP: 3
-      }
+      },
+      minimumDockerVersion: [8, 0]
     });
 
     testUtils.testWithClient('vRandMember count exceeds set size - returns entire set', async client => {
@@ -170,7 +173,8 @@ describe('VRANDMEMBER', () => {
       ...GLOBAL.SERVERS.OPEN,
       clientOptions: {
         RESP: 3
-      }
+      },
+      minimumDockerVersion: [8, 0]
     });
 
     testUtils.testWithClient('vRandMember on non-existent key', async client => {
@@ -186,7 +190,8 @@ describe('VRANDMEMBER', () => {
       ...GLOBAL.SERVERS.OPEN,
       clientOptions: {
         RESP: 3
-      }
+      },
+      minimumDockerVersion: [8, 0]
     });
   });
 });

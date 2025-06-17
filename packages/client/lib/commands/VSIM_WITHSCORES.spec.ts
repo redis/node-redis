@@ -29,8 +29,8 @@ describe('VSIM WITHSCORES', () => {
       assert.equal(typeof result['element2'], 'number');
     },
     {
-      client: GLOBAL.SERVERS.OPEN,
-      cluster: GLOBAL.CLUSTERS.OPEN
+      client: { ...GLOBAL.SERVERS.OPEN, minimumDockerVersion: [8, 0] },
+      cluster: { ...GLOBAL.CLUSTERS.OPEN, minimumDockerVersion: [8, 0] }
     }
   );
 
@@ -53,7 +53,8 @@ describe('VSIM WITHSCORES', () => {
       ...GLOBAL.SERVERS.OPEN,
       clientOptions: {
         RESP: 3
-      }
+      },
+      minimumDockerVersion: [8, 0]
     }
   );
 });
