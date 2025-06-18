@@ -25,7 +25,7 @@ describe('VSETATTR', () => {
 
     assert.equal(
       await client.vSetAttr('key', 'element', { name: 'test', value: 42 }),
-      1
+      true
     );
   }, {
     client: { ...GLOBAL.SERVERS.OPEN, minimumDockerVersion: [8, 0] },
