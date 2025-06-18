@@ -818,6 +818,20 @@ export default class RedisClusterSlots<
     }
   }
 
+  getAllClients() {
+    return Array.from(this.#clients());
+  }
+
+  getAllMasterClients() {
+    const result = [];
+    for (const master of this.masters) {
+      if (master.client) {
+        result.push(master.client);
+      }
+    }
+    return result;
+  }
+
   async getClientAndSlotNumber(
     firstKey: RedisArgument | undefined,
     isReadonly: boolean | undefined
