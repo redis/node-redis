@@ -23,7 +23,7 @@
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
     "@release-it/bumper": "^7.0.5",
     "@types/mocha": "^10.0.6",
-    "@types/node": "^20.11.16",
+    "@types/node": "^20.19.1",
     "gh-pages": "^6.1.1",
     "mocha": "^10.2.0",
     "nyc": "^15.1.0",
