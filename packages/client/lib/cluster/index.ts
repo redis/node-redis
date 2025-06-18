@@ -10,10 +10,11 @@ import { PubSubListener } from '../client/pub-sub';
 import { ErrorReply } from '../errors';
 import { RedisTcpSocketOptions } from '../client/socket';
 import { ClientSideCacheConfig, PooledClientSideCacheProvider } from '../client/cache';
-import { BasicCommandParser } from '../client/parser';
+import { BasicCommandParser, CommandParser } from '../client/parser';
 import { ASKING_CMD } from '../commands/ASKING';
 import SingleEntryCache from '../single-entry-cache'
-import { POLICIES, PolicyResolver, StaticPolicyResolver } from './request-response-policies';
+import { POLICIES, PolicyResolver, REQUEST_POLICIES_WITH_DEFAULTS, RESPONSE_POLICIES_WITH_DEFAULTS, StaticPolicyResolver } from './request-response-policies';
+import { aggregateLogicalAnd, aggregateLogicalOr, aggregateMax, aggregateMerge, aggregateMin, aggregateSum } from './request-response-policies/generic-aggregators';
 interface ClusterCommander<
   M extends RedisModules,
   F extends RedisFunctions,
@@ -190,10 +191,9 @@ export default class RedisCluster<
       command.parseCommand(parser, ...args);
 
       return this._self._execute(
-        parser.firstKey,
+        parser,
         command.IS_READ_ONLY,
         this._commandOptions,
-        parser.commandName!,
         (client, opts) => client._executeCommand(command, parser, opts, transformReply)
       );
     };
@@ -207,10 +207,9 @@ export default class RedisCluster<
       command.parseCommand(parser, ...args);
 
       return this._self._execute(
-        parser.firstKey,
+        parser,
         command.IS_READ_ONLY,
         this._self._commandOptions,
-        parser.commandName!,
         (client, opts) => client._executeCommand(command, parser, opts, transformReply)
       );
     };
@@ -226,10 +225,9 @@ export default class RedisCluster<
       fn.parseCommand(parser, ...args);
 
       return this._self._execute(
-        parser.firstKey,
+        parser,
         fn.IS_READ_ONLY,
         this._self._commandOptions,
-        parser.commandName!,
         (client, opts) => client._executeCommand(fn, parser, opts, transformReply)
       );
     };
@@ -245,10 +243,9 @@ export default class RedisCluster<
       script.parseCommand(parser, ...args);
 
       return this._self._execute(
-        parser.firstKey,
+        parser,
         script.IS_READ_ONLY,
         this._commandOptions,
-        parser.commandName!,
         (client, opts) => client._executeScript(script, parser, opts, transformReply)
       );
     };
@@ -459,64 +456,157 @@ export default class RedisCluster<
   }
 
   async _execute<T>(
-    firstKey: RedisArgument | undefined,
+    parser: CommandParser,
     isReadonly: boolean | undefined,
     options: ClusterCommandOptions | undefined,
-    commandName: string,
     fn: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>, opts?: ClusterCommandOptions) => Promise<T>
   ): Promise<T> {
 
     const maxCommandRedirections = this._options.maxCommandRedirections ?? 16;
-    const policyResult = this._policyResolver.resolvePolicy(commandName)
 
-    if(policyResult.ok) {
-      //TODO
-    } else {
-      //TODO
+    const policyResult = this._policyResolver.resolvePolicy(parser.commandIdentifier);
+
+    if(!policyResult.ok) {
+      throw new Error(`Policy resolution error for ${parser.commandIdentifier}: ${policyResult.error}`);
     }
-    
-    let client = await this._slots.getClient(firstKey, isReadonly);
-    let i = 0;
 
-    let myFn = fn;
+    const requestPolicy =  policyResult.value.request
+    const responsePolicy =  policyResult.value.response
 
-    while (true) {
-      try {
-        return await myFn(client, options);
-      } catch (err) {
-        myFn = fn;
+    let clients: Array<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>;
+    // https://redis.io/docs/latest/develop/reference/command-tips
+    switch (requestPolicy) {
+      
+      case REQUEST_POLICIES_WITH_DEFAULTS.ALL_NODES:
+        clients = this._slots.getAllClients()
+        break;
 
-        // TODO: error class
-        if (++i > maxCommandRedirections || !(err instanceof Error)) {
-          throw err;
-        }
+      case REQUEST_POLICIES_WITH_DEFAULTS.ALL_SHARDS:
+        clients = this._slots.getAllMasterClients()
+        break;
 
-        if (err.message.startsWith('ASK')) {
-          const address = err.message.substring(err.message.lastIndexOf(' ') + 1);
-          let redirectTo = await this._slots.getMasterByAddress(address);
-          if (!redirectTo) {
-            await this._slots.rediscover(client);
-            redirectTo = await this._slots.getMasterByAddress(address);
-          }
+      case REQUEST_POLICIES_WITH_DEFAULTS.MULTI_SHARD:
+        clients = await Promise.all(
+          parser.keys.map((key) => this._slots.getClient(key, isReadonly))
+        );
+        break;
 
-          if (!redirectTo) {
-            throw new Error(`Cannot find node ${address}`);
-          }
+      case REQUEST_POLICIES_WITH_DEFAULTS.SPECIAL:
+        throw new Error(`Special request policy not implemented for ${parser.commandIdentifier}`);
 
-          client = redirectTo;
-          myFn = this._handleAsk(fn);
-          continue;
-        }
+      case REQUEST_POLICIES_WITH_DEFAULTS.DEFAULT_KEYLESS:
+        //TODO handle undefined case?
+        clients = [this._slots.getRandomNode().client!]
+        break;
+
+      case REQUEST_POLICIES_WITH_DEFAULTS.DEFAULT_KEYED:
+        clients = [await this._slots.getClient(parser.firstKey, isReadonly)]
+        break;
         
-        if (err.message.startsWith('MOVED')) {
-          await this._slots.rediscover(client);
-          client = await this._slots.getClient(firstKey, isReadonly);
-          continue;
-        }
+      default:
+        throw new Error(`Unknown request policy ${requestPolicy}`);
 
-        throw err;
-      } 
     }
+
+    const responsePromises = clients.map(async client => {
+
+      let i = 0;
+
+      let myFn = fn;
+
+      while (true) {
+        try {
+          return await myFn(client, options);
+        } catch (err) {
+          myFn = fn;
+
+          // TODO: error class
+          if (++i > maxCommandRedirections || !(err instanceof Error)) {
+            throw err;
+          }
+
+          if (err.message.startsWith('ASK')) {
+            const address = err.message.substring(err.message.lastIndexOf(' ') + 1);
+            let redirectTo = await this._slots.getMasterByAddress(address);
+            if (!redirectTo) {
+              await this._slots.rediscover(client);
+              redirectTo = await this._slots.getMasterByAddress(address);
+            }
+
+            if (!redirectTo) {
+              throw new Error(`Cannot find node ${address}`);
+            }
+
+            client = redirectTo;
+            myFn = this._handleAsk(fn);
+            continue;
+          }
+          
+          if (err.message.startsWith('MOVED')) {
+            await this._slots.rediscover(client);
+            client = await this._slots.getClient(parser.firstKey, isReadonly);
+            continue;
+          }
+
+          throw err;
+        } 
+      }
+
+    })
+    
+    switch (responsePolicy) {
+      case RESPONSE_POLICIES_WITH_DEFAULTS.ONE_SUCCEEDED: {
+        return Promise.any(responsePromises);
+      }
+
+      case RESPONSE_POLICIES_WITH_DEFAULTS.ALL_SUCCEEDED: {
+        const responses = await Promise.all(responsePromises);
+        return responses[0]
+      }
+
+      case RESPONSE_POLICIES_WITH_DEFAULTS.AGG_LOGICAL_AND: {
+        const responses = await Promise.all(responsePromises)
+        return aggregateLogicalAnd(responses);
+      }
+
+      case RESPONSE_POLICIES_WITH_DEFAULTS.AGG_LOGICAL_OR: {
+        const responses = await Promise.all(responsePromises)
+        return aggregateLogicalOr(responses);
+      }
+
+      case RESPONSE_POLICIES_WITH_DEFAULTS.AGG_MIN: {
+        const responses = await Promise.all(responsePromises);
+        return aggregateMin(responses);
+      }
+      
+      case RESPONSE_POLICIES_WITH_DEFAULTS.AGG_MAX: {
+        const responses = await Promise.all(responsePromises);
+        return aggregateMax(responses);
+      }
+
+      case RESPONSE_POLICIES_WITH_DEFAULTS.AGG_SUM: {
+        const responses = await Promise.all(responsePromises);
+        return aggregateSum(responses);
+      }
+
+      case RESPONSE_POLICIES_WITH_DEFAULTS.SPECIAL: {
+        throw new Error(`Special response policy not implemented for ${parser.commandIdentifier}`);
+      }
+
+      case RESPONSE_POLICIES_WITH_DEFAULTS.DEFAULT_KEYLESS: {
+        const responses = await Promise.all(responsePromises);
+        return aggregateMerge(responses);
+      }
+
+      case RESPONSE_POLICIES_WITH_DEFAULTS.DEFAULT_KEYED: {
+        const responses = await Promise.all(responsePromises);
+        return responses as T;
+      }
+
+      default:
+        throw new Error(`Unknown response policy ${responsePolicy}`);
+    }
+
   }
 
   async sendCommand<T = ReplyUnion>(
@@ -526,11 +616,15 @@ export default class RedisCluster<
     options?: ClusterCommandOptions,
     // defaultPolicies?: CommandPolicies
   ): Promise<T> {
+
+    const parser = new BasicCommandParser();
+    firstKey && parser.push(firstKey)
+    args.forEach(arg => parser.push(arg));
+
     return this._self._execute(
-      firstKey,
+      parser,
       isReadonly,
       options,
-      args[0] instanceof Buffer ? args[0].toString() : args[0],
       (client, opts) => client.sendCommand(args, opts)
     );
   }
