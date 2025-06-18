@@ -16,7 +16,12 @@ describe('VREM', () => {
 
     assert.equal(
       await client.vRem('key', 'element'),
-      1
+      true
+    );
+
+    assert.equal(
+      await client.vRem('key', 'element'),
+      false
     );
 
     assert.equal(
@@ -35,6 +40,12 @@ describe('VREM', () => {
       await client.vRem('resp3-key', 'resp3-element'),
       true
     );
+
+    assert.equal(
+      await client.vRem('resp3-key', 'resp3-element'),
+      false
+    );
+
 
     assert.equal(
       await client.vCard('resp3-key'),
