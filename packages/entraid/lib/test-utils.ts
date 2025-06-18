@@ -6,7 +6,7 @@ import { EntraidCredentialsProvider } from './entraid-credentials-provider';
 export const testUtils = TestUtils.createFromConfig({
   dockerImageName: 'redislabs/client-libs-test',
   dockerImageVersionArgument: 'redis-version',
-  defaultDockerVersion: '8.0.2'
+  defaultDockerVersion: '8.2-M01-pre'
 });
 
 const DEBUG_MODE_ARGS = testUtils.isVersionGreaterThan([7]) ?
