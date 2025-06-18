@@ -1,3 +1,4 @@
+import { CommandIdentifier } from '../../client/parser';
 import type { CommandPolicies } from './policies-constants';
 
 export type Either<TOk, TError> =
@@ -6,11 +7,12 @@ export type Either<TOk, TError> =
 
 export type PolicyResult = Either<CommandPolicies, 'policy-not-found' | 'unknown-command' | 'unknown-module' | 'wrong-command-or-module-name' | 'no-policy-resolved'>;
 
+
 export interface PolicyResolver {
   /**
    * The response of the COMMAND command uses "." to separate the module name from the command name.
    */
-  resolvePolicy(command: string): PolicyResult;
+  resolvePolicy(commandIdentifier: CommandIdentifier): PolicyResult;
 
   /**
    * Sets a fallback resolver to use when policies are not found in this resolver.
