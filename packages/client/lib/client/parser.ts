@@ -1,11 +1,13 @@
 import { RedisArgument } from '../RESP/types';
 import { RedisVariadicArgument } from '../commands/generic-transformers';
 
+export type CommandIdentifier = { command: string, subcommand: string };
 export interface CommandParser {
   redisArgs: ReadonlyArray<RedisArgument>;
   keys: ReadonlyArray<RedisArgument>;
   firstKey: RedisArgument | undefined;
   preserve: unknown;
+  commandIdentifier: CommandIdentifier;
 
   push: (...arg: Array<RedisArgument>) => unknown;
   pushVariadic: (vals: RedisVariadicArgument) => unknown;
@@ -44,12 +46,10 @@ export class BasicCommandParser implements CommandParser {
     return tmp.join('_');
   }
 
-  get commandName(): string | undefined {
-    let cmdName = this.#redisArgs[0];
-    if (cmdName instanceof Buffer) {
-      return cmdName.toString();
-    }
-    return cmdName;
+  get commandIdentifier(): CommandIdentifier {
+    const command = this.#redisArgs[0] instanceof Buffer ? this.#redisArgs[0].toString() : this.#redisArgs[0];
+    const subcommand = this.#redisArgs[1] instanceof Buffer ? this.#redisArgs[1].toString() : this.#redisArgs[1];
+    return { command, subcommand };
   }
 
   push(...arg: Array<RedisArgument>) {
