@@ -348,6 +348,7 @@ import VADD from './VADD';
 import VCARD from './VCARD';
 import VDIM from './VDIM';
 import VEMB from './VEMB';
+import VEMB_RAW from './VEMB_RAW';
 import VGETATTR from './VGETATTR';
 import VINFO from './VINFO';
 import VLINKS from './VLINKS';
@@ -1059,6 +1060,8 @@ export default {
   vDim: VDIM,
   VEMB,
   vEmb: VEMB,
+  VEMB_RAW,
+  vEmbRaw: VEMB_RAW,
   VGETATTR,
   vGetAttr: VGETATTR,
   VINFO,
