@@ -896,9 +896,16 @@ export default class RedisClient<
     let controller: AbortController;
     if (this._self.#options?.commandTimeout) {
       controller = new AbortController()
+      let abortSignal = controller.signal;
+      if (options?.abortSignal) {
+        abortSignal = AbortSignal.any([
+          abortSignal,
+	  options.abortSignal
+	]);
+      }
       options = {
         ...options,
-        abortSignal: controller.signal
+        abortSignal
       }
     }
     const promise = this._self.#queue.addCommand<T>(args, options);

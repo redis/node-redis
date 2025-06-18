@@ -263,6 +263,23 @@ describe('Client', () => {
           AbortError
         );
       }, GLOBAL.SERVERS.OPEN);
+
+      testUtils.testWithClient('AbortError with timeout', client => {
+        const controller = new AbortController();
+        controller.abort();
+
+        return assert.rejects(
+          client.sendCommand(['PING'], {
+            abortSignal: controller.signal
+          }),
+          AbortError
+        );
+      }, {
+        ...GLOBAL.SERVERS.OPEN,
+        clientOptions: {
+          commandTimeout: 50,
+        }
+      });
     });
 
   testUtils.testWithClient('CommandTimeoutError', async client => {
