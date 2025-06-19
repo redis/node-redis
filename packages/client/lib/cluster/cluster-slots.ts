@@ -445,6 +445,20 @@ export default class RedisClusterSlots<
     await Promise.allSettled(promises);
   }
 
+  getAllClients() {
+    return Array.from(this.#clients());
+  }
+
+  getAllMasterClients() {
+    const result = [];
+    for (const master of this.masters) {
+      if (master.client) {
+        result.push(master.client);
+      }
+    }
+    return result;
+  }
+
   getClient(
     firstKey: RedisArgument | undefined,
     isReadonly: boolean | undefined
