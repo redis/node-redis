@@ -23,7 +23,9 @@ import STRLEN from './STRLEN';
 import TOGGLE from './TOGGLE';
 import TYPE from './TYPE';
 
-export * from './helpers';
+// Re-export helper types and functions from client package
+export type { RedisJSON } from '@redis/client/dist/lib/commands/generic-transformers';
+export { transformRedisJsonArgument, transformRedisJsonReply, transformRedisJsonNullReply } from '@redis/client/dist/lib/commands/generic-transformers';
 
 export default {
   ARRAPPEND,
