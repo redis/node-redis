@@ -4,7 +4,7 @@ import { BasicAuth, CredentialsError, CredentialsProvider, StreamingCredentialsP
 import RedisCommandsQueue, { CommandOptions } from './commands-queue';
 import { EventEmitter } from 'node:events';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
-import { ClientClosedError, ClientOfflineError, CommandTimeoutError, DisconnectsClientError, WatchError } from '../errors';
+import { ClientClosedError, ClientOfflineError, AbortError, DisconnectsClientError, WatchError } from '../errors';
 import { URL } from 'node:url';
 import { TcpSocketConnectOpts } from 'node:net';
 import { PUBSUB_TYPE, PubSubType, PubSubListener, PubSubTypeListeners, ChannelListeners } from './pub-sub';
@@ -918,7 +918,7 @@ export default class RedisClient<
     return new Promise<T>((resolve, reject) => {
       const timeoutId = setTimeout(() => {
         controller.abort();
-        reject(new CommandTimeoutError());
+        reject(new AbortError());
       }, this._self.#options?.commandTimeout)
       promise.then(result => {
         clearInterval(timeoutId);

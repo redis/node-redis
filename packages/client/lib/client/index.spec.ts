@@ -283,11 +283,11 @@ describe('Client', () => {
     });
 
   testUtils.testWithClient('CommandTimeoutError', async client => {
-    const promise = assert.rejects(client.sendCommand(['PING']), CommandTimeoutError),
-      start = process.hrtime.bigint();
+    const promise = assert.rejects(client.sendCommand(['PING']), AbortError);
+    const start = process.hrtime.bigint();
 
     while (process.hrtime.bigint() - start < 50_000_000) {
-      // block the event loop for 1ms, to make sure the connection will timeout
+      // block the event loop for 50ms, to make sure the connection will timeout
     }
 
     await promise;
