@@ -287,6 +287,7 @@ describe('Client', () => {
       });
     });
 
+
   testUtils.testWithClient('rejects with AbortError on commandTimeout timer', async client => {
     const start = process.hrtime.bigint();
     const promise = client.ping();
@@ -296,7 +297,6 @@ describe('Client', () => {
     };
 
     assert.rejects(promise, AbortError);
-
   }, {
     ...GLOBAL.SERVERS.OPEN,
     clientOptions: {
