@@ -144,7 +144,7 @@ export default class RedisCommandsQueue {
     if (this.#maxLength && this.#toWrite.length + this.#waitingForReply.length >= this.#maxLength) {
       return Promise.reject(new Error('The queue is full'));
     } else if (options?.abortSignal?.aborted) {
-      return Promise.reject(new AbortError());
+      return Promise.reject(new AbortError(options?.abortSignal?.reason));
     }
 
     return new Promise((resolve, reject) => {
@@ -165,7 +165,7 @@ export default class RedisCommandsQueue {
           signal,
           listener: () => {
             this.#toWrite.remove(node);
-            value.reject(new AbortError());
+            value.reject(new AbortError(signal.reason));
           }
         };
         signal.addEventListener('abort', value.abort.listener, { once: true });

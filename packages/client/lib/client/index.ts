@@ -4,7 +4,7 @@ import { BasicAuth, CredentialsError, CredentialsProvider, StreamingCredentialsP
 import RedisCommandsQueue, { CommandOptions } from './commands-queue';
 import { EventEmitter } from 'node:events';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
-import { ClientClosedError, ClientOfflineError, CommandTimeoutError, DisconnectsClientError, WatchError } from '../errors';
+import { ClientClosedError, ClientOfflineError, DisconnectsClientError, WatchError } from '../errors';
 import { URL } from 'node:url';
 import { TcpSocketConnectOpts } from 'node:net';
 import { PUBSUB_TYPE, PubSubType, PubSubListener, PubSubTypeListeners, ChannelListeners } from './pub-sub';
@@ -530,7 +530,7 @@ export default class RedisClient<
   async #handshake(chainId: symbol, asap: boolean) {
     const promises = [];
     const commandsWithErrorHandlers = await this.#getHandshakeCommands();
-    
+
     if (asap) commandsWithErrorHandlers.reverse()
 
     for (const { cmd, errorHandler } of commandsWithErrorHandlers) {
@@ -636,7 +636,7 @@ export default class RedisClient<
           // since they could be connected to an older version that doesn't support them.
         }
       });
-      
+
       commands.push({
         cmd: [
           'CLIENT',
@@ -893,15 +893,13 @@ export default class RedisClient<
       return Promise.reject(new ClientOfflineError());
     }
 
-    let controller: AbortController;
     if (this._self.#options?.commandTimeout) {
-      controller = new AbortController()
-      let abortSignal = controller.signal;
+      let abortSignal = AbortSignal.timeout(this._self.#options?.commandTimeout);
       if (options?.abortSignal) {
         abortSignal = AbortSignal.any([
           abortSignal,
-	  options.abortSignal
-	]);
+       	  options.abortSignal
+       	]);
       }
       options = {
         ...options,
@@ -911,23 +909,7 @@ export default class RedisClient<
     const promise = this._self.#queue.addCommand<T>(args, options);
 
     this._self.#scheduleWrite();
-    if (!this._self.#options?.commandTimeout) {
-      return promise;
-    }
-
-    return new Promise<T>((resolve, reject) => {
-      const timeoutId = setTimeout(() => {
-        controller.abort();
-        reject(new CommandTimeoutError());
-      }, this._self.#options?.commandTimeout)
-      promise.then(result => {
-        clearInterval(timeoutId);
-        resolve(result)
-      }).catch(error => {
-        clearInterval(timeoutId);
-        reject(error)
-      });
-    })
+    return promise;
   }
 
   async SELECT(db: number): Promise<void> {

@@ -1,6 +1,6 @@
 export class AbortError extends Error {
-  constructor() {
-    super('The command was aborted');
+  constructor(message = '') {
+    super(`The command was aborted: ${message}`);
   }
 }
 
@@ -19,12 +19,6 @@ export class ConnectionTimeoutError extends Error {
 export class SocketTimeoutError extends Error {
   constructor(timeout: number) {
     super(`Socket timeout timeout. Expecting data, but didn't receive any in ${timeout}ms.`);
-  }
-}
-
-export class CommandTimeoutError extends Error {
-  constructor() {
-    super('Command timeout');
   }
 }
 

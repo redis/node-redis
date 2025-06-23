@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL, waitTillBeenCalled } from '../test-utils';
 import RedisClient, { RedisClientOptions, RedisClientType } from '.';
-import { AbortError, ClientClosedError, ClientOfflineError, ConnectionTimeoutError, CommandTimeoutError, DisconnectsClientError, ErrorReply, MultiErrorReply, SocketClosedUnexpectedlyError, WatchError } from '../errors';
+import { AbortError, ClientClosedError, ClientOfflineError, ConnectionTimeoutError, DisconnectsClientError, ErrorReply, MultiErrorReply, WatchError } from '../errors';
 import { defineScript } from '../lua-script';
 import { spy } from 'sinon';
 import { once } from 'node:events';
@@ -264,16 +264,21 @@ describe('Client', () => {
         );
       }, GLOBAL.SERVERS.OPEN);
 
-      testUtils.testWithClient('AbortError with timeout', client => {
-        const controller = new AbortController();
-        controller.abort();
+      testUtils.testWithClient('rejects with AbortError - respects given abortSignal', client => {
 
-        return assert.rejects(
-          client.sendCommand(['PING'], {
-            abortSignal: controller.signal
-          }),
+        const promise = client.sendCommand(['PING'], {
+          abortSignal: AbortSignal.abort("my reason")
+        })
+
+        assert.rejects(
+          promise,
           AbortError
         );
+
+        promise.catch((error: unknown) => {
+          assert.ok((error as string).includes("my reason"));
+        });
+
       }, {
         ...GLOBAL.SERVERS.OPEN,
         clientOptions: {
@@ -282,19 +287,20 @@ describe('Client', () => {
       });
     });
 
-  testUtils.testWithClient('CommandTimeoutError', async client => {
-    const promise = assert.rejects(client.sendCommand(['PING']), CommandTimeoutError),
-      start = process.hrtime.bigint();
+  testUtils.testWithClient('rejects with AbortError on commandTimeout timer', async client => {
+    const start = process.hrtime.bigint();
+    const promise = client.ping();
 
-    while (process.hrtime.bigint() - start < 50_000_000) {
-      // block the event loop for 1ms, to make sure the connection will timeout
-    }
+    while (process.hrtime.bigint() - start < 10_000_000) {
+      // block the event loop for 10ms, to make sure the connection will timeout
+    };
 
-    await promise;
+    assert.rejects(promise, AbortError);
+
   }, {
     ...GLOBAL.SERVERS.OPEN,
     clientOptions: {
-      commandTimeout: 50,
+      commandTimeout: 10,
     }
   });
 
