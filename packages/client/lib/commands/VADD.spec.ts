@@ -1,51 +1,63 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import VADD from './VADD';
-import { parseArgs } from './generic-transformers';
+import { BasicCommandParser } from '../client/parser';
 
 describe('VADD', () => {
-  describe('transformArguments', () => {
+  describe('parseCommand', () => {
     it('basic usage', () => {
+      const parser = new BasicCommandParser();
+      VADD.parseCommand(parser, 'key', [1.0, 2.0, 3.0], 'element');
       assert.deepEqual(
-        parseArgs(VADD, 'key', [1.0, 2.0, 3.0], 'element'),
+        parser.redisArgs,
         ['VADD', 'key', 'VALUES', '3', '1', '2', '3', 'element']
       );
     });
 
     it('with REDUCE option', () => {
+      const parser = new BasicCommandParser();
+      VADD.parseCommand(parser, 'key', [1.0, 2], 'element', { REDUCE: 50 });
       assert.deepEqual(
-        parseArgs(VADD, 'key', [1.0, 2], 'element', { REDUCE: 50 }),
+        parser.redisArgs,
         ['VADD', 'key', 'REDUCE', '50', 'VALUES', '2', '1', '2', 'element']
       );
     });
 
     it('with quantization options', () => {
+      let parser = new BasicCommandParser();
+      VADD.parseCommand(parser, 'key', [1.0, 2.0], 'element', { QUANT: 'Q8' });
       assert.deepEqual(
-        parseArgs(VADD, 'key', [1.0, 2.0], 'element', { QUANT: 'Q8' }),
+        parser.redisArgs,
         ['VADD', 'key', 'VALUES', '2', '1', '2', 'element', 'Q8']
       );
 
+      parser = new BasicCommandParser();
+      VADD.parseCommand(parser, 'key', [1.0, 2.0], 'element', { QUANT: 'BIN' });
       assert.deepEqual(
-        parseArgs(VADD, 'key', [1.0, 2.0], 'element', { QUANT: 'BIN' }),
+        parser.redisArgs,
         ['VADD', 'key', 'VALUES', '2', '1', '2', 'element', 'BIN']
       );
 
+      parser = new BasicCommandParser();
+      VADD.parseCommand(parser, 'key', [1.0, 2.0], 'element', { QUANT: 'NOQUANT' });
       assert.deepEqual(
-        parseArgs(VADD, 'key', [1.0, 2.0], 'element', { QUANT: 'NOQUANT' }),
+        parser.redisArgs,
         ['VADD', 'key', 'VALUES', '2', '1', '2', 'element', 'NOQUANT']
       );
     });
 
     it('with all options', () => {
+      const parser = new BasicCommandParser();
+      VADD.parseCommand(parser, 'key', [1.0, 2.0], 'element', {
+        REDUCE: 50,
+        CAS: true,
+        QUANT: 'Q8',
+        EF: 200,
+        SETATTR: { name: 'test', value: 42 },
+        M: 16
+      });
       assert.deepEqual(
-        parseArgs(VADD, 'key', [1.0, 2.0], 'element', {
-          REDUCE: 50,
-          CAS: true,
-          QUANT: 'Q8',
-          EF: 200,
-          SETATTR: { name: 'test', value: 42 },
-          M: 16
-        }),
+        parser.redisArgs,
         [
           'VADD', 'key', 'REDUCE', '50', 'VALUES', '2', '1', '2', 'element',
           'CAS', 'Q8', 'EF', '200', 'SETATTR', '{"name":"test","value":42}', 'M', '16'

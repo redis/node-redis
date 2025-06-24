@@ -1,12 +1,14 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import VINFO from './VINFO';
-import { parseArgs } from './generic-transformers';
+import { BasicCommandParser } from '../client/parser';
 
 describe('VINFO', () => {
-  it('transformArguments', () => {
+  it('parseCommand', () => {
+    const parser = new BasicCommandParser();
+    VINFO.parseCommand(parser, 'key');
     assert.deepEqual(
-      parseArgs(VINFO, 'key'),
+      parser.redisArgs,
       ['VINFO', 'key']
     );
   });

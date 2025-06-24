@@ -1,11 +1,13 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { parseArgs } from './generic-transformers';
 import VLINKS_WITHSCORES from './VLINKS_WITHSCORES';
+import { BasicCommandParser } from '../client/parser';
 
 describe('VLINKS WITHSCORES', () => {
-  it('transformArguments', () => {
-    assert.deepEqual(parseArgs(VLINKS_WITHSCORES, 'key', 'element'), [
+  it('parseCommand', () => {
+    const parser = new BasicCommandParser();
+    VLINKS_WITHSCORES.parseCommand(parser, 'key', 'element');
+    assert.deepEqual(parser.redisArgs, [
       'VLINKS',
       'key',
       'element',

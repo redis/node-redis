@@ -1,12 +1,14 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import VDIM from './VDIM';
-import { parseArgs } from './generic-transformers';
+import { BasicCommandParser } from '../client/parser';
 
 describe('VDIM', () => {
-  it('transformArguments', () => {
+  it('parseCommand', () => {
+    const parser = new BasicCommandParser();
+    VDIM.parseCommand(parser, 'key');
     assert.deepEqual(
-      parseArgs(VDIM, 'key'),
+      parser.redisArgs,
       ['VDIM', 'key']
     );
   });

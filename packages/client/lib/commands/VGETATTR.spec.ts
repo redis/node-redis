@@ -1,12 +1,14 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import VGETATTR from './VGETATTR';
-import { parseArgs } from './generic-transformers';
+import { BasicCommandParser } from '../client/parser';
 
 describe('VGETATTR', () => {
-  it('transformArguments', () => {
+  it('parseCommand', () => {
+    const parser = new BasicCommandParser();
+    VGETATTR.parseCommand(parser, 'key', 'element');
     assert.deepEqual(
-      parseArgs(VGETATTR, 'key', 'element'),
+      parser.redisArgs,
       ['VGETATTR', 'key', 'element']
     );
   });
@@ -23,7 +25,7 @@ describe('VGETATTR', () => {
 
     assert.ok(result !== null);
     assert.equal(typeof result, 'object')
-    
+
     assert.deepEqual(result, {
       name: 'test'
     })
@@ -56,7 +58,7 @@ describe('VGETATTR', () => {
 
     assert.ok(result !== null);
     assert.equal(typeof result, 'object')
-    
+
     assert.deepEqual(result, {
       name: 'test-item',
       category: 'electronics',

@@ -1,12 +1,14 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import VLINKS from './VLINKS';
-import { parseArgs } from './generic-transformers';
+import { BasicCommandParser } from '../client/parser';
 
 describe('VLINKS', () => {
-  it('transformArguments', () => {
+  it('parseCommand', () => {
+    const parser = new BasicCommandParser();
+    VLINKS.parseCommand(parser, 'key', 'element');
     assert.deepEqual(
-      parseArgs(VLINKS, 'key', 'element'),
+      parser.redisArgs,
       ['VLINKS', 'key', 'element']
     );
   });

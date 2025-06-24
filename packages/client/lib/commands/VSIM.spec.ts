@@ -1,34 +1,40 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import VSIM from './VSIM';
-import { parseArgs } from './generic-transformers';
+import { BasicCommandParser } from '../client/parser';
 
 describe('VSIM', () => {
-  describe('transformArguments', () => {
+  describe('parseCommand', () => {
     it('with vector', () => {
+      const parser = new BasicCommandParser();
+      VSIM.parseCommand(parser, 'key', [1.0, 2.0, 3.0]),
       assert.deepEqual(
-        parseArgs(VSIM, 'key', [1.0, 2.0, 3.0]),
+        parser.redisArgs,
         ['VSIM', 'key', 'VALUES', '3', '1', '2', '3']
       );
     });
 
     it('with element', () => {
+      const parser = new BasicCommandParser();
+      VSIM.parseCommand(parser, 'key', 'element');
       assert.deepEqual(
-        parseArgs(VSIM, 'key', 'element'),
+        parser.redisArgs,
         ['VSIM', 'key', 'ELE', 'element']
       );
     });
 
     it('with options', () => {
+      const parser = new BasicCommandParser();
+      VSIM.parseCommand(parser, 'key', 'element', {
+        COUNT: 5,
+        EF: 100,
+        FILTER: '.price > 20',
+        'FILTER-EF': 50,
+        TRUTH: true,
+        NOTHREAD: true
+      });
       assert.deepEqual(
-        parseArgs(VSIM, 'key', 'element', {
-          COUNT: 5,
-          EF: 100,
-          FILTER: '.price > 20',
-          'FILTER-EF': 50,
-          TRUTH: true,
-          NOTHREAD: true
-        }),
+        parser.redisArgs,
         [
           'VSIM', 'key', 'ELE', 'element',
           'COUNT', '5', 'EF', '100', 'FILTER', '.price > 20',

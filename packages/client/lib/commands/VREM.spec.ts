@@ -1,12 +1,14 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import VREM from './VREM';
-import { parseArgs } from './generic-transformers';
+import { BasicCommandParser } from '../client/parser';
 
 describe('VREM', () => {
-  it('transformArguments', () => {
+  const parser = new BasicCommandParser();
+  VREM.parseCommand(parser, 'key', 'element');
+  it('parseCommand', () => {
     assert.deepEqual(
-      parseArgs(VREM, 'key', 'element'),
+      parser.redisArgs,
       ['VREM', 'key', 'element']
     );
   });

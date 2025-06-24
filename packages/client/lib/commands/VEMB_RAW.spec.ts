@@ -1,12 +1,14 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import VEMB_RAW from './VEMB_RAW';
-import { parseArgs } from './generic-transformers';
+import { BasicCommandParser } from '../client/parser';
 
 describe('VEMB_RAW', () => {
-  it('transformArguments', () => {
+  it('parseCommand', () => {
+    const parser = new BasicCommandParser();
+    VEMB_RAW.parseCommand(parser, 'key', 'element');
     assert.deepEqual(
-      parseArgs(VEMB_RAW, 'key', 'element'),
+      parser.redisArgs,
       ['VEMB', 'key', 'element', 'RAW']
     );
   });

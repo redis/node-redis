@@ -1,20 +1,24 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import VRANDMEMBER from './VRANDMEMBER';
-import { parseArgs } from './generic-transformers';
+import { BasicCommandParser } from '../client/parser';
 
 describe('VRANDMEMBER', () => {
-  describe('transformArguments', () => {
+  describe('parseCommand', () => {
     it('without count', () => {
+      const parser = new BasicCommandParser();
+      VRANDMEMBER.parseCommand(parser, 'key');
       assert.deepEqual(
-        parseArgs(VRANDMEMBER, 'key'),
+        parser.redisArgs,
         ['VRANDMEMBER', 'key']
       );
     });
 
     it('with count', () => {
+      const parser = new BasicCommandParser();
+      VRANDMEMBER.parseCommand(parser, 'key', 2);
       assert.deepEqual(
-        parseArgs(VRANDMEMBER, 'key', 2),
+        parser.redisArgs,
         ['VRANDMEMBER', 'key', '2']
       );
     });

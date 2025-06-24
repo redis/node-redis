@@ -1,12 +1,14 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import VCARD from './VCARD';
-import { parseArgs } from './generic-transformers';
+import { BasicCommandParser } from '../client/parser';
 
 describe('VCARD', () => {
-  it('transformArguments', () => {
+  it('parseCommand', () => {
+    const parser = new BasicCommandParser();
+    VCARD.parseCommand(parser, 'key')
     assert.deepEqual(
-      parseArgs(VCARD, 'key'),
+      parser.redisArgs,
       ['VCARD', 'key']
     );
   });

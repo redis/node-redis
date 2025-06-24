@@ -1,20 +1,24 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import VSETATTR from './VSETATTR';
-import { parseArgs } from './generic-transformers';
+import { BasicCommandParser } from '../client/parser';
 
 describe('VSETATTR', () => {
-  describe('transformArguments', () => {
+  describe('parseCommand', () => {
     it('with object', () => {
+      const parser = new BasicCommandParser();
+      VSETATTR.parseCommand(parser, 'key', 'element', { name: 'test', value: 42 }),
       assert.deepEqual(
-        parseArgs(VSETATTR, 'key', 'element', { name: 'test', value: 42 }),
+        parser.redisArgs,
         ['VSETATTR', 'key', 'element', '{"name":"test","value":42}']
       );
     });
 
     it('with string', () => {
+      const parser = new BasicCommandParser();
+      VSETATTR.parseCommand(parser, 'key', 'element', '{"name":"test"}'),
       assert.deepEqual(
-        parseArgs(VSETATTR, 'key', 'element', '{"name":"test"}'),
+        parser.redisArgs,
         ['VSETATTR', 'key', 'element', '{"name":"test"}']
       );
     });

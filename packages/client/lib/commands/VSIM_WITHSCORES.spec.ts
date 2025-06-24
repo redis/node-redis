@@ -1,11 +1,13 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import VSIM_WITHSCORES from './VSIM_WITHSCORES';
-import { parseArgs } from './generic-transformers';
+import { BasicCommandParser } from '../client/parser';
 
 describe('VSIM WITHSCORES', () => {
-  it('transformArguments', () => {
-    assert.deepEqual(parseArgs(VSIM_WITHSCORES, 'key', 'element'), [
+  it('parseCommand', () => {
+    const parser = new BasicCommandParser();
+    VSIM_WITHSCORES.parseCommand(parser, 'key', 'element')
+    assert.deepEqual(parser.redisArgs, [
       'VSIM',
       'key',
       'ELE',
