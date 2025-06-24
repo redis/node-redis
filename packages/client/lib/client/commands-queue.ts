@@ -65,6 +65,7 @@ export default class RedisCommandsQueue {
   }
 
   #invalidateCallback?: (key: RedisArgument | null) => unknown;
+  #movingCallback?: (afterMs: number, host: string, port: number) => void;
 
   constructor(
     respVersion: RespVersions,
@@ -134,6 +135,19 @@ export default class RedisCommandsQueue {
               }
               break;
             }
+            case 'MOVING': {
+              if (this.#movingCallback) {
+                console.log('received moving', push)
+                const [_, afterMs, url] = push;
+                let [host, port] = url.toString().split(':');
+                //['18.200.246.58'] - for some reason the server sends the host this way
+                if(host.includes('[')) {
+                  host = host.slice(2, -2);
+                }
+                this.#movingCallback(afterMs, host, Number(port));
+              }
+              break;
+            }
           }
         }
       },
@@ -143,6 +157,10 @@ export default class RedisCommandsQueue {
 
   setInvalidateCallback(callback?: (key: RedisArgument | null) => unknown) {
     this.#invalidateCallback = callback;
+  }
+
+  setMovingCallback(callback?: (afterMs: number, host: string, port: number) => void) {
+    this.#movingCallback = callback;
   }
 
   addCommand<T>(
