@@ -662,3 +662,21 @@ export function transformStreamsMessagesReplyResp3(reply: UnwrapReply<StreamsMes
     return ret as unknown as MapReply<BlobStringReply, StreamMessagesReply>
   }
 }
+
+export type RedisJSON = null | boolean | number | string | Date | Array<RedisJSON> | {
+  [key: string]: RedisJSON;
+  [key: number]: RedisJSON;
+};
+
+export function transformRedisJsonArgument(json: RedisJSON): string {
+  return JSON.stringify(json);
+}
+
+export function transformRedisJsonReply(json: BlobStringReply): RedisJSON {
+  const res = JSON.parse((json as unknown as UnwrapReply<typeof json>).toString());
+  return res;
+}
+
+export function transformRedisJsonNullReply(json: NullReply | BlobStringReply): NullReply | RedisJSON {
+  return isNullReply(json) ? json : transformRedisJsonReply(json);
+}

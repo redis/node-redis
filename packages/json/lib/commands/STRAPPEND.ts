@@ -1,6 +1,6 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument, Command, NullReply, NumberReply, ArrayReply } from '@redis/client/dist/lib/RESP/types';
-import { transformRedisJsonArgument } from './helpers';
+import { transformRedisJsonArgument } from '@redis/client/dist/lib/commands/generic-transformers';
 
 export interface JsonStrAppendOptions {
   path?: RedisArgument;

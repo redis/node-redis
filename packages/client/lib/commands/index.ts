@@ -344,6 +344,20 @@ import ZSCORE from './ZSCORE';
 import ZUNION_WITHSCORES from './ZUNION_WITHSCORES';
 import ZUNION from './ZUNION';
 import ZUNIONSTORE from './ZUNIONSTORE';
+import VADD from './VADD';
+import VCARD from './VCARD';
+import VDIM from './VDIM';
+import VEMB from './VEMB';
+import VEMB_RAW from './VEMB_RAW';
+import VGETATTR from './VGETATTR';
+import VINFO from './VINFO';
+import VLINKS from './VLINKS';
+import VLINKS_WITHSCORES from './VLINKS_WITHSCORES';
+import VRANDMEMBER from './VRANDMEMBER';
+import VREM from './VREM';
+import VSETATTR from './VSETATTR';
+import VSIM from './VSIM';
+import VSIM_WITHSCORES from './VSIM_WITHSCORES';
 
 export default {
   ACL_CAT,
@@ -1037,5 +1051,33 @@ export default {
   ZUNION,
   zUnion: ZUNION,
   ZUNIONSTORE,
-  zUnionStore: ZUNIONSTORE
+  zUnionStore: ZUNIONSTORE,
+  VADD,
+  vAdd: VADD,
+  VCARD,
+  vCard: VCARD,
+  VDIM,
+  vDim: VDIM,
+  VEMB,
+  vEmb: VEMB,
+  VEMB_RAW,
+  vEmbRaw: VEMB_RAW,
+  VGETATTR,
+  vGetAttr: VGETATTR,
+  VINFO,
+  vInfo: VINFO,
+  VLINKS,
+  vLinks: VLINKS,
+  VLINKS_WITHSCORES,
+  vLinksWithScores: VLINKS_WITHSCORES,
+  VRANDMEMBER,
+  vRandMember: VRANDMEMBER,
+  VREM,
+  vRem: VREM,
+  VSETATTR,
+  vSetAttr: VSETATTR,
+  VSIM,
+  vSim: VSIM,
+  VSIM_WITHSCORES,
+  vSimWithScores: VSIM_WITHSCORES
 } as const satisfies RedisCommands;
