@@ -209,6 +209,7 @@ export default class RedisSocket extends EventEmitter {
   }
 
   async #connect(): Promise<void> {
+    console.log('Connecting...');
     let retries = 0;
     do {
       try {
@@ -224,6 +225,7 @@ export default class RedisSocket extends EventEmitter {
         }
         this.#isReady = true;
         this.#socketEpoch++;
+        console.log('Socket connected, emit ready');
         this.emit('ready');
       } catch (err) {
         const retryIn = this.#shouldReconnect(retries++, err as Error);

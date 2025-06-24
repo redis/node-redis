@@ -366,7 +366,7 @@ export default class RedisClient<
   }
 
   readonly #options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>;
-  readonly #socket: RedisSocket;
+  #socket: RedisSocket;
   readonly #queue: RedisCommandsQueue;
   #selectedDB = 0;
   #monitorCallback?: MonitorCallback<TYPE_MAPPING>;
@@ -431,7 +431,26 @@ export default class RedisClient<
     this.#validateOptions(options)
     this.#options = this.#initiateOptions(options);
     this.#queue = this.#initiateQueue();
-    this.#socket = this.#initiateSocket();
+    this.#socket = this.#initiateSocket(this.#options);
+
+    this.#queue.setMovingCallback(async (afterMs: number, host: string, port: number) => {
+      console.log(`Moving to ${host}:${port} before ${afterMs}ms`);
+      const oldSocket = this.#socket;
+      const newSocket = this.#initiateSocket({
+        ...this.#options,
+        socket: {
+          ...this.#options?.socket,
+          host,
+          port
+        }
+      });
+      newSocket.on('ready', () => {
+        console.log(`Connected to ${host}:${port}, destroying old socket`);
+        oldSocket.destroy()
+        this.#socket = newSocket
+      });
+      await newSocket.connect()
+    });
 
     if (options?.clientSideCache) {
       if (options.clientSideCache instanceof ClientSideCacheProvider) {
@@ -657,8 +676,9 @@ export default class RedisClient<
     return commands;
   }
 
-  #initiateSocket(): RedisSocket {
+  #initiateSocket(options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>): RedisSocket {
     const socketInitiator = async () => {
+      console.log('Initiator...');
       const promises = [],
         chainId = Symbol('Socket Initiator');
 
@@ -688,8 +708,9 @@ export default class RedisClient<
       }
     };
 
-    return new RedisSocket(socketInitiator, this.#options?.socket)
+    return new RedisSocket(socketInitiator, options?.socket)
       .on('data', chunk => {
+        console.log('Data received', chunk);
         try {
           this.#queue.decoder.write(chunk);
         } catch (err) {
@@ -698,6 +719,7 @@ export default class RedisClient<
         }
       })
       .on('error', err => {
+        console.error('Socket error', err);
         this.emit('error', err);
         this.#clientSideCache?.onError();
         if (this.#socket.isOpen && !this.#options?.disableOfflineQueue) {
@@ -708,6 +730,7 @@ export default class RedisClient<
       })
       .on('connect', () => this.emit('connect'))
       .on('ready', () => {
+        console.log('Socket ready');
         this.emit('ready');
         this.#setPingTimer();
         this.#maybeScheduleWrite();
