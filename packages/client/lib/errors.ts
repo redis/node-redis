@@ -1,6 +1,6 @@
 export class AbortError extends Error {
-  constructor() {
-    super('The command was aborted');
+  constructor(message = '') {
+    super(`The command was aborted: ${message}`);
   }
 }
 
