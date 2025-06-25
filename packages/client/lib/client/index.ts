@@ -144,6 +144,10 @@ export interface RedisClientOptions<
    * Tag to append to library name that is sent to the Redis server
    */
   clientInfoTag?: string;
+  /**
+   * Provides a timeout in milliseconds.
+   */
+  commandTimeout?: number;
 }
 
 type WithCommands<
@@ -526,7 +530,7 @@ export default class RedisClient<
   async #handshake(chainId: symbol, asap: boolean) {
     const promises = [];
     const commandsWithErrorHandlers = await this.#getHandshakeCommands();
-    
+
     if (asap) commandsWithErrorHandlers.reverse()
 
     for (const { cmd, errorHandler } of commandsWithErrorHandlers) {
@@ -632,7 +636,7 @@ export default class RedisClient<
           // since they could be connected to an older version that doesn't support them.
         }
       });
-      
+
       commands.push({
         cmd: [
           'CLIENT',
@@ -889,7 +893,21 @@ export default class RedisClient<
       return Promise.reject(new ClientOfflineError());
     }
 
+    if (this._self.#options?.commandTimeout) {
+      let abortSignal = AbortSignal.timeout(this._self.#options?.commandTimeout);
+      if (options?.abortSignal) {
+        abortSignal = AbortSignal.any([
+          abortSignal,
+       	  options.abortSignal
+       	]);
+      }
+      options = {
+        ...options,
+        abortSignal
+      }
+    }
     const promise = this._self.#queue.addCommand<T>(args, options);
+
     this._self.#scheduleWrite();
     return promise;
   }

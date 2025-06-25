@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL, waitTillBeenCalled } from '../test-utils';
 import RedisClient, { RedisClientOptions, RedisClientType } from '.';
-import { AbortError, ClientClosedError, ClientOfflineError, ConnectionTimeoutError, DisconnectsClientError, ErrorReply, MultiErrorReply, SocketClosedUnexpectedlyError, WatchError } from '../errors';
+import { AbortError, ClientClosedError, ClientOfflineError, ConnectionTimeoutError, DisconnectsClientError, ErrorReply, MultiErrorReply, WatchError } from '../errors';
 import { defineScript } from '../lua-script';
 import { spy } from 'sinon';
 import { once } from 'node:events';
@@ -263,7 +263,46 @@ describe('Client', () => {
           AbortError
         );
       }, GLOBAL.SERVERS.OPEN);
+
+      testUtils.testWithClient('rejects with AbortError - respects given abortSignal', client => {
+
+        const promise = client.sendCommand(['PING'], {
+          abortSignal: AbortSignal.abort("my reason")
+        })
+
+        assert.rejects(
+          promise,
+          AbortError
+        );
+
+        promise.catch((error: unknown) => {
+          assert.ok((error as string).includes("my reason"));
+        });
+
+      }, {
+        ...GLOBAL.SERVERS.OPEN,
+        clientOptions: {
+          commandTimeout: 50,
+        }
+      });
     });
+
+
+  testUtils.testWithClient('rejects with AbortError on commandTimeout timer', async client => {
+    const start = process.hrtime.bigint();
+    const promise = client.ping();
+
+    while (process.hrtime.bigint() - start < 10_000_000) {
+      // block the event loop for 10ms, to make sure the connection will timeout
+    };
+
+    assert.rejects(promise, AbortError);
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    clientOptions: {
+      commandTimeout: 10,
+    }
+  });
 
     testUtils.testWithClient('undefined and null should not break the client', async client => {
       await assert.rejects(
