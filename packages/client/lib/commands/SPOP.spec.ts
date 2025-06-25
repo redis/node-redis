@@ -1,12 +1,14 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SPOP from './SPOP';
-import { parseArgs } from './generic-transformers';
+import { BasicCommandParser } from '../client/parser';
 
 describe('SPOP', () => {
   it('transformArguments', () => {
+    const parser = new BasicCommandParser();
+    SPOP.parseCommand(parser, 'key');
     assert.deepEqual(
-      parseArgs(SPOP, 'key'),
+      parser.redisArgs,
       ['SPOP', 'key']
     );
   });
@@ -16,6 +18,19 @@ describe('SPOP', () => {
       await client.sPop('key'),
       null
     );
+
+    await client.sAdd('key', 'member');
+
+    assert.equal(
+      await client.sPop('key'),
+      'member'
+    );
+
+    assert.equal(
+      await client.sPop('key'),
+      null
+    );
+
   }, {
     client: GLOBAL.SERVERS.OPEN,
     cluster: GLOBAL.CLUSTERS.OPEN
