@@ -1,9 +1,9 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL, waitTillBeenCalled } from '../test-utils';
 import RedisClient, { RedisClientOptions, RedisClientType } from '.';
-import { AbortError, ClientClosedError, ClientOfflineError, ConnectionTimeoutError, DisconnectsClientError, ErrorReply, MultiErrorReply, SocketClosedUnexpectedlyError, WatchError } from '../errors';
+import { AbortError, ClientClosedError, ClientOfflineError, ConnectionTimeoutError, DisconnectsClientError, ErrorReply, MultiErrorReply, SocketClosedUnexpectedlyError, TimeoutError, WatchError } from '../errors';
 import { defineScript } from '../lua-script';
-import { spy } from 'sinon';
+import { spy, stub } from 'sinon';
 import { once } from 'node:events';
 import { MATH_FUNCTION, loadMathFunction } from '../commands/FUNCTION_LOAD.spec';
 import { RESP_TYPES } from '../RESP/decoder';
@@ -239,30 +239,84 @@ describe('Client', () => {
       assert.equal(await client.sendCommand(['PING']), 'PONG');
     }, GLOBAL.SERVERS.OPEN);
 
-    describe('AbortController', () => {
-      before(function () {
-        if (!global.AbortController) {
-          this.skip();
-        }
+    testUtils.testWithClient('Unactivated AbortController should not abort', async client => {
+      await client.sendCommand(['PING'], {
+        abortSignal: new AbortController().signal
       });
+    }, GLOBAL.SERVERS.OPEN);
 
-      testUtils.testWithClient('success', async client => {
-        await client.sendCommand(['PING'], {
-          abortSignal: new AbortController().signal
-        });
-      }, GLOBAL.SERVERS.OPEN);
+    testUtils.testWithClient('AbortError', async client => {
+        await blockSetImmediate(async () => {
+          await assert.rejects(client.sendCommand(['PING'], {
+            abortSignal: AbortSignal.timeout(5)
+          }), AbortError);
+        })
+    }, GLOBAL.SERVERS.OPEN);
 
-      testUtils.testWithClient('AbortError', client => {
-        const controller = new AbortController();
-        controller.abort();
+    testUtils.testWithClient('Timeout with custom timeout config', async client => {
+      await blockSetImmediate(async () => {
+        await assert.rejects(client.sendCommand(['PING'], {
+          timeout: 5
+        }), TimeoutError);
+      })
+    }, GLOBAL.SERVERS.OPEN);
 
-        return assert.rejects(
-          client.sendCommand(['PING'], {
-            abortSignal: controller.signal
-          }),
-          AbortError
-        );
-      }, GLOBAL.SERVERS.OPEN);
+    testUtils.testWithCluster('Timeout with custom timeout config (cluster)', async cluster => {
+      await blockSetImmediate(async () => {
+        await assert.rejects(cluster.sendCommand(undefined, true, ['PING'], {
+          timeout: 5
+        }), TimeoutError);
+      })
+    }, GLOBAL.CLUSTERS.OPEN);
+
+    testUtils.testWithClientSentinel('Timeout with custom timeout config (sentinel)', async sentinel => {
+      await blockSetImmediate(async () => {
+        await assert.rejects(sentinel.sendCommand(true, ['PING'], {
+          timeout: 5
+        }), TimeoutError);
+      })
+    }, GLOBAL.CLUSTERS.OPEN);
+
+    testUtils.testWithClient('Timeout with global timeout config', async client => {
+      await blockSetImmediate(async () => {
+        await assert.rejects(client.ping(), TimeoutError);
+        await assert.rejects(client.sendCommand(['PING']), TimeoutError);
+      });
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      clientOptions: {
+        commandOptions: {
+          timeout: 5
+        }
+      }
+    });
+
+    testUtils.testWithCluster('Timeout with global timeout config (cluster)', async cluster => {
+      await blockSetImmediate(async () => {
+        await assert.rejects(cluster.HSET('key', 'foo', 'value'), TimeoutError);
+        await assert.rejects(cluster.sendCommand(undefined, true, ['PING']), TimeoutError);
+      });
+    }, {
+      ...GLOBAL.CLUSTERS.OPEN,
+      clusterConfiguration: {
+        commandOptions: {
+          timeout: 5
+        }
+      }
+    });
+
+    testUtils.testWithClientSentinel('Timeout with global timeout config (sentinel)', async sentinel => {
+      await blockSetImmediate(async () => {
+        await assert.rejects(sentinel.HSET('key', 'foo', 'value'), TimeoutError);
+        await assert.rejects(sentinel.sendCommand(true, ['PING']), TimeoutError);
+      });
+    }, {
+      ...GLOBAL.SENTINEL.OPEN,
+      clientOptions: {
+        commandOptions: {
+          timeout: 5
+        }
+      }
     });
 
     testUtils.testWithClient('undefined and null should not break the client', async client => {
@@ -900,3 +954,23 @@ describe('Client', () => {
     }, GLOBAL.SERVERS.OPEN);
   });
 });
+
+/**
+ * Executes the provided function in a context where setImmediate is stubbed to not do anything.
+ * This blocks setImmediate callbacks from executing
+ */
+async function blockSetImmediate(fn: () => Promise<unknown>) {
+  let setImmediateStub: any;
+
+  try {
+    setImmediateStub = stub(global, 'setImmediate');
+    setImmediateStub.callsFake(() => {
+      //Dont call the callback, effectively blocking execution
+    });
+    await fn();
+  } finally {
+    if (setImmediateStub) {
+      setImmediateStub.restore();
+    }
+  }
+}

@@ -37,6 +37,19 @@ try {
 }
 ```
 
+
+## Timeout
+
+This option is similar to the Abort Signal one, but provides an easier way to set timeout for commands. Again, this applies to commands that haven't been written to the socket yet.
+
+```javascript
+const client = createClient({
+  commandOptions: {
+    timeout: 1000
+  }
+})
+```
+
 ## ASAP
 
 Commands that are executed in the "asap" mode are added to the beginning of the "to sent" queue.

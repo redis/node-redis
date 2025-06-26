@@ -35,7 +35,7 @@ export class RedisSentinelClient<
 
   /**
    * Indicates if the client connection is open
-   * 
+   *
    * @returns `true` if the client connection is open, `false` otherwise
    */
 
@@ -45,7 +45,7 @@ export class RedisSentinelClient<
 
   /**
    * Indicates if the client connection is ready to accept commands
-   * 
+   *
    * @returns `true` if the client connection is ready, `false` otherwise
    */
   get isReady() {
@@ -54,7 +54,7 @@ export class RedisSentinelClient<
 
   /**
    * Gets the command options configured for this client
-   * 
+   *
    * @returns The command options for this client or `undefined` if none were set
    */
   get commandOptions() {
@@ -241,10 +241,10 @@ export class RedisSentinelClient<
 
   /**
    * Releases the client lease back to the pool
-   * 
+   *
    * After calling this method, the client instance should no longer be used as it
    * will be returned to the client pool and may be given to other operations.
-   * 
+   *
    * @returns A promise that resolves when the client is ready to be reused, or undefined
    *          if the client was immediately ready
    * @throws Error if the lease has already been released
@@ -274,7 +274,7 @@ export default class RedisSentinel<
 
   /**
    * Indicates if the sentinel connection is open
-   * 
+   *
    * @returns `true` if the sentinel connection is open, `false` otherwise
    */
   get isOpen() {
@@ -283,7 +283,7 @@ export default class RedisSentinel<
 
   /**
    * Indicates if the sentinel connection is ready to accept commands
-   * 
+   *
    * @returns `true` if the sentinel connection is ready, `false` otherwise
    */
   get isReady() {
@@ -554,15 +554,15 @@ export default class RedisSentinel<
 
   /**
    * Acquires a master client lease for exclusive operations
-   * 
+   *
    * Used when multiple commands need to run on an exclusive client (for example, using `WATCH/MULTI/EXEC`).
    * The returned client must be released after use with the `release()` method.
-   * 
+   *
    * @returns A promise that resolves to a Redis client connected to the master node
    * @example
    * ```javascript
    * const clientLease = await sentinel.acquire();
-   * 
+   *
    * try {
    *   await clientLease.watch('key');
    *   const resp = await clientLease.multi()
@@ -671,7 +671,7 @@ class RedisSentinelInternal<
     super();
 
     this.#validateOptions(options);
-    
+
     this.#name = options.name;
 
     this.#RESP = options.RESP;
@@ -733,7 +733,7 @@ class RedisSentinelInternal<
 
   /**
    * Gets a client lease from the master client pool
-   * 
+   *
    * @returns A client info object or a promise that resolves to a client info object
    *          when a client becomes available
    */
@@ -748,10 +748,10 @@ class RedisSentinelInternal<
 
   /**
    * Releases a client lease back to the pool
-   * 
+   *
    * If the client was used for a transaction that might have left it in a dirty state,
    * it will be reset before being returned to the pool.
-   * 
+   *
    * @param clientInfo The client info object representing the client to release
    * @returns A promise that resolves when the client is ready to be reused, or undefined
    *          if the client was immediately ready or no longer exists
@@ -791,10 +791,10 @@ class RedisSentinelInternal<
 
   async #connect() {
     let count = 0;
-    while (true) {      
+    while (true) {
       this.#trace("starting connect loop");
 
-      count+=1;      
+      count+=1;
       if (this.#destroy) {
         this.#trace("in #connect and want to destroy")
         return;
@@ -847,7 +847,7 @@ class RedisSentinelInternal<
 
       try {
         /*
-                // force testing of READONLY errors        
+                // force testing of READONLY errors
                 if (clientInfo !== undefined) {
                   if (Math.floor(Math.random() * 10) < 1) {
                     console.log("throwing READONLY error");
@@ -861,7 +861,7 @@ class RedisSentinelInternal<
           throw err;
         }
 
-        /* 
+        /*
           rediscover and retry if doing a command against a "master"
           a) READONLY error (topology has changed) but we haven't been notified yet via pubsub
           b) client is "not ready" (disconnected), which means topology might have changed, but sentinel might not see it yet
