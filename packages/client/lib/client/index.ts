@@ -889,6 +889,7 @@ export default class RedisClient<
       return Promise.reject(new ClientOfflineError());
     }
 
+    console.log('sendCommand', args, options)
     const promise = this._self.#queue.addCommand<T>(args, options);
     this._self.#scheduleWrite();
     return promise;
