@@ -710,7 +710,7 @@ export default class RedisClient<
 
     return new RedisSocket(socketInitiator, options?.socket)
       .on('data', chunk => {
-        console.log('Data received', chunk);
+        console.log('Data received', chunk.toString());
         try {
           this.#queue.decoder.write(chunk);
         } catch (err) {
