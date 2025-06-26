@@ -1,4 +1,5 @@
 import { BasicCommandParser, CommandParser } from '../client/parser';
+import { REQUEST_POLICIES_WITH_DEFAULTS, RequestPolicyWithDefaults, RESPONSE_POLICIES_WITH_DEFAULTS, ResponsePolicyWithDefaults } from '../cluster/request-response-policies';
 import { RESP_TYPES } from '../RESP/decoder';
 import { UnwrapReply, ArrayReply, BlobStringReply, BooleanReply, CommandArguments, DoubleReply, NullReply, NumberReply, RedisArgument, TuplesReply, MapReply, TypeMapping, Command } from '../RESP/types';
 
@@ -329,8 +330,12 @@ export type CommandRawReply = [
   firstKeyIndex: number,
   lastKeyIndex: number,
   step: number,
-  categories: Array<CommandCategories>
+  categories: Array<CommandCategories>,
+  tips: Array<string>,
+  keySpecifications: Array<string>,
+  subcommands: Array<CommandRawReply>
 ];
+
 
 export type CommandReply = {
   name: string,
@@ -339,13 +344,30 @@ export type CommandReply = {
   firstKeyIndex: number,
   lastKeyIndex: number,
   step: number,
-  categories: Set<CommandCategories>
+  categories: Set<CommandCategories>,
+  policies: { request: RequestPolicyWithDefaults | undefined, response: ResponsePolicyWithDefaults | undefined }
+  isKeyless: boolean,
+  subcommands: Array<CommandReply>
 };
 
 export function transformCommandReply(
   this: void,
-  [name, arity, flags, firstKeyIndex, lastKeyIndex, step, categories]: CommandRawReply
+  [name, arity, flags, firstKeyIndex, lastKeyIndex, step, categories, tips, keySpecifications, subcommandsReply]: CommandRawReply
 ): CommandReply {
+
+
+  const requestPolicyRaw = tips[0]?.replace('request_policy:', '');
+  const requestPolicy = requestPolicyRaw && Object.values(REQUEST_POLICIES_WITH_DEFAULTS).includes(requestPolicyRaw as RequestPolicyWithDefaults)
+    ? requestPolicyRaw as RequestPolicyWithDefaults
+    : undefined;
+
+  const responsePolicyRaw = tips[1]?.replace('response_policy:', '');
+  const responsePolicy = responsePolicyRaw && Object.values(RESPONSE_POLICIES_WITH_DEFAULTS).includes(responsePolicyRaw as ResponsePolicyWithDefaults)
+    ? responsePolicyRaw as ResponsePolicyWithDefaults
+    : undefined;
+
+  const subcommands = subcommandsReply.map(transformCommandReply);
+
   return {
     name,
     arity,
@@ -353,7 +375,13 @@ export function transformCommandReply(
     firstKeyIndex,
     lastKeyIndex,
     step,
-    categories: new Set(categories)
+    categories: new Set(categories),
+    policies: {
+      request: requestPolicy,
+      response: responsePolicy
+    },
+    isKeyless: keySpecifications.length === 0,
+    subcommands
   };
 }
 

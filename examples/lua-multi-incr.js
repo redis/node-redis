@@ -7,6 +7,7 @@ const client = createClient({
   scripts: {
     mincr: defineScript({
       NUMBER_OF_KEYS: 2,
+      // TODO add RequestPolicy: , 
       SCRIPT:
         'return {' +
         'redis.pcall("INCRBY", KEYS[1], ARGV[1]),' +
