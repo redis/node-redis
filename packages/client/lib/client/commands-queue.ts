@@ -412,6 +412,10 @@ export default class RedisCommandsQueue {
         RedisCommandsQueue.#removeAbortListener(toSend);
         toSend.abort = undefined;
       }
+      if (toSend.timeout) {
+        RedisCommandsQueue.#removeTimeoutListener(toSend);
+        toSend.timeout = undefined;
+      }
       this.#chainInExecution = toSend.chainId;
       toSend.chainId = undefined;
       this.#waitingForReply.push(toSend);
@@ -432,9 +436,16 @@ export default class RedisCommandsQueue {
     command.abort!.signal.removeEventListener('abort', command.abort!.listener);
   }
 
+  static #removeTimeoutListener(command: CommandToWrite) {
+    command.timeout!.signal.removeEventListener('abort', command.timeout!.listener);
+  }
+
   static #flushToWrite(toBeSent: CommandToWrite, err: Error) {
     if (toBeSent.abort) {
       RedisCommandsQueue.#removeAbortListener(toBeSent);
+    }
+    if (toBeSent.timeout) {
+      RedisCommandsQueue.#removeTimeoutListener(toBeSent);
     }
 
     toBeSent.reject(err);
