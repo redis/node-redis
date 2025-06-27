@@ -1,9 +1,9 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL, waitTillBeenCalled } from '../test-utils';
 import RedisClient, { RedisClientOptions, RedisClientType } from '.';
-import { AbortError, ClientClosedError, ClientOfflineError, ConnectionTimeoutError, DisconnectsClientError, ErrorReply, MultiErrorReply, SocketClosedUnexpectedlyError, WatchError } from '../errors';
+import { AbortError, ClientClosedError, ClientOfflineError, ConnectionTimeoutError, DisconnectsClientError, ErrorReply, MultiErrorReply, SocketClosedUnexpectedlyError, TimeoutError, WatchError } from '../errors';
 import { defineScript } from '../lua-script';
-import { spy } from 'sinon';
+import { spy, stub } from 'sinon';
 import { once } from 'node:events';
 import { MATH_FUNCTION, loadMathFunction } from '../commands/FUNCTION_LOAD.spec';
 import { RESP_TYPES } from '../RESP/decoder';
@@ -252,17 +252,72 @@ describe('Client', () => {
         });
       }, GLOBAL.SERVERS.OPEN);
 
-      testUtils.testWithClient('AbortError', client => {
-        const controller = new AbortController();
-        controller.abort();
+      testUtils.testWithClient('AbortError', async client => {
+        // Stub setImmediate to delay execution, allowing AbortError to trigger
+        const originalSetImmediate = global.setImmediate;
+        const setImmediateStub = stub(global, 'setImmediate');
 
-        return assert.rejects(
-          client.sendCommand(['PING'], {
-            abortSignal: controller.signal
-          }),
-          AbortError
-        );
+        const abortIn = 5;
+
+        setImmediateStub.callsFake((callback: (...args: any[]) => void, ...args: any[]) => {
+          return originalSetImmediate(() => {
+            setTimeout(() => callback(...args), abortIn * 2);
+          });
+        });
+
+        await assert.rejects(client.sendCommand(['PING'], {
+          abortSignal: AbortSignal.timeout(abortIn)
+        }), AbortError);
+
+        setImmediateStub.restore();
       }, GLOBAL.SERVERS.OPEN);
+
+
+    });
+
+
+    testUtils.testWithClient('Timeout with custom timeout config', async client => {
+      // Stub setImmediate to delay execution, allowing TimeoutError to trigger
+      const originalSetImmediate = global.setImmediate;
+      const setImmediateStub = stub(global, 'setImmediate');
+
+      const timeoutIn = 5;
+
+      setImmediateStub.callsFake((callback: (...args: any[]) => void, ...args: any[]) => {
+        return originalSetImmediate(() => {
+          setTimeout(() => callback(...args), timeoutIn * 2);
+        });
+      });
+
+      await assert.rejects(client.sendCommand(['PING'], {
+        timeout: timeoutIn
+      }), TimeoutError);
+
+      setImmediateStub.restore();
+    }, GLOBAL.SERVERS.OPEN);
+
+
+    testUtils.testWithClient('Timeout with global timeout config', async client => {
+      // Stub setImmediate to delay execution, allowing TimeoutError to trigger
+      const originalSetImmediate = global.setImmediate;
+      const setImmediateStub = stub(global, 'setImmediate');
+
+      setImmediateStub.callsFake((callback: (...args: any[]) => void, ...args: any[]) => {
+        return originalSetImmediate(() => {
+          setTimeout(() => callback(...args), 10);
+        });
+      });
+
+      await assert.rejects(client.sendCommand(['PING']), TimeoutError);
+
+      setImmediateStub.restore();
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      clientOptions: {
+        commandOptions: {
+          timeout: 5
+        }
+      }
     });
 
     testUtils.testWithClient('undefined and null should not break the client', async client => {
