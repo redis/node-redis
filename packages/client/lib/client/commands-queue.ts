@@ -152,7 +152,6 @@ export default class RedisCommandsQueue {
     if (this.#maxLength && this.#toWrite.length + this.#waitingForReply.length >= this.#maxLength) {
       return Promise.reject(new Error('The queue is full'));
     } else if (options?.abortSignal?.aborted) {
-      console.log('eeeeeeeee', args)
       return Promise.reject(new AbortError());
     }
 
@@ -171,12 +170,10 @@ export default class RedisCommandsQueue {
 
       const timeout = options?.timeout;
       if (timeout) {
-        console.log('set timeout', timeout);
         const signal = AbortSignal.timeout(timeout);
         value.timeout = {
           signal,
           listener: () => {
-            console.log('TIMEOUT OCCURRED', node);
             this.#toWrite.remove(node);
             value.reject(new TimeoutError());
           }
@@ -186,11 +183,9 @@ export default class RedisCommandsQueue {
 
       const signal = options?.abortSignal;
       if (signal) {
-        console.log('signal', signal)
         value.abort = {
           signal,
           listener: () => {
-            console.log('ABORT OCCURRED', node);
             this.#toWrite.remove(node);
             value.reject(new AbortError());
           }

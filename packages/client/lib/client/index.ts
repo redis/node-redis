@@ -526,7 +526,7 @@ export default class RedisClient<
   async #handshake(chainId: symbol, asap: boolean) {
     const promises = [];
     const commandsWithErrorHandlers = await this.#getHandshakeCommands();
-    
+
     if (asap) commandsWithErrorHandlers.reverse()
 
     for (const { cmd, errorHandler } of commandsWithErrorHandlers) {
@@ -632,7 +632,7 @@ export default class RedisClient<
           // since they could be connected to an older version that doesn't support them.
         }
       });
-      
+
       commands.push({
         cmd: [
           'CLIENT',
@@ -889,7 +889,6 @@ export default class RedisClient<
       return Promise.reject(new ClientOfflineError());
     }
 
-    console.log('sendCommand', args, options)
     const promise = this._self.#queue.addCommand<T>(args, options);
     this._self.#scheduleWrite();
     return promise;
