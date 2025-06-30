@@ -253,64 +253,31 @@ describe('Client', () => {
       }, GLOBAL.SERVERS.OPEN);
 
       testUtils.testWithClient('AbortError', async client => {
-        // Stub setImmediate to delay execution, allowing AbortError to trigger
-        const originalSetImmediate = global.setImmediate;
-        const setImmediateStub = stub(global, 'setImmediate');
-
-        const abortIn = 5;
-
-        setImmediateStub.callsFake((callback: (...args: any[]) => void, ...args: any[]) => {
-          return originalSetImmediate(() => {
-            setTimeout(() => callback(...args), abortIn * 2);
-          });
-        });
-
-        await assert.rejects(client.sendCommand(['PING'], {
-          abortSignal: AbortSignal.timeout(abortIn)
-        }), AbortError);
-
-        setImmediateStub.restore();
+        const abortIn = 10;
+          await delaySetImmediate(abortIn * 2, async () => {
+            await assert.rejects(client.sendCommand(['PING'], {
+              abortSignal: AbortSignal.timeout(abortIn)
+            }), AbortError);
+          })
       }, GLOBAL.SERVERS.OPEN);
-
 
     });
 
 
     testUtils.testWithClient('Timeout with custom timeout config', async client => {
-      // Stub setImmediate to delay execution, allowing TimeoutError to trigger
-      const originalSetImmediate = global.setImmediate;
-      const setImmediateStub = stub(global, 'setImmediate');
-
       const timeoutIn = 5;
-
-      setImmediateStub.callsFake((callback: (...args: any[]) => void, ...args: any[]) => {
-        return originalSetImmediate(() => {
-          setTimeout(() => callback(...args), timeoutIn * 2);
-        });
-      });
-
-      await assert.rejects(client.sendCommand(['PING'], {
-        timeout: timeoutIn
-      }), TimeoutError);
-
-      setImmediateStub.restore();
+      await delaySetImmediate(timeoutIn * 2, async () => {
+        await assert.rejects(client.sendCommand(['PING'], {
+          timeout: timeoutIn
+        }), TimeoutError);
+      })
     }, GLOBAL.SERVERS.OPEN);
 
-
     testUtils.testWithClient('Timeout with global timeout config', async client => {
-      // Stub setImmediate to delay execution, allowing TimeoutError to trigger
-      const originalSetImmediate = global.setImmediate;
-      const setImmediateStub = stub(global, 'setImmediate');
-
-      setImmediateStub.callsFake((callback: (...args: any[]) => void, ...args: any[]) => {
-        return originalSetImmediate(() => {
-          setTimeout(() => callback(...args), 10);
-        });
-      });
-
-      await assert.rejects(client.sendCommand(['PING']), TimeoutError);
-
-      setImmediateStub.restore();
+      await delaySetImmediate(10, async () => {
+        await assert.rejects(client.sendCommand(['PING']), TimeoutError);
+        await assert.rejects(client.ping(), TimeoutError);
+      })
     }, {
       ...GLOBAL.SERVERS.OPEN,
       clientOptions: {
@@ -955,3 +922,23 @@ describe('Client', () => {
     }, GLOBAL.SERVERS.OPEN);
   });
 });
+
+async function delaySetImmediate(ms: number, fn: () => Promise<void>) {
+  // Stub setImmediate to delay execution, allowing AbortError to trigger
+  const originalSetImmediate = global.setImmediate;
+  let setImmediateStub: any;
+
+  try {
+    setImmediateStub = stub(global, 'setImmediate');
+    setImmediateStub.callsFake((callback: (...args: any[]) => void, ...args: any[]) => {
+      return originalSetImmediate(() => {
+        setTimeout(() => callback(...args), ms);
+      });
+    });
+    await fn();
+  } finally {
+    if (setImmediateStub) {
+      setImmediateStub.restore();
+    }
+  }
+}
