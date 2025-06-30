@@ -889,7 +889,13 @@ export default class RedisClient<
       return Promise.reject(new ClientOfflineError());
     }
 
-    const promise = this._self.#queue.addCommand<T>(args, options);
+    // Merge global options with provided options
+    const opts = {
+      ...this._self._commandOptions,
+      ...options
+    }
+
+    const promise = this._self.#queue.addCommand<T>(args, opts);
     this._self.#scheduleWrite();
     return promise;
   }

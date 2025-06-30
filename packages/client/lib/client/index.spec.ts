@@ -253,10 +253,9 @@ describe('Client', () => {
       }, GLOBAL.SERVERS.OPEN);
 
       testUtils.testWithClient('AbortError', async client => {
-        const abortIn = 10;
-          await delaySetImmediate(abortIn * 2, async () => {
+          await blockSetImmediate(async () => {
             await assert.rejects(client.sendCommand(['PING'], {
-              abortSignal: AbortSignal.timeout(abortIn)
+              abortSignal: AbortSignal.timeout(5)
             }), AbortError);
           })
       }, GLOBAL.SERVERS.OPEN);
@@ -265,19 +264,18 @@ describe('Client', () => {
 
 
     testUtils.testWithClient('Timeout with custom timeout config', async client => {
-      const timeoutIn = 5;
-      await delaySetImmediate(timeoutIn * 2, async () => {
+      await blockSetImmediate(async () => {
         await assert.rejects(client.sendCommand(['PING'], {
-          timeout: timeoutIn
+          timeout: 5
         }), TimeoutError);
       })
     }, GLOBAL.SERVERS.OPEN);
 
     testUtils.testWithClient('Timeout with global timeout config', async client => {
-      await delaySetImmediate(10, async () => {
-        await assert.rejects(client.sendCommand(['PING']), TimeoutError);
+      await blockSetImmediate(async () => {
         await assert.rejects(client.ping(), TimeoutError);
-      })
+        await assert.rejects(client.sendCommand(['PING']), TimeoutError);
+      });
     }, {
       ...GLOBAL.SERVERS.OPEN,
       clientOptions: {
@@ -923,17 +921,17 @@ describe('Client', () => {
   });
 });
 
-async function delaySetImmediate(ms: number, fn: () => Promise<void>) {
-  // Stub setImmediate to delay execution, allowing AbortError to trigger
-  const originalSetImmediate = global.setImmediate;
+/**
+ * Executes the provided function in a context where setImmediate is stubbed to not do anything.
+ * This blocks setImmediate callbacks from executing
+ */
+async function blockSetImmediate(fn: () => Promise<unknown>) {
   let setImmediateStub: any;
 
   try {
     setImmediateStub = stub(global, 'setImmediate');
-    setImmediateStub.callsFake((callback: (...args: any[]) => void, ...args: any[]) => {
-      return originalSetImmediate(() => {
-        setTimeout(() => callback(...args), ms);
-      });
+    setImmediateStub.callsFake(() => {
+      //Dont call the callback, effectively blocking execution
     });
     await fn();
   } finally {
