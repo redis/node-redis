@@ -239,29 +239,19 @@ describe('Client', () => {
       assert.equal(await client.sendCommand(['PING']), 'PONG');
     }, GLOBAL.SERVERS.OPEN);
 
-    describe('AbortController', () => {
-      before(function () {
-        if (!global.AbortController) {
-          this.skip();
-        }
+    testUtils.testWithClient('Unactivated AbortController should not abort', async client => {
+      await client.sendCommand(['PING'], {
+        abortSignal: new AbortController().signal
       });
+    }, GLOBAL.SERVERS.OPEN);
 
-      testUtils.testWithClient('success', async client => {
-        await client.sendCommand(['PING'], {
-          abortSignal: new AbortController().signal
-        });
-      }, GLOBAL.SERVERS.OPEN);
-
-      testUtils.testWithClient('AbortError', async client => {
-          await blockSetImmediate(async () => {
-            await assert.rejects(client.sendCommand(['PING'], {
-              abortSignal: AbortSignal.timeout(5)
-            }), AbortError);
-          })
-      }, GLOBAL.SERVERS.OPEN);
-
-    });
-
+    testUtils.testWithClient('AbortError', async client => {
+        await blockSetImmediate(async () => {
+          await assert.rejects(client.sendCommand(['PING'], {
+            abortSignal: AbortSignal.timeout(5)
+          }), AbortError);
+        })
+    }, GLOBAL.SERVERS.OPEN);
 
     testUtils.testWithClient('Timeout with custom timeout config', async client => {
       await blockSetImmediate(async () => {
