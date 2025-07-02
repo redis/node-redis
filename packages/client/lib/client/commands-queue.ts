@@ -3,7 +3,7 @@ import encodeCommand from '../RESP/encoder';
 import { Decoder, PUSH_TYPE_MAPPING, RESP_TYPES } from '../RESP/decoder';
 import { TypeMapping, ReplyUnion, RespVersions, RedisArgument } from '../RESP/types';
 import { ChannelListeners, PubSub, PubSubCommand, PubSubListener, PubSubType, PubSubTypeListeners } from './pub-sub';
-import { AbortError, ErrorReply } from '../errors';
+import { AbortError, ErrorReply, TimeoutError } from '../errors';
 import { MonitorCallback } from '.';
 
 export interface CommandOptions<T = TypeMapping> {
@@ -14,12 +14,20 @@ export interface CommandOptions<T = TypeMapping> {
    * Maps between RESP and JavaScript types
    */
   typeMapping?: T;
+  /**
+   * Timeout for the command in milliseconds
+   */
+  timeout?: number;
 }
 
 export interface CommandToWrite extends CommandWaitingForReply {
   args: ReadonlyArray<RedisArgument>;
   chainId: symbol | undefined;
   abort: {
+    signal: AbortSignal;
+    listener: () => unknown;
+  } | undefined;
+  timeout: {
     signal: AbortSignal;
     listener: () => unknown;
   } | undefined;
@@ -80,7 +88,7 @@ export default class RedisCommandsQueue {
   #onPush(push: Array<any>) {
     // TODO: type
     if (this.#pubSub.handleMessageReply(push)) return true;
-  
+
     const isShardedUnsubscribe = PubSub.isShardedUnsubscribe(push);
     if (isShardedUnsubscribe && !this.#waitingForReply.length) {
       const channel = push[1].toString();
@@ -153,11 +161,25 @@ export default class RedisCommandsQueue {
         args,
         chainId: options?.chainId,
         abort: undefined,
+        timeout: undefined,
         resolve,
         reject,
         channelsCounter: undefined,
         typeMapping: options?.typeMapping
       };
+
+      const timeout = options?.timeout;
+      if (timeout) {
+        const signal = AbortSignal.timeout(timeout);
+        value.timeout = {
+          signal,
+          listener: () => {
+            this.#toWrite.remove(node);
+            value.reject(new TimeoutError());
+          }
+        };
+        signal.addEventListener('abort', value.timeout.listener, { once: true });
+      }
 
       const signal = options?.abortSignal;
       if (signal) {
@@ -181,6 +203,7 @@ export default class RedisCommandsQueue {
         args: command.args,
         chainId,
         abort: undefined,
+        timeout: undefined,
         resolve() {
           command.resolve();
           resolve();
@@ -202,7 +225,7 @@ export default class RedisCommandsQueue {
     this.decoder.onReply = (reply => {
       if (Array.isArray(reply)) {
         if (this.#onPush(reply)) return;
-        
+
         if (PONG.equals(reply[0] as Buffer)) {
           const { resolve, typeMapping } = this.#waitingForReply.shift()!,
             buffer = ((reply[1] as Buffer).length === 0 ? reply[0] : reply[1]) as Buffer;
@@ -250,7 +273,7 @@ export default class RedisCommandsQueue {
         if (!this.#pubSub.isActive) {
           this.#resetDecoderCallbacks();
         }
-        
+
         resolve();
       };
     }
@@ -299,6 +322,7 @@ export default class RedisCommandsQueue {
         args: ['MONITOR'],
         chainId: options?.chainId,
         abort: undefined,
+        timeout: undefined,
         // using `resolve` instead of using `.then`/`await` to make sure it'll be called before processing the next reply
         resolve: () => {
           // after running `MONITOR` only `MONITOR` and `RESET` replies are expected
@@ -317,7 +341,7 @@ export default class RedisCommandsQueue {
         reject,
         channelsCounter: undefined,
         typeMapping
-      }, options?.asap);  
+      }, options?.asap);
     });
   }
 
@@ -340,11 +364,11 @@ export default class RedisCommandsQueue {
           this.#resetDecoderCallbacks();
           this.#resetFallbackOnReply = undefined;
           this.#pubSub.reset();
-          
+
           this.#waitingForReply.shift()!.resolve(reply);
           return;
         }
-        
+
         this.#resetFallbackOnReply!(reply);
       }) as Decoder['onReply'];
 
@@ -352,6 +376,7 @@ export default class RedisCommandsQueue {
         args: ['RESET'],
         chainId,
         abort: undefined,
+        timeout: undefined,
         resolve,
         reject,
         channelsCounter: undefined,
@@ -376,16 +401,20 @@ export default class RedisCommandsQueue {
         continue;
       }
 
-      // TODO reuse `toSend` or create new object? 
+      // TODO reuse `toSend` or create new object?
       (toSend as any).args = undefined;
       if (toSend.abort) {
         RedisCommandsQueue.#removeAbortListener(toSend);
         toSend.abort = undefined;
       }
+      if (toSend.timeout) {
+        RedisCommandsQueue.#removeTimeoutListener(toSend);
+        toSend.timeout = undefined;
+      }
       this.#chainInExecution = toSend.chainId;
       toSend.chainId = undefined;
       this.#waitingForReply.push(toSend);
-      
+
       yield encoded;
       toSend = this.#toWrite.shift();
     }
@@ -402,11 +431,18 @@ export default class RedisCommandsQueue {
     command.abort!.signal.removeEventListener('abort', command.abort!.listener);
   }
 
+  static #removeTimeoutListener(command: CommandToWrite) {
+    command.timeout!.signal.removeEventListener('abort', command.timeout!.listener);
+  }
+
   static #flushToWrite(toBeSent: CommandToWrite, err: Error) {
     if (toBeSent.abort) {
       RedisCommandsQueue.#removeAbortListener(toBeSent);
     }
-    
+    if (toBeSent.timeout) {
+      RedisCommandsQueue.#removeTimeoutListener(toBeSent);
+    }
+
     toBeSent.reject(err);
   }
 
