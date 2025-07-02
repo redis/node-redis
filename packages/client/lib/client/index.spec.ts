@@ -261,6 +261,22 @@ describe('Client', () => {
       })
     }, GLOBAL.SERVERS.OPEN);
 
+    testUtils.testWithCluster('Timeout with custom timeout config (cluster)', async cluster => {
+      await blockSetImmediate(async () => {
+        await assert.rejects(cluster.sendCommand(undefined, true, ['PING'], {
+          timeout: 5
+        }), TimeoutError);
+      })
+    }, GLOBAL.CLUSTERS.OPEN);
+
+    testUtils.testWithClientSentinel('Timeout with custom timeout config (sentinel)', async sentinel => {
+      await blockSetImmediate(async () => {
+        await assert.rejects(sentinel.sendCommand(true, ['PING'], {
+          timeout: 5
+        }), TimeoutError);
+      })
+    }, GLOBAL.CLUSTERS.OPEN);
+
     testUtils.testWithClient('Timeout with global timeout config', async client => {
       await blockSetImmediate(async () => {
         await assert.rejects(client.ping(), TimeoutError);
@@ -268,6 +284,34 @@ describe('Client', () => {
       });
     }, {
       ...GLOBAL.SERVERS.OPEN,
+      clientOptions: {
+        commandOptions: {
+          timeout: 5
+        }
+      }
+    });
+
+    testUtils.testWithCluster('Timeout with global timeout config (cluster)', async cluster => {
+      await blockSetImmediate(async () => {
+        await assert.rejects(cluster.HSET('key', 'foo', 'value'), TimeoutError);
+        await assert.rejects(cluster.sendCommand(undefined, true, ['PING']), TimeoutError);
+      });
+    }, {
+      ...GLOBAL.CLUSTERS.OPEN,
+      clusterConfiguration: {
+        commandOptions: {
+          timeout: 5
+        }
+      }
+    });
+
+    testUtils.testWithClientSentinel('Timeout with global timeout config (sentinel)', async sentinel => {
+      await blockSetImmediate(async () => {
+        await assert.rejects(sentinel.HSET('key', 'foo', 'value'), TimeoutError);
+        await assert.rejects(sentinel.sendCommand(true, ['PING']), TimeoutError);
+      });
+    }, {
+      ...GLOBAL.SENTINEL.OPEN,
       clientOptions: {
         commandOptions: {
           timeout: 5
