@@ -337,6 +337,7 @@ export default class TestUtils {
         port: promise.port
       }));
 
+
       const sentinel = createSentinel({
         name: 'mymaster', 
         sentinelRootNodes: rootNodes, 
@@ -352,6 +353,7 @@ export default class TestUtils {
         functions: options?.functions || {},
         masterPoolSize: options?.masterPoolSize || undefined,
         reserveClient: options?.reserveClient || false,
+        ...options?.sentinelOptions
       }) as RedisSentinelType<M, F, S, RESP, TYPE_MAPPING>;
 
       if (options.disableClientSetup) {

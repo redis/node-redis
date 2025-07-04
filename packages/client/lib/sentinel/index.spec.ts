@@ -23,7 +23,7 @@ describe('RedisSentinel', () => {
           { host: 'localhost', port: 26379 }
         ]
       };
-      
+
       it('should throw error when clientSideCache is enabled with RESP 2', () => {
         assert.throws(
           () => RedisSentinel.create({
@@ -46,7 +46,7 @@ describe('RedisSentinel', () => {
       });
 
       it('should not throw when clientSideCache is enabled with RESP 3', () => {
-        assert.doesNotThrow(() => 
+        assert.doesNotThrow(() =>
           RedisSentinel.create({
             ...options,
             clientSideCache: clientSideCacheConfig,
@@ -54,6 +54,16 @@ describe('RedisSentinel', () => {
           })
         );
       });
+
+      testUtils.testWithClientSentinel('should successfully connect to sentinel', async () => {
+      }, {
+        ...GLOBAL.SENTINEL.OPEN,
+        sentinelOptions: {
+          RESP: 3,
+          clientSideCache: { ttl: 0, maxEntries: 0, evictPolicy: 'LRU'},
+        },
+      })
+
     });
   });
 });
@@ -417,7 +427,7 @@ async function steadyState(frame: SentinelFramework) {
     sentinel.setTracer(tracer);
     await sentinel.connect();
     await nodePromise;
-    
+
     await sentinel.flushAll();
   } finally {
     if (sentinel !== undefined) {
@@ -443,7 +453,7 @@ describe('legacy tests', () => {
       this.timeout(15000);
 
       last = Date.now();
-  
+
       function deltaMeasurer() {
         const delta = Date.now() - last;
         if (delta > longestDelta) {
@@ -508,7 +518,7 @@ describe('legacy tests', () => {
       }
 
       stopMeasuringBlocking = true;
-  
+
       await frame.cleanup();
     })
 
@@ -1032,6 +1042,3 @@ describe('legacy tests', () => {
     })
   });
 });
-
-
-
