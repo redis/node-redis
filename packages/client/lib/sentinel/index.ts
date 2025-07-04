@@ -625,6 +625,7 @@ class RedisSentinelInternal<
   readonly #sentinelClientOptions: RedisClientOptions<typeof RedisSentinelModule, RedisFunctions, RedisScripts, RespVersions, TypeMapping, RedisTcpSocketOptions>;
   readonly #scanInterval: number;
   readonly #passthroughClientErrorEvents: boolean;
+  readonly #RESP?: RespVersions;
 
   #anotherReset = false;
 
@@ -673,6 +674,7 @@ class RedisSentinelInternal<
     
     this.#name = options.name;
 
+    this.#RESP = options.RESP;
     this.#sentinelRootNodes = Array.from(options.sentinelRootNodes);
     this.#maxCommandRediscovers = options.maxCommandRediscovers ?? 16;
     this.#masterPoolSize = options.masterPoolSize ?? 1;
@@ -716,6 +718,9 @@ class RedisSentinelInternal<
 
   #createClient(node: RedisNode, clientOptions: RedisClientOptions, reconnectStrategy?: undefined | false) {
     return RedisClient.create({
+      //first take the globally set RESP
+      RESP: this.#RESP,
+      //then take the client options, which can in theory overwrite it
       ...clientOptions,
       socket: {
         ...clientOptions.socket,
