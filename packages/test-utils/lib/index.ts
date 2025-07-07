@@ -179,7 +179,7 @@ export default class TestUtils {
     this.#VERSION_NUMBERS = numbers;
     this.#DOCKER_IMAGE = {
       image: dockerImageName,
-      version: string, 
+      version: string,
       mode: "server"
     };
   }
@@ -315,7 +315,7 @@ export default class TestUtils {
     if (passIndex != 0) {
       password = options.serverArguments[passIndex];
     }
-    
+
     if (this.isVersionGreaterThan(options.minimumDockerVersion)) {
       const dockerImage = this.#DOCKER_IMAGE;
       before(function () {
@@ -333,18 +333,19 @@ export default class TestUtils {
 
       const promises = await dockerPromises;
       const rootNodes: Array<RedisNode> = promises.map(promise => ({
-        host: "127.0.0.1", 
+        host: "127.0.0.1",
         port: promise.port
       }));
 
 
       const sentinel = createSentinel({
-        name: 'mymaster', 
-        sentinelRootNodes: rootNodes, 
-        nodeClientOptions: { 
+        name: 'mymaster',
+        sentinelRootNodes: rootNodes,
+        nodeClientOptions: {
+          commandOptions: options.clientOptions?.commandOptions,
           password: password || undefined,
         },
-        sentinelClientOptions: { 
+        sentinelClientOptions: {
           password: password || undefined,
         },
         replicaPoolSize: options?.replicaPoolSize || 0,
@@ -507,7 +508,7 @@ export default class TestUtils {
 
     it(title, async function () {
       if (!dockersPromise) return this.skip();
-    
+
       const dockers = await dockersPromise,
         cluster = createCluster({
           rootNodes: dockers.map(({ port }) => ({
@@ -580,12 +581,12 @@ export default class TestUtils {
       const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), appPrefix));
 
       sentinels.push(await spawnSentinelNode(this.#DOCKER_IMAGE, options.serverArguments, masterPort, sentinelName, tmpDir))
-      
+
       if (tmpDir) {
         fs.rmSync(tmpDir, { recursive: true });
       }
     }
-    
+
     return sentinels
   }
 }

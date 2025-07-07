@@ -38,12 +38,12 @@ export interface RedisClusterOptions<
   // POLICIES extends CommandPolicies = CommandPolicies
 > extends ClusterCommander<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/> {
   /**
-   * Should contain details for some of the cluster nodes that the client will use to discover 
+   * Should contain details for some of the cluster nodes that the client will use to discover
    * the "cluster topology". We recommend including details for at least 3 nodes here.
    */
   rootNodes: Array<RedisClusterClientOptions>;
   /**
-   * Default values used for every client in the cluster. Use this to specify global values, 
+   * Default values used for every client in the cluster. Use this to specify global values,
    * for example: ACL credentials, timeouts, TLS configuration etc.
    */
   defaults?: Partial<RedisClusterClientOptions>;
@@ -68,13 +68,13 @@ export interface RedisClusterOptions<
   nodeAddressMap?: NodeAddressMap;
   /**
    * Client Side Caching configuration for the pool.
-   * 
-   * Enables Redis Servers and Clients to work together to cache results from commands 
+   *
+   * Enables Redis Servers and Clients to work together to cache results from commands
    * sent to a server. The server will notify the client when cached results are no longer valid.
    * In pooled mode, the cache is shared across all clients in the pool.
-   * 
+   *
    * Note: Client Side Caching is only supported with RESP3.
-   * 
+   *
    * @example Anonymous cache configuration
    * ```
    * const client = createCluster({
@@ -86,7 +86,7 @@ export interface RedisClusterOptions<
    *   minimum: 5
    * });
    * ```
-   * 
+   *
    * @example Using a controllable cache
    * ```
    * const cache = new BasicPooledClientSideCache({
@@ -406,7 +406,7 @@ export default class RedisCluster<
     proxy._commandOptions[key] = value;
     return proxy as RedisClusterType<
       M,
-      F, 
+      F,
       S,
       RESP,
       K extends 'typeMapping' ? V extends TypeMapping ? V : {} : TYPE_MAPPING
@@ -489,7 +489,7 @@ export default class RedisCluster<
           myFn = this._handleAsk(fn);
           continue;
         }
-        
+
         if (err.message.startsWith('MOVED')) {
           await this._slots.rediscover(client);
           client = await this._slots.getClient(firstKey, isReadonly);
@@ -497,7 +497,7 @@ export default class RedisCluster<
         }
 
         throw err;
-      } 
+      }
     }
   }
 
@@ -508,10 +508,16 @@ export default class RedisCluster<
     options?: ClusterCommandOptions,
     // defaultPolicies?: CommandPolicies
   ): Promise<T> {
+
+    // Merge global options with local options
+    const opts = {
+      ...this._self._commandOptions,
+      ...options
+    }
     return this._self._execute(
       firstKey,
       isReadonly,
-      options,
+      opts,
       (client, opts) => client.sendCommand(args, opts)
     );
   }
