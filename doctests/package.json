@@ -6,8 +6,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "redis": "../",
+    "redis": "file:/packages/redis",
     "@xenova/transformers": "^2.17.2"
   }
 }
-
