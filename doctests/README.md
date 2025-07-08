@@ -7,7 +7,7 @@ To set up the examples folder so that you can run an example / develop one of yo
 ```
 $ git clone https://github.com/redis/node-redis.git
 $ cd node-redis
-$ npm install -ws && npm run build-all
+$ npm install -ws && npm run build
 $ cd doctests
 $ npm install
 ```
