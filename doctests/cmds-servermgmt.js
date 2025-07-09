@@ -41,5 +41,5 @@ console.log(res3)
 // STEP_END
 
 // HIDE_START
-await client.quit();
+await client.close();
 // HIDE_END
