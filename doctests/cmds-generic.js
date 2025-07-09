@@ -29,7 +29,7 @@ const expireRes1 = await client.set('mykey', 'Hello');
 console.log(expireRes1); // OK
 
 const expireRes2 = await client.expire('mykey', 10);
-console.log(expireRes2); // true
+console.log(expireRes2); // 1
 
 const expireRes3 = await client.ttl('mykey');
 console.log(expireRes3); // 10
@@ -47,9 +47,9 @@ assert.equal(expireRes5, -1);
 // REMOVE_END
 
 const expireRes6 = await client.expire('mykey', 10, "XX");
-console.log(expireRes6); // false
+console.log(expireRes6); // 0
 // REMOVE_START
-assert.equal(expireRes6, false)
+assert.equal(expireRes6, 0)
 // REMOVE_END
 
 const expireRes7 = await client.ttl('mykey');
@@ -59,9 +59,9 @@ assert.equal(expireRes7, -1);
 // REMOVE_END
 
 const expireRes8 = await client.expire('mykey', 10, "NX");
-console.log(expireRes8); // true
+console.log(expireRes8); // 1
 // REMOVE_START
-assert.equal(expireRes8, true);
+assert.equal(expireRes8, 1);
 // REMOVE_END
 
 const expireRes9 = await client.ttl('mykey');
@@ -77,7 +77,7 @@ const ttlRes1 = await client.set('mykey', 'Hello');
 console.log(ttlRes1); // OK
 
 const ttlRes2 = await client.expire('mykey', 10);
-console.log(ttlRes2); // true
+console.log(ttlRes2); // 1
 
 const ttlRes3 = await client.ttl('mykey');
 console.log(ttlRes3); // 10
@@ -91,9 +91,9 @@ await client.del('mykey');
 const scan1Res1 = await client.sAdd('myset', ['1', '2', '3', 'foo', 'foobar', 'feelsgood']);
 console.log(scan1Res1); // 6
 
-const scan1Res2 = [];
+let scan1Res2 = [];
 for await (const value of client.sScanIterator('myset', { MATCH: 'f*' })) {
-    scan1Res2.push(value);
+    scan1Res2 = scan1Res2.concat(value);
 }
 console.log(scan1Res2); // ['foo', 'foobar', 'feelsgood']
 // REMOVE_START
@@ -129,7 +129,7 @@ console.log(scanResult.cursor, scanResult.keys);
 console.assert(scanResult.keys.length === 18);
 cursor = '0';
 const prefix = 'key:*';
-while (cursor !== 0) {
+while (cursor !== '0') {
     scanResult = await client.scan(cursor, { MATCH: prefix, COUNT: 1000 });
     console.log(scanResult.cursor, scanResult.keys);
     cursor = scanResult.cursor;
