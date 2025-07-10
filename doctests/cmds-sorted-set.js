@@ -111,5 +111,5 @@ await client.del('myzset');
 // STEP_END
 
 // HIDE_START
-await client.quit();
+await client.close();
 // HIDE_END

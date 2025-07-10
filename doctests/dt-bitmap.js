@@ -35,5 +35,5 @@ console.log(res4)  // >>> 1
 // STEP_END
 // REMOVE_START
 assert.equal(res4, 1)
-await client.quit();
+await client.close();
 // REMOVE_END

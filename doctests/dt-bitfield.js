@@ -72,5 +72,5 @@ assert.deepEqual(res1, [0])
 assert.deepEqual(res2, [950, 1])
 assert.deepEqual(res3, [1450, 2])
 assert.deepEqual(res4, [1450, 2])
-await client.quit();
+await client.close();
 // REMOVE_END
