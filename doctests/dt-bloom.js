@@ -42,5 +42,5 @@ assert.equal(res2, true)
 assert.equal(res3, true)
 assert.deepEqual(res4, [true, true, true])
 assert.deepEqual(res5, [true, true, true])
-await client.quit();
+await client.close();
 // REMOVE_END

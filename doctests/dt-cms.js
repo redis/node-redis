@@ -46,5 +46,5 @@ assert.deepEqual(res2, [100])
 assert.deepEqual(res3, [200, 150])
 assert.deepEqual(res4, [100])
 assert.deepEqual(res5, { width: 2000, depth: 9, count: 450 })
-await client.quit();
+await client.close();
 // REMOVE_END

@@ -56,4 +56,4 @@ console.log(res4)  // ['station:1', 'station:2', 'station:3']
 // REMOVE_START
 assert.deepEqual(res4, ['station:1', 'station:2', 'station:3']);
 // REMOVE_END
-await client.quit()
+await client.close()
