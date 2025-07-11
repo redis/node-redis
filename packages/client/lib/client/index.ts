@@ -144,6 +144,44 @@ export interface RedisClientOptions<
    * Tag to append to library name that is sent to the Redis server
    */
   clientInfoTag?: string;
+
+  /**
+   * Configuration for handling Redis Enterprise graceful maintenance scenarios.
+   *
+   * When Redis Enterprise performs maintenance operations, nodes will be replaced, resulting in disconnects.
+   * This configuration allows the client to handle these scenarios gracefully by automatically
+   * reconnecting and managing command execution during maintenance windows.
+   *
+   * @example Basic graceful maintenance configuration
+   * ```
+   * const client = createClient({
+   *   gracefulMaintenance: {
+   *     handleFailedCommands: 'retry',
+   *     handleTimeouts: 'exception',
+   *   }
+   * });
+   * ```
+   *
+   * @example Graceful maintenance with timeout smoothing
+   * ```
+   * const client = createClient({
+   *   gracefulMaintenance: {
+   *     handleFailedCommands: 'retry',
+   *     handleTimeouts: 5000, // Extend timeouts to 5 seconds during maintenance
+   *   }
+   * });
+   * ```
+   */
+  gracefulMaintenance?: {
+    /**
+     * Designates how failed commands should be handled. A failed command is when the time isn’t sufficient to deal with the responses on the old connection before the server shuts it down
+     */
+    handleFailedCommands: 'exception' | 'retry',
+    /**
+     * Specify whether we should throw a MaintenanceTimeout exception or provide more relaxed timeout, in order to minimize command timeouts during maintenance.
+     */
+    handleTimeouts: 'exception' | number,
+  }
 }
 
 type WithCommands<
@@ -490,6 +528,10 @@ export default class RedisClient<
   #validateOptions(options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>) {
     if (options?.clientSideCache && options?.RESP !== 3) {
       throw new Error('Client Side Caching is only supported with RESP3');
+    }
+
+    if (options?.gracefulMaintenance && options?.RESP !== 3) {
+      throw new Error('Graceful Maintenance is only supported with RESP3');
     }
 
   }
