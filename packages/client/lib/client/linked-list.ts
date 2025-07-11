@@ -1,3 +1,5 @@
+import EventEmitter from "events";
+
 export interface DoublyLinkedNode<T> {
   value: T;
   previous: DoublyLinkedNode<T> | undefined;
@@ -32,7 +34,7 @@ export class DoublyLinkedList<T> {
         next: undefined,
         value
       };
-    } 
+    }
 
     return this.#tail = this.#tail.next = {
       previous: this.#tail,
@@ -93,7 +95,7 @@ export class DoublyLinkedList<T> {
       node.previous!.next = node.next;
       node.previous = undefined;
     }
-    
+
     node.next = undefined;
   }
 
@@ -109,6 +111,33 @@ export class DoublyLinkedList<T> {
       node = node.next;
     }
   }
+}
+
+// This function takes an object that has a `length` property
+// and returns both a proxy and an event emitter.
+// The proxy will act the same as the original object.
+// And the event emitter will emit an `empty` event whenever the `length` becomes zero.
+export const makeEmptyAware = <T extends { length: number }>(obj: T): [T, EventEmitter] => {
+  const eventEmitter = new EventEmitter();
+  const proxy = new Proxy(obj, {
+    get(target, prop, receiver) {
+      const original = Reflect.get(target, prop, receiver);
+      if (typeof original === 'function') {
+        return function (...args: any[]) {
+          const oldLength = target.length;
+          const ret = original.apply(target, args);
+          const newLength = target.length;
+          if(oldLength !== newLength && newLength === 0) {
+            eventEmitter.emit('empty')
+          }
+          return ret
+        };
+      } else {
+        return original;
+      };
+    },
+  });
+  return [ proxy, eventEmitter ];
 }
 
 export interface SinglyLinkedNode<T> {
