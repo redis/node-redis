@@ -1,10 +1,11 @@
-import { SinglyLinkedList, DoublyLinkedNode, DoublyLinkedList } from './linked-list';
+import { SinglyLinkedList, DoublyLinkedNode, DoublyLinkedList, makeEmptyAware } from './linked-list';
 import encodeCommand from '../RESP/encoder';
 import { Decoder, PUSH_TYPE_MAPPING, RESP_TYPES } from '../RESP/decoder';
 import { TypeMapping, ReplyUnion, RespVersions, RedisArgument } from '../RESP/types';
 import { ChannelListeners, PubSub, PubSubCommand, PubSubListener, PubSubType, PubSubTypeListeners } from './pub-sub';
 import { AbortError, ErrorReply, TimeoutError } from '../errors';
 import { MonitorCallback } from '.';
+import EventEmitter from 'events';
 
 export interface CommandOptions<T = TypeMapping> {
   chainId?: symbol;
@@ -54,18 +55,18 @@ export default class RedisCommandsQueue {
   readonly #respVersion;
   readonly #maxLength;
   readonly #toWrite = new DoublyLinkedList<CommandToWrite>();
-  readonly #waitingForReply = new SinglyLinkedList<CommandWaitingForReply>();
+  readonly #waitingForReply: SinglyLinkedList<CommandWaitingForReply>;
   readonly #onShardedChannelMoved;
   #chainInExecution: symbol | undefined;
   readonly decoder;
   readonly #pubSub = new PubSub();
+  readonly events = new EventEmitter();
 
   get isPubSubActive() {
     return this.#pubSub.isActive;
   }
 
   #invalidateCallback?: (key: RedisArgument | null) => unknown;
-  #movingCallback?: (afterMs: number, host: string, port: number) => void;
 
   constructor(
     respVersion: RespVersions,
@@ -76,6 +77,9 @@ export default class RedisCommandsQueue {
     this.#maxLength = maxLength;
     this.#onShardedChannelMoved = onShardedChannelMoved;
     this.decoder = this.#initiateDecoder();
+    const [waitingForReply, emptyEmitter] = makeEmptyAware(new SinglyLinkedList<CommandWaitingForReply>())
+    this.#waitingForReply = waitingForReply;
+    emptyEmitter.on('empty', this.events.on.bind(this.events, 'waitingForReplyEmpty'))
   }
 
   #onReply(reply: ReplyUnion) {
@@ -137,16 +141,10 @@ export default class RedisCommandsQueue {
               break;
             }
             case 'MOVING': {
-              if (this.#movingCallback) {
-                console.log('received moving', push)
-                const [_, afterMs, url] = push;
-                let [host, port] = url.toString().split(':');
-                //['18.200.246.58'] - for some reason the server sends the host this way
-                if(host.includes('[')) {
-                  host = host.slice(2, -2);
-                }
-                this.#movingCallback(afterMs, host, Number(port));
-              }
+              console.log('received moving', push)
+              const [_, afterMs, url] = push;
+              const [host, port] = url.toString().split(':');
+              this.events.emit('moving', afterMs, host, Number(port))
               break;
             }
           }
@@ -160,8 +158,8 @@ export default class RedisCommandsQueue {
     this.#invalidateCallback = callback;
   }
 
-  setMovingCallback(callback?: (afterMs: number, host: string, port: number) => void) {
-    this.#movingCallback = callback;
+  isWaitingForReply(): boolean {
+    return this.#waitingForReply.length > 0;
   }
 
   addCommand<T>(
