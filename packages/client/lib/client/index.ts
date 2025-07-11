@@ -441,10 +441,15 @@ export default class RedisClient<
   #watchEpoch?: number;
   #clientSideCache?: ClientSideCacheProvider;
   #credentialsSubscription: Disposable | null = null;
+  // Flag used to pause writing to the socket during maintenance windows.
+  // When true, prevents new commands from being written while waiting for:
+  // 1. New socket to be ready after maintenance redirect
+  // 2. In-flight commands on the old socket to complete
+  #paused = false;
+
   get clientSideCache() {
     return this._self.#clientSideCache;
   }
-
 
   get options(): RedisClientOptions<M, F, S, RESP> | undefined {
     return this._self.#options;
@@ -494,11 +499,27 @@ export default class RedisClient<
     this.#options = this.#initiateOptions(options);
     this.#queue = this.#initiateQueue();
     this.#socket = this.#initiateSocket(this.#options);
-
-    this.#queue.setMovingCallback(async (afterMs: number, host: string, port: number) => {
+    //  Queue
+    //     toWrite [ C D E ]
+    //     waitingForReply [ A B ]
+    //
+    //  time: ---1-2---3-4-5-6---------------------------
+    //
+    //  1. [EVENT] MOVING PN received
+    //  2. [ACTION] Pause writing ( we need to wait for new socket to connect and for all in-flight commands to complete )
+    //  3. [EVENT] New sock connected
+    //  4. [EVENT] In-flight commands completed
+    //  5. [ACTION] Unpause writing -> we are going to write to the new socket from now on
+    //  6. [ACTION] Destroy old socket
+    this.options?.gracefulMaintenance && this.#queue.events.on('moving', async (afterMs: number, host: string, port: number) => {
+      // 1
       console.log(`Moving to ${host}:${port} before ${afterMs}ms`);
+
+      // 2
+      this.#paused = true;
+
       const oldSocket = this.#socket;
-      const newSocket = this.#initiateSocket({
+      this.#socket = this.#initiateSocket({
         ...this.#options,
         socket: {
           ...this.#options?.socket,
@@ -506,12 +527,32 @@ export default class RedisClient<
           port
         }
       });
-      newSocket.on('ready', () => {
-        console.log(`Connected to ${host}:${port}, destroying old socket`);
-        oldSocket.destroy()
-        this.#socket = newSocket
+
+      // 3
+      this.#socket.once('ready', () => {
+        //TODO handshake...???
+        console.log(`Connected to ${host}:${port}`);
+
+        // 4
+        if(!this.#queue.isWaitingForReply()) {
+          // 5 and 6
+          oldSocket.destroy();
+          this.#paused = false;
+        }
       });
-      await newSocket.connect()
+
+      // 4
+      this.#queue.events.once('waitingForReplyEmpty', () => {
+
+        // 3
+        if(this.#socket.isReady) {
+          // 5 and 6
+          oldSocket.destroy();
+          this.#paused = false;
+        }
+      });
+
+      await this.#socket.connect()
     });
 
     if (options?.clientSideCache) {
@@ -1139,6 +1180,9 @@ export default class RedisClient<
   }
 
   #write() {
+    if(this.#paused) {
+      return
+    }
     this.#socket.write(this.#queue.commandsToWrite());
   }
 
