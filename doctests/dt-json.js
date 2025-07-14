@@ -19,7 +19,7 @@ console.log(res1); // OK
 const res2 = await client.json.get("bike", { path: "$" });
 console.log(res2); // ['"Hyperion"']
 
-const res3 = await client.json.type("bike", "$");
+const res3 = await client.json.type("bike", { path: "$" });
 console.log(res3); //  [ 'string' ]
 // STEP_END
 
@@ -28,7 +28,7 @@ assert.deepEqual(res2, ['"Hyperion"']);
 // REMOVE_END
 
 // STEP_START str
-const res4 = await client.json.strLen("bike", "$");
+const res4 = await client.json.strLen("bike", { path: "$" });
 console.log(res4) //  [10]
 
 const res5 = await client.json.strAppend("bike", '" (Enduro bikes)"');
@@ -70,8 +70,8 @@ console.log(res12); //  [[ 'Deimos', { crashes: 0 }, null ]]
 const res13 = await client.json.get("newbike", { path: "$[1].crashes" });
 console.log(res13); //  [0]
 
-const res14 = await client.json.del("newbike", "$.[-1]");
-console.log(res14); //  [1]
+const res14 = await client.json.del("newbike", { path: "$.[-1]"} );
+console.log(res14); //  1
 
 const res15 = await client.json.get("newbike", { path: "$" });
 console.log(res15); //  [[ 'Deimos', { crashes: 0 } ]]
@@ -105,10 +105,10 @@ console.log(res21); //  [1]
 const res22 = await client.json.get("riders", { path: "$" });
 console.log(res22); //  [[ 'Prickett' ]]
 
-const res23 = await client.json.arrPop("riders", "$");
+const res23 = await client.json.arrPop("riders", { path: "$" });
 console.log(res23); //  [ 'Prickett' ]
 
-const res24 = await client.json.arrPop("riders", "$");
+const res24 = await client.json.arrPop("riders", { path: "$" });
 console.log(res24); //  [null]
 // STEP_END
 
@@ -126,10 +126,10 @@ const res25 = await client.json.set(
 );
 console.log(res25); //  OK
 
-const res26 = await client.json.objLen("bike:1", "$");
+const res26 = await client.json.objLen("bike:1", { path: "$" });
 console.log(res26); //  [3]
 
-const res27 = await client.json.objKeys("bike:1", "$");
+const res27 = await client.json.objKeys("bike:1", { path: "$" });
 console.log(res27); //  [['model', 'brand', 'price']]
 // STEP_END
 
@@ -421,5 +421,5 @@ assert.deepEqual(res42, [
     ["black", "white"],
     ["black", "silver", "pink"],
 ]);
-await client.quit();
+await client.close();
 // REMOVE_END

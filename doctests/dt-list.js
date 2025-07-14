@@ -3,7 +3,7 @@
 import assert from 'assert';
 import { createClient } from 'redis';
 
-const client = await createClient();
+const client = createClient();
 await client.connect();
 // HIDE_END
 // REMOVE_START
@@ -150,7 +150,7 @@ const res25 = await client.rPop('bikes:repairs');
 console.log(res25);  // 'bike:2'
 
 const res26 = await client.rPop('bikes:repairs');
-console.log(res26);  // None
+console.log(res26);  // null
 // STEP_END
 
 // REMOVE_START
@@ -168,7 +168,7 @@ const res27 = await client.lPush(
 console.log(res27);  // 5
 
 const res28 = await client.lTrim('bikes:repairs', 0, 2);
-console.log(res28);  // true
+console.log(res28);  // OK
 
 const res29 = await client.lRange('bikes:repairs', 0, -1);
 console.log(res29);  // ['bike:5', 'bike:4', 'bike:3']
@@ -248,7 +248,7 @@ console.log(res38);  // 'string'
 try {
   const res39 = await client.lPush('new_bikes', 'bike:2', 'bike:3');
   // redis.exceptions.ResponseError:
-  // [ErrorReply: WRONGTYPE Operation against a key holding the wrong kind of value]
+  // [SimpleError: WRONGTYPE Operation against a key holding the wrong kind of value]
 }
 catch(e){
   console.log(e);
@@ -266,7 +266,7 @@ await client.lPush('bikes:repairs', ['bike:1', 'bike:2', 'bike:3']);
 console.log(res36);  // 3
 
 const res40 = await client.exists('bikes:repairs')
-console.log(res40);  // true
+console.log(res40);  // 1
 
 const res41 = await client.lPop('bikes:repairs');
 console.log(res41);  // 'bike:3'
@@ -282,7 +282,7 @@ console.log(res44);  // 0
 // STEP_END
 
 // REMOVE_START
-assert.equal(res40, true);
+assert.equal(res40, 1);
 assert.equal(res41, 'bike:3');
 assert.equal(res42, 'bike:2');
 assert.equal(res43, 'bike:1');
@@ -325,5 +325,5 @@ assert.equal(res48, 5);
 assert.equal(res49, 'OK');
 assert.deepEqual(res50, ['bike:5', 'bike:4', 'bike:3']);
 await client.del('bikes:repairs');
-await client.quit();
+await client.close();
 // REMOVE_END
