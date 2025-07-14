@@ -1,4 +1,4 @@
-import { SinglyLinkedList, DoublyLinkedNode, DoublyLinkedList, makeEmptyAware } from './linked-list';
+import { SinglyLinkedList, DoublyLinkedNode, DoublyLinkedList, EmptyAwareSinglyLinkedList } from './linked-list';
 import encodeCommand from '../RESP/encoder';
 import { Decoder, PUSH_TYPE_MAPPING, RESP_TYPES } from '../RESP/decoder';
 import { TypeMapping, ReplyUnion, RespVersions, RedisArgument } from '../RESP/types';
@@ -55,7 +55,7 @@ export default class RedisCommandsQueue {
   readonly #respVersion;
   readonly #maxLength;
   readonly #toWrite = new DoublyLinkedList<CommandToWrite>();
-  readonly #waitingForReply: SinglyLinkedList<CommandWaitingForReply>;
+  readonly #waitingForReply: EmptyAwareSinglyLinkedList<CommandWaitingForReply>;
   readonly #onShardedChannelMoved;
   #chainInExecution: symbol | undefined;
   readonly decoder;
@@ -77,9 +77,8 @@ export default class RedisCommandsQueue {
     this.#maxLength = maxLength;
     this.#onShardedChannelMoved = onShardedChannelMoved;
     this.decoder = this.#initiateDecoder();
-    const [waitingForReply, emptyEmitter] = makeEmptyAware(new SinglyLinkedList<CommandWaitingForReply>())
-    this.#waitingForReply = waitingForReply;
-    emptyEmitter.on('empty', this.events.emit.bind(this.events, 'waitingForReplyEmpty'))
+    this.#waitingForReply = new EmptyAwareSinglyLinkedList<CommandWaitingForReply>()
+    this.#waitingForReply.events.on('empty', this.events.emit.bind(this.events, 'waitingForReplyEmpty'))
   }
 
   #onReply(reply: ReplyUnion) {
