@@ -94,5 +94,5 @@ assert.equal(res14, 1);
 assert.equal(res15, 1);
 assert.equal(res16, '3');
 assert.deepEqual(res17, ['1', '1']);
-await client.quit();
+await client.close();
 // REMOVE_END
