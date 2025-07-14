@@ -113,33 +113,6 @@ export class DoublyLinkedList<T> {
   }
 }
 
-// This function takes an object that has a `length` property
-// and returns both a proxy and an event emitter.
-// The proxy will act the same as the original object.
-// And the event emitter will emit an `empty` event whenever the `length` becomes zero.
-export const makeEmptyAware = <T extends { length: number }>(obj: T): [T, EventEmitter] => {
-  const eventEmitter = new EventEmitter();
-  const proxy = new Proxy(obj, {
-    get(target, prop, _receiver) {
-      const original = Reflect.get(target, prop, target);
-      if (typeof original === 'function') {
-        return function (...args: any[]) {
-          const oldLength = target.length;
-          const ret = original.apply(target, args);
-          const newLength = target.length;
-          if(oldLength !== newLength && newLength === 0) {
-            eventEmitter.emit('empty')
-          }
-          return ret
-        };
-      } else {
-        return original;
-      };
-    },
-  });
-  return [ proxy, eventEmitter ];
-}
-
 export interface SinglyLinkedNode<T> {
   value: T;
   next: SinglyLinkedNode<T> | undefined;
@@ -227,6 +200,29 @@ export class SinglyLinkedList<T> {
     while (node !== undefined) {
       yield node.value;
       node = node.next;
+    }
+  }
+}
+
+export class EmptyAwareSinglyLinkedList<T> extends SinglyLinkedList<T> {
+  readonly events = new EventEmitter();
+  reset() {
+    super.reset();
+    this.events.emit('empty');
+  }
+  shift(): T | undefined {
+    const old = this.length;
+    const ret = super.shift();
+    if(old !== this.length && this.length === 0) {
+      this.events.emit('empty');
+    }
+    return ret;
+  }
+  remove(node: SinglyLinkedNode<T>, parent: SinglyLinkedNode<T> | undefined): T | undefined {
+    const old = this.length;
+    super.remove(node, parent);
+    if(old !== this.length && this.length === 0) {
+      this.events.emit('empty');
     }
   }
 }
