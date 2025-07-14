@@ -120,8 +120,8 @@ export class DoublyLinkedList<T> {
 export const makeEmptyAware = <T extends { length: number }>(obj: T): [T, EventEmitter] => {
   const eventEmitter = new EventEmitter();
   const proxy = new Proxy(obj, {
-    get(target, prop, receiver) {
-      const original = Reflect.get(target, prop, receiver);
+    get(target, prop, _receiver) {
+      const original = Reflect.get(target, prop, target);
       if (typeof original === 'function') {
         return function (...args: any[]) {
           const oldLength = target.length;
