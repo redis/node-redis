@@ -79,7 +79,7 @@ export default class RedisCommandsQueue {
     this.decoder = this.#initiateDecoder();
     const [waitingForReply, emptyEmitter] = makeEmptyAware(new SinglyLinkedList<CommandWaitingForReply>())
     this.#waitingForReply = waitingForReply;
-    emptyEmitter.on('empty', this.events.on.bind(this.events, 'waitingForReplyEmpty'))
+    emptyEmitter.on('empty', this.events.emit.bind(this.events, 'waitingForReplyEmpty'))
   }
 
   #onReply(reply: ReplyUnion) {
