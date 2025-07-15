@@ -220,6 +220,7 @@ export default class RedisSocket extends EventEmitter {
         try {
           await this.#initiator();
         } catch (err) {
+          console.log('Initiator failed', err);
           this.#socket.destroy();
           this.#socket = undefined;
           throw err;
