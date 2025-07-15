@@ -218,7 +218,7 @@ export class EmptyAwareSinglyLinkedList<T> extends SinglyLinkedList<T> {
     }
     return ret;
   }
-  remove(node: SinglyLinkedNode<T>, parent: SinglyLinkedNode<T> | undefined): T | undefined {
+  remove(node: SinglyLinkedNode<T>, parent: SinglyLinkedNode<T> | undefined) {
     const old = this.length;
     super.remove(node, parent);
     if(old !== this.length && this.length === 0) {

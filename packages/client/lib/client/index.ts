@@ -492,7 +492,8 @@ export default class RedisClient<
       console.log(`Moving to ${host}:${port} before ${afterMs}ms`);
 
       // 2
-      this.#paused = true;
+      console.log(`Pausing writing until new socket is ready and all in-flight commands are completed`);
+      // this.#paused = true;
 
       const oldSocket = this.#socket;
       this.#socket = this.#initiateSocket({
@@ -512,6 +513,8 @@ export default class RedisClient<
         // 4
         if(!this.#queue.isWaitingForReply()) {
           // 5 and 6
+          console.log(`All in-flight commands completed`);
+          console.log(`Resume writing`)
           oldSocket.destroy();
           this.#paused = false;
         }
@@ -519,10 +522,12 @@ export default class RedisClient<
 
       // 4
       this.#queue.events.once('waitingForReplyEmpty', () => {
-
+        console.log(`All in-flight commands completed`);
         // 3
         if(this.#socket.isReady) {
           // 5 and 6
+          console.log(`Connected to ${host}:${port}`);
+          console.log(`Resume writing`)
           oldSocket.destroy();
           this.#paused = false;
         }
@@ -793,7 +798,6 @@ export default class RedisClient<
 
     return new RedisSocket(socketInitiator, options?.socket)
       .on('data', chunk => {
-        console.log('Data received', chunk.toString());
         try {
           this.#queue.decoder.write(chunk);
         } catch (err) {
@@ -802,7 +806,6 @@ export default class RedisClient<
         }
       })
       .on('error', err => {
-        console.error('Socket error', err);
         this.emit('error', err);
         this.#clientSideCache?.onError();
         if (this.#socket.isOpen && !this.#options?.disableOfflineQueue) {
