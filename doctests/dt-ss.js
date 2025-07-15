@@ -158,5 +158,5 @@ assert.equal(res17, 1)
 assert.equal(res18, 0)
 assert.equal(res19, 150.0)
 assert.equal(res20, 200.0)
-await client.quit();
+await client.close();
 // REMOVE_END

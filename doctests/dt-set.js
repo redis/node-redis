@@ -3,7 +3,7 @@
 import assert from 'assert';
 import { createClient } from 'redis';
 
-const client = await createClient();
+const client = createClient();
 await client.connect();
 // HIDE_END
 // REMOVE_START
@@ -38,15 +38,15 @@ await client.sAdd('bikes:racing:france', 'bike:1', 'bike:2', 'bike:3')
 await client.sAdd('bikes:racing:usa', 'bike:1', 'bike:4')
 // HIDE_END
 const res5 = await client.sIsMember('bikes:racing:usa', 'bike:1')
-console.log(res5)  // >>> true
+console.log(res5)  // >>> 1
 
 const res6 = await client.sIsMember('bikes:racing:usa', 'bike:2')
-console.log(res6)  // >>> false
+console.log(res6)  // >>> 0
 // STEP_END
 
 // REMOVE_START
-assert.equal(res5, true)
-assert.equal(res6, false)
+assert.equal(res5, 1)
+assert.equal(res6, 0)
 // REMOVE_END
 
 // STEP_START sinster
@@ -93,15 +93,15 @@ assert.deepEqual(res10.sort(), ['bike:1', 'bike:2', 'bike:3'])
 
 // STEP_START smIsMember
 const res11 = await client.sIsMember('bikes:racing:france', 'bike:1')
-console.log(res11)  // >>> true
+console.log(res11)  // >>> 1
 
 const res12 = await client.smIsMember('bikes:racing:france', ['bike:2', 'bike:3', 'bike:4'])
-console.log(res12)  // >>> [true, true, false]
+console.log(res12)  // >>> [1, 1, 0]
 // STEP_END
 
 // REMOVE_START
-assert.equal(res11, true)
-assert.deepEqual(res12, [true, true, false])
+assert.equal(res11, 1)
+assert.deepEqual(res12, [1, 1, 0])
 // REMOVE_END
 
 // STEP_START sDiff
@@ -112,7 +112,7 @@ console.log(res13)  // >>> [ 'bike:2', 'bike:3' ]
 // STEP_END
 
 // REMOVE_START
-assert.deepEqual(res13, ['bike:2', 'bike:3'])
+assert.deepEqual(res13.sort(), ['bike:2', 'bike:3'].sort())
 await client.del('bikes:racing:france')
 await client.del('bikes:racing:usa')
 // REMOVE_END
@@ -147,13 +147,11 @@ assert.deepEqual(res14, ['bike:1'])
 assert.deepEqual(res15.sort(), ['bike:1', 'bike:2', 'bike:3', 'bike:4'])
 assert.deepEqual(res16, [])
 assert.deepEqual(res17, ['bike:4'])
-assert.deepEqual(res18, ['bike:2', 'bike:3'])
+assert.deepEqual(res18.sort(), ['bike:2', 'bike:3'].sort())
 await client.del('bikes:racing:france')
 await client.del('bikes:racing:usa')
 await client.del('bikes:racing:italy')
 // REMOVE_END
-
-debugger;
 
 // STEP_START sRem
 await client.sAdd('bikes:racing:france', ['bike:1', 'bike:2', 'bike:3', 'bike:4', 'bike:5'])
@@ -173,6 +171,6 @@ console.log(res22)  // >>> bike:4 or other random value
 
 // REMOVE_START
 assert.equal(res19, 1)
-client.quit()
+await client.close()
 // none of the other results are deterministic
 // REMOVE_END
