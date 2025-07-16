@@ -81,5 +81,5 @@ console.log(res12);  // >>> OK
 
 // REMOVE_START
 assert.equal(res12, 'OK')
-await client.quit();
+await client.close();
 // REMOVE_END

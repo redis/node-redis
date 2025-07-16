@@ -3,7 +3,7 @@
 import assert from 'assert';
 import { createClient } from 'redis';
 
-const client = await createClient();
+const client = createClient();
 await client.connect();
 // HIDE_END
 // REMOVE_START
@@ -64,5 +64,5 @@ console.log(res8); // 11
 assert.equal(res7, 1);
 assert.equal(res8, 11);
 
-await client.quit();
+await client.close();
 // REMOVE_END

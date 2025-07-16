@@ -3,7 +3,7 @@
 import assert from 'node:assert';
 import fs from 'node:fs';
 import { createClient } from 'redis';
-import { SchemaFieldTypes, AggregateSteps, AggregateGroupByReducers } from '@redis/search';
+import { SCHEMA_FIELD_TYPE, FT_AGGREGATE_STEPS, FT_AGGREGATE_GROUP_BY_REDUCERS } from '@redis/search';
 
 const client = createClient();
 
@@ -12,11 +12,11 @@ await client.connect().catch(console.error);
 // create index
 await client.ft.create('idx:bicycle', {
   '$.condition': {
-    type: SchemaFieldTypes.TAG,
+    type: SCHEMA_FIELD_TYPE.TAG,
     AS: 'condition'
   },
   '$.price': {
-    type: SchemaFieldTypes.NUMERIC,
+    type: SCHEMA_FIELD_TYPE.NUMERIC,
     AS: 'price'
   }
 }, {
@@ -61,14 +61,14 @@ assert.strictEqual(res1.results.length, 5);
 const res2 = await client.ft.aggregate('idx:bicycle', '*', {
   LOAD: ['@price'],
   STEPS: [{
-      type: AggregateSteps.APPLY,
+      type: FT_AGGREGATE_STEPS.APPLY,
       expression: '@price<1000',
       AS: 'price_category'
     },{
-      type: AggregateSteps.GROUPBY,
+      type: FT_AGGREGATE_STEPS.GROUPBY,
       properties: '@condition',
       REDUCE:[{
-        type: AggregateGroupByReducers.SUM,
+        type: FT_AGGREGATE_GROUP_BY_REDUCERS.SUM,
         property: '@price_category',
         AS: 'num_affordable'
       }]
@@ -88,14 +88,14 @@ assert.strictEqual(res2.results.length, 3);
 // STEP_START agg3
 const res3 = await client.ft.aggregate('idx:bicycle', '*', {
   STEPS: [{
-      type: AggregateSteps.APPLY,
+      type: FT_AGGREGATE_STEPS.APPLY,
       expression: "'bicycle'",
       AS: 'type'
     }, {
-      type: AggregateSteps.GROUPBY,
+      type: FT_AGGREGATE_STEPS.GROUPBY,
       properties: '@type',
       REDUCE: [{
-        type: AggregateGroupByReducers.COUNT,
+        type: FT_AGGREGATE_GROUP_BY_REDUCERS.COUNT,
         property: null,
         AS: 'num_total'
       }]
@@ -113,10 +113,10 @@ assert.strictEqual(res3.results.length, 1);
 const res4 = await client.ft.aggregate('idx:bicycle', '*', {
   LOAD: ['__key'],
   STEPS: [{
-      type: AggregateSteps.GROUPBY,
+      type: FT_AGGREGATE_STEPS.GROUPBY,
       properties: '@condition',
       REDUCE: [{
-        type: AggregateGroupByReducers.TOLIST,
+        type: FT_AGGREGATE_GROUP_BY_REDUCERS.TOLIST,
         property: '__key',
         AS: 'bicycles'
       }]
@@ -135,5 +135,5 @@ assert.strictEqual(res4.results.length, 3);
 // REMOVE_START
 // destroy index and data
 await client.ft.dropIndex('idx:bicycle', { DD: true });
-await client.disconnect();
+await client.close();
 // REMOVE_END
