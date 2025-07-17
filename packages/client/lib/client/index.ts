@@ -484,6 +484,15 @@ export default class RedisClient<
     return this._self.#dirtyWatch !== undefined
   }
 
+  get socket() {
+    return this._self.#socket;
+  }
+
+  set socket(socket: RedisSocket) {
+    this._self.#socket = socket;
+    this.#initiateSocket();
+  }
+
   /**
    * Marks the client's WATCH command as invalidated due to a topology change.
    * This will cause any subsequent EXEC in a transaction to fail with a WatchError.
@@ -581,6 +590,7 @@ export default class RedisClient<
     }
 
   }
+
   #initiateOptions(options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>): RedisClientOptions<M, F, S, RESP, TYPE_MAPPING> | undefined {
 
     // Convert username/password to credentialsProvider if no credentialsProvider is already in place
@@ -785,6 +795,29 @@ export default class RedisClient<
 
   async #initiateSocket(options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>): Promise<void> {
     await this.#socket.waitForReady();
+
+    this.#socket
+      .on('data', chunk => {
+        try {
+          this.#queue.decoder.write(chunk);
+        } catch (err) {
+          this.#queue.resetDecoder();
+          this.emit('error', err);
+        }
+      })
+      .on('error', err => {
+        this.emit('error', err);
+        this.#clientSideCache?.onError();
+        if (this.#socket.isOpen && !this.#options?.disableOfflineQueue) {
+          this.#queue.flushWaitingForReply(err);
+        } else {
+          this.#queue.flushAll(err);
+        }
+      })
+      .on('reconnecting', () => this.emit('reconnecting'))
+      .on('drain', () => this.#maybeScheduleWrite())
+      .on('end', () => this.emit('end'));
+
     console.log('Initiator...');
     const promises = [];
     const chainId = Symbol('Socket Initiator');
@@ -819,31 +852,11 @@ export default class RedisClient<
 
   #createSocket(options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>): RedisSocket {
     return new RedisSocket(options?.socket)
-      .on('data', chunk => {
-        try {
-          this.#queue.decoder.write(chunk);
-        } catch (err) {
-          this.#queue.resetDecoder();
-          this.emit('error', err);
-        }
-      })
-      .on('error', err => {
-        this.emit('error', err);
-        this.#clientSideCache?.onError();
-        if (this.#socket.isOpen && !this.#options?.disableOfflineQueue) {
-          this.#queue.flushWaitingForReply(err);
-        } else {
-          this.#queue.flushAll(err);
-        }
-      })
       .on('connect', () => this.emit('connect'))
       .on('ready', () => {
         console.log('Socket ready');
         this.emit('ready');
-      })
-      .on('reconnecting', () => this.emit('reconnecting'))
-      .on('drain', () => this.#maybeScheduleWrite())
-      .on('end', () => this.emit('end'));
+      });
   }
 
   #pingTimer?: NodeJS.Timeout;
