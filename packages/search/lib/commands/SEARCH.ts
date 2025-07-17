@@ -1,7 +1,7 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument, Command, ReplyUnion } from '@redis/client/dist/lib/RESP/types';
 import { RedisVariadicArgument, parseOptionalVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
-import { RediSearchProperty, RediSearchLanguage } from './CREATE';
+import { RediSearchLanguage } from './CREATE';
 import { DEFAULT_DIALECT } from '../dialect/default';
 
 export type FtSearchParams = Record<string, RedisArgument | number>;
@@ -32,13 +32,13 @@ export interface FtSearchOptions {
   INFIELDS?: RedisVariadicArgument;
   RETURN?: RedisVariadicArgument;
   SUMMARIZE?: boolean | {
-    FIELDS?: RediSearchProperty | Array<RediSearchProperty>;
+    FIELDS?: RedisArgument | Array<RedisArgument>;
     FRAGS?: number;
     LEN?: number;
     SEPARATOR?: RedisArgument;
   };
   HIGHLIGHT?: boolean | {
-    FIELDS?: RediSearchProperty | Array<RediSearchProperty>;
+    FIELDS?: RedisArgument | Array<RedisArgument>;
     TAGS?: {
       open: RedisArgument;
       close: RedisArgument;
@@ -51,7 +51,7 @@ export interface FtSearchOptions {
   EXPANDER?: RedisArgument;
   SCORER?: RedisArgument;
   SORTBY?: RedisArgument | {
-    BY: RediSearchProperty;
+    BY: RedisArgument;
     DIRECTION?: 'ASC' | 'DESC';
   };
   LIMIT?: {
@@ -133,7 +133,7 @@ export function parseSearchOptions(parser: CommandParser, options?: FtSearchOpti
 
   if (options?.SORTBY) {
     parser.push('SORTBY');
-    
+
     if (typeof options.SORTBY === 'string' || options.SORTBY instanceof Buffer) {
       parser.push(options.SORTBY);
     } else {
@@ -193,7 +193,7 @@ export default {
           value: withoutDocuments ? Object.create(null) : documentValue(reply[i++])
         });
       }
-  
+
       return {
         total: reply[0],
         documents
