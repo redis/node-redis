@@ -3,7 +3,7 @@
 import assert from 'node:assert';
 import fs from 'node:fs';
 import { createClient } from 'redis';
-import { SchemaFieldTypes } from '@redis/search';
+import { SCHEMA_FIELD_TYPE } from '@redis/search';
 
 const client = createClient();
 
@@ -12,11 +12,11 @@ await client.connect().catch(console.error);
 // create index
 await client.ft.create('idx:bicycle', {
   '$.store_location': {
-    type: SchemaFieldTypes.GEO,
+    type: SCHEMA_FIELD_TYPE.GEO,
     AS: 'store_location'
   },
    '$.pickup_zone': {
-    type: SchemaFieldTypes.GEOSHAPE,
+    type: SCHEMA_FIELD_TYPE.GEOSHAPE,
     AS: 'pickup_zone'
   }
 }, {
@@ -78,5 +78,5 @@ assert.strictEqual(res3.total, 5);
 // REMOVE_START
 // destroy index and data
 await client.ft.dropIndex('idx:bicycle', { DD: true });
-await client.disconnect();
+await client.close();
 // REMOVE_END
