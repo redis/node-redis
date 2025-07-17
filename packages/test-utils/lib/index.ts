@@ -26,6 +26,7 @@ import { hideBin } from 'yargs/helpers';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { RedisProxy, getFreePortNumber } from './redis-proxy';
 
 interface TestUtilsConfig {
   /**
@@ -296,7 +297,44 @@ export default class TestUtils {
       }
     });
   }
+  testWithProxiedClient(
+    title: string,
+    fn: (proxiedClient: RedisClientType<any, any, any, any, any>, proxy: RedisProxy) => unknown,
+    options: ClientTestOptions<any, any, any, any, any>
+  ) {
 
+    this.testWithClient(title, async (client) => {
+      const freePort = await getFreePortNumber()
+      const socketOptions = client?.options?.socket;
+      const proxy = new RedisProxy({
+        listenHost: '127.0.0.1',
+        listenPort: freePort,
+        //@ts-ignore
+        targetPort: socketOptions.port,
+        //@ts-ignore
+        targetHost: socketOptions.host,
+        enableLogging: true
+      });
+
+
+      await proxy.start();
+      const proxyClient = client.duplicate({
+        socket: {
+          port: proxy.config.listenPort,
+          host: proxy.config.listenHost
+        },
+      });
+
+      await proxyClient.connect();
+
+      try {
+        await fn(proxyClient, proxy);
+      } finally {
+        await proxyClient.destroy();
+        await proxy.stop()
+      }
+    }, options);
+  }
   testWithClientSentinel<
     M extends RedisModules = {},
     F extends RedisFunctions = {},
