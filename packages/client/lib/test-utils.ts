@@ -93,6 +93,12 @@ export const GLOBAL = {
         password: 'password'
       }
     },
+    OPEN_RESP_3: {
+      serverArguments: [...DEBUG_MODE_ARGS],
+      clientOptions: {
+        RESP: 3,
+      }
+    },
     ASYNC_BASIC_AUTH: {
       serverArguments: ['--requirepass', 'password', ...DEBUG_MODE_ARGS],
       clientOptions: {
