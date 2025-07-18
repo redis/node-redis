@@ -35,31 +35,23 @@ export default class EnterpriseMaintenanceManager extends EventEmitter {
     port: number,
   ): Promise<void> => {
     // 1 [EVENT] MOVING PN received
-    console.log('[EnterpriseMaintenanceManager] Pausing client');
     // 2 [ACTION] Pause writing
     this.emit('pause')
 
-    console.log(`[EnterpriseMaintenanceManager] Creating new socket for ${host}:${port}`);
     const newSocket = new RedisSocket({
       ...this.options.socket,
       host,
       port,
     });
-    console.log('[EnterpriseMaintenanceManager] Connecting to new socket');
     await newSocket.connect();
     // 3 [EVENT] New socket connected
-    console.log('[EnterpriseMaintenanceManager] New socket connected');
 
     // Wait until waitingForReply is empty
-    console.log('[EnterpriseMaintenanceManager] Waiting for reply queue to empty');
     await new Promise<void>((resolve) => {
       if (!this.commandsQueue.isWaitingForReply()) {
-        console.log('[EnterpriseMaintenanceManager] Reply queue already empty');
         resolve();
       } else {
-        console.log('[EnterpriseMaintenanceManager] Reply queue not empty, waiting for empty event');
         this.commandsQueue.events.once("waitingForReplyEmpty", () => {
-          console.log('[EnterpriseMaintenanceManager] Reply queue now empty');
           resolve();
         });
       }
