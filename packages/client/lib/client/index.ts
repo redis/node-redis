@@ -20,6 +20,7 @@ import { BasicClientSideCache, ClientSideCacheConfig, ClientSideCacheProvider } 
 import { BasicCommandParser, CommandParser } from './parser';
 import SingleEntryCache from '../single-entry-cache';
 import { version } from '../../package.json'
+import EnterpriseMaintenanceManager from './enterprise-maintenance-manager';
 
 export interface RedisClientOptions<
   M extends RedisModules = RedisModules,
@@ -469,6 +470,15 @@ export default class RedisClient<
     this.#initiateSocket();
   }
 
+  pause() {
+    this._self.#paused = true;
+  }
+
+  resume() {
+    this._self.#paused = false;
+    this._self.#maybeScheduleWrite();
+  }
+
   /**
    * Marks the client's WATCH command as invalidated due to a topology change.
    * This will cause any subsequent EXEC in a transaction to fail with a WatchError.
@@ -484,66 +494,10 @@ export default class RedisClient<
     this.#options = this.#initiateOptions(options);
     this.#queue = this.#initiateQueue();
     this.#socket = this.#createSocket(this.#options);
-    //  Queue
-    //     toWrite [ C D E ]
-    //     waitingForReply [ A B ]
-    //
-    //  time: ---1-2---3-4-5-6---------------------------
-    //
-    //  1. [EVENT] MOVING PN received
-    //  2. [ACTION] Pause writing ( we need to wait for new socket to connect and for all in-flight commands to complete )
-    //  3. [EVENT] New sock connected
-    //  4. [EVENT] In-flight commands completed
-    //  5. [ACTION] Unpause writing -> we are going to write to the new socket from now on
-    //  6. [ACTION] Destroy old socket
-    // this.options?.gracefulMaintenance && this.#queue.events.on('moving', async (afterMs: number, host: string, port: number) => {
-    //   // 1
-    //   console.log(`Moving to ${host}:${port} before ${afterMs}ms`);
 
-    //   // 2
-    //   console.log(`Pausing writing until new socket is ready and all in-flight commands are completed`);
-    //   // this.#paused = true;
-
-    //   const oldSocket = this.#socket;
-    //   this.#socket = this.#initiateSocket({
-    //     ...this.#options,
-    //     socket: {
-    //       ...this.#options?.socket,
-    //       host,
-    //       port
-    //     }
-    //   });
-
-    //   // 3
-    //   this.#socket.once('ready', () => {
-    //     //TODO handshake...???
-    //     console.log(`Connected to ${host}:${port}`);
-
-    //     // 4
-    //     if(!this.#queue.isWaitingForReply()) {
-    //       // 5 and 6
-    //       console.log(`All in-flight commands completed`);
-    //       console.log(`Resume writing`)
-    //       oldSocket.destroy();
-    //       this.#paused = false;
-    //     }
-    //   });
-
-    //   // 4
-    //   this.#queue.events.once('waitingForReplyEmpty', () => {
-    //     console.log(`All in-flight commands completed`);
-    //     // 3
-    //     if(this.#socket.isReady) {
-    //       // 5 and 6
-    //       console.log(`Connected to ${host}:${port}`);
-    //       console.log(`Resume writing`)
-    //       oldSocket.destroy();
-    //       this.#paused = false;
-    //     }
-    //   });
-
-    //   await this.#socket.connect()
-    // });
+    if(options?.gracefulMaintenance) {
+      new EnterpriseMaintenanceManager(this, this.#queue, this.#options!);
+    }
 
     if (options?.clientSideCache) {
       if (options.clientSideCache instanceof ClientSideCacheProvider) {
