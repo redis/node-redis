@@ -77,7 +77,6 @@ export default class RedisCommandsQueue {
     this.#maxLength = maxLength;
     this.#onShardedChannelMoved = onShardedChannelMoved;
     this.decoder = this.#initiateDecoder();
-    this.#waitingForReply.events.on('empty', this.events.emit.bind(this.events, 'waitingForReplyEmpty'))
   }
 
   #onReply(reply: ReplyUnion) {
@@ -154,8 +153,15 @@ export default class RedisCommandsQueue {
     this.#invalidateCallback = callback;
   }
 
-  isWaitingForReply(): boolean {
-    return this.#waitingForReply.length > 0;
+  async waitForInflightCommandsToComplete(): Promise<void> {
+    // In-flight commands already completed
+    if(this.#waitingForReply.length === 0) {
+      return
+    };
+    // Otherwise wait for in-flight commands to fire `empty` event
+    return new Promise(resolve => {
+      this.#waitingForReply.events.on('empty', resolve)
+    });
   }
 
   addCommand<T>(
