@@ -52,10 +52,7 @@ export type RedisTcpSocketOptions = RedisTcpOptions | RedisTlsOptions;
 
 export type RedisSocketOptions = RedisTcpSocketOptions | RedisIpcOptions;
 
-export type RedisSocketInitiator = () => void | Promise<unknown>;
-
 export default class RedisSocket extends EventEmitter {
-  readonly #initiator;
   readonly #connectTimeout;
   readonly #reconnectStrategy;
   readonly #socketFactory;
@@ -83,14 +80,21 @@ export default class RedisSocket extends EventEmitter {
     return this.#socketEpoch;
   }
 
-  constructor(initiator: RedisSocketInitiator, options?: RedisSocketOptions) {
+  constructor(options?: RedisSocketOptions) {
     super();
 
-    this.#initiator = initiator;
     this.#connectTimeout = options?.connectTimeout ?? 5000;
     this.#reconnectStrategy = this.#createReconnectStrategy(options);
     this.#socketFactory = this.#createSocketFactory(options);
     this.#socketTimeout = options?.socketTimeout;
+  }
+
+  async waitForReady(): Promise<void> {
+    if (this.#isReady) return
+    return new Promise((resolve, reject) => {
+      this.once('ready', resolve);
+      this.once('error', reject);
+    });
   }
 
   #createReconnectStrategy(options?: RedisSocketOptions): ReconnectStrategyFunction {
@@ -215,14 +219,6 @@ export default class RedisSocket extends EventEmitter {
       try {
         this.#socket = await this.#createSocket();
         this.emit('connect');
-
-        try {
-          await this.#initiator();
-        } catch (err) {
-          this.#socket.destroy();
-          this.#socket = undefined;
-          throw err;
-        }
         this.#isReady = true;
         this.#socketEpoch++;
         this.emit('ready');
@@ -238,7 +234,7 @@ export default class RedisSocket extends EventEmitter {
       }
     } while (this.#isOpen && !this.#isReady);
   }
-  
+
   async #createSocket(): Promise<net.Socket | tls.TLSSocket> {
     const socket = this.#socketFactory.create();
 
@@ -293,7 +289,7 @@ export default class RedisSocket extends EventEmitter {
 
   write(iterable: Iterable<ReadonlyArray<RedisArgument>>) {
     if (!this.#socket) return;
-    
+
     this.#socket.cork();
     for (const args of iterable) {
       for (const toWrite of args) {
@@ -364,7 +360,7 @@ export default class RedisSocket extends EventEmitter {
     const jitter = Math.floor(Math.random() * 200);
     // Delay is an exponential back off, (times^2) * 50 ms, with a maximum value of 2000 ms:
     const delay = Math.min(Math.pow(2, retries) * 50, 2000);
-  
+
     return delay + jitter;
   }
 }

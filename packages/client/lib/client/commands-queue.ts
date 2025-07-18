@@ -1,10 +1,11 @@
-import { SinglyLinkedList, DoublyLinkedNode, DoublyLinkedList } from './linked-list';
+import { DoublyLinkedNode, DoublyLinkedList, EmptyAwareSinglyLinkedList } from './linked-list';
 import encodeCommand from '../RESP/encoder';
 import { Decoder, PUSH_TYPE_MAPPING, RESP_TYPES } from '../RESP/decoder';
 import { TypeMapping, ReplyUnion, RespVersions, RedisArgument } from '../RESP/types';
 import { ChannelListeners, PubSub, PubSubCommand, PubSubListener, PubSubType, PubSubTypeListeners } from './pub-sub';
 import { AbortError, ErrorReply, TimeoutError } from '../errors';
 import { MonitorCallback } from '.';
+import EventEmitter from 'events';
 
 export interface CommandOptions<T = TypeMapping> {
   chainId?: symbol;
@@ -54,11 +55,12 @@ export default class RedisCommandsQueue {
   readonly #respVersion;
   readonly #maxLength;
   readonly #toWrite = new DoublyLinkedList<CommandToWrite>();
-  readonly #waitingForReply = new SinglyLinkedList<CommandWaitingForReply>();
+  readonly #waitingForReply = new EmptyAwareSinglyLinkedList<CommandWaitingForReply>();
   readonly #onShardedChannelMoved;
   #chainInExecution: symbol | undefined;
   readonly decoder;
   readonly #pubSub = new PubSub();
+  readonly events = new EventEmitter();
 
   get isPubSubActive() {
     return this.#pubSub.isActive;
@@ -134,6 +136,12 @@ export default class RedisCommandsQueue {
               }
               break;
             }
+            case 'MOVING': {
+              const [_, afterMs, url] = push;
+              const [host, port] = url.toString().split(':');
+              this.events.emit('moving', afterMs, host, Number(port))
+              break;
+            }
           }
         }
       },
@@ -143,6 +151,17 @@ export default class RedisCommandsQueue {
 
   setInvalidateCallback(callback?: (key: RedisArgument | null) => unknown) {
     this.#invalidateCallback = callback;
+  }
+
+  async waitForInflightCommandsToComplete(): Promise<void> {
+    // In-flight commands already completed
+    if(this.#waitingForReply.length === 0) {
+      return
+    };
+    // Otherwise wait for in-flight commands to fire `empty` event
+    return new Promise(resolve => {
+      this.#waitingForReply.events.on('empty', resolve)
+    });
   }
 
   addCommand<T>(
