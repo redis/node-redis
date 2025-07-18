@@ -19,14 +19,14 @@ export default class EnterpriseMaintenanceManager extends EventEmitter {
 
   //  Queue:
   //     toWrite [ C D E ]
-  //     waitingForReply [ A B ]
+  //     waitingForReply [ A B ]   - aka In-flight commands
   //
   //  time: ---1-2---3-4-5-6---------------------------
   //
   //  1. [EVENT] MOVING PN received
   //  2. [ACTION] Pause writing ( we need to wait for new socket to connect and for all in-flight commands to complete )
   //  3. [EVENT] New socket connected
-  //  4. [EVENT] WaitingForReply commands completed
+  //  4. [EVENT] In-flight commands completed
   //  5. [ACTION] Destroy old socket
   //  6. [ACTION] Resume writing -> we are going to write to the new socket from now on
   #onMoving = async (
@@ -46,17 +46,8 @@ export default class EnterpriseMaintenanceManager extends EventEmitter {
     await newSocket.connect();
     // 3 [EVENT] New socket connected
 
-    // Wait until waitingForReply is empty
-    await new Promise<void>((resolve) => {
-      if (!this.commandsQueue.isWaitingForReply()) {
-        resolve();
-      } else {
-        this.commandsQueue.events.once("waitingForReplyEmpty", () => {
-          resolve();
-        });
-      }
-    });
-    // 4 [EVENT] WaitingForReply commands completed
+    await this.commandsQueue.waitForInflightCommandsToComplete();
+    // 4 [EVENT] In-flight commands completed
 
     // 5 + 6
     this.emit('resume', newSocket);
