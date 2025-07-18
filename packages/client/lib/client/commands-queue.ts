@@ -55,7 +55,7 @@ export default class RedisCommandsQueue {
   readonly #respVersion;
   readonly #maxLength;
   readonly #toWrite = new DoublyLinkedList<CommandToWrite>();
-  readonly #waitingForReply: EmptyAwareSinglyLinkedList<CommandWaitingForReply>;
+  readonly #waitingForReply = new EmptyAwareSinglyLinkedList<CommandWaitingForReply>();
   readonly #onShardedChannelMoved;
   #chainInExecution: symbol | undefined;
   readonly decoder;
@@ -77,7 +77,6 @@ export default class RedisCommandsQueue {
     this.#maxLength = maxLength;
     this.#onShardedChannelMoved = onShardedChannelMoved;
     this.decoder = this.#initiateDecoder();
-    this.#waitingForReply = new EmptyAwareSinglyLinkedList<CommandWaitingForReply>()
     this.#waitingForReply.events.on('empty', this.events.emit.bind(this.events, 'waitingForReplyEmpty'))
   }
 
