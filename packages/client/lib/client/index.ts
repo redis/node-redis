@@ -461,21 +461,16 @@ export default class RedisClient<
     return this._self.#dirtyWatch !== undefined
   }
 
-  get socket() {
-    return this._self.#socket;
-  }
-
-  set socket(socket: RedisSocket) {
-    this._self.#socket = socket;
-    this.#initiateSocket();
-  }
-
-  pause() {
+  #pauseForMaintenance() {
     this._self.#paused = true;
   }
 
-  resume() {
+  #resumeFromMaintenance(newSocket: RedisSocket) {
+    this._self.#socket.removeAllListeners();
+    this._self.#socket.destroy();
+    this._self.#socket = newSocket;
     this._self.#paused = false;
+    this._self.#initiateSocket();
     this._self.#maybeScheduleWrite();
   }
 
@@ -496,7 +491,9 @@ export default class RedisClient<
     this.#socket = this.#createSocket(this.#options);
 
     if(options?.gracefulMaintenance) {
-      new EnterpriseMaintenanceManager(this, this.#queue, this.#options!);
+      new EnterpriseMaintenanceManager(this.#queue, this.#options!)
+        .on('pause', this.#pauseForMaintenance.bind(this))
+        .on('resume', this.#resumeFromMaintenance.bind(this))
     }
 
     if (options?.clientSideCache) {
@@ -728,7 +725,7 @@ export default class RedisClient<
     return commands;
   }
 
-  async #initiateSocket(options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>): Promise<void> {
+  async #initiateSocket(): Promise<void> {
     await this.#socket.waitForReady();
 
     this.#socket
@@ -900,7 +897,7 @@ export default class RedisClient<
 
   async connect() {
     await this._self.#socket.connect();
-    await this._self.#initiateSocket(this._self.#options);
+    await this._self.#initiateSocket();
     return this as unknown as RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
   }
 
