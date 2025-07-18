@@ -1,24 +1,23 @@
+import EventEmitter from "events";
 import { RedisClientOptions } from ".";
 import RedisCommandsQueue from "./commands-queue";
 import RedisSocket from "./socket";
 
-export default class EnterpriseMaintenanceManager {
-  client: any;
+export default class EnterpriseMaintenanceManager extends EventEmitter {
   commandsQueue: RedisCommandsQueue;
   options: RedisClientOptions;
   constructor(
-    client: any,
     commandsQueue: RedisCommandsQueue,
     options: RedisClientOptions,
   ) {
-    this.client = client;
+    super();
     this.commandsQueue = commandsQueue;
     this.options = options;
 
     this.commandsQueue.events.on("moving", this.#onMoving);
   }
 
-  //  Queue
+  //  Queue:
   //     toWrite [ C D E ]
   //     waitingForReply [ A B ]
   //
@@ -27,7 +26,7 @@ export default class EnterpriseMaintenanceManager {
   //  1. [EVENT] MOVING PN received
   //  2. [ACTION] Pause writing ( we need to wait for new socket to connect and for all in-flight commands to complete )
   //  3. [EVENT] New socket connected
-  //  4. [EVENT] In-flight commands completed
+  //  4. [EVENT] WaitingForReply commands completed
   //  5. [ACTION] Destroy old socket
   //  6. [ACTION] Resume writing -> we are going to write to the new socket from now on
   #onMoving = async (
@@ -38,7 +37,7 @@ export default class EnterpriseMaintenanceManager {
     // 1 [EVENT] MOVING PN received
     console.log('[EnterpriseMaintenanceManager] Pausing client');
     // 2 [ACTION] Pause writing
-    this.client.pause();
+    this.emit('pause')
 
     console.log(`[EnterpriseMaintenanceManager] Creating new socket for ${host}:${port}`);
     const newSocket = new RedisSocket({
@@ -65,20 +64,10 @@ export default class EnterpriseMaintenanceManager {
         });
       }
     });
-    // 4 [EVENT] Reply queue now empty
+    // 4 [EVENT] WaitingForReply commands completed
 
-    // 5 [ACTION] Destroy old socket
-    // Switch to the new socket and clean up the old one
-    console.log('[EnterpriseMaintenanceManager] Switching to new socket and cleaning up old one');
-    const oldSocket = this.client.socket;
-    this.client.socket = newSocket;
-    oldSocket.removeAllListeners();
-    oldSocket.destroy();
-    console.log('[EnterpriseMaintenanceManager] Old socket destroyed');
+    // 5 + 6
+    this.emit('resume', newSocket);
 
-    // 6 [ACTION] Resume writing
-    console.log('[EnterpriseMaintenanceManager] Resuming client');
-    this.client.resume();
-    console.log('[EnterpriseMaintenanceManager] Socket migration complete');
   };
 }
