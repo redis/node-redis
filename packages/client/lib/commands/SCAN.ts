@@ -3,7 +3,7 @@ import { RedisArgument, CommandArguments, BlobStringReply, ArrayReply, Command }
 
 /**
  * Common options for SCAN-type commands
- * 
+ *
  * @property MATCH - Pattern to filter returned keys
  * @property COUNT - Hint for how many elements to return per iteration
  */
@@ -14,7 +14,7 @@ export interface ScanCommonOptions {
 
 /**
  * Parses scan arguments for SCAN-type commands
- * 
+ *
  * @param parser - The command parser
  * @param cursor - The cursor position for iteration
  * @param options - Scan options
@@ -36,7 +36,7 @@ export function parseScanArguments(
 
 /**
  * Pushes scan arguments to the command arguments array
- * 
+ *
  * @param args - The command arguments array
  * @param cursor - The cursor position for iteration
  * @param options - Scan options
@@ -62,7 +62,7 @@ export function pushScanArguments(
 
 /**
  * Options for the SCAN command
- * 
+ *
  * @property TYPE - Filter by value type
  */
 export interface ScanOptions extends ScanCommonOptions {
@@ -74,7 +74,7 @@ export default {
   IS_READ_ONLY: true,
   /**
    * Constructs the SCAN command
-   * 
+   *
    * @param parser - The command parser
    * @param cursor - The cursor position to start scanning from
    * @param options - Scan options
@@ -87,14 +87,16 @@ export default {
     if (options?.TYPE) {
       parser.push('TYPE', options.TYPE);
     }
+    console.log('eeeeeeeeee', parser.redisArgs)
   },
   /**
    * Transforms the SCAN reply into a structured object
-   * 
+   *
    * @param reply - The raw reply containing cursor and keys
    * @returns Object with cursor and keys properties
    */
   transformReply([cursor, keys]: [BlobStringReply, ArrayReply<BlobStringReply>]) {
+    console.log(cursor, keys)
     return {
       cursor,
       keys
