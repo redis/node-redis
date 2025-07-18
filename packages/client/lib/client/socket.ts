@@ -250,6 +250,7 @@ export default class RedisSocket extends EventEmitter {
 
     let onTimeout;
     if (this.#connectTimeout !== undefined) {
+      console.log('#connectTimeout',this.#connectTimeout)
       onTimeout = () => socket.destroy(new ConnectionTimeoutError());
       socket.once('timeout', onTimeout);
       socket.setTimeout(this.#connectTimeout);
@@ -266,6 +267,7 @@ export default class RedisSocket extends EventEmitter {
     }
 
     if (this.#socketTimeout) {
+      console.log('#socketTimeout',this.#socketTimeout)
       socket.once('timeout', () => {
         socket.destroy(new SocketTimeoutError(this.#socketTimeout!));
       });
