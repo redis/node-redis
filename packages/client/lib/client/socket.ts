@@ -214,7 +214,6 @@ export default class RedisSocket extends EventEmitter {
   }
 
   async #connect(): Promise<void> {
-    console.log('Connecting...');
     let retries = 0;
     do {
       try {
@@ -231,7 +230,6 @@ export default class RedisSocket extends EventEmitter {
         // }
         this.#isReady = true;
         this.#socketEpoch++;
-        console.log('Socket connected, emit ready');
         this.emit('ready');
       } catch (err) {
         const retryIn = this.#shouldReconnect(retries++, err as Error);
@@ -251,7 +249,6 @@ export default class RedisSocket extends EventEmitter {
 
     let onTimeout;
     if (this.#connectTimeout !== undefined) {
-      console.log('#connectTimeout',this.#connectTimeout)
       onTimeout = () => socket.destroy(new ConnectionTimeoutError());
       socket.once('timeout', onTimeout);
       socket.setTimeout(this.#connectTimeout);
@@ -268,7 +265,6 @@ export default class RedisSocket extends EventEmitter {
     }
 
     if (this.#socketTimeout) {
-      console.log('#socketTimeout',this.#socketTimeout)
       socket.once('timeout', () => {
         socket.destroy(new SocketTimeoutError(this.#socketTimeout!));
       });
