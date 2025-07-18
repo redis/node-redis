@@ -750,7 +750,6 @@ export default class RedisClient<
       .on('drain', () => this.#maybeScheduleWrite())
       .on('end', () => this.emit('end'));
 
-    console.log('Initiator...');
     const promises = [];
     const chainId = Symbol('Socket Initiator');
 
@@ -786,7 +785,6 @@ export default class RedisClient<
     return new RedisSocket(options?.socket)
       .on('connect', () => this.emit('connect'))
       .on('ready', () => {
-        console.log('Socket ready');
         this.emit('ready');
       });
   }

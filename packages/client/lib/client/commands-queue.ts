@@ -124,7 +124,6 @@ export default class RedisCommandsQueue {
       //TODO: we can shave off a few cycles by not adding onPush handler at all if CSC is not used
       onPush: push => {
         if (!this.#onPush(push)) {
-          console.log('Push received', push.toString());
           // currently only supporting "invalidate" over RESP3 push messages
           switch (push[0].toString()) {
             case "invalidate": {
@@ -140,7 +139,6 @@ export default class RedisCommandsQueue {
               break;
             }
             case 'MOVING': {
-              console.log('received moving', push)
               const [_, afterMs, url] = push;
               const [host, port] = url.toString().split(':');
               this.events.emit('moving', afterMs, host, Number(port))
