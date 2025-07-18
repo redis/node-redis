@@ -3,7 +3,7 @@
 import assert from 'node:assert';
 import fs from 'node:fs';
 import { createClient } from 'redis';
-import { SchemaFieldTypes, VectorAlgorithms } from '@redis/search';
+import { SCHEMA_FIELD_TYPE, SCHEMA_VECTOR_FIELD_ALGORITHM } from '@redis/search';
 import { pipeline } from '@xenova/transformers';
 
 function float32Buffer(arr) {
@@ -26,8 +26,7 @@ async function embedText(sentence) {
   return embedding;
 }
 
-let query = 'Bike for small kids';
-let vector_query = float32Buffer(await embedText('That is a very happy person'));
+const vector_query = float32Buffer(await embedText('That is a very happy person'));
 
 const client = createClient();
 await client.connect().catch(console.error);
@@ -35,13 +34,13 @@ await client.connect().catch(console.error);
 // create index
 await client.ft.create('idx:bicycle', {
     '$.description': {
-      type: SchemaFieldTypes.TEXT,
+      type: SCHEMA_FIELD_TYPE.TEXT,
       AS: 'description'
     },
     '$.description_embeddings': {
-        type: SchemaFieldTypes.VECTOR,
+        type: SCHEMA_FIELD_TYPE.VECTOR,
         TYPE: 'FLOAT32',
-        ALGORITHM: VectorAlgorithms.FLAT,
+        ALGORITHM: SCHEMA_VECTOR_FIELD_ALGORITHM.FLAT,
         DIM: 384,
         DISTANCE_METRIC: 'COSINE',
         AS: 'vector'
@@ -107,5 +106,5 @@ assert.strictEqual(res2.total, 1);
 // REMOVE_START
 // destroy index and data
 await client.ft.dropIndex('idx:bicycle', { DD: true });
-await client.disconnect();
+await client.close();
 // REMOVE_END

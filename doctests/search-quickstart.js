@@ -3,7 +3,7 @@
 import assert from 'assert';
 // REMOVE_END
 // HIDE_START
-import { AggregateGroupByReducers, AggregateSteps, createClient, SchemaFieldTypes } from 'redis';
+import { createClient, SCHEMA_FIELD_TYPE } from 'redis';
 // HIDE_END
 // STEP_START connect
 const client = createClient();
@@ -95,24 +95,24 @@ const bicycles = [
 // STEP_START create_index
 const schema = {
   '$.brand': {
-    type: SchemaFieldTypes.TEXT,
+    type: SCHEMA_FIELD_TYPE.TEXT,
     SORTABLE: true,
     AS: 'brand'
   },
   '$.model': {
-    type: SchemaFieldTypes.TEXT,
+    type: SCHEMA_FIELD_TYPE.TEXT,
     AS: 'model'
   },
   '$.description': {
-    type: SchemaFieldTypes.TEXT,
+    type: SCHEMA_FIELD_TYPE.TEXT,
     AS: 'description'
   },
   '$.price': {
-    type: SchemaFieldTypes.NUMERIC,
+    type: SCHEMA_FIELD_TYPE.NUMERIC,
     AS: 'price'
   },
   '$.condition': {
-    type: SchemaFieldTypes.TAG,
+    type: SCHEMA_FIELD_TYPE.TAG,
     AS: 'condition'
   }
 };
@@ -158,7 +158,7 @@ console.log(JSON.stringify(result, null, 2));
 // STEP_END
 
 // REMOVE_START
-assert.equal(result.documents[0].id, 'bicycle:1');
+assert.equal(result.documents[0].id, 'bicycle:0');
 // REMOVE_END
 
 // STEP_START query_single_term
@@ -228,4 +228,4 @@ console.log(JSON.stringify(result, null, 2));
 assert.equal(result.documents[0].id, 'bicycle:4');
 // REMOVE END
 
-await client.quit();
+await client.close();

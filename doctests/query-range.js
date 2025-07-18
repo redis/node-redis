@@ -2,7 +2,7 @@
 // HIDE_START
 import assert from 'node:assert';
 import fs from 'node:fs';
-import { createClient, SchemaFieldTypes, AggregateGroupByReducers, AggregateSteps} from 'redis';
+import { createClient, SCHEMA_FIELD_TYPE,} from 'redis';
 
 const client = createClient();
 
@@ -11,15 +11,15 @@ await client.connect().catch(console.error);
 // create index
 await client.ft.create('idx:bicycle', {
   '$.description': {
-    type: SchemaFieldTypes.TEXT,
+    type: SCHEMA_FIELD_TYPE.TEXT,
     AS: 'description'
   },
   '$.price': {
-    type: SchemaFieldTypes.NUMERIC,
+    type: SCHEMA_FIELD_TYPE.NUMERIC,
     AS: 'price'
   },
   '$.condition': {
-    type: SchemaFieldTypes.TAG,
+    type: SCHEMA_FIELD_TYPE.TAG,
     AS: 'condition'
   }
 }, {
@@ -94,5 +94,5 @@ assert.strictEqual(res4.total, 7);
 // REMOVE_START
 // destroy index and data
 await client.ft.dropIndex('idx:bicycle', { DD: true });
-await client.disconnect();
+await client.close();
 // REMOVE_END

@@ -23,5 +23,5 @@ await client.del('bike:1');
 //REMOVE_END
 
 // HIDE_START
-await client.quit();
+await client.close();
 // HIDE_END
