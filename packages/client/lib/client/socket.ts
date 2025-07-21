@@ -38,7 +38,6 @@ type RedisTcpOptions = RedisSocketOptionsCommon & NetOptions & Omit<
 
 type RedisTlsOptions = RedisSocketOptionsCommon & tls.ConnectionOptions & {
   tls: true;
-  host: string;
 }
 
 type RedisIpcOptions = RedisSocketOptionsCommon & Omit<
@@ -238,7 +237,7 @@ export default class RedisSocket extends EventEmitter {
       }
     } while (this.#isOpen && !this.#isReady);
   }
-  
+
   async #createSocket(): Promise<net.Socket | tls.TLSSocket> {
     const socket = this.#socketFactory.create();
 
@@ -293,7 +292,7 @@ export default class RedisSocket extends EventEmitter {
 
   write(iterable: Iterable<ReadonlyArray<RedisArgument>>) {
     if (!this.#socket) return;
-    
+
     this.#socket.cork();
     for (const args of iterable) {
       for (const toWrite of args) {
@@ -364,7 +363,7 @@ export default class RedisSocket extends EventEmitter {
     const jitter = Math.floor(Math.random() * 200);
     // Delay is an exponential back off, (times^2) * 50 ms, with a maximum value of 2000 ms:
     const delay = Math.min(Math.pow(2, retries) * 50, 2000);
-  
+
     return delay + jitter;
   }
 }
