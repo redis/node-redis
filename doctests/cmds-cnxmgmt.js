@@ -45,5 +45,5 @@ await client.sendCommand(['ACL', 'DELUSER', 'test-user']);
 // STEP_END
 
 // HIDE_START
-await client.quit();
+await client.close();
 // HIDE_END

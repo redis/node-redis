@@ -92,8 +92,8 @@ const scan1Res1 = await client.sAdd('myset', ['1', '2', '3', 'foo', 'foobar', 'f
 console.log(scan1Res1); // 6
 
 let scan1Res2 = [];
-for await (const value of client.sScanIterator('myset', { MATCH: 'f*' })) {
-    scan1Res2 = scan1Res2.concat(value);
+for await (const values of client.sScanIterator('myset', { MATCH: 'f*' })) {
+    scan1Res2 = scan1Res2.concat(values);
 }
 console.log(scan1Res2); // ['foo', 'foobar', 'feelsgood']
 // REMOVE_START
@@ -129,7 +129,7 @@ console.log(scanResult.cursor, scanResult.keys);
 console.assert(scanResult.keys.length === 18);
 cursor = '0';
 const prefix = 'key:*';
-while (cursor !== '0') {
+do {
     scanResult = await client.scan(cursor, { MATCH: prefix, COUNT: 1000 });
     console.log(scanResult.cursor, scanResult.keys);
     cursor = scanResult.cursor;
@@ -137,7 +137,7 @@ while (cursor !== '0') {
     if (keys.length) {
         await client.del(keys);
     }
-}
+} while (cursor !== '0');
 // REMOVE_END
 // STEP_END
 
@@ -172,17 +172,17 @@ await client.del(['geokey', 'zkey']);
 const scan4Res1 = await client.hSet('myhash', { a: 1, b: 2 });
 console.log(scan4Res1); // 2
 
-const scan4Res2 = await client.hScan('myhash', 0);
-console.log(scan4Res2.tuples); // [{field: 'a', value: '1'}, {field: 'b', value: '2'}]
+const scan4Res2 = await client.hScan('myhash', '0');
+console.log(scan4Res2.entries); // [{field: 'a', value: '1'}, {field: 'b', value: '2'}]
 // REMOVE_START
-assert.deepEqual(scan4Res2.tuples, [
+assert.deepEqual(scan4Res2.entries, [
   { field: 'a', value: '1' },
   { field: 'b', value: '2' }
 ]);
 // REMOVE_END
 
-const scan4Res3 = await client.hScan('myhash', 0, { COUNT: 10 });
-const items = scan4Res3.tuples.map((item) => item.field)
+const scan4Res3 = await client.hScan('myhash', '0', { COUNT: 10 });
+const items = scan4Res3.entries.map((item) => item.field)
 console.log(items); // ['a', 'b']
 // REMOVE_START
 assert.deepEqual(items, ['a', 'b'])
@@ -191,5 +191,5 @@ await client.del('myhash');
 // STEP_END
 
 // HIDE_START
-await client.quit();
+await client.close();
 // HIDE_END
