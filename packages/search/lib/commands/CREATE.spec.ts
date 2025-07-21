@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import CREATE, { SCHEMA_FIELD_TYPE, SCHEMA_TEXT_FIELD_PHONETIC, SCHEMA_VECTOR_FIELD_ALGORITHM, REDISEARCH_LANGUAGE } from './CREATE';
+import CREATE, { SCHEMA_FIELD_TYPE, SCHEMA_TEXT_FIELD_PHONETIC, SCHEMA_VECTOR_FIELD_ALGORITHM, REDISEARCH_LANGUAGE, VAMANA_COMPRESSION_ALGORITHM } from './CREATE';
 import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('FT.CREATE', () => {
@@ -203,6 +203,33 @@ describe('FT.CREATE', () => {
               'FT.CREATE', 'index', 'SCHEMA', 'field', 'VECTOR', 'HNSW', '14', 'TYPE',
               'FLOAT32', 'DIM', '2', 'DISTANCE_METRIC', 'L2', 'INITIAL_CAP', '1000000',
               'M', '40', 'EF_CONSTRUCTION', '250', 'EF_RUNTIME', '20'
+            ]
+          );
+        });
+
+        it('VAMANA algorithm', () => {
+          assert.deepEqual(
+            parseArgs(CREATE, 'index', {
+              field: {
+                type: SCHEMA_FIELD_TYPE.VECTOR,
+                ALGORITHM: SCHEMA_VECTOR_FIELD_ALGORITHM.VAMANA,
+                TYPE: "FLOAT32",
+                COMPRESSION: VAMANA_COMPRESSION_ALGORITHM.LVQ8,
+                DIM: 1024,
+                DISTANCE_METRIC: 'COSINE',
+                CONSTRUCTION_WINDOW_SIZE: 300,
+                GRAPH_MAX_DEGREE: 128,
+                SEARCH_WINDOW_SIZE: 20,
+                EPSILON: 0.02,
+                TRAINING_THRESHOLD: 20480,
+                REDUCE: 512,
+              }
+            }),
+            [
+              'FT.CREATE', 'index', 'SCHEMA', 'field', 'VECTOR', 'SVS-VAMANA', '20', 'TYPE',
+              'FLOAT32', 'DIM', '1024', 'DISTANCE_METRIC', 'COSINE', 'COMPRESSION', 'LVQ8',
+              'CONSTRUCTION_WINDOW_SIZE', '300', 'GRAPH_MAX_DEGREE', '128', 'SEARCH_WINDOW_SIZE', '20',
+              'EPSILON', '0.02', 'TRAINING_THRESHOLD', '20480', 'REDUCE', '512'
             ]
           );
         });
@@ -555,5 +582,88 @@ describe('FT.CREATE', () => {
       }),
       "OK"
     );
+  }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClientIfVersionWithinRange([[8, 2], 'LATEST'], 'client.ft.create vector svs-vamana', async client => {
+    assert.equal(
+      await client.ft.create("index_svs_vamana_min_config", {
+        field: {
+          type: SCHEMA_FIELD_TYPE.VECTOR,
+          ALGORITHM: SCHEMA_VECTOR_FIELD_ALGORITHM.VAMANA,
+          TYPE: "FLOAT32",
+          DIM: 768,
+          DISTANCE_METRIC: 'L2',
+        },
+      }),
+      "OK"
+    );
+
+    assert.equal(
+      await client.ft.create("index_svs_vamana_no_compression", {
+        field: {
+          type: SCHEMA_FIELD_TYPE.VECTOR,
+          ALGORITHM: SCHEMA_VECTOR_FIELD_ALGORITHM.VAMANA,
+          TYPE: "FLOAT32",
+          DIM: 512,
+          DISTANCE_METRIC: 'L2',
+          CONSTRUCTION_WINDOW_SIZE: 200,
+          GRAPH_MAX_DEGREE: 64,
+          SEARCH_WINDOW_SIZE: 50,
+          EPSILON: 0.01
+        },
+      }),
+      "OK"
+    );
+
+    assert.equal(
+      await client.ft.create("index_svs_vamana_compression", {
+        field: {
+          type: SCHEMA_FIELD_TYPE.VECTOR,
+          ALGORITHM: SCHEMA_VECTOR_FIELD_ALGORITHM.VAMANA,
+          TYPE: "FLOAT32",
+          COMPRESSION: VAMANA_COMPRESSION_ALGORITHM.LVQ8,
+          DIM: 1024,
+          DISTANCE_METRIC: 'COSINE',
+          CONSTRUCTION_WINDOW_SIZE: 300,
+          GRAPH_MAX_DEGREE: 128,
+          SEARCH_WINDOW_SIZE: 20,
+          EPSILON: 0.02,
+          TRAINING_THRESHOLD: 20480,
+          REDUCE: 512,
+        },
+      }),
+      "OK"
+    );
+
+    assert.equal(
+      await client.ft.create("index_svs_vamana_float16", {
+        field: {
+          type: SCHEMA_FIELD_TYPE.VECTOR,
+          ALGORITHM: SCHEMA_VECTOR_FIELD_ALGORITHM.VAMANA,
+          TYPE: "FLOAT16",
+          DIM: 128,
+          DISTANCE_METRIC: 'IP',
+        },
+      }),
+      "OK"
+    );
+
+    await assert.rejects(
+      client.ft.create("index_svs_vamana_invalid_config", {
+        field: {
+          type: SCHEMA_FIELD_TYPE.VECTOR,
+          ALGORITHM: SCHEMA_VECTOR_FIELD_ALGORITHM.VAMANA,
+          TYPE: "FLOAT32",
+          DIM: 2,
+          DISTANCE_METRIC: 'L2',
+          CONSTRUCTION_WINDOW_SIZE: 200,
+          GRAPH_MAX_DEGREE: 64,
+          SEARCH_WINDOW_SIZE: 50,
+          EPSILON: 0.01,
+          // TRAINING_THRESHOLD should error without COMPRESSION
+          TRAINING_THRESHOLD: 2048
+        },
+      }),
+    )
   }, GLOBAL.SERVERS.OPEN);
 });
