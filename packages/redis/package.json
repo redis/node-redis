@@ -1,7 +1,7 @@
 {
   "name": "redis",
   "description": "A modern, high performance Redis client",
-  "version": "5.6.0",
+  "version": "5.6.1",
   "license": "MIT",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -13,11 +13,11 @@
     "release": "release-it"
   },
   "dependencies": {
-    "@redis/bloom": "5.6.0",
-    "@redis/client": "5.6.0",
-    "@redis/json": "5.6.0",
-    "@redis/search": "5.6.0",
-    "@redis/time-series": "5.6.0"
+    "@redis/bloom": "5.6.1",
+    "@redis/client": "5.6.1",
+    "@redis/json": "5.6.1",
+    "@redis/search": "5.6.1",
+    "@redis/time-series": "5.6.1"
   },
   "engines": {
     "node": ">= 18"
