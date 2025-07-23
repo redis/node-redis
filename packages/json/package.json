@@ -1,6 +1,6 @@
 {
   "name": "@redis/json",
-  "version": "5.6.0",
+  "version": "5.6.1",
   "license": "MIT",
   "main": "./dist/lib/index.js",
   "types": "./dist/lib/index.d.ts",
@@ -13,7 +13,7 @@
     "release": "release-it"
   },
   "peerDependencies": {
-    "@redis/client": "^5.6.0"
+    "@redis/client": "^5.6.1"
   },
   "devDependencies": {
     "@redis/test-utils": "*"
