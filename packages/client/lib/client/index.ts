@@ -422,7 +422,7 @@ export default class RedisClient<
   // When true, prevents new commands from being written while waiting for:
   // 1. New socket to be ready after maintenance redirect
   // 2. In-flight commands on the old socket to complete
-  #paused = false;
+  #pausedForMaintenance = false;
 
   get clientSideCache() {
     return this._self.#clientSideCache;
@@ -462,14 +462,14 @@ export default class RedisClient<
   }
 
   #pauseForMaintenance() {
-    this._self.#paused = true;
+    this._self.#pausedForMaintenance = true;
   }
 
   #resumeFromMaintenance(newSocket: RedisSocket) {
     this._self.#socket.removeAllListeners();
     this._self.#socket.destroy();
     this._self.#socket = newSocket;
-    this._self.#paused = false;
+    this._self.#pausedForMaintenance = false;
     this._self.#initiateSocket();
     this._self.#maybeScheduleWrite();
   }
@@ -1128,7 +1128,7 @@ export default class RedisClient<
   }
 
   #write() {
-    if(this.#paused) {
+    if(this.#pausedForMaintenance) {
       return
     }
     this.#socket.write(this.#queue.commandsToWrite());
