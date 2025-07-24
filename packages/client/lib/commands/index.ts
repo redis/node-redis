@@ -287,6 +287,7 @@ import XAUTOCLAIM from './XAUTOCLAIM';
 import XCLAIM_JUSTID from './XCLAIM_JUSTID';
 import XCLAIM from './XCLAIM';
 import XDEL from './XDEL';
+import XDELEX from './XDELEX';
 import XGROUP_CREATE from './XGROUP_CREATE';
 import XGROUP_CREATECONSUMER from './XGROUP_CREATECONSUMER';
 import XGROUP_DELCONSUMER from './XGROUP_DELCONSUMER';
@@ -938,6 +939,8 @@ export default {
   xClaim: XCLAIM,
   XDEL,
   xDel: XDEL,
+  XDELEX,
+  xDelex: XDELEX,
   XGROUP_CREATE,
   xGroupCreate: XGROUP_CREATE,
   XGROUP_CREATECONSUMER,
