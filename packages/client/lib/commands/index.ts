@@ -280,6 +280,7 @@ import TYPE from './TYPE';
 import UNLINK from './UNLINK';
 import WAIT from './WAIT';
 import XACK from './XACK';
+import XACKDEL from './XACKDEL';
 import XADD_NOMKSTREAM from './XADD_NOMKSTREAM';
 import XADD from './XADD';
 import XAUTOCLAIM_JUSTID from './XAUTOCLAIM_JUSTID';
@@ -925,6 +926,8 @@ export default {
   wait: WAIT,
   XACK,
   xAck: XACK,
+  XACKDEL,
+  xAckDel: XACKDEL,
   XADD_NOMKSTREAM,
   xAddNoMkStream: XADD_NOMKSTREAM,
   XADD,
