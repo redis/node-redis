@@ -1,7 +1,11 @@
 import { strict as assert } from "node:assert";
-import XACKDEL, { XACKDEL_REPLY_CODES, XAckDelPolicy } from "./XACKDEL";
+import XACKDEL from "./XACKDEL";
 import { parseArgs } from "./generic-transformers";
 import testUtils, { GLOBAL } from "../test-utils";
+import {
+  STREAM_DELETION_POLICY,
+  STREAM_DELETION_REPLY_CODES,
+} from "./common-stream.types";
 
 describe("XACKDEL", () => {
   describe("transformArguments", () => {
@@ -18,7 +22,13 @@ describe("XACKDEL", () => {
 
     it("string - with policy", () => {
       assert.deepEqual(
-        parseArgs(XACKDEL, "key", "group", "0-0", XAckDelPolicy.KEEPREF),
+        parseArgs(
+          XACKDEL,
+          "key",
+          "group",
+          "0-0",
+          STREAM_DELETION_POLICY.KEEPREF
+        ),
         ["XACKDEL", "key", "group", "KEEPREF", "IDS", "1", "0-0"]
       );
     });
@@ -42,7 +52,7 @@ describe("XACKDEL", () => {
           "key",
           "group",
           ["0-0", "1-0"],
-          XAckDelPolicy.DELREF
+          STREAM_DELETION_POLICY.DELREF
         ),
         ["XACKDEL", "key", "group", "DELREF", "IDS", "2", "0-0", "1-0"]
       );
@@ -53,7 +63,7 @@ describe("XACKDEL", () => {
     `XACKDEL non-existing key - without policy`,
     async (client) => {
       const reply = await client.xAckDel("{tag}stream-key", "testgroup", "0-0");
-      assert.deepEqual(reply, [XACKDEL_REPLY_CODES.NOT_FOUND]);
+      assert.deepEqual(reply, [STREAM_DELETION_REPLY_CODES.NOT_FOUND]);
     },
     {
       client: { ...GLOBAL.SERVERS.OPEN, minimumDockerVersion: [8, 2] },
@@ -78,7 +88,7 @@ describe("XACKDEL", () => {
       });
 
       const reply = await client.xAckDel(streamKey, groupName, messageId);
-      assert.deepEqual(reply, [XACKDEL_REPLY_CODES.ACKNOWLEDGED_AND_DELETED]);
+      assert.deepEqual(reply, [STREAM_DELETION_REPLY_CODES.DELETED]);
     },
     {
       client: { ...GLOBAL.SERVERS.OPEN, minimumDockerVersion: [8, 2] },
@@ -106,9 +116,9 @@ describe("XACKDEL", () => {
         streamKey,
         groupName,
         messageId,
-        XAckDelPolicy.DELREF
+        STREAM_DELETION_POLICY.DELREF
       );
-      assert.deepEqual(reply, [XACKDEL_REPLY_CODES.ACKNOWLEDGED_AND_DELETED]);
+      assert.deepEqual(reply, [STREAM_DELETION_REPLY_CODES.DELETED]);
     },
     {
       client: { ...GLOBAL.SERVERS.OPEN, minimumDockerVersion: [8, 2] },
@@ -137,9 +147,9 @@ describe("XACKDEL", () => {
         streamKey,
         groupName,
         messageId,
-        XAckDelPolicy.ACKED
+        STREAM_DELETION_POLICY.ACKED
       );
-      assert.deepEqual(reply, [XACKDEL_REPLY_CODES.ACKNOWLEDGED_DANGLING_REFS]);
+      assert.deepEqual(reply, [STREAM_DELETION_REPLY_CODES.DANGLING_REFS]);
     },
     {
       client: { ...GLOBAL.SERVERS.OPEN, minimumDockerVersion: [8, 2] },
@@ -170,12 +180,12 @@ describe("XACKDEL", () => {
         streamKey,
         groupName,
         [...messageIds, "0-0"],
-        XAckDelPolicy.DELREF
+        STREAM_DELETION_POLICY.DELREF
       );
       assert.deepEqual(reply, [
-        XACKDEL_REPLY_CODES.ACKNOWLEDGED_AND_DELETED,
-        XACKDEL_REPLY_CODES.ACKNOWLEDGED_AND_DELETED,
-        XACKDEL_REPLY_CODES.NOT_FOUND,
+        STREAM_DELETION_REPLY_CODES.DELETED,
+        STREAM_DELETION_REPLY_CODES.DELETED,
+        STREAM_DELETION_REPLY_CODES.NOT_FOUND,
       ]);
     },
     {

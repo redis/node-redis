@@ -1,7 +1,11 @@
 import { strict as assert } from "node:assert";
-import XDELEX, { XDELEX_REPLY_CODES, XDelexPolicy } from "./XDELEX";
+import XDELEX from "./XDELEX";
 import { parseArgs } from "./generic-transformers";
 import testUtils, { GLOBAL } from "../test-utils";
+import {
+  STREAM_DELETION_POLICY,
+  STREAM_DELETION_REPLY_CODES,
+} from "./common-stream.types";
 
 describe("XDELEX", () => {
   describe("transformArguments", () => {
@@ -16,14 +20,10 @@ describe("XDELEX", () => {
     });
 
     it("string - with policy", () => {
-      assert.deepEqual(parseArgs(XDELEX, "key", "0-0", XDelexPolicy.KEEPREF), [
-        "XDELEX",
-        "key",
-        "KEEPREF",
-        "IDS",
-        "1",
-        "0-0",
-      ]);
+      assert.deepEqual(
+        parseArgs(XDELEX, "key", "0-0", STREAM_DELETION_POLICY.KEEPREF),
+        ["XDELEX", "key", "KEEPREF", "IDS", "1", "0-0"]
+      );
     });
 
     it("array - without policy", () => {
@@ -39,7 +39,7 @@ describe("XDELEX", () => {
 
     it("array - with policy", () => {
       assert.deepEqual(
-        parseArgs(XDELEX, "key", ["0-0", "1-0"], XDelexPolicy.DELREF),
+        parseArgs(XDELEX, "key", ["0-0", "1-0"], STREAM_DELETION_POLICY.DELREF),
         ["XDELEX", "key", "DELREF", "IDS", "2", "0-0", "1-0"]
       );
     });
@@ -49,7 +49,7 @@ describe("XDELEX", () => {
     `XDELEX non-existing key - without policy`,
     async (client) => {
       const reply = await client.xDelex("{tag}stream-key", "0-0");
-      assert.deepEqual(reply, [XDELEX_REPLY_CODES.NOT_FOUND]);
+      assert.deepEqual(reply, [STREAM_DELETION_REPLY_CODES.NOT_FOUND]);
     },
     {
       client: { ...GLOBAL.SERVERS.OPEN, minimumDockerVersion: [8, 2] },
@@ -68,9 +68,9 @@ describe("XDELEX", () => {
       const reply = await client.xDelex(
         streamKey,
         messageId,
-        XDelexPolicy.KEEPREF
+        STREAM_DELETION_POLICY.KEEPREF
       );
-      assert.deepEqual(reply, [XDELEX_REPLY_CODES.DELETED]);
+      assert.deepEqual(reply, [STREAM_DELETION_REPLY_CODES.DELETED]);
     },
     {
       client: { ...GLOBAL.SERVERS.OPEN, minimumDockerVersion: [8, 2] },
@@ -89,9 +89,9 @@ describe("XDELEX", () => {
       const reply = await client.xDelex(
         streamKey,
         messageId,
-        XDelexPolicy.DELREF
+        STREAM_DELETION_POLICY.DELREF
       );
-      assert.deepEqual(reply, [XDELEX_REPLY_CODES.DELETED]);
+      assert.deepEqual(reply, [STREAM_DELETION_REPLY_CODES.DELETED]);
     },
     {
       client: { ...GLOBAL.SERVERS.OPEN, minimumDockerVersion: [8, 2] },
@@ -115,9 +115,9 @@ describe("XDELEX", () => {
       const reply = await client.xDelex(
         streamKey,
         messageId,
-        XDelexPolicy.ACKED
+        STREAM_DELETION_POLICY.ACKED
       );
-      assert.deepEqual(reply, [XDELEX_REPLY_CODES.DANGLING_REFS]);
+      assert.deepEqual(reply, [STREAM_DELETION_REPLY_CODES.DANGLING_REFS]);
     },
     {
       client: { ...GLOBAL.SERVERS.OPEN, minimumDockerVersion: [8, 2] },
@@ -141,12 +141,12 @@ describe("XDELEX", () => {
       const reply = await client.xDelex(
         streamKey,
         [...messageIds, "0-0"],
-        XDelexPolicy.DELREF
+        STREAM_DELETION_POLICY.DELREF
       );
       assert.deepEqual(reply, [
-        XDELEX_REPLY_CODES.DELETED,
-        XDELEX_REPLY_CODES.DELETED,
-        XDELEX_REPLY_CODES.NOT_FOUND,
+        STREAM_DELETION_REPLY_CODES.DELETED,
+        STREAM_DELETION_REPLY_CODES.DELETED,
+        STREAM_DELETION_REPLY_CODES.NOT_FOUND,
       ]);
     },
     {

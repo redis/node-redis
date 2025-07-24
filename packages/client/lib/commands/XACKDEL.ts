@@ -1,26 +1,10 @@
 import { CommandParser } from "../client/parser";
 import { RedisArgument, ArrayReply, Command } from "../RESP/types";
+import {
+  StreamDeletionReplyCode,
+  StreamDeletionPolicy,
+} from "./common-stream.types";
 import { RedisVariadicArgument } from "./generic-transformers";
-
-/** XACKDEL deletion policies */
-export const XAckDelPolicy = {
-  /** Preserve references (default) */
-  KEEPREF: "KEEPREF",
-  /** Delete all references */
-  DELREF: "DELREF",
-  /** Only acknowledged entries */
-  ACKED: "ACKED",
-} as const;
-
-/** XACKDEL reply codes */
-export const XACKDEL_REPLY_CODES = {
-  /** ID not found */
-  NOT_FOUND: -1,
-  /** Entry acknowledged and deleted */
-  ACKNOWLEDGED_AND_DELETED: 1,
-  /** Entry acknowledged but dangling references remain */
-  ACKNOWLEDGED_DANGLING_REFS: 2,
-} as const;
 
 /**
  * Acknowledges and deletes one or multiple messages for a stream consumer group
@@ -43,7 +27,7 @@ export default {
     key: RedisArgument,
     group: RedisArgument,
     id: RedisVariadicArgument,
-    policy?: (typeof XAckDelPolicy)[keyof typeof XAckDelPolicy],
+    policy?: StreamDeletionPolicy
   ) {
     parser.push("XACKDEL");
     parser.pushKey(key);
@@ -56,7 +40,6 @@ export default {
     parser.push("IDS");
     parser.pushVariadicWithLength(id);
   },
-  transformReply: undefined as unknown as () => ArrayReply<
-    (typeof XACKDEL_REPLY_CODES)[keyof typeof XACKDEL_REPLY_CODES]
-  >,
+  transformReply:
+    undefined as unknown as () => ArrayReply<StreamDeletionReplyCode>,
 } as const satisfies Command;

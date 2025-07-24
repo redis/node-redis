@@ -1,26 +1,10 @@
 import { CommandParser } from "../client/parser";
 import { RedisArgument, ArrayReply, Command } from "../RESP/types";
+import {
+  StreamDeletionPolicy,
+  StreamDeletionReplyCode,
+} from "./common-stream.types";
 import { RedisVariadicArgument } from "./generic-transformers";
-
-/** XDELEX deletion policies */
-export const XDelexPolicy = {
-  /** Preserve references (default) */
-  KEEPREF: "KEEPREF",
-  /** Delete all references */
-  DELREF: "DELREF",
-  /** Only acknowledged entries */
-  ACKED: "ACKED",
-} as const;
-
-/** XDELEX reply codes */
-export const XDELEX_REPLY_CODES = {
-  /** ID not found */
-  NOT_FOUND: -1,
-  /** Entry deleted */
-  DELETED: 1,
-  /** Dangling references */
-  DANGLING_REFS: 2,
-} as const;
 
 /**
  * Deletes one or multiple entries from the stream
@@ -41,7 +25,7 @@ export default {
     parser: CommandParser,
     key: RedisArgument,
     id: RedisVariadicArgument,
-    policy?: (typeof XDelexPolicy)[keyof typeof XDelexPolicy],
+    policy?: StreamDeletionPolicy
   ) {
     parser.push("XDELEX");
     parser.pushKey(key);
@@ -53,7 +37,6 @@ export default {
     parser.push("IDS");
     parser.pushVariadicWithLength(id);
   },
-  transformReply: undefined as unknown as () => ArrayReply<
-    (typeof XDELEX_REPLY_CODES)[keyof typeof XDELEX_REPLY_CODES]
-  >,
+  transformReply:
+    undefined as unknown as () => ArrayReply<StreamDeletionReplyCode>,
 } as const satisfies Command;
