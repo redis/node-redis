@@ -20,6 +20,7 @@ import { BasicClientSideCache, ClientSideCacheConfig, ClientSideCacheProvider } 
 import { BasicCommandParser, CommandParser } from './parser';
 import SingleEntryCache from '../single-entry-cache';
 import { version } from '../../package.json'
+import EnterpriseMaintenanceManager from './enterprise-maintenance-manager';
 
 export interface RedisClientOptions<
   M extends RedisModules = RedisModules,
@@ -144,6 +145,44 @@ export interface RedisClientOptions<
    * Tag to append to library name that is sent to the Redis server
    */
   clientInfoTag?: string;
+
+  /**
+   * Configuration for handling Redis Enterprise graceful maintenance scenarios.
+   *
+   * When Redis Enterprise performs maintenance operations, nodes will be replaced, resulting in disconnects.
+   * This configuration allows the client to handle these scenarios gracefully by automatically
+   * reconnecting and managing command execution during maintenance windows.
+   *
+   * @example Basic graceful maintenance configuration
+   * ```
+   * const client = createClient({
+   *   gracefulMaintenance: {
+   *     handleFailedCommands: 'retry',
+   *     handleTimeouts: 'exception',
+   *   }
+   * });
+   * ```
+   *
+   * @example Graceful maintenance with timeout smoothing
+   * ```
+   * const client = createClient({
+   *   gracefulMaintenance: {
+   *     handleFailedCommands: 'retry',
+   *     handleTimeouts: 5000, // Extend timeouts to 5 seconds during maintenance
+   *   }
+   * });
+   * ```
+   */
+  gracefulMaintenance?: {
+    /**
+     * Designates how failed commands should be handled. A failed command is when the time isn’t sufficient to deal with the responses on the old connection before the server shuts it down
+     */
+    handleFailedCommands: 'exception' | 'retry',
+    /**
+     * Specify whether we should throw a TimeoutDuringMaintanance exception or provide more relaxed timeout, in order to minimize command timeouts during maintenance.
+     */
+    handleTimeouts: 'error' | number,
+  }
 }
 
 type WithCommands<
@@ -366,7 +405,7 @@ export default class RedisClient<
   }
 
   readonly #options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>;
-  readonly #socket: RedisSocket;
+  #socket: RedisSocket;
   readonly #queue: RedisCommandsQueue;
   #selectedDB = 0;
   #monitorCallback?: MonitorCallback<TYPE_MAPPING>;
@@ -379,10 +418,15 @@ export default class RedisClient<
   #watchEpoch?: number;
   #clientSideCache?: ClientSideCacheProvider;
   #credentialsSubscription: Disposable | null = null;
+  // Flag used to pause writing to the socket during maintenance windows.
+  // When true, prevents new commands from being written while waiting for:
+  // 1. New socket to be ready after maintenance redirect
+  // 2. In-flight commands on the old socket to complete
+  #pausedForMaintenance = false;
+
   get clientSideCache() {
     return this._self.#clientSideCache;
   }
-
 
   get options(): RedisClientOptions<M, F, S, RESP> | undefined {
     return this._self.#options;
@@ -417,6 +461,15 @@ export default class RedisClient<
     return this._self.#dirtyWatch !== undefined
   }
 
+  #resumeFromMaintenance(newSocket: RedisSocket) {
+    this._self.#socket.removeAllListeners();
+    this._self.#socket.destroy();
+    this._self.#socket = newSocket;
+    this._self.#pausedForMaintenance = false;
+    this._self.#initiateSocket();
+    this._self.#maybeScheduleWrite();
+  }
+
   /**
    * Marks the client's WATCH command as invalidated due to a topology change.
    * This will cause any subsequent EXEC in a transaction to fail with a WatchError.
@@ -431,7 +484,14 @@ export default class RedisClient<
     this.#validateOptions(options)
     this.#options = this.#initiateOptions(options);
     this.#queue = this.#initiateQueue();
-    this.#socket = this.#initiateSocket();
+    this.#socket = this.#createSocket(this.#options);
+
+    if(options?.gracefulMaintenance) {
+      new EnterpriseMaintenanceManager(this.#queue, this.#options!)
+        .on('pause', () => this._self.#pausedForMaintenance = true )
+        .on('resume', this.#resumeFromMaintenance.bind(this))
+        .on('maintenance', (mtm: number | undefined) => this._self.#socket.setMaintenanceTimeout(mtm))
+    }
 
     if (options?.clientSideCache) {
       if (options.clientSideCache instanceof ClientSideCacheProvider) {
@@ -449,7 +509,12 @@ export default class RedisClient<
       throw new Error('Client Side Caching is only supported with RESP3');
     }
 
+    if (options?.gracefulMaintenance && options?.RESP !== 3) {
+      throw new Error('Graceful Maintenance is only supported with RESP3');
+    }
+
   }
+
   #initiateOptions(options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>): RedisClientOptions<M, F, S, RESP, TYPE_MAPPING> | undefined {
 
     // Convert username/password to credentialsProvider if no credentialsProvider is already in place
@@ -657,38 +722,10 @@ export default class RedisClient<
     return commands;
   }
 
-  #initiateSocket(): RedisSocket {
-    const socketInitiator = async () => {
-      const promises = [],
-        chainId = Symbol('Socket Initiator');
+  async #initiateSocket(): Promise<void> {
+    await this.#socket.waitForReady();
 
-      const resubscribePromise = this.#queue.resubscribe(chainId);
-      if (resubscribePromise) {
-        promises.push(resubscribePromise);
-      }
-
-      if (this.#monitorCallback) {
-        promises.push(
-          this.#queue.monitor(
-            this.#monitorCallback,
-            {
-              typeMapping: this._commandOptions?.typeMapping,
-              chainId,
-              asap: true
-            }
-          )
-        );
-      }
-
-      promises.push(...(await this.#handshake(chainId, true)));
-
-      if (promises.length) {
-        this.#write();
-        return Promise.all(promises);
-      }
-    };
-
-    return new RedisSocket(socketInitiator, this.#options?.socket)
+    this.#socket
       .on('data', chunk => {
         try {
           this.#queue.decoder.write(chunk);
@@ -706,15 +743,47 @@ export default class RedisClient<
           this.#queue.flushAll(err);
         }
       })
-      .on('connect', () => this.emit('connect'))
-      .on('ready', () => {
-        this.emit('ready');
-        this.#setPingTimer();
-        this.#maybeScheduleWrite();
-      })
       .on('reconnecting', () => this.emit('reconnecting'))
       .on('drain', () => this.#maybeScheduleWrite())
       .on('end', () => this.emit('end'));
+
+    const promises = [];
+    const chainId = Symbol('Socket Initiator');
+
+    const resubscribePromise = this.#queue.resubscribe(chainId);
+    if (resubscribePromise) {
+      promises.push(resubscribePromise);
+    }
+
+    if (this.#monitorCallback) {
+      promises.push(
+        this.#queue.monitor(
+          this.#monitorCallback,
+          {
+            typeMapping: this._commandOptions?.typeMapping,
+            chainId,
+            asap: true
+          }
+        )
+      );
+    }
+
+    promises.push(...(await this.#handshake(chainId, true)));
+
+    this.#setPingTimer();
+
+    if (promises.length) {
+      this.#write();
+      await Promise.all(promises);
+    }
+  }
+
+  #createSocket(options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>): RedisSocket {
+    return new RedisSocket(options?.socket)
+      .on('connect', () => this.emit('connect'))
+      .on('ready', () => {
+        this.emit('ready');
+      });
   }
 
   #pingTimer?: NodeJS.Timeout;
@@ -823,6 +892,7 @@ export default class RedisClient<
 
   async connect() {
     await this._self.#socket.connect();
+    await this._self.#initiateSocket();
     return this as unknown as RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
   }
 
@@ -1055,6 +1125,9 @@ export default class RedisClient<
   }
 
   #write() {
+    if(this.#pausedForMaintenance) {
+      return
+    }
     this.#socket.write(this.#queue.commandsToWrite());
   }
 
