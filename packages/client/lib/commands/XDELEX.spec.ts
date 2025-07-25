@@ -48,7 +48,7 @@ describe("XDELEX", () => {
   testUtils.testAll(
     `XDELEX non-existing key - without policy`,
     async (client) => {
-      const reply = await client.xDelex("{tag}stream-key", "0-0");
+      const reply = await client.xDelEx("{tag}stream-key", "0-0");
       assert.deepEqual(reply, [STREAM_DELETION_REPLY_CODES.NOT_FOUND]);
     },
     {
@@ -65,10 +65,9 @@ describe("XDELEX", () => {
         field: "value",
       });
 
-      const reply = await client.xDelex(
+      const reply = await client.xDelEx(
         streamKey,
         messageId,
-        STREAM_DELETION_POLICY.KEEPREF
       );
       assert.deepEqual(reply, [STREAM_DELETION_REPLY_CODES.DELETED]);
     },
@@ -86,7 +85,7 @@ describe("XDELEX", () => {
         field: "value",
       });
 
-      const reply = await client.xDelex(
+      const reply = await client.xDelEx(
         streamKey,
         messageId,
         STREAM_DELETION_POLICY.DELREF
@@ -112,7 +111,7 @@ describe("XDELEX", () => {
       // Create consumer group
       await client.xGroupCreate(streamKey, "testgroup", "0");
 
-      const reply = await client.xDelex(
+      const reply = await client.xDelEx(
         streamKey,
         messageId,
         STREAM_DELETION_POLICY.ACKED
@@ -138,7 +137,7 @@ describe("XDELEX", () => {
         }),
       ]);
 
-      const reply = await client.xDelex(
+      const reply = await client.xDelEx(
         streamKey,
         [...messageIds, "0-0"],
         STREAM_DELETION_POLICY.DELREF

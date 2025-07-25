@@ -943,7 +943,7 @@ export default {
   XDEL,
   xDel: XDEL,
   XDELEX,
-  xDelex: XDELEX,
+  xDelEx: XDELEX,
   XGROUP_CREATE,
   xGroupCreate: XGROUP_CREATE,
   XGROUP_CREATECONSUMER,
