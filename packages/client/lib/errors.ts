@@ -76,6 +76,13 @@ export class BlobError extends ErrorReply {}
 
 export class TimeoutError extends Error {}
 
+export class TimeoutDuringMaintanance extends Error {
+  constructor(timeout: number) {
+    super(`Socket timeout during maintenance. Expecting data, but didn't receive any in ${timeout}ms.`);
+  }
+}
+
+
 export class MultiErrorReply extends ErrorReply {
   replies: Array<ErrorReply>;
   errorIndexes: Array<number>;

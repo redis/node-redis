@@ -4,17 +4,16 @@ import RedisCommandsQueue from "./commands-queue";
 import RedisSocket from "./socket";
 
 export default class EnterpriseMaintenanceManager extends EventEmitter {
-  commandsQueue: RedisCommandsQueue;
-  options: RedisClientOptions;
-  constructor(
-    commandsQueue: RedisCommandsQueue,
-    options: RedisClientOptions,
-  ) {
+  #commandsQueue: RedisCommandsQueue;
+  #options: RedisClientOptions;
+  constructor(commandsQueue: RedisCommandsQueue, options: RedisClientOptions) {
     super();
-    this.commandsQueue = commandsQueue;
-    this.options = options;
+    this.#commandsQueue = commandsQueue;
+    this.#options = options;
 
-    this.commandsQueue.events.on("moving", this.#onMoving);
+    this.#commandsQueue.events.on("moving", this.#onMoving);
+    this.#commandsQueue.events.on("migrating", this.#onMigrating);
+    this.#commandsQueue.events.on("migrated", this.#onMigrated);
   }
 
   //  Queue:
@@ -36,21 +35,44 @@ export default class EnterpriseMaintenanceManager extends EventEmitter {
   ): Promise<void> => {
     // 1 [EVENT] MOVING PN received
     // 2 [ACTION] Pause writing
-    this.emit('pause')
+    this.emit("pause");
 
     const newSocket = new RedisSocket({
-      ...this.options.socket,
+      ...this.#options.socket,
       host,
       port,
     });
+    //todo
+    newSocket.setMaintenanceTimeout();
     await newSocket.connect();
     // 3 [EVENT] New socket connected
 
-    await this.commandsQueue.waitForInflightCommandsToComplete();
+    await this.#commandsQueue.waitForInflightCommandsToComplete();
     // 4 [EVENT] In-flight commands completed
 
     // 5 + 6
-    this.emit('resume', newSocket);
-
+    this.emit("resume", newSocket);
   };
+
+  #onMigrating = async () => {
+    this.#commandsQueue.setMaintenanceCommandTimeout(this.#getCommandTimeout());
+    this.emit("maintenance", this.#getSocketTimeout());
+  };
+
+  #onMigrated = async () => {
+    this.#commandsQueue.setMaintenanceCommandTimeout(undefined);
+    this.emit("maintenance", undefined);
+  }
+
+  #getSocketTimeout(): number | undefined {
+    return this.#options.gracefulMaintenance?.handleTimeouts === "error"
+      ? this.#options.socket?.socketTimeout
+      : this.#options.gracefulMaintenance?.handleTimeouts;
+  }
+
+  #getCommandTimeout(): number | undefined {
+    return this.#options.gracefulMaintenance?.handleTimeouts === "error"
+      ? this.#options.commandOptions?.timeout
+      : this.#options.gracefulMaintenance?.handleTimeouts;
+  }
 }
