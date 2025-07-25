@@ -111,6 +111,15 @@ export class DoublyLinkedList<T> {
       node = node.next;
     }
   }
+
+  forEachNode(fn: (node: DoublyLinkedNode<T>) => void) {
+    let node = this.#head;
+    while(node) {
+      fn(node);
+      node = node.next;
+    }
+  }
+
 }
 
 export interface SinglyLinkedNode<T> {

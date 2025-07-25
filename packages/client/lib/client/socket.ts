@@ -1,7 +1,7 @@
 import { EventEmitter, once } from 'node:events';
 import net from 'node:net';
 import tls from 'node:tls';
-import { ConnectionTimeoutError, ClientClosedError, SocketClosedUnexpectedlyError, ReconnectStrategyError, SocketTimeoutError } from '../errors';
+import { ConnectionTimeoutError, ClientClosedError, SocketClosedUnexpectedlyError, ReconnectStrategyError, SocketTimeoutError, TimeoutDuringMaintanance } from '../errors';
 import { setTimeout } from 'node:timers/promises';
 import { RedisArgument } from '../RESP/types';
 
@@ -56,6 +56,8 @@ export default class RedisSocket extends EventEmitter {
   readonly #reconnectStrategy;
   readonly #socketFactory;
   readonly #socketTimeout;
+
+  #maintenanceTimeout: number | undefined;
 
   #socket?: net.Socket | tls.TLSSocket;
 
@@ -234,6 +236,16 @@ export default class RedisSocket extends EventEmitter {
     } while (this.#isOpen && !this.#isReady);
   }
 
+  setMaintenanceTimeout(ms?: number) {
+    this.#maintenanceTimeout = ms;
+
+    if(ms !== undefined) {
+      this.#socket?.setTimeout(ms);
+    } else if (this.#socketTimeout !== undefined) {
+      this.#socket?.setTimeout(this.#socketTimeout);
+    }
+  }
+
   async #createSocket(): Promise<net.Socket | tls.TLSSocket> {
     const socket = this.#socketFactory.create();
 
@@ -256,7 +268,10 @@ export default class RedisSocket extends EventEmitter {
 
     if (this.#socketTimeout) {
       socket.once('timeout', () => {
-        socket.destroy(new SocketTimeoutError(this.#socketTimeout!));
+        const error = this.#maintenanceTimeout
+          ? new TimeoutDuringMaintanance(this.#socketTimeout!)
+          : new SocketTimeoutError(this.#socketTimeout!)
+        socket.destroy(error);
       });
       socket.setTimeout(this.#socketTimeout);
     }

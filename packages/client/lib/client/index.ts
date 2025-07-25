@@ -179,9 +179,9 @@ export interface RedisClientOptions<
      */
     handleFailedCommands: 'exception' | 'retry',
     /**
-     * Specify whether we should throw a MaintenanceTimeout exception or provide more relaxed timeout, in order to minimize command timeouts during maintenance.
+     * Specify whether we should throw a TimeoutDuringMaintanance exception or provide more relaxed timeout, in order to minimize command timeouts during maintenance.
      */
-    handleTimeouts: 'exception' | number,
+    handleTimeouts: 'error' | number,
   }
 }
 
@@ -485,10 +485,6 @@ export default class RedisClient<
     return this._self.#dirtyWatch !== undefined
   }
 
-  #pauseForMaintenance() {
-    this._self.#pausedForMaintenance = true;
-  }
-
   #resumeFromMaintenance(newSocket: RedisSocket) {
     this._self.#socket.removeAllListeners();
     this._self.#socket.destroy();
@@ -516,8 +512,9 @@ export default class RedisClient<
 
     if(options?.gracefulMaintenance) {
       new EnterpriseMaintenanceManager(this.#queue, this.#options!)
-        .on('pause', this.#pauseForMaintenance.bind(this))
+        .on('pause', () => this._self.#pausedForMaintenance = true )
         .on('resume', this.#resumeFromMaintenance.bind(this))
+        .on('maintenance', (mtm: number | undefined) => this._self.#socket.setMaintenanceTimeout(mtm))
     }
 
     if (options?.clientSideCache) {
