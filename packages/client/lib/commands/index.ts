@@ -280,6 +280,7 @@ import TYPE from './TYPE';
 import UNLINK from './UNLINK';
 import WAIT from './WAIT';
 import XACK from './XACK';
+import XACKDEL from './XACKDEL';
 import XADD_NOMKSTREAM from './XADD_NOMKSTREAM';
 import XADD from './XADD';
 import XAUTOCLAIM_JUSTID from './XAUTOCLAIM_JUSTID';
@@ -287,6 +288,7 @@ import XAUTOCLAIM from './XAUTOCLAIM';
 import XCLAIM_JUSTID from './XCLAIM_JUSTID';
 import XCLAIM from './XCLAIM';
 import XDEL from './XDEL';
+import XDELEX from './XDELEX';
 import XGROUP_CREATE from './XGROUP_CREATE';
 import XGROUP_CREATECONSUMER from './XGROUP_CREATECONSUMER';
 import XGROUP_DELCONSUMER from './XGROUP_DELCONSUMER';
@@ -924,6 +926,8 @@ export default {
   wait: WAIT,
   XACK,
   xAck: XACK,
+  XACKDEL,
+  xAckDel: XACKDEL,
   XADD_NOMKSTREAM,
   xAddNoMkStream: XADD_NOMKSTREAM,
   XADD,
@@ -938,6 +942,8 @@ export default {
   xClaim: XCLAIM,
   XDEL,
   xDel: XDEL,
+  XDELEX,
+  xDelEx: XDELEX,
   XGROUP_CREATE,
   xGroupCreate: XGROUP_CREATE,
   XGROUP_CREATECONSUMER,

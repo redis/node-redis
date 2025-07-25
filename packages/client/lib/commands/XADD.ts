@@ -1,5 +1,6 @@
 import { CommandParser } from '../client/parser';
 import { RedisArgument, BlobStringReply, Command } from '../RESP/types';
+import { StreamDeletionPolicy } from './common-stream.types';
 import { Tail } from './generic-transformers';
 
 /**
@@ -10,6 +11,7 @@ import { Tail } from './generic-transformers';
  * @property TRIM.strategyModifier - Exact ('=') or approximate ('~') trimming
  * @property TRIM.threshold - Maximum stream length or minimum ID to retain
  * @property TRIM.limit - Maximum number of entries to trim in one call
+ * @property TRIM.policy - Policy to apply when trimming entries (optional, defaults to KEEPREF)
  */
 export interface XAddOptions {
   TRIM?: {
@@ -17,6 +19,8 @@ export interface XAddOptions {
     strategyModifier?: '=' | '~';
     threshold: number;
     limit?: number;
+    /** added in 8.2 */
+    policy?: StreamDeletionPolicy;
   };
 }
 
@@ -57,6 +61,10 @@ export function parseXAddArguments(
 
     if (options.TRIM.limit) {
       parser.push('LIMIT', options.TRIM.limit.toString());
+    }
+
+    if (options.TRIM.policy) {
+      parser.push(options.TRIM.policy);
     }
   }
 
