@@ -438,8 +438,9 @@ export class RedisClientPool<
   ) {
     const result = fn(node.value);
     if (result instanceof Promise) {
-      result.then(resolve, reject);
-      result.finally(() => this.#returnClient(node))
+      result
+      .then(resolve, reject)
+      .finally(() => this.#returnClient(node))
     } else {
       resolve(result);
       this.#returnClient(node);
