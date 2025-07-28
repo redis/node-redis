@@ -87,7 +87,6 @@ export default {
     if (options?.TYPE) {
       parser.push('TYPE', options.TYPE);
     }
-    console.log('eeeeeeeeee', parser.redisArgs)
   },
   /**
    * Transforms the SCAN reply into a structured object
@@ -96,7 +95,6 @@ export default {
    * @returns Object with cursor and keys properties
    */
   transformReply([cursor, keys]: [BlobStringReply, ArrayReply<BlobStringReply>]) {
-    console.log(cursor, keys)
     return {
       cursor,
       keys
