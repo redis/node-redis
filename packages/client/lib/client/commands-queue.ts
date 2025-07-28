@@ -188,12 +188,13 @@ export default class RedisCommandsQueue {
               this.events.emit('moving', afterMs, host, Number(port));
               break;
             }
-            case 'MIGRATING': {
-              console.log('GOT MIGRATING', push.map(p => p.toString()));
+            case 'MIGRATING':
+            case 'FAILING_OVER': {
               this.events.emit('migrating');
               break;
             }
-            case 'MIGRATED': {
+            case 'MIGRATED':
+            case 'FAILED_OVER': {
               this.events.emit('migrated');
               break;
             }
