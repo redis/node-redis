@@ -11,10 +11,30 @@ export default class EnterpriseMaintenanceManager extends EventEmitter {
     this.#commandsQueue = commandsQueue;
     this.#options = options;
 
-    this.#commandsQueue.events.on("moving", this.#onMoving);
-    this.#commandsQueue.events.on("migrating", this.#onMigrating);
-    this.#commandsQueue.events.on("migrated", this.#onMigrated);
+    this.#commandsQueue.addPushHandler(this.#onPush);
   }
+
+  #onPush = (push: Array<any>): boolean => {
+    switch (push[0].toString()) {
+      case "MOVING": {
+        const [_, afterMs, url] = push;
+        const [host, port] = url.toString().split(":");
+        this.#onMoving(afterMs, host, Number(port));
+        return true;
+      }
+      case "MIGRATING":
+      case "FAILING_OVER": {
+        this.#onMigrating();
+        return true;
+      }
+      case "MIGRATED":
+      case "FAILED_OVER": {
+        this.#onMigrated();
+        return true;
+      }
+    }
+    return false
+  };
 
   //  Queue:
   //     toWrite [ C D E ]
@@ -62,7 +82,7 @@ export default class EnterpriseMaintenanceManager extends EventEmitter {
   #onMigrated = async () => {
     this.#commandsQueue.setMaintenanceCommandTimeout(undefined);
     this.emit("maintenance", undefined);
-  }
+  };
 
   #getSocketTimeout(): number | undefined {
     return this.#options.gracefulMaintenance?.handleTimeouts === "error"
