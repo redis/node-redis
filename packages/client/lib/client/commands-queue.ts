@@ -5,7 +5,6 @@ import { TypeMapping, ReplyUnion, RespVersions, RedisArgument } from '../RESP/ty
 import { ChannelListeners, PubSub, PubSubCommand, PubSubListener, PubSubType, PubSubTypeListeners } from './pub-sub';
 import { AbortError, ErrorReply, TimeoutDuringMaintanance, TimeoutError } from '../errors';
 import { MonitorCallback } from '.';
-import EventEmitter from 'events';
 import assert from 'assert';
 
 export interface CommandOptions<T = TypeMapping> {
@@ -53,6 +52,13 @@ const RESP2_PUSH_TYPE_MAPPING = {
   [RESP_TYPES.SIMPLE_STRING]: Buffer
 };
 
+// Try to handle a push notification. Return whether you
+// successfully consumed the notification or not. This is
+// important in order for the queue to be able to pass the
+// notification to another handler if the current one did not
+// succeed.
+type PushHandler = (pushItems: Array<any>) => boolean;
+
 export default class RedisCommandsQueue {
   readonly #respVersion;
   readonly #maxLength;
@@ -62,7 +68,8 @@ export default class RedisCommandsQueue {
   #chainInExecution: symbol | undefined;
   readonly decoder;
   readonly #pubSub = new PubSub();
-  readonly events = new EventEmitter();
+
+  #pushHandlers: PushHandler[] = [this.#onPush.bind(this)];
 
   // If this value is set, we are in a maintenance mode.
   // This means any existing commands should have their timeout
@@ -112,8 +119,6 @@ export default class RedisCommandsQueue {
     return this.#pubSub.isActive;
   }
 
-  #invalidateCallback?: (key: RedisArgument | null) => unknown;
-
   constructor(
     respVersion: RespVersions,
     maxLength: number | null | undefined,
@@ -155,6 +160,7 @@ export default class RedisCommandsQueue {
       }
       return true;
     }
+    return false
   }
 
   #getTypeMapping() {
@@ -167,46 +173,16 @@ export default class RedisCommandsQueue {
       onErrorReply: err => this.#onErrorReply(err),
       //TODO: we can shave off a few cycles by not adding onPush handler at all if CSC is not used
       onPush: push => {
-        if (!this.#onPush(push)) {
-          // currently only supporting "invalidate" over RESP3 push messages
-          switch (push[0].toString()) {
-            case "invalidate": {
-              if (this.#invalidateCallback) {
-                if (push[1] !== null) {
-                  for (const key of push[1]) {
-                    this.#invalidateCallback(key);
-                  }
-                } else {
-                  this.#invalidateCallback(null);
-                }
-              }
-              break;
-            }
-            case 'MOVING': {
-              const [_, afterMs, url] = push;
-              const [host, port] = url.toString().split(':');
-              this.events.emit('moving', afterMs, host, Number(port));
-              break;
-            }
-            case 'MIGRATING':
-            case 'FAILING_OVER': {
-              this.events.emit('migrating');
-              break;
-            }
-            case 'MIGRATED':
-            case 'FAILED_OVER': {
-              this.events.emit('migrated');
-              break;
-            }
-          }
+        for(const pushHandler of this.#pushHandlers) {
+          if(pushHandler(push)) return
         }
       },
       getTypeMapping: () => this.#getTypeMapping()
     });
   }
 
-  setInvalidateCallback(callback?: (key: RedisArgument | null) => unknown) {
-    this.#invalidateCallback = callback;
+  addPushHandler(handler: PushHandler): void {
+    this.#pushHandlers.push(handler);
   }
 
   async waitForInflightCommandsToComplete(): Promise<void> {
