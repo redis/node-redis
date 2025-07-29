@@ -12,7 +12,7 @@ Some [RESP types](./RESP.md) can be mapped to more than one JavaScript type. For
 await client.get('key'); // `string | null`
 
 const proxyClient = client.withTypeMapping({
-  [TYPES.BLOB_STRING]: Buffer
+  [RESP_TYPES.BLOB_STRING]: Buffer
 });
 
 await proxyClient.get('key'); // `Buffer | null`
