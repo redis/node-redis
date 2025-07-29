@@ -461,12 +461,12 @@ export default class RedisClient<
     return this._self.#dirtyWatch !== undefined
   }
 
-  #resumeFromMaintenance(newSocket: RedisSocket) {
+  async #resumeFromMaintenance(newSocket: RedisSocket) {
     this._self.#socket.removeAllListeners();
     this._self.#socket.destroy();
     this._self.#socket = newSocket;
     this._self.#pausedForMaintenance = false;
-    this._self.#initiateSocket();
+    await this._self.#initiateSocket();
     this._self.#maybeScheduleWrite();
   }
 
