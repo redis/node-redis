@@ -31,14 +31,15 @@ describe('VSIM', () => {
         FILTER: '.price > 20',
         'FILTER-EF': 50,
         TRUTH: true,
-        NOTHREAD: true
+        NOTHREAD: true,
+        EPSILON: 0.1
       });
       assert.deepEqual(
         parser.redisArgs,
         [
-          'VSIM', 'key', 'ELE', 'element',
-          'COUNT', '5', 'EF', '100', 'FILTER', '.price > 20',
-          'FILTER-EF', '50', 'TRUTH', 'NOTHREAD'
+          'VSIM', 'key', 'ELE', 'element', 'COUNT', '5',
+          'EPSILON', '0.1', 'EF', '100', 'FILTER', '.price > 20',
+          'FILTER-EF', '50', 'TRUTH', 'NOTHREAD',
         ]
       );
     });
@@ -51,6 +52,27 @@ describe('VSIM', () => {
     const result = await client.vSim('key', 'element1');
     assert.ok(Array.isArray(result));
     assert.ok(result.includes('element1'));
+  }, {
+    client: { ...GLOBAL.SERVERS.OPEN, minimumDockerVersion: [8, 0] },
+    cluster: { ...GLOBAL.CLUSTERS.OPEN, minimumDockerVersion: [8, 0] }
+  });
+
+
+  testUtils.testAll('vSim with options', async client => {
+    await client.vAdd('key', [1.0, 2.0, 3.0], 'element1');
+    await client.vAdd('key', [1.1, 2.1, 3.1], 'element2');
+
+    const result = await client.vSim('key', 'element1', { 
+      EPSILON: 0.1,
+      COUNT: 1,
+      EF: 100,
+      FILTER: '.year == 8',
+      'FILTER-EF': 50,
+      TRUTH: true,
+      NOTHREAD: true
+    });
+
+    assert.ok(Array.isArray(result));
   }, {
     client: { ...GLOBAL.SERVERS.OPEN, minimumDockerVersion: [8, 0] },
     cluster: { ...GLOBAL.CLUSTERS.OPEN, minimumDockerVersion: [8, 0] }

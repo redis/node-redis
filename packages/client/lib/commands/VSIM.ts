@@ -4,6 +4,7 @@ import { transformDoubleArgument } from './generic-transformers';
 
 export interface VSimOptions {
   COUNT?: number;
+  EPSILON?: number;
   EF?: number;
   FILTER?: string;
   'FILTER-EF'?: number;
@@ -42,6 +43,10 @@ export default {
 
     if (options?.COUNT !== undefined) {
       parser.push('COUNT', options.COUNT.toString());
+    }
+
+    if (options?.EPSILON !== undefined) {
+      parser.push('EPSILON', options.EPSILON.toString());
     }
 
     if (options?.EF !== undefined) {
