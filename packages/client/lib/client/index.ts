@@ -315,20 +315,44 @@ export default class RedisClient<
     return RedisClient.factory(options)(options);
   }
 
-  static parseURL(url: string): RedisClientOptions {
+  static parseOptions<O extends RedisClientOptions>(options: O): O {
+    if (options?.url) {
+      const parsed = RedisClient.parseURL(options.url);
+      if (options.socket) {
+        if (options.socket.tls !== undefined && options.socket.tls !== parsed.socket.tls) {
+          throw new TypeError(`tls socket option is set to ${options.socket.tls} which is mismatch with protocol or the URL ${options.url} passed`)
+        }
+        parsed.socket = Object.assign(options.socket, parsed.socket);
+      }
+
+      Object.assign(options, parsed);
+    }
+    return options;
+  }
+
+  static parseURL(url: string): RedisClientOptions & {
+    socket: Exclude<RedisClientOptions['socket'], undefined> & {
+      tls: boolean
+    }
+  } {
     // https://www.iana.org/assignments/uri-schemes/prov/redis
     const { hostname, port, protocol, username, password, pathname } = new URL(url),
-      parsed: RedisClientOptions = {
+      parsed: RedisClientOptions & {
+        socket: Exclude<RedisClientOptions['socket'], undefined> & {
+          tls: boolean
+        }
+      } = {
         socket: {
-          host: hostname
+          host: hostname,
+          tls: false
         }
       };
 
-    if (protocol === 'rediss:') {
-      parsed!.socket!.tls = true;
-    } else if (protocol !== 'redis:') {
+    if (protocol !== 'redis:' && protocol !== 'rediss:') {
       throw new TypeError('Invalid protocol');
     }
+
+    parsed.socket.tls = protocol === 'rediss:';
 
     if (port) {
       (parsed.socket as TcpSocketConnectOpts).port = Number(port);
@@ -464,21 +488,16 @@ export default class RedisClient<
       };
     }
 
-    if (options?.url) {
-      const parsed = RedisClient.parseURL(options.url);
-      if (options.socket) {
-        parsed.socket = Object.assign(options.socket, parsed.socket);
-      }
-
-      Object.assign(options, parsed);
-    }
-
     if (options?.database) {
       this._self.#selectedDB = options.database;
     }
 
     if (options?.commandOptions) {
       this._commandOptions = options.commandOptions;
+    }
+
+    if (options) {
+      return RedisClient.parseOptions(options);
     }
 
     return options;
