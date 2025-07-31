@@ -62,6 +62,7 @@ export default class EnterpriseMaintenanceManager extends EventEmitter {
     // 1 [EVENT] MOVING PN received
     // 2 [ACTION] Pause writing
     this.emit(MAINTENANCE_EVENTS.PAUSE_WRITING);
+    this.#onMigrating();
 
     const newSocket = new RedisSocket({
       ...this.#options.socket,
@@ -78,6 +79,7 @@ export default class EnterpriseMaintenanceManager extends EventEmitter {
 
     // 5 + 6
     this.emit(MAINTENANCE_EVENTS.RESUME_WRITING, newSocket);
+    this.#onMigrated();
   };
 
   #onMigrating = async () => {
