@@ -3,6 +3,12 @@ import { RedisClientOptions } from ".";
 import RedisCommandsQueue from "./commands-queue";
 import RedisSocket from "./socket";
 
+export const MAINTENANCE_EVENTS = {
+  PAUSE_WRITING: "pause-writing",
+  RESUME_WRITING: "resume-writing",
+  TIMEOUTS_UPDATE: "timeouts-update",
+} as const;
+
 export default class EnterpriseMaintenanceManager extends EventEmitter {
   #commandsQueue: RedisCommandsQueue;
   #options: RedisClientOptions;
@@ -33,7 +39,7 @@ export default class EnterpriseMaintenanceManager extends EventEmitter {
         return true;
       }
     }
-    return false
+    return false;
   };
 
   //  Queue:
@@ -55,7 +61,7 @@ export default class EnterpriseMaintenanceManager extends EventEmitter {
   ): Promise<void> => {
     // 1 [EVENT] MOVING PN received
     // 2 [ACTION] Pause writing
-    this.emit("pause");
+    this.emit(MAINTENANCE_EVENTS.PAUSE_WRITING);
 
     const newSocket = new RedisSocket({
       ...this.#options.socket,
@@ -71,17 +77,20 @@ export default class EnterpriseMaintenanceManager extends EventEmitter {
     // 4 [EVENT] In-flight commands completed
 
     // 5 + 6
-    this.emit("resume", newSocket);
+    this.emit(MAINTENANCE_EVENTS.RESUME_WRITING, newSocket);
   };
 
   #onMigrating = async () => {
     this.#commandsQueue.setMaintenanceCommandTimeout(this.#getCommandTimeout());
-    this.emit("maintenance", this.#getSocketTimeout());
+    this.emit(
+      MAINTENANCE_EVENTS.TIMEOUTS_UPDATE,
+      this.#getSocketTimeout(),
+    );
   };
 
   #onMigrated = async () => {
     this.#commandsQueue.setMaintenanceCommandTimeout(undefined);
-    this.emit("maintenance", undefined);
+    this.emit(MAINTENANCE_EVENTS.TIMEOUTS_UPDATE, undefined);
   };
 
   #getSocketTimeout(): number | undefined {
