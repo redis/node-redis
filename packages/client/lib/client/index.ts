@@ -20,7 +20,7 @@ import { BasicClientSideCache, ClientSideCacheConfig, ClientSideCacheProvider } 
 import { BasicCommandParser, CommandParser } from './parser';
 import SingleEntryCache from '../single-entry-cache';
 import { version } from '../../package.json'
-import EnterpriseMaintenanceManager from './enterprise-maintenance-manager';
+import EnterpriseMaintenanceManager, { MAINTENANCE_EVENTS } from './enterprise-maintenance-manager';
 
 export interface RedisClientOptions<
   M extends RedisModules = RedisModules,
@@ -488,9 +488,9 @@ export default class RedisClient<
 
     if(options?.gracefulMaintenance) {
       new EnterpriseMaintenanceManager(this.#queue, this.#options!)
-        .on('pause', () => this._self.#pausedForMaintenance = true )
-        .on('resume', this.#resumeFromMaintenance.bind(this))
-        .on('maintenance', (mtm: number | undefined) => this._self.#socket.setMaintenanceTimeout(mtm))
+        .on(MAINTENANCE_EVENTS.PAUSE_WRITING, () => this._self.#pausedForMaintenance = true )
+        .on(MAINTENANCE_EVENTS.RESUME_WRITING, this.#resumeFromMaintenance.bind(this))
+        .on(MAINTENANCE_EVENTS.TIMEOUTS_UPDATE, (mtm: number | undefined) => this._self.#socket.setMaintenanceTimeout(mtm))
     }
 
     if (options?.clientSideCache) {
