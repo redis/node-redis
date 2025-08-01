@@ -84,7 +84,12 @@ interface SchemaHNSWVectorField extends SchemaVectorField {
 }
 
 export const VAMANA_COMPRESSION_ALGORITHM = {
+  LVQ4: 'LVQ4',
   LVQ8: 'LVQ8',
+  LVQ4x4: 'LVQ4x4',
+  LVQ4x8: 'LVQ4x8',
+  LeanVec4x8: 'LeanVec4x8',
+  LeanVec8x8: 'LeanVec8x8'
 } as const;
 
 export type VamanaCompressionAlgorithm = 
