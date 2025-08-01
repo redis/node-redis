@@ -9,6 +9,14 @@ export const MAINTENANCE_EVENTS = {
   TIMEOUTS_UPDATE: "timeouts-update",
 } as const;
 
+const PN = {
+ MOVING: "MOVING",
+ MIGRATING: "MIGRATING",
+ MIGRATED: "MIGRATED",
+ FAILING_OVER: "FAILING_OVER",
+ FAILED_OVER: "FAILED_OVER",
+}
+
 export default class EnterpriseMaintenanceManager extends EventEmitter {
   #commandsQueue: RedisCommandsQueue;
   #options: RedisClientOptions;
@@ -22,19 +30,19 @@ export default class EnterpriseMaintenanceManager extends EventEmitter {
 
   #onPush = (push: Array<any>): boolean => {
     switch (push[0].toString()) {
-      case "MOVING": {
+      case PN.MOVING: {
         const [_, afterMs, url] = push;
         const [host, port] = url.toString().split(":");
         this.#onMoving(afterMs, host, Number(port));
         return true;
       }
-      case "MIGRATING":
-      case "FAILING_OVER": {
+      case PN.MIGRATING:
+      case PN.FAILING_OVER: {
         this.#onMigrating();
         return true;
       }
-      case "MIGRATED":
-      case "FAILED_OVER": {
+      case PN.MIGRATED:
+      case PN.FAILED_OVER: {
         this.#onMigrated();
         return true;
       }
