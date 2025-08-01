@@ -10,11 +10,16 @@ export const MAINTENANCE_EVENTS = {
 } as const;
 
 const PN = {
- MOVING: "MOVING",
- MIGRATING: "MIGRATING",
- MIGRATED: "MIGRATED",
- FAILING_OVER: "FAILING_OVER",
- FAILED_OVER: "FAILED_OVER",
+  MOVING: "MOVING",
+  MIGRATING: "MIGRATING",
+  MIGRATED: "MIGRATED",
+  FAILING_OVER: "FAILING_OVER",
+  FAILED_OVER: "FAILED_OVER",
+};
+
+export interface SocketTimeoutUpdate {
+  inMaintenance: boolean,
+  timeout?: number
 }
 
 export default class EnterpriseMaintenanceManager extends EventEmitter {
@@ -91,27 +96,25 @@ export default class EnterpriseMaintenanceManager extends EventEmitter {
   };
 
   #onMigrating = async () => {
-    this.#commandsQueue.setMaintenanceCommandTimeout(this.#getCommandTimeout());
-    this.emit(
-      MAINTENANCE_EVENTS.TIMEOUTS_UPDATE,
-      this.#getSocketTimeout(),
+    this.#commandsQueue.inMaintenance = true;
+    this.#commandsQueue.setMaintenanceCommandTimeout(
+      this.#options.gracefulMaintenance?.relaxedCommandTimeout,
     );
+
+    this.emit(MAINTENANCE_EVENTS.TIMEOUTS_UPDATE, {
+      inMaintenance: true,
+      timeout: this.#options.gracefulMaintenance?.relaxedSocketTimeout
+    } satisfies SocketTimeoutUpdate);
   };
 
   #onMigrated = async () => {
+    this.#commandsQueue.inMaintenance = false;
     this.#commandsQueue.setMaintenanceCommandTimeout(undefined);
-    this.emit(MAINTENANCE_EVENTS.TIMEOUTS_UPDATE, undefined);
+
+    this.emit(MAINTENANCE_EVENTS.TIMEOUTS_UPDATE, {
+      inMaintenance: false,
+      timeout: undefined
+    } satisfies SocketTimeoutUpdate);
   };
 
-  #getSocketTimeout(): number | undefined {
-    return this.#options.gracefulMaintenance?.handleTimeouts === "error"
-      ? this.#options.socket?.socketTimeout
-      : this.#options.gracefulMaintenance?.handleTimeouts;
-  }
-
-  #getCommandTimeout(): number | undefined {
-    return this.#options.gracefulMaintenance?.handleTimeouts === "error"
-      ? this.#options.commandOptions?.timeout
-      : this.#options.gracefulMaintenance?.handleTimeouts;
-  }
-}
+};

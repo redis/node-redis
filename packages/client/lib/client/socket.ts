@@ -1,7 +1,7 @@
 import { EventEmitter, once } from 'node:events';
 import net from 'node:net';
 import tls from 'node:tls';
-import { ConnectionTimeoutError, ClientClosedError, SocketClosedUnexpectedlyError, ReconnectStrategyError, SocketTimeoutError, TimeoutDuringMaintanance } from '../errors';
+import { ConnectionTimeoutError, ClientClosedError, SocketClosedUnexpectedlyError, ReconnectStrategyError, SocketTimeoutError, SocketTimeoutDuringMaintananceError } from '../errors';
 import { setTimeout } from 'node:timers/promises';
 import { RedisArgument } from '../RESP/types';
 
@@ -79,6 +79,12 @@ export default class RedisSocket extends EventEmitter {
 
   get socketEpoch() {
     return this.#socketEpoch;
+  }
+
+  #inMaintenance = false;
+
+  set inMaintenance(value: boolean) {
+    this.#inMaintenance = value;
   }
 
   constructor(options?: RedisSocketOptions) {
@@ -237,12 +243,14 @@ export default class RedisSocket extends EventEmitter {
   }
 
   setMaintenanceTimeout(ms?: number) {
+    if (this.#maintenanceTimeout === ms) return;
+
     this.#maintenanceTimeout = ms;
 
     if(ms !== undefined) {
       this.#socket?.setTimeout(ms);
-    } else if (this.#socketTimeout !== undefined) {
-      this.#socket?.setTimeout(this.#socketTimeout);
+    } else {
+      this.#socket?.setTimeout(this.#socketTimeout ?? 0);
     }
   }
 
@@ -268,8 +276,8 @@ export default class RedisSocket extends EventEmitter {
 
     if (this.#socketTimeout) {
       socket.once('timeout', () => {
-        const error = this.#maintenanceTimeout
-          ? new TimeoutDuringMaintanance(this.#socketTimeout!)
+        const error = this.#inMaintenance
+          ? new SocketTimeoutDuringMaintananceError(this.#socketTimeout!)
           : new SocketTimeoutError(this.#socketTimeout!)
         socket.destroy(error);
       });
