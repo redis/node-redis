@@ -54,7 +54,11 @@ interface SchemaTagField extends SchemaCommonField<typeof SCHEMA_FIELD_TYPE['TAG
 
 export const SCHEMA_VECTOR_FIELD_ALGORITHM = {
   FLAT: 'FLAT',
-  HNSW: 'HNSW'
+  HNSW: 'HNSW',
+  /**
+   * available since 8.2
+  */
+  VAMANA: 'SVS-VAMANA'
 } as const;
 
 export type SchemaVectorFieldAlgorithm = typeof SCHEMA_VECTOR_FIELD_ALGORITHM[keyof typeof SCHEMA_VECTOR_FIELD_ALGORITHM];
@@ -79,6 +83,37 @@ interface SchemaHNSWVectorField extends SchemaVectorField {
   EF_RUNTIME?: number;
 }
 
+export const VAMANA_COMPRESSION_ALGORITHM = {
+  LVQ4: 'LVQ4',
+  LVQ8: 'LVQ8',
+  LVQ4x4: 'LVQ4x4',
+  LVQ4x8: 'LVQ4x8',
+  LeanVec4x8: 'LeanVec4x8',
+  LeanVec8x8: 'LeanVec8x8'
+} as const;
+
+export type VamanaCompressionAlgorithm = 
+  typeof VAMANA_COMPRESSION_ALGORITHM[keyof typeof VAMANA_COMPRESSION_ALGORITHM];
+
+interface SchemaVAMANAVectorField extends SchemaVectorField {
+  ALGORITHM: typeof SCHEMA_VECTOR_FIELD_ALGORITHM['VAMANA'];
+  TYPE: 'FLOAT16' | 'FLOAT32';
+  // VAMANA-specific parameters
+  COMPRESSION?: VamanaCompressionAlgorithm;
+  CONSTRUCTION_WINDOW_SIZE?: number;
+  GRAPH_MAX_DEGREE?: number;
+  SEARCH_WINDOW_SIZE?: number;
+  EPSILON?: number;
+  /**
+   * applicable only with COMPRESSION
+   */
+  TRAINING_THRESHOLD?: number;
+  /**
+   * applicable only with LeanVec COMPRESSION
+   */
+  REDUCE?: number;
+}
+
 export const SCHEMA_GEO_SHAPE_COORD_SYSTEM = {
   SPHERICAL: 'SPHERICAL',
   FLAT: 'FLAT'
@@ -98,6 +133,7 @@ export interface RediSearchSchema {
     SchemaTagField |
     SchemaFlatVectorField |
     SchemaHNSWVectorField |
+    SchemaVAMANAVectorField |
     SchemaGeoShapeField |
     SchemaFieldType
   );
@@ -142,7 +178,7 @@ export function parseSchema(parser: CommandParser, schema: RediSearchSchema) {
           parser.push('NOSTEM');
         }
 
-        if (fieldOptions.WEIGHT) {
+        if (fieldOptions.WEIGHT !== undefined) {
           parser.push('WEIGHT', fieldOptions.WEIGHT.toString());
         }
 
@@ -197,29 +233,60 @@ export function parseSchema(parser: CommandParser, schema: RediSearchSchema) {
           'DISTANCE_METRIC', fieldOptions.DISTANCE_METRIC
         );
 
-        if (fieldOptions.INITIAL_CAP) {
+        if (fieldOptions.INITIAL_CAP !== undefined) {
           args.push('INITIAL_CAP', fieldOptions.INITIAL_CAP.toString());
         }
 
         switch (fieldOptions.ALGORITHM) {          
           case SCHEMA_VECTOR_FIELD_ALGORITHM.FLAT:
-            if (fieldOptions.BLOCK_SIZE) {
+            if (fieldOptions.BLOCK_SIZE !== undefined) {
               args.push('BLOCK_SIZE', fieldOptions.BLOCK_SIZE.toString());
             }
 
             break;
 
           case SCHEMA_VECTOR_FIELD_ALGORITHM.HNSW:
-            if (fieldOptions.M) {
+            if (fieldOptions.M !== undefined) {
               args.push('M', fieldOptions.M.toString());
             }
 
-            if (fieldOptions.EF_CONSTRUCTION) {
+            if (fieldOptions.EF_CONSTRUCTION !== undefined) {
               args.push('EF_CONSTRUCTION', fieldOptions.EF_CONSTRUCTION.toString());
             }
 
-            if (fieldOptions.EF_RUNTIME) {
+            if (fieldOptions.EF_RUNTIME !== undefined) {
               args.push('EF_RUNTIME', fieldOptions.EF_RUNTIME.toString());
+            }
+
+            break;
+
+          case SCHEMA_VECTOR_FIELD_ALGORITHM['VAMANA']:
+            if (fieldOptions.COMPRESSION) {
+              args.push('COMPRESSION', fieldOptions.COMPRESSION);
+            }
+
+            if (fieldOptions.CONSTRUCTION_WINDOW_SIZE !== undefined) {
+              args.push('CONSTRUCTION_WINDOW_SIZE', fieldOptions.CONSTRUCTION_WINDOW_SIZE.toString());
+            }
+
+            if (fieldOptions.GRAPH_MAX_DEGREE !== undefined) {
+              args.push('GRAPH_MAX_DEGREE', fieldOptions.GRAPH_MAX_DEGREE.toString());
+            }
+
+            if (fieldOptions.SEARCH_WINDOW_SIZE !== undefined) {
+              args.push('SEARCH_WINDOW_SIZE', fieldOptions.SEARCH_WINDOW_SIZE.toString());
+            }
+
+            if (fieldOptions.EPSILON !== undefined) {
+              args.push('EPSILON', fieldOptions.EPSILON.toString());
+            }
+
+            if (fieldOptions.TRAINING_THRESHOLD !== undefined) {
+              args.push('TRAINING_THRESHOLD', fieldOptions.TRAINING_THRESHOLD.toString());
+            }
+
+            if (fieldOptions.REDUCE !== undefined) {
+              args.push('REDUCE', fieldOptions.REDUCE.toString());
             }
 
             break;
