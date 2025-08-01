@@ -1,0 +1,120 @@
+import EventEmitter from "events";
+import { RedisClientOptions } from ".";
+import RedisCommandsQueue from "./commands-queue";
+import RedisSocket from "./socket";
+
+export const MAINTENANCE_EVENTS = {
+  PAUSE_WRITING: "pause-writing",
+  RESUME_WRITING: "resume-writing",
+  TIMEOUTS_UPDATE: "timeouts-update",
+} as const;
+
+const PN = {
+  MOVING: "MOVING",
+  MIGRATING: "MIGRATING",
+  MIGRATED: "MIGRATED",
+  FAILING_OVER: "FAILING_OVER",
+  FAILED_OVER: "FAILED_OVER",
+};
+
+export interface SocketTimeoutUpdate {
+  inMaintenance: boolean,
+  timeout?: number
+}
+
+export default class EnterpriseMaintenanceManager extends EventEmitter {
+  #commandsQueue: RedisCommandsQueue;
+  #options: RedisClientOptions;
+  constructor(commandsQueue: RedisCommandsQueue, options: RedisClientOptions) {
+    super();
+    this.#commandsQueue = commandsQueue;
+    this.#options = options;
+
+    this.#commandsQueue.addPushHandler(this.#onPush);
+  }
+
+  #onPush = (push: Array<any>): boolean => {
+    switch (push[0].toString()) {
+      case PN.MOVING: {
+        const [_, afterMs, url] = push;
+        const [host, port] = url.toString().split(":");
+        this.#onMoving(afterMs, host, Number(port));
+        return true;
+      }
+      case PN.MIGRATING:
+      case PN.FAILING_OVER: {
+        this.#onMigrating();
+        return true;
+      }
+      case PN.MIGRATED:
+      case PN.FAILED_OVER: {
+        this.#onMigrated();
+        return true;
+      }
+    }
+    return false;
+  };
+
+  //  Queue:
+  //     toWrite [ C D E ]
+  //     waitingForReply [ A B ]   - aka In-flight commands
+  //
+  //  time: ---1-2---3-4-5-6---------------------------
+  //
+  //  1. [EVENT] MOVING PN received
+  //  2. [ACTION] Pause writing ( we need to wait for new socket to connect and for all in-flight commands to complete )
+  //  3. [EVENT] New socket connected
+  //  4. [EVENT] In-flight commands completed
+  //  5. [ACTION] Destroy old socket
+  //  6. [ACTION] Resume writing -> we are going to write to the new socket from now on
+  #onMoving = async (
+    _afterMs: number,
+    host: string,
+    port: number,
+  ): Promise<void> => {
+    // 1 [EVENT] MOVING PN received
+    // 2 [ACTION] Pause writing
+    this.emit(MAINTENANCE_EVENTS.PAUSE_WRITING);
+    this.#onMigrating();
+
+    const newSocket = new RedisSocket({
+      ...this.#options.socket,
+      host,
+      port,
+    });
+    //todo
+    newSocket.setMaintenanceTimeout();
+    await newSocket.connect();
+    // 3 [EVENT] New socket connected
+
+    await this.#commandsQueue.waitForInflightCommandsToComplete();
+    // 4 [EVENT] In-flight commands completed
+
+    // 5 + 6
+    this.emit(MAINTENANCE_EVENTS.RESUME_WRITING, newSocket);
+    this.#onMigrated();
+  };
+
+  #onMigrating = async () => {
+    this.#commandsQueue.inMaintenance = true;
+    this.#commandsQueue.setMaintenanceCommandTimeout(
+      this.#options.gracefulMaintenance?.relaxedCommandTimeout,
+    );
+
+    this.emit(MAINTENANCE_EVENTS.TIMEOUTS_UPDATE, {
+      inMaintenance: true,
+      timeout: this.#options.gracefulMaintenance?.relaxedSocketTimeout
+    } satisfies SocketTimeoutUpdate);
+  };
+
+  #onMigrated = async () => {
+    this.#commandsQueue.inMaintenance = false;
+    this.#commandsQueue.setMaintenanceCommandTimeout(undefined);
+
+    this.emit(MAINTENANCE_EVENTS.TIMEOUTS_UPDATE, {
+      inMaintenance: false,
+      timeout: undefined
+    } satisfies SocketTimeoutUpdate);
+  };
+
+};

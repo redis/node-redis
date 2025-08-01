@@ -1,7 +1,7 @@
 import { EventEmitter, once } from 'node:events';
 import net from 'node:net';
 import tls from 'node:tls';
-import { ConnectionTimeoutError, ClientClosedError, SocketClosedUnexpectedlyError, ReconnectStrategyError, SocketTimeoutError } from '../errors';
+import { ConnectionTimeoutError, ClientClosedError, SocketClosedUnexpectedlyError, ReconnectStrategyError, SocketTimeoutError, SocketTimeoutDuringMaintananceError } from '../errors';
 import { setTimeout } from 'node:timers/promises';
 import { RedisArgument } from '../RESP/types';
 
@@ -51,14 +51,13 @@ export type RedisTcpSocketOptions = RedisTcpOptions | RedisTlsOptions;
 
 export type RedisSocketOptions = RedisTcpSocketOptions | RedisIpcOptions;
 
-export type RedisSocketInitiator = () => void | Promise<unknown>;
-
 export default class RedisSocket extends EventEmitter {
-  readonly #initiator;
   readonly #connectTimeout;
   readonly #reconnectStrategy;
   readonly #socketFactory;
   readonly #socketTimeout;
+
+  #maintenanceTimeout: number | undefined;
 
   #socket?: net.Socket | tls.TLSSocket;
 
@@ -82,14 +81,27 @@ export default class RedisSocket extends EventEmitter {
     return this.#socketEpoch;
   }
 
-  constructor(initiator: RedisSocketInitiator, options?: RedisSocketOptions) {
+  #inMaintenance = false;
+
+  set inMaintenance(value: boolean) {
+    this.#inMaintenance = value;
+  }
+
+  constructor(options?: RedisSocketOptions) {
     super();
 
-    this.#initiator = initiator;
     this.#connectTimeout = options?.connectTimeout ?? 5000;
     this.#reconnectStrategy = this.#createReconnectStrategy(options);
     this.#socketFactory = this.#createSocketFactory(options);
     this.#socketTimeout = options?.socketTimeout;
+  }
+
+  async waitForReady(): Promise<void> {
+    if (this.#isReady) return
+    return new Promise((resolve, reject) => {
+      this.once('ready', resolve);
+      this.once('error', reject);
+    });
   }
 
   #createReconnectStrategy(options?: RedisSocketOptions): ReconnectStrategyFunction {
@@ -214,14 +226,6 @@ export default class RedisSocket extends EventEmitter {
       try {
         this.#socket = await this.#createSocket();
         this.emit('connect');
-
-        try {
-          await this.#initiator();
-        } catch (err) {
-          this.#socket.destroy();
-          this.#socket = undefined;
-          throw err;
-        }
         this.#isReady = true;
         this.#socketEpoch++;
         this.emit('ready');
@@ -236,6 +240,18 @@ export default class RedisSocket extends EventEmitter {
         this.emit('reconnecting');
       }
     } while (this.#isOpen && !this.#isReady);
+  }
+
+  setMaintenanceTimeout(ms?: number) {
+    if (this.#maintenanceTimeout === ms) return;
+
+    this.#maintenanceTimeout = ms;
+
+    if(ms !== undefined) {
+      this.#socket?.setTimeout(ms);
+    } else {
+      this.#socket?.setTimeout(this.#socketTimeout ?? 0);
+    }
   }
 
   async #createSocket(): Promise<net.Socket | tls.TLSSocket> {
@@ -260,7 +276,10 @@ export default class RedisSocket extends EventEmitter {
 
     if (this.#socketTimeout) {
       socket.once('timeout', () => {
-        socket.destroy(new SocketTimeoutError(this.#socketTimeout!));
+        const error = this.#inMaintenance
+          ? new SocketTimeoutDuringMaintananceError(this.#socketTimeout!)
+          : new SocketTimeoutError(this.#socketTimeout!)
+        socket.destroy(error);
       });
       socket.setTimeout(this.#socketTimeout);
     }
