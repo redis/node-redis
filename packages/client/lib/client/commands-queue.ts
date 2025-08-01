@@ -3,9 +3,8 @@ import encodeCommand from '../RESP/encoder';
 import { Decoder, PUSH_TYPE_MAPPING, RESP_TYPES } from '../RESP/decoder';
 import { TypeMapping, ReplyUnion, RespVersions, RedisArgument } from '../RESP/types';
 import { ChannelListeners, PubSub, PubSubCommand, PubSubListener, PubSubType, PubSubTypeListeners } from './pub-sub';
-import { AbortError, ErrorReply, TimeoutDuringMaintanance, TimeoutError } from '../errors';
+import { AbortError, ErrorReply, CommandTimeoutDuringMaintananceError, TimeoutError } from '../errors';
 import { MonitorCallback } from '.';
-import assert from 'assert';
 
 export interface CommandOptions<T = TypeMapping> {
   chainId?: symbol;
@@ -71,10 +70,12 @@ export default class RedisCommandsQueue {
 
   #pushHandlers: PushHandler[] = [this.#onPush.bind(this)];
 
-  // If this value is set, we are in a maintenance mode.
-  // This means any existing commands should have their timeout
-  // overwritten to the new timeout. And all new commands should
-  // have their timeout set as the new timeout.
+  #inMaintenance = false;
+
+  set inMaintenance(value: boolean) {
+    this.#inMaintenance = value;
+  }
+
   #maintenanceCommandTimeout: number | undefined
 
   setMaintenanceCommandTimeout(ms: number | undefined) {
@@ -87,29 +88,24 @@ export default class RedisCommandsQueue {
     this.#toWrite.forEachNode(node => {
       const command = node.value;
 
-      // If the command didnt have a timeout, skip it
-      if (!command.timeout) return;
-
-      // Remove existing timeout listener
+      // Remove timeout listener if it exists
       RedisCommandsQueue.#removeTimeoutListener(command)
-
-      //TODO see if this is needed
-      // // Keep a flag to know if we were in maintenance at this point in time.
-      // // To be used in the timeout listener, which needs to know which exact error to use.
-      // const wasMaintenance = !!this.#maintenanceCommandTimeout
 
       // Determine newTimeout
       const newTimeout = this.#maintenanceCommandTimeout ?? command.timeout?.originalTimeout;
-      assert(newTimeout !== undefined, 'Trying to reset timeout to `undefined`')
+      // if no timeout is given and the command didnt have any timeout before, skip
+      if (!newTimeout)  return;
 
+
+      // Overwrite the command's timeout
       const signal = AbortSignal.timeout(newTimeout);
       command.timeout = {
         signal,
         listener: () => {
           this.#toWrite.remove(node);
-          command.reject(this.#maintenanceCommandTimeout ? new TimeoutDuringMaintanance(newTimeout) : new TimeoutError());
+          command.reject(this.#inMaintenance ? new CommandTimeoutDuringMaintananceError(newTimeout) : new TimeoutError());
         },
-        originalTimeout: command.timeout.originalTimeout
+        originalTimeout: command.timeout?.originalTimeout
       };
       signal.addEventListener('abort', command.timeout.listener, { once: true });
     });
@@ -219,23 +215,17 @@ export default class RedisCommandsQueue {
         typeMapping: options?.typeMapping
       };
 
-      // If #commandTimeout was explicitly set, this
-      // means we are in maintenance mode and should
+      // If #maintenanceCommandTimeout was explicitly set, we should
       // use it instead of the timeout provided by the command
       const timeout = this.#maintenanceCommandTimeout || options?.timeout
       if (timeout) {
-
-        //TODO see if this is needed
-        // // Keep a flag to know if we were in maintenance at this point in time.
-        // // To be used in the timeout listener, which needs to know which exact error to use.
-        // const wasMaintenance = !!this.#maintenanceCommandTimeout
 
         const signal = AbortSignal.timeout(timeout);
         value.timeout = {
           signal,
           listener: () => {
             this.#toWrite.remove(node);
-            value.reject(this.#maintenanceCommandTimeout ? new TimeoutDuringMaintanance(timeout) : new TimeoutError());
+            value.reject(this.#inMaintenance ? new CommandTimeoutDuringMaintananceError(timeout) : new TimeoutError());
           },
           originalTimeout: options?.timeout
         };

@@ -20,7 +20,7 @@ import { BasicClientSideCache, ClientSideCacheConfig, ClientSideCacheProvider } 
 import { BasicCommandParser, CommandParser } from './parser';
 import SingleEntryCache from '../single-entry-cache';
 import { version } from '../../package.json'
-import EnterpriseMaintenanceManager, { MAINTENANCE_EVENTS } from './enterprise-maintenance-manager';
+import EnterpriseMaintenanceManager, { MAINTENANCE_EVENTS, SocketTimeoutUpdate } from './enterprise-maintenance-manager';
 
 export interface RedisClientOptions<
   M extends RedisModules = RedisModules,
@@ -177,11 +177,19 @@ export interface RedisClientOptions<
     /**
      * Designates how failed commands should be handled. A failed command is when the time isn’t sufficient to deal with the responses on the old connection before the server shuts it down
      */
-    handleFailedCommands: 'exception' | 'retry',
+    handleFailedCommands?: 'exception' | 'retry',
     /**
-     * Specify whether we should throw a TimeoutDuringMaintanance exception or provide more relaxed timeout, in order to minimize command timeouts during maintenance.
+     * Specifies a more relaxed timeout (in milliseconds) for commands during a maintenance window.
+     * This helps minimize command timeouts during maintenance. If not provided, the `commandOptions.timeout`
+     * will be used instead. Timeouts during maintenance period result in a `CommandTimeoutDuringMaintanance` error.
      */
-    handleTimeouts: 'error' | number,
+    relaxedCommandTimeout?: number,
+    /**
+     * Specifies a more relaxed timeout (in milliseconds) for the socket during a maintenance window.
+     * This helps minimize socket timeouts during maintenance. If not provided, the `socket.timeout`
+     * will be used instead. Timeouts during maintenance period result in a `SocketTimeoutDuringMaintanance` error.
+     */
+    relaxedSocketTimeout?: number
   }
 }
 
@@ -490,7 +498,10 @@ export default class RedisClient<
       new EnterpriseMaintenanceManager(this.#queue, this.#options!)
         .on(MAINTENANCE_EVENTS.PAUSE_WRITING, () => this._self.#pausedForMaintenance = true )
         .on(MAINTENANCE_EVENTS.RESUME_WRITING, this.#resumeFromMaintenance.bind(this))
-        .on(MAINTENANCE_EVENTS.TIMEOUTS_UPDATE, (mtm: number | undefined) => this._self.#socket.setMaintenanceTimeout(mtm))
+        .on(MAINTENANCE_EVENTS.TIMEOUTS_UPDATE, (value: SocketTimeoutUpdate) => {
+          this._self.#socket.inMaintenance = value.inMaintenance;
+          this._self.#socket.setMaintenanceTimeout(value.timeout);
+        })
     }
 
     if (options?.clientSideCache) {
