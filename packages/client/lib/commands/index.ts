@@ -169,6 +169,7 @@ import KEYS from './KEYS';
 import LASTSAVE from './LASTSAVE';
 import LATENCY_DOCTOR from './LATENCY_DOCTOR';
 import LATENCY_GRAPH from './LATENCY_GRAPH';
+import LATENCY_HISTOGRAM from './LATENCY_HISTOGRAM';
 import LATENCY_HISTORY from './LATENCY_HISTORY';
 import LATENCY_LATEST from './LATENCY_LATEST';
 import LATENCY_RESET from './LATENCY_RESET';
@@ -703,6 +704,8 @@ export default {
   latencyDoctor: LATENCY_DOCTOR,
   LATENCY_GRAPH,
   latencyGraph: LATENCY_GRAPH,
+  LATENCY_HISTOGRAM,
+  latencyHistogram: LATENCY_HISTOGRAM,
   LATENCY_HISTORY,
   latencyHistory: LATENCY_HISTORY,
   LATENCY_LATEST,
