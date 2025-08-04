@@ -1,7 +1,10 @@
 import EventEmitter from "events";
 import { RedisClientOptions } from ".";
 import RedisCommandsQueue from "./commands-queue";
-import RedisSocket from "./socket";
+import RedisSocket, { RedisSocketOptions, RedisTcpSocketOptions } from "./socket";
+import { RedisArgument } from "../..";
+import { isIP } from "net";
+import { lookup } from "dns/promises";
 
 export const MAINTENANCE_EVENTS = {
   PAUSE_WRITING: "pause-writing",
@@ -18,13 +21,19 @@ const PN = {
 };
 
 export interface SocketTimeoutUpdate {
-  inMaintenance: boolean,
-  timeout?: number
+  inMaintenance: boolean;
+  timeout?: number;
 }
 
 export default class EnterpriseMaintenanceManager extends EventEmitter {
   #commandsQueue: RedisCommandsQueue;
   #options: RedisClientOptions;
+
+  static async getHandshakeCommand(tls: boolean, host: string): Promise<Array<RedisArgument>> {
+    const movingEndpointType = await determineEndpoint(tls, host);
+    return ["CLIENT", "MAINT_NOTIFICATIONS", "ON", "moving-endpoint-type", movingEndpointType];
+  }
+
   constructor(commandsQueue: RedisCommandsQueue, options: RedisClientOptions) {
     super();
     this.#commandsQueue = commandsQueue;
@@ -103,7 +112,7 @@ export default class EnterpriseMaintenanceManager extends EventEmitter {
 
     this.emit(MAINTENANCE_EVENTS.TIMEOUTS_UPDATE, {
       inMaintenance: true,
-      timeout: this.#options.gracefulMaintenance?.relaxedSocketTimeout
+      timeout: this.#options.gracefulMaintenance?.relaxedSocketTimeout,
     } satisfies SocketTimeoutUpdate);
   };
 
@@ -113,8 +122,53 @@ export default class EnterpriseMaintenanceManager extends EventEmitter {
 
     this.emit(MAINTENANCE_EVENTS.TIMEOUTS_UPDATE, {
       inMaintenance: false,
-      timeout: undefined
+      timeout: undefined,
     } satisfies SocketTimeoutUpdate);
   };
+}
 
-};
+type MovingEndpointType =
+  | "internal-ip"
+  | "internal-fqdn"
+  | "external-ip"
+  | "external-fqdn"
+  | "none";
+
+function isPrivateIP(ip: string): boolean {
+  const version = isIP(ip);
+  if (version === 4) {
+    const octets = ip.split(".").map(Number);
+    return (
+      octets[0] === 10 ||
+      (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) ||
+      (octets[0] === 192 && octets[1] === 168)
+    );
+  }
+  if (version === 6) {
+    return (
+      ip.startsWith("fc") || // Unique local
+      ip.startsWith("fd") || // Unique local
+      ip === "::1" || // Loopback
+      ip.startsWith("fe80") // Link-local unicast
+    );
+  }
+  return false;
+}
+
+async function determineEndpoint(
+  tlsEnabled: boolean,
+  host: string,
+): Promise<MovingEndpointType> {
+
+  const ip = isIP(host)
+    ? host
+    : (await lookup(host, {family: 0})).address
+
+  const isPrivate = isPrivateIP(ip);
+
+  if (tlsEnabled) {
+    return isPrivate ? "internal-fqdn" : "external-fqdn";
+  } else {
+    return isPrivate ? "internal-ip" : "external-ip";
+  }
+}

@@ -1,5 +1,5 @@
 import COMMANDS from '../commands';
-import RedisSocket, { RedisSocketOptions } from './socket';
+import RedisSocket, { RedisSocketOptions, RedisTcpSocketOptions } from './socket';
 import { BasicAuth, CredentialsError, CredentialsProvider, StreamingCredentialsProvider, UnableToObtainNewCredentialsError, Disposable } from '../authx';
 import RedisCommandsQueue, { CommandOptions } from './commands-queue';
 import { EventEmitter } from 'node:events';
@@ -21,6 +21,7 @@ import { BasicCommandParser, CommandParser } from './parser';
 import SingleEntryCache from '../single-entry-cache';
 import { version } from '../../package.json'
 import EnterpriseMaintenanceManager, { MAINTENANCE_EVENTS, SocketTimeoutUpdate } from './enterprise-maintenance-manager';
+import assert from 'node:assert';
 
 export interface RedisClientOptions<
   M extends RedisModules = RedisModules,
@@ -759,6 +760,20 @@ export default class RedisClient<
 
     if (this.#clientSideCache) {
       commands.push({cmd: this.#clientSideCache.trackingOn()});
+    }
+
+    if(this.#options?.gracefulMaintenance) {
+      const socket = this.#options.socket;
+      assert(socket !== undefined);
+      const { tls, host } = socket as RedisTcpSocketOptions;
+      assert(tls !== undefined);
+      assert(host !== undefined);
+      commands.push({
+        cmd: await EnterpriseMaintenanceManager.getHandshakeCommand(tls, host),
+        errorHandler: (err: Error) => {
+          console.log("Maintenance handshake failed: ", err);
+        }
+      });
     }
 
     return commands;
