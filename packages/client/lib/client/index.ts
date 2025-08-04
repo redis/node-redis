@@ -766,10 +766,9 @@ export default class RedisClient<
       const socket = this.#options.socket;
       assert(socket !== undefined);
       const { tls, host } = socket as RedisTcpSocketOptions;
-      assert(tls !== undefined);
       assert(host !== undefined);
       commands.push({
-        cmd: await EnterpriseMaintenanceManager.getHandshakeCommand(tls, host),
+        cmd: await EnterpriseMaintenanceManager.getHandshakeCommand(!!tls, host),
         errorHandler: (err: Error) => {
           dbgMaintenance("Maintenance handshake failed: ", err);
         }
