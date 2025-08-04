@@ -5,6 +5,7 @@ import { TypeMapping, ReplyUnion, RespVersions, RedisArgument } from '../RESP/ty
 import { ChannelListeners, PubSub, PubSubCommand, PubSubListener, PubSubType, PubSubTypeListeners } from './pub-sub';
 import { AbortError, ErrorReply, CommandTimeoutDuringMaintananceError, TimeoutError } from '../errors';
 import { MonitorCallback } from '.';
+import { dbgMaintenance } from './enterprise-maintenance-manager';
 
 export interface CommandOptions<T = TypeMapping> {
   chainId?: symbol;
@@ -79,10 +80,13 @@ export default class RedisCommandsQueue {
   #maintenanceCommandTimeout: number | undefined
 
   setMaintenanceCommandTimeout(ms: number | undefined) {
+    dbgMaintenance(`Setting maintenance command timeout to ${ms}`);
     // Prevent possible api misuse
     if (this.#maintenanceCommandTimeout === ms) return;
 
     this.#maintenanceCommandTimeout = ms;
+
+    let counter = 0;
 
     // Overwrite timeouts of all eligible toWrite commands
     this.#toWrite.forEachNode(node => {
@@ -96,6 +100,7 @@ export default class RedisCommandsQueue {
       // if no timeout is given and the command didnt have any timeout before, skip
       if (!newTimeout)  return;
 
+      counter++;
 
       // Overwrite the command's timeout
       const signal = AbortSignal.timeout(newTimeout);
@@ -109,6 +114,7 @@ export default class RedisCommandsQueue {
       };
       signal.addEventListener('abort', command.timeout.listener, { once: true });
     });
+    dbgMaintenance(`Total of ${counter} timeouts reset to ${ms}`);
   }
 
   get isPubSubActive() {

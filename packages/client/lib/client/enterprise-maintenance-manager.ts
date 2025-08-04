@@ -1,7 +1,7 @@
 import EventEmitter from "events";
 import { RedisClientOptions } from ".";
 import RedisCommandsQueue from "./commands-queue";
-import RedisSocket, { RedisSocketOptions, RedisTcpSocketOptions } from "./socket";
+import RedisSocket from "./socket";
 import { RedisArgument } from "../..";
 import { isIP } from "net";
 import { lookup } from "dns/promises";
@@ -23,6 +23,11 @@ const PN = {
 export interface SocketTimeoutUpdate {
   inMaintenance: boolean;
   timeout?: number;
+}
+
+export const dbgMaintenance = (...args: any[]) => {
+  if (!process.env.DEBUG_MAINTENANCE) return;
+  return console.log('[MNT]', ...args);
 }
 
 export default class EnterpriseMaintenanceManager extends EventEmitter {
@@ -47,16 +52,19 @@ export default class EnterpriseMaintenanceManager extends EventEmitter {
       case PN.MOVING: {
         const [_, afterMs, url] = push;
         const [host, port] = url.toString().split(":");
+        dbgMaintenance('Received MOVING:', afterMs, host, Number(port));
         this.#onMoving(afterMs, host, Number(port));
         return true;
       }
       case PN.MIGRATING:
       case PN.FAILING_OVER: {
+        dbgMaintenance('Received MIGRATING|FAILING_OVER');
         this.#onMigrating();
         return true;
       }
       case PN.MIGRATED:
       case PN.FAILED_OVER: {
+        dbgMaintenance('Received MIGRATED|FAILED_OVER');
         this.#onMigrated();
         return true;
       }
@@ -83,6 +91,7 @@ export default class EnterpriseMaintenanceManager extends EventEmitter {
   ): Promise<void> => {
     // 1 [EVENT] MOVING PN received
     // 2 [ACTION] Pause writing
+    dbgMaintenance('Pausing writing of new commands to old socket');
     this.emit(MAINTENANCE_EVENTS.PAUSE_WRITING);
     this.#onMigrating();
 
@@ -93,13 +102,18 @@ export default class EnterpriseMaintenanceManager extends EventEmitter {
     });
     //todo
     newSocket.setMaintenanceTimeout();
+    dbgMaintenance(`Connecting to new socket: ${host}:${port}`);
     await newSocket.connect();
+    dbgMaintenance(`Connected to new socket`);
     // 3 [EVENT] New socket connected
 
+    dbgMaintenance(`Wait for all in-flight commands to complete`);
     await this.#commandsQueue.waitForInflightCommandsToComplete();
+    dbgMaintenance(`In-flight commands completed`);
     // 4 [EVENT] In-flight commands completed
 
     // 5 + 6
+    dbgMaintenance('Resume writing')
     this.emit(MAINTENANCE_EVENTS.RESUME_WRITING, newSocket);
     this.#onMigrated();
   };
