@@ -145,8 +145,7 @@ type MovingEndpointType =
   | "internal-ip"
   | "internal-fqdn"
   | "external-ip"
-  | "external-fqdn"
-  | "none";
+  | "external-fqdn";
 
 function isPrivateIP(ip: string): boolean {
   const version = isIP(ip);
