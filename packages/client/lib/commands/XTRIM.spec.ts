@@ -38,6 +38,13 @@ describe('XTRIM', () => {
         ['XTRIM', 'key', 'MAXLEN', '=', '1', 'LIMIT', '1']
       );
     });
+
+    it('with MINID', () => {
+      assert.deepEqual(
+        XTRIM.transformArguments('key', 'MINID', '0-0'),
+        ['XTRIM', 'key', 'MINID', '0-0']
+      );
+    });
   });
 
   testUtils.testAll('xTrim', async client => {
