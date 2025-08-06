@@ -121,7 +121,7 @@ of sending a <code>QUIT</code> command to the server, the client can simply clos
 <pre><code class="language-typescript"><span class="hl-6">client</span><span class="hl-1">.</span><span class="hl-0">destroy</span><span class="hl-1">();</span>
 </code><button>Copy</button></pre>
 <a id="md:client-side-caching" class="tsd-anchor"></a><h3><a href="#md:client-side-caching">Client Side Caching</a></h3><p>Node Redis v5 adds support for <a href="https://redis.io/docs/manual/client-side-caching/">Client Side Caching</a>, which enables clients to cache query results locally. The Redis server will notify the client when cached results are no longer valid.</p>
-<pre><code class="language-typescript"><span class="hl-8">// Enable client side caching with RESP3</span><br/><span class="hl-3">const</span><span class="hl-1"> </span><span class="hl-7">client</span><span class="hl-1"> = </span><span class="hl-0">createClient</span><span class="hl-1">({</span><br/><span class="hl-1">  </span><span class="hl-6">RESP:</span><span class="hl-1"> </span><span class="hl-4">3</span><span class="hl-1">, </span><br/><span class="hl-1">  </span><span class="hl-6">clientSideCache:</span><span class="hl-1"> {</span><br/><span class="hl-1">    </span><span class="hl-6">ttl:</span><span class="hl-1"> </span><span class="hl-4">0</span><span class="hl-1">,             </span><span class="hl-8">// Time-to-live (0 = no expiration)</span><br/><span class="hl-1">    </span><span class="hl-6">maxEntries:</span><span class="hl-1"> </span><span class="hl-4">0</span><span class="hl-1">,      </span><span class="hl-8">// Maximum entries (0 = unlimited)</span><br/><span class="hl-1">    </span><span class="hl-6">evictPolicy:</span><span class="hl-1"> </span><span class="hl-2">&quot;LRU&quot;</span><span class="hl-1">  </span><span class="hl-8">// Eviction policy: &quot;LRU&quot; or &quot;FIFO&quot;</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">});</span>
+<pre><code class="language-typescript"><span class="hl-8">// Enable client side caching with RESP3</span><br/><span class="hl-3">const</span><span class="hl-1"> </span><span class="hl-7">client</span><span class="hl-1"> = </span><span class="hl-0">createClient</span><span class="hl-1">({</span><br/><span class="hl-1">  </span><span class="hl-6">RESP:</span><span class="hl-1"> </span><span class="hl-4">3</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-6">clientSideCache:</span><span class="hl-1"> {</span><br/><span class="hl-1">    </span><span class="hl-6">ttl:</span><span class="hl-1"> </span><span class="hl-4">0</span><span class="hl-1">,             </span><span class="hl-8">// Time-to-live (0 = no expiration)</span><br/><span class="hl-1">    </span><span class="hl-6">maxEntries:</span><span class="hl-1"> </span><span class="hl-4">0</span><span class="hl-1">,      </span><span class="hl-8">// Maximum entries (0 = unlimited)</span><br/><span class="hl-1">    </span><span class="hl-6">evictPolicy:</span><span class="hl-1"> </span><span class="hl-2">&quot;LRU&quot;</span><span class="hl-1">  </span><span class="hl-8">// Eviction policy: &quot;LRU&quot; or &quot;FIFO&quot;</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">});</span>
 </code><button>Copy</button></pre>
 <p>See the <a href="https://github.com/redis/node-redis/blob/master/docs/v5.md#client-side-caching">V5 documentation</a> for more details and advanced usage.</p>
 <a id="md:auto-pipelining" class="tsd-anchor"></a><h3><a href="#md:auto-pipelining">Auto-Pipelining</a></h3><p>Node Redis will automatically pipeline requests that are made during the same &quot;tick&quot;.</p>
@@ -190,6 +190,10 @@ an <code>error</code> occurs, that error will be thrown and the Node.js process 
 </tr>
 </thead>
 <tbody><tr>
+<td>8.2.z</td>
+<td>:heavy_check_mark:</td>
+</tr>
+<tr>
 <td>8.0.z</td>
 <td>:heavy_check_mark:</td>
 </tr>
