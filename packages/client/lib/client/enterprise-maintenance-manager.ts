@@ -107,7 +107,8 @@ export default class EnterpriseMaintenanceManager extends EventEmitter {
       host,
       port,
     });
-    newSocket.setMaintenanceTimeout();
+    dbgMaintenance(`Set timeout for new socket to ${this.#options.gracefulMaintenance?.relaxedSocketTimeout}`);
+    newSocket.setMaintenanceTimeout(this.#options.gracefulMaintenance?.relaxedSocketTimeout);
     dbgMaintenance(`Connecting to new socket: ${host}:${port}`);
     await newSocket.connect();
     dbgMaintenance(`Connected to new socket`);
