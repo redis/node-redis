@@ -5,6 +5,7 @@ import RedisSocket from "./socket";
 import { RedisArgument } from "../..";
 import { isIP } from "net";
 import { lookup } from "dns/promises";
+import assert from "node:assert";
 
 export const MAINTENANCE_EVENTS = {
   PAUSE_WRITING: "pause-writing",
@@ -33,6 +34,7 @@ export const dbgMaintenance = (...args: any[]) => {
 export default class EnterpriseMaintenanceManager extends EventEmitter {
   #commandsQueue: RedisCommandsQueue;
   #options: RedisClientOptions;
+  #isMaintenance = 0;
 
   static async getHandshakeCommand(tls: boolean, host: string): Promise<Array<RedisArgument>> {
     const movingEndpointType = await determineEndpoint(tls, host);
@@ -104,7 +106,6 @@ export default class EnterpriseMaintenanceManager extends EventEmitter {
       host,
       port,
     });
-    //todo
     newSocket.setMaintenanceTimeout();
     dbgMaintenance(`Connecting to new socket: ${host}:${port}`);
     await newSocket.connect();
@@ -123,6 +124,12 @@ export default class EnterpriseMaintenanceManager extends EventEmitter {
   };
 
   #onMigrating = async () => {
+    this.#isMaintenance++;
+    if (this.#isMaintenance > 1) {
+      dbgMaintenance(`Timeout relaxation already done`);
+      return;
+    };
+
     this.#commandsQueue.inMaintenance = true;
     this.#commandsQueue.setMaintenanceCommandTimeout(
       this.#options.gracefulMaintenance?.relaxedCommandTimeout,
@@ -135,6 +142,13 @@ export default class EnterpriseMaintenanceManager extends EventEmitter {
   };
 
   #onMigrated = async () => {
+    this.#isMaintenance--;
+    assert(this.#isMaintenance >= 0);
+    if(this.#isMaintenance > 0) {
+      dbgMaintenance(`Not ready to unrelax timeouts yet`);
+      return;
+    }
+
     this.#commandsQueue.inMaintenance = false;
     this.#commandsQueue.setMaintenanceCommandTimeout(undefined);
 
