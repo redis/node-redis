@@ -96,10 +96,11 @@ export default class EnterpriseMaintenanceManager extends EventEmitter {
     port: number,
   ): Promise<void> => {
     // 1 [EVENT] MOVING PN received
+    this.#onMigrating();
+
     // 2 [ACTION] Pause writing
     dbgMaintenance('Pausing writing of new commands to old socket');
     this.emit(MAINTENANCE_EVENTS.PAUSE_WRITING);
-    this.#onMigrating();
 
     const newSocket = new RedisSocket({
       ...this.#options.socket,
