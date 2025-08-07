@@ -48,9 +48,13 @@ export default class EnterpriseMaintenanceManager extends EventEmitter {
   }
 
   #onPush = (push: Array<any>): boolean => {
+    dbgMaintenance(push.map(item => item.toString()))
     switch (push[0].toString()) {
       case PN.MOVING: {
-        const [_, afterMs, url] = push;
+        // [ 'MOVING', '17', '15', '54.78.247.156:12075' ]
+        //             ^seq   ^after    ^new ip
+        const afterMs = push[2];
+        const url = push[3];
         const [host, port] = url.toString().split(":");
         dbgMaintenance('Received MOVING:', afterMs, host, Number(port));
         this.#onMoving(afterMs, host, Number(port));
