@@ -20,7 +20,7 @@ import { BasicClientSideCache, ClientSideCacheConfig, ClientSideCacheProvider } 
 import { BasicCommandParser, CommandParser } from './parser';
 import SingleEntryCache from '../single-entry-cache';
 import { version } from '../../package.json'
-import EnterpriseMaintenanceManager, { MAINTENANCE_EVENTS, SocketTimeoutUpdate, dbgMaintenance } from './enterprise-maintenance-manager';
+import EnterpriseMaintenanceManager, { MAINTENANCE_EVENTS, MovingEndpointType, SocketTimeoutUpdate } from './enterprise-maintenance-manager';
 import assert from 'node:assert';
 
 export interface RedisClientOptions<
@@ -146,53 +146,46 @@ export interface RedisClientOptions<
    * Tag to append to library name that is sent to the Redis server
    */
   clientInfoTag?: string;
-
   /**
-   * Configuration for handling Redis Enterprise graceful maintenance scenarios.
+   * Controls how the client handles Redis Enterprise maintenance push notifications.
    *
-   * When Redis Enterprise performs maintenance operations, nodes will be replaced, resulting in disconnects.
-   * This configuration allows the client to handle these scenarios gracefully by automatically
-   * reconnecting and managing command execution during maintenance windows.
+   * - `disabled`: The feature is not used by the client.
+   * - `enabled`: The client attempts to enable the feature on the server. If the server responds with an error, the connection is interrupted.
+   * - `auto`: The client attempts to enable the feature on the server. If the server returns an error, the client disables the feature and continues.
    *
-   * @example Basic graceful maintenance configuration
-   * ```
-   * const client = createClient({
-   *   gracefulMaintenance: {
-   *     handleFailedCommands: 'retry',
-   *     handleTimeouts: 'exception',
-   *   }
-   * });
-   * ```
-   *
-   * @example Graceful maintenance with timeout smoothing
-   * ```
-   * const client = createClient({
-   *   gracefulMaintenance: {
-   *     handleFailedCommands: 'retry',
-   *     handleTimeouts: 5000, // Extend timeouts to 5 seconds during maintenance
-   *   }
-   * });
-   * ```
+   * The default is `auto`.
    */
-  gracefulMaintenance?: {
-    /**
-     * Designates how failed commands should be handled. A failed command is when the time isn’t sufficient to deal with the responses on the old connection before the server shuts it down
-     */
-    handleFailedCommands?: 'exception' | 'retry',
-    /**
-     * Specifies a more relaxed timeout (in milliseconds) for commands during a maintenance window.
-     * This helps minimize command timeouts during maintenance. If not provided, the `commandOptions.timeout`
-     * will be used instead. Timeouts during maintenance period result in a `CommandTimeoutDuringMaintanance` error.
-     */
-    relaxedCommandTimeout?: number,
-    /**
-     * Specifies a more relaxed timeout (in milliseconds) for the socket during a maintenance window.
-     * This helps minimize socket timeouts during maintenance. If not provided, the `socket.timeout`
-     * will be used instead. Timeouts during maintenance period result in a `SocketTimeoutDuringMaintanance` error.
-     */
-    relaxedSocketTimeout?: number
-  }
-}
+  maintPushNotifications?: 'disabled' | 'enabled' | 'auto';
+  /**
+   * Controls how the client requests the endpoint to reconnect to during a MOVING notification in Redis Enterprise maintenance.
+   *
+   * - `auto`: If the connection is opened to a name or IP address that is from/resolves to a reserved private IP range, request an internal endpoint (e.g., internal-ip), otherwise an external one. If TLS is enabled, then request a FQDN.
+   * - `internal-ip`: Enforce requesting the internal IP.
+   * - `internal-fqdn`: Enforce requesting the internal FQDN.
+   * - `external-ip`: Enforce requesting the external IP address.
+   * - `external-fqdn`: Enforce requesting the external FQDN.
+   * - `none`: Used to request a null endpoint, which tells the client to reconnect based on its current config
+
+   * The default is `auto`.
+   */
+  maintMovingEndpointType?: MovingEndpointType;
+  /**
+   * Specifies a more relaxed timeout (in milliseconds) for commands during a maintenance window.
+   * This helps minimize command timeouts during maintenance. If not provided, the `commandOptions.timeout`
+   * will be used instead. Timeouts during maintenance period result in a `CommandTimeoutDuringMaintanance` error.
+   *
+   * The default is 10000
+   */
+  maintRelaxedCommandTimeout?: number;
+  /**
+   * Specifies a more relaxed timeout (in milliseconds) for the socket during a maintenance window.
+   * This helps minimize socket timeouts during maintenance. If not provided, the `socket.timeout`
+   * will be used instead. Timeouts during maintenance period result in a `SocketTimeoutDuringMaintanance` error.
+   *
+   * The default is 10000
+   */
+  maintRelaxedSocketTimeout?: number;
+};
 
 type WithCommands<
   RESP extends RespVersions,
@@ -519,15 +512,15 @@ export default class RedisClient<
     this.#queue = this.#initiateQueue();
     this.#socket = this.#createSocket(this.#options);
 
-    if(options?.gracefulMaintenance) {
+    if(options?.maintPushNotifications !== 'disabled') {
       new EnterpriseMaintenanceManager(this.#queue, this.#options!)
-        .on(MAINTENANCE_EVENTS.PAUSE_WRITING, () => this._self.#pausedForMaintenance = true )
+        .on(MAINTENANCE_EVENTS.PAUSE_WRITING, () => this._self.#pausedForMaintenance = true)
         .on(MAINTENANCE_EVENTS.RESUME_WRITING, this.#resumeFromMaintenance.bind(this))
         .on(MAINTENANCE_EVENTS.TIMEOUTS_UPDATE, (value: SocketTimeoutUpdate) => {
           this._self.#socket.inMaintenance = value.inMaintenance;
           this._self.#socket.setMaintenanceTimeout(value.timeout);
-        })
-    }
+        });
+    };
 
     if (options?.clientSideCache) {
       if (options.clientSideCache instanceof ClientSideCacheProvider) {
@@ -557,7 +550,7 @@ export default class RedisClient<
       throw new Error('Client Side Caching is only supported with RESP3');
     }
 
-    if (options?.gracefulMaintenance && options?.RESP !== 3) {
+    if (options?.maintPushNotifications !== 'disabled' && options?.RESP !== 3) {
       throw new Error('Graceful Maintenance is only supported with RESP3');
     }
 
@@ -586,8 +579,12 @@ export default class RedisClient<
     }
 
     if (options) {
+
+      if (!options.maintPushNotifications) options.maintPushNotifications = 'auto';
+
       return RedisClient.parseOptions(options);
     }
+
 
     return options;
   }
@@ -762,18 +759,12 @@ export default class RedisClient<
       commands.push({cmd: this.#clientSideCache.trackingOn()});
     }
 
-    if(this.#options?.gracefulMaintenance) {
-      const socket = this.#options.socket;
-      assert(socket !== undefined);
-      const { tls, host } = socket as RedisTcpSocketOptions;
-      assert(host !== undefined);
-      commands.push({
-        cmd: await EnterpriseMaintenanceManager.getHandshakeCommand(!!tls, host),
-        errorHandler: (err: Error) => {
-          dbgMaintenance("Maintenance handshake failed: ", err);
-        }
-      });
-    }
+    assert(this.#options?.socket !== undefined);
+    const { tls, host } = this.#options?.socket as RedisTcpSocketOptions;
+    const maintenanceHandshakeCmd = await EnterpriseMaintenanceManager.getHandshakeCommand(!!tls, host!, this.#options);
+    if(maintenanceHandshakeCmd) {
+      commands.push(maintenanceHandshakeCmd);
+    };
 
     return commands;
   }
