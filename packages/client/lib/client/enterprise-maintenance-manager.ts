@@ -176,16 +176,19 @@ async function determineEndpoint(
   tlsEnabled: boolean,
   host: string,
 ): Promise<MovingEndpointType> {
-
   const ip = isIP(host)
     ? host
     : (await lookup(host, {family: 0})).address
 
   const isPrivate = isPrivateIP(ip);
 
+  let result: MovingEndpointType
   if (tlsEnabled) {
-    return isPrivate ? "internal-fqdn" : "external-fqdn";
+    result = isPrivate ? "internal-fqdn" : "external-fqdn";
   } else {
-    return isPrivate ? "internal-ip" : "external-ip";
+    result = isPrivate ? "internal-ip" : "external-ip";
   }
+
+  dbgMaintenance(`Determine endpoint format: ${result}`)
+  return result;
 }
