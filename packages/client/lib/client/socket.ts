@@ -244,7 +244,7 @@ export default class RedisSocket extends EventEmitter {
   }
 
   setMaintenanceTimeout(ms?: number) {
-    dbgMaintenance(`Reset socket timeout to ${ms}`);
+    dbgMaintenance(`Set socket timeout to ${ms}`);
     if (this.#maintenanceTimeout === ms) return;
 
     this.#maintenanceTimeout = ms;
