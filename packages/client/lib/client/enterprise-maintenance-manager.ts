@@ -6,6 +6,7 @@ import { RedisArgument } from "../..";
 import { isIP } from "net";
 import { lookup } from "dns/promises";
 import assert from "node:assert";
+import { setTimeout } from 'node:timers/promises'
 
 export const MAINTENANCE_EVENTS = {
   PAUSE_WRITING: "pause-writing",
@@ -26,13 +27,6 @@ export interface SocketTimeoutUpdate {
   timeout?: number;
 }
 
-const DEFAULT_OPTIONS = {
-  maintPushNotifications: "auto",
-  maintMovingEndpointType: "auto",
-  maintRelaxedCommandTimeout: 1000,
-  maintRelaxedSocketTimeout: 1000,
-} as const;
-
 export const dbgMaintenance = (...args: any[]) => {
   if (!process.env.DEBUG_MAINTENANCE) return;
   return console.log("[MNT]", ...args);
@@ -42,6 +36,22 @@ export default class EnterpriseMaintenanceManager extends EventEmitter {
   #commandsQueue: RedisCommandsQueue;
   #options: RedisClientOptions;
   #isMaintenance = 0;
+
+  static setupDefaultMaintOptions(options: RedisClientOptions) {
+    if (options.maintPushNotifications === undefined) {
+      options.maintPushNotifications =
+        options?.RESP === 3 ? "auto" : "disabled";
+    }
+    if (options.maintMovingEndpointType === undefined) {
+      options.maintMovingEndpointType = "auto";
+    }
+    if (options.maintRelaxedSocketTimeout === undefined) {
+      options.maintRelaxedSocketTimeout = 10000;
+    }
+    if (options.maintRelaxedCommandTimeout === undefined) {
+      options.maintRelaxedCommandTimeout = 10000;
+    }
+  }
 
   static async getHandshakeCommand(
     tls: boolean,
@@ -63,8 +73,8 @@ export default class EnterpriseMaintenanceManager extends EventEmitter {
         movingEndpointType,
       ],
       errorHandler: (error: Error) => {
-        dbgMaintenance('handshake failed:', error);
-        if(options.maintPushNotifications === 'enabled') {
+        dbgMaintenance("handshake failed:", error);
+        if (options.maintPushNotifications === "enabled") {
           throw error;
         }
       },
@@ -74,22 +84,21 @@ export default class EnterpriseMaintenanceManager extends EventEmitter {
   constructor(commandsQueue: RedisCommandsQueue, options: RedisClientOptions) {
     super();
     this.#commandsQueue = commandsQueue;
-    this.#options = { ...DEFAULT_OPTIONS, ...options };
+    this.#options = options;
 
     this.#commandsQueue.addPushHandler(this.#onPush);
   }
 
   #onPush = (push: Array<any>): boolean => {
-    dbgMaintenance(push.map((item) => item.toString()));
+    dbgMaintenance(push);
     switch (push[0].toString()) {
       case PN.MOVING: {
         // [ 'MOVING', '17', '15', '54.78.247.156:12075' ]
         //             ^seq   ^after    ^new ip
-        const afterMs = push[2];
-        const url = push[3];
-        const [host, port] = url.toString().split(":");
-        dbgMaintenance("Received MOVING:", afterMs, host, Number(port));
-        this.#onMoving(afterMs, host, Number(port));
+        const afterSeconds = push[2];
+        const url: string | null = push[3];
+        dbgMaintenance("Received MOVING:", afterSeconds, url);
+        this.#onMoving(afterSeconds, url);
         return true;
       }
       case PN.MIGRATING:
@@ -121,12 +130,36 @@ export default class EnterpriseMaintenanceManager extends EventEmitter {
   //  5. [ACTION] Destroy old socket
   //  6. [ACTION] Resume writing -> we are going to write to the new socket from now on
   #onMoving = async (
-    _afterMs: number,
-    host: string,
-    port: number,
+    afterSeconds: number,
+    url: string | null
   ): Promise<void> => {
     // 1 [EVENT] MOVING PN received
     this.#onMigrating();
+
+    let host: string
+    let port: number
+
+    // The special value `none` indicates that the `MOVING` message doesn’t need
+    // to contain an endpoint. Instead it contains the value `null` then. In
+    // such a corner case, the client is expected to schedule a graceful
+    // reconnect to its currently configured endpoint after half of the grace
+    // period that was communicated by the server is over.
+    if(url === null) {
+      assert(this.#options.maintMovingEndpointType === 'none');
+      assert(this.#options.socket !== undefined)
+      assert('host' in this.#options.socket)
+      assert(typeof this.#options.socket.host === 'string')
+      host = this.#options.socket.host
+      assert(typeof this.#options.socket.port === 'number')
+      port = this.#options.socket.port
+      const waitTime = afterSeconds * 1000 / 2;
+      dbgMaintenance(`Wait for ${waitTime}ms`);
+      await setTimeout(waitTime);
+    } else {
+      const split = url.split(':');
+      host = split[0];
+      port = Number(split[1]);
+    }
 
     // 2 [ACTION] Pause writing
     dbgMaintenance("Pausing writing of new commands to old socket");
@@ -225,11 +258,13 @@ function isPrivateIP(ip: string): boolean {
 async function determineEndpoint(
   tlsEnabled: boolean,
   host: string,
-  options: RedisClientOptions
+  options: RedisClientOptions,
 ): Promise<MovingEndpointType> {
-
   assert(options.maintMovingEndpointType !== undefined);
-  if (options.maintMovingEndpointType !== 'auto') return options.maintMovingEndpointType;
+  if (options.maintMovingEndpointType !== "auto") {
+    dbgMaintenance(`Determine endpoint type: ${options.maintMovingEndpointType}`);
+    return options.maintMovingEndpointType;
+  }
 
   const ip = isIP(host) ? host : (await lookup(host, { family: 0 })).address;
 
@@ -242,6 +277,6 @@ async function determineEndpoint(
     result = isPrivate ? "internal-ip" : "external-ip";
   }
 
-  dbgMaintenance(`Determine endpoint format: ${result}`);
+  dbgMaintenance(`Determine endpoint type: ${result}`);
   return result;
 }

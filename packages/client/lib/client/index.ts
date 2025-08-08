@@ -550,7 +550,7 @@ export default class RedisClient<
       throw new Error('Client Side Caching is only supported with RESP3');
     }
 
-    if (options?.maintPushNotifications !== 'disabled' && options?.RESP !== 3) {
+    if (options?.maintPushNotifications && options?.maintPushNotifications !== 'disabled' && options?.RESP !== 3) {
       throw new Error('Graceful Maintenance is only supported with RESP3');
     }
 
@@ -578,12 +578,13 @@ export default class RedisClient<
       this._commandOptions = options.commandOptions;
     }
 
-    if (options && options.maintPushNotifications === undefined) {
-      options.maintPushNotifications =
-        options?.RESP === 3 ? "auto" : "disabled";
-    }
+
 
     if (options) {
+      if(options.maintPushNotifications !== 'disabled') {
+        EnterpriseMaintenanceManager.setupDefaultMaintOptions(options)
+      }
+
       return RedisClient.parseOptions(options);
     }
 
