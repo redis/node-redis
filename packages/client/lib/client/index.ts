@@ -578,13 +578,14 @@ export default class RedisClient<
       this._commandOptions = options.commandOptions;
     }
 
-    if (options) {
-
-      if (!options.maintPushNotifications) options.maintPushNotifications = 'auto';
-
-      return RedisClient.parseOptions(options);
+    if (options && options.maintPushNotifications === undefined) {
+      options.maintPushNotifications =
+        options?.RESP === 3 ? "auto" : "disabled";
     }
 
+    if (options) {
+      return RedisClient.parseOptions(options);
+    }
 
     return options;
   }
