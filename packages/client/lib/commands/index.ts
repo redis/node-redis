@@ -169,8 +169,10 @@ import KEYS from './KEYS';
 import LASTSAVE from './LASTSAVE';
 import LATENCY_DOCTOR from './LATENCY_DOCTOR';
 import LATENCY_GRAPH from './LATENCY_GRAPH';
+import LATENCY_HISTOGRAM from './LATENCY_HISTOGRAM';
 import LATENCY_HISTORY from './LATENCY_HISTORY';
 import LATENCY_LATEST from './LATENCY_LATEST';
+import LATENCY_RESET from './LATENCY_RESET';
 import LCS_IDX_WITHMATCHLEN from './LCS_IDX_WITHMATCHLEN';
 import LCS_IDX from './LCS_IDX';
 import LCS_LEN from './LCS_LEN';
@@ -702,10 +704,14 @@ export default {
   latencyDoctor: LATENCY_DOCTOR,
   LATENCY_GRAPH,
   latencyGraph: LATENCY_GRAPH,
+  LATENCY_HISTOGRAM,
+  latencyHistogram: LATENCY_HISTOGRAM,
   LATENCY_HISTORY,
   latencyHistory: LATENCY_HISTORY,
   LATENCY_LATEST,
   latencyLatest: LATENCY_LATEST,
+  LATENCY_RESET,
+  latencyReset: LATENCY_RESET,
   LCS_IDX_WITHMATCHLEN,
   lcsIdxWithMatchLen: LCS_IDX_WITHMATCHLEN,
   LCS_IDX,
