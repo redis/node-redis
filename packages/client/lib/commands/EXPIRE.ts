@@ -2,7 +2,6 @@ import { CommandParser } from '../client/parser';
 import { RedisArgument, NumberReply, Command } from '../RESP/types';
 
 export default {
-  IS_READ_ONLY: true,
   /**
    * Sets a timeout on key. After the timeout has expired, the key will be automatically deleted
    * @param parser - The Redis command parser
