@@ -241,7 +241,7 @@ Node Redis v5 adds support for [Client Side Caching](https://redis.io/docs/manua
 ```typescript
 // Enable client side caching with RESP3
 const client = createClient({
-  RESP: 3, 
+  RESP: 3,
   clientSideCache: {
     ttl: 0,             // Time-to-live (0 = no expiration)
     maxEntries: 0,      // Maximum entries (0 = unlimited)
@@ -304,6 +304,7 @@ Node Redis is supported with the following versions of Redis:
 
 | Version | Supported          |
 | ------- | ------------------ |
+| 8.2.z   | :heavy_check_mark: |
 | 8.0.z   | :heavy_check_mark: |
 | 7.4.z   | :heavy_check_mark: |
 | 7.2.z   | :heavy_check_mark: |

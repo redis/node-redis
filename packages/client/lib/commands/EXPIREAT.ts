@@ -3,7 +3,6 @@ import { RedisArgument, NumberReply, Command } from '../RESP/types';
 import { transformEXAT } from './generic-transformers';
 
 export default {
-  IS_READ_ONLY: true,
   /**
    * Sets the expiration for a key at a specific Unix timestamp
    * @param parser - The Redis command parser
