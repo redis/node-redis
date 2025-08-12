@@ -496,8 +496,14 @@ export default class RedisClient<
       this._commandOptions = options.commandOptions;
     }
 
-    if (options) {
-      return RedisClient.parseOptions(options);
+    if (options?.url) {
+      const parsedOptions = RedisClient.parseOptions(options);
+    
+      if (parsedOptions?.database) {
+        this._self.#selectedDB = parsedOptions.database;
+      }
+
+      return parsedOptions;
     }
 
     return options;

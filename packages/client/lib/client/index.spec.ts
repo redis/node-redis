@@ -167,6 +167,14 @@ describe('Client', () => {
         }
       );
     });
+
+    it('DB in URL should be parsed', async () => {
+      const client = RedisClient.create({
+        url: 'redis://user:secret@localhost:6379/5'
+      });
+
+      assert.equal(client?.options?.database, 5);
+    })
   });
 
   describe('parseOptions', () => {
