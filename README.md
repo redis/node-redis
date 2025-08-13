@@ -143,6 +143,8 @@ await client.sendCommand(["SET", "key", "value", "NX"]); // 'OK'
 await client.sendCommand(["HGETALL", "key"]); // ['key1', 'field1', 'key2', 'field2']
 ```
 
+_Note: the [API is different when using a cluster](https://github.com/redis/node-redis/blob/master/docs/clustering.md#unsupported-redis-commands)._
+
 ### Transactions (Multi/Exec)
 
 Start a [transaction](https://redis.io/topics/transactions) by calling `.multi()`, then chaining your commands. When
