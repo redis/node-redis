@@ -429,7 +429,7 @@ export default class RedisClient<
   }
 
   readonly #options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>;
-  readonly #socket: RedisSocket;
+  #socket: RedisSocket;
   readonly #queue: RedisCommandsQueue;
   #selectedDB = 0;
   #monitorCallback?: MonitorCallback<TYPE_MAPPING>;
@@ -442,10 +442,15 @@ export default class RedisClient<
   #watchEpoch?: number;
   #clientSideCache?: ClientSideCacheProvider;
   #credentialsSubscription: Disposable | null = null;
+  // Flag used to pause writing to the socket during maintenance windows.
+  // When true, prevents new commands from being written while waiting for:
+  // 1. New socket to be ready after maintenance redirect
+  // 2. In-flight commands on the old socket to complete
+  #paused = false;
+
   get clientSideCache() {
     return this._self.#clientSideCache;
   }
-
 
   get options(): RedisClientOptions<M, F, S, RESP> | undefined {
     return this._self.#options;
@@ -915,6 +920,42 @@ export default class RedisClient<
   /**
    * @internal
    */
+   _ejectSocket(): RedisSocket {
+     const socket = this._self.#socket;
+     // @ts-ignore
+     this.#socket = null;
+     socket.removeAllListeners();
+     return socket;
+   }
+
+   /**
+    * @intenal
+    */
+   _insertSocket(socket: RedisSocket) {
+     if(this._self.#socket) {
+      this._self._ejectSocket().destroy();
+     }
+     this._self.#socket = socket;
+     this._self.#attachListeners(this._self.#socket);
+   }
+
+   /**
+    * @internal
+    */
+   _pause() {
+     this._self.#paused = true;
+   }
+
+   /**
+    * @internal
+    */
+   _unpause() {
+     this._self.#paused = false;
+   }
+
+  /**
+   * @internal
+   */
   async _executeCommand(
     command: Command,
     parser: CommandParser,
@@ -1141,6 +1182,9 @@ export default class RedisClient<
   }
 
   #write() {
+    if(this.#paused) {
+      return
+    }
     this.#socket.write(this.#queue.commandsToWrite());
   }
 
