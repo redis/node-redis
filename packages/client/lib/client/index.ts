@@ -144,7 +144,46 @@ export interface RedisClientOptions<
    * Tag to append to library name that is sent to the Redis server
    */
   clientInfoTag?: string;
-}
+  /**
+   * Controls how the client handles Redis Enterprise maintenance push notifications.
+   *
+   * - `disabled`: The feature is not used by the client.
+   * - `enabled`: The client attempts to enable the feature on the server. If the server responds with an error, the connection is interrupted.
+   * - `auto`: The client attempts to enable the feature on the server. If the server returns an error, the client disables the feature and continues.
+   *
+   * The default is `auto`.
+   */
+  maintPushNotifications?: 'disabled' | 'enabled' | 'auto';
+  /**
+   * Controls how the client requests the endpoint to reconnect to during a MOVING notification in Redis Enterprise maintenance.
+   *
+   * - `auto`: If the connection is opened to a name or IP address that is from/resolves to a reserved private IP range, request an internal endpoint (e.g., internal-ip), otherwise an external one. If TLS is enabled, then request a FQDN.
+   * - `internal-ip`: Enforce requesting the internal IP.
+   * - `internal-fqdn`: Enforce requesting the internal FQDN.
+   * - `external-ip`: Enforce requesting the external IP address.
+   * - `external-fqdn`: Enforce requesting the external FQDN.
+   * - `none`: Used to request a null endpoint, which tells the client to reconnect based on its current config
+
+   * The default is `auto`.
+   */
+  maintMovingEndpointType?: MovingEndpointType;
+  /**
+   * Specifies a more relaxed timeout (in milliseconds) for commands during a maintenance window.
+   * This helps minimize command timeouts during maintenance. If not provided, the `commandOptions.timeout`
+   * will be used instead. Timeouts during maintenance period result in a `CommandTimeoutDuringMaintanance` error.
+   *
+   * The default is 10000
+   */
+  maintRelaxedCommandTimeout?: number;
+  /**
+   * Specifies a more relaxed timeout (in milliseconds) for the socket during a maintenance window.
+   * This helps minimize socket timeouts during maintenance. If not provided, the `socket.timeout`
+   * will be used instead. Timeouts during maintenance period result in a `SocketTimeoutDuringMaintanance` error.
+   *
+   * The default is 10000
+   */
+  maintRelaxedSocketTimeout?: number;
+};
 
 type WithCommands<
   RESP extends RespVersions,
@@ -485,7 +524,12 @@ export default class RedisClient<
       throw new Error('Client Side Caching is only supported with RESP3');
     }
 
+    if (options?.maintPushNotifications && options?.maintPushNotifications !== 'disabled' && options?.RESP !== 3) {
+      throw new Error('Graceful Maintenance is only supported with RESP3');
+    }
+
   }
+
   #initiateOptions(options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>): RedisClientOptions<M, F, S, RESP, TYPE_MAPPING> | undefined {
 
     // Convert username/password to credentialsProvider if no credentialsProvider is already in place
