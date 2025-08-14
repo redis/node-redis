@@ -63,12 +63,7 @@ export class ReconnectStrategyError extends Error {
   }
 }
 
-export class ErrorReply extends Error {
-  constructor(message: string) {
-    super(message);
-    this.stack = undefined;
-  }
-}
+export class ErrorReply extends Error {}
 
 export class SimpleError extends ErrorReply {}
 
