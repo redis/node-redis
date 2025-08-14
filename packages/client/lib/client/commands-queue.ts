@@ -138,6 +138,17 @@ export default class RedisCommandsQueue {
     this.#pushHandlers.push(handler);
   }
 
+  async waitForInflightCommandsToComplete(): Promise<void> {
+    // In-flight commands already completed
+    if(this.#waitingForReply.length === 0) {
+      return
+    };
+    // Otherwise wait for in-flight commands to fire `empty` event
+    return new Promise(resolve => {
+      this.#waitingForReply.events.on('empty', resolve)
+    });
+  }
+
   addCommand<T>(
     args: ReadonlyArray<RedisArgument>,
     options?: CommandOptions
