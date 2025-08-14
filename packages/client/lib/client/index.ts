@@ -464,7 +464,19 @@ export default class RedisClient<
         const cscConfig = options.clientSideCache;
         this.#clientSideCache = new BasicClientSideCache(cscConfig);
       }
-      this.#queue.setInvalidateCallback(this.#clientSideCache.invalidate.bind(this.#clientSideCache));
+      this.#queue.addPushHandler((push: Array<any>): boolean => {
+        if (push[0].toString() !== 'invalidate') return false;
+
+        if (push[1] !== null) {
+          for (const key of push[1]) {
+            this.#clientSideCache?.invalidate(key)
+          }
+        } else {
+          this.#clientSideCache?.invalidate(null)
+        }
+
+        return true
+      });
     }
   }
 
