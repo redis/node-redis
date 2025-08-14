@@ -1,9 +1,9 @@
-import { SinglyLinkedList, DoublyLinkedNode, DoublyLinkedList } from './linked-list';
+import { DoublyLinkedNode, DoublyLinkedList, EmptyAwareSinglyLinkedList } from './linked-list';
 import encodeCommand from '../RESP/encoder';
 import { Decoder, PUSH_TYPE_MAPPING, RESP_TYPES } from '../RESP/decoder';
 import { TypeMapping, ReplyUnion, RespVersions, RedisArgument } from '../RESP/types';
 import { ChannelListeners, PubSub, PubSubCommand, PubSubListener, PubSubType, PubSubTypeListeners } from './pub-sub';
-import { AbortError, ErrorReply, TimeoutError } from '../errors';
+import { AbortError, ErrorReply, CommandTimeoutDuringMaintananceError, TimeoutError } from '../errors';
 import { MonitorCallback } from '.';
 
 export interface CommandOptions<T = TypeMapping> {
@@ -30,6 +30,7 @@ export interface CommandToWrite extends CommandWaitingForReply {
   timeout: {
     signal: AbortSignal;
     listener: () => unknown;
+    originalTimeout: number | undefined;
   } | undefined;
 }
 
@@ -61,13 +62,58 @@ export default class RedisCommandsQueue {
   readonly #respVersion;
   readonly #maxLength;
   readonly #toWrite = new DoublyLinkedList<CommandToWrite>();
-  readonly #waitingForReply = new SinglyLinkedList<CommandWaitingForReply>();
+  readonly #waitingForReply = new EmptyAwareSinglyLinkedList<CommandWaitingForReply>();
   readonly #onShardedChannelMoved;
   #chainInExecution: symbol | undefined;
   readonly decoder;
   readonly #pubSub = new PubSub();
 
   #pushHandlers: PushHandler[] = [this.#onPush.bind(this)];
+
+  #inMaintenance = false;
+
+  set inMaintenance(value: boolean) {
+    this.#inMaintenance = value;
+  }
+
+  #maintenanceCommandTimeout: number | undefined
+
+  setMaintenanceCommandTimeout(ms: number | undefined) {
+    // Prevent possible api misuse
+    if (this.#maintenanceCommandTimeout === ms) return;
+
+    this.#maintenanceCommandTimeout = ms;
+
+    let counter = 0;
+
+    // Overwrite timeouts of all eligible toWrite commands
+    for(const node of this.#toWrite.nodes()) {
+      const command = node.value;
+
+      // Remove timeout listener if it exists
+      RedisCommandsQueue.#removeTimeoutListener(command)
+
+      // Determine newTimeout
+      const newTimeout = this.#maintenanceCommandTimeout ?? command.timeout?.originalTimeout;
+      // if no timeout is given and the command didnt have any timeout before, skip
+      if (!newTimeout)  return;
+
+      counter++;
+
+      // Overwrite the command's timeout
+      const signal = AbortSignal.timeout(newTimeout);
+      command.timeout = {
+        signal,
+        listener: () => {
+          this.#toWrite.remove(node);
+          command.reject(this.#inMaintenance ? new CommandTimeoutDuringMaintananceError(newTimeout) : new TimeoutError());
+        },
+        originalTimeout: command.timeout?.originalTimeout
+      };
+      signal.addEventListener('abort', command.timeout.listener, { once: true });
+    };
+  }
+
   get isPubSubActive() {
     return this.#pubSub.isActive;
   }
@@ -172,15 +218,19 @@ export default class RedisCommandsQueue {
         typeMapping: options?.typeMapping
       };
 
-      const timeout = options?.timeout;
+      // If #maintenanceCommandTimeout was explicitly set, we should
+      // use it instead of the timeout provided by the command
+      const timeout = this.#maintenanceCommandTimeout || options?.timeout
       if (timeout) {
+
         const signal = AbortSignal.timeout(timeout);
         value.timeout = {
           signal,
           listener: () => {
             this.#toWrite.remove(node);
-            value.reject(new TimeoutError());
-          }
+            value.reject(this.#inMaintenance ? new CommandTimeoutDuringMaintananceError(timeout) : new TimeoutError());
+          },
+          originalTimeout: options?.timeout
         };
         signal.addEventListener('abort', value.timeout.listener, { once: true });
       }
