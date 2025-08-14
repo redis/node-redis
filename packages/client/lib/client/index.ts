@@ -694,6 +694,35 @@ export default class RedisClient<
     return commands;
   }
 
+  #attachListeners(socket: RedisSocket) {
+    socket.on('data', chunk => {
+      try {
+        this.#queue.decoder.write(chunk);
+      } catch (err) {
+        this.#queue.resetDecoder();
+        this.emit('error', err);
+      }
+    })
+    .on('error', err => {
+      this.emit('error', err);
+      this.#clientSideCache?.onError();
+      if (this.#socket.isOpen && !this.#options?.disableOfflineQueue) {
+        this.#queue.flushWaitingForReply(err);
+      } else {
+        this.#queue.flushAll(err);
+      }
+    })
+    .on('connect', () => this.emit('connect'))
+    .on('ready', () => {
+      this.emit('ready');
+      this.#setPingTimer();
+      this.#maybeScheduleWrite();
+    })
+    .on('reconnecting', () => this.emit('reconnecting'))
+    .on('drain', () => this.#maybeScheduleWrite())
+    .on('end', () => this.emit('end'));
+  }
+
   #initiateSocket(): RedisSocket {
     const socketInitiator = async () => {
       const promises = [],
@@ -725,33 +754,9 @@ export default class RedisClient<
       }
     };
 
-    return new RedisSocket(socketInitiator, this.#options?.socket)
-      .on('data', chunk => {
-        try {
-          this.#queue.decoder.write(chunk);
-        } catch (err) {
-          this.#queue.resetDecoder();
-          this.emit('error', err);
-        }
-      })
-      .on('error', err => {
-        this.emit('error', err);
-        this.#clientSideCache?.onError();
-        if (this.#socket.isOpen && !this.#options?.disableOfflineQueue) {
-          this.#queue.flushWaitingForReply(err);
-        } else {
-          this.#queue.flushAll(err);
-        }
-      })
-      .on('connect', () => this.emit('connect'))
-      .on('ready', () => {
-        this.emit('ready');
-        this.#setPingTimer();
-        this.#maybeScheduleWrite();
-      })
-      .on('reconnecting', () => this.emit('reconnecting'))
-      .on('drain', () => this.#maybeScheduleWrite())
-      .on('end', () => this.emit('end'));
+    const socket = new RedisSocket(socketInitiator, this.#options?.socket);
+    this.#attachListeners(socket);
+    return socket;
   }
 
   #pingTimer?: NodeJS.Timeout;
