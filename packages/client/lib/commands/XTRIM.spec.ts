@@ -18,6 +18,11 @@ describe('XTRIM', () => {
         parseArgs(XTRIM, 'key', 'MINID', 123),
         ['XTRIM', 'key', 'MINID', '123']
       );
+
+      assert.deepEqual(
+        parseArgs(XTRIM, 'key', 'MINID', '0-0'),
+        ['XTRIM', 'key', 'MINID', '0-0']
+      );
     });
 
     it('with strategyModifier', () => {
@@ -82,6 +87,16 @@ describe('XTRIM', () => {
   testUtils.testAll('xTrim with MINID', async client => {
     assert.equal(
       typeof await client.xTrim('key', 'MINID', 1),
+      'number'
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN,
+  });
+
+  testUtils.testAll('xTrim with string MINID', async client => {
+    assert.equal(
+      typeof await client.xTrim('key', 'MINID', '0-0'),
       'number'
     );
   }, {
