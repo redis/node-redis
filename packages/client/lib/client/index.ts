@@ -937,7 +937,7 @@ export default class RedisClient<
    _ejectSocket(): RedisSocket {
      const socket = this._self.#socket;
      // @ts-ignore
-     this.#socket = null;
+     this._self.#socket = null;
      socket.removeAllListeners();
      return socket;
    }
@@ -957,10 +957,10 @@ export default class RedisClient<
     * @internal
     */
    _maintenanceUpdate(update: MaintenanceUpdate) {
-     this.#socket.inMaintenance = update.inMaintenance;
-     this.#socket.setMaintenanceTimeout(update.relaxedSocketTimeout);
-     this.#queue.inMaintenance = update.inMaintenance;
-     this.#queue.setMaintenanceCommandTimeout(update.relaxedCommandTimeout);
+     this._self.#socket.inMaintenance = update.inMaintenance;
+     this._self.#socket.setMaintenanceTimeout(update.relaxedSocketTimeout);
+     this._self.#queue.inMaintenance = update.inMaintenance;
+     this._self.#queue.setMaintenanceCommandTimeout(update.relaxedCommandTimeout);
    }
 
    /**

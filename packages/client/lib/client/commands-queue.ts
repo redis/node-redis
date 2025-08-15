@@ -87,6 +87,7 @@ export default class RedisCommandsQueue {
     this.#maintenanceCommandTimeout = ms;
 
     let counter = 0;
+    const total = this.#toWrite.length;
 
     // Overwrite timeouts of all eligible toWrite commands
     for(const node of this.#toWrite.nodes()) {
@@ -114,7 +115,7 @@ export default class RedisCommandsQueue {
       };
       signal.addEventListener('abort', command.timeout.listener, { once: true });
     };
-    dbgMaintenance(`Total of ${counter} timeouts reset to ${ms}`);
+    dbgMaintenance(`Total of ${counter} of ${total} timeouts reset to ${ms}`);
   }
 
   get isPubSubActive() {

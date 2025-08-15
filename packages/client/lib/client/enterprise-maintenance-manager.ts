@@ -181,18 +181,24 @@ export default class EnterpriseMaintenanceManager {
     dbgMaintenance("Pausing writing of new commands to old socket");
     this.#client._pause();
 
+    dbgMaintenance("Creating new tmp client");
+    let start = performance.now();
     const tmpClient = this.#client.duplicate({
-      maintPushNotifications: "disabled",
       socket: {
         ...this.#options.socket,
         host,
         port,
       },
     });
-
+    dbgMaintenance(`Tmp client created in ${( performance.now() - start ).toFixed(2)}ms`);
     dbgMaintenance(`Connecting tmp client: ${host}:${port}`);
+    start = performance.now();
+    tmpClient._maintenanceUpdate({
+      relaxedCommandTimeout: this.#options.maintRelaxedCommandTimeout,
+      relaxedSocketTimeout: this.#options.maintRelaxedSocketTimeout,
+    });
     await tmpClient.connect();
-    dbgMaintenance(`Connected to tmp client`);
+    dbgMaintenance(`Connected to tmp client in ${(performance.now() - start).toFixed(2)}ms`);
     // 3 [EVENT] New socket connected
 
     //TODO
