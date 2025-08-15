@@ -27,7 +27,6 @@ export const dbgMaintenance = (...args: any[]) => {
 };
 
 export interface MaintenanceUpdate {
-  inMaintenance: boolean;
   relaxedCommandTimeout?: number;
   relaxedSocketTimeout?: number;
 }
@@ -229,7 +228,6 @@ export default class EnterpriseMaintenanceManager {
     }
 
     const update: MaintenanceUpdate = {
-      inMaintenance: true,
       relaxedCommandTimeout: this.#options.maintRelaxedCommandTimeout,
       relaxedSocketTimeout: this.#options.maintRelaxedSocketTimeout,
     };
@@ -246,7 +244,8 @@ export default class EnterpriseMaintenanceManager {
     }
 
     const update: MaintenanceUpdate = {
-      inMaintenance : false
+      relaxedCommandTimeout: undefined,
+      relaxedSocketTimeout: undefined
     };
 
     this.#client._maintenanceUpdate(update);

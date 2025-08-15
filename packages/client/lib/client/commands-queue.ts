@@ -71,20 +71,22 @@ export default class RedisCommandsQueue {
 
   #pushHandlers: PushHandler[] = [this.#onPush.bind(this)];
 
-  #inMaintenance = false;
-
-  set inMaintenance(value: boolean) {
-    this.#inMaintenance = value;
-  }
-
   #maintenanceCommandTimeout: number | undefined
 
   setMaintenanceCommandTimeout(ms: number | undefined) {
-    dbgMaintenance(`Setting maintenance command timeout to ${ms}`);
     // Prevent possible api misuse
-    if (this.#maintenanceCommandTimeout === ms) return;
+    if (this.#maintenanceCommandTimeout === ms) {
+      dbgMaintenance(`Queue already set maintenanceCommandTimeout to ${ms}, skipping`);
+      return;
+    };
 
+    dbgMaintenance(`Setting maintenance command timeout to ${ms}`);
     this.#maintenanceCommandTimeout = ms;
+
+    if(this.#maintenanceCommandTimeout === undefined) {
+      dbgMaintenance(`Queue will keep maintenanceCommandTimeout for exisitng commands, just to be on the safe side. New commands will receive normal timeouts`);
+      return;
+    }
 
     let counter = 0;
     const total = this.#toWrite.length;
@@ -96,12 +98,8 @@ export default class RedisCommandsQueue {
       // Remove timeout listener if it exists
       RedisCommandsQueue.#removeTimeoutListener(command)
 
-      // Determine newTimeout
-      const newTimeout = this.#maintenanceCommandTimeout ?? command.timeout?.originalTimeout;
-      // if no timeout is given and the command didnt have any timeout before, skip
-      if (!newTimeout)  return;
-
       counter++;
+      const newTimeout = this.#maintenanceCommandTimeout;
 
       // Overwrite the command's timeout
       const signal = AbortSignal.timeout(newTimeout);
@@ -109,7 +107,7 @@ export default class RedisCommandsQueue {
         signal,
         listener: () => {
           this.#toWrite.remove(node);
-          command.reject(this.#inMaintenance ? new CommandTimeoutDuringMaintananceError(newTimeout) : new TimeoutError());
+          command.reject(new CommandTimeoutDuringMaintananceError(newTimeout));
         },
         originalTimeout: command.timeout?.originalTimeout
       };
@@ -224,7 +222,8 @@ export default class RedisCommandsQueue {
 
       // If #maintenanceCommandTimeout was explicitly set, we should
       // use it instead of the timeout provided by the command
-      const timeout = this.#maintenanceCommandTimeout || options?.timeout
+      const timeout = this.#maintenanceCommandTimeout ?? options?.timeout;
+      const wasInMaintenance = this.#maintenanceCommandTimeout !== undefined;
       if (timeout) {
 
         const signal = AbortSignal.timeout(timeout);
@@ -232,7 +231,7 @@ export default class RedisCommandsQueue {
           signal,
           listener: () => {
             this.#toWrite.remove(node);
-            value.reject(this.#inMaintenance ? new CommandTimeoutDuringMaintananceError(timeout) : new TimeoutError());
+            value.reject(wasInMaintenance ? new CommandTimeoutDuringMaintananceError(timeout) : new TimeoutError());
           },
           originalTimeout: options?.timeout
         };
