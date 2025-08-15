@@ -85,12 +85,6 @@ export default class RedisSocket extends EventEmitter {
     return this.#socketEpoch;
   }
 
-  #inMaintenance = false;
-
-  set inMaintenance(value: boolean) {
-    this.#inMaintenance = value;
-  }
-
   constructor(initiator: RedisSocketInitiator, options?: RedisSocketOptions) {
     super();
 
@@ -249,7 +243,10 @@ export default class RedisSocket extends EventEmitter {
 
   setMaintenanceTimeout(ms?: number) {
     dbgMaintenance(`Set socket timeout to ${ms}`);
-    if (this.#maintenanceTimeout === ms) return;
+    if (this.#maintenanceTimeout === ms) {
+      dbgMaintenance(`Socket already set maintenanceCommandTimeout to ${ms}, skipping`);
+      return;
+    };
 
     this.#maintenanceTimeout = ms;
 
@@ -282,8 +279,8 @@ export default class RedisSocket extends EventEmitter {
 
     if (this.#socketTimeout) {
       socket.once('timeout', () => {
-        const error = this.#inMaintenance
-          ? new SocketTimeoutDuringMaintananceError(this.#socketTimeout!)
+        const error = this.#maintenanceTimeout
+          ? new SocketTimeoutDuringMaintananceError(this.#maintenanceTimeout)
           : new SocketTimeoutError(this.#socketTimeout!)
         socket.destroy(error);
       });

@@ -957,9 +957,7 @@ export default class RedisClient<
     * @internal
     */
    _maintenanceUpdate(update: MaintenanceUpdate) {
-     this._self.#socket.inMaintenance = update.inMaintenance;
      this._self.#socket.setMaintenanceTimeout(update.relaxedSocketTimeout);
-     this._self.#queue.inMaintenance = update.inMaintenance;
      this._self.#queue.setMaintenanceCommandTimeout(update.relaxedCommandTimeout);
    }
 
