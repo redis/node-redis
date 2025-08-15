@@ -3,7 +3,7 @@ import TestUtils from './index'
 export const testUtils = TestUtils.createFromConfig({
   dockerImageName: 'redislabs/client-libs-test',
   dockerImageVersionArgument: 'redis-version',
-  defaultDockerVersion: '8.2-M01-pre'
+  defaultDockerVersion: '8.2.1-pre'
 });
 
 
