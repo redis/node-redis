@@ -183,7 +183,8 @@ export default {
   },
   transformReply: {
     2: (reply: SearchRawReply): SearchReply => {
-      const withoutDocuments = (reply[0] + 1 == reply.length)
+      // if reply[2] is array, then we have content/documents. Otherwise, only ids
+      const withoutDocuments = reply.length > 2 && !Array.isArray(reply[2]);
 
       const documents = [];
       let i = 1;
