@@ -973,6 +973,7 @@ export default class RedisClient<
     */
    _unpause() {
      this._self.#paused = false;
+     this._self.#maybeScheduleWrite();
    }
 
   /**
