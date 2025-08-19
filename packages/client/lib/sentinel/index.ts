@@ -716,7 +716,7 @@ class RedisSentinelInternal<
     );
   }
 
-  #createClient(node: RedisNode, clientOptions: RedisClientOptions, reconnectStrategy?: undefined | false) {
+  #createClient(node: RedisNode, clientOptions: RedisClientOptions, reconnectStrategy?: false) {
     return RedisClient.create({
       //first take the globally set RESP
       RESP: this.#RESP,
@@ -726,7 +726,7 @@ class RedisSentinelInternal<
         ...clientOptions.socket,
         host: node.host,
         port: node.port,
-        reconnectStrategy
+        ...(reconnectStrategy !== undefined && { reconnectStrategy })
       }
     });
   }
