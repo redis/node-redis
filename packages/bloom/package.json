@@ -1,6 +1,6 @@
 {
   "name": "@redis/bloom",
-  "version": "5.8.1",
+  "version": "5.8.2",
   "license": "MIT",
   "main": "./dist/lib/index.js",
   "types": "./dist/lib/index.d.ts",
@@ -13,7 +13,7 @@
     "release": "release-it"
   },
   "peerDependencies": {
-    "@redis/client": "^5.8.1"
+    "@redis/client": "^5.8.2"
   },
   "devDependencies": {
     "@redis/test-utils": "*"
