@@ -326,5 +326,84 @@ describe('FT.SEARCH', () => {
         }
       );
     }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('properly parse content/nocontent scenarios', async client => {
+
+      const indexName = 'foo';
+      await client.ft.create(
+        indexName,
+        {
+          itemOrder: {
+            type: 'NUMERIC',
+            SORTABLE: true,
+          },
+          name: {
+            type: 'TEXT',
+          },
+        },
+        {
+          ON: 'HASH',
+          PREFIX: 'item:',
+        }
+      );
+
+      await client.hSet("item:1", {
+        itemOrder: 1,
+        name: "First item",
+      });
+
+      await client.hSet("item:2", {
+        itemOrder: 2,
+        name: "Second item",
+      });
+
+      await client.hSet("item:3", {
+        itemOrder: 3,
+        name: "Third item",
+      });
+
+      // Search with SORTBY and LIMIT
+      let result = await client.ft.search(indexName, "@itemOrder:[0 10]", {
+        SORTBY: {
+          BY: "itemOrder",
+          DIRECTION: "ASC",
+        },
+        LIMIT: {
+          from: 0,
+          size: 1, // only get first result
+        },
+      });
+
+      assert.equal(result.total, 3, "Result's `total` value reflects the total scanned documents");
+      assert.equal(result.documents.length, 1);
+      let doc = result.documents[0];
+      assert.equal(doc.id, 'item:1');
+      assert.equal(doc.value.itemOrder, '1');
+      assert.equal(doc.value.name, 'First item');
+
+       await client.del("item:3");
+
+       // Search again after removing item:3
+       result = await client.ft.search(indexName, "@itemOrder:[0 10]", {
+         SORTBY: {
+           BY: "itemOrder",
+           DIRECTION: "ASC",
+         },
+         LIMIT: {
+           from: 0,
+           size: 1, // only get first result
+         },
+       });
+
+       assert.equal(result.total, 2, "Result's `total` value reflects the total scanned documents");
+       assert.equal(result.documents.length, 1);
+       doc = result.documents[0];
+       assert.equal(doc.id, 'item:1');
+       assert.equal(doc.value.itemOrder, '1');
+       assert.equal(doc.value.name, 'First item');
+
+
+    }, GLOBAL.SERVERS.OPEN);
+
   });
 });
