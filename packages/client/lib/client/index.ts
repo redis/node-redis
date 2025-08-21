@@ -146,14 +146,14 @@ export interface RedisClientOptions<
   clientInfoTag?: string;
 }
 
-type WithCommands<
+export type WithCommands<
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping
 > = {
     [P in keyof typeof COMMANDS]: CommandSignature<(typeof COMMANDS)[P], RESP, TYPE_MAPPING>;
   };
 
-type WithModules<
+export type WithModules<
   M extends RedisModules,
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping
@@ -163,7 +163,7 @@ type WithModules<
     };
   };
 
-type WithFunctions<
+export type WithFunctions<
   F extends RedisFunctions,
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping
@@ -173,7 +173,7 @@ type WithFunctions<
     };
   };
 
-type WithScripts<
+export type WithScripts<
   S extends RedisScripts,
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping
@@ -498,7 +498,7 @@ export default class RedisClient<
 
     if (options?.url) {
       const parsedOptions = RedisClient.parseOptions(options);
-    
+
       if (parsedOptions?.database) {
         this._self.#selectedDB = parsedOptions.database;
       }

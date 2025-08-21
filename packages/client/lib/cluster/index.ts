@@ -1,6 +1,6 @@
 import { RedisClientOptions, RedisClientType } from '../client';
 import { CommandOptions } from '../client/commands-queue';
-import { Command, CommandArguments, CommanderConfig, CommandSignature, /*CommandPolicies, CommandWithPoliciesSignature,*/ TypeMapping, RedisArgument, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions } from '../RESP/types';
+import { Command, CommandArguments, CommanderConfig, TypeMapping, RedisArgument, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions } from '../RESP/types';
 import COMMANDS from '../commands';
 import { EventEmitter } from 'node:events';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
@@ -13,6 +13,8 @@ import { ClientSideCacheConfig, PooledClientSideCacheProvider } from '../client/
 import { BasicCommandParser } from '../client/parser';
 import { ASKING_CMD } from '../commands/ASKING';
 import SingleEntryCache from '../single-entry-cache'
+import { WithCommands, WithFunctions, WithModules, WithScripts } from '../client';
+
 interface ClusterCommander<
   M extends RedisModules,
   F extends RedisFunctions,
@@ -102,50 +104,6 @@ export interface RedisClusterOptions<
    */
   clientSideCache?: PooledClientSideCacheProvider | ClientSideCacheConfig;
 }
-
-// remove once request & response policies are ready
-type ClusterCommand<
-  NAME extends PropertyKey,
-  COMMAND extends Command
-> = COMMAND['NOT_KEYED_COMMAND'] extends true ? (
-  COMMAND['IS_FORWARD_COMMAND'] extends true ? NAME : never
-) : NAME;
-
-// CommandWithPoliciesSignature<(typeof COMMANDS)[P], RESP, TYPE_MAPPING, POLICIES>
-type WithCommands<
-  RESP extends RespVersions,
-  TYPE_MAPPING extends TypeMapping
-> = {
-  [P in keyof typeof COMMANDS as ClusterCommand<P, (typeof COMMANDS)[P]>]: CommandSignature<(typeof COMMANDS)[P], RESP, TYPE_MAPPING>;
-};
-
-type WithModules<
-  M extends RedisModules,
-  RESP extends RespVersions,
-  TYPE_MAPPING extends TypeMapping
-> = {
-  [P in keyof M]: {
-    [C in keyof M[P] as ClusterCommand<C, M[P][C]>]: CommandSignature<M[P][C], RESP, TYPE_MAPPING>;
-  };
-};
-
-type WithFunctions<
-  F extends RedisFunctions,
-  RESP extends RespVersions,
-  TYPE_MAPPING extends TypeMapping
-> = {
-  [L in keyof F]: {
-    [C in keyof F[L] as ClusterCommand<C, F[L][C]>]: CommandSignature<F[L][C], RESP, TYPE_MAPPING>;
-  };
-};
-
-type WithScripts<
-  S extends RedisScripts,
-  RESP extends RespVersions,
-  TYPE_MAPPING extends TypeMapping
-> = {
-  [P in keyof S as ClusterCommand<P, S[P]>]: CommandSignature<S[P], RESP, TYPE_MAPPING>;
-};
 
 export type RedisClusterType<
   M extends RedisModules = {},
