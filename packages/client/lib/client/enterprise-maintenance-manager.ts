@@ -182,13 +182,21 @@ export default class EnterpriseMaintenanceManager {
 
     dbgMaintenance("Creating new tmp client");
     let start = performance.now();
-    const tmpClient = this.#client.duplicate({
-      socket: {
-        ...this.#options.socket,
-        host,
-        port,
-      },
-    });
+
+    const tmpOptions = this.#options;
+    // If the URL is provided, it takes precedense
+    if(tmpOptions.url) {
+      const u = new URL(tmpOptions.url);
+      u.hostname = host;
+      u.port = String(port);
+      tmpOptions.url = u.toString();
+    } else {
+      tmpOptions.socket = {
+        ...tmpOptions.socket,
+        host, port
+      }
+    }
+    const tmpClient = this.#client.duplicate(tmpOptions);
     dbgMaintenance(`Tmp client created in ${( performance.now() - start ).toFixed(2)}ms`);
     dbgMaintenance(`Connecting tmp client: ${host}:${port}`);
     start = performance.now();
