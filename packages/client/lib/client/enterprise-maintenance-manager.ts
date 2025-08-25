@@ -6,6 +6,7 @@ import { lookup } from "dns/promises";
 import assert from "node:assert";
 import { setTimeout } from "node:timers/promises";
 import RedisSocket from "./socket";
+import diagnostics_channel from "node:diagnostics_channel";
 
 export const MAINTENANCE_EVENTS = {
   PAUSE_WRITING: "pause-writing",
@@ -21,9 +22,22 @@ const PN = {
   FAILED_OVER: "FAILED_OVER",
 };
 
+export type DiagnosticsEvent = {
+  type: string;
+  timestamp: number;
+  data?: Object;
+};
+
 export const dbgMaintenance = (...args: any[]) => {
   if (!process.env.DEBUG_MAINTENANCE) return;
   return console.log("[MNT]", ...args);
+};
+
+export const emitDiagnostics = (event: DiagnosticsEvent) => {
+  if (!process.env.EMIT_DIAGNOSTICS) return;
+
+  const channel = diagnostics_channel.channel("redis.maintenance");
+  channel.publish(event);
 };
 
 export interface MaintenanceUpdate {
@@ -113,18 +127,34 @@ export default class EnterpriseMaintenanceManager {
         const afterSeconds = push[2];
         const url: string | null = push[3] ? String(push[3]) : null;
         dbgMaintenance("Received MOVING:", afterSeconds, url);
+        emitDiagnostics({
+          type: PN.MOVING,
+          timestamp: Date.now(),
+          data: {
+            afterSeconds,
+            url,
+          },
+        });
         this.#onMoving(afterSeconds, url);
         return true;
       }
       case PN.MIGRATING:
       case PN.FAILING_OVER: {
         dbgMaintenance("Received MIGRATING|FAILING_OVER");
+        emitDiagnostics({
+          type: PN.MIGRATING,
+          timestamp: Date.now(),
+        });
         this.#onMigrating();
         return true;
       }
       case PN.MIGRATED:
       case PN.FAILED_OVER: {
         dbgMaintenance("Received MIGRATED|FAILED_OVER");
+        emitDiagnostics({
+          type: PN.MIGRATED,
+          timestamp: Date.now(),
+        });
         this.#onMigrated();
         return true;
       }
