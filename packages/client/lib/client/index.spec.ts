@@ -352,7 +352,6 @@ describe('Client', () => {
       }
     });
 
-    /*
     testUtils.testWithClientSentinel('Timeout with global timeout config (sentinel)', async sentinel => {
       await blockSetImmediate(async () => {
         await assert.rejects(sentinel.HSET('key', 'foo', 'value'), TimeoutError);
@@ -366,7 +365,6 @@ describe('Client', () => {
         }
       }
     });
-    */
 
     testUtils.testWithClient('undefined and null should not break the client', async client => {
       await assert.rejects(
