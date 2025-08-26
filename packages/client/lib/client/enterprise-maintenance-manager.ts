@@ -120,41 +120,39 @@ export default class EnterpriseMaintenanceManager {
 
   #onPush = (push: Array<any>): boolean => {
     dbgMaintenance("ONPUSH:", push.map(String));
-    switch (push[0].toString()) {
+    
+    if (!Array.isArray(push) || !["MOVING", "MIGRATING", "MIGRATED", "FAILING_OVER", "FAILED_OVER"].includes(String(push[0]))) {
+      return false;
+    }
+
+    const type = String(push[0]);
+
+    emitDiagnostics({
+          type,
+          timestamp: Date.now(),
+          data: {
+            push: push.map(String),
+          },
+        });
+    switch (type) {
       case PN.MOVING: {
         // [ 'MOVING', '17', '15', '54.78.247.156:12075' ]
         //             ^seq   ^after    ^new ip
         const afterSeconds = push[2];
         const url: string | null = push[3] ? String(push[3]) : null;
         dbgMaintenance("Received MOVING:", afterSeconds, url);
-        emitDiagnostics({
-          type: PN.MOVING,
-          timestamp: Date.now(),
-          data: {
-            afterSeconds,
-            url,
-          },
-        });
         this.#onMoving(afterSeconds, url);
         return true;
       }
       case PN.MIGRATING:
       case PN.FAILING_OVER: {
         dbgMaintenance("Received MIGRATING|FAILING_OVER");
-        emitDiagnostics({
-          type: PN.MIGRATING,
-          timestamp: Date.now(),
-        });
         this.#onMigrating();
         return true;
       }
       case PN.MIGRATED:
       case PN.FAILED_OVER: {
         dbgMaintenance("Received MIGRATED|FAILED_OVER");
-        emitDiagnostics({
-          type: PN.MIGRATED,
-          timestamp: Date.now(),
-        });
         this.#onMigrated();
         return true;
       }
