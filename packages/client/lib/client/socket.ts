@@ -4,6 +4,7 @@ import tls from 'node:tls';
 import { ConnectionTimeoutError, ClientClosedError, SocketClosedUnexpectedlyError, ReconnectStrategyError, SocketTimeoutError, SocketTimeoutDuringMaintananceError } from '../errors';
 import { setTimeout } from 'node:timers/promises';
 import { RedisArgument } from '../RESP/types';
+import { dbgMaintenance } from './enterprise-maintenance-manager';
 
 type NetOptions = {
   tls?: false;
@@ -247,6 +248,7 @@ export default class RedisSocket extends EventEmitter {
   }
 
   setMaintenanceTimeout(ms?: number) {
+    dbgMaintenance(`Set socket timeout to ${ms}`);
     if (this.#maintenanceTimeout === ms) return;
 
     this.#maintenanceTimeout = ms;
