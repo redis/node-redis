@@ -108,6 +108,41 @@ export class FaultInjectorClient {
     throw new Error(`Timeout waiting for action ${actionId}`);
   }
 
+  async migrateAndBindAction({
+    bdbId,
+    clusterIndex,
+  }: {
+    bdbId: string | number;
+    clusterIndex: string | number;
+  }) {
+    const bdbIdStr = bdbId.toString();
+    const clusterIndexStr = clusterIndex.toString();
+
+    return this.triggerAction<{
+      action_id: string;
+    }>({
+      type: "sequence_of_actions",
+      parameters: {
+        bdbId: bdbIdStr,
+        actions: [
+          {
+            type: "migrate",
+            parameters: {
+              cluster_index: clusterIndexStr,
+            },
+          },
+          {
+            type: "bind",
+            parameters: {
+              cluster_index: clusterIndexStr,
+              bdb_id: bdbIdStr,
+            },
+          },
+        ],
+      },
+    });
+  }
+
   async #request<T>(
     method: string,
     path: string,
