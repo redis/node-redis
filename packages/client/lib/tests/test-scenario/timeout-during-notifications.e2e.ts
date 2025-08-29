@@ -7,7 +7,7 @@ import {
   getEnvConfig,
   RedisConnectionConfig,
 } from "./test-scenario.util";
-import { createClient } from "../../../dist";
+import { createClient } from "../../..";
 import { before } from "mocha";
 import { TestCommandRunner } from "./test-command-runner";
 

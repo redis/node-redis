@@ -127,13 +127,13 @@ export class FaultInjectorClient {
         actions: [
           {
             type: "migrate",
-            parameters: {
+            params: {
               cluster_index: clusterIndexStr,
             },
           },
           {
             type: "bind",
-            parameters: {
+            params: {
               cluster_index: clusterIndexStr,
               bdb_id: bdbIdStr,
             },
