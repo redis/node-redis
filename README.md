@@ -198,9 +198,8 @@ See the [Pub/Sub overview](https://github.com/redis/node-redis/blob/master/docs/
 using [async iterators](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/asyncIterator):
 
 ```typescript
-for await (const key of client.scanIterator()) {
-  // use the key!
-  await client.get(key);
+for await (const keys of client.scanIterator()) {
+  console.log(keys, await client.mGet(keys));
 }
 ```
 
