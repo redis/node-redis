@@ -22,12 +22,11 @@ type FireCommandsUntilStopSignalOptions = {
   ) => Array<() => Promise<unknown>>;
 };
 
+/**
+ * Utility class for running test commands until a stop signal is received
+ */
 export class TestCommandRunner {
-  constructor(
-    private client: ReturnType<typeof createClient<any, any, any, any>>
-  ) {}
-
-  private defaultOptions: FireCommandsUntilStopSignalOptions = {
+  private static readonly defaultOptions: FireCommandsUntilStopSignalOptions = {
     batchSize: 60,
     timeoutMs: 10,
     createCommands: (
@@ -38,7 +37,7 @@ export class TestCommandRunner {
     ],
   };
 
-  #toSettled<T>(p: Promise<T>) {
+  static #toSettled<T>(p: Promise<T>) {
     return p
       .then((value) => ({ status: "fulfilled" as const, value, error: null }))
       .catch((reason) => ({
@@ -48,7 +47,7 @@ export class TestCommandRunner {
       }));
   }
 
-  async #racePromises<S, T>({
+  static async #racePromises<S, T>({
     timeout,
     stopper,
   }: {
@@ -56,26 +55,31 @@ export class TestCommandRunner {
     stopper: Promise<T>;
   }) {
     return Promise.race([
-      this.#toSettled<S>(timeout).then((result) => ({
+      TestCommandRunner.#toSettled<S>(timeout).then((result) => ({
         ...result,
         stop: false,
       })),
-      this.#toSettled<T>(stopper).then((result) => ({ ...result, stop: true })),
+      TestCommandRunner.#toSettled<T>(stopper).then((result) => ({
+        ...result,
+        stop: true,
+      })),
     ]);
   }
 
   /**
-   * Fires commands until a stop signal is received.
-   * @param stopSignalPromise Promise that resolves when the command execution should stop
-   * @param options Options for the command execution
-   * @returns Promise that resolves when the stop signal is received
+   * Fires a batch of test commands until a stop signal is received
+   * @param client - The Redis client to use
+   * @param stopSignalPromise - Promise that resolves when the execution should stop
+   * @param options - Options for the command execution
+   * @returns An object containing the promises of all executed commands and the result of the stop signal
    */
-  async fireCommandsUntilStopSignal(
+  static async fireCommandsUntilStopSignal(
+    client: ReturnType<typeof createClient<any, any, any, any>>,
     stopSignalPromise: Promise<unknown>,
     options?: Partial<FireCommandsUntilStopSignalOptions>
   ) {
     const executeOptions = {
-      ...this.defaultOptions,
+      ...TestCommandRunner.defaultOptions,
       ...options,
     };
 
@@ -83,12 +87,12 @@ export class TestCommandRunner {
 
     while (true) {
       for (let i = 0; i < executeOptions.batchSize; i++) {
-        for (const command of executeOptions.createCommands(this.client)) {
-          commandPromises.push(this.#toSettled(command()));
+        for (const command of executeOptions.createCommands(client)) {
+          commandPromises.push(TestCommandRunner.#toSettled(command()));
         }
       }
 
-      const result = await this.#racePromises({
+      const result = await TestCommandRunner.#racePromises({
         timeout: setTimeout(executeOptions.timeoutMs),
         stopper: stopSignalPromise,
       });

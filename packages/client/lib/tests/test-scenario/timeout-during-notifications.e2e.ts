@@ -1,11 +1,13 @@
 import assert from "node:assert";
-import { setTimeout } from "node:timers/promises";
+
 import { FaultInjectorClient } from "./fault-injector-client";
 import {
+  ClientFactory,
   getDatabaseConfig,
   getDatabaseConfigFromEnv,
   getEnvConfig,
   RedisConnectionConfig,
+  blockSetImmediate
 } from "./test-scenario.util";
 import { createClient } from "../../..";
 import { before } from "mocha";
@@ -13,9 +15,9 @@ import { TestCommandRunner } from "./test-command-runner";
 
 describe("Timeout Handling During Notifications", () => {
   let clientConfig: RedisConnectionConfig;
-  let client: ReturnType<typeof createClient<any, any, any, 3>>;
+  let clientFactory: ClientFactory;
   let faultInjectorClient: FaultInjectorClient;
-  let commandRunner: TestCommandRunner;
+  let defaultClient: ReturnType<typeof createClient<any, any, any, any>>;
 
   before(() => {
     const envConfig = getEnvConfig();
@@ -23,41 +25,27 @@ describe("Timeout Handling During Notifications", () => {
       envConfig.redisEndpointsConfigPath
     );
 
-    faultInjectorClient = new FaultInjectorClient(envConfig.faultInjectorUrl);
     clientConfig = getDatabaseConfig(redisConfig);
+    faultInjectorClient = new FaultInjectorClient(envConfig.faultInjectorUrl);
+    clientFactory = new ClientFactory(clientConfig);
   });
 
   beforeEach(async () => {
-    client = createClient({
-      socket: {
-        host: clientConfig.host,
-        port: clientConfig.port,
-        ...(clientConfig.tls === true ? { tls: true } : {}),
-      },
-      password: clientConfig.password,
-      username: clientConfig.username,
-      RESP: 3,
-      maintPushNotifications: "auto",
-      maintMovingEndpointType: "auto",
-    });
+    defaultClient = await clientFactory.create("default");
 
-    client.on("error", (err: Error) => {
-      throw new Error(`Client error: ${err.message}`);
-    });
-
-    commandRunner = new TestCommandRunner(client);
-
-    await client.connect();
+    await defaultClient.flushAll();
   });
 
-  afterEach(() => {
-    client.destroy();
+  afterEach(async () => {
+    clientFactory.destroyAll();
   });
 
   it("should relax command timeout on MOVING, MIGRATING, and MIGRATED", async () => {
     // PART 1
     // Set very low timeout to trigger errors
-    client.options!.maintRelaxedCommandTimeout = 50;
+    const lowTimeoutClient = await clientFactory.create("lowTimeout", {
+      maintRelaxedCommandTimeout: 50,
+    });
 
     const { action_id: lowTimeoutBindAndMigrateActionId } =
       await faultInjectorClient.migrateAndBindAction({
@@ -70,7 +58,10 @@ describe("Timeout Handling During Notifications", () => {
     );
 
     const lowTimeoutCommandPromises =
-      await commandRunner.fireCommandsUntilStopSignal(lowTimeoutWaitPromise);
+      await TestCommandRunner.fireCommandsUntilStopSignal(
+        lowTimeoutClient,
+        lowTimeoutWaitPromise
+      );
 
     const lowTimeoutRejectedCommands = (
       await Promise.all(lowTimeoutCommandPromises.commandPromises)
@@ -90,7 +81,9 @@ describe("Timeout Handling During Notifications", () => {
 
     // PART 2
     // Set high timeout to avoid errors
-    client.options!.maintRelaxedCommandTimeout = 10000;
+    const highTimeoutClient = await clientFactory.create("highTimeout", {
+      maintRelaxedCommandTimeout: 10000,
+    });
 
     const { action_id: highTimeoutBindAndMigrateActionId } =
       await faultInjectorClient.migrateAndBindAction({
@@ -103,7 +96,10 @@ describe("Timeout Handling During Notifications", () => {
     );
 
     const highTimeoutCommandPromises =
-      await commandRunner.fireCommandsUntilStopSignal(highTimeoutWaitPromise);
+      await TestCommandRunner.fireCommandsUntilStopSignal(
+        highTimeoutClient,
+        highTimeoutWaitPromise
+      );
 
     const highTimeoutRejectedCommands = (
       await Promise.all(highTimeoutCommandPromises.commandPromises)
@@ -112,13 +108,15 @@ describe("Timeout Handling During Notifications", () => {
     assert.strictEqual(highTimeoutRejectedCommands.length, 0);
   });
 
-  // TODO this is WIP
-  it.skip("should unrelax command timeout after MAINTENANCE", async () => {
-    client.options!.maintRelaxedCommandTimeout = 10000;
-    client.options!.commandOptions = {
-      ...client.options!.commandOptions,
-      timeout: 1, // Set very low timeout to trigger errors
-    };
+  it("should unrelax command timeout after MAINTENANCE", async () => {
+    const clientWithCommandTimeout = await clientFactory.create(
+      "clientWithCommandTimeout",
+      {
+        commandOptions: {
+          timeout: 100,
+        },
+      }
+    );
 
     const { action_id: bindAndMigrateActionId } =
       await faultInjectorClient.migrateAndBindAction({
@@ -131,25 +129,31 @@ describe("Timeout Handling During Notifications", () => {
     );
 
     const relaxedTimeoutCommandPromises =
-      await commandRunner.fireCommandsUntilStopSignal(lowTimeoutWaitPromise);
+      await TestCommandRunner.fireCommandsUntilStopSignal(
+        clientWithCommandTimeout,
+        lowTimeoutWaitPromise
+      );
 
     const relaxedTimeoutRejectedCommands = (
       await Promise.all(relaxedTimeoutCommandPromises.commandPromises)
     ).filter((result) => result.status === "rejected");
-    console.log(
-      "relaxedTimeoutRejectedCommands",
-      relaxedTimeoutRejectedCommands
-    );
 
     assert.ok(relaxedTimeoutRejectedCommands.length === 0);
 
-    const unrelaxedCommandPromises =
-      await commandRunner.fireCommandsUntilStopSignal(setTimeout(1 * 1000));
+    const start = performance.now();
 
-    const unrelaxedRejectedCommands = (
-      await Promise.all(unrelaxedCommandPromises.commandPromises)
-    ).filter((result) => result.status === "rejected");
+    let error: any;
+    await blockSetImmediate(async () => {
+      try {
+        await clientWithCommandTimeout.set("key", "value");
+      } catch (err: any) {
+        error = err;
+      }
+    });
 
-    assert.ok(unrelaxedRejectedCommands.length > 0);
+    // Make sure it took less than 1sec to fail
+    assert.ok(performance.now() - start < 1000);
+    assert.ok(error instanceof Error);
+    assert.ok(error.constructor.name === "TimeoutError");
   });
 });
