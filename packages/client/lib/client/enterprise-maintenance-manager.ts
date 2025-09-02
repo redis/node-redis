@@ -29,12 +29,12 @@ export type DiagnosticsEvent = {
 };
 
 export const dbgMaintenance = (...args: any[]) => {
-  if (!process.env.DEBUG_MAINTENANCE) return;
+  if (!process.env.REDIS_DEBUG_MAINTENANCE) return;
   return console.log("[MNT]", ...args);
 };
 
 export const emitDiagnostics = (event: DiagnosticsEvent) => {
-  if (!process.env.EMIT_DIAGNOSTICS) return;
+  if (!process.env.REDIS_EMIT_DIAGNOSTICS) return;
 
   const channel = diagnostics_channel.channel("redis.maintenance");
   channel.publish(event);
@@ -120,7 +120,7 @@ export default class EnterpriseMaintenanceManager {
 
   #onPush = (push: Array<any>): boolean => {
     dbgMaintenance("ONPUSH:", push.map(String));
-    
+
     if (!Array.isArray(push) || !["MOVING", "MIGRATING", "MIGRATED", "FAILING_OVER", "FAILED_OVER"].includes(String(push[0]))) {
       return false;
     }
