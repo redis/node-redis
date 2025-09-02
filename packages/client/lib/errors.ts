@@ -71,13 +71,13 @@ export class BlobError extends ErrorReply {}
 
 export class TimeoutError extends Error {}
 
-export class SocketTimeoutDuringMaintananceError extends TimeoutError {
+export class SocketTimeoutDuringMaintenanceError extends TimeoutError {
   constructor(timeout: number) {
     super(`Socket timeout during maintenance. Expecting data, but didn't receive any in ${timeout}ms.`);
   }
 }
 
-export class CommandTimeoutDuringMaintananceError extends TimeoutError {
+export class CommandTimeoutDuringMaintenanceError extends TimeoutError {
   constructor(timeout: number) {
     super(`Command timeout during maintenance. Waited to write command for more than ${timeout}ms.`);
   }

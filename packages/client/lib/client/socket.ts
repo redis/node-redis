@@ -1,7 +1,7 @@
 import { EventEmitter, once } from 'node:events';
 import net from 'node:net';
 import tls from 'node:tls';
-import { ConnectionTimeoutError, ClientClosedError, SocketClosedUnexpectedlyError, ReconnectStrategyError, SocketTimeoutError, SocketTimeoutDuringMaintananceError } from '../errors';
+import { ConnectionTimeoutError, ClientClosedError, SocketClosedUnexpectedlyError, ReconnectStrategyError, SocketTimeoutError, SocketTimeoutDuringMaintenanceError } from '../errors';
 import { setTimeout } from 'node:timers/promises';
 import { RedisArgument } from '../RESP/types';
 import { dbgMaintenance } from './enterprise-maintenance-manager';
@@ -280,7 +280,7 @@ export default class RedisSocket extends EventEmitter {
     if (this.#socketTimeout) {
       socket.once('timeout', () => {
         const error = this.#maintenanceTimeout
-          ? new SocketTimeoutDuringMaintananceError(this.#maintenanceTimeout)
+          ? new SocketTimeoutDuringMaintenanceError(this.#maintenanceTimeout)
           : new SocketTimeoutError(this.#socketTimeout!)
         socket.destroy(error);
       });

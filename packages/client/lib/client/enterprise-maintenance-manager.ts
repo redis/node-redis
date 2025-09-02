@@ -221,26 +221,24 @@ export default class EnterpriseMaintenanceManager {
     } else {
       tmpOptions.socket = {
         ...tmpOptions.socket,
-        host, port
+        host,
+        port
       }
     }
     const tmpClient = this.#client.duplicate(tmpOptions);
     dbgMaintenance(`Tmp client created in ${( performance.now() - start ).toFixed(2)}ms`);
-    dbgMaintenance(`Connecting tmp client: ${host}:${port}`);
-    start = performance.now();
+    dbgMaintenance(
+      `Set timeout for tmp client to ${this.#options.maintRelaxedSocketTimeout}`,
+    );
     tmpClient._maintenanceUpdate({
       relaxedCommandTimeout: this.#options.maintRelaxedCommandTimeout,
       relaxedSocketTimeout: this.#options.maintRelaxedSocketTimeout,
     });
+    dbgMaintenance(`Connecting tmp client: ${host}:${port}`);
+    start = performance.now();
     await tmpClient.connect();
     dbgMaintenance(`Connected to tmp client in ${(performance.now() - start).toFixed(2)}ms`);
     // 3 [EVENT] New socket connected
-
-    //TODO
-    // dbgMaintenance(
-    //   `Set timeout for new socket to ${this.#options.maintRelaxedSocketTimeout}`,
-    // );
-    // newSocket.setMaintenanceTimeout(this.#options.maintRelaxedSocketTimeout);
 
     dbgMaintenance(`Wait for all in-flight commands to complete`);
     await this.#commandsQueue.waitForInflightCommandsToComplete();
@@ -260,7 +258,7 @@ export default class EnterpriseMaintenanceManager {
     this.#onMigrated();
   };
 
-  #onMigrating = async () => {
+  #onMigrating = () => {
     this.#isMaintenance++;
     if (this.#isMaintenance > 1) {
       dbgMaintenance(`Timeout relaxation already done`);
@@ -275,9 +273,9 @@ export default class EnterpriseMaintenanceManager {
     this.#client._maintenanceUpdate(update);
   };
 
-  #onMigrated = async () => {
-    this.#isMaintenance--;
-    assert(this.#isMaintenance >= 0);
+  #onMigrated = () => {
+    //ensure that #isMaintenance doesnt go under 0
+    this.#isMaintenance = Math.max(this.#isMaintenance - 1, 0);
     if (this.#isMaintenance > 0) {
       dbgMaintenance(`Not ready to unrelax timeouts yet`);
       return;

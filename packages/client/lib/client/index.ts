@@ -171,7 +171,7 @@ export interface RedisClientOptions<
   /**
    * Specifies a more relaxed timeout (in milliseconds) for commands during a maintenance window.
    * This helps minimize command timeouts during maintenance. If not provided, the `commandOptions.timeout`
-   * will be used instead. Timeouts during maintenance period result in a `CommandTimeoutDuringMaintanance` error.
+   * will be used instead. Timeouts during maintenance period result in a `CommandTimeoutDuringMaintenance` error.
    *
    * The default is 10000
    */
@@ -179,7 +179,7 @@ export interface RedisClientOptions<
   /**
    * Specifies a more relaxed timeout (in milliseconds) for the socket during a maintenance window.
    * This helps minimize socket timeouts during maintenance. If not provided, the `socket.timeout`
-   * will be used instead. Timeouts during maintenance period result in a `SocketTimeoutDuringMaintanance` error.
+   * will be used instead. Timeouts during maintenance period result in a `SocketTimeoutDuringMaintenance` error.
    *
    * The default is 10000
    */
@@ -943,7 +943,7 @@ export default class RedisClient<
    }
 
    /**
-    * @intenal
+    * @internal
     */
    _insertSocket(socket: RedisSocket) {
      if(this._self.#socket) {

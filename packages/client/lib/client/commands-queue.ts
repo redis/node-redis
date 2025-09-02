@@ -3,7 +3,7 @@ import encodeCommand from '../RESP/encoder';
 import { Decoder, PUSH_TYPE_MAPPING, RESP_TYPES } from '../RESP/decoder';
 import { TypeMapping, ReplyUnion, RespVersions, RedisArgument } from '../RESP/types';
 import { ChannelListeners, PubSub, PubSubCommand, PubSubListener, PubSubType, PubSubTypeListeners } from './pub-sub';
-import { AbortError, ErrorReply, CommandTimeoutDuringMaintananceError, TimeoutError } from '../errors';
+import { AbortError, ErrorReply, CommandTimeoutDuringMaintenanceError, TimeoutError } from '../errors';
 import { MonitorCallback } from '.';
 import { dbgMaintenance } from './enterprise-maintenance-manager';
 
@@ -107,7 +107,7 @@ export default class RedisCommandsQueue {
         signal,
         listener: () => {
           this.#toWrite.remove(node);
-          command.reject(new CommandTimeoutDuringMaintananceError(newTimeout));
+          command.reject(new CommandTimeoutDuringMaintenanceError(newTimeout));
         },
         originalTimeout: command.timeout?.originalTimeout
       };
@@ -231,7 +231,7 @@ export default class RedisCommandsQueue {
           signal,
           listener: () => {
             this.#toWrite.remove(node);
-            value.reject(wasInMaintenance ? new CommandTimeoutDuringMaintananceError(timeout) : new TimeoutError());
+            value.reject(wasInMaintenance ? new CommandTimeoutDuringMaintenanceError(timeout) : new TimeoutError());
           },
           originalTimeout: options?.timeout
         };
