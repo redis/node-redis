@@ -143,6 +143,8 @@ await client.sendCommand(["SET", "key", "value", "NX"]); // 'OK'
 await client.sendCommand(["HGETALL", "key"]); // ['key1', 'field1', 'key2', 'field2']
 ```
 
+_Note: the [API is different when using a cluster](https://github.com/redis/node-redis/blob/master/docs/clustering.md#unsupported-redis-commands)._
+
 ### Transactions (Multi/Exec)
 
 Start a [transaction](https://redis.io/topics/transactions) by calling `.multi()`, then chaining your commands. When
@@ -196,9 +198,8 @@ See the [Pub/Sub overview](https://github.com/redis/node-redis/blob/master/docs/
 using [async iterators](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/asyncIterator):
 
 ```typescript
-for await (const key of client.scanIterator()) {
-  // use the key!
-  await client.get(key);
+for await (const keys of client.scanIterator()) {
+  console.log(keys, await client.mGet(keys));
 }
 ```
 

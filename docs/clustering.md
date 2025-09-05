@@ -38,6 +38,25 @@ await cluster.close();
 | scripts                |         | Script definitions (see [Lua Scripts](./programmability.md#lua-scripts))                                                                                                                                                                                                                                                    |
 | functions              |         | Function definitions (see [Functions](./programmability.md#functions))                                                                                                                                                                                                                                                      |
 
+## Usage
+
+Most redis commands are the same as with individual clients.
+
+### Unsupported Redis Commands
+
+If you want to run commands and/or use arguments that Node Redis doesn't know about (yet!) use `.sendCommand()`.
+
+When clustering, `sendCommand` takes 3 arguments to help with routing to the correct redis node:
+* `firstKey`: the key that is being operated on, or `undefined` to route to a random node.
+* `isReadOnly`: determines if the command needs to go to the master or may go to a replica.
+*  `args`: the command and all arguments (including the key), as an array of strings.
+
+```javascript
+await cluster.sendCommand("key", false, ["SET", "key", "value", "NX"]); // 'OK'
+
+await cluster.sendCommand("key", true, ["HGETALL", "key"]); // ['key1', 'field1', 'key2', 'field2']
+```
+
 ## Auth with password and username
 
 Specifying the password in the URL or a root node will only affect the connection to that specific node. In case you want to set the password for all the connections being created from a cluster instance, use the `defaults` option.
@@ -114,3 +133,4 @@ Admin commands such as `MEMORY STATS`, `FLUSHALL`, etc. are not attached to the 
 ### "Forwarded Commands"
 
 Certain commands (e.g. `PUBLISH`) are forwarded to other cluster nodes by the Redis server. The client sends these commands to a random node in order to spread the load across the cluster.
+
