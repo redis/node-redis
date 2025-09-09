@@ -13,11 +13,11 @@
     "release": "release-it"
   },
   "dependencies": {
-    "@redis/bloom": "5.8.2",
-    "@redis/client": "5.8.2",
-    "@redis/json": "5.8.2",
-    "@redis/search": "5.8.2",
-    "@redis/time-series": "5.8.2"
+    "@redis/bloom": "^5.8.2 || ^5.9.0-0",
+    "@redis/client": "^5.8.2 || ^5.9.0-0",
+    "@redis/json": "^5.8.2 || ^5.9.0-0",
+    "@redis/search": "^5.8.2 || ^5.9.0-0",
+    "@redis/time-series": "^5.8.2 || ^5.9.0-0"
   },
   "engines": {
     "node": ">= 18"

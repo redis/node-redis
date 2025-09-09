@@ -22,7 +22,7 @@
     "@azure/msal-node": "^2.16.1"
   },
   "peerDependencies": {
-    "@redis/client": "^5.8.2"
+    "@redis/client": "^5.8.2 || ^5.9.0-0"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
