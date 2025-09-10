@@ -110,8 +110,18 @@ export function getDatabaseConfig(
   };
 }
 
-// TODO this should be moved in the tests utils package
-export async function blockSetImmediate(fn: () => Promise<unknown>) {
+/**
+ * Executes the provided function in a context where setImmediate is stubbed to not do anything.
+ * This blocks setImmediate callbacks from executing
+ *
+ * @param command - The command to execute
+ * @returns The error and duration of the command execution
+ */
+export async function blockCommand(command: () => Promise<unknown>) {
+  let error: any;
+
+  const start = performance.now();
+
   let setImmediateStub: any;
 
   try {
@@ -119,79 +129,50 @@ export async function blockSetImmediate(fn: () => Promise<unknown>) {
     setImmediateStub.callsFake(() => {
       //Dont call the callback, effectively blocking execution
     });
-    await fn();
+    await command();
+  } catch (err: any) {
+    error = err;
   } finally {
     if (setImmediateStub) {
       setImmediateStub.restore();
     }
   }
+
+  return {
+    error,
+    duration: performance.now() - start,
+  };
 }
 
 /**
- * Factory class for creating and managing Redis clients
+ * Creates a test client with the provided configuration, connects it and attaches an error handler listener
+ * @param clientConfig - The Redis connection configuration
+ * @param options - Optional client options
+ * @returns The created Redis client
  */
-export class ClientFactory {
-  private readonly clients = new Map<
-    string,
-    ReturnType<typeof createClient<any, any, any, any>>
-  >();
+export async function createTestClient(
+  clientConfig: RedisConnectionConfig,
+  options: Partial<RedisClientOptions> = {}
+) {
+  const client = createClient({
+    socket: {
+      host: clientConfig.host,
+      port: clientConfig.port,
+      ...(clientConfig.tls === true ? { tls: true } : {}),
+    },
+    password: clientConfig.password,
+    username: clientConfig.username,
+    RESP: 3,
+    maintPushNotifications: "auto",
+    maintMovingEndpointType: "auto",
+    ...options,
+  });
 
-  constructor(private readonly config: RedisConnectionConfig) {}
+  client.on("error", (err: Error) => {
+    throw new Error(`Client error: ${err.message}`);
+  });
 
-  /**
-   * Creates a new client with the specified options and connects it to the database
-   * @param key - The key to store the client under
-   * @param options - Optional client options
-   * @returns The created and connected client
-   */
-  async create(key: string, options: Partial<RedisClientOptions> = {}) {
-    const client = createClient({
-      socket: {
-        host: this.config.host,
-        port: this.config.port,
-        ...(this.config.tls === true ? { tls: true } : {}),
-      },
-      password: this.config.password,
-      username: this.config.username,
-      RESP: 3,
-      maintPushNotifications: "auto",
-      maintMovingEndpointType: "auto",
-      ...options,
-    });
+  await client.connect();
 
-    client.on("error", (err: Error) => {
-      throw new Error(`Client error: ${err.message}`);
-    });
-
-    await client.connect();
-
-    this.clients.set(key, client);
-
-    return client;
-  }
-
-  /**
-   * Gets an existing client by key or the first one if no key is provided
-   * @param key - The key of the client to retrieve
-   * @returns The client if found, undefined otherwise
-   */
-  get(key?: string) {
-    if (key) {
-      return this.clients.get(key);
-    }
-
-    // Get the first one if no key is provided
-    return this.clients.values().next().value;
-  }
-
-  /**
-   * Destroys all created clients
-   */
-  destroyAll() {
-    this.clients.forEach((client) => {
-      if (client && client.isOpen) {
-        client.destroy();
-      }
-    });
-  }
+  return client;
 }

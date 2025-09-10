@@ -47,7 +47,7 @@ export class FaultInjectorClient {
    * @param action The action request to trigger
    * @throws {Error} When the HTTP request fails or response cannot be parsed as JSON
    */
-  public triggerAction<T = unknown>(action: ActionRequest): Promise<T> {
+  public triggerAction<T extends { action_id: string }>(action: ActionRequest): Promise<T> {
     return this.#request<T>("POST", "/action", action);
   }
 
@@ -58,20 +58,6 @@ export class FaultInjectorClient {
    */
   public getActionStatus<T = ActionStatus>(actionId: string): Promise<T> {
     return this.#request<T>("GET", `/action/${actionId}`);
-  }
-
-  /**
-   * Executes an rladmin command.
-   * @param command The rladmin command to execute
-   * @param bdbId Optional database ID to target
-   * @throws {Error} When the HTTP request fails or response cannot be parsed as JSON
-   */
-  public executeRladminCommand<T = unknown>(
-    command: string,
-    bdbId?: string
-  ): Promise<T> {
-    const cmd = bdbId ? `rladmin -b ${bdbId} ${command}` : `rladmin ${command}`;
-    return this.#request<T>("POST", "/rladmin", cmd);
   }
 
   /**
