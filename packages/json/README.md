@@ -33,7 +33,7 @@ await client.json.set('noderedis:jsondata', '$', {
 });
 ```
 
-For more information about RedisJSON's path syntax, [check out the documentation](https://redis.io/docs/data-types/json/path/).
+For more information about RedisJSON's path syntax, [check out the documentation](https://redis.io/docs/latest/develop/data-types/json/path).
 
 ### Retrieving JSON Documents from Redis
 
