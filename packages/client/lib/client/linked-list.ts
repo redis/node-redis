@@ -1,3 +1,5 @@
+import EventEmitter from "events";
+
 export interface DoublyLinkedNode<T> {
   value: T;
   previous: DoublyLinkedNode<T> | undefined;
@@ -32,7 +34,7 @@ export class DoublyLinkedList<T> {
         next: undefined,
         value
       };
-    } 
+    }
 
     return this.#tail = this.#tail.next = {
       previous: this.#tail,
@@ -93,7 +95,7 @@ export class DoublyLinkedList<T> {
       node.previous!.next = node.next;
       node.previous = undefined;
     }
-    
+
     node.next = undefined;
   }
 
@@ -106,6 +108,14 @@ export class DoublyLinkedList<T> {
     let node = this.#head;
     while (node !== undefined) {
       yield node.value;
+      node = node.next;
+    }
+  }
+
+  *nodes() {
+    let node = this.#head;
+    while(node) {
+      yield node;
       node = node.next;
     }
   }
@@ -200,4 +210,31 @@ export class SinglyLinkedList<T> {
       node = node.next;
     }
   }
+}
+
+export class EmptyAwareSinglyLinkedList<T> extends SinglyLinkedList<T> {
+  readonly events = new EventEmitter();
+  reset() {
+    const old = this.length;
+    super.reset();
+    if(old !== this.length && this.length === 0) {
+      this.events.emit('empty');
+    }
+  }
+  shift(): T | undefined {
+    const old = this.length;
+    const ret = super.shift();
+    if(old !== this.length && this.length === 0) {
+      this.events.emit('empty');
+    }
+    return ret;
+  }
+  remove(node: SinglyLinkedNode<T>, parent: SinglyLinkedNode<T> | undefined) {
+    const old = this.length;
+    super.remove(node, parent);
+    if(old !== this.length && this.length === 0) {
+      this.events.emit('empty');
+    }
+  }
+
 }
