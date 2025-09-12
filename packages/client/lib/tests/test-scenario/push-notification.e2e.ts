@@ -40,12 +40,6 @@ describe("Push Notifications", () => {
     clientConfig = getDatabaseConfig(redisConfig);
   });
 
-  beforeEach(async () => {
-    client = await createTestClient(clientConfig);
-
-    await client.flushAll();
-  });
-
   afterEach(() => {
     if (onMessageHandler!) {
       diagnostics_channel.unsubscribe("redis.maintenance", onMessageHandler);
@@ -56,82 +50,300 @@ describe("Push Notifications", () => {
     }
   });
 
-  it("should receive MOVING, MIGRATING, and MIGRATED push notifications", async () => {
-    const notifications: Array<DiagnosticsEvent["type"]> = [
-      "MOVING",
-      "MIGRATING",
-      "MIGRATED",
-    ];
+  describe("Push Notifications Enabled", () => {
+    beforeEach(async () => {
+      client = await createTestClient(clientConfig);
 
-    const diagnosticsMap: Record<DiagnosticsEvent["type"], number> = {};
+      await client.flushAll();
+    });
 
-    onMessageHandler = createNotificationMessageHandler(
-      diagnosticsMap,
-      notifications
-    );
+    it("should receive MOVING, MIGRATING, and MIGRATED push notifications", async () => {
+      const notifications: Array<DiagnosticsEvent["type"]> = [
+        "MOVING",
+        "MIGRATING",
+        "MIGRATED",
+      ];
 
-    diagnostics_channel.subscribe("redis.maintenance", onMessageHandler);
+      const diagnosticsMap: Record<DiagnosticsEvent["type"], number> = {};
 
-    const { action_id: bindAndMigrateActionId } =
-      await faultInjectorClient.migrateAndBindAction({
-        bdbId: clientConfig.bdbId,
-        clusterIndex: 0,
-      });
+      onMessageHandler = createNotificationMessageHandler(
+        diagnosticsMap,
+        notifications
+      );
 
-    await faultInjectorClient.waitForAction(bindAndMigrateActionId);
+      diagnostics_channel.subscribe("redis.maintenance", onMessageHandler);
 
-    assert.strictEqual(
-      diagnosticsMap.MOVING,
-      1,
-      "Should have received exactly one MOVING notification"
-    );
-    assert.strictEqual(
-      diagnosticsMap.MIGRATING,
-      1,
-      "Should have received exactly one MIGRATING notification"
-    );
-    assert.strictEqual(
-      diagnosticsMap.MIGRATED,
-      1,
-      "Should have received exactly one MIGRATED notification"
-    );
+      const { action_id: bindAndMigrateActionId } =
+        await faultInjectorClient.migrateAndBindAction({
+          bdbId: clientConfig.bdbId,
+          clusterIndex: 0,
+        });
+
+      await faultInjectorClient.waitForAction(bindAndMigrateActionId);
+
+      assert.strictEqual(
+        diagnosticsMap.MOVING,
+        1,
+        "Should have received exactly one MOVING notification"
+      );
+      assert.strictEqual(
+        diagnosticsMap.MIGRATING,
+        1,
+        "Should have received exactly one MIGRATING notification"
+      );
+      assert.strictEqual(
+        diagnosticsMap.MIGRATED,
+        1,
+        "Should have received exactly one MIGRATED notification"
+      );
+    });
+
+    it("should receive FAILING_OVER and FAILED_OVER push notifications", async () => {
+      const notifications: Array<DiagnosticsEvent["type"]> = [
+        "FAILING_OVER",
+        "FAILED_OVER",
+      ];
+
+      const diagnosticsMap: Record<DiagnosticsEvent["type"], number> = {};
+
+      onMessageHandler = createNotificationMessageHandler(
+        diagnosticsMap,
+        notifications
+      );
+
+      diagnostics_channel.subscribe("redis.maintenance", onMessageHandler);
+
+      const { action_id: failoverActionId } =
+        await faultInjectorClient.triggerAction({
+          type: "failover",
+          parameters: {
+            bdb_id: clientConfig.bdbId.toString(),
+            cluster_index: 0,
+          },
+        });
+
+      await faultInjectorClient.waitForAction(failoverActionId);
+
+      assert.strictEqual(
+        diagnosticsMap.FAILING_OVER,
+        1,
+        "Should have received exactly one FAILING_OVER notification"
+      );
+      assert.strictEqual(
+        diagnosticsMap.FAILED_OVER,
+        1,
+        "Should have received exactly one FAILED_OVER notification"
+      );
+    });
   });
 
-  it("should receive FAILING_OVER and FAILED_OVER push notifications", async () => {
-    const notifications: Array<DiagnosticsEvent["type"]> = [
-      "FAILING_OVER",
-      "FAILED_OVER",
-    ];
-
-    const diagnosticsMap: Record<DiagnosticsEvent["type"], number> = {};
-
-    onMessageHandler = createNotificationMessageHandler(
-      diagnosticsMap,
-      notifications
-    );
-
-    diagnostics_channel.subscribe("redis.maintenance", onMessageHandler);
-
-    const { action_id: failoverActionId } =
-      await faultInjectorClient.triggerAction({
-        type: "failover",
-        parameters: {
-          bdb_id: clientConfig.bdbId.toString(),
-          cluster_index: 0,
-        },
+  describe("Push Notifications Disabled - Client", () => {
+    beforeEach(async () => {
+      client = await createTestClient(clientConfig, {
+        maintPushNotifications: "disabled",
       });
 
-    await faultInjectorClient.waitForAction(failoverActionId);
+      client.on("error", (_err) => {
+        // Expect the socket to be closed
+        // Ignore errors
+      });
 
-    assert.strictEqual(
-      diagnosticsMap.FAILING_OVER,
-      1,
-      "Should have received exactly one FAILING_OVER notification"
-    );
-    assert.strictEqual(
-      diagnosticsMap.FAILED_OVER,
-      1,
-      "Should have received exactly one FAILED_OVER notification"
-    );
+      await client.flushAll();
+    });
+
+    it("should NOT receive MOVING, MIGRATING, and MIGRATED push notifications", async () => {
+      const notifications: Array<DiagnosticsEvent["type"]> = [
+        "MOVING",
+        "MIGRATING",
+        "MIGRATED",
+      ];
+
+      const diagnosticsMap: Record<DiagnosticsEvent["type"], number> = {};
+
+      onMessageHandler = createNotificationMessageHandler(
+        diagnosticsMap,
+        notifications
+      );
+
+      diagnostics_channel.subscribe("redis.maintenance", onMessageHandler);
+
+      const { action_id: bindAndMigrateActionId } =
+        await faultInjectorClient.migrateAndBindAction({
+          bdbId: clientConfig.bdbId,
+          clusterIndex: 0,
+        });
+
+      await faultInjectorClient.waitForAction(bindAndMigrateActionId);
+
+      assert.strictEqual(
+        diagnosticsMap.MOVING,
+        undefined,
+        "Should NOT have received exactly one MOVING notification"
+      );
+      assert.strictEqual(
+        diagnosticsMap.MIGRATING,
+        undefined,
+        "Should NOT have received exactly one MIGRATING notification"
+      );
+      assert.strictEqual(
+        diagnosticsMap.MIGRATED,
+        undefined,
+        "Should NOT have received exactly one MIGRATED notification"
+      );
+    });
+
+    it("should NOT receive FAILING_OVER and FAILED_OVER push notifications", async () => {
+      const notifications: Array<DiagnosticsEvent["type"]> = [
+        "FAILING_OVER",
+        "FAILED_OVER",
+      ];
+
+      const diagnosticsMap: Record<DiagnosticsEvent["type"], number> = {};
+
+      onMessageHandler = createNotificationMessageHandler(
+        diagnosticsMap,
+        notifications
+      );
+
+      diagnostics_channel.subscribe("redis.maintenance", onMessageHandler);
+
+      const { action_id: failoverActionId } =
+        await faultInjectorClient.triggerAction({
+          type: "failover",
+          parameters: {
+            bdb_id: clientConfig.bdbId.toString(),
+            cluster_index: 0,
+          },
+        });
+
+      await faultInjectorClient.waitForAction(failoverActionId);
+
+      assert.strictEqual(
+        diagnosticsMap.FAILING_OVER,
+        undefined,
+        "Should have received exactly one FAILING_OVER notification"
+      );
+      assert.strictEqual(
+        diagnosticsMap.FAILED_OVER,
+        undefined,
+        "Should have received exactly one FAILED_OVER notification"
+      );
+    });
+  });
+
+  describe("Push Notifications Disabled - Server", () => {
+    beforeEach(async () => {
+      client = await createTestClient(clientConfig);
+
+      client.on("error", (_err) => {
+        // Expect the socket to be closed
+        // Ignore errors
+      });
+
+      await client.flushAll();
+    });
+
+    before(async () => {
+      const { action_id: disablePushNotificationsActionId } =
+        await faultInjectorClient.triggerAction({
+          type: "update_cluster_config",
+          parameters: {
+            config: { client_maint_notifications: false },
+          },
+        });
+
+      await faultInjectorClient.waitForAction(disablePushNotificationsActionId);
+    });
+
+    after(async () => {
+      const { action_id: enablePushNotificationsActionId } =
+        await faultInjectorClient.triggerAction({
+          type: "update_cluster_config",
+          parameters: {
+            config: { client_maint_notifications: true },
+          },
+        });
+
+      await faultInjectorClient.waitForAction(enablePushNotificationsActionId);
+    });
+
+    it("should NOT receive MOVING, MIGRATING, and MIGRATED push notifications", async () => {
+      const notifications: Array<DiagnosticsEvent["type"]> = [
+        "MOVING",
+        "MIGRATING",
+        "MIGRATED",
+      ];
+
+      const diagnosticsMap: Record<DiagnosticsEvent["type"], number> = {};
+
+      onMessageHandler = createNotificationMessageHandler(
+        diagnosticsMap,
+        notifications
+      );
+
+      diagnostics_channel.subscribe("redis.maintenance", onMessageHandler);
+
+      const { action_id: bindAndMigrateActionId } =
+        await faultInjectorClient.migrateAndBindAction({
+          bdbId: clientConfig.bdbId,
+          clusterIndex: 0,
+        });
+
+      await faultInjectorClient.waitForAction(bindAndMigrateActionId);
+
+      assert.strictEqual(
+        diagnosticsMap.MOVING,
+        undefined,
+        "Should NOT have received exactly one MOVING notification"
+      );
+      assert.strictEqual(
+        diagnosticsMap.MIGRATING,
+        undefined,
+        "Should NOT have received exactly one MIGRATING notification"
+      );
+      assert.strictEqual(
+        diagnosticsMap.MIGRATED,
+        undefined,
+        "Should NOT have received exactly one MIGRATED notification"
+      );
+    });
+
+    it("should NOT receive FAILING_OVER and FAILED_OVER push notifications", async () => {
+      const notifications: Array<DiagnosticsEvent["type"]> = [
+        "FAILING_OVER",
+        "FAILED_OVER",
+      ];
+
+      const diagnosticsMap: Record<DiagnosticsEvent["type"], number> = {};
+
+      onMessageHandler = createNotificationMessageHandler(
+        diagnosticsMap,
+        notifications
+      );
+
+      diagnostics_channel.subscribe("redis.maintenance", onMessageHandler);
+
+      const { action_id: failoverActionId } =
+        await faultInjectorClient.triggerAction({
+          type: "failover",
+          parameters: {
+            bdb_id: clientConfig.bdbId.toString(),
+            cluster_index: 0,
+          },
+        });
+
+      await faultInjectorClient.waitForAction(failoverActionId);
+
+      assert.strictEqual(
+        diagnosticsMap.FAILING_OVER,
+        undefined,
+        "Should have received exactly one FAILING_OVER notification"
+      );
+      assert.strictEqual(
+        diagnosticsMap.FAILED_OVER,
+        undefined,
+        "Should have received exactly one FAILED_OVER notification"
+      );
+    });
   });
 });

@@ -168,10 +168,6 @@ export async function createTestClient(
     ...options,
   });
 
-  client.on("error", (err: Error) => {
-    throw new Error(`Client error: ${err.message}`);
-  });
-
   await client.connect();
 
   return client;

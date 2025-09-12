@@ -9,7 +9,8 @@ export type ActionType =
   | "execute_rlutil_command"
   | "execute_rladmin_command"
   | "migrate"
-  | "bind";
+  | "bind"
+  | "update_cluster_config";
 
 export interface ActionRequest {
   type: ActionType;
@@ -47,7 +48,9 @@ export class FaultInjectorClient {
    * @param action The action request to trigger
    * @throws {Error} When the HTTP request fails or response cannot be parsed as JSON
    */
-  public triggerAction<T extends { action_id: string }>(action: ActionRequest): Promise<T> {
+  public triggerAction<T extends { action_id: string }>(
+    action: ActionRequest
+  ): Promise<T> {
     return this.#request<T>("POST", "/action", action);
   }
 

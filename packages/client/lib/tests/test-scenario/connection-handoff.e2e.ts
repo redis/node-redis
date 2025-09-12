@@ -110,7 +110,7 @@ describe("Connection Handoff", () => {
     ];
 
     for (const { name, clientOptions } of cases) {
-      it.only(`should establish new connection and resume traffic afterwards - ${name}`, async () => {
+      it(`should establish new connection and resume traffic afterwards - ${name}`, async () => {
         client = await createTestClient(clientConfig, clientOptions);
 
         const spyObject = spyOnTemporaryClientInstanceMethod(client, "connect");
