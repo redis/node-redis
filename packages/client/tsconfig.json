@@ -11,7 +11,8 @@
   "exclude": [
     "./lib/test-utils.ts",
     "./lib/**/*.spec.ts",
-    "./lib/sentinel/test-util.ts"
+    "./lib/sentinel/test-util.ts",
+    "./lib/tests/**/*.ts"
   ],
   "typedocOptions": {
     "entryPoints": [
