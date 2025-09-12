@@ -1,6 +1,6 @@
 # @redis/json
 
-This package provides support for the [RedisJSON](https://redis.io/docs/data-types/json/) module, which adds JSON as a native data type to Redis.
+This package provides support for the [RedisJSON](https://redis.io/docs/latest/develop/data-types/json/) module, which adds JSON as a native data type to Redis.
 
 Should be used with [`redis`/`@redis/client`](https://github.com/redis/node-redis).
 
@@ -33,7 +33,7 @@ await client.json.set('noderedis:jsondata', '$', {
 });
 ```
 
-For more information about RedisJSON's path syntax, [check out the documentation](https://redis.io/docs/data-types/json/path/).
+For more information about RedisJSON's path syntax, [check out the documentation](https://redis.io/docs/latest/develop/data-types/json/path).
 
 ### Retrieving JSON Documents from Redis
 
