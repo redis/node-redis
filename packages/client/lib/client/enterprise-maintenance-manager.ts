@@ -51,9 +51,10 @@ interface Client {
   _pause: () => void;
   _unpause: () => void;
   _maintenanceUpdate: (update: MaintenanceUpdate) => void;
-  duplicate: (options: RedisClientOptions) => Client;
+  duplicate: () => Client;
   connect: () => Promise<Client>;
   destroy: () => void;
+  on: (event: string, callback: (value: unknown) => void) => void;
 }
 
 export default class EnterpriseMaintenanceManager {
@@ -211,21 +212,25 @@ export default class EnterpriseMaintenanceManager {
     dbgMaintenance("Creating new tmp client");
     let start = performance.now();
 
-    const tmpOptions = this.#options;
     // If the URL is provided, it takes precedense
-    if(tmpOptions.url) {
-      const u = new URL(tmpOptions.url);
+    // the options object could just be mutated
+    if(this.#options.url) {
+      const u = new URL(this.#options.url);
       u.hostname = host;
       u.port = String(port);
-      tmpOptions.url = u.toString();
+      this.#options.url = u.toString();
     } else {
-      tmpOptions.socket = {
-        ...tmpOptions.socket,
+      this.#options.socket = {
+        ...this.#options.socket,
         host,
         port
       }
     }
-    const tmpClient = this.#client.duplicate(tmpOptions);
+    const tmpClient = this.#client.duplicate();
+    tmpClient.on('error', (error: unknown) => {
+      //We dont know how to handle tmp client errors
+      dbgMaintenance(`[ERR]`, error)
+    });
     dbgMaintenance(`Tmp client created in ${( performance.now() - start ).toFixed(2)}ms`);
     dbgMaintenance(
       `Set timeout for tmp client to ${this.#options.maintRelaxedSocketTimeout}`,
