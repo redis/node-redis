@@ -14,38 +14,38 @@ import { FaultInjectorClient } from "./fault-injector-client";
 import { MovingEndpointType } from "../../../dist/lib/client/enterprise-maintenance-manager";
 import { RedisTcpSocketOptions } from "../../client/socket";
 
-describe("Parameter Configuration", () => {
-  describe("Handshake with endpoint type", () => {
-    let clientConfig: RedisConnectionConfig;
-    let client: ReturnType<typeof createClient<any, any, any, any>>;
-    let faultInjectorClient: FaultInjectorClient;
-    let log: DiagnosticsEvent[] = [];
+describe("Client Configuration and Handshake", () => {
+  let clientConfig: RedisConnectionConfig;
+  let client: ReturnType<typeof createClient<any, any, any, any>>;
+  let faultInjectorClient: FaultInjectorClient;
+  let log: DiagnosticsEvent[] = [];
 
-    before(() => {
-      const envConfig = getEnvConfig();
-      const redisConfig = getDatabaseConfigFromEnv(
-        envConfig.redisEndpointsConfigPath,
-      );
+  before(() => {
+    const envConfig = getEnvConfig();
+    const redisConfig = getDatabaseConfigFromEnv(
+      envConfig.redisEndpointsConfigPath,
+    );
 
-      faultInjectorClient = new FaultInjectorClient(envConfig.faultInjectorUrl);
-      clientConfig = getDatabaseConfig(redisConfig);
+    faultInjectorClient = new FaultInjectorClient(envConfig.faultInjectorUrl);
+    clientConfig = getDatabaseConfig(redisConfig);
 
-      diagnostics_channel.subscribe("redis.maintenance", (event) => {
-        log.push(event as DiagnosticsEvent);
-      });
+    diagnostics_channel.subscribe("redis.maintenance", (event) => {
+      log.push(event as DiagnosticsEvent);
     });
+  });
 
-    beforeEach(() => {
-      log.length = 0;
-    });
+  beforeEach(() => {
+    log.length = 0;
+  });
 
-    afterEach(async () => {
-      if (client && client.isOpen) {
-        await client.flushAll();
-        client.destroy();
-      }
-    });
+  afterEach(async () => {
+    if (client && client.isOpen) {
+      await client.flushAll();
+      client.destroy();
+    }
+  });
 
+  describe("Parameter Configuration", () => {
     const endpoints: MovingEndpointType[] = [
       "auto",
       // "internal-ip",
@@ -56,12 +56,12 @@ describe("Parameter Configuration", () => {
     ];
 
     for (const endpointType of endpoints) {
-      it(`should request \`${endpointType}\` movingEndpointType and receive it`, async () => {
+      it(`clientHandshakeWithEndpointType '${endpointType}'`, async () => {
         try {
           client = await createTestClient(clientConfig, {
             maintMovingEndpointType: endpointType,
           });
-          client.on('error', () => {})
+          client.on("error", () => {});
 
           //need to copy those because they will be mutated later
           const oldOptions = JSON.parse(JSON.stringify(client.options));
@@ -138,8 +138,6 @@ describe("Parameter Configuration", () => {
             }
           }
         } catch (error: any) {
-          console.log('endpointType', endpointType);
-          console.log('caught error', error);
           if (
             endpointType === "internal-fqdn" ||
             endpointType === "internal-ip"
@@ -151,5 +149,53 @@ describe("Parameter Configuration", () => {
         }
       });
     }
+  });
+
+  describe("Feature Enablement", () => {
+    it("connectionHandshakeIncludesEnablingNotifications", async () => {
+      client = await createTestClient(clientConfig, {
+        maintPushNotifications: "enabled",
+      });
+
+      const { action_id } = await faultInjectorClient.migrateAndBindAction({
+        bdbId: clientConfig.bdbId,
+        clusterIndex: 0,
+      });
+
+      await faultInjectorClient.waitForAction(action_id);
+
+      let movingEvent = false;
+      let migratingEvent = false;
+      let migratedEvent = false;
+      for (const event of log) {
+        if (event.type === "MOVING") movingEvent = true;
+        if (event.type === "MIGRATING") migratingEvent = true;
+        if (event.type === "MIGRATED") migratedEvent = true;
+      }
+      assert.ok(movingEvent, "didnt receive MOVING PN");
+      assert.ok(migratingEvent, "didnt receive MIGRATING PN");
+      assert.ok(migratedEvent, "didnt receive MIGRATED PN");
+    });
+
+    it("disabledDontReceiveNotifications", async () => {
+      try {
+        client = await createTestClient(clientConfig, {
+          maintPushNotifications: "disabled",
+          socket: {
+            reconnectStrategy: false
+          }
+        });
+        client.on('error', console.log.bind(console))
+
+        const { action_id } = await faultInjectorClient.migrateAndBindAction({
+          bdbId: clientConfig.bdbId,
+          clusterIndex: 0,
+        });
+
+        await faultInjectorClient.waitForAction(action_id);
+
+        assert.equal(log.length, 0, "received a PN while feature is disabled");
+      } catch (error: any) { }
+    });
   });
 });
