@@ -9,7 +9,6 @@ import { URL } from 'node:url';
 import { TcpSocketConnectOpts } from 'node:net';
 import { PUBSUB_TYPE, PubSubType, PubSubListener, PubSubTypeListeners, ChannelListeners } from './pub-sub';
 import { Command, CommandSignature, TypeMapping, CommanderConfig, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions, RedisArgument, ReplyWithTypeMapping, SimpleStringReply, TransformReply, CommandArguments } from '../RESP/types';
-import RedisClientMultiCommand, { RedisClientMultiCommandType } from './multi-command';
 import { RedisMultiQueuedCommand } from '../multi-command';
 import HELLO, { HelloOptions } from '../commands/HELLO';
 import { ScanOptions, ScanCommonOptions } from '../commands/SCAN';
@@ -21,6 +20,7 @@ import { BasicCommandParser, CommandParser } from './parser';
 import SingleEntryCache from '../single-entry-cache';
 import { version } from '../../package.json'
 import EnterpriseMaintenanceManager, { MaintenanceUpdate, MovingEndpointType } from './enterprise-maintenance-manager';
+import RedisClientMultiCommand from './multi-command';
 
 export interface RedisClientOptions<
   M extends RedisModules = RedisModules,
@@ -435,7 +435,7 @@ export default class RedisClient<
   #selectedDB = 0;
   #monitorCallback?: MonitorCallback<TYPE_MAPPING>;
   private _self = this;
-  private _commandOptions?: CommandOptions<TYPE_MAPPING>;
+  _commandOptions?: CommandOptions<TYPE_MAPPING>;
   // flag used to annotate that the client
   // was in a watch transaction when
   // a topology change occured
@@ -1314,17 +1314,6 @@ export default class RedisClient<
 
     return execResult as Array<unknown>;
   }
-
-  MULTI() {
-    type Multi = new (...args: ConstructorParameters<typeof RedisClientMultiCommand>) => RedisClientMultiCommandType<[], M, F, S, RESP, TYPE_MAPPING>;
-    return new ((this as any).Multi as Multi)(
-      this._executeMulti.bind(this),
-      this._executePipeline.bind(this),
-      this._commandOptions?.typeMapping
-    );
-  }
-
-  multi = this.MULTI;
 
   async* scanIterator(
     this: RedisClientType<M, F, S, RESP, TYPE_MAPPING>,
