@@ -146,6 +146,11 @@ export interface RedisClientOptions<
    */
   clientInfoTag?: string;
   /**
+   * When set to true, client tracking is turned on and the client emits `invalidate` events when it receives invalidation messages from the redis server.
+   * Mutually exclusive with `clientSideCache` option.
+   */
+  emitInvalidate?: boolean;
+  /**
    * Controls how the client handles Redis Enterprise maintenance push notifications.
    *
    * - `disabled`: The feature is not used by the client.
@@ -527,6 +532,19 @@ export default class RedisClient<
 
         return true
       });
+    } else if (options?.emitInvalidate) {
+      this.#queue.addPushHandler((push: Array<any>): boolean => {
+        if (push[0].toString() !== 'invalidate') return false;
+
+        if (push[1] !== null) {
+          for (const key of push[1]) {
+            this.emit('invalidate', key);
+          }
+        } else {
+          this.emit('invalidate', null);
+        }
+        return true
+      });
     }
   }
 
@@ -534,11 +552,15 @@ export default class RedisClient<
     if (options?.clientSideCache && options?.RESP !== 3) {
       throw new Error('Client Side Caching is only supported with RESP3');
     }
-
+    if (options?.emitInvalidate && options?.RESP !== 3) {
+      throw new Error('emitInvalidate is only supported with RESP3');
+    }
+    if (options?.clientSideCache && options?.emitInvalidate) {
+      throw new Error('emitInvalidate is not supported (or necessary) when clientSideCache is enabled');
+    }
     if (options?.maintPushNotifications && options?.maintPushNotifications !== 'disabled' && options?.RESP !== 3) {
       throw new Error('Graceful Maintenance is only supported with RESP3');
     }
-
   }
 
   #initiateOptions(options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>): RedisClientOptions<M, F, S, RESP, TYPE_MAPPING> | undefined {
@@ -743,11 +765,15 @@ export default class RedisClient<
         }
       });
     }
-
+    
     if (this.#clientSideCache) {
       commands.push({cmd: this.#clientSideCache.trackingOn()});
     }
 
+    if (this.#options?.emitInvalidate) {
+      commands.push({cmd: ['CLIENT', 'TRACKING', 'ON']});
+    }
+    
     const { tls, host } = this.#options!.socket as RedisTcpSocketOptions;
     const maintenanceHandshakeCmd = await EnterpriseMaintenanceManager.getHandshakeCommand(!!tls, host!, this.#options!);
     if(maintenanceHandshakeCmd) {
