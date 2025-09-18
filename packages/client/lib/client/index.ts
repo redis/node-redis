@@ -154,7 +154,7 @@ export interface RedisClientOptions<
    *
    * The default is `auto`.
    */
-  maintPushNotifications?: 'disabled' | 'enabled' | 'auto';
+  maintNotifications?: 'disabled' | 'enabled' | 'auto';
   /**
    * Controls how the client requests the endpoint to reconnect to during a MOVING notification in Redis Enterprise maintenance.
    *
@@ -167,19 +167,19 @@ export interface RedisClientOptions<
 
    * The default is `auto`.
    */
-  maintMovingEndpointType?: MovingEndpointType;
+  maintEndpointType?: MovingEndpointType;
   /**
    * Specifies a more relaxed timeout (in milliseconds) for commands during a maintenance window.
-   * This helps minimize command timeouts during maintenance. If not provided, the `commandOptions.timeout`
-   * will be used instead. Timeouts during maintenance period result in a `CommandTimeoutDuringMaintenance` error.
+   * This helps minimize command timeouts during maintenance. Timeouts during maintenance period result
+   * in a `CommandTimeoutDuringMaintenance` error.
    *
    * The default is 10000
    */
   maintRelaxedCommandTimeout?: number;
   /**
    * Specifies a more relaxed timeout (in milliseconds) for the socket during a maintenance window.
-   * This helps minimize socket timeouts during maintenance. If not provided, the `socket.timeout`
-   * will be used instead. Timeouts during maintenance period result in a `SocketTimeoutDuringMaintenance` error.
+   * This helps minimize socket timeouts during maintenance. Timeouts during maintenance period result
+   * in a `SocketTimeoutDuringMaintenance` error.
    *
    * The default is 10000
    */
@@ -503,7 +503,7 @@ export default class RedisClient<
     this.#socket = this.#initiateSocket();
 
 
-    if(options?.maintPushNotifications !== 'disabled') {
+    if(options?.maintNotifications !== 'disabled') {
       new EnterpriseMaintenanceManager(this.#queue, this, this.#options!);
     };
 
@@ -535,7 +535,7 @@ export default class RedisClient<
       throw new Error('Client Side Caching is only supported with RESP3');
     }
 
-    if (options?.maintPushNotifications && options?.maintPushNotifications !== 'disabled' && options?.RESP !== 3) {
+    if (options?.maintNotifications && options?.maintNotifications !== 'disabled' && options?.RESP !== 3) {
       throw new Error('Graceful Maintenance is only supported with RESP3');
     }
 
@@ -563,7 +563,7 @@ export default class RedisClient<
       this._commandOptions = options.commandOptions;
     }
 
-    if(options?.maintPushNotifications !== 'disabled') {
+    if(options?.maintNotifications !== 'disabled') {
       EnterpriseMaintenanceManager.setupDefaultMaintOptions(options!);
     }
 

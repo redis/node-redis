@@ -64,12 +64,12 @@ export default class EnterpriseMaintenanceManager {
   #client: Client;
 
   static setupDefaultMaintOptions(options: RedisClientOptions) {
-    if (options.maintPushNotifications === undefined) {
-      options.maintPushNotifications =
+    if (options.maintNotifications === undefined) {
+      options.maintNotifications =
         options?.RESP === 3 ? "auto" : "disabled";
     }
-    if (options.maintMovingEndpointType === undefined) {
-      options.maintMovingEndpointType = "auto";
+    if (options.maintEndpointType === undefined) {
+      options.maintEndpointType = "auto";
     }
     if (options.maintRelaxedSocketTimeout === undefined) {
       options.maintRelaxedSocketTimeout = 10000;
@@ -87,7 +87,7 @@ export default class EnterpriseMaintenanceManager {
     | { cmd: Array<RedisArgument>; errorHandler: (error: Error) => void }
     | undefined
   > {
-    if (options.maintPushNotifications === "disabled") return;
+    if (options.maintNotifications === "disabled") return;
 
     const movingEndpointType = await determineEndpoint(tls, host, options);
     return {
@@ -100,7 +100,7 @@ export default class EnterpriseMaintenanceManager {
       ],
       errorHandler: (error: Error) => {
         dbgMaintenance("handshake failed:", error);
-        if (options.maintPushNotifications === "enabled") {
+        if (options.maintNotifications === "enabled") {
           throw error;
         }
       },
@@ -189,7 +189,7 @@ export default class EnterpriseMaintenanceManager {
     // reconnect to its currently configured endpoint after half of the grace
     // period that was communicated by the server is over.
     if (url === null) {
-      assert(this.#options.maintMovingEndpointType === "none");
+      assert(this.#options.maintEndpointType === "none");
       assert(this.#options.socket !== undefined);
       assert("host" in this.#options.socket);
       assert(typeof this.#options.socket.host === "string");
@@ -329,12 +329,12 @@ async function determineEndpoint(
   host: string,
   options: RedisClientOptions,
 ): Promise<MovingEndpointType> {
-  assert(options.maintMovingEndpointType !== undefined);
-  if (options.maintMovingEndpointType !== "auto") {
+  assert(options.maintEndpointType !== undefined);
+  if (options.maintEndpointType !== "auto") {
     dbgMaintenance(
-      `Determine endpoint type: ${options.maintMovingEndpointType}`,
+      `Determine endpoint type: ${options.maintEndpointType}`,
     );
-    return options.maintMovingEndpointType;
+    return options.maintEndpointType;
   }
 
   const ip = isIP(host) ? host : (await lookup(host, { family: 0 })).address;
