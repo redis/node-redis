@@ -1,5 +1,5 @@
 import COMMANDS from '../commands';
-import RedisMultiCommand, { MULTI_REPLY, MultiReply, MultiReplyType, RedisMultiQueuedCommand } from '../multi-command';
+import RedisMultiCommand, { MULTI_MODE, MULTI_REPLY, MultiMode, MultiReply, MultiReplyType, RedisMultiQueuedCommand } from '../multi-command';
 import { ReplyWithTypeMapping, CommandReply, Command, CommandArguments, CommanderConfig, RedisFunctions, RedisModules, RedisScripts, RespVersions, TransformReply, RedisScript, RedisFunction, TypeMapping } from '../RESP/types';
 import { attachConfig, functionArgumentsPrefix, getTransformReply } from '../commander';
 import { BasicCommandParser } from './parser';
@@ -13,7 +13,7 @@ type CommandSignature<
   S extends RedisScripts,
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping
-> = (...args: Tail<Parameters<C['parseCommand']>>) => RedisClientMultiCommandType<
+> = (...args: Tail<Parameters<C['parseCommand']>>) => InternalRedisClientMultiCommandType<
   [...REPLIES, ReplyWithTypeMapping<CommandReply<C, RESP>, TYPE_MAPPING>],
   M,
   F,
@@ -70,7 +70,7 @@ type WithScripts<
   [P in keyof S]: CommandSignature<REPLIES, S[P], M, F, S, RESP, TYPE_MAPPING>;
 };
 
-export type RedisClientMultiCommandType<
+type InternalRedisClientMultiCommandType<
   REPLIES extends Array<any>,
   M extends RedisModules,
   F extends RedisFunctions,
@@ -84,6 +84,19 @@ export type RedisClientMultiCommandType<
   WithFunctions<REPLIES, M, F, S, RESP, TYPE_MAPPING> &
   WithScripts<REPLIES, M, F, S, RESP, TYPE_MAPPING>
 );
+
+type TypedOrAny<Flag extends MultiMode, T> =
+  [Flag] extends [MULTI_MODE['TYPED']] ? T : any;
+
+export type RedisClientMultiCommandType<
+  isTyped extends MultiMode,
+  REPLIES extends Array<any>,
+  M extends RedisModules,
+  F extends RedisFunctions,
+  S extends RedisScripts,
+  RESP extends RespVersions,
+  TYPE_MAPPING extends TypeMapping
+> = TypedOrAny<isTyped, InternalRedisClientMultiCommandType<REPLIES, M, F, S, RESP, TYPE_MAPPING>>;
 
 type ExecuteMulti = (commands: Array<RedisMultiQueuedCommand>, selectedDB?: number) => Promise<Array<unknown>>;
 
