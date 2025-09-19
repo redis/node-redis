@@ -453,7 +453,7 @@ export default class RedisClient<
     return this._self.#clientSideCache;
   }
 
-  get options(): RedisClientOptions<M, F, S, RESP> | undefined {
+  get options(): RedisClientOptions<M, F, S, RESP> {
     return this._self.#options;
   }
 
@@ -503,15 +503,15 @@ export default class RedisClient<
     this.#socket = this.#initiateSocket();
 
 
-    if(options?.maintNotifications !== 'disabled') {
-      new EnterpriseMaintenanceManager(this.#queue, this, this.#options!);
+    if(this.#options.maintNotifications !== 'disabled') {
+      new EnterpriseMaintenanceManager(this.#queue, this, this.#options);
     };
 
-    if (options?.clientSideCache) {
-      if (options.clientSideCache instanceof ClientSideCacheProvider) {
-        this.#clientSideCache = options.clientSideCache;
+    if (this.#options.clientSideCache) {
+      if (this.#options.clientSideCache instanceof ClientSideCacheProvider) {
+        this.#clientSideCache = this.#options.clientSideCache;
       } else {
-        const cscConfig = options.clientSideCache;
+        const cscConfig = this.#options.clientSideCache;
         this.#clientSideCache = new BasicClientSideCache(cscConfig);
       }
       this.#queue.addPushHandler((push: Array<any>): boolean => {
@@ -580,8 +580,8 @@ export default class RedisClient<
 
   #initiateQueue(): RedisCommandsQueue {
     return new RedisCommandsQueue(
-      this.#options?.RESP ?? 2,
-      this.#options?.commandsQueueMaxLength,
+      this.#options.RESP ?? 2,
+      this.#options.commandsQueueMaxLength,
       (channel, listeners) => this.emit('sharded-channel-moved', channel, listeners)
     );
   }
@@ -591,7 +591,7 @@ export default class RedisClient<
    */
   private reAuthenticate = async (credentials: BasicAuth) => {
     // Re-authentication is not supported on RESP2 with PubSub active
-    if (!(this.isPubSubActive && !this.#options?.RESP)) {
+    if (!(this.isPubSubActive && !this.#options.RESP)) {
       await this.sendCommand(
         parseArgs(COMMANDS.AUTH, {
           username: credentials.username,
@@ -640,9 +640,9 @@ export default class RedisClient<
     Array<{ cmd: CommandArguments } & { errorHandler?: (err: Error) => void }>
   > {
     const commands = [];
-    const cp = this.#options?.credentialsProvider;
+    const cp = this.#options.credentialsProvider;
 
-    if (this.#options?.RESP) {
+    if (this.#options.RESP) {
       const hello: HelloOptions = {};
 
       if (cp && cp.type === 'async-credentials-provider') {
@@ -702,7 +702,7 @@ export default class RedisClient<
         }
       }
 
-      if (this.#options?.name) {
+      if (this.#options.name) {
         commands.push({
           cmd: parseArgs(COMMANDS.CLIENT_SETNAME, this.#options.name)
         });
@@ -713,11 +713,11 @@ export default class RedisClient<
       commands.push({ cmd: ['SELECT', this.#selectedDB.toString()] });
     }
 
-    if (this.#options?.readonly) {
+    if (this.#options.readonly) {
       commands.push({ cmd: parseArgs(COMMANDS.READONLY) });
     }
 
-    if (!this.#options?.disableClientInfo) {
+    if (!this.#options.disableClientInfo) {
       commands.push({
         cmd: ['CLIENT', 'SETINFO', 'LIB-VER', version],
         errorHandler: () => {
@@ -732,7 +732,7 @@ export default class RedisClient<
           'CLIENT',
           'SETINFO',
           'LIB-NAME',
-          this.#options?.clientInfoTag
+          this.#options.clientInfoTag
             ? `node-redis(${this.#options.clientInfoTag})`
             : 'node-redis'
         ],
@@ -768,7 +768,7 @@ export default class RedisClient<
     .on('error', err => {
       this.emit('error', err);
       this.#clientSideCache?.onError();
-      if (this.#socket.isOpen && !this.#options?.disableOfflineQueue) {
+      if (this.#socket.isOpen && !this.#options.disableOfflineQueue) {
         this.#queue.flushWaitingForReply(err);
       } else {
         this.#queue.flushAll(err);
@@ -816,7 +816,7 @@ export default class RedisClient<
       }
     };
 
-    const socket = new RedisSocket(socketInitiator, this.#options?.socket);
+    const socket = new RedisSocket(socketInitiator, this.#options.socket);
     this.#attachListeners(socket);
     return socket;
   }
@@ -824,7 +824,7 @@ export default class RedisClient<
   #pingTimer?: NodeJS.Timeout;
 
   #setPingTimer(): void {
-    if (!this.#options?.pingInterval || !this.#socket.isReady) return;
+    if (!this.#options.pingInterval || !this.#socket.isReady) return;
     clearTimeout(this.#pingTimer);
 
     this.#pingTimer = setTimeout(() => {
@@ -985,7 +985,7 @@ export default class RedisClient<
     transformReply: TransformReply | undefined,
   ) {
     const csc = this._self.#clientSideCache;
-    const defaultTypeMapping = this._self.#options?.commandOptions === commandOptions;
+    const defaultTypeMapping = this._self.#options.commandOptions === commandOptions;
 
     const fn = () => { return this.sendCommand(parser.redisArgs, commandOptions) };
 
@@ -1034,7 +1034,7 @@ export default class RedisClient<
   ): Promise<T> {
     if (!this._self.#socket.isOpen) {
       return Promise.reject(new ClientClosedError());
-    } else if (!this._self.#socket.isReady && this._self.#options?.disableOfflineQueue) {
+    } else if (!this._self.#socket.isReady && this._self.#options.disableOfflineQueue) {
       return Promise.reject(new ClientOfflineError());
     }
 
