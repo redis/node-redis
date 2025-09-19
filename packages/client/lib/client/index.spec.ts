@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL, waitTillBeenCalled } from '../test-utils';
 import RedisClient, { RedisClientOptions, RedisClientType } from '.';
-import { AbortError, ClientClosedError, ClientOfflineError, ConnectionTimeoutError, DisconnectsClientError, ErrorReply, MultiErrorReply, SocketClosedUnexpectedlyError, TimeoutError, WatchError } from '../errors';
+import { AbortError, ClientClosedError, ClientOfflineError, ConnectionTimeoutError, DisconnectsClientError, ErrorReply, MultiErrorReply, TimeoutError, WatchError } from '../errors';
 import { defineScript } from '../lua-script';
 import { spy, stub } from 'sinon';
 import { once } from 'node:events';

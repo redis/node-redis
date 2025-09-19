@@ -5,7 +5,7 @@ import { isIP } from "net";
 import { lookup } from "dns/promises";
 import assert from "node:assert";
 import { setTimeout } from "node:timers/promises";
-import RedisSocket from "./socket";
+import RedisSocket, { RedisTcpSocketOptions } from "./socket";
 import diagnostics_channel from "node:diagnostics_channel";
 
 export const MAINTENANCE_EVENTS = {
@@ -80,14 +80,20 @@ export default class EnterpriseMaintenanceManager {
   }
 
   static async getHandshakeCommand(
-    tls: boolean,
-    host: string,
     options: RedisClientOptions,
   ): Promise<
     | { cmd: Array<RedisArgument>; errorHandler: (error: Error) => void }
     | undefined
   > {
     if (options.maintNotifications === "disabled") return;
+
+    const host = options.url
+      ? new URL(options.url).hostname
+      : (options.socket as RedisTcpSocketOptions | undefined)?.host;
+
+    if (!host) return;
+
+    const tls = options.socket?.tls ?? false
 
     const movingEndpointType = await determineEndpoint(tls, host, options);
     return {

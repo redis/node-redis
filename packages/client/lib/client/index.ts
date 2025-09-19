@@ -1,5 +1,5 @@
 import COMMANDS from '../commands';
-import RedisSocket, { RedisSocketOptions, RedisTcpSocketOptions } from './socket';
+import RedisSocket, { RedisSocketOptions } from './socket';
 import { BasicAuth, CredentialsError, CredentialsProvider, StreamingCredentialsProvider, UnableToObtainNewCredentialsError, Disposable } from '../authx';
 import RedisCommandsQueue, { CommandOptions } from './commands-queue';
 import { EventEmitter } from 'node:events';
@@ -429,7 +429,7 @@ export default class RedisClient<
     return parsed;
   }
 
-  readonly #options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>;
+  readonly #options: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>;
   #socket: RedisSocket;
   readonly #queue: RedisCommandsQueue;
   #selectedDB = 0;
@@ -541,10 +541,10 @@ export default class RedisClient<
 
   }
 
-  #initiateOptions(options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>): RedisClientOptions<M, F, S, RESP, TYPE_MAPPING> | undefined {
+  #initiateOptions(options: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING> = {}): RedisClientOptions<M, F, S, RESP, TYPE_MAPPING> {
 
     // Convert username/password to credentialsProvider if no credentialsProvider is already in place
-    if (!options?.credentialsProvider && (options?.username || options?.password)) {
+    if (!options.credentialsProvider && (options.username || options.password)) {
 
       options.credentialsProvider = {
         type: 'async-credentials-provider',
@@ -555,19 +555,19 @@ export default class RedisClient<
       };
     }
 
-    if (options?.database) {
+    if (options.database) {
       this._self.#selectedDB = options.database;
     }
 
-    if (options?.commandOptions) {
+    if (options.commandOptions) {
       this._commandOptions = options.commandOptions;
     }
 
-    if(options?.maintNotifications !== 'disabled') {
-      EnterpriseMaintenanceManager.setupDefaultMaintOptions(options!);
+    if(options.maintNotifications !== 'disabled') {
+      EnterpriseMaintenanceManager.setupDefaultMaintOptions(options);
     }
 
-    if (options?.url) {
+    if (options.url) {
       const parsedOptions = RedisClient.parseOptions(options);
       if (parsedOptions?.database) {
         this._self.#selectedDB = parsedOptions.database;
@@ -748,8 +748,7 @@ export default class RedisClient<
       commands.push({cmd: this.#clientSideCache.trackingOn()});
     }
 
-    const { tls, host } = this.#options!.socket as RedisTcpSocketOptions;
-    const maintenanceHandshakeCmd = await EnterpriseMaintenanceManager.getHandshakeCommand(!!tls, host!, this.#options!);
+    const maintenanceHandshakeCmd = await EnterpriseMaintenanceManager.getHandshakeCommand(this.#options);
     if(maintenanceHandshakeCmd) {
       commands.push(maintenanceHandshakeCmd);
     };
