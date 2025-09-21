@@ -33,12 +33,12 @@ export class DoublyLinkedList<T> {
         previous: undefined,
         next: this.#tail,
         value
-      }
+      };
       return this.#tail = {
         previous: this.#head,
         next: undefined,
         value
-      }
+      };
     }
 
     return this.#tail = this.#tail.next = {
