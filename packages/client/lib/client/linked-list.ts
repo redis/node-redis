@@ -29,11 +29,16 @@ export class DoublyLinkedList<T> {
     ++this.#length;
 
     if (this.#tail === undefined) {
-      return this.#tail = this.#head = {
+      this.#head = {
+        previous: undefined,
+        next: this.#tail,
+        value
+      }
+      return this.#tail = {
         previous: this.#head,
         next: undefined,
         value
-      };
+      }
     }
 
     return this.#tail = this.#tail.next = {
