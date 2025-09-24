@@ -29,13 +29,8 @@ export class DoublyLinkedList<T> {
     ++this.#length;
 
     if (this.#tail === undefined) {
-      this.#head = {
+      return this.#head = this.#tail = {
         previous: undefined,
-        next: this.#tail,
-        value
-      };
-      return this.#tail = {
-        previous: this.#head,
         next: undefined,
         value
       };
@@ -92,15 +87,18 @@ export class DoublyLinkedList<T> {
 
     if (this.#tail === node) {
       this.#tail = node.previous;
-    }
-
+    } 
     if (this.#head === node) {
       this.#head = node.next;
     } else {
-      node.previous!.next = node.next;
-      node.previous = undefined;
+      if (node.previous) {
+        node.previous.next = node.next;
+      }
     }
-
+    if (node.next) {
+      node.next.previous = node.previous;
+    }
+    node.previous = undefined;
     node.next = undefined;
   }
 
