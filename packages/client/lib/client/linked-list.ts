@@ -94,7 +94,7 @@ export class DoublyLinkedList<T> {
       if (node.previous) {
         node.previous.next = node.next;
       }
-    }
+    }    
     if (node.next) {
       node.next.previous = node.previous;
     }
@@ -118,8 +118,9 @@ export class DoublyLinkedList<T> {
   *nodes() {
     let node = this.#head;
     while(node) {
+      const next = node.next
       yield node;
-      node = node.next;
+      node = next;
     }
   }
 }
