@@ -118,7 +118,7 @@ export class DoublyLinkedList<T> {
   *nodes() {
     let node = this.#head;
     while(node) {
-      const next = node.next
+      const next = node.next;
       yield node;
       node = next;
     }
