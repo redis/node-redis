@@ -30,7 +30,7 @@ export class DoublyLinkedList<T> {
 
     if (this.#tail === undefined) {
       return this.#head = this.#tail = {
-        previous: undefined,
+        previous: this.#head,
         next: undefined,
         value
       };
@@ -73,7 +73,7 @@ export class DoublyLinkedList<T> {
     --this.#length;
     const node = this.#head;
     if (node.next) {
-      node.next.previous = node.previous;
+      node.next.previous = undefined;
       this.#head = node.next;
       node.next = undefined;
     } else {
@@ -92,11 +92,11 @@ export class DoublyLinkedList<T> {
       this.#head = node.next;
     } else {
       if (node.previous) {
-        node.previous.next = node.next;
+          node.previous.next = node.next;
       }
-    }    
-    if (node.next) {
-      node.next.previous = node.previous;
+      if (node.next) {
+        node.next.previous = node.previous;
+      }
     }
     node.previous = undefined;
     node.next = undefined;
