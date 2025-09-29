@@ -86,25 +86,25 @@ describe("Connection Handoff", () => {
       {
         name: "external-ip",
         clientOptions: {
-          maintMovingEndpointType: "external-ip",
+          maintEndpointType: "external-ip",
         },
       },
       {
         name: "external-fqdn",
         clientOptions: {
-          maintMovingEndpointType: "external-fqdn",
+          maintEndpointType: "external-fqdn",
         },
       },
       {
         name: "auto",
         clientOptions: {
-          maintMovingEndpointType: "auto",
+          maintEndpointType: "auto",
         },
       },
       {
         name: "none",
         clientOptions: {
-          maintMovingEndpointType: "none",
+          maintEndpointType: "none",
         },
       },
     ];

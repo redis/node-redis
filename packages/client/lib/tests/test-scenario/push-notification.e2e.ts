@@ -140,7 +140,7 @@ describe("Push Notifications", () => {
   describe("Push Notifications Disabled - Client", () => {
     beforeEach(async () => {
       client = await createTestClient(clientConfig, {
-        maintPushNotifications: "disabled",
+        maintNotifications: "disabled",
       });
 
       client.on("error", (_err) => {

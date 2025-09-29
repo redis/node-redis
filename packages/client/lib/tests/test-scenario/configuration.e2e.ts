@@ -11,7 +11,7 @@ import {
 } from "./test-scenario.util";
 import { createClient } from "../../..";
 import { FaultInjectorClient } from "./fault-injector-client";
-import { MovingEndpointType } from "../../../dist/lib/client/enterprise-maintenance-manager";
+import { MovingEndpointType } from "../../../lib/client/enterprise-maintenance-manager";
 import { RedisTcpSocketOptions } from "../../client/socket";
 
 describe("Client Configuration and Handshake", () => {
@@ -59,7 +59,7 @@ describe("Client Configuration and Handshake", () => {
       it(`clientHandshakeWithEndpointType '${endpointType}'`, async () => {
         try {
           client = await createTestClient(clientConfig, {
-            maintMovingEndpointType: endpointType,
+            maintEndpointType: endpointType
           });
           client.on("error", () => {});
 
@@ -154,7 +154,7 @@ describe("Client Configuration and Handshake", () => {
   describe("Feature Enablement", () => {
     it("connectionHandshakeIncludesEnablingNotifications", async () => {
       client = await createTestClient(clientConfig, {
-        maintPushNotifications: "enabled",
+        maintNotifications: "enabled"
       });
 
       const { action_id } = await faultInjectorClient.migrateAndBindAction({
@@ -180,7 +180,7 @@ describe("Client Configuration and Handshake", () => {
     it("disabledDontReceiveNotifications", async () => {
       try {
         client = await createTestClient(clientConfig, {
-          maintPushNotifications: "disabled",
+          maintNotifications: "disabled",
           socket: {
             reconnectStrategy: false
           }

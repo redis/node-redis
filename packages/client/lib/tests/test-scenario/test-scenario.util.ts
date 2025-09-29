@@ -163,8 +163,8 @@ export async function createTestClient(
     password: clientConfig.password,
     username: clientConfig.username,
     RESP: 3,
-    maintPushNotifications: "auto",
-    maintMovingEndpointType: "auto",
+    maintNotifications: "auto",
+    maintEndpointType: "auto",
     ...options,
   });
 
