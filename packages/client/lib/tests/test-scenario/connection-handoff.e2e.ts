@@ -156,6 +156,7 @@ describe("Connection Handoff", () => {
 
   describe("Connection Cleanup", () => {
     it("should shut down old connection", async () => {
+      client = await createTestClient(clientConfig);
       const spyObject = spyOnTemporaryClientInstanceMethod(client, "destroy");
 
       const { action_id: lowTimeoutBindAndMigrateActionId } =
