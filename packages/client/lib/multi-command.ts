@@ -6,6 +6,13 @@ export type MULTI_REPLY = {
   TYPED: 'typed';
 };
 
+export type MULTI_MODE = {
+  TYPED: 'typed';
+  UNTYPED: 'untyped';
+};
+
+export type MultiMode = MULTI_MODE[keyof MULTI_MODE];
+
 export type MultiReply = MULTI_REPLY[keyof MULTI_REPLY];
 
 export type MultiReplyType<T extends MultiReply, REPLIES> = T extends MULTI_REPLY['TYPED'] ? REPLIES : Array<ReplyUnion>;
