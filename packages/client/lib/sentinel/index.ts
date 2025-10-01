@@ -936,7 +936,7 @@ class RedisSentinelInternal<
         this.#sentinelRootNodes.splice(found, 1);
     }
     this.#reset();
-    }
+  }
 
   async close() {
     this.#destroy = true;

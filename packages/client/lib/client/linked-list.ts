@@ -83,6 +83,7 @@ export class DoublyLinkedList<T> {
   }
 
   remove(node: DoublyLinkedNode<T>) {
+    if (this.#length === 0) return;
     --this.#length;
 
     if (this.#tail === node) {
