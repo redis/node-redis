@@ -6,7 +6,7 @@ import {
 import { equal, deepEqual } from "assert/strict";
 
 describe("DoublyLinkedList", () => {
-  const list = new DoublyLinkedList();
+  const list = new DoublyLinkedList<number>();
 
   it("should start empty", () => {
     equal(list.length, 0);
@@ -95,6 +95,38 @@ describe("DoublyLinkedList", () => {
       count++;
     }
     equal(count, 6);
+  });
+
+  it("should handle remove on empty list", () => {
+    list.reset();
+    const node = list.push(1);
+    list.remove(node);
+    equal(list.length, 0);
+    deepEqual(Array.from(list), []);
+    list.remove(node);
+    equal(list.length, 0);
+    deepEqual(Array.from(list), []);
+  });
+
+
+  it("should safely remove nodes while iterating", () => {
+    list.reset();
+    list.push(1);
+    list.push(2);
+    list.push(3);
+    list.push(4);
+    list.push(5);
+    
+    const visited: number[] = [];
+    for (const node of list.nodes()) {
+      visited.push(node.value);
+      if (node.value % 2 === 0) {
+        list.remove(node);
+      }
+    }
+    deepEqual(visited, [1, 2, 3, 4, 5]);
+    equal(list.length, 3);
+    deepEqual(Array.from(list), [1, 3, 5]);
   });
 });
 
