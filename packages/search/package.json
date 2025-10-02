@@ -1,6 +1,6 @@
 {
   "name": "@redis/search",
-  "version": "5.8.2",
+  "version": "5.8.3",
   "license": "MIT",
   "main": "./dist/lib/index.js",
   "types": "./dist/lib/index.d.ts",
@@ -14,7 +14,7 @@
     "release": "release-it"
   },
   "peerDependencies": {
-    "@redis/client": "^5.8.2"
+    "@redis/client": "^5.8.3"
   },
   "devDependencies": {
     "@redis/test-utils": "*"
