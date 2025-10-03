@@ -51,6 +51,12 @@ export class FaultInjectorClient {
   public triggerAction<T extends { action_id: string }>(
     action: ActionRequest
   ): Promise<T> {
+    if(action.type === 'sequence_of_actions') {
+      //@ts-ignore
+      console.log(`trigger sequence: ${action.parameters.actions.map(a => a.type).join(', ')}`);
+    } else {
+      console.log(`trigger action: ${action.type}`);
+    }
     return this.#request<T>("POST", "/action", action);
   }
 
@@ -88,12 +94,14 @@ export class FaultInjectorClient {
       const action = await this.getActionStatus<ActionStatus>(actionId);
 
       if (action.status === "failed") {
+        console.log(`action ${actionId} failed`);
         throw new Error(
           `Action id: ${actionId} failed! Error: ${action.error}`
         );
       }
 
       if (["finished", "failed", "success"].includes(action.status)) {
+        console.log(`action ${actionId} complete`);
         return action;
       }
 
