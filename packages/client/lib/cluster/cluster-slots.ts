@@ -416,6 +416,7 @@ export default class RedisClusterSlots<
 
     this.#resetSlots();
     this.nodeByAddress.clear();
+    this.#emit('disconnect');
   }
 
   *#clients() {
