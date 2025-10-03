@@ -161,6 +161,7 @@ describe("Timeout Handling During Notifications", () => {
         type: "migrate",
         parameters: {
           cluster_index: 0,
+          bdb_id: clientConfig.bdbId.toString(),
         },
       });
 

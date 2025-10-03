@@ -178,6 +178,7 @@ export class FaultInjectorClient {
             type: "migrate",
             params: {
               cluster_index: clusterIndexStr,
+              bdb_id: bdbIdStr,
             },
           },
           {
