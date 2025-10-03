@@ -71,7 +71,8 @@ export class FaultInjectorClient {
     }
     const { action_id } = await this.#request<{action_id: string}>("POST", "/action", action);
     const status = await this.waitForAction(action_id);
-    console.log(status.output);
+    //@ts-ignore
+    console.log(status.output.output);
   }
 
   /**
