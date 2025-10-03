@@ -85,34 +85,8 @@ describe("Timeout Handling During Notifications", () => {
     }
   });
 
-  it("should relax command timeout on MOVING, MIGRATING", async () => {
-    // PART 1
-    // Normal command timeout
-    const { error, duration } = await blockCommand(async () => {
-      await client.set("key", "value");
-    });
-
-    assert.ok(
-      error instanceof Error,
-      "Command Timeout error should be instanceof Error"
-    );
-    assert.ok(
-      duration > NORMAL_COMMAND_TIMEOUT &&
-        duration < NORMAL_COMMAND_TIMEOUT * 1.1,
-      `Normal command should timeout within normal timeout ms`
-    );
-    assert.strictEqual(
-      error?.constructor?.name,
-      "TimeoutError",
-      "Command Timeout error should be TimeoutError"
-    );
-
-    // PART 2
-    // Command timeout during maintenance
-    const notifications: Array<DiagnosticsEvent["type"]> = [
-      "MOVING",
-      "MIGRATING",
-    ];
+  it("should relax command timeout on FAILING_OVER", async () => {
+    const notifications: Array<DiagnosticsEvent["type"]> = ["FAILING_OVER"];
 
     const result: Record<
       DiagnosticsEvent["type"],
@@ -127,13 +101,16 @@ describe("Timeout Handling During Notifications", () => {
 
     diagnostics_channel.subscribe("redis.maintenance", onMessageHandler);
 
-    const { action_id: bindAndMigrateActionId } =
-      await faultInjectorClient.migrateAndBindAction({
-        bdbId: clientConfig.bdbId,
-        clusterIndex: 0,
+    const { action_id: failoverActionId } =
+      await faultInjectorClient.triggerAction({
+        type: "failover",
+        parameters: {
+          bdb_id: clientConfig.bdbId.toString(),
+          cluster_index: 0,
+        },
       });
 
-    await faultInjectorClient.waitForAction(bindAndMigrateActionId);
+    await faultInjectorClient.waitForAction(failoverActionId);
 
     diagnostics_channel.unsubscribe("redis.maintenance", onMessageHandler);
 
@@ -155,71 +132,33 @@ describe("Timeout Handling During Notifications", () => {
     });
   });
 
-  it("should unrelax command timeout after MIGRATED and  MOVING", async () => {
-    const { action_id: migrateActionId } =
+  it("should unrelax command timeout after FAILED_OVER", async () => {
+    const { action_id: failoverActionId } =
       await faultInjectorClient.triggerAction({
-        type: "migrate",
-        parameters: {
-          cluster_index: 0,
-          bdb_id: clientConfig.bdbId.toString(),
-        },
-      });
-
-    await faultInjectorClient.waitForAction(migrateActionId);
-
-    // PART 1
-    // After migration
-    const { error: errorMigrate, duration: durationMigrate } =
-      await blockCommand(async () => {
-        await client.set("key", "value");
-      });
-
-    assert.ok(
-      errorMigrate instanceof Error,
-      "Command Timeout error should be instanceof Error"
-    );
-    assert.ok(
-      durationMigrate >= NORMAL_COMMAND_TIMEOUT &&
-        durationMigrate < NORMAL_COMMAND_TIMEOUT * 1.1,
-      `Normal command should timeout within normal timeout ms`
-    );
-    assert.strictEqual(
-      errorMigrate?.constructor?.name,
-      "TimeoutError",
-      "Command Timeout error should be TimeoutError"
-    );
-
-    const { action_id: bindActionId } = await faultInjectorClient.triggerAction(
-      {
-        type: "bind",
+        type: "failover",
         parameters: {
           bdb_id: clientConfig.bdbId.toString(),
           cluster_index: 0,
         },
-      }
-    );
+      });
 
-    await faultInjectorClient.waitForAction(bindActionId);
+    await faultInjectorClient.waitForAction(failoverActionId);
 
-    // PART 2
-    // After bind
-    const { error: errorBind, duration: durationBind } = await blockCommand(
-      async () => {
-        await client.set("key", "value");
-      }
-    );
+    const { error, duration } = await blockCommand(async () => {
+      await client.set("key", "value");
+    });
 
     assert.ok(
-      errorBind instanceof Error,
+      error instanceof Error,
       "Command Timeout error should be instanceof Error"
     );
     assert.ok(
-      durationBind >= NORMAL_COMMAND_TIMEOUT &&
-        durationBind < NORMAL_COMMAND_TIMEOUT * 1.1,
+      duration > NORMAL_COMMAND_TIMEOUT &&
+        duration < NORMAL_COMMAND_TIMEOUT * 1.1,
       `Normal command should timeout within normal timeout ms`
     );
     assert.strictEqual(
-      errorBind?.constructor?.name,
+      error?.constructor?.name,
       "TimeoutError",
       "Command Timeout error should be TimeoutError"
     );

@@ -71,11 +71,10 @@ describe("Push Notifications", () => {
       } catch(error) { }
     });
 
-    it("should receive MOVING, MIGRATING, and MIGRATED push notifications", async () => {
+    it("should receive FAILING_OVER and FAILED_OVER push notifications", async () => {
       const notifications: Array<DiagnosticsEvent["type"]> = [
-        "MOVING",
-        "MIGRATING",
-        "MIGRATED",
+        "FAILING_OVER",
+        "FAILED_OVER",
       ];
 
       const diagnosticsMap: Record<DiagnosticsEvent["type"], number> = {};
@@ -87,31 +86,28 @@ describe("Push Notifications", () => {
 
       diagnostics_channel.subscribe("redis.maintenance", onMessageHandler);
 
-      const { action_id: bindAndMigrateActionId } =
-        await faultInjectorClient.migrateAndBindAction({
-          bdbId: clientConfig.bdbId,
-          clusterIndex: 0,
+      const { action_id: failoverActionId } =
+        await faultInjectorClient.triggerAction({
+          type: "failover",
+          parameters: {
+            bdb_id: clientConfig.bdbId.toString(),
+            cluster_index: 0,
+          },
         });
 
-      await faultInjectorClient.waitForAction(bindAndMigrateActionId);
+      await faultInjectorClient.waitForAction(failoverActionId);
 
       assert.strictEqual(
-        diagnosticsMap.MOVING,
+        diagnosticsMap.FAILING_OVER,
         1,
-        "Should have received exactly one MOVING notification"
+        "Should have received exactly one FAILING_OVER notification"
       );
       assert.strictEqual(
-        diagnosticsMap.MIGRATING,
+        diagnosticsMap.FAILED_OVER,
         1,
-        "Should have received exactly one MIGRATING notification"
-      );
-      assert.strictEqual(
-        diagnosticsMap.MIGRATED,
-        1,
-        "Should have received exactly one MIGRATED notification"
+        "Should have received exactly one FAILED_OVER notification"
       );
     });
-
   });
 
   describe("Push Notifications Disabled - Client", () => {
@@ -128,11 +124,10 @@ describe("Push Notifications", () => {
       await client.flushAll();
     });
 
-    it("should NOT receive MOVING, MIGRATING, and MIGRATED push notifications", async () => {
+    it("should NOT receive FAILING_OVER and FAILED_OVER push notifications", async () => {
       const notifications: Array<DiagnosticsEvent["type"]> = [
-        "MOVING",
-        "MIGRATING",
-        "MIGRATED",
+        "FAILING_OVER",
+        "FAILED_OVER",
       ];
 
       const diagnosticsMap: Record<DiagnosticsEvent["type"], number> = {};
@@ -144,31 +139,28 @@ describe("Push Notifications", () => {
 
       diagnostics_channel.subscribe("redis.maintenance", onMessageHandler);
 
-      const { action_id: bindAndMigrateActionId } =
-        await faultInjectorClient.migrateAndBindAction({
-          bdbId: clientConfig.bdbId,
-          clusterIndex: 0,
+      const { action_id: failoverActionId } =
+        await faultInjectorClient.triggerAction({
+          type: "failover",
+          parameters: {
+            bdb_id: clientConfig.bdbId.toString(),
+            cluster_index: 0,
+          },
         });
 
-      await faultInjectorClient.waitForAction(bindAndMigrateActionId);
+      await faultInjectorClient.waitForAction(failoverActionId);
 
       assert.strictEqual(
-        diagnosticsMap.MOVING,
+        diagnosticsMap.FAILING_OVER,
         undefined,
-        "Should NOT have received exactly one MOVING notification"
+        "Should have received exactly one FAILING_OVER notification"
       );
       assert.strictEqual(
-        diagnosticsMap.MIGRATING,
+        diagnosticsMap.FAILED_OVER,
         undefined,
-        "Should NOT have received exactly one MIGRATING notification"
-      );
-      assert.strictEqual(
-        diagnosticsMap.MIGRATED,
-        undefined,
-        "Should NOT have received exactly one MIGRATED notification"
+        "Should have received exactly one FAILED_OVER notification"
       );
     });
-
   });
 
   describe("Push Notifications Disabled - Server", () => {
@@ -207,11 +199,10 @@ describe("Push Notifications", () => {
       await faultInjectorClient.waitForAction(enablePushNotificationsActionId);
     });
 
-    it("should NOT receive MOVING, MIGRATING, and MIGRATED push notifications", async () => {
+    it("should NOT receive FAILING_OVER and FAILED_OVER push notifications", async () => {
       const notifications: Array<DiagnosticsEvent["type"]> = [
-        "MOVING",
-        "MIGRATING",
-        "MIGRATED",
+        "FAILING_OVER",
+        "FAILED_OVER",
       ];
 
       const diagnosticsMap: Record<DiagnosticsEvent["type"], number> = {};
@@ -223,30 +214,27 @@ describe("Push Notifications", () => {
 
       diagnostics_channel.subscribe("redis.maintenance", onMessageHandler);
 
-      const { action_id: bindAndMigrateActionId } =
-        await faultInjectorClient.migrateAndBindAction({
-          bdbId: clientConfig.bdbId,
-          clusterIndex: 0,
+      const { action_id: failoverActionId } =
+        await faultInjectorClient.triggerAction({
+          type: "failover",
+          parameters: {
+            bdb_id: clientConfig.bdbId.toString(),
+            cluster_index: 0,
+          },
         });
 
-      await faultInjectorClient.waitForAction(bindAndMigrateActionId);
+      await faultInjectorClient.waitForAction(failoverActionId);
 
       assert.strictEqual(
-        diagnosticsMap.MOVING,
+        diagnosticsMap.FAILING_OVER,
         undefined,
-        "Should NOT have received exactly one MOVING notification"
+        "Should have received exactly one FAILING_OVER notification"
       );
       assert.strictEqual(
-        diagnosticsMap.MIGRATING,
+        diagnosticsMap.FAILED_OVER,
         undefined,
-        "Should NOT have received exactly one MIGRATING notification"
-      );
-      assert.strictEqual(
-        diagnosticsMap.MIGRATED,
-        undefined,
-        "Should NOT have received exactly one MIGRATED notification"
+        "Should have received exactly one FAILED_OVER notification"
       );
     });
-
   });
 });
