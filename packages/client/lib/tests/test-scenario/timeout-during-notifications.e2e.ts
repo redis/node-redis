@@ -2,22 +2,48 @@ import assert from "node:assert";
 
 import { FaultInjectorClient } from "./fault-injector-client";
 import {
-  ClientFactory,
   getDatabaseConfig,
   getDatabaseConfigFromEnv,
   getEnvConfig,
   RedisConnectionConfig,
-  blockSetImmediate
+  blockCommand,
+  createTestClient,
 } from "./test-scenario.util";
 import { createClient } from "../../..";
 import { before } from "mocha";
-import { TestCommandRunner } from "./test-command-runner";
+import diagnostics_channel from "node:diagnostics_channel";
+import { DiagnosticsEvent } from "../../client/enterprise-maintenance-manager";
 
 describe("Timeout Handling During Notifications", () => {
   let clientConfig: RedisConnectionConfig;
-  let clientFactory: ClientFactory;
   let faultInjectorClient: FaultInjectorClient;
-  let defaultClient: ReturnType<typeof createClient<any, any, any, any>>;
+  let client: ReturnType<typeof createClient<any, any, any, any>>;
+
+  const NORMAL_COMMAND_TIMEOUT = 50;
+  const RELAXED_COMMAND_TIMEOUT = 2000;
+
+  /**
+   * Creates a handler for the `redis.maintenance` channel that will execute and block a command on the client
+   * when a notification is received and save the result in the `result` object.
+   * This is used to test that the command timeout is relaxed during notifications.
+   */
+  const createNotificationMessageHandler = (
+    client: ReturnType<typeof createClient<any, any, any, any>>,
+    result: Record<DiagnosticsEvent["type"], { error: any; duration: number }>,
+    notifications: Array<DiagnosticsEvent["type"]>
+  ) => {
+    return (message: unknown) => {
+      if (notifications.includes((message as DiagnosticsEvent).type)) {
+        setImmediate(async () => {
+          result[(message as DiagnosticsEvent).type] = await blockCommand(
+            async () => {
+              await client.set("key", "value");
+            }
+          );
+        });
+      }
+    };
+  };
 
   before(() => {
     const envConfig = getEnvConfig();
@@ -27,96 +53,64 @@ describe("Timeout Handling During Notifications", () => {
 
     clientConfig = getDatabaseConfig(redisConfig);
     faultInjectorClient = new FaultInjectorClient(envConfig.faultInjectorUrl);
-    clientFactory = new ClientFactory(clientConfig);
   });
 
   beforeEach(async () => {
-    defaultClient = await clientFactory.create("default");
-
-    await defaultClient.flushAll();
-  });
-
-  afterEach(async () => {
-    clientFactory.destroyAll();
-  });
-
-  it("should relax command timeout on MOVING, MIGRATING, and MIGRATED", async () => {
-    // PART 1
-    // Set very low timeout to trigger errors
-    const lowTimeoutClient = await clientFactory.create("lowTimeout", {
-      maintRelaxedCommandTimeout: 50,
+    client = await createTestClient(clientConfig, {
+      commandOptions: { timeout: NORMAL_COMMAND_TIMEOUT },
+      maintRelaxedCommandTimeout: RELAXED_COMMAND_TIMEOUT,
     });
 
-    const { action_id: lowTimeoutBindAndMigrateActionId } =
-      await faultInjectorClient.migrateAndBindAction({
-        bdbId: clientConfig.bdbId,
-        clusterIndex: 0,
-      });
+    await client.flushAll();
+  });
 
-    const lowTimeoutWaitPromise = faultInjectorClient.waitForAction(
-      lowTimeoutBindAndMigrateActionId
+  afterEach(() => {
+    if (client && client.isOpen) {
+      client.destroy();
+    }
+  });
+
+  it("should relax command timeout on MOVING, MIGRATING", async () => {
+    // PART 1
+    // Normal command timeout
+    const { error, duration } = await blockCommand(async () => {
+      await client.set("key", "value");
+    });
+
+    assert.ok(
+      error instanceof Error,
+      "Command Timeout error should be instanceof Error"
     );
-
-    const lowTimeoutCommandPromises =
-      await TestCommandRunner.fireCommandsUntilStopSignal(
-        lowTimeoutClient,
-        lowTimeoutWaitPromise
-      );
-
-    const lowTimeoutRejectedCommands = (
-      await Promise.all(lowTimeoutCommandPromises.commandPromises)
-    ).filter((result) => result.status === "rejected");
-
-    assert.ok(lowTimeoutRejectedCommands.length > 0);
+    assert.ok(
+      duration > NORMAL_COMMAND_TIMEOUT &&
+        duration < NORMAL_COMMAND_TIMEOUT * 1.1,
+      `Normal command should timeout within normal timeout ms`
+    );
     assert.strictEqual(
-      lowTimeoutRejectedCommands.filter((rejected) => {
-        return (
-          // TODO instanceof doesn't work for some reason
-          rejected.error.constructor.name ===
-          "CommandTimeoutDuringMaintananceError"
-        );
-      }).length,
-      lowTimeoutRejectedCommands.length
+      error?.constructor?.name,
+      "TimeoutError",
+      "Command Timeout error should be TimeoutError"
     );
 
     // PART 2
-    // Set high timeout to avoid errors
-    const highTimeoutClient = await clientFactory.create("highTimeout", {
-      maintRelaxedCommandTimeout: 10000,
-    });
+    // Command timeout during maintenance
+    const notifications: Array<DiagnosticsEvent["type"]> = [
+      "MOVING",
+      "MIGRATING",
+    ];
 
-    const { action_id: highTimeoutBindAndMigrateActionId } =
-      await faultInjectorClient.migrateAndBindAction({
-        bdbId: clientConfig.bdbId,
-        clusterIndex: 0,
-      });
+    const result: Record<
+      DiagnosticsEvent["type"],
+      { error: any; duration: number }
+    > = {};
 
-    const highTimeoutWaitPromise = faultInjectorClient.waitForAction(
-      highTimeoutBindAndMigrateActionId
+    const onMessageHandler = createNotificationMessageHandler(
+      client,
+      result,
+      notifications
     );
 
-    const highTimeoutCommandPromises =
-      await TestCommandRunner.fireCommandsUntilStopSignal(
-        highTimeoutClient,
-        highTimeoutWaitPromise
-      );
-
-    const highTimeoutRejectedCommands = (
-      await Promise.all(highTimeoutCommandPromises.commandPromises)
-    ).filter((result) => result.status === "rejected");
-
-    assert.strictEqual(highTimeoutRejectedCommands.length, 0);
-  });
-
-  it("should unrelax command timeout after MAINTENANCE", async () => {
-    const clientWithCommandTimeout = await clientFactory.create(
-      "clientWithCommandTimeout",
-      {
-        commandOptions: {
-          timeout: 100,
-        },
-      }
-    );
+    diagnostics_channel.subscribe("redis.maintenance", onMessageHandler);
 
     const { action_id: bindAndMigrateActionId } =
       await faultInjectorClient.migrateAndBindAction({
@@ -124,36 +118,173 @@ describe("Timeout Handling During Notifications", () => {
         clusterIndex: 0,
       });
 
-    const lowTimeoutWaitPromise = faultInjectorClient.waitForAction(
-      bindAndMigrateActionId
+    await faultInjectorClient.waitForAction(bindAndMigrateActionId);
+
+    diagnostics_channel.unsubscribe("redis.maintenance", onMessageHandler);
+
+    notifications.forEach((notification) => {
+      assert.ok(
+        result[notification]?.error instanceof Error,
+        `${notification} notification error should be instanceof Error`
+      );
+      assert.ok(
+        result[notification]?.duration > RELAXED_COMMAND_TIMEOUT &&
+          result[notification]?.duration < RELAXED_COMMAND_TIMEOUT * 1.1,
+        `${notification} notification should timeout within relaxed timeout`
+      );
+      assert.strictEqual(
+        result[notification]?.error?.constructor?.name,
+        "CommandTimeoutDuringMaintenanceError",
+        `${notification} notification error should be CommandTimeoutDuringMaintenanceError`
+      );
+    });
+  });
+
+  it("should unrelax command timeout after MIGRATED and  MOVING", async () => {
+    const { action_id: migrateActionId } =
+      await faultInjectorClient.triggerAction({
+        type: "migrate",
+        parameters: {
+          cluster_index: 0,
+        },
+      });
+
+    await faultInjectorClient.waitForAction(migrateActionId);
+
+    // PART 1
+    // After migration
+    const { error: errorMigrate, duration: durationMigrate } =
+      await blockCommand(async () => {
+        await client.set("key", "value");
+      });
+
+    assert.ok(
+      errorMigrate instanceof Error,
+      "Command Timeout error should be instanceof Error"
+    );
+    assert.ok(
+      durationMigrate > NORMAL_COMMAND_TIMEOUT &&
+        durationMigrate < NORMAL_COMMAND_TIMEOUT * 1.1,
+      `Normal command should timeout within normal timeout ms`
+    );
+    assert.strictEqual(
+      errorMigrate?.constructor?.name,
+      "TimeoutError",
+      "Command Timeout error should be TimeoutError"
     );
 
-    const relaxedTimeoutCommandPromises =
-      await TestCommandRunner.fireCommandsUntilStopSignal(
-        clientWithCommandTimeout,
-        lowTimeoutWaitPromise
-      );
-
-    const relaxedTimeoutRejectedCommands = (
-      await Promise.all(relaxedTimeoutCommandPromises.commandPromises)
-    ).filter((result) => result.status === "rejected");
-
-    assert.ok(relaxedTimeoutRejectedCommands.length === 0);
-
-    const start = performance.now();
-
-    let error: any;
-    await blockSetImmediate(async () => {
-      try {
-        await clientWithCommandTimeout.set("key", "value");
-      } catch (err: any) {
-        error = err;
+    const { action_id: bindActionId } = await faultInjectorClient.triggerAction(
+      {
+        type: "bind",
+        parameters: {
+          bdb_id: clientConfig.bdbId.toString(),
+          cluster_index: 0,
+        },
       }
+    );
+
+    await faultInjectorClient.waitForAction(bindActionId);
+
+    // PART 2
+    // After bind
+    const { error: errorBind, duration: durationBind } = await blockCommand(
+      async () => {
+        await client.set("key", "value");
+      }
+    );
+
+    assert.ok(
+      errorBind instanceof Error,
+      "Command Timeout error should be instanceof Error"
+    );
+    assert.ok(
+      durationBind > NORMAL_COMMAND_TIMEOUT &&
+        durationBind < NORMAL_COMMAND_TIMEOUT * 1.1,
+      `Normal command should timeout within normal timeout ms`
+    );
+    assert.strictEqual(
+      errorBind?.constructor?.name,
+      "TimeoutError",
+      "Command Timeout error should be TimeoutError"
+    );
+  });
+
+  it("should relax command timeout on FAILING_OVER", async () => {
+    const notifications: Array<DiagnosticsEvent["type"]> = ["FAILING_OVER"];
+
+    const result: Record<
+      DiagnosticsEvent["type"],
+      { error: any; duration: number }
+    > = {};
+
+    const onMessageHandler = createNotificationMessageHandler(
+      client,
+      result,
+      notifications
+    );
+
+    diagnostics_channel.subscribe("redis.maintenance", onMessageHandler);
+
+    const { action_id: failoverActionId } =
+      await faultInjectorClient.triggerAction({
+        type: "failover",
+        parameters: {
+          bdb_id: clientConfig.bdbId.toString(),
+          cluster_index: 0,
+        },
+      });
+
+    await faultInjectorClient.waitForAction(failoverActionId);
+
+    diagnostics_channel.unsubscribe("redis.maintenance", onMessageHandler);
+
+    notifications.forEach((notification) => {
+      assert.ok(
+        result[notification]?.error instanceof Error,
+        `${notification} notification error should be instanceof Error`
+      );
+      assert.ok(
+        result[notification]?.duration > RELAXED_COMMAND_TIMEOUT &&
+          result[notification]?.duration < RELAXED_COMMAND_TIMEOUT * 1.1,
+        `${notification} notification should timeout within relaxed timeout`
+      );
+      assert.strictEqual(
+        result[notification]?.error?.constructor?.name,
+        "CommandTimeoutDuringMaintenanceError",
+        `${notification} notification error should be CommandTimeoutDuringMaintenanceError`
+      );
+    });
+  });
+
+  it("should unrelax command timeout after FAILED_OVER", async () => {
+    const { action_id: failoverActionId } =
+      await faultInjectorClient.triggerAction({
+        type: "failover",
+        parameters: {
+          bdb_id: clientConfig.bdbId.toString(),
+          cluster_index: 0,
+        },
+      });
+
+    await faultInjectorClient.waitForAction(failoverActionId);
+
+    const { error, duration } = await blockCommand(async () => {
+      await client.set("key", "value");
     });
 
-    // Make sure it took less than 1sec to fail
-    assert.ok(performance.now() - start < 1000);
-    assert.ok(error instanceof Error);
-    assert.ok(error.constructor.name === "TimeoutError");
+    assert.ok(
+      error instanceof Error,
+      "Command Timeout error should be instanceof Error"
+    );
+    assert.ok(
+      duration > NORMAL_COMMAND_TIMEOUT &&
+        duration < NORMAL_COMMAND_TIMEOUT * 1.1,
+      `Normal command should timeout within normal timeout ms`
+    );
+    assert.strictEqual(
+      error?.constructor?.name,
+      "TimeoutError",
+      "Command Timeout error should be TimeoutError"
+    );
   });
 });

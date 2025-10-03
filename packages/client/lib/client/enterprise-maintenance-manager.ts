@@ -5,7 +5,7 @@ import { isIP } from "net";
 import { lookup } from "dns/promises";
 import assert from "node:assert";
 import { setTimeout } from "node:timers/promises";
-import RedisSocket from "./socket";
+import RedisSocket, { RedisTcpSocketOptions } from "./socket";
 import diagnostics_channel from "node:diagnostics_channel";
 
 export const MAINTENANCE_EVENTS = {
@@ -51,9 +51,10 @@ interface Client {
   _pause: () => void;
   _unpause: () => void;
   _maintenanceUpdate: (update: MaintenanceUpdate) => void;
-  duplicate: (options: RedisClientOptions) => Client;
+  duplicate: () => Client;
   connect: () => Promise<Client>;
   destroy: () => void;
+  on: (event: string, callback: (value: unknown) => void) => void;
 }
 
 export default class EnterpriseMaintenanceManager {
@@ -63,12 +64,12 @@ export default class EnterpriseMaintenanceManager {
   #client: Client;
 
   static setupDefaultMaintOptions(options: RedisClientOptions) {
-    if (options.maintPushNotifications === undefined) {
-      options.maintPushNotifications =
+    if (options.maintNotifications === undefined) {
+      options.maintNotifications =
         options?.RESP === 3 ? "auto" : "disabled";
     }
-    if (options.maintMovingEndpointType === undefined) {
-      options.maintMovingEndpointType = "auto";
+    if (options.maintEndpointType === undefined) {
+      options.maintEndpointType = "auto";
     }
     if (options.maintRelaxedSocketTimeout === undefined) {
       options.maintRelaxedSocketTimeout = 10000;
@@ -79,14 +80,20 @@ export default class EnterpriseMaintenanceManager {
   }
 
   static async getHandshakeCommand(
-    tls: boolean,
-    host: string,
     options: RedisClientOptions,
   ): Promise<
     | { cmd: Array<RedisArgument>; errorHandler: (error: Error) => void }
     | undefined
   > {
-    if (options.maintPushNotifications === "disabled") return;
+    if (options.maintNotifications === "disabled") return;
+
+    const host = options.url
+      ? new URL(options.url).hostname
+      : (options.socket as RedisTcpSocketOptions | undefined)?.host;
+
+    if (!host) return;
+
+    const tls = options.socket?.tls ?? false
 
     const movingEndpointType = await determineEndpoint(tls, host, options);
     return {
@@ -99,7 +106,7 @@ export default class EnterpriseMaintenanceManager {
       ],
       errorHandler: (error: Error) => {
         dbgMaintenance("handshake failed:", error);
-        if (options.maintPushNotifications === "enabled") {
+        if (options.maintNotifications === "enabled") {
           throw error;
         }
       },
@@ -188,7 +195,7 @@ export default class EnterpriseMaintenanceManager {
     // reconnect to its currently configured endpoint after half of the grace
     // period that was communicated by the server is over.
     if (url === null) {
-      assert(this.#options.maintMovingEndpointType === "none");
+      assert(this.#options.maintEndpointType === "none");
       assert(this.#options.socket !== undefined);
       assert("host" in this.#options.socket);
       assert(typeof this.#options.socket.host === "string");
@@ -211,21 +218,25 @@ export default class EnterpriseMaintenanceManager {
     dbgMaintenance("Creating new tmp client");
     let start = performance.now();
 
-    const tmpOptions = this.#options;
     // If the URL is provided, it takes precedense
-    if(tmpOptions.url) {
-      const u = new URL(tmpOptions.url);
+    // the options object could just be mutated
+    if(this.#options.url) {
+      const u = new URL(this.#options.url);
       u.hostname = host;
       u.port = String(port);
-      tmpOptions.url = u.toString();
+      this.#options.url = u.toString();
     } else {
-      tmpOptions.socket = {
-        ...tmpOptions.socket,
+      this.#options.socket = {
+        ...this.#options.socket,
         host,
         port
       }
     }
-    const tmpClient = this.#client.duplicate(tmpOptions);
+    const tmpClient = this.#client.duplicate();
+    tmpClient.on('error', (error: unknown) => {
+      //We dont know how to handle tmp client errors
+      dbgMaintenance(`[ERR]`, error)
+    });
     dbgMaintenance(`Tmp client created in ${( performance.now() - start ).toFixed(2)}ms`);
     dbgMaintenance(
       `Set timeout for tmp client to ${this.#options.maintRelaxedSocketTimeout}`,
@@ -324,12 +335,12 @@ async function determineEndpoint(
   host: string,
   options: RedisClientOptions,
 ): Promise<MovingEndpointType> {
-  assert(options.maintMovingEndpointType !== undefined);
-  if (options.maintMovingEndpointType !== "auto") {
+  assert(options.maintEndpointType !== undefined);
+  if (options.maintEndpointType !== "auto") {
     dbgMaintenance(
-      `Determine endpoint type: ${options.maintMovingEndpointType}`,
+      `Determine endpoint type: ${options.maintEndpointType}`,
     );
-    return options.maintMovingEndpointType;
+    return options.maintEndpointType;
   }
 
   const ip = isIP(host) ? host : (await lookup(host, { family: 0 })).address;
