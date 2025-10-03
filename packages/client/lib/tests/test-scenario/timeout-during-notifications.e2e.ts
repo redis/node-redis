@@ -75,9 +75,7 @@ describe("Timeout Handling During Notifications", () => {
         }
       );
       await faultInjectorClient.waitForAction(bindActionId);
-    } catch(error) {
-
-    }
+    } catch(error) { }
 
   });
 
