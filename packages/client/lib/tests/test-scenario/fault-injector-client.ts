@@ -144,7 +144,7 @@ export class FaultInjectorClient {
 
     await this.waitForAction(migrateActionId);
 
-    const { action_id: bindActionId } = await this.triggerAction(
+    return this.triggerAction(
       {
         type: "bind",
         parameters: {
@@ -153,7 +153,6 @@ export class FaultInjectorClient {
         },
       }
     );
-    await this.waitForAction(bindActionId);
   };
 
   async migrateAndBindAction1({
