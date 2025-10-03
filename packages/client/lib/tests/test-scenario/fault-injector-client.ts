@@ -133,6 +133,36 @@ export class FaultInjectorClient {
     bdbId: string | number;
     clusterIndex: string | number;
   }) {
+
+    const { action_id: migrateActionId } = await this.triggerAction({
+      type: "migrate",
+      parameters: {
+        cluster_index: clusterIndex,
+        bdb_id: bdbId.toString(),
+      },
+    });
+
+    await this.waitForAction(migrateActionId);
+
+    const { action_id: bindActionId } = await this.triggerAction(
+      {
+        type: "bind",
+        parameters: {
+          bdb_id: bdbId.toString(),
+          cluster_index: clusterIndex,
+        },
+      }
+    );
+    await this.waitForAction(bindActionId);
+  };
+
+  async migrateAndBindAction1({
+    bdbId,
+    clusterIndex,
+  }: {
+    bdbId: string | number;
+    clusterIndex: string | number;
+  }) {
     const bdbIdStr = bdbId.toString();
     const clusterIndexStr = clusterIndex.toString();
 
