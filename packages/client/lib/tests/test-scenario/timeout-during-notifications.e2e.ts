@@ -178,7 +178,7 @@ describe("Timeout Handling During Notifications", () => {
       "Command Timeout error should be instanceof Error"
     );
     assert.ok(
-      durationMigrate > NORMAL_COMMAND_TIMEOUT &&
+      durationMigrate >= NORMAL_COMMAND_TIMEOUT &&
         durationMigrate < NORMAL_COMMAND_TIMEOUT * 1.1,
       `Normal command should timeout within normal timeout ms`
     );
@@ -213,7 +213,7 @@ describe("Timeout Handling During Notifications", () => {
       "Command Timeout error should be instanceof Error"
     );
     assert.ok(
-      durationBind > NORMAL_COMMAND_TIMEOUT &&
+      durationBind >= NORMAL_COMMAND_TIMEOUT &&
         durationBind < NORMAL_COMMAND_TIMEOUT * 1.1,
       `Normal command should timeout within normal timeout ms`
     );
