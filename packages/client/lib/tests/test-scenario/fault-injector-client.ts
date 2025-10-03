@@ -107,18 +107,6 @@ export class FaultInjectorClient {
     while (Date.now() - startTime < maxWaitTime) {
       const action = await this.getActionStatus<ActionStatus>(actionId);
 
-      if(["finished", "failed", "success"].includes(action.status)) {
-        const { action_id: statusId } = await this.triggerAction({
-          type: 'execute_rladmin_command',
-          parameters: {
-            rladmin_command: "status"
-          }
-        })
-        const status = await this.getActionStatus<ActionStatus>(statusId);
-        console.log('status');
-        console.log(status.output);
-      }
-
       if (action.status === "failed") {
         console.log(`action ${actionId} failed`);
         throw new Error(
