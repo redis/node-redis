@@ -120,6 +120,24 @@ createCluster({
 
 > This is a common problem when using ElastiCache. See [Accessing ElastiCache from outside AWS](https://docs.aws.amazon.com/AmazonElastiCache/latest/red-ug/accessing-elasticache.html) for more information on that.
 
+### Events
+
+The Node Redis cluster class is an Nodejs EventEmitter and emits following events:
+
+| Name                    | When                                                                               | Listener arguments                                        |
+| ----------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `connect`               | The cluster connected and ready to use                                             | _No arguments_                                            |
+| `disconnect`            | The cluster has disconnected                                                       | _No arguments_                                            |
+| `error`                 | The cluster has errored                                                            | `(error: Error)`                                          |
+| `node-connect`          | One of the cluster's nodes has connected                                           | `(node: { host: string, port: number })`                  |
+| `node-disconnect`       | One of the cluster's nodes has disconnected                                        | `(node: { host: string, port: number })`                  |
+| `node-ready`            | One of the cluster's nodes is ready to connect                                     | `(node: { host: string, port: number })`                  |
+| `node-reconnecting`     | One of the cluster's nodes is trying to reconnect after error has occurred         | `(node: { host: string, port: number })`                  |
+| `node-error`            | One of the cluster's nodes has errored, usually during TCP connection              | `(error: Error, node: { host: string, port: number }`     |
+
+> :warning: You **MUST** listen to `error` events. If a cluster doesn't have at least one `error` listener registered and
+> an `error` occurs, that error will be thrown and the Node.js process will exit. See the [ > `EventEmitter` docs](https://nodejs.org/api/events.html#events_error_events) for more details.
+
 ## Command Routing
 
 ### Commands that operate on Redis Keys
