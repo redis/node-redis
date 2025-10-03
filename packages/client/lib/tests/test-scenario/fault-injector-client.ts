@@ -48,7 +48,7 @@ export class FaultInjectorClient {
    * @param action The action request to trigger
    * @throws {Error} When the HTTP request fails or response cannot be parsed as JSON
    */
-  public triggerAction<T extends { action_id: string }>(
+  public async triggerAction<T extends { action_id: string }>(
     action: ActionRequest
   ): Promise<T> {
     if(action.type === 'sequence_of_actions') {
@@ -57,7 +57,21 @@ export class FaultInjectorClient {
     } else {
       console.log(`trigger action: ${action.type}`);
     }
+    await this.printStatus();
     return this.#request<T>("POST", "/action", action);
+  }
+
+  public async printStatus() {
+    const action = {
+      type: 'execute_rladmin_command',
+      parameters: {
+        rladmin_command: "status",
+        bdb_id: "1"
+      }
+    }
+    const { action_id } = await this.#request<{action_id: string}>("POST", "/action", action);
+    const status = await this.waitForAction(action_id);
+    console.log(status.output);
   }
 
   /**
@@ -132,6 +146,8 @@ export class FaultInjectorClient {
   }) {
     const bdbIdStr = bdbId.toString();
     const clusterIndexStr = clusterIndex.toString();
+
+    await this.printStatus();
 
     return this.triggerAction<{
       action_id: string;
