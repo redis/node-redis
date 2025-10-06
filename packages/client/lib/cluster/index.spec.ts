@@ -343,7 +343,7 @@ describe('Cluster', () => {
   describe('clusterEvents', () => {
     testUtils.testWithCluster('should fire events', async (cluster) => {
       const log: string[] = [];
-      const { numberOfMasters } = GLOBAL.CLUSTERS.WITH_REPLICAS;
+      const numberOfMasters = 2;
       const nodeConnect = numberOfMasters;
       const nodeReady = nodeConnect + numberOfMasters;
       const connect = nodeReady + 1;
@@ -393,6 +393,8 @@ describe('Cluster', () => {
     }, {
       ...GLOBAL.CLUSTERS.OPEN,
       disableClusterSetup: true,
+      numberOfMasters: 2,
+      numberOfReplicas: 1,
     });
   });
 
