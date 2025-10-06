@@ -29,7 +29,7 @@ export class DoublyLinkedList<T> {
     ++this.#length;
 
     if (this.#tail === undefined) {
-      return this.#tail = this.#head = {
+      return this.#head = this.#tail = {
         previous: this.#head,
         next: undefined,
         value
@@ -73,7 +73,7 @@ export class DoublyLinkedList<T> {
     --this.#length;
     const node = this.#head;
     if (node.next) {
-      node.next.previous = node.previous;
+      node.next.previous = undefined;
       this.#head = node.next;
       node.next = undefined;
     } else {
@@ -83,19 +83,23 @@ export class DoublyLinkedList<T> {
   }
 
   remove(node: DoublyLinkedNode<T>) {
+    if (this.#length === 0) return;
     --this.#length;
 
     if (this.#tail === node) {
       this.#tail = node.previous;
-    }
-
+    } 
     if (this.#head === node) {
       this.#head = node.next;
     } else {
-      node.previous!.next = node.next;
-      node.previous = undefined;
+      if (node.previous) {
+          node.previous.next = node.next;
+      }
+      if (node.next) {
+        node.next.previous = node.previous;
+      }
     }
-
+    node.previous = undefined;
     node.next = undefined;
   }
 
@@ -115,8 +119,9 @@ export class DoublyLinkedList<T> {
   *nodes() {
     let node = this.#head;
     while(node) {
+      const next = node.next
       yield node;
-      node = node.next;
+      node = next;
     }
   }
 }

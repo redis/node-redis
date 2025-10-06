@@ -462,6 +462,7 @@ export default class RedisClusterSlots<
   }
 
   *#iterateAllNodes() {
+    if(this.masters.length + this.replicas.length === 0) return
     let i = Math.floor(Math.random() * (this.masters.length + this.replicas.length));
     if (i < this.masters.length) {
       do {
@@ -542,7 +543,7 @@ export default class RedisClusterSlots<
         this.masters[index] :
         this.replicas[index - this.masters.length],
         client = this.#createClient(node, false);
-      
+
     this.pubSubNode = {
       address: node.address,
       client,
