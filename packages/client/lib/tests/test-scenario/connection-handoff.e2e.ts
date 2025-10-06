@@ -86,25 +86,25 @@ describe("Connection Handoff", () => {
       {
         name: "external-ip",
         clientOptions: {
-          maintMovingEndpointType: "external-ip",
+          maintEndpointType: "external-ip",
         },
       },
       {
         name: "external-fqdn",
         clientOptions: {
-          maintMovingEndpointType: "external-fqdn",
+          maintEndpointType: "external-fqdn",
         },
       },
       {
         name: "auto",
         clientOptions: {
-          maintMovingEndpointType: "auto",
+          maintEndpointType: "auto",
         },
       },
       {
         name: "none",
         clientOptions: {
-          maintMovingEndpointType: "none",
+          maintEndpointType: "none",
         },
       },
     ];
@@ -156,6 +156,7 @@ describe("Connection Handoff", () => {
 
   describe("Connection Cleanup", () => {
     it("should shut down old connection", async () => {
+      client = await createTestClient(clientConfig);
       const spyObject = spyOnTemporaryClientInstanceMethod(client, "destroy");
 
       const { action_id: lowTimeoutBindAndMigrateActionId } =
