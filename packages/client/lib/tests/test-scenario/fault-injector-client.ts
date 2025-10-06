@@ -57,23 +57,22 @@ export class FaultInjectorClient {
     } else {
       console.log(`trigger action: ${action.type}`);
     }
-    await this.printStatus();
     return this.#request<T>("POST", "/action", action);
   }
 
-  public async printStatus() {
-    const action = {
-      type: 'execute_rladmin_command',
-      parameters: {
-        rladmin_command: "status",
-        bdb_id: "1"
-      }
-    }
-    const { action_id } = await this.#request<{action_id: string}>("POST", "/action", action);
-    const status = await this.waitForAction(action_id);
-    //@ts-ignore
-    console.log(status.output.output);
-  }
+  // public async printStatus() {
+  //   const action = {
+  //     type: 'execute_rladmin_command',
+  //     parameters: {
+  //       rladmin_command: "status",
+  //       bdb_id: "1"
+  //     }
+  //   }
+  //   const { action_id } = await this.#request<{action_id: string}>("POST", "/action", action);
+  //   const status = await this.waitForAction(action_id);
+  //   //@ts-ignore
+  //   console.log(status.output.output);
+  // }
 
   /**
    * Gets the status of a specific action.
@@ -133,39 +132,8 @@ export class FaultInjectorClient {
     bdbId: string | number;
     clusterIndex: string | number;
   }) {
-
-    const { action_id: migrateActionId } = await this.triggerAction({
-      type: "migrate",
-      parameters: {
-        cluster_index: clusterIndex,
-        bdb_id: bdbId.toString(),
-      },
-    });
-
-    await this.waitForAction(migrateActionId);
-
-    return this.triggerAction(
-      {
-        type: "bind",
-        parameters: {
-          bdb_id: bdbId.toString(),
-          cluster_index: clusterIndex,
-        },
-      }
-    );
-  };
-
-  async migrateAndBindAction1({
-    bdbId,
-    clusterIndex,
-  }: {
-    bdbId: string | number;
-    clusterIndex: string | number;
-  }) {
     const bdbIdStr = bdbId.toString();
     const clusterIndexStr = clusterIndex.toString();
-
-    await this.printStatus();
 
     return this.triggerAction<{
       action_id: string;

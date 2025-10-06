@@ -55,20 +55,6 @@ describe("Push Notifications", () => {
       client = await createTestClient(clientConfig);
 
       await client.flushAll();
-
-      // Ensure the endpoint is pointing at the correct node before each test
-      try{
-        const { action_id: bindActionId } = await faultInjectorClient.triggerAction(
-          {
-            type: "bind",
-            parameters: {
-              bdb_id: clientConfig.bdbId.toString(),
-              cluster_index: 0,
-            },
-          }
-        );
-        await faultInjectorClient.waitForAction(bindActionId);
-      } catch(error) { }
     });
 
     it("should receive MOVING, MIGRATING, and MIGRATED push notifications", async () => {
