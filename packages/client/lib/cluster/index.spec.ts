@@ -343,11 +343,11 @@ describe('Cluster', () => {
   describe('clusterEvents', () => {
     testUtils.testWithCluster('should fire events', async (cluster) => {
       const log: string[] = [];
-      const rootNodes = cluster._options.rootNodes.length;
-      const nodeConnect = rootNodes;
-      const nodeReady = nodeConnect + rootNodes;
+      const { numberOfMasters } = GLOBAL.CLUSTERS.WITH_REPLICAS;
+      const nodeConnect = numberOfMasters;
+      const nodeReady = nodeConnect + numberOfMasters;
       const connect = nodeReady + 1;
-      const nodeDisconnect = connect + rootNodes;
+      const nodeDisconnect = connect + numberOfMasters;
       const disconnect = nodeDisconnect + 1;
 
       cluster
@@ -363,38 +363,37 @@ describe('Cluster', () => {
       await cluster.connect();
       cluster.destroy();
 
-      assert.strictEqual(log.length, disconnect);
+      assert.equal(log.length, disconnect);
 
-      assert.deepStrictEqual(
+      assert.deepEqual(
         log.slice(0, nodeConnect),
-        new Array(rootNodes).fill('node-connect'),
+        new Array(numberOfMasters).fill('node-connect'),
       );
-      assert.deepStrictEqual(
+      assert.deepEqual(
         log.slice(nodeConnect, nodeReady),
-        new Array(rootNodes).fill('node-ready'),
+        new Array(numberOfMasters).fill('node-ready'),
       );
-      assert.deepStrictEqual(
+      assert.deepEqual(
         log.slice(nodeReady, connect),
         new Array(1).fill('connect'),
       );
-      assert.deepStrictEqual(
+      assert.deepEqual(
         log.slice(connect, nodeDisconnect),
-        new Array(rootNodes).fill('node-disconnect'),
+        new Array(numberOfMasters).fill('node-disconnect'),
       );
-      assert.deepStrictEqual(
+      assert.deepEqual(
         log.slice(nodeDisconnect, disconnect),
         new Array(1).fill('disconnect'),
       );
 
-      assert.strictEqual(log.includes('error'), false);
-      assert.strictEqual(log.includes('node-error'), false);
-      assert.strictEqual(log.includes('node-reconnecting'), false);
+      assert.equal(log.includes('error'), false);
+      assert.equal(log.includes('node-error'), false);
+      assert.equal(log.includes('node-reconnecting'), false);
 
     }, {
       ...GLOBAL.CLUSTERS.OPEN,
-      disableClusterSetup: true
-    } as any);
-
+      disableClusterSetup: true,
+    });
   });
 
 });

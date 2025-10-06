@@ -122,18 +122,18 @@ createCluster({
 
 ### Events
 
-The Node Redis cluster class is an Nodejs EventEmitter and emits following events:
+The Node Redis Cluster class extends Node.js’s EventEmitter and emits the following events:
 
 | Name                    | When                                                                               | Listener arguments                                        |
 | ----------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| `connect`               | The cluster connected and ready to use                                             | _No arguments_                                            |
+| `connect`               | The cluster has successfully connected and is ready to us                          | _No arguments_                                            |
 | `disconnect`            | The cluster has disconnected                                                       | _No arguments_                                            |
 | `error`                 | The cluster has errored                                                            | `(error: Error)`                                          |
-| `node-connect`          | One of the cluster's nodes has connected                                           | `(node: { host: string, port: number })`                  |
-| `node-disconnect`       | One of the cluster's nodes has disconnected                                        | `(node: { host: string, port: number })`                  |
-| `node-ready`            | One of the cluster's nodes is ready to connect                                     | `(node: { host: string, port: number })`                  |
-| `node-reconnecting`     | One of the cluster's nodes is trying to reconnect after error has occurred         | `(node: { host: string, port: number })`                  |
-| `node-error`            | One of the cluster's nodes has errored, usually during TCP connection              | `(error: Error, node: { host: string, port: number }`     |
+| `node-ready`            | A cluster node is ready to establish a connection                                  | `(node: { host: string, port: number })`                  |
+| `node-connect`          | A cluster node has connected                                                       | `(node: { host: string, port: number })`                  |
+| `node-reconnecting`     | A cluster node is attempting to reconnect after an error                           | `(node: { host: string, port: number })`                  |
+| `node-disconnect`       | A cluster node has disconnected                                                    | `(node: { host: string, port: number })`                  |
+| `node-error`            | A cluster node has has errored (usually during TCP connection)                     | `(error: Error, node: { host: string, port: number })`    |
 
 > :warning: You **MUST** listen to `error` events. If a cluster doesn't have at least one `error` listener registered and
 > an `error` occurs, that error will be thrown and the Node.js process will exit. See the [ > `EventEmitter` docs](https://nodejs.org/api/events.html#events_error_events) for more details.
