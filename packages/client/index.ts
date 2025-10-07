@@ -31,9 +31,7 @@ export const createSentinel = RedisSentinel.create;
 
 export { GEO_REPLY_WITH, GeoReplyWith } from './lib/commands/GEOSEARCH_WITH';
 
-export { SetOptions } from './lib/commands/SET';
 
-export { REDIS_FLUSH_MODES } from './lib/commands/FLUSHALL';
+export { SetOptions, CLIENT_KILL_FILTERS, FAILOVER_MODES, CLUSTER_SLOT_STATES, COMMAND_LIST_FILTER_BY, REDIS_FLUSH_MODES } from './lib/commands'
 
 export { BasicClientSideCache, BasicPooledClientSideCache } from './lib/client/cache';
-
