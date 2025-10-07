@@ -774,9 +774,8 @@ export default class RedisClient<
       commands.push({cmd: ['CLIENT', 'TRACKING', 'ON']});
     }
     
-    const { tls, host } = this.#options!.socket as RedisTcpSocketOptions;
-    const maintenanceHandshakeCmd = await EnterpriseMaintenanceManager.getHandshakeCommand(!!tls, host!, this.#options!);
     const maintenanceHandshakeCmd = await EnterpriseMaintenanceManager.getHandshakeCommand(this.#options);
+    
     if(maintenanceHandshakeCmd) {
       commands.push(maintenanceHandshakeCmd);
     };
