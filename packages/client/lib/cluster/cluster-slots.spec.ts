@@ -5,7 +5,6 @@ import RedisClusterSlots from './cluster-slots';
 
 describe('RedisClusterSlots', () => {
   describe('initialization', () => {
-
     describe('clientSideCache validation', () => {
       const mockEmit = ((_event: string | symbol, ..._args: any[]): boolean => true) as EventEmitter['emit'];
       const clientSideCacheConfig = { ttl: 0, maxEntries: 0 };
@@ -44,5 +43,15 @@ describe('RedisClusterSlots', () => {
         );
       });
     });
+  });
+
+  describe('getRandomNode', ()=> {
+    it('should not enter infinite loop when no nodes', () => {
+        const slots = new RedisClusterSlots({
+          rootNodes: []
+        }, () => true)
+        slots.getRandomNode()
+        slots.getRandomNode()
+      });
   });
 });

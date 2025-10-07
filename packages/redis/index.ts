@@ -12,7 +12,10 @@ import {
   RedisClusterType as genericRedisClusterType,
   RedisSentinelOptions,
   RedisSentinelType as genericRedisSentinelType,
-  createSentinel as genericCreateSentinel
+  createSentinel as genericCreateSentinel,
+  createClientPool as genericCreateClientPool,
+  RedisClientPoolType as GenericRedisClientPoolType,
+  RedisPoolOptions,
 } from '@redis/client';
 import RedisBloomModules from '@redis/bloom';
 import RedisJSON from '@redis/json';
@@ -58,6 +61,23 @@ export function createClient<
       ...(options?.modules as M)
     }
   });
+}
+
+export function createClientPool<
+  M extends RedisModules,
+  F extends RedisFunctions,
+  S extends RedisScripts,
+  RESP extends RespVersions,
+  TYPE_MAPPING extends TypeMapping = {}
+>(clientOptions?: Omit<RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>, "clientSideCache">,
+  options?: Partial<RedisPoolOptions>): GenericRedisClientPoolType<RedisDefaultModules & M, F, S, RESP, TYPE_MAPPING> {
+  return genericCreateClientPool({
+    ...clientOptions,
+    modules: {
+      ...modules,
+      ...(clientOptions?.modules as M)
+    }
+  }, options);
 }
 
 export type RedisClusterType<
