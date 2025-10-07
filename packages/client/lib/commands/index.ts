@@ -370,6 +370,8 @@ export {
   REDIS_FLUSH_MODES
 };
 
+export { SetOptions } from './SET';
+
 export default {
   ACL_CAT,
   aclCat: ACL_CAT,
