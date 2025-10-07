@@ -2,9 +2,15 @@ import { strict as assert } from 'node:assert';
 import CLIENT_INFO from './CLIENT_INFO';
 import testUtils, { GLOBAL } from '../test-utils';
 import { parseArgs } from './generic-transformers';
-import { version } from '../../package.json';
+import { resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
 
 describe('CLIENT INFO', () => {
+
+  const filePath = resolve(__dirname, "..", "..", "package.json");
+  const data = readFileSync(filePath, "utf8");
+  const version = JSON.parse(data).version;
+
   testUtils.isVersionGreaterThanHook([6, 2]);
 
   it('transformArguments', () => {
