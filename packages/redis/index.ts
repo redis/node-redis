@@ -72,7 +72,7 @@ export function createClientPool<
 >(clientOptions?: Omit<RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>, "clientSideCache">,
   options?: Partial<RedisPoolOptions>): GenericRedisClientPoolType<RedisDefaultModules & M, F, S, RESP, TYPE_MAPPING> {
   return genericCreateClientPool({
-    ...options,
+    ...clientOptions,
     modules: {
       ...modules,
       ...(clientOptions?.modules as M)
