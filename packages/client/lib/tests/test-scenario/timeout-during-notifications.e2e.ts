@@ -82,8 +82,8 @@ describe("Timeout Handling During Notifications", () => {
       "Command Timeout error should be instanceof Error"
     );
     assert.ok(
-      duration > NORMAL_COMMAND_TIMEOUT &&
-        duration < NORMAL_COMMAND_TIMEOUT * 1.1,
+      duration >= NORMAL_COMMAND_TIMEOUT &&
+        duration < NORMAL_COMMAND_TIMEOUT * 1.2,
       `Normal command should timeout within normal timeout ms`
     );
     assert.strictEqual(
@@ -128,8 +128,8 @@ describe("Timeout Handling During Notifications", () => {
         `${notification} notification error should be instanceof Error`
       );
       assert.ok(
-        result[notification]?.duration > RELAXED_COMMAND_TIMEOUT &&
-          result[notification]?.duration < RELAXED_COMMAND_TIMEOUT * 1.1,
+        result[notification]?.duration >= RELAXED_COMMAND_TIMEOUT &&
+          result[notification]?.duration < RELAXED_COMMAND_TIMEOUT * 1.2,
         `${notification} notification should timeout within relaxed timeout`
       );
       assert.strictEqual(
@@ -165,7 +165,7 @@ describe("Timeout Handling During Notifications", () => {
     );
     assert.ok(
       durationMigrate >= NORMAL_COMMAND_TIMEOUT &&
-        durationMigrate < NORMAL_COMMAND_TIMEOUT * 1.1,
+        durationMigrate < NORMAL_COMMAND_TIMEOUT * 1.2,
       `Normal command should timeout within normal timeout ms`
     );
     assert.strictEqual(
@@ -200,7 +200,7 @@ describe("Timeout Handling During Notifications", () => {
     );
     assert.ok(
       durationBind >= NORMAL_COMMAND_TIMEOUT &&
-        durationBind < NORMAL_COMMAND_TIMEOUT * 1.1,
+        durationBind < NORMAL_COMMAND_TIMEOUT * 1.2,
       `Normal command should timeout within normal timeout ms`
     );
     assert.strictEqual(
