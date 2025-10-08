@@ -2,7 +2,7 @@ import { RedisClusterClientOptions, RedisClusterOptions } from '.';
 import { RootNodesUnavailableError } from '../errors';
 import RedisClient, { RedisClientOptions, RedisClientType } from '../client';
 import { EventEmitter } from 'node:stream';
-import { ChannelListeners, PUBSUB_TYPE, PubSubTypeListeners } from '../client/pub-sub';
+import { ChannelListeners, PUBSUB_TYPE, PubSubListeners, PubSubTypeListeners } from '../client/pub-sub';
 import { RedisArgument, RedisFunctions, RedisModules, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
 import calculateSlot from 'cluster-key-slot';
 import { RedisSocketOptions } from '../client/socket';
@@ -186,21 +186,6 @@ export default class RedisClusterSlots<
     this.clientSideCache?.clear();
     this.clientSideCache?.disable();
 
-
-    const allChannelListeners = new Map<string, ChannelListeners>();
-
-    for (const master of this.masters) {
-      const shardedClient = master.pubSub?.client;
-      if (!shardedClient) continue;
-      for (const channel of shardedClient.getShardedChannels()) {
-        const listeners = shardedClient.removeShardedListeners(channel);
-        if(allChannelListeners.get(channel)) {
-          console.warn(`Found existing listeners, will be overwritten...`);
-        }
-        allChannelListeners.set(channel, listeners);
-      }
-    }
-
     try {
       const addressesInUse = new Set<string>(),
         promises: Array<Promise<unknown>> = [],
@@ -255,9 +240,6 @@ export default class RedisClusterSlots<
 
         this.nodeByAddress.delete(address);
       }
-
-      this.#emit('__refreshShardedChannels', allChannelListeners);
-
 
       await Promise.all(promises);
       this.clientSideCache?.enable();
@@ -357,26 +339,29 @@ export default class RedisClusterSlots<
     const socket =
       this.#getNodeAddress(node.address) ??
       { host: node.host, port: node.port, };
-    const client = Object.freeze({
+    const clientInfo = Object.freeze({
       host: socket.host,
       port: socket.port,
     });
     const emit = this.#emit;
-    return this.#clientFactory(
+    const client = this.#clientFactory(
       this.#clientOptionsDefaults({
         clientSideCache: this.clientSideCache,
         RESP: this.#options.RESP,
         socket,
         readonly,
       }))
-      .on('error', error => emit('node-error', error, client))
-      .on('reconnecting', () => emit('node-reconnecting', client))
-      .once('ready', () => emit('node-ready', client))
-      .once('connect', () => emit('node-connect', client))
-      .once('end', () => emit('node-disconnect', client));
-      .on('__MOVED', () => {
-        this.rediscover(client);
-      })
+      .on('error', error => emit('node-error', error, clientInfo))
+      .on('reconnecting', () => emit('node-reconnecting', clientInfo))
+      .once('ready', () => emit('node-ready', clientInfo))
+      .once('connect', () => emit('node-connect', clientInfo))
+      .once('end', () => emit('node-disconnect', clientInfo))
+      .on('__MOVED', async (allPubSubListeners: PubSubListeners) => {
+        await this.rediscover(client);
+        this.#emit('__resubscribeAllPubSubListeners', allPubSubListeners);
+      });
+
+    return client;
   }
 
   #createNodeClient(node: ShardNode<M, F, S, RESP, TYPE_MAPPING>, readonly?: boolean) {

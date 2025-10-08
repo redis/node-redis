@@ -6,7 +6,7 @@ import { EventEmitter } from 'node:events';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
 import RedisClusterSlots, { NodeAddressMap, ShardNode } from './cluster-slots';
 import RedisClusterMultiCommand, { RedisClusterMultiCommandType } from './multi-command';
-import { ChannelListeners, PubSubListener } from '../client/pub-sub';
+import { PubSubListener, PubSubListeners } from '../client/pub-sub';
 import { ErrorReply } from '../errors';
 import { RedisTcpSocketOptions } from '../client/socket';
 import { ClientSideCacheConfig, PooledClientSideCacheProvider } from '../client/cache';
@@ -310,7 +310,7 @@ export default class RedisCluster<
 
     this._options = options;
     this._slots = new RedisClusterSlots(options, this.emit.bind(this));
-    this.on('__refreshShardedChannels', this.refreshShardedChannelsSubscriptions.bind(this));
+    this.on('__resubscribeAllPubSubListeners', this.resubscribeAllPubSubListeners.bind(this));
 
     if (options?.commandOptions) {
       this._commandOptions = options.commandOptions;
@@ -585,15 +585,31 @@ export default class RedisCluster<
     );
   }
 
-  refreshShardedChannelsSubscriptions(allChannelListeners: Map<string, ChannelListeners>) {
-    for(const [channel, listeners] of allChannelListeners) {
-      for(const bufListener of listeners.buffers) {
+  resubscribeAllPubSubListeners(allListeners: PubSubListeners) {
+    for(const [channel, listeners] of allListeners.CHANNELS) {
+      listeners.buffers.forEach(bufListener => {
+        this.subscribe(channel, bufListener, true);
+      });
+      listeners.strings.forEach(strListener => {
+        this.subscribe(channel, strListener);
+      });
+    };
+    for (const [channel, listeners] of allListeners.PATTERNS) {
+      listeners.buffers.forEach(bufListener => {
+        this.pSubscribe(channel, bufListener, true);
+      });
+      listeners.strings.forEach(strListener => {
+        this.pSubscribe(channel, strListener);
+      });
+    };
+    for (const [channel, listeners] of allListeners.SHARDED) {
+      listeners.buffers.forEach(bufListener => {
         this.sSubscribe(channel, bufListener, true);
-      }
-      for(const strListener of listeners.strings) {
+      });
+      listeners.strings.forEach(strListener => {
         this.sSubscribe(channel, strListener);
-      }
-    }
+      });
+    };
   }
 
   sUnsubscribe = this.SUNSUBSCRIBE;

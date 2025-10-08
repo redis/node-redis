@@ -338,12 +338,8 @@ export default class RedisCommandsQueue {
     return this.#addPubSubCommand(command);
   }
 
-  getShardedChannels(): IterableIterator<string> {
-    return this.#pubSub.getShardedChannels();
-  }
-
-  removeShardedListeners(channel: string): ChannelListeners {
-    return this.#pubSub.removeShardedListeners(channel);
+  removeAllPubSubListeners() {
+    return this.#pubSub.removeAllListeners();
   }
 
   resubscribe(chainId?: symbol) {
