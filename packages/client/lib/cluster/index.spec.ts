@@ -343,12 +343,6 @@ describe('Cluster', () => {
   describe('clusterEvents', () => {
     testUtils.testWithCluster('should fire events', async (cluster) => {
       const log: string[] = [];
-      const numberOfMasters = 2;
-      const nodeConnect = numberOfMasters;
-      const nodeReady = nodeConnect + numberOfMasters;
-      const connect = nodeReady + 1;
-      const nodeDisconnect = connect + numberOfMasters;
-      const disconnect = nodeDisconnect + 1;
 
       cluster
         .on('connect', () => log.push('connect'))
@@ -363,33 +357,16 @@ describe('Cluster', () => {
       await cluster.connect();
       cluster.destroy();
 
-      assert.equal(log.length, disconnect);
-
-      assert.deepEqual(
-        log.slice(0, nodeConnect),
-        new Array(numberOfMasters).fill('node-connect'),
-      );
-      assert.deepEqual(
-        log.slice(nodeConnect, nodeReady),
-        new Array(numberOfMasters).fill('node-ready'),
-      );
-      assert.deepEqual(
-        log.slice(nodeReady, connect),
-        new Array(1).fill('connect'),
-      );
-      assert.deepEqual(
-        log.slice(connect, nodeDisconnect),
-        new Array(numberOfMasters).fill('node-disconnect'),
-      );
-      assert.deepEqual(
-        log.slice(nodeDisconnect, disconnect),
-        new Array(1).fill('disconnect'),
-      );
-
-      assert.equal(log.includes('error'), false);
-      assert.equal(log.includes('node-error'), false);
-      assert.equal(log.includes('node-reconnecting'), false);
-
+      assert.deepEqual(log, [
+        'node-connect',
+        'node-connect',
+        'node-ready',
+        'node-ready',
+        'connect',
+        'node-disconnect',
+        'node-disconnect',
+        'disconnect',
+      ]);
     }, {
       ...GLOBAL.CLUSTERS.OPEN,
       disableClusterSetup: true,
