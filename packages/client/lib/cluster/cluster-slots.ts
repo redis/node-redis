@@ -357,26 +357,28 @@ export default class RedisClusterSlots<
     const socket =
       this.#getNodeAddress(node.address) ??
       { host: node.host, port: node.port, };
-    const client = Object.freeze({
+    const clientInfo = Object.freeze({
       host: socket.host,
       port: socket.port,
     });
     const emit = this.#emit;
-    return this.#clientFactory(
+    const client = this.#clientFactory(
       this.#clientOptionsDefaults({
         clientSideCache: this.clientSideCache,
         RESP: this.#options.RESP,
         socket,
         readonly,
       }))
-      .on('error', error => emit('node-error', error, client))
-      .on('reconnecting', () => emit('node-reconnecting', client))
-      .once('ready', () => emit('node-ready', client))
-      .once('connect', () => emit('node-connect', client))
-      .once('end', () => emit('node-disconnect', client));
+      .on('error', error => emit('node-error', error, clientInfo))
+      .on('reconnecting', () => emit('node-reconnecting', clientInfo))
+      .once('ready', () => emit('node-ready', clientInfo))
+      .once('connect', () => emit('node-connect', clientInfo))
+      .once('end', () => emit('node-disconnect', clientInfo))
       .on('__MOVED', () => {
         this.rediscover(client);
-      })
+      });
+
+    return client;
   }
 
   #createNodeClient(node: ShardNode<M, F, S, RESP, TYPE_MAPPING>, readonly?: boolean) {
