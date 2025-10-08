@@ -395,6 +395,9 @@ describe('Cluster', () => {
       disableClusterSetup: true,
       numberOfMasters: 2,
       numberOfReplicas: 1,
+      clusterConfiguration: {
+        minimizeConnections: false
+      }
     });
   });
 
