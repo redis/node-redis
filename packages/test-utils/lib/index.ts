@@ -555,7 +555,7 @@ export default class TestUtils {
               port
             }
           })),
-          minimizeConnections: true,
+          minimizeConnections: options.clusterConfiguration?.minimizeConnections ?? true,
           ...options.clusterConfiguration
         });
 
