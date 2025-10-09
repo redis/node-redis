@@ -185,6 +185,22 @@ export default class RedisClusterSlots<
   async #discover(rootNode: RedisClusterClientOptions) {
     this.clientSideCache?.clear();
     this.clientSideCache?.disable();
+
+
+    const allChannelListeners = new Map<string, ChannelListeners>();
+
+    for (const master of this.masters) {
+      const shardedClient = master.pubSub?.client;
+      if (!shardedClient) continue;
+      for (const channel of shardedClient.getShardedChannels()) {
+        const listeners = shardedClient.removeShardedListeners(channel);
+        if(allChannelListeners.get(channel)) {
+          console.warn(`Found existing listeners, will be overwritten...`);
+        }
+        allChannelListeners.set(channel, listeners);
+      }
+    }
+
     try {
       const addressesInUse = new Set<string>(),
         promises: Array<Promise<unknown>> = [],
@@ -224,6 +240,7 @@ export default class RedisClusterSlots<
         }
       }
 
+      //Keep only the nodes that are still in use
       for (const [address, node] of this.nodeByAddress.entries()) {
         if (addressesInUse.has(address)) continue;
 
@@ -238,6 +255,9 @@ export default class RedisClusterSlots<
 
         this.nodeByAddress.delete(address);
       }
+
+      this.#emit('__refreshShardedChannels', allChannelListeners);
+
 
       await Promise.all(promises);
       this.clientSideCache?.enable();
@@ -354,6 +374,9 @@ export default class RedisClusterSlots<
       .once('ready', () => emit('node-ready', client))
       .once('connect', () => emit('node-connect', client))
       .once('end', () => emit('node-disconnect', client));
+      .on('__MOVED', () => {
+        this.rediscover(client);
+      })
   }
 
   #createNodeClient(node: ShardNode<M, F, S, RESP, TYPE_MAPPING>, readonly?: boolean) {
@@ -374,7 +397,9 @@ export default class RedisClusterSlots<
 
   async rediscover(startWith: RedisClientType<M, F, S, RESP>): Promise<void> {
     this.#runningRediscoverPromise ??= this.#rediscover(startWith)
-      .finally(() => this.#runningRediscoverPromise = undefined);
+      .finally(() => {
+        this.#runningRediscoverPromise = undefined
+      });
     return this.#runningRediscoverPromise;
   }
 
