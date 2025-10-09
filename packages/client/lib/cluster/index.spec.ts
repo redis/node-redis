@@ -339,4 +339,43 @@ describe('Cluster', () => {
       minimumDockerVersion: [7]
     });
   });
+
+  describe('clusterEvents', () => {
+    testUtils.testWithCluster('should fire events', async (cluster) => {
+      const log: string[] = [];
+
+      cluster
+        .on('connect', () => log.push('connect'))
+        .on('disconnect', () => log.push('disconnect'))
+        .on('error', () => log.push('error'))
+        .on('node-error', () => log.push('node-error'))
+        .on('node-reconnecting', () => log.push('node-reconnecting'))
+        .on('node-ready', () => log.push('node-ready'))
+        .on('node-connect', () => log.push('node-connect'))
+        .on('node-disconnect', () => log.push('node-disconnect'))
+
+      await cluster.connect();
+      cluster.destroy();
+
+      assert.deepEqual(log, [
+        'node-connect',
+        'node-connect',
+        'node-ready',
+        'node-ready',
+        'connect',
+        'node-disconnect',
+        'node-disconnect',
+        'disconnect',
+      ]);
+    }, {
+      ...GLOBAL.CLUSTERS.OPEN,
+      disableClusterSetup: true,
+      numberOfMasters: 2,
+      numberOfReplicas: 1,
+      clusterConfiguration: {
+        minimizeConnections: false
+      }
+    });
+  });
+
 });

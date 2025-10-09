@@ -116,6 +116,7 @@ interface ClusterTestOptions<
   clusterConfiguration?: Partial<RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>>;
   numberOfMasters?: number;
   numberOfReplicas?: number;
+  disableClusterSetup?: boolean;
 }
 
 interface AllTestOptions<
@@ -554,9 +555,13 @@ export default class TestUtils {
               port
             }
           })),
-          minimizeConnections: true,
+          minimizeConnections: options.clusterConfiguration?.minimizeConnections ?? true,
           ...options.clusterConfiguration
         });
+
+      if(options.disableClusterSetup) {
+        return fn(cluster);
+      }
 
       await cluster.connect();
 
