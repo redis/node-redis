@@ -225,7 +225,6 @@ export default class RedisClusterSlots<
         }
       }
 
-      //Keep only the nodes that are still in use
       for (const [address, node] of this.nodeByAddress.entries()) {
         if (addressesInUse.has(address)) continue;
 

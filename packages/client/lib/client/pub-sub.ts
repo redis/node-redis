@@ -329,44 +329,22 @@ export class PubSub {
 
       this.#isActive = true;
 
-      if(type === PUBSUB_TYPE.SHARDED) {
-        this.#shardedResubscribe(commands, listeners);
-      } else {
-        this.#normalResubscribe(commands, type, listeners);
+      const callback = () => this.#subscribing--;
+      for(const channel of listeners.keys()) {
+        this.#subscribing++;
+        commands.push({
+          args: [
+            COMMANDS[type as PubSubType].subscribe,
+            channel
+          ],
+          channelsCounter: 1,
+          resolve: callback,
+          reject: callback
+        })
       }
     }
 
     return commands;
-  }
-
-  #normalResubscribe(commands: PubSubCommand[], type: string, listeners: PubSubTypeListeners) {
-    this.#subscribing++;
-    const callback = () => this.#subscribing--;
-    commands.push({
-      args: [
-        COMMANDS[type as PubSubType].subscribe,
-        ...listeners.keys()
-      ],
-      channelsCounter: listeners.size,
-      resolve: callback,
-      reject: callback
-    });
-  }
-
-  #shardedResubscribe(commands: PubSubCommand[], listeners: PubSubTypeListeners) {
-    const callback = () => this.#subscribing--;
-    for(const channel of listeners.keys()) {
-      this.#subscribing++;
-      commands.push({
-        args: [
-          COMMANDS[PUBSUB_TYPE.SHARDED].subscribe,
-          channel
-        ],
-        channelsCounter: 1,
-        resolve: callback,
-        reject: callback
-      })
-    }
   }
 
   handleMessageReply(reply: Array<Buffer>): boolean {
