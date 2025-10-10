@@ -323,22 +323,25 @@ export class PubSub {
   }
 
   resubscribe() {
-    const commands = [];
+    const commands: PubSubCommand[] = [];
     for (const [type, listeners] of Object.entries(this.listeners)) {
       if (!listeners.size) continue;
 
       this.#isActive = true;
-      this.#subscribing++;
+
       const callback = () => this.#subscribing--;
-      commands.push({
-        args: [
-          COMMANDS[type as PubSubType].subscribe,
-          ...listeners.keys()
-        ],
-        channelsCounter: listeners.size,
-        resolve: callback,
-        reject: callback
-      } satisfies PubSubCommand);
+      for(const channel of listeners.keys()) {
+        this.#subscribing++;
+        commands.push({
+          args: [
+            COMMANDS[type as PubSubType].subscribe,
+            channel
+          ],
+          channelsCounter: 1,
+          resolve: callback,
+          reject: callback
+        })
+      }
     }
 
     return commands;
@@ -377,6 +380,22 @@ export class PubSub {
     this.listeners[PUBSUB_TYPE.SHARDED].delete(channel);
     this.#updateIsActive();
     return listeners;
+  }
+
+  removeAllListeners() {
+    const result = {
+      [PUBSUB_TYPE.CHANNELS]: this.listeners[PUBSUB_TYPE.CHANNELS],
+      [PUBSUB_TYPE.PATTERNS]: this.listeners[PUBSUB_TYPE.PATTERNS],
+      [PUBSUB_TYPE.SHARDED]: this.listeners[PUBSUB_TYPE.SHARDED]
+    }
+
+    this.#updateIsActive();
+
+    this.listeners[PUBSUB_TYPE.CHANNELS] = new Map();
+    this.listeners[PUBSUB_TYPE.PATTERNS] = new Map();
+    this.listeners[PUBSUB_TYPE.SHARDED] = new Map();
+
+    return result;
   }
 
   #emitPubSubMessage(
