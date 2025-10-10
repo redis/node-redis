@@ -1,8 +1,12 @@
 import { CommandParser } from '../client/parser';
-import {
-  ArrayReply, BlobStringReply, Command, NumberReply,
-  TuplesReply
-} from '../RESP/types';
+import { Command } from '../RESP/types';
+
+type RawHistogram = [string, number, string, number[]];
+
+type Histogram = Record<string, {
+  calls: number;
+  histogram_usec: number[];
+}>;
 
 export default {
   CACHEABLE: false,
@@ -21,13 +25,16 @@ export default {
     }
     parser.push(...args);
   },
-  transformReply: undefined as unknown as () => ArrayReply<
-    BlobStringReply |
-    TuplesReply<[
-      BlobStringReply,
-      NumberReply,
-      BlobStringReply,
-      NumberReply[],
-    ]>
-  >
+  transformReply(reply: (string | RawHistogram)[]): Histogram {
+    const result: Histogram = {};
+    if (reply.length === 0) return result;
+    for (let i = 1; i < reply.length; i += 2) {
+      const histogram = reply[i] as RawHistogram;
+      result[reply[i - 1] as string] = {
+        calls: histogram[1],
+        histogram_usec: histogram[3],
+      };
+    }
+    return result;
+  }
 } as const satisfies Command;

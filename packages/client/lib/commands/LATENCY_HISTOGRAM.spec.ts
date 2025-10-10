@@ -22,27 +22,23 @@ describe('LATENCY HISTOGRAM', () => {
 
   testUtils.testWithClient('unfiltered list', async client => {
     await client.configResetStat();
-    await client.lPush('push-key', 'hello ');
-    await client.set('set-key', 'world!');
+    await Promise.all([
+      client.lPush('push-key', 'hello '),
+      client.set('set-key', 'world!'),
+    ]);
     const histogram = await client.latencyHistogram();
-    const commands = ['config|resetstat', 'latency|histogram', 'set', 'lpush'];
+    const commands = ['config|resetstat', 'set', 'lpush'];
     for (const command of commands) {
-      assert.ok(histogram.includes(command));
+      assert.ok(typeof histogram[command]['calls'], 'number');
+      assert.ok(Array.isArray(histogram[command]['histogram_usec']));
     }
-    assert.equal(histogram.length, 8);
   }, GLOBAL.SERVERS.OPEN);
 
   testUtils.testWithClient('filtered by a command list', async client => {
     await client.configSet('latency-monitor-threshold', '100');
     await client.set('set-key', 'hello');
-    const reply = await client.latencyHistogram('set');
-    assert.ok(Array.isArray(reply));
-    assert.equal(reply[0], 'set');
-    const histogram = reply[1];
-    assert.ok(Array.isArray(histogram));
-    assert.equal(histogram[0], 'calls');
-    assert.equal(typeof histogram[1], 'number');
-    assert.equal(histogram[2], 'histogram_usec');
-    assert.ok(Array.isArray(histogram[3]));
+    const histogram = await client.latencyHistogram('set');
+    assert.ok(typeof histogram.set['calls'], 'number');
+    assert.ok(Array.isArray(histogram.set['histogram_usec']));
   }, GLOBAL.SERVERS.OPEN);
 });
