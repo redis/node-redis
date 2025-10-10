@@ -361,6 +361,7 @@ import VREM from './VREM';
 import VSETATTR from './VSETATTR';
 import VSIM from './VSIM';
 import VSIM_WITHSCORES from './VSIM_WITHSCORES';
+import LATENCY_HISTOGRAM from './LATENCY_HISTOGRAM';
 
 export {
   CLIENT_KILL_FILTERS,
@@ -715,6 +716,8 @@ export default {
   latencyGraph: LATENCY_GRAPH,
   LATENCY_HISTORY,
   latencyHistory: LATENCY_HISTORY,
+  LATENCY_HISTOGRAM,
+  latencyHistogram: LATENCY_HISTOGRAM,
   LATENCY_LATEST,
   latencyLatest: LATENCY_LATEST,
   LATENCY_RESET,
