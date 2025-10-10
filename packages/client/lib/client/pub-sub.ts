@@ -404,8 +404,20 @@ export class PubSub {
     return listeners;
   }
 
-  getShardedChannels(): IterableIterator<string>  {
-    return this.listeners[PUBSUB_TYPE.SHARDED].keys()
+  removeAllListeners() {
+    const result = {
+      [PUBSUB_TYPE.CHANNELS]: this.listeners[PUBSUB_TYPE.CHANNELS],
+      [PUBSUB_TYPE.PATTERNS]: this.listeners[PUBSUB_TYPE.PATTERNS],
+      [PUBSUB_TYPE.SHARDED]: this.listeners[PUBSUB_TYPE.SHARDED]
+    }
+
+    this.#updateIsActive();
+
+    this.listeners[PUBSUB_TYPE.CHANNELS] = new Map();
+    this.listeners[PUBSUB_TYPE.PATTERNS] = new Map();
+    this.listeners[PUBSUB_TYPE.SHARDED] = new Map();
+
+    return result;
   }
 
   #emitPubSubMessage(

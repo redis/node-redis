@@ -820,7 +820,7 @@ export default class RedisClient<
       const resubscribePromise = this.#queue.resubscribe(chainId);
       resubscribePromise?.catch(error => {
         if (error.message && error.message.startsWith('MOVED')) {
-          this.emit('__MOVED')
+          this.emit('__MOVED', this._self.#queue.removeAllPubSubListeners());
         }
       });
       if (resubscribePromise) {
@@ -1196,14 +1196,6 @@ export default class RedisClient<
   }
 
   sUnsubscribe = this.SUNSUBSCRIBE;
-
-  getShardedChannels(): IterableIterator<string> {
-    return this._self.#queue.getShardedChannels();
-  }
-
-  removeShardedListeners(channel: string): ChannelListeners {
-    return this._self.#queue.removeShardedListeners(channel);
-  }
 
   async WATCH(key: RedisVariadicArgument) {
     const reply = await this._self.sendCommand(

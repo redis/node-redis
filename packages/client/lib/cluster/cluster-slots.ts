@@ -2,7 +2,7 @@ import { RedisClusterClientOptions, RedisClusterOptions } from '.';
 import { RootNodesUnavailableError } from '../errors';
 import RedisClient, { RedisClientOptions, RedisClientType } from '../client';
 import { EventEmitter } from 'node:stream';
-import { ChannelListeners, PUBSUB_TYPE, PubSubTypeListeners } from '../client/pub-sub';
+import { ChannelListeners, PUBSUB_TYPE, PubSubListener, PubSubListeners, PubSubTypeListeners } from '../client/pub-sub';
 import { RedisArgument, RedisFunctions, RedisModules, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
 import calculateSlot from 'cluster-key-slot';
 import { RedisSocketOptions } from '../client/socket';
@@ -186,21 +186,6 @@ export default class RedisClusterSlots<
     this.clientSideCache?.clear();
     this.clientSideCache?.disable();
 
-
-    const allChannelListeners = new Map<string, ChannelListeners>();
-
-    for (const master of this.masters) {
-      const shardedClient = master.pubSub?.client;
-      if (!shardedClient) continue;
-      for (const channel of shardedClient.getShardedChannels()) {
-        const listeners = shardedClient.removeShardedListeners(channel);
-        if(allChannelListeners.get(channel)) {
-          console.warn(`Found existing listeners, will be overwritten...`);
-        }
-        allChannelListeners.set(channel, listeners);
-      }
-    }
-
     try {
       const addressesInUse = new Set<string>(),
         promises: Array<Promise<unknown>> = [],
@@ -255,9 +240,6 @@ export default class RedisClusterSlots<
 
         this.nodeByAddress.delete(address);
       }
-
-      this.#emit('__refreshShardedChannels', allChannelListeners);
-
 
       await Promise.all(promises);
       this.clientSideCache?.enable();
@@ -374,8 +356,9 @@ export default class RedisClusterSlots<
       .once('ready', () => emit('node-ready', clientInfo))
       .once('connect', () => emit('node-connect', clientInfo))
       .once('end', () => emit('node-disconnect', clientInfo))
-      .on('__MOVED', () => {
-        this.rediscover(client);
+      .on('__MOVED', async (allPubSubListeners: PubSubListeners) => {
+        await this.rediscover(client);
+        this.#emit('__resubscribeAllPubSubListeners', allPubSubListeners);
       });
 
     return client;
