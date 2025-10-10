@@ -1,5 +1,5 @@
 import COMMANDS from '../commands';
-import RedisSocket, { RedisSocketOptions, RedisTcpSocketOptions } from './socket';
+import RedisSocket, { RedisSocketOptions } from './socket';
 import { BasicAuth, CredentialsError, CredentialsProvider, StreamingCredentialsProvider, UnableToObtainNewCredentialsError, Disposable } from '../authx';
 import RedisCommandsQueue, { CommandOptions } from './commands-queue';
 import { EventEmitter } from 'node:events';
@@ -10,7 +10,7 @@ import { TcpSocketConnectOpts } from 'node:net';
 import { PUBSUB_TYPE, PubSubType, PubSubListener, PubSubTypeListeners, ChannelListeners } from './pub-sub';
 import { Command, CommandSignature, TypeMapping, CommanderConfig, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions, RedisArgument, ReplyWithTypeMapping, SimpleStringReply, TransformReply, CommandArguments } from '../RESP/types';
 import RedisClientMultiCommand, { RedisClientMultiCommandType } from './multi-command';
-import { RedisMultiQueuedCommand } from '../multi-command';
+import { MULTI_MODE, MultiMode, RedisMultiQueuedCommand } from '../multi-command';
 import HELLO, { HelloOptions } from '../commands/HELLO';
 import { ScanOptions, ScanCommonOptions } from '../commands/SCAN';
 import { RedisLegacyClient, RedisLegacyClientType } from './legacy-mode';
@@ -146,6 +146,11 @@ export interface RedisClientOptions<
    */
   clientInfoTag?: string;
   /**
+   * When set to true, client tracking is turned on and the client emits `invalidate` events when it receives invalidation messages from the redis server.
+   * Mutually exclusive with `clientSideCache` option.
+   */
+  emitInvalidate?: boolean;
+  /**
    * Controls how the client handles Redis Enterprise maintenance push notifications.
    *
    * - `disabled`: The feature is not used by the client.
@@ -154,7 +159,7 @@ export interface RedisClientOptions<
    *
    * The default is `auto`.
    */
-  maintPushNotifications?: 'disabled' | 'enabled' | 'auto';
+  maintNotifications?: 'disabled' | 'enabled' | 'auto';
   /**
    * Controls how the client requests the endpoint to reconnect to during a MOVING notification in Redis Enterprise maintenance.
    *
@@ -167,19 +172,19 @@ export interface RedisClientOptions<
 
    * The default is `auto`.
    */
-  maintMovingEndpointType?: MovingEndpointType;
+  maintEndpointType?: MovingEndpointType;
   /**
    * Specifies a more relaxed timeout (in milliseconds) for commands during a maintenance window.
-   * This helps minimize command timeouts during maintenance. If not provided, the `commandOptions.timeout`
-   * will be used instead. Timeouts during maintenance period result in a `CommandTimeoutDuringMaintenance` error.
+   * This helps minimize command timeouts during maintenance. Timeouts during maintenance period result
+   * in a `CommandTimeoutDuringMaintenance` error.
    *
    * The default is 10000
    */
   maintRelaxedCommandTimeout?: number;
   /**
    * Specifies a more relaxed timeout (in milliseconds) for the socket during a maintenance window.
-   * This helps minimize socket timeouts during maintenance. If not provided, the `socket.timeout`
-   * will be used instead. Timeouts during maintenance period result in a `SocketTimeoutDuringMaintenance` error.
+   * This helps minimize socket timeouts during maintenance. Timeouts during maintenance period result
+   * in a `SocketTimeoutDuringMaintenance` error.
    *
    * The default is 10000
    */
@@ -429,7 +434,7 @@ export default class RedisClient<
     return parsed;
   }
 
-  readonly #options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>;
+  readonly #options: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>;
   #socket: RedisSocket;
   readonly #queue: RedisCommandsQueue;
   #selectedDB = 0;
@@ -453,7 +458,7 @@ export default class RedisClient<
     return this._self.#clientSideCache;
   }
 
-  get options(): RedisClientOptions<M, F, S, RESP> | undefined {
+  get options(): RedisClientOptions<M, F, S, RESP> {
     return this._self.#options;
   }
 
@@ -503,15 +508,15 @@ export default class RedisClient<
     this.#socket = this.#initiateSocket();
 
 
-    if(options?.maintPushNotifications !== 'disabled') {
-      new EnterpriseMaintenanceManager(this.#queue, this, this.#options!);
+    if(this.#options.maintNotifications !== 'disabled') {
+      new EnterpriseMaintenanceManager(this.#queue, this, this.#options);
     };
 
-    if (options?.clientSideCache) {
-      if (options.clientSideCache instanceof ClientSideCacheProvider) {
-        this.#clientSideCache = options.clientSideCache;
+    if (this.#options.clientSideCache) {
+      if (this.#options.clientSideCache instanceof ClientSideCacheProvider) {
+        this.#clientSideCache = this.#options.clientSideCache;
       } else {
-        const cscConfig = options.clientSideCache;
+        const cscConfig = this.#options.clientSideCache;
         this.#clientSideCache = new BasicClientSideCache(cscConfig);
       }
       this.#queue.addPushHandler((push: Array<any>): boolean => {
@@ -527,6 +532,19 @@ export default class RedisClient<
 
         return true
       });
+    } else if (options?.emitInvalidate) {
+      this.#queue.addPushHandler((push: Array<any>): boolean => {
+        if (push[0].toString() !== 'invalidate') return false;
+
+        if (push[1] !== null) {
+          for (const key of push[1]) {
+            this.emit('invalidate', key);
+          }
+        } else {
+          this.emit('invalidate', null);
+        }
+        return true
+      });
     }
   }
 
@@ -534,17 +552,21 @@ export default class RedisClient<
     if (options?.clientSideCache && options?.RESP !== 3) {
       throw new Error('Client Side Caching is only supported with RESP3');
     }
-
-    if (options?.maintPushNotifications && options?.maintPushNotifications !== 'disabled' && options?.RESP !== 3) {
+    if (options?.emitInvalidate && options?.RESP !== 3) {
+      throw new Error('emitInvalidate is only supported with RESP3');
+    }
+    if (options?.clientSideCache && options?.emitInvalidate) {
+      throw new Error('emitInvalidate is not supported (or necessary) when clientSideCache is enabled');
+    }
+    if (options?.maintNotifications && options?.maintNotifications !== 'disabled' && options?.RESP !== 3) {
       throw new Error('Graceful Maintenance is only supported with RESP3');
     }
-
   }
 
-  #initiateOptions(options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>): RedisClientOptions<M, F, S, RESP, TYPE_MAPPING> | undefined {
+  #initiateOptions(options: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING> = {}): RedisClientOptions<M, F, S, RESP, TYPE_MAPPING> {
 
     // Convert username/password to credentialsProvider if no credentialsProvider is already in place
-    if (!options?.credentialsProvider && (options?.username || options?.password)) {
+    if (!options.credentialsProvider && (options.username || options.password)) {
 
       options.credentialsProvider = {
         type: 'async-credentials-provider',
@@ -555,19 +577,19 @@ export default class RedisClient<
       };
     }
 
-    if (options?.database) {
+    if (options.database) {
       this._self.#selectedDB = options.database;
     }
 
-    if (options?.commandOptions) {
+    if (options.commandOptions) {
       this._commandOptions = options.commandOptions;
     }
 
-    if(options?.maintPushNotifications !== 'disabled') {
-      EnterpriseMaintenanceManager.setupDefaultMaintOptions(options!);
+    if(options.maintNotifications !== 'disabled') {
+      EnterpriseMaintenanceManager.setupDefaultMaintOptions(options);
     }
 
-    if (options?.url) {
+    if (options.url) {
       const parsedOptions = RedisClient.parseOptions(options);
       if (parsedOptions?.database) {
         this._self.#selectedDB = parsedOptions.database;
@@ -580,8 +602,8 @@ export default class RedisClient<
 
   #initiateQueue(): RedisCommandsQueue {
     return new RedisCommandsQueue(
-      this.#options?.RESP ?? 2,
-      this.#options?.commandsQueueMaxLength,
+      this.#options.RESP ?? 2,
+      this.#options.commandsQueueMaxLength,
       (channel, listeners) => this.emit('sharded-channel-moved', channel, listeners)
     );
   }
@@ -591,7 +613,7 @@ export default class RedisClient<
    */
   private reAuthenticate = async (credentials: BasicAuth) => {
     // Re-authentication is not supported on RESP2 with PubSub active
-    if (!(this.isPubSubActive && !this.#options?.RESP)) {
+    if (!(this.isPubSubActive && !this.#options.RESP)) {
       await this.sendCommand(
         parseArgs(COMMANDS.AUTH, {
           username: credentials.username,
@@ -640,9 +662,9 @@ export default class RedisClient<
     Array<{ cmd: CommandArguments } & { errorHandler?: (err: Error) => void }>
   > {
     const commands = [];
-    const cp = this.#options?.credentialsProvider;
+    const cp = this.#options.credentialsProvider;
 
-    if (this.#options?.RESP) {
+    if (this.#options.RESP) {
       const hello: HelloOptions = {};
 
       if (cp && cp.type === 'async-credentials-provider') {
@@ -702,7 +724,7 @@ export default class RedisClient<
         }
       }
 
-      if (this.#options?.name) {
+      if (this.#options.name) {
         commands.push({
           cmd: parseArgs(COMMANDS.CLIENT_SETNAME, this.#options.name)
         });
@@ -713,11 +735,11 @@ export default class RedisClient<
       commands.push({ cmd: ['SELECT', this.#selectedDB.toString()] });
     }
 
-    if (this.#options?.readonly) {
+    if (this.#options.readonly) {
       commands.push({ cmd: parseArgs(COMMANDS.READONLY) });
     }
 
-    if (!this.#options?.disableClientInfo) {
+    if (!this.#options.disableClientInfo) {
       commands.push({
         cmd: ['CLIENT', 'SETINFO', 'LIB-VER', version],
         errorHandler: () => {
@@ -732,7 +754,7 @@ export default class RedisClient<
           'CLIENT',
           'SETINFO',
           'LIB-NAME',
-          this.#options?.clientInfoTag
+          this.#options.clientInfoTag
             ? `node-redis(${this.#options.clientInfoTag})`
             : 'node-redis'
         ],
@@ -743,13 +765,17 @@ export default class RedisClient<
         }
       });
     }
-
+    
     if (this.#clientSideCache) {
       commands.push({cmd: this.#clientSideCache.trackingOn()});
     }
 
-    const { tls, host } = this.#options!.socket as RedisTcpSocketOptions;
-    const maintenanceHandshakeCmd = await EnterpriseMaintenanceManager.getHandshakeCommand(!!tls, host!, this.#options!);
+    if (this.#options?.emitInvalidate) {
+      commands.push({cmd: ['CLIENT', 'TRACKING', 'ON']});
+    }
+    
+    const maintenanceHandshakeCmd = await EnterpriseMaintenanceManager.getHandshakeCommand(this.#options);
+    
     if(maintenanceHandshakeCmd) {
       commands.push(maintenanceHandshakeCmd);
     };
@@ -769,7 +795,7 @@ export default class RedisClient<
     .on('error', err => {
       this.emit('error', err);
       this.#clientSideCache?.onError();
-      if (this.#socket.isOpen && !this.#options?.disableOfflineQueue) {
+      if (this.#socket.isOpen && !this.#options.disableOfflineQueue) {
         this.#queue.flushWaitingForReply(err);
       } else {
         this.#queue.flushAll(err);
@@ -817,7 +843,7 @@ export default class RedisClient<
       }
     };
 
-    const socket = new RedisSocket(socketInitiator, this.#options?.socket);
+    const socket = new RedisSocket(socketInitiator, this.#options.socket);
     this.#attachListeners(socket);
     return socket;
   }
@@ -825,7 +851,7 @@ export default class RedisClient<
   #pingTimer?: NodeJS.Timeout;
 
   #setPingTimer(): void {
-    if (!this.#options?.pingInterval || !this.#socket.isReady) return;
+    if (!this.#options.pingInterval || !this.#socket.isReady) return;
     clearTimeout(this.#pingTimer);
 
     this.#pingTimer = setTimeout(() => {
@@ -986,7 +1012,7 @@ export default class RedisClient<
     transformReply: TransformReply | undefined,
   ) {
     const csc = this._self.#clientSideCache;
-    const defaultTypeMapping = this._self.#options?.commandOptions === commandOptions;
+    const defaultTypeMapping = this._self.#options.commandOptions === commandOptions;
 
     const fn = () => { return this.sendCommand(parser.redisArgs, commandOptions) };
 
@@ -1035,7 +1061,7 @@ export default class RedisClient<
   ): Promise<T> {
     if (!this._self.#socket.isOpen) {
       return Promise.reject(new ClientClosedError());
-    } else if (!this._self.#socket.isReady && this._self.#options?.disableOfflineQueue) {
+    } else if (!this._self.#socket.isReady && this._self.#options.disableOfflineQueue) {
       return Promise.reject(new ClientOfflineError());
     }
 
@@ -1315,8 +1341,8 @@ export default class RedisClient<
     return execResult as Array<unknown>;
   }
 
-  MULTI() {
-    type Multi = new (...args: ConstructorParameters<typeof RedisClientMultiCommand>) => RedisClientMultiCommandType<[], M, F, S, RESP, TYPE_MAPPING>;
+  MULTI<isTyped extends MultiMode = MULTI_MODE['TYPED']>() {
+    type Multi = new (...args: ConstructorParameters<typeof RedisClientMultiCommand>) => RedisClientMultiCommandType<isTyped, [], M, F, S, RESP, TYPE_MAPPING>;
     return new ((this as any).Multi as Multi)(
       this._executeMulti.bind(this),
       this._executePipeline.bind(this),

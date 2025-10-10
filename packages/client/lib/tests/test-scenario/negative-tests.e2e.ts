@@ -7,7 +7,7 @@ describe("Negative tests", () => {
       () =>
         createClient({
           RESP: 2,
-          maintPushNotifications: "enabled",
+          maintNotifications: "enabled",
         }),
       "Error: Graceful Maintenance is only supported with RESP3",
     );

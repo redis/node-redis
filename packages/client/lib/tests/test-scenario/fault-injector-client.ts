@@ -54,6 +54,20 @@ export class FaultInjectorClient {
     return this.#request<T>("POST", "/action", action);
   }
 
+  // public async printStatus() {
+  //   const action = {
+  //     type: 'execute_rladmin_command',
+  //     parameters: {
+  //       rladmin_command: "status",
+  //       bdb_id: "1"
+  //     }
+  //   }
+  //   const { action_id } = await this.#request<{action_id: string}>("POST", "/action", action);
+  //   const status = await this.waitForAction(action_id);
+  //   //@ts-ignore
+  //   console.log(status.output.output);
+  // }
+
   /**
    * Gets the status of a specific action.
    * @param actionId The ID of the action to check
@@ -87,7 +101,13 @@ export class FaultInjectorClient {
     while (Date.now() - startTime < maxWaitTime) {
       const action = await this.getActionStatus<ActionStatus>(actionId);
 
-      if (["finished", "failed", "success"].includes(action.status)) {
+      if (action.status === "failed") {
+        throw new Error(
+          `Action id: ${actionId} failed! Error: ${action.error}`
+        );
+      }
+
+      if (["finished", "success"].includes(action.status)) {
         return action;
       }
 
@@ -118,6 +138,7 @@ export class FaultInjectorClient {
             type: "migrate",
             params: {
               cluster_index: clusterIndexStr,
+              bdb_id: bdbIdStr,
             },
           },
           {

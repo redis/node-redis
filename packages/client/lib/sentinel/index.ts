@@ -928,6 +928,16 @@ class RedisSentinelInternal<
     }
   }
 
+  #handleSentinelFailure(node: RedisNode) {
+    const found = this.#sentinelRootNodes.findIndex(
+        (rootNode) => rootNode.host === node.host && rootNode.port === node.port
+    );
+    if (found !== -1) {
+        this.#sentinelRootNodes.splice(found, 1);
+    }
+    this.#reset();
+  }
+
   async close() {
     this.#destroy = true;
 
@@ -1197,8 +1207,9 @@ class RedisSentinelInternal<
           error: err
         };
         this.emit('client-error', event);
-        this.#reset();
-      });
+        this.#handleSentinelFailure(node);
+      })
+      .on('end', () => this.#handleSentinelFailure(node));
       this.#sentinelClient = client;
 
       this.#trace(`transform: adding sentinel client connect() to promise list`);

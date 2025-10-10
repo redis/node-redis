@@ -10,6 +10,7 @@ import RedisClientMultiCommand, { RedisClientMultiCommandType } from './multi-co
 import { BasicPooledClientSideCache, ClientSideCacheConfig, PooledClientSideCacheProvider } from './cache';
 import { BasicCommandParser } from './parser';
 import SingleEntryCache from '../single-entry-cache';
+import { MULTI_MODE, MultiMode } from '../multi-command';
 
 export interface RedisPoolOptions {
   /**
@@ -486,8 +487,9 @@ export class RedisClientPool<
     return this.execute(client => client.sendCommand(args, options));
   }
 
-  MULTI() {
-    type Multi = new (...args: ConstructorParameters<typeof RedisClientMultiCommand>) => RedisClientMultiCommandType<[], M, F, S, RESP, TYPE_MAPPING>;
+
+  MULTI<isTyped extends MultiMode = MULTI_MODE['TYPED']>() {
+    type Multi = new (...args: ConstructorParameters<typeof RedisClientMultiCommand>) => RedisClientMultiCommandType<isTyped, [], M, F, S, RESP, TYPE_MAPPING>;
     return new ((this as any).Multi as Multi)(
       (commands, selectedDB) => this.execute(client => client._executeMulti(commands, selectedDB)),
       commands => this.execute(client => client._executePipeline(commands)),
