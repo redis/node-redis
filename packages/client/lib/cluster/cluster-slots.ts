@@ -2,7 +2,7 @@ import { RedisClusterClientOptions, RedisClusterOptions } from '.';
 import { RootNodesUnavailableError } from '../errors';
 import RedisClient, { RedisClientOptions, RedisClientType } from '../client';
 import { EventEmitter } from 'node:stream';
-import { ChannelListeners, PUBSUB_TYPE, PubSubListener, PubSubListeners, PubSubTypeListeners } from '../client/pub-sub';
+import { ChannelListeners, PUBSUB_TYPE, PubSubListeners, PubSubTypeListeners } from '../client/pub-sub';
 import { RedisArgument, RedisFunctions, RedisModules, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
 import calculateSlot from 'cluster-key-slot';
 import { RedisSocketOptions } from '../client/socket';
