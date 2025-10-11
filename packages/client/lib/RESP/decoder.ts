@@ -506,9 +506,8 @@ export class Decoder {
     }
 
     chunks.push(chunk.subarray(start, crlfIndex));
-    return type === Buffer ?
-      Buffer.concat(chunks) :
-      chunks.join('');
+    const buffer = Buffer.concat(chunks);
+    return type === Buffer ? buffer : buffer.toString();
   }
 
   #decodeBlobString(type, chunk) {
@@ -578,9 +577,8 @@ export class Decoder {
 
     chunks.push(chunk.subarray(this.#cursor, end));
     this.#cursor = end + skip;
-    return type === Buffer ?
-      Buffer.concat(chunks) :
-      chunks.join('');
+    const buffer = Buffer.concat(chunks);
+    return type === Buffer ? buffer : buffer.toString();
   }
 
   #decodeBlobStringWithLength(length, type, chunk) {
