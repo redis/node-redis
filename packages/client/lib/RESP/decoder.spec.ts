@@ -226,6 +226,11 @@ describe('RESP Decoder', () => {
       toWrite: Buffer.from('+OK\r\n'),
       replies: [Buffer.from('OK')]
     });
+
+    test("'é'", {
+      toWrite: Buffer.from('+é\r\n'),
+      replies: ['é']
+    });
   });
 
   describe('BlobString', () => {
@@ -250,6 +255,11 @@ describe('RESP Decoder', () => {
       },
       toWrite: Buffer.from('$2\r\nOK\r\n'),
       replies: [Buffer.from('OK')]
+    });
+
+    test("'é'", {
+      toWrite: Buffer.from('$2\r\né\r\n'),
+      replies: ['é']
     });
   });
 
@@ -278,6 +288,11 @@ describe('RESP Decoder', () => {
       },
       toWrite: Buffer.from('=6\r\ntxt:OK\r\n'),
       replies: [Buffer.from('OK')]
+    });
+
+    test("'é'", {
+      toWrite: Buffer.from('=6\r\ntxt:é\r\n'),
+      replies: ['é']
     });
   });
 
