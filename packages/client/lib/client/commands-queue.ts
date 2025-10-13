@@ -338,6 +338,10 @@ export default class RedisCommandsQueue {
     return this.#addPubSubCommand(command);
   }
 
+  removeAllPubSubListeners() {
+    return this.#pubSub.removeAllListeners();
+  }
+
   resubscribe(chainId?: symbol) {
     const commands = this.#pubSub.resubscribe();
     if (!commands.length) return;

@@ -2,7 +2,7 @@ import { RedisClusterClientOptions, RedisClusterOptions } from '.';
 import { RootNodesUnavailableError } from '../errors';
 import RedisClient, { RedisClientOptions, RedisClientType } from '../client';
 import { EventEmitter } from 'node:stream';
-import { ChannelListeners, PUBSUB_TYPE, PubSubTypeListeners } from '../client/pub-sub';
+import { ChannelListeners, PUBSUB_TYPE, PubSubListeners, PubSubTypeListeners } from '../client/pub-sub';
 import { RedisArgument, RedisFunctions, RedisModules, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
 import calculateSlot from 'cluster-key-slot';
 import { RedisSocketOptions } from '../client/socket';
@@ -185,6 +185,7 @@ export default class RedisClusterSlots<
   async #discover(rootNode: RedisClusterClientOptions) {
     this.clientSideCache?.clear();
     this.clientSideCache?.disable();
+
     try {
       const addressesInUse = new Set<string>(),
         promises: Array<Promise<unknown>> = [],
@@ -224,6 +225,7 @@ export default class RedisClusterSlots<
         }
       }
 
+      //Keep only the nodes that are still in use
       for (const [address, node] of this.nodeByAddress.entries()) {
         if (addressesInUse.has(address)) continue;
 
@@ -337,23 +339,29 @@ export default class RedisClusterSlots<
     const socket =
       this.#getNodeAddress(node.address) ??
       { host: node.host, port: node.port, };
-    const client = Object.freeze({
+    const clientInfo = Object.freeze({
       host: socket.host,
       port: socket.port,
     });
     const emit = this.#emit;
-    return this.#clientFactory(
+    const client = this.#clientFactory(
       this.#clientOptionsDefaults({
         clientSideCache: this.clientSideCache,
         RESP: this.#options.RESP,
         socket,
         readonly,
       }))
-      .on('error', error => emit('node-error', error, client))
-      .on('reconnecting', () => emit('node-reconnecting', client))
-      .once('ready', () => emit('node-ready', client))
-      .once('connect', () => emit('node-connect', client))
-      .once('end', () => emit('node-disconnect', client));
+      .on('error', error => emit('node-error', error, clientInfo))
+      .on('reconnecting', () => emit('node-reconnecting', clientInfo))
+      .once('ready', () => emit('node-ready', clientInfo))
+      .once('connect', () => emit('node-connect', clientInfo))
+      .once('end', () => emit('node-disconnect', clientInfo))
+      .on('__MOVED', async (allPubSubListeners: PubSubListeners) => {
+        await this.rediscover(client);
+        this.#emit('__resubscribeAllPubSubListeners', allPubSubListeners);
+      });
+
+    return client;
   }
 
   #createNodeClient(node: ShardNode<M, F, S, RESP, TYPE_MAPPING>, readonly?: boolean) {
@@ -374,7 +382,9 @@ export default class RedisClusterSlots<
 
   async rediscover(startWith: RedisClientType<M, F, S, RESP>): Promise<void> {
     this.#runningRediscoverPromise ??= this.#rediscover(startWith)
-      .finally(() => this.#runningRediscoverPromise = undefined);
+      .finally(() => {
+        this.#runningRediscoverPromise = undefined
+      });
     return this.#runningRediscoverPromise;
   }
 
