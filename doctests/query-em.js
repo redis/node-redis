@@ -95,13 +95,12 @@ await client.ft.create('idx:email', {
 
 await client.json.set('key:1', '$', { email: 'test@redis.com' });
 
-try {
-    const res6 = await client.ft.search('idx:email', 'test@redis.com', { DIALECT: 2 });
-    console.log(res6);
-} catch (err) {
-    console.log("'test@redis.com' syntax not yet supported.");
-}
+// Escape special characters (. and @) in the email address for TAG field search
+const emailAddress = 'test@redis.com'.replace(/[.@\\]/g, '\\$&');
+const res6 = await client.ft.search('idx:email', `@email:{${emailAddress}}`);
+console.log(res6.total); // >>> 1
 // REMOVE_START
+assert.strictEqual(res6.total, 1);
 await client.ft.dropIndex('idx:email', { DD: true });
 // REMOVE_END
 // STEP_END
