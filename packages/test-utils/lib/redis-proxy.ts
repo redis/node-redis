@@ -59,7 +59,7 @@ export class RedisProxy extends EventEmitter {
   public readonly config: Required<ProxyConfig>;
   private readonly connections: Map<string, ActiveConnection>;
   private isRunning: boolean;
-  private interceptorInitializer?: InterceptorInitializer;
+  private interceptorInitializer: InterceptorInitializer = (init) => init;
 
   constructor(config: ProxyConfig) {
     super();
@@ -261,11 +261,6 @@ export class RedisProxy extends EventEmitter {
 
     clientSocket.on('data', async (data) => {
       this.emit('data', connectionId, 'client->server', data);
-
-      if(!this.interceptorInitializer) {
-        serverSocket.write(data);
-        return;
-      }
 
       connectionInfo.inflightRequestsCount++;
 
