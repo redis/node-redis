@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert';
 import { Buffer } from 'node:buffer';
 import { testUtils, GLOBAL } from './test-utils';
-import { RedisProxy } from './redis-proxy';
+import { InterceptorFunction, RedisProxy } from './redis-proxy';
 import type { RedisClientType } from '@redis/client/lib/client/index.js';
 
 describe('RedisSocketProxy', function () {
@@ -107,5 +107,61 @@ describe('RedisSocketProxy', function () {
       const pingResult = await proxiedClient.ping();
       assert.equal(pingResult, 'PONG', 'Client should be able to communicate with Redis through the proxy');
 
-    }, GLOBAL.SERVERS.OPEN_RESP_3)
+    }, GLOBAL.SERVERS.OPEN_RESP_3);
+
+  describe("Middleware", () => {
+    testUtils.testWithProxiedClient(
+      "Modify request/response via middleware",
+      async (
+        proxiedClient: RedisClientType<any, any, any, any, any>,
+        proxy: RedisProxy,
+      ) => {
+
+        // Intercept PING commands and modify the response
+        const pingInterceptor: InterceptorFunction = async (data, next) => {
+          if (data.includes('PING')) {
+            return Buffer.from("+PINGINTERCEPTED\r\n");
+          }
+          return next(data);
+        };
+
+        // Only intercept GET responses and double numeric values
+        // Does not modify other commands or non-numeric GET responses
+        const doubleNumberGetInterceptor: InterceptorFunction = async (data, next) => {
+          const response = await next(data);
+
+          // Not a GET command, return original response
+          if (!data.includes("GET")) return response;
+
+          const value = (response.toString().split("\r\n"))[1];
+          const number = Number(value);
+          // Not a number, return original response
+          if(isNaN(number)) return response;
+
+          const doubled = String(number * 2);
+          return Buffer.from(`$${doubled.length}\r\n${doubled}\r\n`);
+        };
+
+        proxy.setInterceptors([ pingInterceptor, doubleNumberGetInterceptor ])
+
+        const pingResponse = await proxiedClient.ping();
+        assert.equal(pingResponse, 'PINGINTERCEPTED', 'Response should be modified by middleware');
+
+        await proxiedClient.set('foo', 1);
+        const getResponse1 = await proxiedClient.get('foo');
+        assert.equal(getResponse1, '2', 'GET response should be doubled for numbers by middleware');
+
+        await proxiedClient.set('bar', 'Hi');
+        const getResponse2 = await proxiedClient.get('bar');
+        assert.equal(getResponse2, 'Hi', 'GET response should not be modified for strings by middleware');
+
+        await proxiedClient.hSet('baz', 'foo', 'dictvalue');
+        const hgetResponse = await proxiedClient.hGet('baz', 'foo');
+        assert.equal(hgetResponse, 'dictvalue', 'HGET response should not be modified by middleware');
+
+      },
+      GLOBAL.SERVERS.OPEN_RESP_3,
+    );
+  });
+
 });

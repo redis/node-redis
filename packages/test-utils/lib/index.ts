@@ -313,10 +313,9 @@ export default class TestUtils {
         //@ts-ignore
         targetPort: socketOptions.port,
         //@ts-ignore
-        targetHost: socketOptions.host,
+        targetHost: socketOptions.host ?? '127.0.0.1',
         enableLogging: true
       });
-
 
       await proxy.start();
       const proxyClient = client.duplicate({
