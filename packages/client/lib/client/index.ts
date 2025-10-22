@@ -19,8 +19,9 @@ import { RedisVariadicArgument, parseArgs, pushVariadicArguments } from '../comm
 import { BasicClientSideCache, ClientSideCacheConfig, ClientSideCacheProvider } from './cache';
 import { BasicCommandParser, CommandParser } from './parser';
 import SingleEntryCache from '../single-entry-cache';
-import { version } from '../../package.json'
 import EnterpriseMaintenanceManager, { MaintenanceUpdate, MovingEndpointType } from './enterprise-maintenance-manager';
+import { resolve } from 'node:path';
+import { readFile } from 'node:fs/promises';
 
 export interface RedisClientOptions<
   M extends RedisModules = RedisModules,
@@ -741,7 +742,7 @@ export default class RedisClient<
 
     if (!this.#options.disableClientInfo) {
       commands.push({
-        cmd: ['CLIENT', 'SETINFO', 'LIB-VER', version],
+        cmd: ['CLIENT', 'SETINFO', 'LIB-VER', await getPackageVersion()],
         errorHandler: () => {
           // Client libraries are expected to pipeline this command
           // after authentication on all connections and ignore failures
@@ -1563,5 +1564,23 @@ export default class RedisClient<
 
   unref() {
     this._self.#socket.unref();
+  }
+
+}
+
+let cachedVersion = "error-fetching-version";
+async function getPackageVersion() {
+  if (cachedVersion) {
+    return cachedVersion;
+  }
+  try {
+    const filePath = resolve(__dirname, "..", "..", "package.json");
+    const data = await readFile(filePath, "utf8");
+    const parsed = JSON.parse(data);
+    cachedVersion = parsed.version;
+    return cachedVersion;
+  } catch (err) {
+    cachedVersion = "error-fetching-version";
+    return cachedVersion;
   }
 }
