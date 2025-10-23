@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert';
 import { Buffer } from 'node:buffer';
 import { testUtils, GLOBAL } from './test-utils';
-import { InterceptorFunction, RedisProxy } from './redis-proxy';
+import { InterceptorDescription, RedisProxy } from './redis-proxy';
 import type { RedisClientType } from '@redis/client/lib/client/index.js';
 
 describe('RedisSocketProxy', function () {
@@ -118,31 +118,37 @@ describe('RedisSocketProxy', function () {
       ) => {
 
         // Intercept PING commands and modify the response
-        const pingInterceptor: InterceptorFunction = async (data, next) => {
-          if (data.includes('PING')) {
-            return Buffer.from("+PINGINTERCEPTED\r\n");
+        const pingInterceptor: InterceptorDescription = {
+          name: `ping`,
+          fn: async (data, next) => {
+            if (data.includes('PING')) {
+              return Buffer.from("+PINGINTERCEPTED\r\n");
+            }
+            return next(data);
           }
-          return next(data);
         };
 
         // Only intercept GET responses and double numeric values
         // Does not modify other commands or non-numeric GET responses
-        const doubleNumberGetInterceptor: InterceptorFunction = async (data, next) => {
-          const response = await next(data);
+        const doubleNumberGetInterceptor: InterceptorDescription = {
+          name: `double-number-get`,
+          fn: async (data, next) => {
+            const response = await next(data);
 
-          // Not a GET command, return original response
-          if (!data.includes("GET")) return response;
+            // Not a GET command, return original response
+            if (!data.includes("GET")) return response;
 
-          const value = (response.toString().split("\r\n"))[1];
-          const number = Number(value);
-          // Not a number, return original response
-          if(isNaN(number)) return response;
+            const value = (response.toString().split("\r\n"))[1];
+            const number = Number(value);
+            // Not a number, return original response
+            if(isNaN(number)) return response;
 
-          const doubled = String(number * 2);
-          return Buffer.from(`$${doubled.length}\r\n${doubled}\r\n`);
+            const doubled = String(number * 2);
+            return Buffer.from(`$${doubled.length}\r\n${doubled}\r\n`);
+          }
         };
 
-        proxy.setInterceptors([ pingInterceptor, doubleNumberGetInterceptor ])
+        proxy.setGlobalInterceptors([ pingInterceptor, doubleNumberGetInterceptor ])
 
         const pingResponse = await proxiedClient.ping();
         assert.equal(pingResponse, 'PINGINTERCEPTED', 'Response should be modified by middleware');
@@ -162,6 +168,90 @@ describe('RedisSocketProxy', function () {
       },
       GLOBAL.SERVERS.OPEN_RESP_3,
     );
+
+    testUtils.testWithProxiedClient(
+      "Stats reflect middleware activity",
+      async (
+        proxiedClient: RedisClientType<any, any, any, any, any>,
+        proxy: RedisProxy,
+      ) => {
+        const PING = `ping`;
+        const SKIPPED = `skipped`;
+        proxy.setGlobalInterceptors([
+          {
+            name: PING,
+            matchLimit: 3,
+            fn: async (data, next, state) => {
+              state.invokeCount++;
+              if(state.matchCount === state.matchLimit) return next(data);
+              if (data.includes("PING")) {
+                state.matchCount++;
+                return Buffer.from("+PINGINTERCEPTED\r\n");
+              }
+              return next(data);
+            },
+          },
+          {
+            name: SKIPPED,
+            fn: async (data, next, state) => {
+              state.invokeCount++;
+              state.matchCount++;
+              // This interceptor does not match anything
+              return next(data);
+            },
+          },
+        ]);
+
+        await proxiedClient.ping();
+        await proxiedClient.ping();
+        await proxiedClient.ping();
+
+        let stats = proxy.getStats();
+        let pingInterceptor = stats.globalInterceptors.find(
+          (i) => i.name === PING,
+        );
+        assert.ok(pingInterceptor, "PING interceptor stats should be present");
+        assert.equal(pingInterceptor.invokeCount, 3);
+        assert.equal(pingInterceptor.matchCount, 3);
+
+        let skipInterceptor = stats.globalInterceptors.find(
+          (i) => i.name === SKIPPED,
+        );
+        assert.ok(skipInterceptor, "SKIPPED interceptor stats should be present");
+        assert.equal(skipInterceptor.invokeCount, 0);
+        assert.equal(skipInterceptor.matchCount, 0);
+
+        await proxiedClient.set("foo", "bar");
+        await proxiedClient.get("foo");
+
+        stats = proxy.getStats();
+        pingInterceptor = stats.globalInterceptors.find(
+          (i) => i.name === PING,
+        );
+        assert.ok(pingInterceptor, "PING interceptor stats should be present");
+        assert.equal(pingInterceptor.invokeCount, 5);
+        assert.equal(pingInterceptor.matchCount, 3);
+
+        await proxiedClient.ping();
+
+        stats = proxy.getStats();
+        pingInterceptor = stats.globalInterceptors.find(
+          (i) => i.name === PING,
+        );
+        assert.ok(pingInterceptor, "PING interceptor stats should be present");
+        assert.equal(pingInterceptor.invokeCount, 6);
+        assert.equal(pingInterceptor.matchCount, 3, 'Should not match more than limit');
+
+        skipInterceptor = stats.globalInterceptors.find(
+          (i) => i.name === SKIPPED,
+        );
+        assert.ok(skipInterceptor, "PING interceptor stats should be present");
+        assert.equal(skipInterceptor.invokeCount, 3);
+        assert.equal(skipInterceptor.matchCount, 3);
+      },
+      GLOBAL.SERVERS.OPEN_RESP_3,
+    );
+
   });
 
 });

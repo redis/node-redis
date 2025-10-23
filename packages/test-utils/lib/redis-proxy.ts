@@ -10,17 +10,22 @@ interface ProxyConfig {
   readonly enableLogging?: boolean;
 }
 
-interface ConnectionInfo {
+interface ConnectionInfoCommon {
   readonly id: string;
   readonly clientAddress: string;
   readonly clientPort: number;
   readonly connectedAt: Date;
 }
 
-interface ActiveConnection extends ConnectionInfo {
+interface ConnectionInfo extends ConnectionInfoCommon {
+  readonly interceptors: InterceptorState[];
+}
+
+interface ActiveConnection extends ConnectionInfoCommon {
   readonly clientSocket: net.Socket;
   readonly serverSocket: net.Socket;
   inflightRequestsCount: number
+  interceptors: Interceptor[];
 }
 
 type SendResult =
@@ -33,6 +38,7 @@ interface ProxyStats {
   readonly activeConnections: number;
   readonly totalConnections: number;
   readonly connections: readonly ConnectionInfo[];
+  readonly globalInterceptors: InterceptorState[];
 }
 
 interface ProxyEvents {
@@ -50,16 +56,35 @@ interface ProxyEvents {
   'close': () => void;
 }
 
-export type Interceptor = (data: Buffer) => Promise<Buffer>;
-export type InterceptorFunction = (data: Buffer, next: Interceptor) => Promise<Buffer>;
-type InterceptorInitializer = (init: Interceptor) => Interceptor;
+export type Next = (data: Buffer) => Promise<Buffer>;
+
+export type InterceptorFunction = (data: Buffer, next: Next, state: InterceptorState) => Promise<Buffer>;
+
+export interface InterceptorDescription {
+  name: string;
+  matchLimit?: number;
+  fn: InterceptorFunction;
+}
+
+export interface InterceptorState {
+  name: string;
+  matchLimit?: number;
+  invokeCount: number;
+  matchCount: number;
+}
+
+interface Interceptor {
+  name: string;
+  state: InterceptorState;
+  fn: InterceptorFunction;
+}
 
 export class RedisProxy extends EventEmitter {
   private readonly server: net.Server;
   public readonly config: Required<ProxyConfig>;
   private readonly connections: Map<string, ActiveConnection>;
   private isRunning: boolean;
-  private interceptorInitializer: InterceptorInitializer = (init) => init;
+  private globalInterceptors: Interceptor[] = [];
 
   constructor(config: ProxyConfig) {
     super();
@@ -119,11 +144,25 @@ export class RedisProxy extends EventEmitter {
     });
   }
 
-  public setInterceptors(interceptors: Array<InterceptorFunction>) {
-    this.interceptorInitializer = (init) => interceptors.reduceRight<Interceptor>(
-      (next, mw) => (data) => mw(data, next),
-      init
-    );
+  private makeInterceptor(description: InterceptorDescription): Interceptor {
+    const { name, fn, matchLimit } = description;
+    return {
+      name,
+      fn,
+      state: {
+        name,
+        matchCount: 0,
+        invokeCount: 0,
+        matchLimit,
+      },
+    };
+  }
+
+  public setGlobalInterceptors(
+    interceptorDescriptions: Array<InterceptorDescription>,
+  ) {
+    const interceptors: Interceptor[] = interceptorDescriptions.map(this.makeInterceptor);
+    this.globalInterceptors = interceptors;
   }
 
   public getStats(): ProxyStats {
@@ -132,12 +171,14 @@ export class RedisProxy extends EventEmitter {
     return {
       activeConnections: connections.length,
       totalConnections: connections.length,
+      globalInterceptors: this.globalInterceptors.map(i => i.state),
       connections: connections.map((conn) => ({
         id: conn.id,
         clientAddress: conn.clientAddress,
         clientPort: conn.clientPort,
         connectedAt: conn.connectedAt,
-      }))
+        interceptors: conn.interceptors.map(i => i.state)
+      })),
     };
   }
 
@@ -246,7 +287,8 @@ export class RedisProxy extends EventEmitter {
       connectedAt: new Date(),
       clientSocket,
       serverSocket,
-      inflightRequestsCount: 0
+      inflightRequestsCount: 0,
+      interceptors: [],
     };
 
     this.connections.set(connectionId, connectionInfo);
@@ -279,7 +321,12 @@ export class RedisProxy extends EventEmitter {
         });
       };
 
-      const interceptorChain = this.interceptorInitializer(last);
+      const interceptorChain = connectionInfo.interceptors.concat(this.globalInterceptors).reduceRight<Next>(
+        (next, interceptor) => (data) =>
+          interceptor.fn(data, next, interceptor.state),
+        last,
+      );
+
       const response = await interceptorChain(data);
       clientSocket.write(response);
     });
