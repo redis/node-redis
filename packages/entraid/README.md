@@ -100,12 +100,12 @@ const credential = getDefaultAzureCredential();
 
 // Create a provider using DefaultAzureCredential
 const provider = EntraIdCredentialsProviderFactory.createForDefaultAzureCredential({
-  // Use the same parameters you would pass to credential.getToken()
+
   credential,
   scopes: REDIS_SCOPE_DEFAULT, // The Redis scope
   // Optional additional parameters for getToken
   options: {
-    // Any options you would normally pass to credential.getToken()
+    // Any options you would normally pass to azure's default credential.getToken()
   },
   tokenManagerConfig: {
     expirationRefreshRatio: 0.8
