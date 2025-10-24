@@ -1,5 +1,5 @@
 import COMMANDS from '../commands';
-import RedisSocket, { RedisSocketOptions } from './socket';
+import RedisSocket, { RedisSocketOptions, RedisTcpSocketOptions } from './socket';
 import { BasicAuth, CredentialsError, CredentialsProvider, StreamingCredentialsProvider, UnableToObtainNewCredentialsError, Disposable } from '../authx';
 import RedisCommandsQueue, { CommandOptions } from './commands-queue';
 import { EventEmitter } from 'node:events';
@@ -21,6 +21,7 @@ import { BasicCommandParser, CommandParser } from './parser';
 import SingleEntryCache from '../single-entry-cache';
 import { version } from '../../package.json'
 import EnterpriseMaintenanceManager, { MaintenanceUpdate, MovingEndpointType } from './enterprise-maintenance-manager';
+import { OTelMetrics } from '../opentelemetry/metrics';
 
 export interface RedisClientOptions<
   M extends RedisModules = RedisModules,
@@ -1064,21 +1065,47 @@ export default class RedisClient<
     args: ReadonlyArray<RedisArgument>,
     options?: CommandOptions
   ): Promise<T> {
+    const recordOperation = OTelMetrics.createRecordOperationDuration(args, {
+      host: (this._self.#options.socket as RedisTcpSocketOptions)?.host || "",
+      port:
+        (
+          this._self.#options.socket as RedisTcpSocketOptions
+        )?.port?.toString() || "",
+      db: this._self.#selectedDB.toString(),
+    });
+
     if (!this._self.#socket.isOpen) {
+      recordOperation(new ClientClosedError());
       return Promise.reject(new ClientClosedError());
-    } else if (!this._self.#socket.isReady && this._self.#options.disableOfflineQueue) {
+    } else if (
+      !this._self.#socket.isReady &&
+      this._self.#options.disableOfflineQueue
+    ) {
+      recordOperation(new ClientOfflineError());
       return Promise.reject(new ClientOfflineError());
     }
 
     // Merge global options with provided options
     const opts = {
       ...this._self._commandOptions,
-      ...options
-    }
+      ...options,
+    };
 
     const promise = this._self.#queue.addCommand<T>(args, opts);
+    OTelMetrics.recordPendingRequests(1);
+
+    const trackedPromise = promise.then((reply) => {
+      recordOperation();
+      return reply;
+    }).catch((err) => {
+      recordOperation(err);
+      throw err;
+    }).finally(() => {
+      OTelMetrics.recordPendingRequests(-1);
+    });
+
     this._self.#scheduleWrite();
-    return promise;
+    return trackedPromise;
   }
 
   async SELECT(db: number): Promise<void> {
