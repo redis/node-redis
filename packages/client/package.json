@@ -15,7 +15,17 @@
   "dependencies": {
     "cluster-key-slot": "1.1.2"
   },
+  "peerDependencies": {
+    "@opentelemetry/api": ">=1 <2"
+  },
+  "peerDependenciesMeta": {
+    "@opentelemetry/api": {
+      "optional": true
+    }
+  },
   "devDependencies": {
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/sdk-metrics": "^2.2.0",
     "@redis/test-utils": "*",
     "@types/sinon": "^17.0.3",
     "sinon": "^17.0.1"

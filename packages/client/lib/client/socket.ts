@@ -5,6 +5,7 @@ import { ConnectionTimeoutError, ClientClosedError, SocketClosedUnexpectedlyErro
 import { setTimeout } from 'node:timers/promises';
 import { RedisArgument } from '../RESP/types';
 import { dbgMaintenance } from './enterprise-maintenance-manager';
+import { OTelMetrics } from '../opentelemetry/metrics';
 
 type NetOptions = {
   tls?: false;
@@ -215,6 +216,7 @@ export default class RedisSocket extends EventEmitter {
     let retries = 0;
     do {
       try {
+        const started = performance.now();
         this.#socket = await this.#createSocket();
         this.emit('connect');
 
@@ -228,6 +230,8 @@ export default class RedisSocket extends EventEmitter {
         this.#isReady = true;
         this.#socketEpoch++;
         this.emit('ready');
+        OTelMetrics.recordConnectionCount(1);
+        OTelMetrics.recordConnectionCreateTime(performance.now() - started);
       } catch (err) {
         const retryIn = this.#shouldReconnect(retries++, err as Error);
         if (typeof retryIn !== 'number') {
@@ -304,6 +308,10 @@ export default class RedisSocket extends EventEmitter {
     this.#isReady = false;
     this.emit('error', err);
 
+    if (wasReady) {
+      OTelMetrics.recordConnectionCount(-1);
+    }
+
     if (!wasReady || !this.#isOpen || typeof this.#shouldReconnect(0, err) !== 'number') return;
 
     this.emit('reconnecting');
@@ -362,6 +370,7 @@ export default class RedisSocket extends EventEmitter {
       this.#socket = undefined;
     }
 
+    OTelMetrics.recordConnectionCount(-1);
     this.emit('end');
   }
 
