@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { Buffer } from 'node:buffer';
-import { testUtils, GLOBAL } from './test-utils';
+import { testUtils, GLOBAL } from '../test-utils';
 import { InterceptorDescription, RedisProxy } from './redis-proxy';
 import type { RedisClientType } from '@redis/client/lib/client/index.js';
 
