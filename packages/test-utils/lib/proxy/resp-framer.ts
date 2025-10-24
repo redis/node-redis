@@ -5,6 +5,7 @@ import EventEmitter from "node:events";
 
 export interface RespFramerEvents {
   message: (data: Buffer) => void;
+  push: (data: Buffer) => void;
 }
 
 export default class RespFramer extends EventEmitter {
@@ -26,7 +27,7 @@ export default class RespFramer extends EventEmitter {
         break; // Incomplete message
       }
       const message = this.buffer.subarray(this.offset, messageEnd);
-      this.emit('message', message);
+      this.emit("message", message);
       this.offset = messageEnd;
     }
 
@@ -35,34 +36,34 @@ export default class RespFramer extends EventEmitter {
       this.buffer = this.buffer.subarray(this.offset);
       this.offset = 0;
     }
-
   }
+
   private findMessageEnd(buffer: Buffer, start: number): number {
     if (start >= buffer.length) {
       return -1;
     }
     const prefix = String.fromCharCode(buffer[start]);
     switch (prefix) {
-      case '+': // Simple String
-      case '-': // Error
-      case ':': // Integer
-      case '_': // Null
-      case '#': // Boolean
-      case ',': // Double
-      case '(': // Big Number
+      case "+": // Simple String
+      case "-": // Error
+      case ":": // Integer
+      case "_": // Null
+      case "#": // Boolean
+      case ",": // Double
+      case "(": // Big Number
         return this.findLineEnd(buffer, start);
-      case '$': // Bulk String
-      case '!': // Bulk Error
-      case '=': // Verbatim String
+      case "$": // Bulk String
+      case "!": // Bulk Error
+      case "=": // Verbatim String
         return this.findBulkStringEnd(buffer, start);
-      case '*': // Array
+      case "*": // Array
         return this.findArrayEnd(buffer, start);
-      case '%': // Map
+      case "%": // Map
         return this.findMapEnd(buffer, start);
-      case '~': // Set
-      case '>': // Push
+      case "~": // Set
+      case ">": // Push
         return this.findArrayEnd(buffer, start);
-      case '|': // Attribute
+      case "|": // Attribute
         return this.findAttributeEnd(buffer, start);
       default:
         return -1; // Unknown prefix
@@ -144,11 +145,14 @@ export default class RespFramer extends EventEmitter {
   }
 
   private findLineEnd(buffer: Buffer, start: number): number {
-    const end = buffer.indexOf('\r\n', start);
+    const end = buffer.indexOf("\r\n", start);
     return end !== -1 ? end + 2 : -1;
   }
 
-  private readLength(buffer: Buffer, start: number): { length: number; lineEnd: number } | null {
+  private readLength(
+    buffer: Buffer,
+    start: number,
+  ): { length: number; lineEnd: number } | null {
     const lineEnd = this.findLineEnd(buffer, start);
     if (lineEnd === -1) {
       return null;
@@ -160,5 +164,4 @@ export default class RespFramer extends EventEmitter {
     }
     return { length, lineEnd };
   }
-
 }

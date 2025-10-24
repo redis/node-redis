@@ -1,5 +1,7 @@
 import * as net from 'net';
 import { EventEmitter } from 'events';
+import RespFramer from './resp-framer';
+import RespQueue from './resp-queue';
 
 interface ProxyConfig {
   readonly listenPort: number;
@@ -24,7 +26,6 @@ interface ConnectionInfo extends ConnectionInfoCommon {
 interface ActiveConnection extends ConnectionInfoCommon {
   readonly clientSocket: net.Socket;
   readonly serverSocket: net.Socket;
-  inflightRequestsCount: number
   interceptors: Interceptor[];
 }
 
@@ -287,7 +288,6 @@ export class RedisProxy extends EventEmitter {
       connectedAt: new Date(),
       clientSocket,
       serverSocket,
-      inflightRequestsCount: 0,
       interceptors: [],
     };
 
@@ -301,24 +301,23 @@ export class RedisProxy extends EventEmitter {
       this.emit('connection', connectionInfo);
     });
 
-    clientSocket.on('data', async (data) => {
-      this.emit('data', connectionId, 'client->server', data);
+    /**
+     *
+     * client -> clientSocket -> clientRespFramer -> interceptors -> queue -> serverSocket -> server
+     * client <- clientSocket <- interceptors <-   response | queue <- serverRespFramer <- serverSocket <- server
+     * client <- clientSocket <-                      push  |
+     */
+    const clientRespFramer = new RespFramer();
+    const respQueue = new RespQueue(serverSocket);
 
-      connectionInfo.inflightRequestsCount++;
+    clientRespFramer.on('message', async (data) => {
 
       // next1 -> next2 -> ... -> last -> server
       // next1 <- next2 <- ... <- last <- server
-      const last = (data: Buffer): Promise<Buffer> => {
-        return new Promise((resolve, reject) => {
-          serverSocket.write(data);
-          serverSocket.once('data', (data) => {
-            connectionInfo.inflightRequestsCount--;
-            assert(connectionInfo.inflightRequestsCount >= 0, `inflightRequestsCount for connection ${connectionId} went below zero`);
-            this.emit('data', connectionId, 'server->client', data);
-            resolve(data);
-          });
-          serverSocket.once('error', reject);
-        });
+      const last = async (data: Buffer): Promise<Buffer> => {
+        this.emit('data', connectionId, 'client->server', data);
+        const response = await respQueue.request(data);
+        return response;
       };
 
       const interceptorChain = connectionInfo.interceptors.concat(this.globalInterceptors).reduceRight<Next>(
@@ -328,11 +327,13 @@ export class RedisProxy extends EventEmitter {
       );
 
       const response = await interceptorChain(data);
+      this.emit('data', connectionId, 'server->client', response);
       clientSocket.write(response);
     });
 
-    serverSocket.on('data', (data) => {
-      if (connectionInfo.inflightRequestsCount > 0) return;
+    clientSocket.on('data', data => clientRespFramer.write(data));
+
+    respQueue.on('push', (data) => {
       this.emit('data', connectionId, 'server->client', data);
       clientSocket.write(data);
     });
@@ -357,7 +358,6 @@ export class RedisProxy extends EventEmitter {
     });
 
     serverSocket.on('error', (error) => {
-      if (connectionInfo.inflightRequestsCount > 0) return;
       this.log(`Server error for connection ${connectionId}: ${error.message}`);
       this.emit('error', error, connectionId);
       clientSocket.destroy();
@@ -391,7 +391,6 @@ export class RedisProxy extends EventEmitter {
   }
 }
 import { createServer } from 'net';
-import assert from 'node:assert';
 
 export function getFreePortNumber(): Promise<number> {
   return new Promise((resolve, reject) => {

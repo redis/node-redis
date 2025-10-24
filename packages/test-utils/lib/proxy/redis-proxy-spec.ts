@@ -252,6 +252,64 @@ describe('RedisSocketProxy', function () {
       GLOBAL.SERVERS.OPEN_RESP_3,
     );
 
+    testUtils.testWithProxiedClient(
+      "Middleware is given exactly one RESP message at a time",
+      async (
+        proxiedClient: RedisClientType<any, any, any, any, any>,
+        proxy: RedisProxy,
+      ) => {
+        proxy.setGlobalInterceptors([
+          {
+            name: `ping`,
+            fn: async (data, next, state) => {
+              state.invokeCount++;
+              if (data.equals(Buffer.from("*1\r\n$4\r\nPING\r\n"))) {
+                state.matchCount++;
+              }
+              return next(data);
+            },
+          },
+        ]);
+
+        await Promise.all([proxiedClient.ping(), proxiedClient.ping()]);
+
+        const stats = proxy.getStats();
+        const pingInterceptor = stats.globalInterceptors.find(
+          (i) => i.name === `ping`,
+        );
+        assert.ok(pingInterceptor, "PING interceptor stats should be present");
+        assert.equal(pingInterceptor.invokeCount, 2);
+        assert.equal(pingInterceptor.matchCount, 2);
+      },
+      GLOBAL.SERVERS.OPEN_RESP_3,
+    );
+
+    testUtils.testWithProxiedClient(
+      "Proxy passes through push messages",
+      async (
+        proxiedClient: RedisClientType<any, any, any, any, any>,
+        proxy: RedisProxy,
+      ) => {
+        let resolve: (value: string) => void;
+        const promise = new Promise((rs) => { resolve = rs; });
+        await proxiedClient.subscribe("test-push-channel", (message) => {
+          resolve(message);
+        });
+
+        await proxiedClient.publish("test-push-channel", "hello");
+        const result = await promise;
+        assert.equal(result, "hello", "Should receive push message through proxy");
+      },
+      {
+        ...GLOBAL.SERVERS.OPEN_RESP_3,
+        clientOptions: {
+          maintNotifications: 'disabled',
+          disableClientInfo: true,
+          RESP: 3
+        }
+      },
+    );
   });
+
 
 });
