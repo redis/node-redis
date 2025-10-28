@@ -166,6 +166,13 @@ export class RedisProxy extends EventEmitter {
     this.globalInterceptors = interceptors;
   }
 
+  public addGlobalInterceptor(
+    interceptorDescription: InterceptorDescription,
+  ) {
+    const interceptor = this.makeInterceptor(interceptorDescription);
+    this.globalInterceptors = [interceptor, ...this.globalInterceptors.filter(i => i.name !== interceptor.name)];
+  }
+
   public getStats(): ProxyStats {
     const connections = Array.from(this.connections.values());
 
