@@ -22,7 +22,7 @@ jobs:
       fail-fast: false
       matrix:
         node-version: ["18", "20", "22"]
-        redis-version: ["rs-7.4.0-v1", "8.0.2", "8.2", "8.4-M01-pre"]
+        redis-version: ["rs-7.4.0-v1", "8.0.2", "8.2", "8.4-M01-pre", "8.4-RC1-pre"]
     steps:
       - uses: actions/checkout@v4
         with:
