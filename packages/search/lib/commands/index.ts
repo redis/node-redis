@@ -16,6 +16,7 @@ import DICTDUMP from './DICTDUMP';
 import DROPINDEX from './DROPINDEX';
 import EXPLAIN from './EXPLAIN';
 import EXPLAINCLI from './EXPLAINCLI';
+import HYBRID from './HYBRID';
 import INFO from './INFO';
 import PROFILESEARCH from './PROFILE_SEARCH';
 import PROFILEAGGREGATE from './PROFILE_AGGREGATE';
@@ -82,6 +83,8 @@ export default {
   explain: EXPLAIN,
   EXPLAINCLI,
   explainCli: EXPLAINCLI,
+  HYBRID,
+  hybrid: HYBRID,
   INFO,
   info: INFO,
   PROFILESEARCH,
