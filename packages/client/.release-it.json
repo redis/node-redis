@@ -9,5 +9,8 @@
     "commitMessage": "Release ${tagName}",
     "tagAnnotation": "Release ${tagName}",
     "commitArgs": "--all"
+  },
+  "hooks": {
+    "before:release": "npm run build"
   }
 }
