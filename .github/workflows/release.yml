@@ -49,3 +49,7 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Rebuild packages after version bump to ensure dist/package.json is updated
+      - name: Rebuild packages after version bump
+        run: npm run build
