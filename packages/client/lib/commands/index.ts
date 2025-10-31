@@ -84,6 +84,7 @@ import DBSIZE from './DBSIZE';
 import DECR from './DECR';
 import DECRBY from './DECRBY';
 import DEL from './DEL';
+import DIGEST from './DIGEST';
 import DUMP from './DUMP';
 import ECHO from './ECHO';
 import EVAL_RO from './EVAL_RO';
@@ -543,6 +544,8 @@ export default {
   decrBy: DECRBY,
   DEL,
   del: DEL,
+  DIGEST,
+  digest: DIGEST,
   DUMP,
   dump: DUMP,
   ECHO,
