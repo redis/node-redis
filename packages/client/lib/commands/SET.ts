@@ -29,7 +29,22 @@ export interface SetOptions {
    */
   KEEPTTL?: boolean;
 
-  condition?: 'NX' | 'XX';
+  /**
+   * Condition for setting the key:
+   * - `NX` - Set if key does not exist
+   * - `XX` - Set if key already exists
+   * - `IFEQ` - Set if current value equals match-value (since 8.4, requires `matchValue`)
+   * - `IFNE` - Set if current value does not equal match-value (since 8.4, requires `matchValue`)
+   * - `IFDEQ` - Set if current value digest equals match-digest (since 8.4, requires `matchValue`)
+   * - `IFDNE` - Set if current value digest does not equal match-digest (since 8.4, requires `matchValue`)
+  */
+  condition?: 'NX' | 'XX' |  'IFEQ' | 'IFNE' | 'IFDEQ' | 'IFDNE';
+
+  /**
+   * Value or digest to compare against. Required when using `IFEQ`, `IFNE`, `IFDEQ`, or `IFDNE` conditions.
+  */
+  matchValue?: RedisArgument;
+
   /**
    * @deprecated Use `{ condition: 'NX' }` instead.
    */
@@ -82,6 +97,9 @@ export default {
 
     if (options?.condition) {
       parser.push(options.condition);
+      if (options?.matchValue !== undefined) {
+        parser.push(options.matchValue);
+      }
     } else if (options?.NX) {
       parser.push('NX');
     } else if (options?.XX) {
