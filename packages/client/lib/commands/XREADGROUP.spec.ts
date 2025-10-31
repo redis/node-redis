@@ -93,6 +93,33 @@ describe('XREADGROUP', () => {
         ['XREADGROUP', 'GROUP', 'group', 'consumer', 'COUNT', '1', 'BLOCK', '0', 'NOACK', 'STREAMS', 'key', '0-0']
       );
     });
+
+    it('with CLAIM', () => {
+      assert.deepEqual(
+        parseArgs(XREADGROUP, 'group', 'consumer', {
+          key: 'key',
+          id: '0-0'
+        }, {
+          CLAIM: 100
+        }),
+        ['XREADGROUP', 'GROUP', 'group', 'consumer', 'CLAIM', '100', 'STREAMS', 'key', '0-0']
+      );
+    });
+
+    it('with COUNT, BLOCK, NOACK, CLAIM', () => {
+      assert.deepEqual(
+        parseArgs(XREADGROUP, 'group', 'consumer', {
+          key: 'key',
+          id: '0-0'
+        }, {
+          COUNT: 1,
+          BLOCK: 0,
+          NOACK: true,
+          CLAIM: 100
+        }),
+        ['XREADGROUP', 'GROUP', 'group', 'consumer', 'COUNT', '1', 'BLOCK', '0', 'NOACK', 'CLAIM', '100', 'STREAMS', 'key', '0-0']
+      );
+    });
   });
 
   testUtils.testAll('xReadGroup - null', async client => {
@@ -156,35 +183,54 @@ describe('XREADGROUP', () => {
     cluster: GLOBAL.CLUSTERS.OPEN
   });
 
-  testUtils.testWithClient('client.xReadGroup should throw with resp3 and unstableResp3: false', async client => {
-    assert.throws(
-      () => client.xReadGroup('group', 'consumer', {
-        key: 'key',
-        id: '>'
+  testUtils.testAll('xReadGroup - without CLAIM should not include delivery fields', async client => {
+    const [, id] = await Promise.all([
+      client.xGroupCreate('key', 'group', '$', {
+        MKSTREAM: true
       }),
-      {
-        message: 'Some RESP3 results for Redis Query Engine responses may change. Refer to the readme for guidance'
-      }
-    );
+      client.xAdd('key', '*', { field: 'value' })
+    ]);
+
+    const readGroupReply = await client.xReadGroup('group', 'consumer', {
+      key: 'key',
+      id: '>'
+    });
+
+    assert.ok(readGroupReply);
+    assert.equal(readGroupReply[0].messages[0].millisElapsedFromDelivery, undefined);
+    assert.equal(readGroupReply[0].messages[0].deliveriesCounter, undefined);
   }, {
-    ...GLOBAL.SERVERS.OPEN,
-    clientOptions: {
-      RESP: 3
-    }
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
   });
 
-  testUtils.testWithClient('client.xReadGroup should not throw with resp3 and unstableResp3: true', async client => {
-    assert.doesNotThrow(
-      () => client.xReadGroup('group', 'consumer', {
-        key: 'key',
-        id: '>'
-      })
-    );
-  }, {
-    ...GLOBAL.SERVERS.OPEN,
-    clientOptions: {
-      RESP: 3,
-      unstableResp3: true
-    }
-  });
+  testUtils.testWithClientIfVersionWithinRange([[8,4], 'LATEST'],'xReadGroup - with CLAIM should include delivery fields', async client => {
+    const [, id] = await Promise.all([
+      client.xGroupCreate('key', 'group', '$', {
+        MKSTREAM: true
+      }),
+      client.xAdd('key', '*', { field: 'value' })
+    ]);
+
+    // First read to add message to PEL
+    await client.xReadGroup('group', 'consumer', {
+      key: 'key',
+      id: '>'
+    });
+
+    // Read with CLAIM to get delivery fields
+    const readGroupReply = await client.xReadGroup('group', 'consumer2', {
+      key: 'key',
+      id: '>'
+    }, {
+      CLAIM: 0
+    });
+
+    assert.ok(readGroupReply);
+    assert.equal(readGroupReply[0].messages[0].id, id);
+    assert.ok(readGroupReply[0].messages[0].millisElapsedFromDelivery !== undefined);
+    assert.ok(readGroupReply[0].messages[0].deliveriesCounter !== undefined);
+    assert.equal(typeof readGroupReply[0].messages[0].millisElapsedFromDelivery, 'number');
+    assert.equal(typeof readGroupReply[0].messages[0].deliveriesCounter, 'number');
+  }, GLOBAL.SERVERS.OPEN);
 });
