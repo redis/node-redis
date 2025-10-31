@@ -1,3 +1,4 @@
+
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SET from './SET';
@@ -127,6 +128,16 @@ describe('SET', () => {
           ['SET', 'key', 'value', 'XX']
         );
       });
+
+      it('with IFDEQ condition', () => {
+        assert.deepEqual(
+          parseArgs(SET, 'key', 'value', {
+            condition: 'IFDEQ',
+            matchValue: 'some-value'
+          }),
+          ['SET', 'key', 'value', 'IFDEQ', 'some-value']
+        );
+      });
     });
 
     it('with GET', () => {
@@ -161,5 +172,20 @@ describe('SET', () => {
   }, {
     client: GLOBAL.SERVERS.OPEN,
     cluster: GLOBAL.CLUSTERS.OPEN
+  });
+
+  testUtils.testAll('set with IFEQ', async client => {
+    await client.set('key{tag}', 'some-value');
+
+    assert.equal(
+      await client.set('key{tag}', 'some-value', {
+        condition: 'IFEQ',
+        matchValue: 'some-value'
+      }),
+      'OK'
+    );
+  }, {
+    client: { ...GLOBAL.SERVERS.OPEN, minimumDockerVersion: [8, 4] },
+    cluster: { ...GLOBAL.CLUSTERS.OPEN, minimumDockerVersion: [8, 4] },
   });
 });
