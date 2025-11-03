@@ -206,6 +206,7 @@ import MODULE_LOAD from './MODULE_LOAD';
 import MODULE_UNLOAD from './MODULE_UNLOAD';
 import MOVE from './MOVE';
 import MSET from './MSET';
+import MSETEX from './MSETEX';
 import MSETNX from './MSETNX';
 import OBJECT_ENCODING from './OBJECT_ENCODING';
 import OBJECT_FREQ from './OBJECT_FREQ';
@@ -788,6 +789,8 @@ export default {
   move: MOVE,
   MSET,
   mSet: MSET,
+  MSETEX,
+  mSetEx: MSETEX,
   MSETNX,
   mSetNX: MSETNX,
   OBJECT_ENCODING,
