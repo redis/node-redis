@@ -9,6 +9,7 @@ import { transformStreamsMessagesReplyResp2 } from './generic-transformers';
  * @property COUNT - Limit the number of entries returned per stream
  * @property BLOCK - Milliseconds to block waiting for new entries (0 for indefinite)
  * @property NOACK - Skip adding the message to the PEL (Pending Entries List)
+ * @property CLAIM - Prepend PEL entries that are at least this many milliseconds old
  */
 export interface XReadGroupOptions {
   COUNT?: number;
