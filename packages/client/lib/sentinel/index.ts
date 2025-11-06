@@ -1207,9 +1207,9 @@ class RedisSentinelInternal<
           error: err
         };
         this.emit('client-error', event);
-        this.#handleSentinelFailure(node);
+        this.#reset();
       })
-      .on('end', () => this.#handleSentinelFailure(node));
+
       this.#sentinelClient = client;
 
       this.#trace(`transform: adding sentinel client connect() to promise list`);
