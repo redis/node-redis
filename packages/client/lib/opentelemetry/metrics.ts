@@ -15,16 +15,15 @@ import {
   HistogramInstrumentConfig,
   MetricErrorType,
   OTelClientAttributes,
+  IOTelMetrics,
 } from "./types";
 import { createNoopMeter } from "./noop-meter";
 import { noopFunction } from "./utils";
+import { NoopOTelMetrics } from "./noop-metrics";
 
-export class OTelMetrics {
+export class OTelMetrics implements IOTelMetrics {
   // Create a noop instance by default
-  static #instance: OTelMetrics = new OTelMetrics({
-    api: undefined,
-    config: undefined,
-  });
+  static #instance: IOTelMetrics = new NoopOTelMetrics();
   static #initialized = false;
 
   readonly #meter: Meter;
@@ -68,6 +67,10 @@ export class OTelMetrics {
       config: undefined,
     });
     OTelMetrics.#initialized = false;
+  }
+
+  public static isInitialized() {
+    return OTelMetrics.#initialized;
   }
 
   static get instance() {
@@ -196,11 +199,10 @@ export class OTelMetrics {
   }
 
   private isCommandExcluded(commandName: string) {
-    const upperCommandName = commandName?.toUpperCase();
     return (
       (this.#options.includeCommands.length > 0 &&
-        !this.#options.includeCommands.includes(upperCommandName)) ||
-      this.#options.excludeCommands.includes(upperCommandName)
+        !this.#options.includeCommands.includes(commandName)) ||
+      this.#options.excludeCommands.includes(commandName)
     );
   }
 
