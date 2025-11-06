@@ -5,6 +5,7 @@ import {
   MeterProvider,
   UpDownCounter,
 } from "@opentelemetry/api";
+import { RedisArgument } from "../RESP/types";
 
 export const METRIC_GROUP = {
   COMMAND: "command",
@@ -208,3 +209,32 @@ export const METRIC_ERROR_TYPE = {
 
 export type MetricErrorType =
   (typeof METRIC_ERROR_TYPE)[keyof typeof METRIC_ERROR_TYPE];
+
+export interface IOTelMetrics {
+  createRecordOperationDuration(
+    args: ReadonlyArray<RedisArgument>,
+    clientAttributes?: OTelClientAttributes
+  ): (error?: Error) => void;
+  recordConnectionCount(
+    value: number,
+    clientAttributes?: OTelClientAttributes
+  ): void;
+  recordConnectionCreateTime(
+    durationMs: number,
+    clientAttributes?: OTelClientAttributes
+  ): void;
+  recordConnectionRelaxedTimeout(
+    value: number,
+    clientAttributes?: OTelClientAttributes
+  ): void;
+  recordConnectionHandoff(clientAttributes: OTelClientAttributes): void;
+  recordClientErrorsHandled(
+    type: MetricErrorType,
+    clientAttributes?: OTelClientAttributes
+  ): void;
+  recordMaintenanceNotifications(clientAttributes: OTelClientAttributes): void;
+  recordPendingRequests(
+    value: number,
+    clientAttributes?: OTelClientAttributes
+  ): void;
+}
