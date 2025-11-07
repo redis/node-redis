@@ -1113,20 +1113,28 @@ export default class RedisClient<
     };
 
     const promise = this._self.#queue.addCommand<T>(args, opts);
-    OTelMetrics.instance.recordPendingRequests(1, clientAttributes);
 
-    const trackedPromise = promise.then((reply) => {
-      recordOperation();
-      OTelMetrics.instance.recordPendingRequests(-1, clientAttributes);
-      return reply;
-    }).catch((err) => {
-      recordOperation(err);
-      OTelMetrics.instance.recordPendingRequests(-1, clientAttributes);
-      throw err;
-    });
-    
-    this._self.#scheduleWrite();
-    return trackedPromise;
+    if (OTelMetrics.isInitialized()) {
+      OTelMetrics.instance.recordPendingRequests(1, clientAttributes);
+
+      const trackedPromise = promise
+        .then((reply) => {
+          recordOperation();
+          OTelMetrics.instance.recordPendingRequests(-1, clientAttributes);
+          return reply;
+        })
+        .catch((err) => {
+          recordOperation(err);
+          OTelMetrics.instance.recordPendingRequests(-1, clientAttributes);
+          throw err;
+        });
+
+      this._self.#scheduleWrite();
+      return trackedPromise;
+    } else {
+      this._self.#scheduleWrite();
+      return promise;
+    }
   }
 
   async SELECT(db: number): Promise<void> {
