@@ -1,7 +1,6 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument, Command, ReplyUnion } from '@redis/client/dist/lib/RESP/types';
 import { RedisVariadicArgument, parseOptionalVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
-import { DEFAULT_DIALECT } from '../dialect/default';
 import { FtSearchParams, parseParamsArgument } from './SEARCH';
 
 export interface FtHybridSearchExpression {
@@ -55,7 +54,6 @@ export interface FtHybridCombineMethod {
 }
 
 export interface FtHybridOptions {
-  countExpressions?: number;
   SEARCH?: FtHybridSearchExpression;
   VSIM?: FtHybridVectorExpression;
   COMBINE?: {
@@ -94,7 +92,6 @@ export interface FtHybridOptions {
     COUNT?: number;
     MAXIDLE?: number;
   };
-  DIALECT?: number;
 }
 
 function parseSearchExpression(parser: CommandParser, search: FtHybridSearchExpression) {
@@ -269,10 +266,6 @@ function parseHybridOptions(parser: CommandParser, options?: FtHybridOptions) {
       parser.push('MAXIDLE', options.WITHCURSOR.MAXIDLE.toString());
     }
   }
-
-  if (options?.DIALECT) {
-    parser.push('DIALECT', options.DIALECT.toString());
-  }
 }
 
 export default {
@@ -282,10 +275,12 @@ export default {
    * Performs a hybrid search combining multiple search expressions.
    * Supports multiple SEARCH and VECTOR expressions with various fusion methods.
    * 
+   * NOTE: FT.Hybrid is still in experimental state
+   * It's behavioud and function signature may change`
+   * 
    * @param parser - The command parser
    * @param index - The index name to search
    * @param options - Hybrid search options including:
-   *   - countExpressions: Number of expressions (default 2)
    *   - SEARCH: Text search expression with optional scoring
    *   - VSIM: Vector similarity expression with KNN/RANGE methods
    *   - COMBINE: Fusion method (RRF, LINEAR, FUNCTION)
@@ -295,18 +290,8 @@ export default {
   parseCommand(parser: CommandParser, index: RedisArgument, options?: FtHybridOptions) {
     parser.push('FT.HYBRID', index);
 
-    if (options?.countExpressions !== undefined) {
-      parser.push(options.countExpressions.toString());
-    } else {
-      parser.push('2'); // Default to 2 expressions
-    }
-
     parseHybridOptions(parser, options);
-    
-    // Always add DIALECT at the end if not already added
-    if (!options?.DIALECT) {
-      parser.push('DIALECT', DEFAULT_DIALECT);
-    }
+
   },
   transformReply: {
     2: (reply: any): any => {

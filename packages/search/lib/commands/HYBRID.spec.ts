@@ -10,20 +10,10 @@ describe('FT.HYBRID', () => {
       HYBRID.parseCommand(parser, 'index');
       assert.deepEqual(
         parser.redisArgs,
-        ['FT.HYBRID', 'index', '2', 'DIALECT', '2']
+        ['FT.HYBRID', 'index']
       );
     });
 
-    it('with count expressions', () => {
-      const parser = new BasicCommandParser();
-      HYBRID.parseCommand(parser, 'index', {
-        countExpressions: 3
-      });
-      assert.deepEqual(
-        parser.redisArgs,
-        ['FT.HYBRID', 'index', '3', 'DIALECT', '2']
-      );
-    });
 
     it('with SEARCH expression', () => {
       const parser = new BasicCommandParser();
@@ -34,7 +24,7 @@ describe('FT.HYBRID', () => {
       });
       assert.deepEqual(
         parser.redisArgs,
-        ['FT.HYBRID', 'index', '2', 'SEARCH', '@description: bikes', 'DIALECT', '2']
+        ['FT.HYBRID', 'index', 'SEARCH', '@description: bikes']
       );
     });
 
@@ -53,9 +43,9 @@ describe('FT.HYBRID', () => {
       assert.deepEqual(
         parser.redisArgs,
         [
-          'FT.HYBRID', 'index', '2', 'SEARCH', '@description: bikes',
+          'FT.HYBRID', 'index', 'SEARCH', '@description: bikes',
           'SCORER', 'TFIDF.DOCNORM', 'param1', 'param2',
-          'YIELD_SCORE_AS', 'search_score', 'DIALECT', '2'
+          'YIELD_SCORE_AS', 'search_score'
         ]
       );
     });
@@ -78,7 +68,7 @@ describe('FT.HYBRID', () => {
       assert.deepEqual(
         parser.redisArgs,
         [
-          'FT.HYBRID', 'index', '2', 'VSIM', '@vector_field', 'BLOB_DATA',
+          'FT.HYBRID', 'index', 'VSIM', '@vector_field', 'BLOB_DATA',
           'KNN', '1', 'K', '10', 'EF_RUNTIME', '50', 'YIELD_DISTANCE_AS', 'vector_dist',
           'DIALECT', '2'
         ]
@@ -103,7 +93,7 @@ describe('FT.HYBRID', () => {
       assert.deepEqual(
         parser.redisArgs,
         [
-          'FT.HYBRID', 'index', '2', 'VSIM', '@vector_field', 'BLOB_DATA',
+          'FT.HYBRID', 'index', 'VSIM', '@vector_field', 'BLOB_DATA',
           'RANGE', '1', 'RADIUS', '0.5', 'EPSILON', '0.01', 'YIELD_DISTANCE_AS', 'vector_dist',
           'DIALECT', '2'
         ]
@@ -129,9 +119,9 @@ describe('FT.HYBRID', () => {
       assert.deepEqual(
         parser.redisArgs,
         [
-          'FT.HYBRID', 'index', '2', 'VSIM', '@vector_field', 'BLOB_DATA',
+          'FT.HYBRID', 'index', 'VSIM', '@vector_field', 'BLOB_DATA',
           'FILTER', '@category:{bikes}', 'POLICY', 'BATCHES', 'BATCHES', 'BATCH_SIZE', '100',
-          'YIELD_SCORE_AS', 'vsim_score', 'DIALECT', '2'
+          'YIELD_SCORE_AS', 'vsim_score'
         ]
       );
     });
@@ -153,8 +143,8 @@ describe('FT.HYBRID', () => {
       assert.deepEqual(
         parser.redisArgs,
         [
-          'FT.HYBRID', 'index', '2', 'COMBINE', 'RRF', '2', 'WINDOW', '10', 'CONSTANT', '60',
-          'YIELD_SCORE_AS', 'combined_score', 'DIALECT', '2'
+          'FT.HYBRID', 'index', 'COMBINE', 'RRF', '2', 'WINDOW', '10', 'CONSTANT', '60',
+          'YIELD_SCORE_AS', 'combined_score'
         ]
       );
     });
@@ -175,8 +165,7 @@ describe('FT.HYBRID', () => {
       assert.deepEqual(
         parser.redisArgs,
         [
-          'FT.HYBRID', 'index', '2', 'COMBINE', 'LINEAR', '2', 'ALPHA', '0.7', 'BETA', '0.3',
-          'DIALECT', '2'
+          'FT.HYBRID', 'index', 'COMBINE', 'LINEAR', '2', 'ALPHA', '0.7', 'BETA', '0.3'
         ]
       );
     });
@@ -199,8 +188,8 @@ describe('FT.HYBRID', () => {
       assert.deepEqual(
         parser.redisArgs,
         [
-          'FT.HYBRID', 'index', '2', 'LOAD', '2', 'field1', 'field2',
-          'SORTBY', '1', 'score', 'DESC', 'LIMIT', '0', '10', 'DIALECT', '2'
+          'FT.HYBRID', 'index', 'LOAD', '2', 'field1', 'field2',
+          'SORTBY', '1', 'score', 'DESC', 'LIMIT', '0', '10'
         ]
       );
     });
@@ -220,8 +209,7 @@ describe('FT.HYBRID', () => {
       assert.deepEqual(
         parser.redisArgs,
         [
-          'FT.HYBRID', 'index', '2', 'GROUPBY', '1', '@category', 'REDUCE', 'COUNT', '0',
-          'DIALECT', '2'
+          'FT.HYBRID', 'index', 'GROUPBY', '1', '@category', 'REDUCE', 'COUNT', '0'
         ]
       );
     });
@@ -236,7 +224,7 @@ describe('FT.HYBRID', () => {
       });
       assert.deepEqual(
         parser.redisArgs,
-        ['FT.HYBRID', 'index', '2', 'APPLY', '@score * 2', 'AS', 'double_score', 'DIALECT', '2']
+        ['FT.HYBRID', 'index', 'APPLY', '@score * 2', 'AS', 'double_score']
       );
     });
 
@@ -247,7 +235,7 @@ describe('FT.HYBRID', () => {
       });
       assert.deepEqual(
         parser.redisArgs,
-        ['FT.HYBRID', 'index', '2', 'FILTER', '@price:[100 500]', 'DIALECT', '2']
+        ['FT.HYBRID', 'index', 'FILTER', '@price:[100 500]']
       );
     });
 
@@ -262,8 +250,7 @@ describe('FT.HYBRID', () => {
       assert.deepEqual(
         parser.redisArgs,
         [
-          'FT.HYBRID', 'index', '2', 'PARAMS', '4', 'query_vector', 'BLOB_DATA', 'min_price', '100',
-          'DIALECT', '2'
+          'FT.HYBRID', 'index', 'PARAMS', '4', 'query_vector', 'BLOB_DATA', 'min_price', '100'
         ]
       );
     });
@@ -276,7 +263,7 @@ describe('FT.HYBRID', () => {
       });
       assert.deepEqual(
         parser.redisArgs,
-        ['FT.HYBRID', 'index', '2', 'EXPLAINSCORE', 'TIMEOUT', '5000', 'DIALECT', '2']
+        ['FT.HYBRID', 'index', 'EXPLAINSCORE', 'TIMEOUT', '5000']
       );
     });
 
@@ -291,8 +278,7 @@ describe('FT.HYBRID', () => {
       assert.deepEqual(
         parser.redisArgs,
         [
-          'FT.HYBRID', 'index', '2', 'WITHCURSOR', 'COUNT', '100', 'MAXIDLE', '300000',
-          'DIALECT', '2'
+          'FT.HYBRID', 'index', 'WITHCURSOR', 'COUNT', '100', 'MAXIDLE', '300000'
         ]
       );
     });
@@ -300,7 +286,6 @@ describe('FT.HYBRID', () => {
     it('complete example with all options', () => {
       const parser = new BasicCommandParser();
       HYBRID.parseCommand(parser, 'index', {
-        countExpressions: 2,
         SEARCH: {
           query: '@description: bikes',
           SCORER: {
@@ -343,27 +328,15 @@ describe('FT.HYBRID', () => {
       assert.deepEqual(
         parser.redisArgs,
         [
-          'FT.HYBRID', 'index', '2',
+          'FT.HYBRID', 'index',
           'SEARCH', '@description: bikes', 'SCORER', 'TFIDF.DOCNORM', 'YIELD_SCORE_AS', 'text_score',
           'VSIM', '@vector_field', '$query_vector', 'KNN', '1', 'K', '5', 'YIELD_SCORE_AS', 'vector_score',
           'COMBINE', 'RRF', '2', 'CONSTANT', '60', 'YIELD_SCORE_AS', 'final_score',
           'LOAD', '2', 'description', 'price',
           'SORTBY', '1', 'final_score', 'DESC',
           'LIMIT', '0', '10',
-          'PARAMS', '2', 'query_vector', 'BLOB_DATA',
-          'DIALECT', '2'
+          'PARAMS', '2', 'query_vector', 'BLOB_DATA'
         ]
-      );
-    });
-
-    it('with custom DIALECT', () => {
-      const parser = new BasicCommandParser();
-      HYBRID.parseCommand(parser, 'index', {
-        DIALECT: 3
-      });
-      assert.deepEqual(
-        parser.redisArgs,
-        ['FT.HYBRID', 'index', '2', 'DIALECT', '3']
       );
     });
   });
