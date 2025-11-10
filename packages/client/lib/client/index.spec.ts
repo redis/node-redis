@@ -1041,8 +1041,6 @@ describe('Client', () => {
       teardown();
     });
 
-    //utils
-
     async function setup(
       socketOptions: Partial<RedisSocketOptions>,
       dropCount: number,
@@ -1087,15 +1085,11 @@ describe('Client', () => {
     // - But socket is immediately destroyed, causing ECONNRESET during handshake
     function setupMockServer(dropImmediately: number) {
       const server = net.createServer(async (socket) => {
-        // socket.on("data", (data) =>
-        //   console.log(data.toString().replaceAll("\r\n", " ")),
-        // );
         if (dropImmediately > 0) {
           dropImmediately--;
           socket.destroy();
         }
         socket.write("+OK\r\n+OK\r\n");
-        // socket.write("*7\r\n$6\r\nserver\r\n$5\r\nredis\r\n$7\r\nversion\r\n$5\r\n7.2.0\r\n$5\r\nproto\r\n:3\r\n$2\r\nid\r\n:1\r\n")
       });
       return server;
     }
