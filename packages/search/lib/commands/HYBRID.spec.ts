@@ -69,8 +69,7 @@ describe('FT.HYBRID', () => {
         parser.redisArgs,
         [
           'FT.HYBRID', 'index', 'VSIM', '@vector_field', 'BLOB_DATA',
-          'KNN', '1', 'K', '10', 'EF_RUNTIME', '50', 'YIELD_DISTANCE_AS', 'vector_dist',
-          'DIALECT', '2'
+          'KNN', '1', 'K', '10', 'EF_RUNTIME', '50', 'YIELD_DISTANCE_AS', 'vector_dist'
         ]
       );
     });
@@ -94,8 +93,7 @@ describe('FT.HYBRID', () => {
         parser.redisArgs,
         [
           'FT.HYBRID', 'index', 'VSIM', '@vector_field', 'BLOB_DATA',
-          'RANGE', '1', 'RADIUS', '0.5', 'EPSILON', '0.01', 'YIELD_DISTANCE_AS', 'vector_dist',
-          'DIALECT', '2'
+          'RANGE', '1', 'RADIUS', '0.5', 'EPSILON', '0.01', 'YIELD_DISTANCE_AS', 'vector_dist'
         ]
       );
     });
