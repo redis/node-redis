@@ -4,12 +4,16 @@ import RedisClient, { RedisClientOptions, RedisClientType } from '.';
 import { AbortError, ClientClosedError, ClientOfflineError, ConnectionTimeoutError, DisconnectsClientError, ErrorReply, MultiErrorReply, TimeoutError, WatchError } from '../errors';
 import { defineScript } from '../lua-script';
 import { spy, stub } from 'sinon';
-import { once } from 'node:events';
+import EventEmitter, { once } from 'node:events';
 import { MATH_FUNCTION, loadMathFunction } from '../commands/FUNCTION_LOAD.spec';
 import { RESP_TYPES } from '../RESP/decoder';
 import { BlobStringReply, NumberReply } from '../RESP/types';
 import { SortedSetMember } from '../commands/generic-transformers';
 import { CommandParser } from './parser';
+import { RedisSocketOptions } from './socket';
+import { getFreePortNumber } from '@redis/test-utils/lib/proxy/redis-proxy';
+import { createClient } from '../../';
+import net from 'node:net'
 
 export const SQUARE_SCRIPT = defineScript({
   SCRIPT:
@@ -1007,6 +1011,89 @@ describe('Client', () => {
         duplicate.destroy();
       }
     }, GLOBAL.SERVERS.OPEN);
+  });
+
+  describe("socket errors during handshake", () => {
+
+    it("should successfully connect when server accepts connection immediately", async () => {
+      const { log, client, teardown } = await setup({}, 0);
+      await client.connect();
+      assert.deepEqual(["connect", "ready"], log);
+      teardown();
+    });
+
+    it("should reconnect after multiple connection drops during handshake", async () => {
+      const { log, client, teardown } = await setup({}, 2);
+      await client.connect();
+      assert.deepEqual(
+        [
+          "connect",
+          "error",
+          "reconnecting",
+          "connect",
+          "error",
+          "reconnecting",
+          "connect",
+          "ready",
+        ],
+        log,
+      );
+      teardown();
+    });
+
+    async function setup(
+      socketOptions: Partial<RedisSocketOptions>,
+      dropCount: number,
+    ) {
+      const port = await getFreePortNumber();
+      const server = setupMockServer(dropCount);
+      const options = {
+        ...{
+          socket: {
+            host: "localhost",
+            port,
+          },
+          ...socketOptions,
+        },
+      };
+      const client = createClient(options);
+      const log = setupLog(client);
+      await once(server.listen(port), "listening");
+      return {
+        log,
+        client,
+        server,
+        teardown: async function () {
+          client.destroy();
+          server.close();
+        },
+      };
+    }
+
+    function setupLog(client: EventEmitter): string[] {
+      const log: string[] = [];
+      client.on("connect", () => log.push("connect"));
+      client.on("ready", () => log.push("ready"));
+      client.on("reconnecting", () => log.push("reconnecting"));
+      client.on("error", () => log.push("error"));
+      return log;
+    }
+
+    // Create a TCP server that accepts connections but immediately drops them <dropImmediately> times
+    // This simulates what happens when Docker container is stopped:
+    // - TCP connection succeeds (OS accepts it)
+    // - But socket is immediately destroyed, causing ECONNRESET during handshake
+    function setupMockServer(dropImmediately: number) {
+      const server = net.createServer(async (socket) => {
+        if (dropImmediately > 0) {
+          dropImmediately--;
+          socket.destroy();
+        }
+        socket.write("+OK\r\n+OK\r\n");
+      });
+      return server;
+    }
+
   });
 });
 

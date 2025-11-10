@@ -220,6 +220,15 @@ export default class RedisSocket extends EventEmitter {
 
         try {
           await this.#initiator();
+
+          // Check if socket was closed/destroyed during initiator execution
+          if (!this.#socket || this.#socket.destroyed || !this.#socket.readable || !this.#socket.writable) {
+            const retryIn = this.#shouldReconnect(retries++, new SocketClosedUnexpectedlyError());
+            if (typeof retryIn !== 'number') { throw retryIn; }
+            await setTimeout(retryIn);
+            this.emit('reconnecting');
+            continue;
+          }
         } catch (err) {
           this.#socket.destroy();
           this.#socket = undefined;
@@ -311,6 +320,7 @@ export default class RedisSocket extends EventEmitter {
       // the error was already emitted, silently ignore it
     });
   }
+
 
   write(iterable: Iterable<ReadonlyArray<RedisArgument>>) {
     if (!this.#socket) return;
