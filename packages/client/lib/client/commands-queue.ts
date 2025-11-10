@@ -6,6 +6,7 @@ import { ChannelListeners, PubSub, PubSubCommand, PubSubListener, PubSubType, Pu
 import { AbortError, ErrorReply, CommandTimeoutDuringMaintenanceError, TimeoutError } from '../errors';
 import { MonitorCallback } from '.';
 import { dbgMaintenance } from './enterprise-maintenance-manager';
+import { OTelClientAttributes, OTelMetrics } from '../opentelemetry';
 
 export interface CommandOptions<T = TypeMapping> {
   chainId?: symbol;
@@ -225,13 +226,17 @@ export default class RedisCommandsQueue {
 
   addCommand<T>(
     args: ReadonlyArray<RedisArgument>,
-    options?: CommandOptions
+    options?: CommandOptions,
+    otelAttributes?: OTelClientAttributes
   ): Promise<T> {
     if (this.#maxLength && this.#toWrite.length + this.#waitingForReply.length >= this.#maxLength) {
       return Promise.reject(new Error('The queue is full'));
     } else if (options?.abortSignal?.aborted) {
       return Promise.reject(new AbortError());
     }
+
+    const recordOperation = OTelMetrics.instance.createRecordOperationDuration(args, otelAttributes);
+    OTelMetrics.instance.recordPendingRequests(1, otelAttributes);
 
     return new Promise((resolve, reject) => {
       let node: DoublyLinkedNode<CommandToWrite>;
@@ -240,8 +245,16 @@ export default class RedisCommandsQueue {
         chainId: options?.chainId,
         abort: undefined,
         timeout: undefined,
-        resolve,
-        reject,
+        resolve: reply => {
+          recordOperation()
+          OTelMetrics.instance.recordPendingRequests(-1, otelAttributes);
+          resolve(reply as T);
+        },
+        reject: (err) => {
+          recordOperation(err as Error);
+          OTelMetrics.instance.recordPendingRequests(-1, otelAttributes);
+          reject(err);
+        },
         channelsCounter: undefined,
         typeMapping: options?.typeMapping
       };
