@@ -12,7 +12,7 @@ import {
 import { spy } from "sinon";
 
 import { OTelMetrics } from "./metrics";
-import { METRIC_NAMES, ObservabilityConfig } from "./types";
+import { METRIC_NAMES, ObservabilityConfig, OTEL_ATTRIBUTES } from "./types";
 import { NOOP_UP_DOWN_COUNTER_METRIC } from "./noop-meter";
 import { noopFunction, waitForMetrics } from "./utils";
 import testUtils, { GLOBAL } from "../test-utils";
@@ -333,7 +333,13 @@ describe("OTel Metrics E2E", function () {
 
       const dataPoints = metric.dataPoints as DataPoint<Histogram>[];
 
-      assert.strictEqual(dataPoints[0].value.count, 3);
+      const setDataPoint = dataPoints.find(
+        (dp) => dp.attributes[OTEL_ATTRIBUTES.dbOperationName] === "SET"
+      );
+
+      assert.ok(setDataPoint, "expected SET data point to be present");
+
+      assert.strictEqual(setDataPoint.value.count, 3);
     },
     {
       client: GLOBAL.SERVERS.OPEN,
