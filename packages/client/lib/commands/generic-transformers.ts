@@ -522,8 +522,8 @@ export type StreamMessageRawReply = TuplesReply<[
 export type StreamMessageReply = {
   id: BlobStringReply,
   message: MapReply<BlobStringReply | string, BlobStringReply>,
-  millisElapsedFromDelivery?: number
-  deliveriesCounter?: number
+  millisElapsedFromDelivery?: NumberReply
+  deliveriesCounter?: NumberReply
 };
 
 export function transformStreamMessageReply(typeMapping: TypeMapping | undefined, reply: StreamMessageRawReply): StreamMessageReply {
@@ -531,8 +531,8 @@ export function transformStreamMessageReply(typeMapping: TypeMapping | undefined
   return {
     id: id,
     message: transformTuplesReply(message, undefined, typeMapping),
-    ...(millisElapsedFromDelivery !== undefined ? { millisElapsedFromDelivery: Number(millisElapsedFromDelivery) } : {}),
-    ...(deliveriesCounter !== undefined ? { deliveriesCounter: Number(deliveriesCounter) } : {})
+    ...(millisElapsedFromDelivery !== undefined ? { millisElapsedFromDelivery } : {}),
+    ...(deliveriesCounter !== undefined ? { deliveriesCounter } : {})
   };
 }
 
