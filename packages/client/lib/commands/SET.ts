@@ -33,6 +33,9 @@ export interface SetOptions {
    * Condition for setting the key:
    * - `NX` - Set if key does not exist
    * - `XX` - Set if key already exists
+   *
+   * @experimental
+   *
    * - `IFEQ` - Set if current value equals match-value (since 8.4, requires `matchValue`)
    * - `IFNE` - Set if current value does not equal match-value (since 8.4, requires `matchValue`)
    * - `IFDEQ` - Set if current value digest equals match-digest (since 8.4, requires `matchValue`)
@@ -53,14 +56,14 @@ export interface SetOptions {
    * @deprecated Use `{ condition: 'XX' }` instead.
    */
   XX?: boolean;
-  
+
   GET?: boolean;
 }
 
 export default {
   /**
    * Constructs the SET command
-   * 
+   *
    * @param parser - The command parser
    * @param key - The key to set
    * @param value - The value to set

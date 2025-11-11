@@ -4,6 +4,9 @@ import { Command, RedisArgument, SimpleStringReply } from "../RESP/types";
 export default {
   IS_READ_ONLY: true,
   /**
+   *
+   * @experimental
+   *
    * Returns the XXH3 hash of a string value.
    *
    * @param parser - The Redis command parser
