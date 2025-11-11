@@ -25,6 +25,9 @@ type DelexCondition = (typeof DelexCondition)[keyof typeof DelexCondition];
 export default {
   IS_READ_ONLY: false,
   /**
+   *
+   * @experimental
+   *
    * Conditionally removes the specified key based on value or digest comparison.
    *
    * @param parser - The Redis command parser

@@ -116,11 +116,11 @@ function parseVectorExpression(parser: CommandParser, vsim: FtHybridVectorExpres
     if (vsim.method.KNN) {
       const knn = vsim.method.KNN;
       parser.push('KNN', '1', 'K', knn.K.toString());
-      
+
       if (knn.EF_RUNTIME !== undefined) {
         parser.push('EF_RUNTIME', knn.EF_RUNTIME.toString());
       }
-      
+
       if (knn.YIELD_DISTANCE_AS) {
         parser.push('YIELD_DISTANCE_AS', knn.YIELD_DISTANCE_AS);
       }
@@ -129,11 +129,11 @@ function parseVectorExpression(parser: CommandParser, vsim: FtHybridVectorExpres
     if (vsim.method.RANGE) {
       const range = vsim.method.RANGE;
       parser.push('RANGE', '1', 'RADIUS', range.RADIUS.toString());
-      
+
       if (range.EPSILON !== undefined) {
         parser.push('EPSILON', range.EPSILON.toString());
       }
-      
+
       if (range.YIELD_DISTANCE_AS) {
         parser.push('YIELD_DISTANCE_AS', range.YIELD_DISTANCE_AS);
       }
@@ -142,10 +142,10 @@ function parseVectorExpression(parser: CommandParser, vsim: FtHybridVectorExpres
 
   if (vsim.FILTER) {
     parser.push('FILTER', vsim.FILTER.expression);
-    
+
     if (vsim.FILTER.POLICY) {
       parser.push('POLICY', vsim.FILTER.POLICY);
-      
+
       if (vsim.FILTER.POLICY === 'BATCHES' && vsim.FILTER.BATCHES) {
         parser.push('BATCHES', 'BATCH_SIZE', vsim.FILTER.BATCHES.BATCH_SIZE.toString());
       }
@@ -165,11 +165,11 @@ function parseCombineMethod(parser: CommandParser, combine: FtHybridOptions['COM
   if (combine.method.RRF) {
     const rrf = combine.method.RRF;
     parser.push('RRF', rrf.count.toString());
-    
+
     if (rrf.WINDOW !== undefined) {
       parser.push('WINDOW', rrf.WINDOW.toString());
     }
-    
+
     if (rrf.CONSTANT !== undefined) {
       parser.push('CONSTANT', rrf.CONSTANT.toString());
     }
@@ -178,11 +178,11 @@ function parseCombineMethod(parser: CommandParser, combine: FtHybridOptions['COM
   if (combine.method.LINEAR) {
     const linear = combine.method.LINEAR;
     parser.push('LINEAR', linear.count.toString());
-    
+
     if (linear.ALPHA !== undefined) {
       parser.push('ALPHA', linear.ALPHA.toString());
     }
-    
+
     if (linear.BETA !== undefined) {
       parser.push('BETA', linear.BETA.toString());
     }
@@ -216,7 +216,7 @@ function parseHybridOptions(parser: CommandParser, options?: FtHybridOptions) {
 
   if (options.GROUPBY) {
     parseOptionalVariadicArgument(parser, 'GROUPBY', options.GROUPBY.fields);
-    
+
     if (options.GROUPBY.REDUCE) {
       parser.push('REDUCE', options.GROUPBY.REDUCE.function, options.GROUPBY.REDUCE.count.toString());
       parser.push(...options.GROUPBY.REDUCE.args);
@@ -257,11 +257,11 @@ function parseHybridOptions(parser: CommandParser, options?: FtHybridOptions) {
 
   if (options.WITHCURSOR) {
     parser.push('WITHCURSOR');
-    
+
     if (options.WITHCURSOR.COUNT !== undefined) {
       parser.push('COUNT', options.WITHCURSOR.COUNT.toString());
     }
-    
+
     if (options.WITHCURSOR.MAXIDLE !== undefined) {
       parser.push('MAXIDLE', options.WITHCURSOR.MAXIDLE.toString());
     }
@@ -274,10 +274,11 @@ export default {
   /**
    * Performs a hybrid search combining multiple search expressions.
    * Supports multiple SEARCH and VECTOR expressions with various fusion methods.
-   * 
+   *
+   * @experimental
    * NOTE: FT.Hybrid is still in experimental state
-   * It's behavioud and function signature may change`
-   * 
+   * It's behaviour and function signature may change
+   *
    * @param parser - The command parser
    * @param index - The index name to search
    * @param options - Hybrid search options including:
@@ -300,7 +301,7 @@ export default {
         // This is a cursor reply
         const [searchResults, cursor] = reply;
         const transformedResults = transformHybridSearchResults(searchResults);
-        
+
         return {
           ...transformedResults,
           cursor
@@ -345,7 +346,7 @@ function documentValue(tuples: any) {
   while (i < tuples.length) {
     const key = tuples[i++];
     const value = tuples[i++];
-    
+
     if (key === '$') { // might be a JSON reply
       try {
         Object.assign(message, JSON.parse(value));
