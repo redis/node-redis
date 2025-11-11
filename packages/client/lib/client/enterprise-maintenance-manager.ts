@@ -20,6 +20,7 @@ const PN = {
   MIGRATED: "MIGRATED",
   FAILING_OVER: "FAILING_OVER",
   FAILED_OVER: "FAILED_OVER",
+  SMIGRATING: "SMIGRATING",
 };
 
 export type DiagnosticsEvent = {
@@ -128,7 +129,7 @@ export default class EnterpriseMaintenanceManager {
   #onPush = (push: Array<any>): boolean => {
     dbgMaintenance("ONPUSH:", push.map(String));
 
-    if (!Array.isArray(push) || !["MOVING", "MIGRATING", "MIGRATED", "FAILING_OVER", "FAILED_OVER"].includes(String(push[0]))) {
+    if (!Array.isArray(push) || !Object.values(PN).includes(String(push[0]))) {
       return false;
     }
 
@@ -152,8 +153,9 @@ export default class EnterpriseMaintenanceManager {
         return true;
       }
       case PN.MIGRATING:
+      case PN.SMIGRATING:
       case PN.FAILING_OVER: {
-        dbgMaintenance("Received MIGRATING|FAILING_OVER");
+        dbgMaintenance("Received MIGRATING|SMIGRATING|FAILING_OVER");
         this.#onMigrating();
         return true;
       }
