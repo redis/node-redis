@@ -16,15 +16,177 @@ import {
   MetricErrorType,
   OTelClientAttributes,
   IOTelMetrics,
+  IOTelCommandMetrics,
+  IOTelConnectionBasicMetrics,
+  IOTelConnectionAdvancedMetrics,
+  IOTelResiliencyMetrics,
 } from "./types";
 import { createNoopMeter } from "./noop-meter";
-import { noopFunction } from "./utils";
-import { NoopOTelMetrics } from "./noop-metrics";
+import { noopFunction, parseClientAttributes } from "./utils";
+import {
+  NoopCommandMetrics,
+  NoopConnectionAdvancedMetrics,
+  NoopConnectionBasicMetrics,
+  NoopOTelMetrics,
+  NoopResiliencyMetrics,
+} from "./noop-metrics";
+
+class OTelCommandMetrics implements IOTelCommandMetrics {
+  readonly #instruments: MetricInstruments;
+  readonly #options: MetricOptions;
+
+  constructor(options: MetricOptions, instruments: MetricInstruments) {
+    this.#options = options;
+    this.#instruments = instruments;
+  }
+
+  private isCommandExcluded(commandName: string) {
+    return (
+      // It's not explicitly included
+      (this.#options.hasIncludeCommands &&
+        !this.#options.includeCommands[commandName]) ||
+      // it's explicitly excluded
+      this.#options.excludeCommands[commandName]
+    );
+  }
+
+  public createRecordOperationDuration(
+    args: ReadonlyArray<RedisArgument>,
+    clientAttributes?: OTelClientAttributes
+  ): (error?: Error) => void {
+    const commandName = args[0]?.toString() || "UNKNOWN";
+
+    if (this.isCommandExcluded(commandName)) {
+      return noopFunction;
+    }
+
+    const startTime = performance.now();
+
+    const baseAttributes = {
+      [OTEL_ATTRIBUTES.dbOperationName]: commandName,
+      ...parseClientAttributes(clientAttributes),
+    };
+
+    return (error?: Error) => {
+      this.#instruments.dbClientOperationDuration.record(
+        (performance.now() - startTime) / 1000, // convert to seconds
+        {
+          ...this.#options.attributes,
+          ...baseAttributes,
+          // TODO add error types
+          ...(error ? { [OTEL_ATTRIBUTES.errorType]: error.message } : {}),
+        }
+      );
+    };
+  }
+}
+
+class OTelConnectionBasicMetrics implements IOTelConnectionBasicMetrics {
+  readonly #instruments: MetricInstruments;
+  readonly #options: MetricOptions;
+
+  constructor(options: MetricOptions, instruments: MetricInstruments) {
+    this.#options = options;
+    this.#instruments = instruments;
+  }
+
+  public recordConnectionCount(
+    value: number,
+    clientAttributes?: OTelClientAttributes
+  ) {
+    this.#instruments.dbClientConnectionCount.add(value, {
+      ...this.#options.attributes,
+      ...parseClientAttributes(clientAttributes),
+    });
+  }
+  public recordConnectionCreateTime(
+    durationMs: number,
+    clientAttributes?: OTelClientAttributes
+  ) {
+    this.#instruments.dbClientConnectionCreateTime.record(
+      durationMs / 1000, // convert to seconds
+      {
+        ...this.#options.attributes,
+        ...parseClientAttributes(clientAttributes),
+      }
+    );
+  }
+  public recordConnectionRelaxedTimeout(
+    value: number,
+    clientAttributes?: OTelClientAttributes
+  ) {
+    this.#instruments.redisClientConnectionRelaxedTimeout.add(value, {
+      ...this.#options.attributes,
+      ...parseClientAttributes(clientAttributes),
+    });
+  }
+  public recordConnectionHandoff(clientAttributes: OTelClientAttributes) {
+    this.#instruments.redisClientConnectionHandoff.add(1, {
+      ...this.#options.attributes,
+      ...parseClientAttributes(clientAttributes),
+    });
+  }
+}
+
+class OTelConnectionAdvancedMetrics implements IOTelConnectionAdvancedMetrics {
+  readonly #instruments: MetricInstruments;
+  readonly #options: MetricOptions;
+
+  constructor(options: MetricOptions, instruments: MetricInstruments) {
+    this.#options = options;
+    this.#instruments = instruments;
+  }
+
+  public recordPendingRequests(
+    value: number,
+    clientAttributes?: OTelClientAttributes
+  ) {
+    this.#instruments.dbClientConnectionPendingRequests.add(value, {
+      ...this.#options.attributes,
+      ...parseClientAttributes(clientAttributes),
+    });
+  }
+}
+
+class OTelResiliencyMetrics implements IOTelResiliencyMetrics {
+  readonly #instruments: MetricInstruments;
+  readonly #options: MetricOptions;
+
+  constructor(options: MetricOptions, instruments: MetricInstruments) {
+    this.#options = options;
+    this.#instruments = instruments;
+  }
+
+  public recordClientErrorsHandled(
+    type: MetricErrorType,
+    clientAttributes?: OTelClientAttributes
+  ) {
+    this.#instruments.redisClientErrorsHandled.add(1, {
+      ...this.#options.attributes,
+      ...parseClientAttributes(clientAttributes),
+      [OTEL_ATTRIBUTES.errorType]: type,
+    });
+  }
+
+  public recordMaintenanceNotifications(
+    clientAttributes: OTelClientAttributes
+  ) {
+    this.#instruments.redisClientMaintenanceNotifications.add(1, {
+      ...this.#options.attributes,
+      ...parseClientAttributes(clientAttributes),
+    });
+  }
+}
 
 export class OTelMetrics implements IOTelMetrics {
   // Create a noop instance by default
   static #instance: IOTelMetrics = new NoopOTelMetrics();
   static #initialized = false;
+
+  readonly commandMetrics: IOTelCommandMetrics;
+  readonly connectionBasicMetrics: IOTelConnectionBasicMetrics;
+  readonly connectionAdvancedMetrics: IOTelConnectionAdvancedMetrics;
+  readonly resiliencyMetrics: IOTelResiliencyMetrics;
 
   readonly #meter: Meter;
   readonly #instruments: MetricInstruments;
@@ -40,6 +202,48 @@ export class OTelMetrics implements IOTelMetrics {
     this.#options = this.parseOptions(config);
     this.#meter = this.getMeter(api, this.#options);
     this.#instruments = this.registerInstruments(this.#meter, this.#options);
+
+    if (this.#options.enabledMetricGroups.includes(METRIC_GROUP.COMMAND)) {
+      this.commandMetrics = new OTelCommandMetrics(
+        this.#options,
+        this.#instruments
+      );
+    } else {
+      this.commandMetrics = new NoopCommandMetrics();
+    }
+
+    if (
+      this.#options.enabledMetricGroups.includes(METRIC_GROUP.CONNECTION_BASIC)
+    ) {
+      this.connectionBasicMetrics = new OTelConnectionBasicMetrics(
+        this.#options,
+        this.#instruments
+      );
+    } else {
+      this.connectionBasicMetrics = new NoopConnectionBasicMetrics();
+    }
+
+    if (
+      this.#options.enabledMetricGroups.includes(
+        METRIC_GROUP.CONNECTION_ADVANCED
+      )
+    ) {
+      this.connectionAdvancedMetrics = new OTelConnectionAdvancedMetrics(
+        this.#options,
+        this.#instruments
+      );
+    } else {
+      this.connectionAdvancedMetrics = new NoopConnectionAdvancedMetrics();
+    }
+
+    if (this.#options.enabledMetricGroups.includes(METRIC_GROUP.RESILIENCY)) {
+      this.resiliencyMetrics = new OTelResiliencyMetrics(
+        this.#options,
+        this.#instruments
+      );
+    } else {
+      this.resiliencyMetrics = new NoopResiliencyMetrics();
+    }
   }
 
   public static init({
@@ -77,135 +281,6 @@ export class OTelMetrics implements IOTelMetrics {
     return OTelMetrics.#instance;
   }
 
-  public createRecordOperationDuration(
-    args: ReadonlyArray<RedisArgument>,
-    clientAttributes?: OTelClientAttributes
-  ): (error?: Error) => void {
-    const commandName = args[0]?.toString() || "UNKNOWN";
-
-    if (
-      this.isCommandExcluded(commandName) ||
-      !this.#options.enabledMetricGroups.includes(METRIC_GROUP.COMMAND)
-    ) {
-      return noopFunction;
-    }
-
-    const startTime = performance.now();
-
-    const baseAttributes = {
-      [OTEL_ATTRIBUTES.dbOperationName]: commandName,
-      ...this.parseClientAttributes(clientAttributes),
-    };
-
-    return (error?: Error) => {
-      this.#instruments.dbClientOperationDuration.record(
-        (performance.now() - startTime) / 1000, // convert to seconds
-        {
-          ...this.#options.attributes,
-          ...baseAttributes,
-          // TODO add error types
-          ...(error ? { [OTEL_ATTRIBUTES.errorType]: error.message } : {}),
-        }
-      );
-    };
-  }
-
-  public recordConnectionCount(
-    value: number,
-    clientAttributes?: OTelClientAttributes
-  ) {
-    this.#instruments.dbClientConnectionCount.add(value, {
-      ...this.#options.attributes,
-      ...this.parseClientAttributes(clientAttributes),
-    });
-  }
-
-  public recordConnectionCreateTime(
-    durationMs: number,
-    clientAttributes?: OTelClientAttributes
-  ) {
-    this.#instruments.dbClientConnectionCreateTime.record(
-      durationMs / 1000, // convert to seconds
-      {
-        ...this.#options.attributes,
-        ...this.parseClientAttributes(clientAttributes),
-      }
-    );
-  }
-
-  public recordConnectionRelaxedTimeout(
-    value: number,
-    clientAttributes?: OTelClientAttributes
-  ) {
-    this.#instruments.redisClientConnectionRelaxedTimeout.add(value, {
-      ...this.#options.attributes,
-      ...this.parseClientAttributes(clientAttributes),
-    });
-  }
-
-  public recordConnectionHandoff(clientAttributes: OTelClientAttributes) {
-    this.#instruments.redisClientConnectionHandoff.add(1, {
-      ...this.#options.attributes,
-      ...this.parseClientAttributes(clientAttributes),
-    });
-  }
-
-  public recordClientErrorsHandled(
-    type: MetricErrorType,
-    clientAttributes?: OTelClientAttributes
-  ) {
-    this.#instruments.redisClientErrorsHandled.add(1, {
-      ...this.#options.attributes,
-      ...this.parseClientAttributes(clientAttributes),
-      [OTEL_ATTRIBUTES.errorType]: type,
-    });
-  }
-
-  public recordMaintenanceNotifications(
-    clientAttributes: OTelClientAttributes
-  ) {
-    this.#instruments.redisClientMaintenanceNotifications.add(1, {
-      ...this.#options.attributes,
-      [OTEL_ATTRIBUTES.dbNamespace]: clientAttributes.db,
-      [OTEL_ATTRIBUTES.serverAddress]: clientAttributes.host,
-      [OTEL_ATTRIBUTES.serverPort]: clientAttributes.port,
-    });
-  }
-
-  public recordPendingRequests(
-    value: number,
-    clientAttributes?: OTelClientAttributes
-  ) {
-    this.#instruments.dbClientConnectionPendingRequests.add(value, {
-      ...this.#options.attributes,
-      ...this.parseClientAttributes(clientAttributes),
-    });
-  }
-
-  private parseClientAttributes(clientAttributes?: OTelClientAttributes) {
-    return {
-      ...(clientAttributes?.db === undefined
-        ? {}
-        : {
-            [OTEL_ATTRIBUTES.dbNamespace]: clientAttributes.db.toString(),
-          }),
-      ...(clientAttributes?.host && {
-        [OTEL_ATTRIBUTES.serverAddress]: clientAttributes.host,
-      }),
-      ...(clientAttributes?.port && {
-        [OTEL_ATTRIBUTES.serverPort]: clientAttributes.port.toString(),
-      }),
-    };
-  }
-
-  private isCommandExcluded(commandName: string) {
-    return (
-      (this.#options.includeCommands.length > 0 &&
-        !this.#options.includeCommands.includes(commandName)) ||
-      this.#options.excludeCommands.includes(commandName)
-    );
-  }
-
   private getMeter(
     api: typeof import("@opentelemetry/api") | undefined,
     options: MetricOptions
@@ -236,10 +311,20 @@ export class OTelMetrics implements IOTelMetrics {
       },
       meterProvider: config?.metrics?.meterProvider,
       serviceName: config?.serviceName,
-      includeCommands:
-        config?.metrics?.includeCommands?.map((c) => c.toUpperCase()) ?? [],
-      excludeCommands:
-        config?.metrics?.excludeCommands?.map((c) => c.toUpperCase()) ?? [],
+      includeCommands: (config?.metrics?.includeCommands ?? []).reduce<
+        Record<string, true>
+      >((acc, c) => {
+        acc[c.toUpperCase()] = true;
+        return acc;
+      }, {}),
+      hasIncludeCommands: !!config?.metrics?.includeCommands?.length,
+      excludeCommands: (config?.metrics?.excludeCommands ?? []).reduce<
+        Record<string, true>
+      >((acc, c) => {
+        acc[c.toUpperCase()] = true;
+        return acc;
+      }, {}),
+      hasExcludeCommands: !!config?.metrics?.excludeCommands?.length,
       enabledMetricGroups:
         config?.metrics?.enabledMetricGroups ?? DEFAULT_METRIC_GROUPS,
       hidePubSubChannelNames: config?.metrics?.hidePubSubChannelNames ?? false,
