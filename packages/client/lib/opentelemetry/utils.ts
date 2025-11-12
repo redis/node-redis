@@ -2,6 +2,7 @@ import {
   MeterProvider,
   InMemoryMetricExporter,
 } from "@opentelemetry/sdk-metrics";
+import { OTEL_ATTRIBUTES, OTelClientAttributes } from "./types";
 
 export function noopFunction() {}
 
@@ -27,4 +28,22 @@ export const waitForMetrics = async (
 
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
+};
+
+export const parseClientAttributes = (
+  clientAttributes?: OTelClientAttributes
+) => {
+  return {
+    ...(clientAttributes?.db === undefined
+      ? {}
+      : {
+          [OTEL_ATTRIBUTES.dbNamespace]: clientAttributes.db.toString(),
+        }),
+    ...(clientAttributes?.host && {
+      [OTEL_ATTRIBUTES.serverAddress]: clientAttributes.host,
+    }),
+    ...(clientAttributes?.port && {
+      [OTEL_ATTRIBUTES.serverPort]: clientAttributes.port.toString(),
+    }),
+  };
 };

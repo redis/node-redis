@@ -66,10 +66,16 @@ export interface ObservabilityConfig {
 }
 
 export interface MetricOptions
-  extends Required<Omit<MetricConfig, "meterProvider">> {
+  extends Required<
+    Omit<MetricConfig, "meterProvider" | "includeCommands" | "excludeCommands">
+  > {
   attributes: Attributes;
   serviceName?: string;
   meterProvider?: MeterProvider;
+  includeCommands: Record<string, true>;
+  excludeCommands: Record<string, true>;
+  hasIncludeCommands: boolean;
+  hasExcludeCommands: boolean;
 }
 
 export type MetricInstruments = Readonly<{
@@ -210,11 +216,14 @@ export const METRIC_ERROR_TYPE = {
 export type MetricErrorType =
   (typeof METRIC_ERROR_TYPE)[keyof typeof METRIC_ERROR_TYPE];
 
-export interface IOTelMetrics {
+export interface IOTelCommandMetrics {
   createRecordOperationDuration(
     args: ReadonlyArray<RedisArgument>,
     clientAttributes?: OTelClientAttributes
   ): (error?: Error) => void;
+}
+
+export interface IOTelConnectionBasicMetrics {
   recordConnectionCount(
     value: number,
     clientAttributes?: OTelClientAttributes
@@ -228,13 +237,28 @@ export interface IOTelMetrics {
     clientAttributes?: OTelClientAttributes
   ): void;
   recordConnectionHandoff(clientAttributes: OTelClientAttributes): void;
-  recordClientErrorsHandled(
-    type: MetricErrorType,
-    clientAttributes?: OTelClientAttributes
-  ): void;
-  recordMaintenanceNotifications(clientAttributes: OTelClientAttributes): void;
+}
+
+export interface IOTelConnectionAdvancedMetrics {
   recordPendingRequests(
     value: number,
     clientAttributes?: OTelClientAttributes
   ): void;
+}
+
+export interface IOTelResiliencyMetrics {
+  recordClientErrorsHandled(
+    type: MetricErrorType,
+    clientAttributes?: OTelClientAttributes
+  ): void;
+  recordMaintenanceNotifications(
+    clientAttributes?: OTelClientAttributes
+  ): void;
+}
+
+export interface IOTelMetrics {
+  commandMetrics: IOTelCommandMetrics;
+  connectionBasicMetrics: IOTelConnectionBasicMetrics;
+  connectionAdvancedMetrics: IOTelConnectionAdvancedMetrics;
+  resiliencyMetrics: IOTelResiliencyMetrics;
 }

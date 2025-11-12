@@ -112,7 +112,7 @@ export default class EnterpriseMaintenanceManager {
           throw error;
         }
 
-        OTelMetrics.instance.recordClientErrorsHandled(METRIC_ERROR_TYPE.HANDSHAKE_FAILED, {
+        OTelMetrics.instance.resiliencyMetrics.recordClientErrorsHandled(METRIC_ERROR_TYPE.HANDSHAKE_FAILED, {
           host,
           // TODO add port
           // port: options?.socket?.port,
@@ -142,7 +142,7 @@ export default class EnterpriseMaintenanceManager {
 
     const type = String(push[0]);
 
-    OTelMetrics.instance.recordMaintenanceNotifications(this.#client._getClientOTelAttributes()); 
+    OTelMetrics.instance.resiliencyMetrics.recordMaintenanceNotifications(this.#client._getClientOTelAttributes()); 
 
     emitDiagnostics({
           type,
@@ -277,7 +277,7 @@ export default class EnterpriseMaintenanceManager {
     dbgMaintenance("Resume writing");
     this.#client._unpause();
     this.#onMigrated();
-    OTelMetrics.instance.recordConnectionHandoff(this.#client._getClientOTelAttributes());
+    OTelMetrics.instance.connectionBasicMetrics.recordConnectionHandoff(this.#client._getClientOTelAttributes());
   };
 
   #onMigrating = () => {

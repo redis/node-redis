@@ -238,16 +238,16 @@ export default class RedisSocket extends EventEmitter {
         this.#isReady = true;
         this.#socketEpoch++;
         this.emit('ready');
-        OTelMetrics.instance.recordConnectionCount(1, {
+        OTelMetrics.instance.connectionBasicMetrics.recordConnectionCount(1, {
           host: this.host,
           port: this.port,
         });
-        OTelMetrics.instance.recordConnectionCreateTime(performance.now() - started, {
+        OTelMetrics.instance.connectionBasicMetrics.recordConnectionCreateTime(performance.now() - started, {
           host: this.host,
           port: this.port,
         });
       } catch (err) {
-        const retryIn = this.#shouldReconnect(retries++, err as Error);
+        const retryIn = this.#shouldReconnect(retries++, err as Error);``
         if (typeof retryIn !== 'number') {
           throw retryIn;
         }
@@ -270,13 +270,13 @@ export default class RedisSocket extends EventEmitter {
 
     if(ms !== undefined) {
       this.#socket?.setTimeout(ms);
-      OTelMetrics.instance.recordConnectionRelaxedTimeout(1, {
+      OTelMetrics.instance.connectionBasicMetrics.recordConnectionRelaxedTimeout(1, {
         host: this.host,
         port: this.port,
       });
     } else {
       this.#socket?.setTimeout(this.#socketTimeout ?? 0);
-      OTelMetrics.instance.recordConnectionRelaxedTimeout(-1, {
+      OTelMetrics.instance.connectionBasicMetrics.recordConnectionRelaxedTimeout(-1, {
         host: this.host,
         port: this.port,
       });
@@ -331,7 +331,7 @@ export default class RedisSocket extends EventEmitter {
     this.emit('error', err);
 
     if (wasReady) {
-      OTelMetrics.instance.recordConnectionCount(-1, {
+      OTelMetrics.instance.connectionBasicMetrics.recordConnectionCount(-1, {
         host: this.host,
         port: this.port,
       });
@@ -395,7 +395,7 @@ export default class RedisSocket extends EventEmitter {
       this.#socket = undefined;
     }
 
-    OTelMetrics.instance.recordConnectionCount(-1, {
+    OTelMetrics.instance.connectionBasicMetrics.recordConnectionCount(-1, {
       host: this.host,
       port: this.port,
     });
