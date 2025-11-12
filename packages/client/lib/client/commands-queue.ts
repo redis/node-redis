@@ -235,8 +235,8 @@ export default class RedisCommandsQueue {
       return Promise.reject(new AbortError());
     }
 
-    const recordOperation = OTelMetrics.instance.createRecordOperationDuration(args, otelAttributes);
-    OTelMetrics.instance.recordPendingRequests(1, otelAttributes);
+    const recordOperation = OTelMetrics.instance.commandMetrics.createRecordOperationDuration(args, otelAttributes);
+    OTelMetrics.instance.connectionAdvancedMetrics.recordPendingRequests(1, otelAttributes);
 
     return new Promise((resolve, reject) => {
       let node: DoublyLinkedNode<CommandToWrite>;
@@ -247,12 +247,12 @@ export default class RedisCommandsQueue {
         timeout: undefined,
         resolve: reply => {
           recordOperation()
-          OTelMetrics.instance.recordPendingRequests(-1, otelAttributes);
+          OTelMetrics.instance.connectionAdvancedMetrics.recordPendingRequests(-1, otelAttributes);
           resolve(reply as T);
         },
         reject: (err) => {
           recordOperation(err as Error);
-          OTelMetrics.instance.recordPendingRequests(-1, otelAttributes);
+          OTelMetrics.instance.connectionAdvancedMetrics.recordPendingRequests(-1, otelAttributes);
           reject(err);
         },
         channelsCounter: undefined,

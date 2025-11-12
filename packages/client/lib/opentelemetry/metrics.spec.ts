@@ -39,7 +39,7 @@ describe("OTel Metrics Unit Tests", () => {
   it("should be noop if not initialized", () => {
     const addSpy = spy(NOOP_UP_DOWN_COUNTER_METRIC, "add");
 
-    OTelMetrics.instance.recordConnectionCount(1);
+    OTelMetrics.instance.connectionBasicMetrics.recordConnectionCount(1);
 
     assert.equal(addSpy.callCount, 1);
 
@@ -57,7 +57,7 @@ describe("OTel Metrics Unit Tests", () => {
 
     OTelMetrics.init({ api: undefined, config });
 
-    OTelMetrics.instance.recordConnectionCount(1);
+    OTelMetrics.instance.connectionBasicMetrics.recordConnectionCount(1);
 
     assert.equal(addSpy.callCount, 1);
 
@@ -75,7 +75,7 @@ describe("OTel Metrics Unit Tests", () => {
 
     OTelMetrics.init({ api: undefined, config });
 
-    OTelMetrics.instance.recordConnectionCount(1);
+    OTelMetrics.instance.connectionBasicMetrics.recordConnectionCount(1);
 
     assert.equal(addSpy.callCount, 1);
 
@@ -92,7 +92,7 @@ describe("OTel Metrics Unit Tests", () => {
 
     OTelMetrics.init({ api: undefined, config });
 
-    const recordGET = OTelMetrics.instance.createRecordOperationDuration(
+    const recordGET = OTelMetrics.instance.commandMetrics.createRecordOperationDuration(
       ["GET", "key"],
       {
         host: "localhost",
@@ -107,7 +107,7 @@ describe("OTel Metrics Unit Tests", () => {
       "expect record to be noop function"
     );
 
-    const recordSET = OTelMetrics.instance.createRecordOperationDuration(
+    const recordSET = OTelMetrics.instance.commandMetrics.createRecordOperationDuration(
       ["SET", "key"],
       {
         host: "localhost",
@@ -133,7 +133,7 @@ describe("OTel Metrics Unit Tests", () => {
 
     OTelMetrics.init({ api: undefined, config });
 
-    const recordGET = OTelMetrics.instance.createRecordOperationDuration(
+    const recordGET = OTelMetrics.instance.commandMetrics.createRecordOperationDuration(
       ["GET", "key"],
       {
         host: "localhost",
@@ -148,7 +148,7 @@ describe("OTel Metrics Unit Tests", () => {
       "expect record to be noop function"
     );
 
-    const recordSET = OTelMetrics.instance.createRecordOperationDuration(
+    const recordSET = OTelMetrics.instance.commandMetrics.createRecordOperationDuration(
       ["SET", "key"],
       {
         host: "localhost",
@@ -203,9 +203,9 @@ describe("OTel Metrics E2E", function () {
 
     OTelMetrics.init({ api, config });
 
-    OTelMetrics.instance.recordConnectionCount(1);
-    OTelMetrics.instance.recordConnectionCount(2);
-    OTelMetrics.instance.recordConnectionCount(3);
+    OTelMetrics.instance.connectionBasicMetrics.recordConnectionCount(1);
+    OTelMetrics.instance.connectionBasicMetrics.recordConnectionCount(2);
+    OTelMetrics.instance.connectionBasicMetrics.recordConnectionCount(3);
 
     await meterProvider.forceFlush();
 
@@ -236,7 +236,7 @@ describe("OTel Metrics E2E", function () {
 
     OTelMetrics.init({ api, config });
 
-    OTelMetrics.instance.recordConnectionCount(5);
+    OTelMetrics.instance.connectionBasicMetrics.recordConnectionCount(5);
 
     await meterProvider.forceFlush();
 
