@@ -7,6 +7,7 @@ import assert from "node:assert";
 import { setTimeout } from "node:timers/promises";
 import RedisSocket, { RedisTcpSocketOptions } from "./socket";
 import diagnostics_channel from "node:diagnostics_channel";
+import { METRIC_ERROR_TYPE, OTelClientAttributes, OTelMetrics } from "../opentelemetry";
 
 export const MAINTENANCE_EVENTS = {
   PAUSE_WRITING: "pause-writing",
@@ -51,6 +52,7 @@ interface Client {
   _pause: () => void;
   _unpause: () => void;
   _maintenanceUpdate: (update: MaintenanceUpdate) => void;
+  _getClientOTelAttributes: () => OTelClientAttributes;
   duplicate: () => Client;
   connect: () => Promise<Client>;
   destroy: () => void;
@@ -109,6 +111,12 @@ export default class EnterpriseMaintenanceManager {
         if (options.maintNotifications === "enabled") {
           throw error;
         }
+
+        OTelMetrics.instance.resiliencyMetrics.recordClientErrorsHandled(METRIC_ERROR_TYPE.HANDSHAKE_FAILED, {
+          host,
+          // TODO add port
+          // port: options?.socket?.port,
+        });
       },
     };
   }
@@ -133,6 +141,8 @@ export default class EnterpriseMaintenanceManager {
     }
 
     const type = String(push[0]);
+
+    OTelMetrics.instance.resiliencyMetrics.recordMaintenanceNotifications(this.#client._getClientOTelAttributes()); 
 
     emitDiagnostics({
           type,
@@ -267,6 +277,7 @@ export default class EnterpriseMaintenanceManager {
     dbgMaintenance("Resume writing");
     this.#client._unpause();
     this.#onMigrated();
+    OTelMetrics.instance.connectionBasicMetrics.recordConnectionHandoff(this.#client._getClientOTelAttributes());
   };
 
   #onMigrating = () => {

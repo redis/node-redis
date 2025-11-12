@@ -21,6 +21,7 @@ import { BasicCommandParser, CommandParser } from './parser';
 import SingleEntryCache from '../single-entry-cache';
 import { version } from '../../package.json'
 import EnterpriseMaintenanceManager, { MaintenanceUpdate, MovingEndpointType } from './enterprise-maintenance-manager';
+import { OTelClientAttributes } from '../opentelemetry';
 
 export interface RedisClientOptions<
   M extends RedisModules = RedisModules,
@@ -651,7 +652,7 @@ export default class RedisClient<
           .addCommand(cmd, {
             chainId,
             asap
-          })
+          }, this._getClientOTelAttributes())
           .catch(errorHandler)
       );
     }
@@ -1060,23 +1061,39 @@ export default class RedisClient<
       reply;
   }
 
+  /**
+   * @internal
+  */
+  _getClientOTelAttributes(): OTelClientAttributes { // TODO maybe rename this to something more generic
+    return {
+      host: this._self.#socket.host,
+      port: this._self.#socket.port,
+      db: this._self.#selectedDB,
+    };
+  }
+
   sendCommand<T = ReplyUnion>(
     args: ReadonlyArray<RedisArgument>,
     options?: CommandOptions
   ): Promise<T> {
     if (!this._self.#socket.isOpen) {
       return Promise.reject(new ClientClosedError());
-    } else if (!this._self.#socket.isReady && this._self.#options.disableOfflineQueue) {
+    } else if (
+      !this._self.#socket.isReady &&
+      this._self.#options.disableOfflineQueue
+    ) {
       return Promise.reject(new ClientOfflineError());
     }
 
     // Merge global options with provided options
     const opts = {
       ...this._self._commandOptions,
-      ...options
-    }
+      ...options,
+    };
 
-    const promise = this._self.#queue.addCommand<T>(args, opts);
+    const promise = this._self.#queue.addCommand<T>(args, opts, this._self._getClientOTelAttributes());
+
+
     this._self.#scheduleWrite();
     return promise;
   }
@@ -1314,7 +1331,7 @@ export default class RedisClient<
     const typeMapping = this._commandOptions?.typeMapping;
     const chainId = Symbol('MULTI Chain');
     const promises = [
-      this._self.#queue.addCommand(['MULTI'], { chainId }),
+      this._self.#queue.addCommand(['MULTI'], { chainId }, this._self._getClientOTelAttributes()),
     ];
 
     for (const { args } of commands) {
@@ -1322,12 +1339,12 @@ export default class RedisClient<
         this._self.#queue.addCommand(args, {
           chainId,
           typeMapping
-        })
+        }, this._self._getClientOTelAttributes())
       );
     }
 
     promises.push(
-      this._self.#queue.addCommand(['EXEC'], { chainId })
+      this._self.#queue.addCommand(['EXEC'], { chainId }, this._self._getClientOTelAttributes())
     );
 
     this._self.#scheduleWrite();
@@ -1503,7 +1520,7 @@ export default class RedisClient<
     this._self.#credentialsSubscription = null;
     return this._self.#socket.quit(async () => {
       clearTimeout(this._self.#pingTimer);
-      const quitPromise = this._self.#queue.addCommand<string>(['QUIT']);
+      const quitPromise = this._self.#queue.addCommand<string>(['QUIT'], undefined, this._self._getClientOTelAttributes());
       this._self.#scheduleWrite();
       return quitPromise;
     });
