@@ -2,14 +2,16 @@ import { RedisArgument } from "../..";
 import { MetricErrorType, OTelClientAttributes, IOTelMetrics } from "./types";
 import { noopFunction } from "./utils";
 
-export class NoopOTelMetrics implements IOTelMetrics {
+export class NoopCommandMetrics {
   createRecordOperationDuration(
     _args: ReadonlyArray<RedisArgument>,
     _clientAttributes?: OTelClientAttributes
   ): (error?: Error) => void {
     return noopFunction;
   }
+}
 
+export class NoopConnectionBasicMetrics {
   recordConnectionCount(
     _value: number,
     _clientAttributes?: OTelClientAttributes
@@ -26,16 +28,26 @@ export class NoopOTelMetrics implements IOTelMetrics {
   ) {}
 
   recordConnectionHandoff(_clientAttributes: OTelClientAttributes) {}
+}
 
-  recordClientErrorsHandled(
-    _type: MetricErrorType,
-    _clientAttributes?: OTelClientAttributes
-  ) {}
-
-  recordMaintenanceNotifications(_clientAttributes: OTelClientAttributes) {}
-
+export class NoopConnectionAdvancedMetrics {
   recordPendingRequests(
     _value: number,
     _clientAttributes?: OTelClientAttributes
   ) {}
+}
+
+export class NoopResiliencyMetrics {
+  recordClientErrorsHandled(
+    _type: MetricErrorType,
+    _clientAttributes?: OTelClientAttributes
+  ) {}
+  recordMaintenanceNotifications(_clientAttributes: OTelClientAttributes) {}
+}
+
+export class NoopOTelMetrics implements IOTelMetrics {
+  commandMetrics = new NoopCommandMetrics();
+  connectionBasicMetrics = new NoopConnectionBasicMetrics();
+  connectionAdvancedMetrics = new NoopConnectionAdvancedMetrics();
+  resiliencyMetrics = new NoopResiliencyMetrics();
 }
