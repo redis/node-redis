@@ -20,7 +20,7 @@ import { BasicClientSideCache, ClientSideCacheConfig, ClientSideCacheProvider } 
 import { BasicCommandParser, CommandParser } from './parser';
 import SingleEntryCache from '../single-entry-cache';
 import { version } from '../../package.json'
-import EnterpriseMaintenanceManager, { MaintenanceUpdate, MovingEndpointType } from './enterprise-maintenance-manager';
+import EnterpriseMaintenanceManager, { MaintenanceUpdate, MovingEndpointType, SMIGRATED_EVENT } from './enterprise-maintenance-manager';
 
 export interface RedisClientOptions<
   M extends RedisModules = RedisModules,
@@ -1007,6 +1007,13 @@ export default class RedisClient<
      this._self.#paused = false;
      this._self.#maybeScheduleWrite();
    }
+
+   /**
+    * @internal
+    */
+    _handleSmigrated(sequenceId: number) {
+      this._self.emit(SMIGRATED_EVENT, sequenceId);
+    }
 
   /**
    * @internal

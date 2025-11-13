@@ -7,6 +7,7 @@ import { RedisArgument, RedisFunctions, RedisModules, RedisScripts, RespVersions
 import calculateSlot from 'cluster-key-slot';
 import { RedisSocketOptions } from '../client/socket';
 import { BasicPooledClientSideCache, PooledClientSideCacheProvider } from '../client/cache';
+import { SMIGRATED_EVENT, SMigratedEvent, dbgMaintenance } from '../client/enterprise-maintenance-manager';
 
 interface NodeAddress {
   host: string;
@@ -192,6 +193,7 @@ export default class RedisClusterSlots<
         eagerConnect = this.#options.minimizeConnections !== true;
 
       const shards = await this.#getShards(rootNode);
+      dbgMaintenance(shards);
       this.#resetSlots(); // Reset slots AFTER shards have been fetched to prevent a race condition
       for (const { from, to, master, replicas } of shards) {
         const shard: Shard<M, F, S, RESP, TYPE_MAPPING> = {
@@ -251,12 +253,83 @@ export default class RedisClusterSlots<
     }
   }
 
+  #handleSmigrated = async (event: SMigratedEvent) => {
+    dbgMaintenance(`[CSlots]: handle smigrated`, event);
+
+    // slots = new Array<Shard<M, F, S, RESP, TYPE_MAPPING>>(RedisClusterSlots.#SLOTS);
+    // masters = new Array<MasterNode<M, F, S, RESP, TYPE_MAPPING>>();
+    // replicas = new Array<ShardNode<M, F, S, RESP, TYPE_MAPPING>>();
+    // readonly nodeByAddress = new Map<string, MasterNode<M, F, S, RESP, TYPE_MAPPING> | ShardNode<M, F, S, RESP, TYPE_MAPPING>>();
+    // pubSubNode?: PubSubNode<M, F, S, RESP, TYPE_MAPPING>;
+
+    const sourceAddress = `${event.source.host}:${event.source.port}`;
+    const sourceNode = this.nodeByAddress.get(sourceAddress);
+    if(!sourceNode) {
+      dbgMaintenance(`[CSlots]: address ${sourceAddress} not in 'nodeByAddress', abort SMIGRATED handling`);
+      return;
+    }
+
+    // 1. Pausing
+    //TODO - check the single pubsubnode
+    sourceNode.client?._pause();
+    if('pubSub' in sourceNode) {
+      sourceNode.pubSub?.client._pause();
+    }
+
+    const destinationAddress = `${event.destination.host}:${event.destination.port}`;
+    let destinationNode = this.nodeByAddress.get(destinationAddress);
+    let destinationShard: Shard<M, F, S, RESP, TYPE_MAPPING>;
+
+    // 2. Create new Master
+    if(!destinationNode) {
+      const promises: Promise<unknown>[] = [];
+      destinationNode = this.#initiateSlotNode({ host: event.destination.host, port: event.destination.port, id: 'asdff' }, false, true, new Set(), promises);
+      await Promise.all(promises);
+      // 2.1 Pause
+      destinationNode.client?._pause();
+      // In case destination node didnt exist, this means Shard didnt exist as well, so creating a new Shard is completely fine
+      destinationShard = {
+        master: destinationNode
+      };
+    } else {
+      // In case destination node existed, this means there was a Shard already, so its best if we can find it.
+      const existingShard = this.slots.find(shard => shard.master.host === event.destination.host && shard.master.port === event.destination.port);
+      if(!existingShard) {
+        dbgMaintenance("Could not find shard");
+        throw new Error('Could not find shard');
+      }
+      destinationShard = existingShard;
+    }
+
+    // 3. Soft update shards
+    for(const range of event.ranges) {
+      if(typeof range === 'number') {
+        this.slots[range] = destinationShard;
+      } else {
+        for (let slot = range[0]; slot <= range[1]; slot++) {
+          this.slots[slot] = destinationShard;
+        }
+      }
+    }
+
+    // 4. For all affected clients (normal, pubsub, spubsub):
+    //   4.1 Wait for inflight commands to complete
+    //   4.2 Extract commands, channels, sharded channels
+    //   4.3 Kill if no slots are pointing to it
+    //
+
+    // 5. Prepend extracted commands, chans
+    // 5.1 Unpause
+
+  }
+
   async #getShards(rootNode: RedisClusterClientOptions) {
     const options = this.#clientOptionsDefaults(rootNode)!;
     options.socket ??= {};
     options.socket.reconnectStrategy = false;
     options.RESP = this.#options.RESP;
     options.commandOptions = undefined;
+    options.maintNotifications = 'disabled';
 
     // TODO: find a way to avoid type casting
     const client = await this.#clientFactory(options as RedisClientOptions<M, F, S, RESP, {}>)
@@ -344,8 +417,7 @@ export default class RedisClusterSlots<
       port: socket.port,
     });
     const emit = this.#emit;
-    const client = this.#clientFactory(
-      this.#clientOptionsDefaults({
+    const client = this.#clientFactory( this.#clientOptionsDefaults({
         clientSideCache: this.clientSideCache,
         RESP: this.#options.RESP,
         socket,
@@ -356,6 +428,7 @@ export default class RedisClusterSlots<
       .once('ready', () => emit('node-ready', clientInfo))
       .once('connect', () => emit('node-connect', clientInfo))
       .once('end', () => emit('node-disconnect', clientInfo))
+      .on(SMIGRATED_EVENT, this.#handleSmigrated)
       .on('__MOVED', async (allPubSubListeners: PubSubListeners) => {
         await this.rediscover(client);
         this.#emit('__resubscribeAllPubSubListeners', allPubSubListeners);

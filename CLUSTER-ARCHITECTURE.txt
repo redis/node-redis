@@ -1,0 +1,175 @@
+Redis Cluster Architecture Diagram
+===================================
+
+                                    ┌─────────────────────────────────────────┐
+                                    │       RedisCluster (Root)               │
+                                    │                                         │
+                                    │  - _options: RedisClusterOptions        │
+                                    │  - _slots: RedisClusterSlots            │
+                                    │  - _commandOptions                      │
+                                    │                                         │
+                                    │  Methods:                               │
+                                    │  + connect()                            │
+                                    │  + sendCommand()                        │
+                                    │  + MULTI()                              │
+                                    │  + SUBSCRIBE() / UNSUBSCRIBE()          │
+                                    │  + SSUBSCRIBE() / SUNSUBSCRIBE()        │
+                                    │  + close() / destroy()                  │
+                                    └──────────────┬──────────────────────────┘
+                                                   │
+                                                   │ contains
+                                                   │
+                        ┌──────────────────────────┴──────────────────────────┐
+                        │                                                     │
+                        │          RedisClusterSlots                          │
+                        │                                                     │
+                        │  - slots: Array<Shard>[16384]                       │
+                        │  - masters: Array<MasterNode>                       │
+                        │  - replicas: Array<ShardNode>                       │
+                        │  - nodeByAddress: Map<string, Node>                 │
+                        │  - pubSubNode?: PubSubNode                          │
+                        │  - clientSideCache?: PooledClientSideCacheProvider  │
+                        │                                                     │
+                        │  Methods:                                           │
+                        │  + connect()                                        │
+                        │  + getClient()                                      │
+                        │  + rediscover()                                     │
+                        │  + getPubSubClient()                                │
+                        │  + getShardedPubSubClient()                         │
+                        │  + getRandomNode()                                  │
+                        │  + getSlotRandomNode()                              │
+                        └───────┬─────────────────┬─────────────────┬─────────┘
+                                │                 │                 │
+                     ┌──────────┘                 │                 └─────────────┐
+                     │                            │                               │
+                     │ has many                   │ optionally has                │ has many
+                     ▼                            ▼                               ▼
+        ┌────────────────────────┐   ┌────────────────────────┐   ┌────────────────────────┐
+        │   Shard                │   │   PubSubNode           │   │   RedisClient          │
+        │                        │   │                        │   │   (per node)           │
+        │  - master: MasterNode  │   │  - address: string     │   │                        │
+        │  - replicas?: Array    │   │  - client: RedisClient │   │  Socket, Queue, etc.   │
+        │  - nodesIterator       │   │  - connectPromise      │   │                        │
+        └──────────┬─────────────┘   └────────────────────────┘   └────────────────────────┘
+                   │
+                   │ contains
+                   │
+      ┌────────────┴────────────┐
+      │                         │
+      ▼                         ▼
+┌──────────────────┐   ┌──────────────────┐
+│   MasterNode     │   │   ShardNode      │
+│                  │   │   (replica)      │
+│  - id: string    │   │                  │
+│  - host: string  │   │  - id: string    │
+│  - port: number  │   │  - host: string  │
+│  - address       │   │  - port: number  │
+│  - readonly: no  │   │  - address       │
+│  - client?       │   │  - readonly: yes │
+│  - pubSub?       │   │  - client?       │
+│    └─> client    │   │                  │
+│    └─> promise   │   │                  │
+└──────────────────┘   └──────────────────┘
+
+
+Additional Components:
+─────────────────────
+
+┌────────────────────────────────────┐
+│   RedisClusterMultiCommand         │
+│                                    │
+│  Used for MULTI/PIPELINE:          │
+│  - Batches commands                │
+│  - Routes to single node           │
+│  - Returns typed results           │
+│                                    │
+│  Methods:                          │
+│  + addCommand()                    │
+│  + exec()                          │
+│  + execAsPipeline()                │
+└────────────────────────────────────┘
+
+┌────────────────────────────────────┐
+│   PooledClientSideCacheProvider    │
+│   (BasicPooledClientSideCache)     │
+│                                    │
+│  RESP3 Client-Side Caching:        │
+│  - Shared across all nodes         │
+│  - Invalidation tracking           │
+│  - TTL & eviction policies         │
+│                                    │
+│  Methods:                          │
+│  + get() / set()                   │
+│  + invalidate()                    │
+│  + clear() / enable() / disable()  │
+└────────────────────────────────────┘
+
+
+Key Relationships:
+─────────────────
+
+1. RedisCluster 
+   └─> RedisClusterSlots (manages topology)
+       └─> Shard[] (16,384 hash slots)
+           ├─> MasterNode (read/write)
+           │   └─> RedisClient
+           │   └─> PubSub RedisClient (sharded pub/sub)
+           └─> ShardNode[] (replicas, read-only if useReplicas=true)
+               └─> RedisClient
+
+2. RedisCluster
+   └─> RedisClusterMultiCommand (for transactions)
+
+3. RedisClusterSlots
+   └─> PubSubNode (global pub/sub)
+       └─> RedisClient
+
+4. RedisClusterSlots
+   └─> PooledClientSideCacheProvider (shared cache, RESP3 only)
+
+
+Command Flow:
+────────────
+
+Single Command:
+  Client.sendCommand()
+    → Cluster._execute()
+      → Slots.getClient(key, isReadonly)
+        → Calculate slot from key
+        → Get Shard for slot
+        → Return master or replica client
+      → Client.sendCommand()
+        → [If MOVED/ASK error]
+          → Slots.rediscover()
+          → Retry with new node
+
+Transaction (MULTI):
+  Client.MULTI(routing)
+    → RedisClusterMultiCommand
+      → Accumulate commands
+      → All commands must route to same node
+      → client.exec()
+
+Pub/Sub:
+  Global: Uses single PubSubNode
+  Sharded: Uses per-master pubSub client based on channel hash
+
+
+Discovery & Failover:
+─────────────────────
+
+1. Initial Connect:
+   - Try rootNodes in random order
+   - Execute CLUSTER SLOTS command
+   - Build slot → shard mapping
+   - Create client connections
+
+2. Rediscovery (on MOVED error):
+   - Clear cache
+   - Re-fetch CLUSTER SLOTS
+   - Update topology
+   - Reconnect clients to new nodes
+
+3. Node Address Mapping:
+   - nodeAddressMap translates cluster IPs
+   - Useful for NAT/Docker scenarios
