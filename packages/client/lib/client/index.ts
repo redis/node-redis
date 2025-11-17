@@ -21,7 +21,7 @@ import { BasicCommandParser, CommandParser } from './parser';
 import SingleEntryCache from '../single-entry-cache';
 import { version } from '../../package.json'
 import EnterpriseMaintenanceManager, { MaintenanceUpdate, MovingEndpointType } from './enterprise-maintenance-manager';
-import { OTelClientAttributes } from '../opentelemetry';
+import { OTelClientAttributes, OTelMetrics } from '../opentelemetry';
 
 export interface RedisClientOptions<
   M extends RedisModules = RedisModules,
@@ -652,7 +652,7 @@ export default class RedisClient<
           .addCommand(cmd, {
             chainId,
             asap
-          }, this._getClientOTelAttributes())
+          })
           .catch(errorHandler)
       );
     }
@@ -1076,12 +1076,17 @@ export default class RedisClient<
     args: ReadonlyArray<RedisArgument>,
     options?: CommandOptions
   ): Promise<T> {
+    const clientAttributes = this._self._getClientOTelAttributes();
+    const recordOperation = OTelMetrics.instance.commandMetrics.createRecordOperationDuration(args, clientAttributes);
+
     if (!this._self.#socket.isOpen) {
+      recordOperation(new ClientClosedError());
       return Promise.reject(new ClientClosedError());
     } else if (
       !this._self.#socket.isReady &&
       this._self.#options.disableOfflineQueue
     ) {
+      recordOperation(new ClientOfflineError());
       return Promise.reject(new ClientOfflineError());
     }
 
@@ -1091,11 +1096,29 @@ export default class RedisClient<
       ...options,
     };
 
-    const promise = this._self.#queue.addCommand<T>(args, opts, this._self._getClientOTelAttributes());
+    const promise = this._self.#queue.addCommand<T>(args, opts);
 
+    if (OTelMetrics.isInitialized()) {
+      OTelMetrics.instance.connectionAdvancedMetrics.recordPendingRequests(1, clientAttributes);
 
-    this._self.#scheduleWrite();
-    return promise;
+      const trackedPromise = promise
+        .then((reply) => {
+          recordOperation();
+          OTelMetrics.instance.connectionAdvancedMetrics.recordPendingRequests(-1, clientAttributes);
+          return reply;
+        })
+        .catch((err) => {
+          recordOperation(err);
+          OTelMetrics.instance.connectionAdvancedMetrics.recordPendingRequests(-1, clientAttributes);
+          throw err;
+        });
+
+      this._self.#scheduleWrite();
+      return trackedPromise;
+    } else {
+      this._self.#scheduleWrite();
+      return promise;
+    }
   }
 
   async SELECT(db: number): Promise<void> {
@@ -1331,7 +1354,7 @@ export default class RedisClient<
     const typeMapping = this._commandOptions?.typeMapping;
     const chainId = Symbol('MULTI Chain');
     const promises = [
-      this._self.#queue.addCommand(['MULTI'], { chainId }, this._self._getClientOTelAttributes()),
+      this._self.#queue.addCommand(['MULTI'], { chainId }),
     ];
 
     for (const { args } of commands) {
@@ -1339,12 +1362,12 @@ export default class RedisClient<
         this._self.#queue.addCommand(args, {
           chainId,
           typeMapping
-        }, this._self._getClientOTelAttributes())
+        })
       );
     }
 
     promises.push(
-      this._self.#queue.addCommand(['EXEC'], { chainId }, this._self._getClientOTelAttributes())
+      this._self.#queue.addCommand(['EXEC'], { chainId })
     );
 
     this._self.#scheduleWrite();
@@ -1520,7 +1543,7 @@ export default class RedisClient<
     this._self.#credentialsSubscription = null;
     return this._self.#socket.quit(async () => {
       clearTimeout(this._self.#pingTimer);
-      const quitPromise = this._self.#queue.addCommand<string>(['QUIT'], undefined, this._self._getClientOTelAttributes());
+      const quitPromise = this._self.#queue.addCommand<string>(['QUIT']);
       this._self.#scheduleWrite();
       return quitPromise;
     });
