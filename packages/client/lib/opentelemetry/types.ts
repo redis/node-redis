@@ -251,9 +251,7 @@ export interface IOTelResiliencyMetrics {
     type: MetricErrorType,
     clientAttributes?: OTelClientAttributes
   ): void;
-  recordMaintenanceNotifications(
-    clientAttributes?: OTelClientAttributes
-  ): void;
+  recordMaintenanceNotifications(clientAttributes?: OTelClientAttributes): void;
 }
 
 export interface IOTelMetrics {
