@@ -4,7 +4,7 @@ import RedisBloomModules from '.';
 export default  TestUtils.createFromConfig({
   dockerImageName: 'redislabs/client-libs-test',
   dockerImageVersionArgument: 'redis-version',
-  defaultDockerVersion: '8.4-GA-pre.2'
+  defaultDockerVersion: '8.4-GA-pre.3'
 });
 
 export const GLOBAL = {
