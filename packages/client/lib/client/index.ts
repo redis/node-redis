@@ -1092,8 +1092,11 @@ export default class RedisClient<
     args: ReadonlyArray<RedisArgument>,
     options?: CommandOptions
   ): Promise<T> {
-    const clientAttributes = this._self._getClientOTelAttributes();
-    const recordOperation = OTelMetrics.instance.commandMetrics.createRecordOperationDuration(args, clientAttributes);
+    const recordOperation = OTelMetrics.instance.commandMetrics.createRecordOperationDuration(args, {
+      host: this._self.#socket.host,
+      port: this._self.#socket.port,
+      db: this._self.#selectedDB,
+    });
 
     if (!this._self.#socket.isOpen) {
       recordOperation(new ClientClosedError());
@@ -1114,27 +1117,40 @@ export default class RedisClient<
 
     const promise = this._self.#queue.addCommand<T>(args, opts);
 
-    if (OTelMetrics.isInitialized()) {
-      OTelMetrics.instance.connectionAdvancedMetrics.recordPendingRequests(1, clientAttributes);
+    OTelMetrics.instance.connectionAdvancedMetrics.recordPendingRequests(1, {
+      host: this._self.#socket.host,
+      port: this._self.#socket.port,
+      db: this._self.#selectedDB,
+    });
 
-      const trackedPromise = promise
-        .then((reply) => {
-          recordOperation();
-          OTelMetrics.instance.connectionAdvancedMetrics.recordPendingRequests(-1, clientAttributes);
-          return reply;
-        })
-        .catch((err) => {
-          recordOperation(err);
-          OTelMetrics.instance.connectionAdvancedMetrics.recordPendingRequests(-1, clientAttributes);
-          throw err;
-        });
+    const trackedPromise = promise
+      .then((reply) => {
+        recordOperation();
+        OTelMetrics.instance.connectionAdvancedMetrics.recordPendingRequests(
+          -1,
+          {
+            host: this._self.#socket.host,
+            port: this._self.#socket.port,
+            db: this._self.#selectedDB,
+          }
+        );
+        return reply;
+      })
+      .catch((err) => {
+        recordOperation(err);
+        OTelMetrics.instance.connectionAdvancedMetrics.recordPendingRequests(
+          -1,
+          {
+            host: this._self.#socket.host,
+            port: this._self.#socket.port,
+            db: this._self.#selectedDB,
+          }
+        );
+        throw err;
+      });
 
-      this._self.#scheduleWrite();
-      return trackedPromise;
-    } else {
-      this._self.#scheduleWrite();
-      return promise;
-    }
+    this._self.#scheduleWrite();
+    return trackedPromise;
   }
 
   async SELECT(db: number): Promise<void> {
