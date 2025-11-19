@@ -1,6 +1,6 @@
 {
   "name": "@redis/entraid",
-  "version": "5.9.0",
+  "version": "5.10.0",
   "license": "MIT",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -22,7 +22,7 @@
     "@azure/msal-node": "^2.16.1"
   },
   "peerDependencies": {
-    "@redis/client": "^5.9.0"
+    "@redis/client": "^5.10.0"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
