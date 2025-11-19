@@ -5,7 +5,7 @@ import { RespVersions } from '@redis/client';
 export default TestUtils.createFromConfig({
   dockerImageName: 'redislabs/client-libs-test',
   dockerImageVersionArgument: 'redis-version',
-  defaultDockerVersion: '8.4-GA-pre.3'
+  defaultDockerVersion: '8.4.0'
 });
 
 export const GLOBAL = {
