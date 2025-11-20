@@ -13,7 +13,8 @@
   ],
   "scripts": {
     "test-single": "TS_NODE_PROJECT='./packages/test-utils/tsconfig.json' mocha --require ts-node/register/transpile-only ",
-    "test": "npm run test -ws --if-present",
+    "cleanup": "rm -rf junit-results",
+    "test": "npm run cleanup && npm run test -ws --if-present",
     "build": "tsc --build",
     "documentation": "typedoc --out ./documentation",
     "gh-pages": "gh-pages -d ./documentation -e ./documentation -u 'documentation-bot <documentation@bot>'",
@@ -26,6 +27,8 @@
     "@types/node": "^20.11.16",
     "gh-pages": "^6.1.1",
     "mocha": "^10.2.0",
+    "mocha-junit-reporter": "^2.2.1",
+    "mocha-multi-reporters": "^1.5.1",
     "nyc": "^15.1.0",
     "release-it": "^19.0.2",
     "ts-node": "^10.9.2",
