@@ -115,7 +115,12 @@ export default class RedisCommandsQueue {
         (Number.isNaN(head.channelsCounter!) && push[2] === 0) ||
         --head.channelsCounter! === 0
       ) {
-        this.#waitingForReply.shift()!.resolve();
+        const node = this.#waitingForReply.shift()!
+        if (node.timeout) {
+          RedisCommandsQueue.#removeTimeoutListener(node);
+          node.timeout = undefined;
+        }
+        node.resolve();
       }
       return true;
     }
@@ -190,6 +195,7 @@ export default class RedisCommandsQueue {
             if (value.timeout!.toBeSent) {
               this.#toWrite.remove(value.node as DoublyLinkedNode<CommandToWrite>);
             } else {
+              this.#waitingForReply.remove(value.node as DoublyLinkedNode<CommandWaitingForReply>);
               value.resolve = () => {};
               value.reject = () => {};
             }
@@ -245,9 +251,13 @@ export default class RedisCommandsQueue {
         if (this.#onPush(reply)) return;
 
         if (PONG.equals(reply[0] as Buffer)) {
-          const { resolve, typeMapping } = this.#waitingForReply.shift()!,
+          const node = this.#waitingForReply.shift()!,
             buffer = ((reply[1] as Buffer).length === 0 ? reply[0] : reply[1]) as Buffer;
-          resolve(typeMapping?.[RESP_TYPES.SIMPLE_STRING] === Buffer ? buffer : buffer.toString());
+          if (node.timeout) {
+            RedisCommandsQueue.#removeTimeoutListener(node);
+            node.timeout.toBeSent = false;
+                      }
+          node.resolve(node.typeMapping?.[RESP_TYPES.SIMPLE_STRING] === Buffer ? buffer : buffer.toString());
           return;
         }
       }
@@ -383,7 +393,12 @@ export default class RedisCommandsQueue {
           this.#resetFallbackOnReply = undefined;
           this.#pubSub.reset();
 
-          this.#waitingForReply.shift()!.resolve(reply);
+          const node = this.#waitingForReply.shift()!;
+          if (node.timeout) {
+            RedisCommandsQueue.#removeTimeoutListener(node);
+            node.timeout = undefined;
+          }
+          node.resolve(reply);
           return;
         }
 

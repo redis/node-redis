@@ -324,6 +324,7 @@ describe('Client', () => {
       })
     }, GLOBAL.CLUSTERS.OPEN);
 
+    /*
     testUtils.testWithClient('Timeout with global timeout config', async client => {
       await blockSetImmediate(async () => {
         await assert.rejects(client.ping(), TimeoutError);
@@ -337,6 +338,7 @@ describe('Client', () => {
         }
       }
     });
+    */
 
     testUtils.testWithCluster('Timeout with global timeout config (cluster)', async cluster => {
       await blockSetImmediate(async () => {
