@@ -1097,21 +1097,19 @@ describe('legacy tests', () => {
     let sentinel: RedisSentinelType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping> | undefined;
     const tracer: Array<string> = [];
 
-    before(async function () {
+    beforeEach(async function () {
       this.timeout(60000);
       await frame.spawnRedisSentinel();
+      await frame.getAllRunning();
       await steadyState(frame);
     });
 
     afterEach(async function () {
+      this.timeout(60000);
       if (sentinel !== undefined) {
         sentinel.destroy();
         sentinel = undefined;
       }
-    });
-
-    after(async function () {
-      this.timeout(60000);
       await frame.cleanup();
     });
 
