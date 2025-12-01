@@ -14,8 +14,10 @@ export const SMIGRATED_EVENT = "__SMIGRATED";
 export interface SMigratedEvent {
   seqId: number,
   source: { host: string, port: number };
-  destination: { host: string, port: number };
-  ranges: (number | [number, number])[]
+  destinations: {
+    host: string, port: number
+    slots: (number | [number, number])[]
+  }[]
 }
 
 export const MAINTENANCE_EVENTS = {
@@ -165,11 +167,8 @@ export default class EnterpriseMaintenanceManager {
         return true;
       }
       case PN.SMIGRATED: {
-        // [ 'SMIGRATED', '123', '54.78.247.156:12075' 'slot1,rangediff1' ]
-        //                 ^seq   ^new ip               ^slots info
-        const sequenceId = Number(push[1]);
         dbgMaintenance("Received SMIGRATED");
-        this.#client._handleSmigrated(sequenceId);
+        this.#onSMigrated(push);
         return true;
       }
     }
@@ -205,12 +204,9 @@ export default class EnterpriseMaintenanceManager {
     // period that was communicated by the server is over.
     if (url === null) {
       assert(this.#options.maintEndpointType === "none");
-      assert(this.#options.socket !== undefined);
-      assert("host" in this.#options.socket);
-      assert(typeof this.#options.socket.host === "string");
-      host = this.#options.socket.host;
-      assert(typeof this.#options.socket.port === "number");
-      port = this.#options.socket.port;
+      const { host: h, port: p } = this.#getAddress()
+      host = h;
+      port = p;
       const waitTime = (afterSeconds * 1000) / 2;
       dbgMaintenance(`Wait for ${waitTime}ms`);
       await setTimeout(waitTime);
@@ -312,7 +308,55 @@ export default class EnterpriseMaintenanceManager {
 
     this.#client._maintenanceUpdate(update);
   };
+
+  #onSMigrated = (push: any[]) => {
+    // [ 'SMIGRATED', '15', [ '127.0.0.1:6379 123,456,789-1000', '127.0.0.1:6380 124,457,300-500' ] ]
+    //                 ^seq   ^new endpoint1   ^slots            ^new endpoint2  ^slots
+    const sequenceId = Number(push[1]);
+    const smigratedEvent: SMigratedEvent = {
+      seqId: sequenceId,
+      source: {
+        ...this.#getAddress()
+      },
+      destinations: []
+    }
+    for(const endpointInfo of push[2]) {
+      const [endpoint, slots] = String(endpointInfo).split(' ');
+      //TODO not sure if we need to handle fqdn/ip.. cluster manages clients by host:port. If `cluster slots` returns ip,
+      // but this notification returns fqdn, then we need to unify somehow ( maybe lookup )
+      const [ host, port ] = endpoint.split(':');
+      // `slots` could be mix of single slots and ranges, for example: 123,456,789-1000
+      const parsedSlots = slots.split(',').map((singleOrRange): number | [number, number] => {
+        const separatorIndex = singleOrRange.indexOf('-');
+        if(separatorIndex === -1) {
+          // Its single slot
+          return Number(singleOrRange);
+        }
+        // Its range
+        return [Number(singleOrRange.substring(0, separatorIndex)), Number(singleOrRange.substring(separatorIndex + 1))];
+      });
+
+      smigratedEvent.destinations.push({
+        host,
+        port: Number(port),
+        slots: parsedSlots
+      })
+    }
+    this.#client._handleSmigrated(smigratedEvent);
+  }
+
+
+  #getAddress(): { host: string, port: number } {
+    assert(this.#options.socket !== undefined);
+    assert("host" in this.#options.socket);
+    assert(typeof this.#options.socket.host === "string");
+    const host = this.#options.socket.host;
+    assert(typeof this.#options.socket.port === "number");
+    const port = this.#options.socket.port;
+    return { host, port };
+  }
 }
+
 
 export type MovingEndpointType =
   | "auto"

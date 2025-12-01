@@ -255,7 +255,7 @@ export default class RedisClusterSlots<
   }
 
   #handleSmigrated = async (event: SMigratedEvent) => {
-    dbgMaintenance(`[CSlots]: handle smigrated`, event);
+    dbgMaintenance(`[CSlots]: handle smigrated`, JSON.stringify(event, null, 2));
 
     if(this.smigratedSeqIdsSeen.has(event.seqId)) {
       dbgMaintenance(`[CSlots]: sequence id ${event.seqId} already seen, abort`)
