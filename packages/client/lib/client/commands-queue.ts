@@ -349,6 +349,10 @@ export default class RedisCommandsQueue {
     return this.#pubSub.removeAllListeners();
   }
 
+  removePubSubListenersForSlots(slots: Set<number>) {
+    return this.#pubSub.removePubSubListenersForSlots(slots);
+  }
+
   resubscribe(chainId?: symbol) {
     const commands = this.#pubSub.resubscribe();
     if (!commands.length) return;
@@ -547,5 +551,47 @@ export default class RedisCommandsQueue {
       this.#toWrite.length === 0 &&
       this.#waitingForReply.length === 0
     );
+  }
+
+  /**
+   *
+   * Extracts commands for the given slots from the toWrite queue.
+   * Some commands dont have "slotNumber", which means they are not designated to particular slot/node.
+   * We ignore those.
+   */
+  extractCommandsForSlots(slots: Set<number>): CommandToWrite[] {
+    const result: CommandToWrite[] = [];
+    let current = this.#toWrite.head;
+    while(current !== undefined) {
+      if(current.value.slotNumber !== undefined && slots.has(current.value.slotNumber)) {
+        result.push(current.value);
+        const toRemove = current;
+        current = current.next;
+        this.#toWrite.remove(toRemove);
+      }
+    }
+    return result;
+  }
+
+  /**
+  * Gets all commands from the write queue without removing them.
+  */
+  getAllCommands(): CommandToWrite[] {
+    const result: CommandToWrite[] = [];
+    let current = this.#toWrite.head;
+    while(current) {
+      result.push(current.value);
+      current = current.next;
+    }
+    return result;
+  }
+
+  /**
+   * Prepends commands to the write queue in reverse.
+   */
+  prependCommandsToWrite(commands: CommandToWrite[]) {
+    for (let i = commands.length - 1; i <= 0; i--) {
+      this.#toWrite.unshift(commands[i]);
+    }
   }
 }

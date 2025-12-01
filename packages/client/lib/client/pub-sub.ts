@@ -1,5 +1,6 @@
 import { RedisArgument } from '../RESP/types';
 import { CommandToWrite } from './commands-queue';
+import calculateSlot from 'cluster-key-slot';
 
 export const PUBSUB_TYPE = {
   CHANNELS: 'CHANNELS',
@@ -418,6 +419,31 @@ export class PubSub {
     this.listeners[PUBSUB_TYPE.SHARDED] = new Map();
 
     return result;
+  }
+
+  removePubSubListenersForSlots(slots: Set<number>) {
+    const channels = new Map<string, ChannelListeners>();
+    for (const [channel, value] of this.listeners[PUBSUB_TYPE.CHANNELS]) {
+      if (slots.has(calculateSlot(channel))) {
+        channels.set(channel, value);
+        this.listeners[PUBSUB_TYPE.CHANNELS].delete(channel);
+      }
+    }
+
+    const sharded = new Map<string, ChannelListeners>();
+    for (const [chanel, value] of this.listeners[PUBSUB_TYPE.SHARDED]) {
+      if (slots.has(calculateSlot(chanel))) {
+        sharded.set(chanel, value);
+        this.listeners[PUBSUB_TYPE.SHARDED].delete(chanel);
+      }
+    }
+
+    this.#updateIsActive();
+
+    return {
+      [PUBSUB_TYPE.CHANNELS]: channels,
+      [PUBSUB_TYPE.SHARDED]: sharded
+    };
   }
 
   #emitPubSubMessage(
