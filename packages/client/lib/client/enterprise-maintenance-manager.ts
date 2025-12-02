@@ -310,9 +310,9 @@ export default class EnterpriseMaintenanceManager {
   };
 
   #onSMigrated = (push: any[]) => {
-    // [ 'SMIGRATED', '15', [ '127.0.0.1:6379 123,456,789-1000', '127.0.0.1:6380 124,457,300-500' ] ]
-    //                 ^seq   ^new endpoint1   ^slots            ^new endpoint2  ^slots
-    const sequenceId = Number(push[1]);
+    // [ 'SMIGRATED', 15, [ [ '127.0.0.1:6379', '123,456,789-1000' ], [ '127.0.0.1:6380', '124,457,300-500' ] ] ]
+    //                ^seq    ^new endpoint1    ^slots                  ^new endpoint2    ^slots
+    const sequenceId: number = push[1];
     const smigratedEvent: SMigratedEvent = {
       seqId: sequenceId,
       source: {
@@ -320,8 +320,7 @@ export default class EnterpriseMaintenanceManager {
       },
       destinations: []
     }
-    for(const endpointInfo of push[2]) {
-      const [endpoint, slots] = String(endpointInfo).split(' ');
+    for(const [endpoint, slots] of push[2] as string[]) {
       //TODO not sure if we need to handle fqdn/ip.. cluster manages clients by host:port. If `cluster slots` returns ip,
       // but this notification returns fqdn, then we need to unify somehow ( maybe lookup )
       const [ host, port ] = endpoint.split(':');
