@@ -1015,6 +1015,12 @@ export default class RedisClient<
      this._self.emit(SMIGRATED_EVENT, smigratedEvent);
    }
 
+   /**
+    * @internal
+    */
+   _getQueue(): RedisCommandsQueue {
+     return this.#queue;
+   }
 
   /**
    * @internal
@@ -1082,7 +1088,7 @@ export default class RedisClient<
     // Merge global options with provided options
     const opts = {
       ...this._self._commandOptions,
-      ...options
+      ...options,
     }
 
     const promise = this._self.#queue.addCommand<T>(args, opts);
