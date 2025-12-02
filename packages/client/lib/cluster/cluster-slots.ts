@@ -114,6 +114,7 @@ export default class RedisClusterSlots<
   readonly nodeByAddress = new Map<string, MasterNode<M, F, S, RESP, TYPE_MAPPING> | ShardNode<M, F, S, RESP, TYPE_MAPPING>>();
   pubSubNode?: PubSubNode<M, F, S, RESP, TYPE_MAPPING>;
   clientSideCache?: PooledClientSideCacheProvider;
+  smigratedSeqIdsSeen = new Set<number>;
 
   #isOpen = false;
 
@@ -255,6 +256,12 @@ export default class RedisClusterSlots<
 
   #handleSmigrated = async (event: SMigratedEvent) => {
     dbgMaintenance(`[CSlots]: handle smigrated`, event);
+
+    if(this.smigratedSeqIdsSeen.has(event.seqId)) {
+      dbgMaintenance(`[CSlots]: sequence id ${event.seqId} already seen, abort`)
+      return
+    }
+    this.smigratedSeqIdsSeen.add(event.seqId);
 
     // slots = new Array<Shard<M, F, S, RESP, TYPE_MAPPING>>(RedisClusterSlots.#SLOTS);
     // masters = new Array<MasterNode<M, F, S, RESP, TYPE_MAPPING>>();

@@ -12,6 +12,7 @@ type RedisType = RedisClient<any, any, any, any, any>;
 
 export const SMIGRATED_EVENT = "__SMIGRATED";
 export interface SMigratedEvent {
+  seqId: number,
   source: { host: string, port: number };
   destination: { host: string, port: number };
   ranges: (number | [number, number])[]
