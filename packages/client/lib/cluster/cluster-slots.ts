@@ -18,6 +18,8 @@ export type NodeAddressMap = {
   [address: string]: NodeAddress;
 } | ((address: string) => NodeAddress | undefined);
 
+export const RESUBSCRIBE_LISTENERS_EVENT = '__resubscribeListeners'
+
 export interface Node<
   M extends RedisModules,
   F extends RedisFunctions,
@@ -284,19 +286,20 @@ export default class RedisClusterSlots<
 
     for(const {host, port, slots} of event.destinations) {
       const destinationAddress = `${host}:${port}`;
-      let destinationNode = this.nodeByAddress.get(destinationAddress);
-      let destinationShard: Shard<M, F, S, RESP, TYPE_MAPPING>;
+      let destMasterNode: MasterNode<M, F, S, RESP, TYPE_MAPPING> | undefined = this.nodeByAddress.get(destinationAddress);
+      let destShard: Shard<M, F, S, RESP, TYPE_MAPPING>;
       // 2. Create new Master
       // TODO create new pubsubnode if needed
-      if(!destinationNode) {
+      if(!destMasterNode) {
         const promises: Promise<unknown>[] = [];
-        destinationNode = this.#initiateSlotNode({ host: host, port: port, id: 'asdff' }, false, true, new Set(), promises);
-        await Promise.all(promises);
+        destMasterNode = this.#initiateSlotNode({ host: host, port: port, id: 'asdff' }, false, true, new Set(), promises);
+        await Promise.all([...promises, this.#initiateShardedPubSubClient(destMasterNode)]);
         // 2.1 Pause
-        destinationNode.client?._pause();
+        destMasterNode.client?._pause();
+        destMasterNode.pubSub?.client._pause();
         // In case destination node didnt exist, this means Shard didnt exist as well, so creating a new Shard is completely fine
-        destinationShard = {
-          master: destinationNode
+        destShard = {
+          master: destMasterNode
         };
       } else {
         // In case destination node existed, this means there was a Shard already, so its best if we can find it.
@@ -305,18 +308,18 @@ export default class RedisClusterSlots<
           dbgMaintenance("Could not find shard");
           throw new Error('Could not find shard');
         }
-        destinationShard = existingShard;
+        destShard = existingShard;
       }
       // 3. Soft update shards.
       // After this step we are expecting any new commands that hash to the same slots to be routed to the destinationShard
       const movingSlots = new Set<number>();
       for(const slot of slots) {
         if(typeof slot === 'number') {
-          this.slots[slot] = destinationShard;
+          this.slots[slot] = destShard;
           movingSlots.add(slot)
         } else {
           for (let s = slot[0]; s <= slot[1]; s++) {
-            this.slots[s] = destinationShard;
+            this.slots[s] = destShard;
             movingSlots.add(s)
           }
         }
@@ -341,48 +344,48 @@ export default class RedisClusterSlots<
       // 4.2 Extract commands, channels, sharded channels
       // TODO dont forget to extract channels and resubscribe
       const sourceStillHasSlots = this.slots.find(slot => slot.master.address === sourceAddress) !== undefined;
+      // If source shard still has slots, this means we have to only extract commands for the moving slots.
+      // Commands that are for different slots or have no slots should stay in the source shard.
+      // Same goes for sharded pub sub listeners
       if(sourceStillHasSlots) {
         const normalCommandsToMove = sourceNode.client!._getQueue().extractCommandsForSlots(movingSlots);
         // 5. Prepend extracted commands, chans
         //TODO pubsub, spubsub
-        destinationNode.client?._getQueue().prependCommandsToWrite(normalCommandsToMove);
-
-        //unpause source node clients
+        destMasterNode.client?._getQueue().prependCommandsToWrite(normalCommandsToMove);
         sourceNode.client?._unpause();
         if('pubSub' in sourceNode) {
+          const listeners = sourceNode.pubSub?.client._getQueue().removeShardedPubSubListenersForSlots(movingSlots);
+          this.#emit(RESUBSCRIBE_LISTENERS_EVENT, listeners);
           sourceNode.pubSub?.client._unpause();
         }
-        //TODO pubSubNode?
       } else {
-
+        // If source shard doesnt have any slots left, this means we can safely move all commands to the new shard.
+        // Same goes for sharded pub sub listeners
         const normalCommandsToMove = sourceNode.client!._getQueue().getAllCommands();
         // 5. Prepend extracted commands, chans
-        destinationNode.client?._getQueue().prependCommandsToWrite(normalCommandsToMove);
-        if('pubSub' in destinationNode) {
-          // const pubsubListeners = destinationNode.pubSub?.client._getQueue().removePubSubListenersForSlots(movingSlots);
-          //TODO resubscribe. Might need to throw an event for cluster to do the job
+        destMasterNode.client?._getQueue().prependCommandsToWrite(normalCommandsToMove);
+        if('pubSub' in sourceNode) {
+          const listeners = sourceNode.pubSub?.client._getQueue().removeAllPubSubListeners();
+          this.#emit(RESUBSCRIBE_LISTENERS_EVENT, listeners);
         }
-        //TODO pubSubNode?
 
-        //Cleanup
+        //Remove all local references to the dying shard's clients
         this.masters = this.masters.filter(master => master.address !== sourceAddress);
         //not sure if needed, since there should be no replicas in RE
         this.replicas = this.replicas.filter(replica => replica.address !== sourceAddress);
         this.nodeByAddress.delete(sourceAddress);
-        //TODO pubSubNode?
 
         // 4.3 Kill because no slots are pointing to it anymore
         await sourceNode.client?.close()
         if('pubSub' in sourceNode) {
           await sourceNode.pubSub?.client.close();
         }
-        //TODO pubSubNode?
       }
 
       // 5.1 Unpause
-      destinationNode.client?._unpause();
-      if('pubSub' in destinationNode) {
-        destinationNode.pubSub?.client._unpause();
+      destMasterNode.client?._unpause();
+      if('pubSub' in destMasterNode) {
+        destMasterNode.pubSub?.client._unpause();
       }
     }
 
@@ -496,7 +499,7 @@ export default class RedisClusterSlots<
       .on(SMIGRATED_EVENT, this.#handleSmigrated)
       .on('__MOVED', async (allPubSubListeners: PubSubListeners) => {
         await this.rediscover(client);
-        this.#emit('__resubscribeAllPubSubListeners', allPubSubListeners);
+        this.#emit(RESUBSCRIBE_LISTENERS_EVENT, allPubSubListeners);
       });
 
     return client;

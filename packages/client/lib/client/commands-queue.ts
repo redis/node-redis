@@ -350,8 +350,8 @@ export default class RedisCommandsQueue {
     return this.#pubSub.removeAllListeners();
   }
 
-  removePubSubListenersForSlots(slots: Set<number>) {
-    return this.#pubSub.removePubSubListenersForSlots(slots);
+  removeShardedPubSubListenersForSlots(slots: Set<number>) {
+    return this.#pubSub.removeShardedPubSubListenersForSlots(slots);
   }
 
   resubscribe(chainId?: symbol) {
