@@ -279,17 +279,12 @@ export default class RedisClusterSlots<
     if('pubSub' in sourceNode) {
       sourceNode.pubSub?.client._pause();
     }
-    // 1.3 Regular pubsub
-    if(this.pubSubNode?.address === sourceAddress) {
-      this.pubSubNode?.client._pause();
-    }
 
     for(const {host, port, slots} of event.destinations) {
       const destinationAddress = `${host}:${port}`;
       let destMasterNode: MasterNode<M, F, S, RESP, TYPE_MAPPING> | undefined = this.nodeByAddress.get(destinationAddress);
       let destShard: Shard<M, F, S, RESP, TYPE_MAPPING>;
       // 2. Create new Master
-      // TODO create new pubsubnode if needed
       if(!destMasterNode) {
         const promises: Promise<unknown>[] = [];
         destMasterNode = this.#initiateSlotNode({ host: host, port: port, id: 'asdff' }, false, true, new Set(), promises);
@@ -387,8 +382,25 @@ export default class RedisClusterSlots<
       if('pubSub' in destMasterNode) {
         destMasterNode.pubSub?.client._unpause();
       }
-    }
 
+      // We want to replace the pubSubNode ONLY if it is pointing to the affected node AND the affected
+      // node is actually dying ( designated by the fact that there are no remaining slots assigned to it)
+      if(this.pubSubNode?.address === sourceAddress && !sourceStillHasSlots) {
+        const channelsListeners = this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.CHANNELS),
+          patternsListeners = this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.PATTERNS);
+
+        this.pubSubNode.client.destroy();
+
+        // Only create the new pubSubNode if there are actual subscriptions to make.
+        // It will be lazily created later if needed.
+        if (channelsListeners.size || patternsListeners.size) {
+          await this.#initiatePubSubClient({
+            [PUBSUB_TYPE.CHANNELS]: channelsListeners,
+            [PUBSUB_TYPE.PATTERNS]: patternsListeners
+          })
+        }
+      }
+    }
   }
 
   async #getShards(rootNode: RedisClusterClientOptions) {
