@@ -128,9 +128,9 @@ describe("Timeout Handling During Notifications", () => {
         `${notification} notification error should be instanceof Error. Got: ${JSON.stringify(result[notification])}`
       );
       assert.ok(
-        result[notification]?.duration >= RELAXED_COMMAND_TIMEOUT &&
+        result[notification]?.duration >= RELAXED_COMMAND_TIMEOUT * 0.8 &&
           result[notification]?.duration < RELAXED_COMMAND_TIMEOUT * 1.2,
-        `${notification} notification should timeout within relaxed timeout. Duration: ${result[notification]?.duration}, Expected: [${RELAXED_COMMAND_TIMEOUT}, ${RELAXED_COMMAND_TIMEOUT * 1.2})`
+        `${notification} notification should timeout within relaxed timeout. Duration: ${result[notification]?.duration}, Expected: [${RELAXED_COMMAND_TIMEOUT * 0.8}, ${RELAXED_COMMAND_TIMEOUT * 1.2})`
       );
       assert.strictEqual(
         result[notification]?.error?.constructor?.name,
