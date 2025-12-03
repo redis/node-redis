@@ -125,17 +125,17 @@ describe("Timeout Handling During Notifications", () => {
     notifications.forEach((notification) => {
       assert.ok(
         result[notification]?.error instanceof Error,
-        `${notification} notification error should be instanceof Error`
+        `${notification} notification error should be instanceof Error. Got: ${JSON.stringify(result[notification])}`
       );
       assert.ok(
         result[notification]?.duration >= RELAXED_COMMAND_TIMEOUT &&
           result[notification]?.duration < RELAXED_COMMAND_TIMEOUT * 1.2,
-        `${notification} notification should timeout within relaxed timeout`
+        `${notification} notification should timeout within relaxed timeout. Duration: ${result[notification]?.duration}, Expected: [${RELAXED_COMMAND_TIMEOUT}, ${RELAXED_COMMAND_TIMEOUT * 1.2})`
       );
       assert.strictEqual(
         result[notification]?.error?.constructor?.name,
         "CommandTimeoutDuringMaintenanceError",
-        `${notification} notification error should be CommandTimeoutDuringMaintenanceError`
+        `${notification} notification error should be CommandTimeoutDuringMaintenanceError. Got: ${result[notification]?.error?.constructor?.name}`
       );
     });
   });
