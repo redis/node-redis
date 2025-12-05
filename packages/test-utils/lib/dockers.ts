@@ -166,13 +166,7 @@ async function dockerRemove(dockerId: string): Promise<void> {
   }
 }
 
-after(() => {
-  return Promise.all(
-    [...RUNNING_SERVERS.values()].map(async dockerPromise =>
-      await dockerRemove((await dockerPromise).dockerId)
-    )
-  );
-});
+
 
 /**
  * Reads a file from a Docker container directly into memory
@@ -537,15 +531,7 @@ export function spawnRedisCluster(
   return dockersPromise;
 }
 
-after(() => {
-  return Promise.all(
-    [...RUNNING_CLUSTERS.values()].map(async dockersPromise => {
-      return Promise.all(
-        (await dockersPromise).map(({ dockerId }) => dockerRemove(dockerId))
-      );
-    })
-  );
-});
+
 
 
 const RUNNING_NODES = new Map<Array<string>, Array<RedisServerDocker>>();
@@ -623,13 +609,20 @@ export async function spawnRedisSentinel(
 }
 
 after(() => {
-  return Promise.all(
-    [...RUNNING_NODES.values(), ...RUNNING_SENTINELS.values()].map(async dockersPromise => {
-      return Promise.all(
-        dockersPromise.map(({ dockerId }) => dockerRemove(dockerId))
-      );
-    })
-  );
+  return Promise.all([
+    ...Array.from(RUNNING_SERVERS.values()).map(async dockerPromise =>
+      dockerRemove((await dockerPromise).dockerId)
+    ),
+    ...Array.from(RUNNING_CLUSTERS.values()).map(async dockersPromise =>
+      Promise.all((await dockersPromise).map(({ dockerId }) => dockerRemove(dockerId)))
+    ),
+    ...Array.from(RUNNING_NODES.values()).map(dockersPromise =>
+      Promise.all(dockersPromise.map(({ dockerId }) => dockerRemove(dockerId)))
+    ),
+    ...Array.from(RUNNING_SENTINELS.values()).map(dockersPromise =>
+      Promise.all(dockersPromise.map(({ dockerId }) => dockerRemove(dockerId)))
+    ),
+  ]);
 });
 
 
