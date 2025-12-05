@@ -4,7 +4,7 @@ import RedisClient, { RedisClientOptions, RedisClientType } from '../client';
 import { CommandOptions } from '../client/commands-queue';
 import { attachConfig } from '../commander';
 import COMMANDS from '../commands';
-import { ClientErrorEvent, NamespaceProxySentinel, NamespaceProxySentinelClient, ProxySentinel, ProxySentinelClient, RedisNode, RedisSentinelClientType, RedisSentinelEvent, RedisSentinelOptions, RedisSentinelType, SentinelCommander } from './types';
+import { ClientErrorEvent, NamespaceProxySentinel, NamespaceProxySentinelClient, NodeAddressMap, ProxySentinel, ProxySentinelClient, RedisNode, RedisSentinelClientType, RedisSentinelEvent, RedisSentinelOptions, RedisSentinelType, SentinelCommander } from './types';
 import { clientSocketToNode, createCommand, createFunctionCommand, createModuleCommand, createNodeList, createScriptCommand, parseNode } from './utils';
 import { RedisMultiQueuedCommand } from '../multi-command';
 import RedisSentinelMultiCommand, { RedisSentinelMultiCommandType } from './multi-commands';
@@ -623,6 +623,7 @@ class RedisSentinelInternal<
   readonly #name: string;
   readonly #nodeClientOptions: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING, RedisTcpSocketOptions>;
   readonly #sentinelClientOptions: RedisClientOptions<typeof RedisSentinelModule, RedisFunctions, RedisScripts, RespVersions, TypeMapping, RedisTcpSocketOptions>;
+  readonly #nodeAddressMap?: NodeAddressMap;
   readonly #scanInterval: number;
   readonly #passthroughClientErrorEvents: boolean;
   readonly #RESP?: RespVersions;
@@ -679,6 +680,7 @@ class RedisSentinelInternal<
     this.#maxCommandRediscovers = options.maxCommandRediscovers ?? 16;
     this.#masterPoolSize = options.masterPoolSize ?? 1;
     this.#replicaPoolSize = options.replicaPoolSize ?? 0;
+    this.#nodeAddressMap = options.nodeAddressMap;
     this.#scanInterval = options.scanInterval ?? 0;
     this.#passthroughClientErrorEvents = options.passthroughClientErrorEvents ?? false;
 
@@ -716,7 +718,21 @@ class RedisSentinelInternal<
     );
   }
 
+  #getNodeAddress(address: string): RedisNode | undefined {
+    switch (typeof this.#nodeAddressMap) {
+      case 'object':
+        return this.#nodeAddressMap[address];
+
+      case 'function':
+        return this.#nodeAddressMap(address);
+    }
+  }
+
   #createClient(node: RedisNode, clientOptions: RedisClientOptions, reconnectStrategy?: false) {
+    const address = `${node.host}:${node.port}`;
+    const socket =
+      this.#getNodeAddress(address) ??
+      { host: node.host, port: node.port };
     return RedisClient.create({
       //first take the globally set RESP
       RESP: this.#RESP,
@@ -724,8 +740,8 @@ class RedisSentinelInternal<
       ...clientOptions,
       socket: {
         ...clientOptions.socket,
-        host: node.host,
-        port: node.port,
+        host: socket.host,
+        port: socket.port,
         ...(reconnectStrategy !== undefined && { reconnectStrategy })
       }
     });
@@ -1426,6 +1442,16 @@ export class RedisSentinelFactory extends EventEmitter {
     this.#sentinelRootNodes = options.sentinelRootNodes;
   }
 
+  #getNodeAddress(address: string): RedisNode | undefined {
+    switch (typeof this.options.nodeAddressMap) {
+      case 'object':
+        return this.options.nodeAddressMap[address];
+
+      case 'function':
+        return this.options.nodeAddressMap(address);
+    }
+  }
+
   async updateSentinelRootNodes() {
     for (const node of this.#sentinelRootNodes) {
       const client = RedisClient.create({
@@ -1508,12 +1534,16 @@ export class RedisSentinelFactory extends EventEmitter {
 
   async getMasterClient() {
     const master = await this.getMasterNode();
+    const address = `${master.host}:${master.port}`;
+    const socket =
+      this.#getNodeAddress(address) ??
+      { host: master.host, port: master.port };
     return RedisClient.create({
       ...this.options.nodeClientOptions,
       socket: {
         ...this.options.nodeClientOptions?.socket,
-        host: master.host,
-        port: master.port
+        host: socket.host,
+        port: socket.port
       }
     });
   }
@@ -1576,12 +1606,17 @@ export class RedisSentinelFactory extends EventEmitter {
       this.#replicaIdx = 0;
     }
 
+    const replica = replicas[this.#replicaIdx];
+    const address = `${replica.host}:${replica.port}`;
+    const socket =
+      this.#getNodeAddress(address) ??
+      { host: replica.host, port: replica.port };
     return RedisClient.create({
       ...this.options.nodeClientOptions,
       socket: {
         ...this.options.nodeClientOptions?.socket,
-        host: replicas[this.#replicaIdx].host,
-        port: replicas[this.#replicaIdx].port
+        host: socket.host,
+        port: socket.port
       }
     });
   }

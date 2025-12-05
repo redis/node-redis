@@ -11,6 +11,10 @@ export interface RedisNode {
   port: number;
 }
 
+export type NodeAddressMap = {
+  [address: string]: RedisNode;
+} | ((address: string) => RedisNode | undefined);
+
 export interface RedisSentinelOptions<
   M extends RedisModules = RedisModules,
   F extends RedisFunctions = RedisFunctions,
@@ -50,9 +54,14 @@ export interface RedisSentinelOptions<
    */
   replicaPoolSize?: number;
   /**
+   * Mapping between the addresses returned by sentinel and the addresses the client should connect to
+   * Useful when the sentinel nodes are running on another network
+   */
+  nodeAddressMap?: NodeAddressMap;
+  /**
    * Interval in milliseconds to periodically scan for changes in the sentinel topology.
    * The client will query the sentinel for changes at this interval.
-   * 
+   *
    * Default: 10000 (10 seconds)
    */
   scanInterval?: number;
