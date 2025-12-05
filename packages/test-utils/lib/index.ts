@@ -27,6 +27,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { RedisProxy, getFreePortNumber } from './proxy/redis-proxy';
+import ProxyController from './proxy/proxy-controller';
 
 
 interface TestUtilsConfig {
@@ -475,7 +476,7 @@ export default class TestUtils {
     TYPE_MAPPING extends TypeMapping = {}
   >(
     title: string,
-    fn: (proxiedClusterClient: RedisClusterType<M, F, S, RESP, TYPE_MAPPING>, proxyUrl: string) => unknown,
+    fn: (proxiedClusterClient: RedisClusterType<M, F, S, RESP, TYPE_MAPPING>, proxyController: ProxyController) => unknown,
     options: Omit<ClusterTestOptions<M, F, S, RESP, TYPE_MAPPING>, 'numberOfReplicas' | 'minimumDockerVersion' | 'serverArguments'>
   ) {
     let spawnPromise: ReturnType<typeof spawnProxiedRedisServer>;
@@ -486,7 +487,7 @@ export default class TestUtils {
 
     it(title, async function () {
       if (!spawnPromise) return this.skip();
-      const { ports } = await spawnPromise;
+      const { ports, apiPort } = await spawnPromise;
 
       const cluster = createCluster({
         rootNodes: ports.map(port => ({
@@ -498,15 +499,17 @@ export default class TestUtils {
         ...options.clusterConfiguration
       });
 
+      const proxyController = new ProxyController(`http://localhost:${apiPort}`)
+
       if(options.disableClusterSetup) {
-        return fn(cluster, 'hh');
+        return fn(cluster, proxyController);
       }
 
       await cluster.connect();
 
       try {
         await TestUtils.#clusterFlushAll(cluster);
-        await fn(cluster, 'hi');
+        await fn(cluster, proxyController);
       } finally {
         await TestUtils.#clusterFlushAll(cluster);
         cluster.destroy();

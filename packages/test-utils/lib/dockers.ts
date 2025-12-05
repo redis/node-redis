@@ -151,6 +151,7 @@ const RUNNING_SERVERS = new Map<Array<string>, ReturnType<typeof spawnRedisServe
 
 export interface ProxiedRedisServerDocker {
   ports: number[],
+  apiPort: number,
   dockerId: string
 }
 
@@ -182,12 +183,14 @@ export async function spawnProxiedRedisServerDocker(
   for (let i = 0; i < config.nOfProxies; i++) {
     ports.push((await portIterator.next()).value);
   }
+  const apiPort = (await portIterator.next()).value;
 
   const dockerArgs =[
     "run",
     "-d",
     "--network", "host",
     "-e", `LISTEN_PORT=${ports.join(',')}`,
+    "-e", `API_PORT=${apiPort}`,
     "-e", "TIEOUT=0",
     "-e", `DEFAULT_INTERCEPTORS=${config.defaultInterceptors.join(',')}`,
     "-e", "ENABLE_LOGGING=true",
@@ -208,6 +211,7 @@ export async function spawnProxiedRedisServerDocker(
 
   return {
     ports,
+    apiPort,
     dockerId: stdout.trim(),
   };
 }
