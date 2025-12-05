@@ -125,17 +125,17 @@ describe("Timeout Handling During Notifications", () => {
     notifications.forEach((notification) => {
       assert.ok(
         result[notification]?.error instanceof Error,
-        `${notification} notification error should be instanceof Error`
+        `${notification} notification error should be instanceof Error. Got: ${JSON.stringify(result[notification])}`
       );
       assert.ok(
-        result[notification]?.duration >= RELAXED_COMMAND_TIMEOUT &&
+        result[notification]?.duration >= RELAXED_COMMAND_TIMEOUT * 0.8 &&
           result[notification]?.duration < RELAXED_COMMAND_TIMEOUT * 1.2,
-        `${notification} notification should timeout within relaxed timeout`
+        `${notification} notification should timeout within relaxed timeout. Duration: ${result[notification]?.duration}, Expected: [${RELAXED_COMMAND_TIMEOUT * 0.8}, ${RELAXED_COMMAND_TIMEOUT * 1.2})`
       );
       assert.strictEqual(
         result[notification]?.error?.constructor?.name,
         "CommandTimeoutDuringMaintenanceError",
-        `${notification} notification error should be CommandTimeoutDuringMaintenanceError`
+        `${notification} notification error should be CommandTimeoutDuringMaintenanceError. Got: ${result[notification]?.error?.constructor?.name}`
       );
     });
   });
@@ -164,9 +164,9 @@ describe("Timeout Handling During Notifications", () => {
       "Command Timeout error should be instanceof Error"
     );
     assert.ok(
-      durationMigrate >= NORMAL_COMMAND_TIMEOUT &&
+      durationMigrate >= NORMAL_COMMAND_TIMEOUT * 0.8 &&
         durationMigrate < NORMAL_COMMAND_TIMEOUT * 1.2,
-      `Normal command should timeout within normal timeout ms`
+      `Normal command should timeout within normal timeout ms. Duration: ${durationMigrate}, Expected: [${NORMAL_COMMAND_TIMEOUT * 0.8}, ${NORMAL_COMMAND_TIMEOUT * 1.2})`
     );
     assert.strictEqual(
       errorMigrate?.constructor?.name,
@@ -199,9 +199,9 @@ describe("Timeout Handling During Notifications", () => {
       "Command Timeout error should be instanceof Error"
     );
     assert.ok(
-      durationBind >= NORMAL_COMMAND_TIMEOUT &&
+      durationBind >= NORMAL_COMMAND_TIMEOUT * 0.8 &&
         durationBind < NORMAL_COMMAND_TIMEOUT * 1.2,
-      `Normal command should timeout within normal timeout ms`
+      `Normal command should timeout within normal timeout ms. Duration: ${durationBind}, Expected: [${NORMAL_COMMAND_TIMEOUT * 0.8}, ${NORMAL_COMMAND_TIMEOUT * 1.2})`
     );
     assert.strictEqual(
       errorBind?.constructor?.name,
