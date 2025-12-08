@@ -65,6 +65,43 @@ describe('RedisSentinel', () => {
       })
 
     });
+
+    describe('nodeAddressMap', () => {
+      testUtils.testWithClientSentinel('should apply object mapping', async sentinel => {
+        await sentinel.set('key', 'value');
+        assert.equal(await sentinel.get('key'), 'value');
+      }, {
+        ...GLOBAL.SENTINEL.OPEN,
+        sentinelOptions: {
+          nodeAddressMap: {
+            '127.0.0.1:6379': { host: '127.0.0.1', port: 6379 }
+          }
+        }
+      });
+
+      testUtils.testWithClientSentinel('should apply function mapping', async sentinel => {
+        await sentinel.set('key', 'value');
+        assert.equal(await sentinel.get('key'), 'value');
+      }, {
+        ...GLOBAL.SENTINEL.OPEN,
+        sentinelOptions: {
+          nodeAddressMap: (address: string) => {
+            const [host, port] = address.split(':');
+            return { host, port: Number(port) };
+          }
+        }
+      });
+
+      testUtils.testWithClientSentinel('should fall back to original address when function returns undefined', async sentinel => {
+        await sentinel.set('key', 'value');
+        assert.equal(await sentinel.get('key'), 'value');
+      }, {
+        ...GLOBAL.SENTINEL.OPEN,
+        sentinelOptions: {
+          nodeAddressMap: () => undefined
+        }
+      });
+    });
   });
 });
 
