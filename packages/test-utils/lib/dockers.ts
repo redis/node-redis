@@ -159,7 +159,8 @@ export async function spawnProxiedRedisServerDocker(
     "--network", "host",
     "-e", `LISTEN_PORT=${ports.join(',')}`,
     "-e", `API_PORT=${apiPort}`,
-    "-e", "TIEOUT=0",
+    "-e", "TIMEOUT=0",
+    "-e", "TARGET_HOST=0.0.0.0",
     "-e", `DEFAULT_INTERCEPTORS=${config.defaultInterceptors.join(',')}`,
     "-e", "ENABLE_LOGGING=true",
     "cae-resp-proxy-standalone"

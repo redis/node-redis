@@ -28,6 +28,8 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { RedisProxy, getFreePortNumber } from './proxy/redis-proxy';
 import ProxyController from './proxy/proxy-controller';
+import { ProxiedFaultInjectorClientForCluster } from './fault-injector';
+import { IFaultInjectorClient } from './fault-injector/types';
 
 
 interface TestUtilsConfig {
@@ -309,13 +311,28 @@ export default class TestUtils {
     TYPE_MAPPING extends TypeMapping = {}
   >(
     title: string,
-    fn: (proxiedClusterClient: RedisClusterType<M, F, S, RESP, TYPE_MAPPING>, proxyController: ProxyController) => unknown,
-    options: Omit<ClusterTestOptions<M, F, S, RESP, TYPE_MAPPING>, 'numberOfReplicas' | 'minimumDockerVersion' | 'serverArguments'>
+    fn: (
+      proxiedClusterClient: RedisClusterType<M, F, S, RESP, TYPE_MAPPING>,
+      {
+        proxyController,
+        faultInjectorClient,
+      }: {
+        proxyController: ProxyController;
+        faultInjectorClient: IFaultInjectorClient;
+      }
+    ) => unknown,
+    options: Omit<
+      ClusterTestOptions<M, F, S, RESP, TYPE_MAPPING>,
+      "numberOfReplicas" | "minimumDockerVersion" | "serverArguments"
+    >
   ) {
     let spawnPromise: ReturnType<typeof spawnProxiedRedisServer>;
     before(function () {
       this.timeout(30000);
-      spawnPromise = spawnProxiedRedisServer({ nOfProxies: options.numberOfMasters ?? 3, defaultInterceptors: ['cluster', 'hitless'] });
+      spawnPromise = spawnProxiedRedisServer({
+        nOfProxies: options.numberOfMasters ?? 3,
+        defaultInterceptors: ["cluster", "hitless", "logger"],
+      });
     });
 
     it(title, async function () {
@@ -323,26 +340,28 @@ export default class TestUtils {
       const { ports, apiPort } = await spawnPromise;
 
       const cluster = createCluster({
-        rootNodes: ports.map(port => ({
+        rootNodes: ports.map((port) => ({
           socket: {
-            port
-          }
+            port,
+          },
         })),
-        minimizeConnections: options.clusterConfiguration?.minimizeConnections ?? true,
-        ...options.clusterConfiguration
+        ...options.clusterConfiguration,
       });
 
-      const proxyController = new ProxyController(`http://localhost:${apiPort}`)
+      const proxyController = new ProxyController(
+        `http://localhost:${apiPort}`
+      );
+      const faultInjectorClient = new ProxiedFaultInjectorClientForCluster(proxyController);
 
-      if(options.disableClusterSetup) {
-        return fn(cluster, proxyController);
+      if (options.disableClusterSetup) {
+        return fn(cluster, { proxyController, faultInjectorClient });
       }
 
       await cluster.connect();
 
       try {
         await TestUtils.#clusterFlushAll(cluster);
-        await fn(cluster, proxyController);
+        await fn(cluster, { proxyController, faultInjectorClient });
       } finally {
         await TestUtils.#clusterFlushAll(cluster);
         cluster.destroy();
