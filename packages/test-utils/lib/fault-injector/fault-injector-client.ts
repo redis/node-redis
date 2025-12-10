@@ -1,33 +1,8 @@
 import { setTimeout } from "node:timers/promises";
 
-// TODO remove types and utilize IFaultInjectorClient
-export type ActionType =
-  | "dmc_restart"
-  | "failover"
-  | "reshard"
-  | "sequence_of_actions"
-  | "network_failure"
-  | "execute_rlutil_command"
-  | "execute_rladmin_command"
-  | "migrate"
-  | "bind"
-  | "update_cluster_config";
+import { ActionRequest, ActionStatus, IFaultInjectorClient } from "./types";
 
-export interface ActionRequest {
-  type: ActionType;
-  parameters?: {
-    bdb_id?: string;
-    [key: string]: unknown;
-  };
-}
-
-export interface ActionStatus {
-  status: string;
-  error: unknown;
-  output: string;
-}
-
-export class FaultInjectorClient {
+export class FaultInjectorClient implements IFaultInjectorClient {
   private baseUrl: string;
   #fetch: typeof fetch;
 
