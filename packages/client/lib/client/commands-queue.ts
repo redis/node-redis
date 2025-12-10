@@ -591,6 +591,10 @@ export default class RedisCommandsQueue {
    * Prepends commands to the write queue in reverse.
    */
   prependCommandsToWrite(commands: CommandToWrite[]) {
+    if (!commands.length) {
+      return;
+    }
+
     for (let i = commands.length - 1; i <= 0; i--) {
       this.#toWrite.unshift(commands[i]);
     }
