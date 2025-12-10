@@ -371,9 +371,13 @@ export default class RedisClusterSlots<
         this.nodeByAddress.delete(sourceAddress);
 
         // 4.3 Kill because no slots are pointing to it anymore
-        await sourceNode.client?.close()
+        if (sourceNode.client?.isOpen) {
+          await sourceNode.client?.close()
+        }
         if('pubSub' in sourceNode) {
-          await sourceNode.pubSub?.client.close();
+          if (sourceNode.pubSub?.client.isOpen) {
+            await sourceNode.pubSub?.client.close();
+          }
         }
       }
 

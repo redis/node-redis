@@ -1018,7 +1018,7 @@ export default class RedisClient<
     * @internal
     */
    _getQueue(): RedisCommandsQueue {
-     return this.#queue;
+     return this._self.#queue;
    }
 
   /**
