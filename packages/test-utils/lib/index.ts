@@ -28,9 +28,15 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { RedisProxy, getFreePortNumber } from './proxy/redis-proxy';
 import ProxyController from './proxy/proxy-controller';
-import { ProxiedFaultInjectorClientForCluster } from './fault-injector';
-import { IFaultInjectorClient } from './fault-injector/types';
-
+import {
+  CreateDatabaseConfig,
+  CreateDatabaseConfigType,
+  DatabaseConfig,
+  FaultInjectorClient,
+  getCreateDatabaseConfig,
+  IFaultInjectorClient,
+  ProxiedFaultInjectorClientForCluster,
+} from "./fault-injector";
 
 interface TestUtilsConfig {
   /**
@@ -121,6 +127,24 @@ interface ClusterTestOptions<
   numberOfMasters?: number;
   numberOfReplicas?: number;
   disableClusterSetup?: boolean;
+}
+
+interface RETestOptions {
+  skipTest?: boolean;
+  testTimeout?: number;
+  dbConfig?: CreateDatabaseConfig;
+  dbName?: string;
+}
+
+interface REClusterTestOptions<
+  M extends RedisModules,
+  F extends RedisFunctions,
+  S extends RedisScripts,
+  RESP extends RespVersions,
+  TYPE_MAPPING extends TypeMapping
+  // POLICIES extends CommandPolicies
+> extends RETestOptions {
+  clusterConfiguration?: Partial<RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>>;
 }
 
 interface AllTestOptions<
@@ -661,6 +685,91 @@ export default class TestUtils {
     this.testWithCluster(`cluster.${title}`, fn, options.cluster);
   }
 
+  testWithRECluster<
+    M extends RedisModules = {},
+    F extends RedisFunctions = {},
+    S extends RedisScripts = {},
+    RESP extends RespVersions = 2,
+    TYPE_MAPPING extends TypeMapping = {}
+  >(
+    title: string,
+    fn: (
+      cluster: RedisClusterType<M, F, S, RESP, TYPE_MAPPING>,
+      {
+        faultInjectorClient,
+      }: {
+        faultInjectorClient: IFaultInjectorClient;
+      }
+    ) => unknown,
+    options: REClusterTestOptions<M, F, S, RESP, TYPE_MAPPING>
+  ) {
+
+    let faultInjectorClient: FaultInjectorClient;
+    let dbConfig: DatabaseConfig;
+
+    before(async function () {
+      this.timeout(30000);
+
+      const baseUrl = process.env.RE_FAULT_INJECTOR_URL;
+
+      if (!baseUrl) {
+        throw new Error("RE_FAULT_INJECTOR_URL environment variable must be set");
+      }
+
+      faultInjectorClient = new FaultInjectorClient(baseUrl);
+
+      await faultInjectorClient.deleteAllDatabases(0);
+      dbConfig = await faultInjectorClient.createDatabase(
+        options.dbConfig ||
+          getCreateDatabaseConfig(
+            CreateDatabaseConfigType.CLUSTER,
+            options.dbName ?? `test-db-${Date.now()}`
+          ),
+        0
+      );
+    });
+
+    after(async function () {
+      this.timeout(30000);
+
+      await faultInjectorClient.deleteAllDatabases(0);
+    });
+
+    it(title, async function () {
+      if (options.skipTest) return this.skip();
+      if (options.testTimeout) {
+        this.timeout(options.testTimeout);
+      }
+
+      const { defaults, ...rest } = options.clusterConfiguration ?? {};
+
+      const cluster = createCluster({
+        rootNodes: [
+          {
+            socket: {
+              host: dbConfig.host,
+              port: dbConfig.port,
+            },
+          },
+        ],
+        defaults: {
+          password: dbConfig.password,
+          username: dbConfig.username,
+          ...defaults,
+        },
+        ...rest,
+      });
+
+      await cluster.connect();
+
+      try {
+        await TestUtils.#clusterFlushAll(cluster);
+        await fn(cluster, { faultInjectorClient });
+      } finally {
+        cluster.destroy();
+      }
+    });
+  }
 
   spawnRedisServer<
     M extends RedisModules = {},

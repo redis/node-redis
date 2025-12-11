@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
 
 import { ActionRequest, ActionStatus, IFaultInjectorClient } from "./types";
@@ -9,53 +8,16 @@ const TOTAL_SLOTS = 16384;
 export class ProxiedFaultInjectorClientForCluster
   implements IFaultInjectorClient
 {
-  private readonly results = new Map<string, ActionStatus>();
-
   constructor(private readonly proxyController: ProxyController) {}
 
-  async triggerAction<T extends { action_id: string }>(
-    action: ActionRequest
-  ): Promise<T> {
-    const actionId = randomUUID();
-
+  async triggerAction(action: ActionRequest): Promise<ActionStatus> {
     switch (action.type) {
       case "failover": {
-        const result = await this.triggerFailover();
-        this.results.set(actionId, result);
-        break;
+        return this.triggerFailover();
       }
       default:
         throw new Error(`Action ${action.type} not implemented`);
     }
-
-    return { action_id: actionId } as T;
-  }
-
-  async getActionStatus<T = ActionStatus>(actionId: string): Promise<T> {
-    throw new Error("Not implemented");
-  }
-
-  async waitForAction(
-    actionId: string,
-    _options?: { timeoutMs?: number; maxWaitTimeMs?: number }
-  ): Promise<ActionStatus> {
-    const result = this.results.get(actionId);
-
-    if (!result) {
-      throw new Error(`Action ${actionId} not found`);
-    }
-
-    return result;
-  }
-
-  async migrateAndBindAction({
-    bdbId,
-    clusterIndex,
-  }: {
-    bdbId: string | number;
-    clusterIndex: string | number;
-  }): Promise<{ action_id: string }> {
-    throw new Error("Not implemented");
   }
 
   /**

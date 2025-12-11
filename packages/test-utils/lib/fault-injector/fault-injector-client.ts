@@ -1,6 +1,11 @@
 import { setTimeout } from "node:timers/promises";
 
-import { ActionRequest, ActionStatus, IFaultInjectorClient } from "./types";
+import {
+  ActionRequest,
+  ActionStatus,
+  CreateDatabaseConfig,
+  IFaultInjectorClient,
+} from "./types";
 
 export class FaultInjectorClient implements IFaultInjectorClient {
   private baseUrl: string;
@@ -24,10 +29,16 @@ export class FaultInjectorClient implements IFaultInjectorClient {
    * @param action The action request to trigger
    * @throws {Error} When the HTTP request fails or response cannot be parsed as JSON
    */
-  public triggerAction<T extends { action_id: string }>(
-    action: ActionRequest
-  ): Promise<T> {
-    return this.#request<T>("POST", "/action", action);
+  public async triggerAction<T extends { action_id: string }>(
+    action: ActionRequest,
+    options?: {
+      timeoutMs?: number;
+      maxWaitTimeMs?: number;
+    }
+  ): Promise<ActionStatus> {
+    const { action_id } = await this.#request<T>("POST", "/action", action);
+
+    return this.waitForAction(action_id, options);
   }
 
   /**
@@ -155,5 +166,78 @@ export class FaultInjectorClient implements IFaultInjectorClient {
         `HTTP ${response.status} - Unable to parse response as JSON`
       );
     }
+  }
+
+  /**
+   * Deletes a database.
+   * @param clusterIndex The index of the cluster
+   * @param bdbId The database ID
+   * @throws {Error} When the HTTP request fails or response cannot be parsed as JSON
+   */
+  public async deleteDatabase(
+    bdbId: number | string,
+    clusterIndex: number = 0
+  ) {
+    return this.triggerAction({
+      type: "delete_database",
+      parameters: {
+        cluster_index: clusterIndex,
+        bdb_id: bdbId.toString(),
+      },
+    });
+  }
+
+  /**
+   * Deletes all databases.
+   * @param clusterIndex The index of the cluster
+   * @throws {Error} When the HTTP request fails or response cannot be parsed as JSON
+   */
+  public async deleteAllDatabases(clusterIndex: number = 0) {
+    return this.triggerAction({
+      type: "delete_database",
+      parameters: {
+        cluster_index: clusterIndex,
+        delete_all: true,
+      },
+    });
+  }
+
+  /**
+   * Creates a new database.
+   * @param clusterIndex The index of the cluster
+   * @param databaseConfig The database configuration
+   * @throws {Error} When the HTTP request fails or response cannot be parsed as JSON
+   */
+  public async createDatabase(
+    databaseConfig: CreateDatabaseConfig,
+    clusterIndex: number = 0
+  ) {
+    const action = await this.triggerAction({
+      type: "create_database",
+      parameters: {
+        cluster_index: clusterIndex,
+        database_config: databaseConfig,
+      },
+    });
+
+    const dbConfig =
+      typeof action.output === "object"
+        ? action.output
+        : JSON.parse(action.output);
+
+    const rawEndpoints = dbConfig.raw_endpoints[0];
+
+    if (!rawEndpoints) {
+      throw new Error("No endpoints found in database config");
+    }
+
+    return {
+      host: rawEndpoints.dns_name,
+      port: rawEndpoints.port,
+      password: dbConfig.password,
+      username: dbConfig.username,
+      tls: dbConfig.tls,
+      bdbId: dbConfig.bdb_id,
+    };
   }
 }
