@@ -4,7 +4,7 @@ import AGGREGATE from './AGGREGATE';
 import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 import { DEFAULT_DIALECT } from '../dialect/default';
 
-describe('AGGREGATE', () => { 
+describe('AGGREGATE', () => {
   describe('transformArguments', () => {
     it('without options', () => {
       assert.deepEqual(
@@ -27,7 +27,7 @@ describe('AGGREGATE', () => {
         parseArgs(AGGREGATE, 'index', '*', { ADDSCORES: true }),
         ['FT.AGGREGATE', 'index', '*', 'ADDSCORES', 'DIALECT', DEFAULT_DIALECT]
       );
-    });  
+    });
 
     describe('with LOAD', () => {
       describe('single', () => {
@@ -477,13 +477,11 @@ describe('AGGREGATE', () => {
   });
 
   testUtils.testWithClient('client.ft.aggregate', async client => {
-    await Promise.all([
-      client.ft.create('index', {
-        field: 'NUMERIC'
-      }),
-      client.hSet('1', 'field', '1'),
-      client.hSet('2', 'field', '2')
-    ]);
+    await client.ft.create('index', {
+      field: 'NUMERIC'
+    });
+    await client.hSet('1', 'field', '1');
+    await client.hSet('2', 'field', '2');
 
     assert.deepEqual(
       await client.ft.aggregate('index', '*', {

@@ -590,6 +590,61 @@ export default class TestUtils {
     this.testWithCluster(`cluster.${title}`, fn, options.cluster);
   }
 
+  /**
+   * Tests with both a regular client and a cluster client, automatically generating the cluster
+   * configuration from the client configuration.
+   *
+   * Modules, functions, and scripts are placed at the cluster level, while other client options
+   * (password, socket, etc.) are placed under cluster defaults.
+   *
+   * @param title - The test title
+   * @param fn - The test function
+   * @param clientOptions - Client test options (cluster config will be auto-generated)
+   */
+  testAllAuto<
+    M extends RedisModules = {},
+    F extends RedisFunctions = {},
+    S extends RedisScripts = {},
+    RESP extends RespVersions = 2,
+    TYPE_MAPPING extends TypeMapping = {}
+    // POLICIES extends CommandPolicies = {}
+  >(
+    title: string,
+    fn: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING> | RedisClusterType<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>) => unknown,
+    clientOptions: ClientTestOptions<M, F, S, RESP, TYPE_MAPPING>
+  ) {
+    this.testWithClient(`client.${title}`, fn, clientOptions);
+
+    // Auto-generate cluster configuration from client options
+    const clusterOptions: ClusterTestOptions<M, F, S, RESP, TYPE_MAPPING> = {
+      serverArguments: clientOptions.serverArguments,
+      minimumDockerVersion: clientOptions.minimumDockerVersion,
+      skipTest: clientOptions.skipTest,
+      clusterConfiguration: {}
+    };
+
+    if (clientOptions.clientOptions) {
+      const { modules, functions, scripts, ...clientDefaults } = clientOptions.clientOptions as any;
+
+      if (modules) {
+        clusterOptions.clusterConfiguration!.modules = modules;
+      }
+      if (functions) {
+        clusterOptions.clusterConfiguration!.functions = functions;
+      }
+      if (scripts) {
+        clusterOptions.clusterConfiguration!.scripts = scripts;
+      }
+
+      // Other client options go under defaults
+      if (Object.keys(clientDefaults).length > 0) {
+        clusterOptions.clusterConfiguration!.defaults = clientDefaults;
+      }
+    }
+
+    this.testWithCluster(`cluster.${title}`, fn, clusterOptions);
+  }
+
 
   spawnRedisServer<
     M extends RedisModules = {},
