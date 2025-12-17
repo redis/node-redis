@@ -356,7 +356,7 @@ export default class RedisClusterSlots<
       } else {
         // If source shard doesnt have any slots left, this means we can safely move all commands to the new shard.
         // Same goes for sharded pub sub listeners
-        const normalCommandsToMove = sourceNode.client!._getQueue().getAllCommands();
+        const normalCommandsToMove = sourceNode.client!._getQueue().extractAllCommands();
         // 5. Prepend extracted commands, chans
         destMasterNode.client?._getQueue().prependCommandsToWrite(normalCommandsToMove);
         if('pubSub' in sourceNode) {
