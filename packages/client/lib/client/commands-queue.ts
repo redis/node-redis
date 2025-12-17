@@ -577,11 +577,12 @@ export default class RedisCommandsQueue {
   /**
   * Gets all commands from the write queue without removing them.
   */
-  getAllCommands(): CommandToWrite[] {
+  extractAllCommands(): CommandToWrite[] {
     const result: CommandToWrite[] = [];
     let current = this.#toWrite.head;
     while(current) {
       result.push(current.value);
+      this.#toWrite.remove(current);
       current = current.next;
     }
     return result;
@@ -595,7 +596,7 @@ export default class RedisCommandsQueue {
       return;
     }
 
-    for (let i = commands.length - 1; i <= 0; i--) {
+    for (let i = commands.length - 1; i >= 0; i--) {
       this.#toWrite.unshift(commands[i]);
     }
   }
