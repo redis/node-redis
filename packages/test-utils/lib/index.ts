@@ -337,18 +337,15 @@ export default class TestUtils {
     title: string,
     fn: (
       proxiedClusterClient: RedisClusterType<M, F, S, RESP, TYPE_MAPPING>,
-      {
-        proxyController,
-        faultInjectorClient,
-      }: {
-        proxyController: ProxyController;
-        faultInjectorClient: IFaultInjectorClient;
-      }
+      faultInjectorClient: IFaultInjectorClient
     ) => unknown,
     options: Omit<
       ClusterTestOptions<M, F, S, RESP, TYPE_MAPPING>,
       "numberOfReplicas" | "minimumDockerVersion" | "serverArguments"
-    >
+    > & {
+      startWithReducedNodes?: boolean;
+      freshContainer?: boolean;
+    }
   ) {
     let spawnPromise: ReturnType<typeof spawnProxiedRedisServer>;
     before(function () {
@@ -356,36 +353,47 @@ export default class TestUtils {
       spawnPromise = spawnProxiedRedisServer({
         nOfProxies: options.numberOfMasters ?? 3,
         defaultInterceptors: ["cluster", "hitless", "logger"],
+        freshContainer: options.freshContainer,
       });
     });
 
     it(title, async function () {
       if (!spawnPromise) return this.skip();
-      const { ports, apiPort } = await spawnPromise;
+      const { apiPort } = await spawnPromise;
+
+      const proxyController = new ProxyController(
+        `http://localhost:${apiPort}`
+      );
+
+      const faultInjectorClient = new ProxiedFaultInjectorClientForCluster(
+        proxyController
+      );
+
+      const nodes = await faultInjectorClient.getProxyNodes();
+
+      if (options.startWithReducedNodes) {
+        nodes.pop();
+        await faultInjectorClient.updateClusterSlots(nodes);
+      }
 
       const cluster = createCluster({
-        rootNodes: ports.map((port) => ({
+        rootNodes: nodes.map((n) => ({
           socket: {
-            port,
+            port: n.port,
           },
         })),
         ...options.clusterConfiguration,
       });
 
-      const proxyController = new ProxyController(
-        `http://localhost:${apiPort}`
-      );
-      const faultInjectorClient = new ProxiedFaultInjectorClientForCluster(proxyController);
-
       if (options.disableClusterSetup) {
-        return fn(cluster, { proxyController, faultInjectorClient });
+        return fn(cluster, faultInjectorClient);
       }
 
       await cluster.connect();
 
       try {
         await TestUtils.#clusterFlushAll(cluster);
-        await fn(cluster, { proxyController, faultInjectorClient });
+        await fn(cluster, faultInjectorClient);
       } finally {
         await TestUtils.#clusterFlushAll(cluster);
         cluster.destroy();

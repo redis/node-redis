@@ -1,4 +1,5 @@
 import { RedisClusterClientOptions } from '@redis/client/dist/lib/cluster';
+import { randomUUID } from 'node:crypto';
 import { createConnection } from 'node:net';
 import { once } from 'node:events';
 import { createClient } from '@redis/client/index';
@@ -126,12 +127,16 @@ export interface ProxiedRedisServerDocker {
 export interface ProxiedRedisServerConfig {
   nOfProxies: number,
   defaultInterceptors: ('cluster'|'hitless'|'logger')[]
+  freshContainer?: boolean;
 }
 
 const RUNNING_PROXIED_SERVERS = new Map<string, Promise<ProxiedRedisServerDocker>>();
 
 export async function spawnProxiedRedisServer(config: ProxiedRedisServerConfig): Promise<ProxiedRedisServerDocker> {
-  const key = JSON.stringify(config);
+  const key = JSON.stringify({
+    ...config,
+    ...(config.freshContainer ? { randomKey: randomUUID() } : {})
+  });
   const runningServer = RUNNING_PROXIED_SERVERS.get(key);
   if (runningServer) {
     return runningServer;
