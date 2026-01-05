@@ -7,6 +7,7 @@ import { RedisArgument, RedisFunctions, RedisModules, RedisScripts, RespVersions
 import calculateSlot from 'cluster-key-slot';
 import { RedisSocketOptions } from '../client/socket';
 import { BasicPooledClientSideCache, PooledClientSideCacheProvider } from '../client/cache';
+import { SMIGRATED_EVENT, SMigratedEvent, dbgMaintenance } from '../client/enterprise-maintenance-manager';
 
 interface NodeAddress {
   host: string;
@@ -16,6 +17,8 @@ interface NodeAddress {
 export type NodeAddressMap = {
   [address: string]: NodeAddress;
 } | ((address: string) => NodeAddress | undefined);
+
+export const RESUBSCRIBE_LISTENERS_EVENT = '__resubscribeListeners'
 
 export interface Node<
   M extends RedisModules,
@@ -113,6 +116,7 @@ export default class RedisClusterSlots<
   readonly nodeByAddress = new Map<string, MasterNode<M, F, S, RESP, TYPE_MAPPING> | ShardNode<M, F, S, RESP, TYPE_MAPPING>>();
   pubSubNode?: PubSubNode<M, F, S, RESP, TYPE_MAPPING>;
   clientSideCache?: PooledClientSideCacheProvider;
+  smigratedSeqIdsSeen = new Set<number>;
 
   #isOpen = false;
 
@@ -192,6 +196,7 @@ export default class RedisClusterSlots<
         eagerConnect = this.#options.minimizeConnections !== true;
 
       const shards = await this.#getShards(rootNode);
+      dbgMaintenance(shards);
       this.#resetSlots(); // Reset slots AFTER shards have been fetched to prevent a race condition
       for (const { from, to, master, replicas } of shards) {
         const shard: Shard<M, F, S, RESP, TYPE_MAPPING> = {
@@ -251,12 +256,164 @@ export default class RedisClusterSlots<
     }
   }
 
+  #handleSmigrated = async (event: SMigratedEvent) => {
+    dbgMaintenance(`[CSlots]: handle smigrated`, JSON.stringify(event, null, 2));
+
+    if(this.smigratedSeqIdsSeen.has(event.seqId)) {
+      dbgMaintenance(`[CSlots]: sequence id ${event.seqId} already seen, abort`)
+      return
+    }
+    this.smigratedSeqIdsSeen.add(event.seqId);
+
+    const sourceAddress = `${event.source.host}:${event.source.port}`;
+    const sourceNode = this.nodeByAddress.get(sourceAddress);
+    if(!sourceNode) {
+      dbgMaintenance(`[CSlots]: address ${sourceAddress} not in 'nodeByAddress', abort SMIGRATED handling`);
+      return;
+    }
+
+    // 1. Pausing
+    // 1.1 Normal
+    sourceNode.client?._pause();
+    // 1.2 Sharded pubsub
+    if('pubSub' in sourceNode) {
+      sourceNode.pubSub?.client._pause();
+    }
+
+    for(const {host, port, slots} of event.destinations) {
+      const destinationAddress = `${host}:${port}`;
+      let destMasterNode: MasterNode<M, F, S, RESP, TYPE_MAPPING> | undefined = this.nodeByAddress.get(destinationAddress);
+      let destShard: Shard<M, F, S, RESP, TYPE_MAPPING>;
+      // 2. Create new Master
+      if(!destMasterNode) {
+        const promises: Promise<unknown>[] = [];
+        destMasterNode = this.#initiateSlotNode({ host: host, port: port, id: 'asdff' }, false, true, new Set(), promises);
+        await Promise.all([...promises, this.#initiateShardedPubSubClient(destMasterNode)]);
+        // 2.1 Pause
+        destMasterNode.client?._pause();
+        destMasterNode.pubSub?.client._pause();
+        // In case destination node didnt exist, this means Shard didnt exist as well, so creating a new Shard is completely fine
+        destShard = {
+          master: destMasterNode
+        };
+      } else {
+        // In case destination node existed, this means there was a Shard already, so its best if we can find it.
+        const existingShard = this.slots.find(shard => shard.master.host === host && shard.master.port === port);
+        if(!existingShard) {
+          dbgMaintenance("Could not find shard");
+          throw new Error('Could not find shard');
+        }
+        destShard = existingShard;
+      }
+      // 3. Soft update shards.
+      // After this step we are expecting any new commands that hash to the same slots to be routed to the destinationShard
+      const movingSlots = new Set<number>();
+      for(const slot of slots) {
+        if(typeof slot === 'number') {
+          this.slots[slot] = destShard;
+          movingSlots.add(slot)
+        } else {
+          for (let s = slot[0]; s <= slot[1]; s++) {
+            this.slots[s] = destShard;
+            movingSlots.add(s)
+          }
+        }
+      }
+
+      // 4. For all affected clients (normal, pubsub, spubsub):
+      // 4.1 Wait for inflight commands to complete
+      const inflightPromises: Promise<void>[] = [];
+      //Normal
+      inflightPromises.push(sourceNode.client!._getQueue().waitForInflightCommandsToComplete());
+      //Sharded pubsub
+      if('pubSub' in sourceNode) {
+        inflightPromises.push(sourceNode.pubSub!.client._getQueue().waitForInflightCommandsToComplete());
+      }
+      //Regular pubsub
+      if(this.pubSubNode?.address === sourceAddress) {
+        inflightPromises.push(this.pubSubNode?.client._getQueue().waitForInflightCommandsToComplete());
+      }
+      await Promise.all(inflightPromises);
+
+
+      // 4.2 Extract commands, channels, sharded channels
+      // TODO dont forget to extract channels and resubscribe
+      const sourceStillHasSlots = this.slots.find(slot => slot.master.address === sourceAddress) !== undefined;
+      // If source shard still has slots, this means we have to only extract commands for the moving slots.
+      // Commands that are for different slots or have no slots should stay in the source shard.
+      // Same goes for sharded pub sub listeners
+      if(sourceStillHasSlots) {
+        const normalCommandsToMove = sourceNode.client!._getQueue().extractCommandsForSlots(movingSlots);
+        // 5. Prepend extracted commands, chans
+        //TODO pubsub, spubsub
+        destMasterNode.client?._getQueue().prependCommandsToWrite(normalCommandsToMove);
+        sourceNode.client?._unpause();
+        if('pubSub' in sourceNode) {
+          const listeners = sourceNode.pubSub?.client._getQueue().removeShardedPubSubListenersForSlots(movingSlots);
+          this.#emit(RESUBSCRIBE_LISTENERS_EVENT, listeners);
+          sourceNode.pubSub?.client._unpause();
+        }
+      } else {
+        // If source shard doesnt have any slots left, this means we can safely move all commands to the new shard.
+        // Same goes for sharded pub sub listeners
+        const normalCommandsToMove = sourceNode.client!._getQueue().extractAllCommands();
+        // 5. Prepend extracted commands, chans
+        destMasterNode.client?._getQueue().prependCommandsToWrite(normalCommandsToMove);
+        if('pubSub' in sourceNode) {
+          const listeners = sourceNode.pubSub?.client._getQueue().removeAllPubSubListeners();
+          this.#emit(RESUBSCRIBE_LISTENERS_EVENT, listeners);
+        }
+
+        //Remove all local references to the dying shard's clients
+        this.masters = this.masters.filter(master => master.address !== sourceAddress);
+        //not sure if needed, since there should be no replicas in RE
+        this.replicas = this.replicas.filter(replica => replica.address !== sourceAddress);
+        this.nodeByAddress.delete(sourceAddress);
+
+        // 4.3 Kill because no slots are pointing to it anymore
+        if (sourceNode.client?.isOpen) {
+          await sourceNode.client?.close()
+        }
+        if('pubSub' in sourceNode) {
+          if (sourceNode.pubSub?.client.isOpen) {
+            await sourceNode.pubSub?.client.close();
+          }
+        }
+      }
+
+      // 5.1 Unpause
+      destMasterNode.client?._unpause();
+      if('pubSub' in destMasterNode) {
+        destMasterNode.pubSub?.client._unpause();
+      }
+
+      // We want to replace the pubSubNode ONLY if it is pointing to the affected node AND the affected
+      // node is actually dying ( designated by the fact that there are no remaining slots assigned to it)
+      if(this.pubSubNode?.address === sourceAddress && !sourceStillHasSlots) {
+        const channelsListeners = this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.CHANNELS),
+          patternsListeners = this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.PATTERNS);
+
+        this.pubSubNode.client.destroy();
+
+        // Only create the new pubSubNode if there are actual subscriptions to make.
+        // It will be lazily created later if needed.
+        if (channelsListeners.size || patternsListeners.size) {
+          await this.#initiatePubSubClient({
+            [PUBSUB_TYPE.CHANNELS]: channelsListeners,
+            [PUBSUB_TYPE.PATTERNS]: patternsListeners
+          })
+        }
+      }
+    }
+  }
+
   async #getShards(rootNode: RedisClusterClientOptions) {
     const options = this.#clientOptionsDefaults(rootNode)!;
     options.socket ??= {};
     options.socket.reconnectStrategy = false;
     options.RESP = this.#options.RESP;
     options.commandOptions = undefined;
+    options.maintNotifications = 'disabled';
 
     // TODO: find a way to avoid type casting
     const client = await this.#clientFactory(options as RedisClientOptions<M, F, S, RESP, {}>)
@@ -344,8 +501,7 @@ export default class RedisClusterSlots<
       port: socket.port,
     });
     const emit = this.#emit;
-    const client = this.#clientFactory(
-      this.#clientOptionsDefaults({
+    const client = this.#clientFactory( this.#clientOptionsDefaults({
         clientSideCache: this.clientSideCache,
         RESP: this.#options.RESP,
         socket,
@@ -356,9 +512,10 @@ export default class RedisClusterSlots<
       .once('ready', () => emit('node-ready', clientInfo))
       .once('connect', () => emit('node-connect', clientInfo))
       .once('end', () => emit('node-disconnect', clientInfo))
+      .on(SMIGRATED_EVENT, this.#handleSmigrated)
       .on('__MOVED', async (allPubSubListeners: PubSubListeners) => {
         await this.rediscover(client);
-        this.#emit('__resubscribeAllPubSubListeners', allPubSubListeners);
+        this.#emit(RESUBSCRIBE_LISTENERS_EVENT, allPubSubListeners);
       });
 
     return client;
@@ -373,7 +530,7 @@ export default class RedisClusterSlots<
   nodeClient(node: ShardNode<M, F, S, RESP, TYPE_MAPPING>) {
     return (
       node.connectPromise ?? // if the node is connecting
-      node.client ?? // if the node is connected
+      (node.client ? Promise.resolve(node.client) : undefined) ?? // if the node is connected
       this.#createNodeClient(node) // if the not is disconnected
     );
   }
@@ -467,20 +624,30 @@ export default class RedisClusterSlots<
     this.#emit('disconnect');
   }
 
-  getClient(
+  async getClientAndSlotNumber(
     firstKey: RedisArgument | undefined,
     isReadonly: boolean | undefined
-  ) {
+  ): Promise<{
+    client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>,
+    slotNumber?: number
+  }> {
     if (!firstKey) {
-      return this.nodeClient(this.getRandomNode());
+      return {
+        client: await this.nodeClient(this.getRandomNode())
+      };
     }
 
     const slotNumber = calculateSlot(firstKey);
     if (!isReadonly) {
-      return this.nodeClient(this.slots[slotNumber].master);
+      return {
+        client: await this.nodeClient(this.slots[slotNumber].master),
+        slotNumber
+      };
     }
 
-    return this.nodeClient(this.getSlotRandomNode(slotNumber));
+    return {
+      client: await this.nodeClient(this.getSlotRandomNode(slotNumber))
+    };
   }
 
   *#iterateAllNodes() {

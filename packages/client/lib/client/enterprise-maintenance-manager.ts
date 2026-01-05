@@ -1,12 +1,24 @@
-import { RedisClientOptions } from ".";
+import RedisClient, { RedisClientOptions } from ".";
 import RedisCommandsQueue from "./commands-queue";
 import { RedisArgument } from "../..";
 import { isIP } from "net";
 import { lookup } from "dns/promises";
 import assert from "node:assert";
 import { setTimeout } from "node:timers/promises";
-import RedisSocket, { RedisTcpSocketOptions } from "./socket";
+import { RedisTcpSocketOptions } from "./socket";
 import diagnostics_channel from "node:diagnostics_channel";
+
+type RedisType = RedisClient<any, any, any, any, any>;
+
+export const SMIGRATED_EVENT = "__SMIGRATED";
+export interface SMigratedEvent {
+  seqId: number,
+  source: { host: string, port: number };
+  destinations: {
+    host: string, port: number
+    slots: (number | [number, number])[]
+  }[]
+}
 
 export const MAINTENANCE_EVENTS = {
   PAUSE_WRITING: "pause-writing",
@@ -20,6 +32,8 @@ const PN = {
   MIGRATED: "MIGRATED",
   FAILING_OVER: "FAILING_OVER",
   FAILED_OVER: "FAILED_OVER",
+  SMIGRATING: "SMIGRATING",
+  SMIGRATED: "SMIGRATED",
 };
 
 export type DiagnosticsEvent = {
@@ -45,23 +59,11 @@ export interface MaintenanceUpdate {
   relaxedSocketTimeout?: number;
 }
 
-interface Client {
-  _ejectSocket: () => RedisSocket;
-  _insertSocket: (socket: RedisSocket) => void;
-  _pause: () => void;
-  _unpause: () => void;
-  _maintenanceUpdate: (update: MaintenanceUpdate) => void;
-  duplicate: () => Client;
-  connect: () => Promise<Client>;
-  destroy: () => void;
-  on: (event: string, callback: (value: unknown) => void) => void;
-}
-
 export default class EnterpriseMaintenanceManager {
   #commandsQueue: RedisCommandsQueue;
   #options: RedisClientOptions;
   #isMaintenance = 0;
-  #client: Client;
+  #client: RedisType;
 
   static setupDefaultMaintOptions(options: RedisClientOptions) {
     if (options.maintNotifications === undefined) {
@@ -93,7 +95,7 @@ export default class EnterpriseMaintenanceManager {
 
     if (!host) return;
 
-    const tls = options.socket?.tls ?? false
+    const tls = options.socket?.tls ?? false;
 
     const movingEndpointType = await determineEndpoint(tls, host, options);
     return {
@@ -115,7 +117,7 @@ export default class EnterpriseMaintenanceManager {
 
   constructor(
     commandsQueue: RedisCommandsQueue,
-    client: Client,
+    client: RedisType,
     options: RedisClientOptions,
   ) {
     this.#commandsQueue = commandsQueue;
@@ -128,19 +130,19 @@ export default class EnterpriseMaintenanceManager {
   #onPush = (push: Array<any>): boolean => {
     dbgMaintenance("ONPUSH:", push.map(String));
 
-    if (!Array.isArray(push) || !["MOVING", "MIGRATING", "MIGRATED", "FAILING_OVER", "FAILED_OVER"].includes(String(push[0]))) {
+    if (!Array.isArray(push) || !Object.values(PN).includes(String(push[0]))) {
       return false;
     }
 
     const type = String(push[0]);
 
     emitDiagnostics({
-          type,
-          timestamp: Date.now(),
-          data: {
-            push: push.map(String),
-          },
-        });
+      type,
+      timestamp: Date.now(),
+      data: {
+        push: push.map(String),
+      },
+    });
     switch (type) {
       case PN.MOVING: {
         // [ 'MOVING', '17', '15', '54.78.247.156:12075' ]
@@ -152,8 +154,9 @@ export default class EnterpriseMaintenanceManager {
         return true;
       }
       case PN.MIGRATING:
+      case PN.SMIGRATING:
       case PN.FAILING_OVER: {
-        dbgMaintenance("Received MIGRATING|FAILING_OVER");
+        dbgMaintenance("Received MIGRATING|SMIGRATING|FAILING_OVER");
         this.#onMigrating();
         return true;
       }
@@ -161,6 +164,11 @@ export default class EnterpriseMaintenanceManager {
       case PN.FAILED_OVER: {
         dbgMaintenance("Received MIGRATED|FAILED_OVER");
         this.#onMigrated();
+        return true;
+      }
+      case PN.SMIGRATED: {
+        dbgMaintenance("Received SMIGRATED");
+        this.#onSMigrated(push);
         return true;
       }
     }
@@ -196,12 +204,9 @@ export default class EnterpriseMaintenanceManager {
     // period that was communicated by the server is over.
     if (url === null) {
       assert(this.#options.maintEndpointType === "none");
-      assert(this.#options.socket !== undefined);
-      assert("host" in this.#options.socket);
-      assert(typeof this.#options.socket.host === "string");
-      host = this.#options.socket.host;
-      assert(typeof this.#options.socket.port === "number");
-      port = this.#options.socket.port;
+      const { host: h, port: p } = this.#getAddress()
+      host = h;
+      port = p;
       const waitTime = (afterSeconds * 1000) / 2;
       dbgMaintenance(`Wait for ${waitTime}ms`);
       await setTimeout(waitTime);
@@ -220,7 +225,7 @@ export default class EnterpriseMaintenanceManager {
 
     // If the URL is provided, it takes precedense
     // the options object could just be mutated
-    if(this.#options.url) {
+    if (this.#options.url) {
       const u = new URL(this.#options.url);
       u.hostname = host;
       u.port = String(port);
@@ -229,15 +234,17 @@ export default class EnterpriseMaintenanceManager {
       this.#options.socket = {
         ...this.#options.socket,
         host,
-        port
-      }
+        port,
+      };
     }
     const tmpClient = this.#client.duplicate();
-    tmpClient.on('error', (error: unknown) => {
+    tmpClient.on("error", (error: unknown) => {
       //We dont know how to handle tmp client errors
-      dbgMaintenance(`[ERR]`, error)
+      dbgMaintenance(`[ERR]`, error);
     });
-    dbgMaintenance(`Tmp client created in ${( performance.now() - start ).toFixed(2)}ms`);
+    dbgMaintenance(
+      `Tmp client created in ${(performance.now() - start).toFixed(2)}ms`,
+    );
     dbgMaintenance(
       `Set timeout for tmp client to ${this.#options.maintRelaxedSocketTimeout}`,
     );
@@ -248,7 +255,9 @@ export default class EnterpriseMaintenanceManager {
     dbgMaintenance(`Connecting tmp client: ${host}:${port}`);
     start = performance.now();
     await tmpClient.connect();
-    dbgMaintenance(`Connected to tmp client in ${(performance.now() - start).toFixed(2)}ms`);
+    dbgMaintenance(
+      `Connected to tmp client in ${(performance.now() - start).toFixed(2)}ms`,
+    );
     // 3 [EVENT] New socket connected
 
     dbgMaintenance(`Wait for all in-flight commands to complete`);
@@ -294,12 +303,59 @@ export default class EnterpriseMaintenanceManager {
 
     const update: MaintenanceUpdate = {
       relaxedCommandTimeout: undefined,
-      relaxedSocketTimeout: undefined
+      relaxedSocketTimeout: undefined,
     };
 
     this.#client._maintenanceUpdate(update);
   };
+
+  #onSMigrated = (push: any[]) => {
+    // [ 'SMIGRATED', 15, [ [ '127.0.0.1:6379', '123,456,789-1000' ], [ '127.0.0.1:6380', '124,457,300-500' ] ] ]
+    //                ^seq    ^new endpoint1    ^slots                  ^new endpoint2    ^slots
+    const sequenceId: number = push[1];
+    const smigratedEvent: SMigratedEvent = {
+      seqId: sequenceId,
+      source: {
+        ...this.#getAddress()
+      },
+      destinations: []
+    }
+    for(const [endpoint, slots] of push[2] as string[]) {
+      //TODO not sure if we need to handle fqdn/ip.. cluster manages clients by host:port. If `cluster slots` returns ip,
+      // but this notification returns fqdn, then we need to unify somehow ( maybe lookup )
+      const [ host, port ] = endpoint.split(':');
+      // `slots` could be mix of single slots and ranges, for example: 123,456,789-1000
+      const parsedSlots = slots.split(',').map((singleOrRange): number | [number, number] => {
+        const separatorIndex = singleOrRange.indexOf('-');
+        if(separatorIndex === -1) {
+          // Its single slot
+          return Number(singleOrRange);
+        }
+        // Its range
+        return [Number(singleOrRange.substring(0, separatorIndex)), Number(singleOrRange.substring(separatorIndex + 1))];
+      });
+
+      smigratedEvent.destinations.push({
+        host,
+        port: Number(port),
+        slots: parsedSlots
+      })
+    }
+    this.#client._handleSmigrated(smigratedEvent);
+  }
+
+
+  #getAddress(): { host: string, port: number } {
+    assert(this.#options.socket !== undefined);
+    assert("host" in this.#options.socket);
+    assert(typeof this.#options.socket.host === "string");
+    const host = this.#options.socket.host;
+    assert(typeof this.#options.socket.port === "number");
+    const port = this.#options.socket.port;
+    return { host, port };
+  }
 }
+
 
 export type MovingEndpointType =
   | "auto"
@@ -337,9 +393,7 @@ async function determineEndpoint(
 ): Promise<MovingEndpointType> {
   assert(options.maintEndpointType !== undefined);
   if (options.maintEndpointType !== "auto") {
-    dbgMaintenance(
-      `Determine endpoint type: ${options.maintEndpointType}`,
-    );
+    dbgMaintenance(`Determine endpoint type: ${options.maintEndpointType}`);
     return options.maintEndpointType;
   }
 

@@ -1,4 +1,5 @@
 import { RedisClusterClientOptions } from '@redis/client/dist/lib/cluster';
+import { randomUUID } from 'node:crypto';
 import { createConnection } from 'node:net';
 import { once } from 'node:events';
 import { createClient } from '@redis/client/index';
@@ -9,6 +10,7 @@ import { promisify } from 'node:util';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import assert from 'node:assert';
 
 const execAsync = promisify(execFileCallback);
 
@@ -116,6 +118,78 @@ options: RedisServerDockerOptions, serverArguments: Array<string>): Promise<Redi
 }
 const RUNNING_SERVERS = new Map<Array<string>, ReturnType<typeof spawnRedisServerDocker>>();
 
+export interface ProxiedRedisServerDocker {
+  ports: number[],
+  apiPort: number,
+  dockerId: string
+}
+
+export interface ProxiedRedisServerConfig {
+  nOfProxies: number,
+  defaultInterceptors: ('cluster'|'hitless'|'logger')[]
+  freshContainer?: boolean;
+}
+
+const RUNNING_PROXIED_SERVERS = new Map<string, Promise<ProxiedRedisServerDocker>>();
+
+export async function spawnProxiedRedisServer(config: ProxiedRedisServerConfig): Promise<ProxiedRedisServerDocker> {
+  const key = JSON.stringify({
+    ...config,
+    ...(config.freshContainer ? { randomKey: randomUUID() } : {})
+  });
+  const runningServer = RUNNING_PROXIED_SERVERS.get(key);
+  if (runningServer) {
+    return runningServer;
+  }
+
+  const server = spawnProxiedRedisServerDocker(config);
+  RUNNING_PROXIED_SERVERS.set(key, server);
+  return server;
+}
+
+export async function spawnProxiedRedisServerDocker(
+  config: ProxiedRedisServerConfig,
+): Promise<ProxiedRedisServerDocker> {
+
+  assert(config.nOfProxies > 0, 'At least one proxy should be started');
+  const ports: number[] = [];
+  for (let i = 0; i < config.nOfProxies; i++) {
+    ports.push((await portIterator.next()).value);
+  }
+  const apiPort = (await portIterator.next()).value;
+
+  const dockerArgs =[
+    "run",
+    "-d",
+    "--network", "host",
+    "-e", `LISTEN_PORT=${ports.join(',')}`,
+    "-e", `API_PORT=${apiPort}`,
+    "-e", "TIMEOUT=0",
+    "-e", "TARGET_HOST=0.0.0.0",
+    "-e", `DEFAULT_INTERCEPTORS=${config.defaultInterceptors.join(',')}`,
+    "-e", "ENABLE_LOGGING=true",
+    "cae-resp-proxy-standalone"
+  ]
+
+  console.log(`[Docker] Spawning Proxy container`, dockerArgs.join(' '));
+
+  const { stdout, stderr } = await execAsync("docker", dockerArgs);
+
+  if (!stdout) {
+    throw new Error(`docker run error - ${stderr}`);
+  }
+
+  while (await isPortAvailable(ports[0])) {
+    await setTimeout(50);
+  }
+
+  return {
+    ports,
+    apiPort,
+    dockerId: stdout.trim(),
+  };
+}
+
 export function spawnRedisServer(dockerConfig: RedisServerDockerOptions, serverArguments: Array<string>): Promise<RedisServerDocker> {
   const runningServer = RUNNING_SERVERS.get(serverArguments);
   if (runningServer) {
@@ -134,13 +208,7 @@ async function dockerRemove(dockerId: string): Promise<void> {
   }
 }
 
-after(() => {
-  return Promise.all(
-    [...RUNNING_SERVERS.values()].map(async dockerPromise =>
-      await dockerRemove((await dockerPromise).dockerId)
-    )
-  );
-});
+
 
 export type RedisClusterDockersConfig = RedisServerDockerOptions & {
   numberOfMasters?: number;
@@ -311,15 +379,7 @@ export function spawnRedisCluster(
   return dockersPromise;
 }
 
-after(() => {
-  return Promise.all(
-    [...RUNNING_CLUSTERS.values()].map(async dockersPromise => {
-      return Promise.all(
-        (await dockersPromise).map(({ dockerId }) => dockerRemove(dockerId))
-      );
-    })
-  );
-});
+
 
 
 const RUNNING_NODES = new Map<Array<string>, Array<RedisServerDocker>>();
@@ -333,7 +393,7 @@ export async function spawnRedisSentinel(
     if (runningNodes) {
       return runningNodes;
     }
-    
+
     const passIndex = serverArguments.indexOf('--requirepass')+1;
     let password: string | undefined = undefined;
     if (passIndex != 0) {
@@ -343,7 +403,7 @@ export async function spawnRedisSentinel(
     const master = await spawnRedisServerDocker(dockerConfigs, serverArguments);
     const redisNodes: Array<RedisServerDocker> = [master];
     const replicaPromises: Array<Promise<RedisServerDocker>> = [];
-    
+
     const replicasCount = 2;
     for (let i = 0; i < replicasCount; i++) {
       replicaPromises.push((async () => {
@@ -358,26 +418,26 @@ export async function spawnRedisSentinel(
         await client.connect();
         await client.replicaOf("127.0.0.1", master.port);
         await client.close();
-        
+
         return replica;
       })());
     }
-    
+
     const replicas = await Promise.all(replicaPromises);
     redisNodes.push(...replicas);
     RUNNING_NODES.set(serverArguments, redisNodes);
 
     const sentinelPromises: Array<Promise<RedisServerDocker>> = [];
     const sentinelCount = 3;
-    
+
     const appPrefix = 'sentinel-config-dir';
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), appPrefix));
 
     for (let i = 0; i < sentinelCount; i++) {
       sentinelPromises.push(
         spawnSentinelNode(
-          dockerConfigs, 
-          serverArguments, 
+          dockerConfigs,
+          serverArguments,
           master.port,
           "mymaster",
           path.join(tmpDir, i.toString()),
@@ -385,10 +445,10 @@ export async function spawnRedisSentinel(
         ),
       )
     }
-    
+
     const sentinelNodes = await Promise.all(sentinelPromises);
     RUNNING_SENTINELS.set(serverArguments, sentinelNodes);
-    
+
     if (tmpDir) {
       fs.rmSync(tmpDir, { recursive: true });
     }
@@ -397,20 +457,30 @@ export async function spawnRedisSentinel(
 }
 
 after(() => {
-  return Promise.all(
-    [...RUNNING_NODES.values(), ...RUNNING_SENTINELS.values()].map(async dockersPromise => {
-      return Promise.all(
-        dockersPromise.map(({ dockerId }) => dockerRemove(dockerId))
-      );
-    })
-  );
+  return Promise.all([
+    ...Array.from(RUNNING_SERVERS.values()).map(async dockerPromise =>
+      dockerRemove((await dockerPromise).dockerId)
+    ),
+    ...Array.from(RUNNING_CLUSTERS.values()).map(async dockersPromise =>
+      Promise.all((await dockersPromise).map(({ dockerId }) => dockerRemove(dockerId)))
+    ),
+    ...Array.from(RUNNING_NODES.values()).map(dockersPromise =>
+      Promise.all(dockersPromise.map(({ dockerId }) => dockerRemove(dockerId)))
+    ),
+    ...Array.from(RUNNING_SENTINELS.values()).map(dockersPromise =>
+      Promise.all(dockersPromise.map(({ dockerId }) => dockerRemove(dockerId)))
+    ),
+    ...Array.from(RUNNING_PROXIED_SERVERS.values()).map(async dockerPromise =>
+      dockerRemove((await dockerPromise).dockerId)
+    )
+  ]);
 });
 
 
 export async function spawnSentinelNode(
   dockerConfigs: RedisServerDockerOptions,
   serverArguments: Array<string>,
-  masterPort: number, 
+  masterPort: number,
   sentinelName: string,
   tmpDir: string,
   password?: string,
@@ -436,12 +506,12 @@ sentinel failover-timeout ${sentinelName} 1000
 
   return await spawnRedisServerDocker(
     {
-      image: dockerConfigs.image, 
-      version: dockerConfigs.version, 
+      image: dockerConfigs.image,
+      version: dockerConfigs.version,
       mode: "sentinel",
-        mounts: [`${dir}/redis.conf:/redis/config/node-sentinel-1/redis.conf`], 
+        mounts: [`${dir}/redis.conf:/redis/config/node-sentinel-1/redis.conf`],
         port: port,
-    }, 
+    },
     serverArguments,
   );
 }
