@@ -2,7 +2,7 @@ import { ArrayReply, Command, RedisFunction, RedisScript, RespVersions, UnwrapRe
 import { BasicCommandParser } from '../client/parser';
 import { RedisSocketOptions, RedisTcpSocketOptions } from '../client/socket';
 import { functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
-import { NamespaceProxySentinel, NamespaceProxySentinelClient, ProxySentinel, ProxySentinelClient, RedisNode } from './types';
+import { NamespaceProxySentinel, NamespaceProxySentinelClient, NodeAddressMap, ProxySentinel, ProxySentinelClient, RedisNode } from './types';
 
 /* TODO: should use map interface, would need a transform reply probably? as resp2 is list form, which this depends on */
 export function parseNode(node: Record<string, string>): RedisNode | undefined{
@@ -95,4 +95,32 @@ export function createScriptCommand<T extends ProxySentinel | ProxySentinelClien
       client => client._executeScript(script, parser, this.commandOptions, transformReply)
     );
   };
+}
+
+/**
+ * Returns the mapped node address for the given host and port using the nodeAddressMap.
+ * If no mapping exists, returns the original host and port.
+ *
+ * @param host The original host
+ * @param port The original port
+ * @param nodeAddressMap The node address map (object or function)
+ * @returns The mapped node or the original node if no mapping exists
+ */
+export function getMappedNode(
+  host: string,
+  port: number,
+  nodeAddressMap: NodeAddressMap | undefined
+): RedisNode {
+  if (nodeAddressMap === undefined) {
+    return { host, port };
+  }
+
+  const address = `${host}:${port}`;
+
+  switch (typeof nodeAddressMap) {
+    case 'object':
+      return nodeAddressMap[address] ?? { host, port };
+    case 'function':
+      return nodeAddressMap(address) ?? { host, port };
+  }
 }

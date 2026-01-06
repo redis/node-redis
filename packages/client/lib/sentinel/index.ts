@@ -5,7 +5,7 @@ import { CommandOptions } from '../client/commands-queue';
 import { attachConfig } from '../commander';
 import COMMANDS from '../commands';
 import { ClientErrorEvent, NamespaceProxySentinel, NamespaceProxySentinelClient, NodeAddressMap, ProxySentinel, ProxySentinelClient, RedisNode, RedisSentinelClientType, RedisSentinelEvent, RedisSentinelOptions, RedisSentinelType, SentinelCommander } from './types';
-import { clientSocketToNode, createCommand, createFunctionCommand, createModuleCommand, createNodeList, createScriptCommand, parseNode } from './utils';
+import { clientSocketToNode, createCommand, createFunctionCommand, createModuleCommand, createNodeList, createScriptCommand, getMappedNode, parseNode } from './utils';
 import { RedisMultiQueuedCommand } from '../multi-command';
 import RedisSentinelMultiCommand, { RedisSentinelMultiCommandType } from './multi-commands';
 import { PubSubListener } from '../client/pub-sub';
@@ -718,21 +718,8 @@ class RedisSentinelInternal<
     );
   }
 
-  #getNodeAddress(address: string): RedisNode | undefined {
-    switch (typeof this.#nodeAddressMap) {
-      case 'object':
-        return this.#nodeAddressMap[address];
-
-      case 'function':
-        return this.#nodeAddressMap(address);
-    }
-  }
-
   #createClient(node: RedisNode, clientOptions: RedisClientOptions, reconnectStrategy?: false) {
-    const address = `${node.host}:${node.port}`;
-    const socket =
-      this.#getNodeAddress(address) ??
-      { host: node.host, port: node.port };
+    const socket = getMappedNode(node.host, node.port, this.#nodeAddressMap);
     return RedisClient.create({
       //first take the globally set RESP
       RESP: this.#RESP,
@@ -1442,16 +1429,6 @@ export class RedisSentinelFactory extends EventEmitter {
     this.#sentinelRootNodes = options.sentinelRootNodes;
   }
 
-  #getNodeAddress(address: string): RedisNode | undefined {
-    switch (typeof this.options.nodeAddressMap) {
-      case 'object':
-        return this.options.nodeAddressMap[address];
-
-      case 'function':
-        return this.options.nodeAddressMap(address);
-    }
-  }
-
   async updateSentinelRootNodes() {
     for (const node of this.#sentinelRootNodes) {
       const client = RedisClient.create({
@@ -1534,10 +1511,7 @@ export class RedisSentinelFactory extends EventEmitter {
 
   async getMasterClient() {
     const master = await this.getMasterNode();
-    const address = `${master.host}:${master.port}`;
-    const socket =
-      this.#getNodeAddress(address) ??
-      { host: master.host, port: master.port };
+    const socket = getMappedNode(master.host, master.port, this.options.nodeAddressMap);
     return RedisClient.create({
       ...this.options.nodeClientOptions,
       socket: {
@@ -1607,10 +1581,7 @@ export class RedisSentinelFactory extends EventEmitter {
     }
 
     const replica = replicas[this.#replicaIdx];
-    const address = `${replica.host}:${replica.port}`;
-    const socket =
-      this.#getNodeAddress(address) ??
-      { host: replica.host, port: replica.port };
+    const socket = getMappedNode(replica.host, replica.port, this.options.nodeAddressMap);
     return RedisClient.create({
       ...this.options.nodeClientOptions,
       socket: {
