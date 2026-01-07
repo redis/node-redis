@@ -596,31 +596,42 @@ export default class RedisCluster<
     );
   }
 
-  resubscribeAllPubSubListeners(allListeners: PubSubListeners) {
-    for(const [channel, listeners] of allListeners.CHANNELS) {
-      listeners.buffers.forEach(bufListener => {
-        this.subscribe(channel, bufListener, true);
-      });
-      listeners.strings.forEach(strListener => {
-        this.subscribe(channel, strListener);
-      });
-    };
-    for (const [channel, listeners] of allListeners.PATTERNS) {
-      listeners.buffers.forEach(bufListener => {
-        this.pSubscribe(channel, bufListener, true);
-      });
-      listeners.strings.forEach(strListener => {
-        this.pSubscribe(channel, strListener);
-      });
-    };
-    for (const [channel, listeners] of allListeners.SHARDED) {
-      listeners.buffers.forEach(bufListener => {
-        this.sSubscribe(channel, bufListener, true);
-      });
-      listeners.strings.forEach(strListener => {
-        this.sSubscribe(channel, strListener);
-      });
-    };
+  resubscribeAllPubSubListeners(allListeners: Partial<PubSubListeners>) {
+    if (allListeners.CHANNELS) {
+      for(const [channel, listeners] of allListeners.CHANNELS) {
+        console.log('resubscribe normal pubsub channel', channel);
+        listeners.buffers.forEach(bufListener => {
+          this.subscribe(channel, bufListener, true);
+        });
+        listeners.strings.forEach(strListener => {
+          this.subscribe(channel, strListener);
+        });
+      }
+    }
+
+    if (allListeners.PATTERNS) {
+      for (const [channel, listeners] of allListeners.PATTERNS) {
+        console.log('resubscribe pattern channel', channel);
+        listeners.buffers.forEach(bufListener => {
+          this.pSubscribe(channel, bufListener, true);
+        });
+        listeners.strings.forEach(strListener => {
+          this.pSubscribe(channel, strListener);
+        });
+      }
+    }
+
+    if (allListeners.SHARDED) {
+      for (const [channel, listeners] of allListeners.SHARDED) {
+        console.log('resubscribe sharded pubsub channel', channel);
+        listeners.buffers.forEach(bufListener => {
+          this.sSubscribe(channel, bufListener, true);
+        });
+        listeners.strings.forEach(strListener => {
+          this.sSubscribe(channel, strListener);
+        });
+      }
+    }
   }
 
   sUnsubscribe = this.SUNSUBSCRIBE;
