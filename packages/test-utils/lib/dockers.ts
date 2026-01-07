@@ -211,8 +211,10 @@ export async function spawnProxiedRedisServerDocker(
     throw new Error(`docker run error - ${stderr}`);
   }
 
-  while (await isPortAvailable(ports[0])) {
-    await setTimeout(50);
+  for(const port of ports.concat(apiPort)) {
+    while (await isPortAvailable(port)) {
+      await setTimeout(50);
+    }
   }
 
   return {
