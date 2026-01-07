@@ -345,14 +345,17 @@ export default class RedisClusterSlots<
       if(sourceStillHasSlots) {
         const normalCommandsToMove = sourceNode.client!._getQueue().extractCommandsForSlots(movingSlots);
         // 5. Prepend extracted commands, chans
-        //TODO pubsub, spubsub
+        // 5.1 normal
         destMasterNode.client?._getQueue().prependCommandsToWrite(normalCommandsToMove);
         sourceNode.client?._unpause();
+        // 5.2 sharded pubsub
         if('pubSub' in sourceNode) {
           const listeners = sourceNode.pubSub?.client._getQueue().removeShardedPubSubListenersForSlots(movingSlots);
           this.#emit(RESUBSCRIBE_LISTENERS_EVENT, listeners);
           sourceNode.pubSub?.client._unpause();
         }
+        // 5.3 normal pubsub - actually not needed. normal pubsub in cluster works from every client, no hashing needed.
+        // So no redistribution needed if the src client still lives
       } else {
         // If source shard doesnt have any slots left, this means we can safely move all commands to the new shard.
         // Same goes for sharded pub sub listeners
