@@ -1,0 +1,8 @@
+{
+  "reporterEnabled": "spec, mocha-junit-reporter",
+  "mochaJunitReporterReporterOptions": {
+    "mochaFile": "../../junit-results/bloom.xml",
+    "toConsole": false,
+    "testsuitesTitle": "@redis/bloom"
+  }
+}

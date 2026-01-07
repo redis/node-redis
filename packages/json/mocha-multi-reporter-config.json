@@ -1,0 +1,8 @@
+{
+  "reporterEnabled": "spec, mocha-junit-reporter",
+  "mochaJunitReporterReporterOptions": {
+    "mochaFile": "../../junit-results/json.xml",
+    "toConsole": false,
+    "testsuitesTitle": "@redis/json"
+  }
+}
