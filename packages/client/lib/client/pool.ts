@@ -518,7 +518,7 @@ export class RedisClientPool<
 
       await Promise.all(promises);
 
-      this.#clientSideCache?.onPoolClose();
+      this._self.#clientSideCache?.onPoolClose();
   
       this._self.#idleClients.reset();
       this._self.#clientsInUse.reset();
