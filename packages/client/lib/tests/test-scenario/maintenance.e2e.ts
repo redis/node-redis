@@ -2,8 +2,10 @@ import assert from "node:assert";
 import { setTimeout } from "node:timers/promises";
 import diagnostics_channel from "node:diagnostics_channel";
 
-import testUtils from "../test-utils";
-import { DiagnosticsEvent } from "../client/enterprise-maintenance-manager";
+import testUtils from "../../test-utils";
+import { DiagnosticsEvent } from "../../client/enterprise-maintenance-manager";
+import { RedisConnectionConfig, getDatabaseConfig, getDatabaseConfigFromEnv, getEnvConfig } from "./test-scenario.util";
+import { FaultInjectorClient } from "./fault-injector-client";
 
 describe("Cluster Maintenance", () => {
   const KEYS = [
@@ -25,12 +27,18 @@ describe("Cluster Maintenance", () => {
     "channel:d0v:16000",
   ];
 
-  before(() => {
-    process.env.REDIS_EMIT_DIAGNOSTICS = "1";
-  });
+  let clientConfig: RedisConnectionConfig;
+  let faultInjectorClient: FaultInjectorClient;
 
-  after(() => {
-    delete process.env.REDIS_EMIT_DIAGNOSTICS;
+
+  before(() => {
+    const envConfig = getEnvConfig();
+    const redisConfig = getDatabaseConfigFromEnv(
+      envConfig.redisEndpointsConfigPath,
+    );
+
+    faultInjectorClient = new FaultInjectorClient(envConfig.faultInjectorUrl);
+    clientConfig = getDatabaseConfig(redisConfig);
   });
 
   let diagnosticEvents: DiagnosticsEvent[] = [];
@@ -52,7 +60,7 @@ describe("Cluster Maintenance", () => {
   });
 
   describe("Notifications", () => {
-    testUtils.testWithProxiedCluster(
+    testUtils.testWithRECluster(
       "should NOT receive notifications when maintNotifications is disabled",
       async (_cluster, faultInjectorClient) => {
         assert.equal(
@@ -77,7 +85,6 @@ describe("Cluster Maintenance", () => {
         );
       },
       {
-        numberOfMasters: 3,
         clusterConfiguration: {
           defaults: {
             maintNotifications: "disabled",
@@ -111,7 +118,7 @@ describe("Cluster Maintenance", () => {
       },
     } as const;
 
-    testUtils.testWithProxiedCluster(
+    testUtils.testWithRECluster(
       "normal - should handle migration",
       async (cluster, faultInjectorClient) => {
         const initialMasterAddresses = new Set(
@@ -180,7 +187,7 @@ describe("Cluster Maintenance", () => {
       PROXIED_CLUSTER_OPTIONS
     );
 
-    testUtils.testWithProxiedCluster(
+    testUtils.testWithRECluster(
       "sharded pubsub - should handle migration",
       async (cluster, faultInjectorClient) => {
         const stats: Record<string, { sent: number; received: number }> = {};
@@ -257,7 +264,7 @@ describe("Cluster Maintenance", () => {
       PROXIED_CLUSTER_OPTIONS
     );
 
-    testUtils.testWithProxiedCluster(
+    testUtils.testWithRECluster(
       "pubsub - should handle migration",
       async (cluster, faultInjectorClient) => {
         const stats: Record<string, { sent: number; received: number }> = {};
@@ -360,7 +367,7 @@ describe("Cluster Maintenance", () => {
       },
     } as const;
 
-    testUtils.testWithProxiedCluster(
+    testUtils.testWithRECluster(
       "normal - should handle migration",
       async (cluster, faultInjectorClient) => {
         const initialMasterAddresses = new Set(
@@ -432,7 +439,7 @@ describe("Cluster Maintenance", () => {
       PROXIED_CLUSTER_OPTIONS
     );
 
-    testUtils.testWithProxiedCluster(
+    testUtils.testWithRECluster(
       "sharded pubsub - should handle migration",
       async (cluster, faultInjectorClient) => {
         const stats: Record<string, { sent: number; received: number }> = {};
@@ -509,7 +516,7 @@ describe("Cluster Maintenance", () => {
       PROXIED_CLUSTER_OPTIONS
     );
 
-    testUtils.testWithProxiedCluster(
+    testUtils.testWithRECluster(
       "pubsub - should handle migration",
       async (cluster, faultInjectorClient) => {
         const stats: Record<string, { sent: number; received: number }> = {};
@@ -610,7 +617,7 @@ describe("Cluster Maintenance", () => {
       },
     } as const;
 
-    testUtils.testWithProxiedCluster(
+    testUtils.testWithRECluster(
       "normal - should handle migration",
       async (cluster, faultInjectorClient) => {
         const initialMasterAddresses = new Set(
@@ -679,7 +686,7 @@ describe("Cluster Maintenance", () => {
       PROXIED_CLUSTER_OPTIONS
     );
 
-    testUtils.testWithProxiedCluster(
+    testUtils.testWithRECluster(
       "sharded pubsub - should handle migration",
       async (cluster, faultInjectorClient) => {
         const stats: Record<string, { sent: number; received: number }> = {};
@@ -756,7 +763,7 @@ describe("Cluster Maintenance", () => {
       PROXIED_CLUSTER_OPTIONS
     );
 
-    testUtils.testWithProxiedCluster(
+    testUtils.testWithRECluster(
       "pubsub - should handle migration",
       async (cluster, faultInjectorClient) => {
         const stats: Record<string, { sent: number; received: number }> = {};
@@ -859,7 +866,7 @@ describe("Cluster Maintenance", () => {
       },
     } as const;
 
-    testUtils.testWithProxiedCluster(
+    testUtils.testWithRECluster(
       "normal - should handle migration",
       async (cluster, faultInjectorClient) => {
         const initialMasterAddresses = new Set(
@@ -931,7 +938,7 @@ describe("Cluster Maintenance", () => {
       PROXIED_CLUSTER_OPTIONS
     );
 
-    testUtils.testWithProxiedCluster(
+    testUtils.testWithRECluster(
       "sharded pubsub - should handle migration",
       async (cluster, faultInjectorClient) => {
         const stats: Record<string, { sent: number; received: number }> = {};
@@ -1008,7 +1015,7 @@ describe("Cluster Maintenance", () => {
       PROXIED_CLUSTER_OPTIONS
     );
 
-    testUtils.testWithProxiedCluster(
+    testUtils.testWithRECluster(
       "pubsub - should handle migration",
       async (cluster, faultInjectorClient) => {
         const stats: Record<string, { sent: number; received: number }> = {};

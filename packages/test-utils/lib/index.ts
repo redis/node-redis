@@ -703,11 +703,7 @@ export default class TestUtils {
     title: string,
     fn: (
       cluster: RedisClusterType<M, F, S, RESP, TYPE_MAPPING>,
-      {
-        faultInjectorClient,
-      }: {
-        faultInjectorClient: IFaultInjectorClient;
-      }
+      faultInjectorClient: IFaultInjectorClient
     ) => unknown,
     options: REClusterTestOptions<M, F, S, RESP, TYPE_MAPPING>
   ) {
@@ -772,7 +768,7 @@ export default class TestUtils {
 
       try {
         await TestUtils.#clusterFlushAll(cluster);
-        await fn(cluster, { faultInjectorClient });
+        await fn(cluster, faultInjectorClient);
       } finally {
         cluster.destroy();
       }
