@@ -16,9 +16,18 @@
     "cluster-key-slot": "1.1.2"
   },
   "devDependencies": {
+    "@node-rs/xxhash": "1.7.6",
     "@redis/test-utils": "*",
     "@types/sinon": "^17.0.3",
     "sinon": "^17.0.1"
+  },
+  "peerDependencies": {
+    "@node-rs/xxhash": "^1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@node-rs/xxhash": {
+      "optional": true
+    }
   },
   "engines": {
     "node": ">= 18"

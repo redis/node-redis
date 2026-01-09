@@ -224,6 +224,36 @@ client.scanIterator({
 });
 ```
 
+### Compare-and-Set/Delete (CAS/CAD)
+
+> **Note**: CAS/CAD operations were introduced in Redis 8.4
+
+```typescript
+// Conditionally update only if the current value matches
+await client.set("key", "new-value", { condition: "IFEQ", conditionValue: "old-value" });
+
+// Conditionally delete only if the current value matches
+await client.delEx("key", { condition: "IFEQ", conditionValue: "expected-value" });
+```
+
+#### Local Digest
+
+> **Note**: This feature requires the optional `@node-rs/xxhash` peer dependency.
+
+The `digest` helper computes an XXH3 64-bit hash locally, matching what Redis computes via the `DIGEST` command. This is useful for CAS/CAD operations with large values where comparing the full value would be inefficient.
+
+```bash
+npm install @node-rs/xxhash
+```
+
+```typescript
+import { digest } from "redis";
+
+const hash = await digest("my-value");
+
+await client.set("key", "new-value", { condition: "IFDEQ", conditionValue: hash });
+```
+
 ### Disconnecting
 
 The `QUIT` command has been deprecated in Redis 7.2 and should now also be considered deprecated in Node-Redis. Instead
