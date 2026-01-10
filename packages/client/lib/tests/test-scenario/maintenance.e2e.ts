@@ -5,7 +5,6 @@ import diagnostics_channel from "node:diagnostics_channel";
 import testUtils from "../../test-utils";
 import { DiagnosticsEvent } from "../../client/enterprise-maintenance-manager";
 import { RedisConnectionConfig, getDatabaseConfig, getDatabaseConfigFromEnv, getEnvConfig } from "./test-scenario.util";
-import { FaultInjectorClient } from "./fault-injector-client";
 
 describe("Cluster Maintenance", () => {
   const KEYS = [
@@ -26,20 +25,6 @@ describe("Cluster Maintenance", () => {
     "channel:mz:15000",
     "channel:d0v:16000",
   ];
-
-  let clientConfig: RedisConnectionConfig;
-  let faultInjectorClient: FaultInjectorClient;
-
-
-  before(() => {
-    const envConfig = getEnvConfig();
-    const redisConfig = getDatabaseConfigFromEnv(
-      envConfig.redisEndpointsConfigPath,
-    );
-
-    faultInjectorClient = new FaultInjectorClient(envConfig.faultInjectorUrl);
-    clientConfig = getDatabaseConfig(redisConfig);
-  });
 
   let diagnosticEvents: DiagnosticsEvent[] = [];
 
@@ -71,8 +56,9 @@ describe("Cluster Maintenance", () => {
 
         // Trigger migration
         await faultInjectorClient.triggerAction({
-          type: "migrate",
+          type: "shuffle_shards",
           parameters: {
+            scenario: "slot-shuffle",
             cluster_index: 0,
           },
         });

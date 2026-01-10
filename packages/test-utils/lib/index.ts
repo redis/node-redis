@@ -723,7 +723,7 @@ export default class TestUtils {
       faultInjectorClient = new FaultInjectorClient(baseUrl);
 
       await faultInjectorClient.deleteAllDatabases(0);
-      dbConfig = await faultInjectorClient.createDatabase(
+      dbConfig = await faultInjectorClient.createAndSelectDatabase(
         options.dbConfig ||
           getCreateDatabaseConfig(
             CreateDatabaseConfigType.CLUSTER,

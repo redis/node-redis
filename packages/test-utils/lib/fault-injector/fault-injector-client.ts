@@ -4,16 +4,23 @@ import {
   ActionRequest,
   ActionStatus,
   CreateDatabaseConfig,
+  DatabaseConfig,
   IFaultInjectorClient,
 } from "./types";
 
 export class FaultInjectorClient implements IFaultInjectorClient {
   private baseUrl: string;
+  private dbConfig?: DatabaseConfig
   #fetch: typeof fetch;
 
   constructor(baseUrl: string, fetchImpl: typeof fetch = fetch) {
     this.baseUrl = baseUrl.replace(/\/+$/, ""); // trim trailing slash
+    console.log('[FI] Constructor:', this.baseUrl);
     this.#fetch = fetchImpl;
+  }
+
+  selectDbConfig(dbConfig: DatabaseConfig) {
+    this.dbConfig = dbConfig;
   }
 
   /**
@@ -21,6 +28,7 @@ export class FaultInjectorClient implements IFaultInjectorClient {
    * @throws {Error} When the HTTP request fails or response cannot be parsed as JSON
    */
   public listActions<T = unknown>(): Promise<T> {
+    console.log('[FI] listActions');
     return this.#request<T>("GET", "/action");
   }
 
@@ -36,7 +44,17 @@ export class FaultInjectorClient implements IFaultInjectorClient {
       maxWaitTimeMs?: number;
     }
   ): Promise<ActionStatus> {
+    if (action.parameters !== undefined && action.parameters.bdb_id === undefined) {
+      const resolvedBdbId = this.#resolveBdbId();
+      if (resolvedBdbId !== undefined) {
+        console.log('[FI] bdb_id was not provided. setting selected bdb_id');
+        action.parameters.bdb_id = String(resolvedBdbId);
+      }
+    }
+    const params = action.parameters ? JSON.stringify(action.parameters) : '';
+    console.log('[FI] triggerAction:', action.type, params);
     const { action_id } = await this.#request<T>("POST", "/action", action);
+    console.log('[FI] action_id:', action_id);
 
     return this.waitForAction(action_id, options);
   }
@@ -68,6 +86,7 @@ export class FaultInjectorClient implements IFaultInjectorClient {
   ): Promise<ActionStatus> {
     const timeout = timeoutMs || 1000;
     const maxWaitTime = maxWaitTimeMs || 60000;
+    console.log('[FI] waitForAction:', actionId, `(poll: ${timeout}ms, max: ${maxWaitTime}ms)`);
 
     const startTime = Date.now();
 
@@ -75,18 +94,21 @@ export class FaultInjectorClient implements IFaultInjectorClient {
       const action = await this.getActionStatus<ActionStatus>(actionId);
 
       if (action.status === "failed") {
+        console.error('[FI] FAILED:', action.error);
         throw new Error(
           `Action id: ${actionId} failed! Error: ${action.error}`
         );
       }
 
       if (["finished", "success"].includes(action.status)) {
+        console.log('[FI] ✓ completed');
         return action;
       }
 
       await setTimeout(timeout);
     }
 
+    console.error('[FI] TIMEOUT after', maxWaitTime, 'ms');
     throw new Error(`Timeout waiting for action ${actionId}`);
   }
 
@@ -94,10 +116,11 @@ export class FaultInjectorClient implements IFaultInjectorClient {
     bdbId,
     clusterIndex,
   }: {
-    bdbId: string | number;
+    bdbId?: string | number;
     clusterIndex: string | number;
   }) {
-    const bdbIdStr = bdbId.toString();
+    const resolvedBdbId = this.#resolveBdbId(bdbId);
+    console.log('[FI] migrateAndBind: bdb', resolvedBdbId, 'cluster', clusterIndex);
     const clusterIndexStr = clusterIndex.toString();
 
     return this.triggerAction<{
@@ -105,25 +128,39 @@ export class FaultInjectorClient implements IFaultInjectorClient {
     }>({
       type: "sequence_of_actions",
       parameters: {
-        bdbId: bdbIdStr,
+        bdbId: resolvedBdbId,
         actions: [
           {
             type: "migrate",
             params: {
               cluster_index: clusterIndexStr,
-              bdb_id: bdbIdStr,
+              bdb_id: resolvedBdbId,
             },
           },
           {
             type: "bind",
             params: {
               cluster_index: clusterIndexStr,
-              bdb_id: bdbIdStr,
+              bdb_id: resolvedBdbId,
             },
           },
         ],
       },
     });
+  }
+
+  #resolveBdbId(bdbId?: string | number): string | undefined {
+    if (bdbId !== undefined) {
+      if (this.dbConfig?.bdbId !== undefined) {
+        console.warn(`[FI] User provided bdbId(${bdbId}), which will shadow selected bdbId(${this.dbConfig.bdbId})`);
+      }
+      return String(bdbId);
+    }
+
+    if (this.dbConfig?.bdbId !== undefined) {
+      return String(this.dbConfig.bdbId);
+    }
+
   }
 
   async #request<T>(
@@ -132,6 +169,7 @@ export class FaultInjectorClient implements IFaultInjectorClient {
     body?: Object | string
   ): Promise<T> {
     const url = `${this.baseUrl}${path}`;
+    console.log('[FI]', method, path);
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     };
@@ -153,15 +191,19 @@ export class FaultInjectorClient implements IFaultInjectorClient {
     if (!response.ok) {
       try {
         const text = await response.text();
+        console.error('[FI] HTTP', response.status, '-', text);
         throw new Error(`HTTP ${response.status} - ${text}`);
       } catch {
+        console.error('[FI] HTTP', response.status);
         throw new Error(`HTTP ${response.status}`);
       }
     }
 
     try {
-      return (await response.json()) as T;
+      const result = (await response.json()) as T;
+      return result;
     } catch {
+      console.error('[FI] Failed to parse JSON response');
       throw new Error(
         `HTTP ${response.status} - Unable to parse response as JSON`
       );
@@ -171,18 +213,20 @@ export class FaultInjectorClient implements IFaultInjectorClient {
   /**
    * Deletes a database.
    * @param clusterIndex The index of the cluster
-   * @param bdbId The database ID
+   * @param bdbId The database ID (optional if dbConfig is set)
    * @throws {Error} When the HTTP request fails or response cannot be parsed as JSON
    */
   public async deleteDatabase(
-    bdbId: number | string,
+    bdbId?: number | string,
     clusterIndex: number = 0
   ) {
+    const resolvedBdbId = this.#resolveBdbId(bdbId);
+    console.log('[FI] deleteDatabase: bdb', resolvedBdbId, 'cluster', clusterIndex);
     return this.triggerAction({
       type: "delete_database",
       parameters: {
         cluster_index: clusterIndex,
-        bdb_id: bdbId.toString(),
+        bdb_id: resolvedBdbId,
       },
     });
   }
@@ -193,6 +237,7 @@ export class FaultInjectorClient implements IFaultInjectorClient {
    * @throws {Error} When the HTTP request fails or response cannot be parsed as JSON
    */
   public async deleteAllDatabases(clusterIndex: number = 0) {
+    console.log('[FI] deleteAllDatabases: cluster', clusterIndex);
     return this.triggerAction({
       type: "delete_database",
       parameters: {
@@ -208,10 +253,11 @@ export class FaultInjectorClient implements IFaultInjectorClient {
    * @param databaseConfig The database configuration
    * @throws {Error} When the HTTP request fails or response cannot be parsed as JSON
    */
-  public async createDatabase(
+  public async createAndSelectDatabase(
     databaseConfig: CreateDatabaseConfig,
     clusterIndex: number = 0
   ) {
+    console.log('[FI] createDatabase: cluster', clusterIndex);
     const action = await this.triggerAction({
       type: "create_database",
       parameters: {
@@ -228,10 +274,11 @@ export class FaultInjectorClient implements IFaultInjectorClient {
     const rawEndpoints = dbConfig.raw_endpoints[0];
 
     if (!rawEndpoints) {
+      console.error('[FI] No endpoints found');
       throw new Error("No endpoints found in database config");
     }
 
-    return {
+    const result = {
       host: rawEndpoints.dns_name,
       port: rawEndpoints.port,
       password: dbConfig.password,
@@ -239,5 +286,10 @@ export class FaultInjectorClient implements IFaultInjectorClient {
       tls: dbConfig.tls,
       bdbId: dbConfig.bdb_id,
     };
+    console.log('[FI] created:', result.host + ':' + result.port, 'bdb', result.bdbId);
+    this.selectDbConfig(result);
+
+    return result;
   }
+
 }

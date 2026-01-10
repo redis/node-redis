@@ -15,7 +15,8 @@ export type ActionType =
   | "proxy_failure"
   | "cluster_failure"
   | "delete_database"
-  | "create_database";
+  | "create_database"
+  | "shuffle_shards";
 
 export interface ActionRequest {
   type: ActionType;
