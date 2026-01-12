@@ -230,10 +230,10 @@ client.scanIterator({
 
 ```typescript
 // Conditionally update only if the current value matches
-await client.set("key", "new-value", { condition: "IFEQ", conditionValue: "old-value" });
+await client.set("key", "new-value", { condition: "IFEQ", matchValue: "old-value" });
 
 // Conditionally delete only if the current value matches
-await client.delEx("key", { condition: "IFEQ", conditionValue: "expected-value" });
+await client.delEx("key", { condition: "IFEQ", matchValue: "expected-value" });
 ```
 
 #### Local Digest
@@ -251,7 +251,7 @@ import { digest } from "redis";
 
 const hash = await digest("my-value");
 
-await client.set("key", "new-value", { condition: "IFDEQ", conditionValue: hash });
+await client.set("key", "new-value", { condition: "IFDEQ", matchValue: hash });
 ```
 
 ### Disconnecting
