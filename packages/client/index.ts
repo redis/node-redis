@@ -10,6 +10,7 @@ export {
 export { RESP_TYPES } from './lib/RESP/decoder';
 export { VerbatimString } from './lib/RESP/verbatim-string';
 export { defineScript } from './lib/lua-script';
+export { digest } from './lib/utils/digest';
 export * from './lib/errors';
 
 import RedisClient, { RedisClientOptions, RedisClientType } from './lib/client';
