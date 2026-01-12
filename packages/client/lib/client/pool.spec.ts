@@ -9,6 +9,11 @@ describe('RedisClientPool', () => {
     );
   }, GLOBAL.SERVERS.OPEN);
 
+  testUtils.testWithClientPool('close', async pool => {
+    await pool.close()
+    assert.equal(pool.totalClients, 0)
+  }, GLOBAL.SERVERS.OPEN);
+
   testUtils.testWithClientPool(
     'proper error propagation in sequential operations',
     async (pool) => {
