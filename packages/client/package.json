@@ -22,7 +22,7 @@
     "sinon": "^17.0.1"
   },
   "peerDependencies": {
-    "@node-rs/xxhash": "^1.0.0"
+    "@node-rs/xxhash": "^1.1.0"
   },
   "peerDependenciesMeta": {
     "@node-rs/xxhash": {
