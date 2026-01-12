@@ -24,6 +24,51 @@ await sentinel.close();
 
 In the above example, we configure the sentinel object to fetch the configuration for the database Redis Sentinel is monitoring as "sentinel-db" with one of the sentinels being located at `example:1234`, then using it like a regular Redis client.
 
+## Node Address Map
+
+A mapping between the addresses returned by sentinel and the addresses the client should connect to.
+Useful when the sentinel nodes are running on a different network to the client.
+
+```javascript
+import { createSentinel } from 'redis';
+
+// Use either a static mapping:
+const sentinel = await createSentinel({
+  name: 'sentinel-db',
+  sentinelRootNodes: [{
+    host: 'example',
+    port: 1234
+  }],
+  nodeAddressMap: {
+    '10.0.0.1:6379': {
+      host: 'external-host.io',
+      port: 6379
+    },
+    '10.0.0.2:6379': {
+      host: 'external-host.io',
+      port: 6380
+    }
+  }
+}).connect();
+
+// or create the mapping dynamically, as a function:
+const sentinel = await createSentinel({
+  name: 'sentinel-db',
+  sentinelRootNodes: [{
+    host: 'example',
+    port: 1234
+  }],
+  nodeAddressMap(address) {
+    const [host, port] = address.split(':');
+
+    return {
+      host: `external-${host}.io`,
+      port: Number(port)
+    };
+  }
+}).connect();
+```
+
 ## `createSentinel` configuration
 
 | Property                   | Default   | Description                                                                                                                                                                                                                                                                                                           |
@@ -35,6 +80,7 @@ In the above example, we configure the sentinel object to fetch the configuratio
 | sentinelClientOptions      |           | The configuration values for every sentinel in the cluster. Use this for example when specifying an ACL user to connect with                                                                                                                                                                                          |
 | masterPoolSize             | `1`       | The number of clients connected to the master node                                                                                                                                                                                                                                                                    |
 | replicaPoolSize            | `0`       | The number of clients connected to each replica node. When greater than 0, the client will distribute the load by executing read-only commands (such as `GET`, `GEOSEARCH`, etc.) across all the cluster nodes.                                                                                                       |
+| nodeAddressMap             |           | Defines the [node address mapping](#node-address-map)                                                                                                                                                                                                                                                                |
 | scanInterval               | `10000`   | Interval in milliseconds to periodically scan for changes in the sentinel topology. The client will query the sentinel for changes at this interval.                                                                                                                                                                 |
 | passthroughClientErrorEvents | `false` | When `true`, error events from client instances inside the sentinel will be propagated to the sentinel instance. This allows handling all client errors through a single error handler on the sentinel instance.                                                                                                     |
 | reserveClient              | `false`   | When `true`, one client will be reserved for the sentinel object. When `false`, the sentinel object will wait for the first available client from the pool.                                                                                                                                                           |
