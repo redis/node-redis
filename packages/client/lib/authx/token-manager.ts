@@ -33,9 +33,10 @@ export interface RetryPolicy {
   backoffMultiplier: number;
 
   /**
-   * The percentage of jitter to apply to the delay.
+   * The percentage range of jitter to apply to the delay.
+   * The jitter will be evenly distributed between -jitterPercentage/2 and +jitterPercentage/2.
    * @example
-   * A value of 0.1 will add or subtract up to 10% of the delay.
+   * A value of 10 will add or subtract up to 5% of the delay (ranging from 95% to 105% of the original delay).
    */
   jitterPercentage?: number;
 
