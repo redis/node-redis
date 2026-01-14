@@ -16,7 +16,7 @@ export type ActionType =
   | "cluster_failure"
   | "delete_database"
   | "create_database"
-  | "shuffle_shards";
+  | "slot_migrate";
 
 export interface ActionRequest {
   type: ActionType;
@@ -72,4 +72,14 @@ export interface DatabaseConfig {
 
 export interface IFaultInjectorClient {
   triggerAction(action: ActionRequest): Promise<ActionStatus>;
+  listActionVariants(actionName: string, effect: string): Promise<ActionVariant[]>;
+}
+
+export interface ActionVariantResponse {
+  variants: ActionVariant[]
+}
+
+export interface ActionVariant {
+  name: string,
+  description: string
 }

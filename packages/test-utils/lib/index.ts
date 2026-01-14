@@ -712,7 +712,7 @@ export default class TestUtils {
     let dbConfig: DatabaseConfig;
 
     before(async function () {
-      this.timeout(30000);
+      this.timeout(300000);
 
       const baseUrl = process.env.RE_FAULT_INJECTOR_URL;
 
@@ -723,14 +723,21 @@ export default class TestUtils {
       faultInjectorClient = new FaultInjectorClient(baseUrl);
 
       await faultInjectorClient.deleteAllDatabases(0);
-      dbConfig = await faultInjectorClient.createAndSelectDatabase(
-        options.dbConfig ||
-          getCreateDatabaseConfig(
-            CreateDatabaseConfigType.CLUSTER,
-            options.dbName ?? `test-db-${Date.now()}`
-          ),
-        0
-      );
+
+      const db = options.dbConfig ||
+        getCreateDatabaseConfig(
+          CreateDatabaseConfigType.CLUSTER,
+          options.dbName ?? `test-db-${Date.now()}`
+        );
+
+      console.log('opts.dbConfig', options.dbConfig);
+
+      console.log('getCreate..', getCreateDatabaseConfig(
+        CreateDatabaseConfigType.CLUSTER,
+        options.dbName ?? `test-db-${Date.now()}`
+      ));
+
+      dbConfig = await faultInjectorClient.createAndSelectDatabase(db, 0);
     });
 
     after(async function () {

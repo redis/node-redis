@@ -3,6 +3,8 @@ import { setTimeout } from "node:timers/promises";
 import {
   ActionRequest,
   ActionStatus,
+  ActionVariant,
+  ActionVariantResponse,
   CreateDatabaseConfig,
   DatabaseConfig,
   IFaultInjectorClient,
@@ -17,6 +19,12 @@ export class FaultInjectorClient implements IFaultInjectorClient {
     this.baseUrl = baseUrl.replace(/\/+$/, ""); // trim trailing slash
     console.log('[FI] Constructor:', this.baseUrl);
     this.#fetch = fetchImpl;
+  }
+
+  async listActionVariants(actionName: string, effect: string): Promise<ActionVariant[]> {
+    const res = await this.#request<ActionVariantResponse>("GET", `/${actionName}?effect=${effect}`);
+    console.log(res);
+    return res.variants;
   }
 
   selectDbConfig(dbConfig: DatabaseConfig) {
