@@ -81,5 +81,6 @@ export interface ActionVariantResponse {
 
 export interface ActionVariant {
   name: string,
-  description: string
+  description: string,
+  dbConfig?: Record<string, unknown>
 }

@@ -107,18 +107,6 @@ import { FaultInjectorClient, ActionVariant } from "@redis/test-utils/lib/fault-
   describe("Migrate - source: dying -> dest: existing", () => {
     const MASTERS_COUNT = 3;
 
-    const PROXIED_CLUSTER_OPTIONS = {
-      freshContainer: true,
-      numberOfMasters: MASTERS_COUNT,
-      clusterConfiguration: {
-        defaults: {
-          maintNotifications: "enabled",
-          maintEndpointType: "auto",
-        },
-        RESP: 3,
-      },
-    } as const;
-
     // Dynamically generate tests for each variant from "remove" effect
     for (const variant of removeVariants) {
       const MIGRATE_ACTION = {
@@ -130,6 +118,20 @@ import { FaultInjectorClient, ActionVariant } from "@redis/test-utils/lib/fault-
           variant: variant.name,
         },
       } as const;
+
+      // Build options with variant-specific dbConfig if available
+      const testOptions = {
+        freshContainer: true,
+        numberOfMasters: MASTERS_COUNT,
+        clusterConfiguration: {
+          defaults: {
+            maintNotifications: "enabled",
+            maintEndpointType: "auto",
+          },
+          RESP: 3 as const,
+        },
+        ...(variant.dbConfig && { dbConfig: variant.dbConfig }),
+      };
 
       testUtils.testWithRECluster(
         `[${variant.name}] normal - should handle migration`,
@@ -197,7 +199,7 @@ import { FaultInjectorClient, ActionVariant } from "@redis/test-utils/lib/fault-
             );
           }
         },
-        PROXIED_CLUSTER_OPTIONS
+        testOptions
       );
 
       testUtils.testWithRECluster(
@@ -274,7 +276,7 @@ import { FaultInjectorClient, ActionVariant } from "@redis/test-utils/lib/fault-
             );
           }
         },
-        PROXIED_CLUSTER_OPTIONS
+        testOptions
       );
 
       testUtils.testWithRECluster(
@@ -351,7 +353,7 @@ import { FaultInjectorClient, ActionVariant } from "@redis/test-utils/lib/fault-
             );
           }
         },
-        PROXIED_CLUSTER_OPTIONS
+        testOptions
       );
     }
   });
@@ -359,19 +361,6 @@ import { FaultInjectorClient, ActionVariant } from "@redis/test-utils/lib/fault-
   describe("Migrate - source: dying -> dest: new", () => {
     const MASTERS_NODES_COUNT = 3;
     const VISIBLE_NODES_COUNT = 2;
-
-    const PROXIED_CLUSTER_OPTIONS = {
-      freshContainer: true,
-      numberOfMasters: MASTERS_NODES_COUNT,
-      startWithReducedNodes: true,
-      clusterConfiguration: {
-        defaults: {
-          maintNotifications: "enabled",
-          maintEndpointType: "auto",
-        },
-        RESP: 3,
-      },
-    } as const;
 
     // Dynamically generate tests for each variant from "add" effect
     for (const variant of addVariants) {
@@ -384,6 +373,21 @@ import { FaultInjectorClient, ActionVariant } from "@redis/test-utils/lib/fault-
           variant: variant.name,
         },
       } as const;
+
+      // Build options with variant-specific dbConfig if available
+      const testOptions = {
+        freshContainer: true,
+        numberOfMasters: MASTERS_NODES_COUNT,
+        startWithReducedNodes: true,
+        clusterConfiguration: {
+          defaults: {
+            maintNotifications: "enabled",
+            maintEndpointType: "auto",
+          },
+          RESP: 3 as const,
+        },
+        ...(variant.dbConfig && { dbConfig: variant.dbConfig }),
+      };
 
       testUtils.testWithRECluster(
         `[${variant.name}] normal - should handle migration`,
@@ -454,7 +458,7 @@ import { FaultInjectorClient, ActionVariant } from "@redis/test-utils/lib/fault-
             );
           }
         },
-        PROXIED_CLUSTER_OPTIONS
+        testOptions
       );
 
       testUtils.testWithRECluster(
@@ -531,7 +535,7 @@ import { FaultInjectorClient, ActionVariant } from "@redis/test-utils/lib/fault-
             );
           }
         },
-        PROXIED_CLUSTER_OPTIONS
+        testOptions
       );
 
       testUtils.testWithRECluster(
@@ -608,25 +612,13 @@ import { FaultInjectorClient, ActionVariant } from "@redis/test-utils/lib/fault-
             );
           }
         },
-        PROXIED_CLUSTER_OPTIONS
+        testOptions
       );
     }
   });
 
   describe("Migrate - source: active -> dest: existing", () => {
     const MASTERS_COUNT = 3;
-
-    const PROXIED_CLUSTER_OPTIONS = {
-      numberOfMasters: MASTERS_COUNT,
-      freshContainer: true,
-      clusterConfiguration: {
-        defaults: {
-          maintNotifications: "enabled",
-          maintEndpointType: "auto",
-        },
-        RESP: 3,
-      },
-    } as const;
 
     // Dynamically generate tests for each variant from "add-remove" effect
     for (const variant of addRemoveVariants) {
@@ -639,6 +631,20 @@ import { FaultInjectorClient, ActionVariant } from "@redis/test-utils/lib/fault-
           variant: variant.name,
         },
       } as const;
+
+      // Build options with variant-specific dbConfig if available
+      const testOptions = {
+        numberOfMasters: MASTERS_COUNT,
+        freshContainer: true,
+        clusterConfiguration: {
+          defaults: {
+            maintNotifications: "enabled",
+            maintEndpointType: "auto",
+          },
+          RESP: 3 as const,
+        },
+        ...(variant.dbConfig && { dbConfig: variant.dbConfig }),
+      };
 
       testUtils.testWithRECluster(
         `[${variant.name}] normal - should handle migration`,
@@ -706,7 +712,7 @@ import { FaultInjectorClient, ActionVariant } from "@redis/test-utils/lib/fault-
             );
           }
         },
-        PROXIED_CLUSTER_OPTIONS
+        testOptions
       );
 
       testUtils.testWithRECluster(
@@ -783,7 +789,7 @@ import { FaultInjectorClient, ActionVariant } from "@redis/test-utils/lib/fault-
             );
           }
         },
-        PROXIED_CLUSTER_OPTIONS
+        testOptions
       );
 
       testUtils.testWithRECluster(
@@ -860,7 +866,7 @@ import { FaultInjectorClient, ActionVariant } from "@redis/test-utils/lib/fault-
             );
           }
         },
-        PROXIED_CLUSTER_OPTIONS
+        testOptions
       );
     }
   });
@@ -868,19 +874,6 @@ import { FaultInjectorClient, ActionVariant } from "@redis/test-utils/lib/fault-
   describe("Migrate - source: active -> dest: new", () => {
     const MASTERS_NODES_COUNT = 3;
     const VISIBLE_NODES_COUNT = 2;
-
-    const PROXIED_CLUSTER_OPTIONS = {
-      numberOfMasters: MASTERS_NODES_COUNT,
-      startWithReducedNodes: true,
-      freshContainer: true,
-      clusterConfiguration: {
-        defaults: {
-          maintNotifications: "enabled",
-          maintEndpointType: "auto",
-        },
-        RESP: 3,
-      },
-    } as const;
 
     // Dynamically generate tests for each variant from "slot-shuffle" effect
     for (const variant of slotShuffleVariants) {
@@ -893,6 +886,21 @@ import { FaultInjectorClient, ActionVariant } from "@redis/test-utils/lib/fault-
           variant: variant.name,
         },
       } as const;
+
+      // Build options with variant-specific dbConfig if available
+      const testOptions = {
+        numberOfMasters: MASTERS_NODES_COUNT,
+        startWithReducedNodes: true,
+        freshContainer: true,
+        clusterConfiguration: {
+          defaults: {
+            maintNotifications: "enabled",
+            maintEndpointType: "auto",
+          },
+          RESP: 3 as const,
+        },
+        ...(variant.dbConfig && { dbConfig: variant.dbConfig }),
+      };
 
       testUtils.testWithRECluster(
         `[${variant.name}] normal - should handle migration`,
@@ -963,7 +971,7 @@ import { FaultInjectorClient, ActionVariant } from "@redis/test-utils/lib/fault-
             );
           }
         },
-        PROXIED_CLUSTER_OPTIONS
+        testOptions
       );
 
       testUtils.testWithRECluster(
@@ -1040,7 +1048,7 @@ import { FaultInjectorClient, ActionVariant } from "@redis/test-utils/lib/fault-
             );
           }
         },
-        PROXIED_CLUSTER_OPTIONS
+        testOptions
       );
 
       testUtils.testWithRECluster(
@@ -1117,7 +1125,7 @@ import { FaultInjectorClient, ActionVariant } from "@redis/test-utils/lib/fault-
             );
           }
         },
-        PROXIED_CLUSTER_OPTIONS
+        testOptions
       );
     }
   });
