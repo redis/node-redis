@@ -27,7 +27,7 @@ interface SchemaCommonField<T extends SchemaFieldType = SchemaFieldType> extends
 export const SCHEMA_TEXT_FIELD_PHONETIC = {
   DM_EN: 'dm:en',
   DM_FR: 'dm:fr',
-  FM_PT: 'dm:pt',
+  DM_PT: 'dm:pt',
   DM_ES: 'dm:es'
 } as const;
 
@@ -92,7 +92,7 @@ export const VAMANA_COMPRESSION_ALGORITHM = {
   LeanVec8x8: 'LeanVec8x8'
 } as const;
 
-export type VamanaCompressionAlgorithm = 
+export type VamanaCompressionAlgorithm =
   typeof VAMANA_COMPRESSION_ALGORITHM[keyof typeof VAMANA_COMPRESSION_ALGORITHM];
 
 interface SchemaVAMANAVectorField extends SchemaVectorField {
@@ -125,18 +125,39 @@ interface SchemaGeoShapeField extends SchemaField<typeof SCHEMA_FIELD_TYPE['GEOS
   COORD_SYSTEM?: SchemaGeoShapeFieldCoordSystem;
 }
 
+/**
+ * Union type representing all possible field definition types for a RediSearch schema.
+ */
+export type SchemaFieldDefinition =
+  | SchemaTextField
+  | SchemaNumericField
+  | SchemaGeoField
+  | SchemaTagField
+  | SchemaFlatVectorField
+  | SchemaHNSWVectorField
+  | SchemaVAMANAVectorField
+  | SchemaGeoShapeField
+  | SchemaFieldType;
+
+/**
+ * Schema definition for a RediSearch index.
+ *
+ * Each field can be either a single field definition or an array of definitions.
+ * Use an array to index the same field multiple times with different types or aliases.
+ *
+ * @example
+ * // Single field definitions
+ * { name: SCHEMA_FIELD_TYPE.TEXT, age: SCHEMA_FIELD_TYPE.NUMERIC }
+ *
+ * @example
+ * // Same field indexed as both TEXT and TAG with different aliases
+ * { sku: [
+ *     { type: SCHEMA_FIELD_TYPE.TEXT, AS: 'sku_text' },
+ *     { type: SCHEMA_FIELD_TYPE.TAG, AS: 'sku_tag', SORTABLE: true }
+ * ]}
+ */
 export interface RediSearchSchema {
-  [field: string]: (
-    SchemaTextField |
-    SchemaNumericField |
-    SchemaGeoField |
-    SchemaTagField |
-    SchemaFlatVectorField |
-    SchemaHNSWVectorField |
-    SchemaVAMANAVectorField |
-    SchemaGeoShapeField |
-    SchemaFieldType
-  );
+  [field: string]: SchemaFieldDefinition | SchemaFieldDefinition[];
 }
 
 function parseCommonSchemaFieldOptions(parser: CommandParser, fieldOptions: SchemaCommonField) {
@@ -154,153 +175,160 @@ function parseCommonSchemaFieldOptions(parser: CommandParser, fieldOptions: Sche
 }
 
 export function parseSchema(parser: CommandParser, schema: RediSearchSchema) {
-  for (const [field, fieldOptions] of Object.entries(schema)) {
-    parser.push(field);
+  for (const [field, fieldOptionsOrArray] of Object.entries(schema)) {
+    // Normalize to array for uniform processing
+    const fieldOptionsList = Array.isArray(fieldOptionsOrArray)
+      ? fieldOptionsOrArray
+      : [fieldOptionsOrArray];
 
-    if (typeof fieldOptions === 'string') {
-      parser.push(fieldOptions);
-      continue;
-    }
+    for (const fieldOptions of fieldOptionsList) {
+      parser.push(field);
 
-    if (fieldOptions.AS) {
-      parser.push('AS', fieldOptions.AS);
-    }
+      if (typeof fieldOptions === 'string') {
+        parser.push(fieldOptions);
+        continue;
+      }
 
-    parser.push(fieldOptions.type);
+      if (fieldOptions.AS) {
+        parser.push('AS', fieldOptions.AS);
+      }
 
-    if (fieldOptions.INDEXMISSING) {
-      parser.push('INDEXMISSING');
-    }
+      parser.push(fieldOptions.type);
 
-    switch (fieldOptions.type) {
-      case SCHEMA_FIELD_TYPE.TEXT:
-        if (fieldOptions.NOSTEM) {
-          parser.push('NOSTEM');
-        }
+      if (fieldOptions.INDEXMISSING) {
+        parser.push('INDEXMISSING');
+      }
 
-        if (fieldOptions.WEIGHT !== undefined) {
-          parser.push('WEIGHT', fieldOptions.WEIGHT.toString());
-        }
+      switch (fieldOptions.type) {
+        case SCHEMA_FIELD_TYPE.TEXT:
+          if (fieldOptions.NOSTEM) {
+            parser.push('NOSTEM');
+          }
 
-        if (fieldOptions.PHONETIC) {
-          parser.push('PHONETIC', fieldOptions.PHONETIC);
-        }
+          if (fieldOptions.WEIGHT !== undefined) {
+            parser.push('WEIGHT', fieldOptions.WEIGHT.toString());
+          }
 
-        if (fieldOptions.WITHSUFFIXTRIE) {
-          parser.push('WITHSUFFIXTRIE');
-        }
+          if (fieldOptions.PHONETIC) {
+            parser.push('PHONETIC', fieldOptions.PHONETIC);
+          }
 
-        if (fieldOptions.INDEXEMPTY) {
-          parser.push('INDEXEMPTY');
-        }
+          if (fieldOptions.WITHSUFFIXTRIE) {
+            parser.push('WITHSUFFIXTRIE');
+          }
 
-        parseCommonSchemaFieldOptions(parser, fieldOptions)
-        break;
+          if (fieldOptions.INDEXEMPTY) {
+            parser.push('INDEXEMPTY');
+          }
 
-      case SCHEMA_FIELD_TYPE.NUMERIC:
-      case SCHEMA_FIELD_TYPE.GEO:
-        parseCommonSchemaFieldOptions(parser, fieldOptions)
-        break;
+          parseCommonSchemaFieldOptions(parser, fieldOptions)
+          break;
 
-      case SCHEMA_FIELD_TYPE.TAG:
-        if (fieldOptions.SEPARATOR) {
-          parser.push('SEPARATOR', fieldOptions.SEPARATOR);
-        }
+        case SCHEMA_FIELD_TYPE.NUMERIC:
+        case SCHEMA_FIELD_TYPE.GEO:
+          parseCommonSchemaFieldOptions(parser, fieldOptions)
+          break;
 
-        if (fieldOptions.CASESENSITIVE) {
-          parser.push('CASESENSITIVE');
-        }
+        case SCHEMA_FIELD_TYPE.TAG:
+          if (fieldOptions.SEPARATOR) {
+            parser.push('SEPARATOR', fieldOptions.SEPARATOR);
+          }
 
-        if (fieldOptions.WITHSUFFIXTRIE) {
-          parser.push('WITHSUFFIXTRIE');
-        }
+          if (fieldOptions.CASESENSITIVE) {
+            parser.push('CASESENSITIVE');
+          }
 
-        if (fieldOptions.INDEXEMPTY) {
-          parser.push('INDEXEMPTY');
-        }
+          if (fieldOptions.WITHSUFFIXTRIE) {
+            parser.push('WITHSUFFIXTRIE');
+          }
 
-        parseCommonSchemaFieldOptions(parser, fieldOptions)
-        break;
+          if (fieldOptions.INDEXEMPTY) {
+            parser.push('INDEXEMPTY');
+          }
 
-      case SCHEMA_FIELD_TYPE.VECTOR:
-        parser.push(fieldOptions.ALGORITHM);
+          parseCommonSchemaFieldOptions(parser, fieldOptions)
+          break;
 
-        const args: Array<RedisArgument> = [];
+        case SCHEMA_FIELD_TYPE.VECTOR:
+          parser.push(fieldOptions.ALGORITHM);
 
-        args.push(
-          'TYPE', fieldOptions.TYPE,
-          'DIM', fieldOptions.DIM.toString(),
-          'DISTANCE_METRIC', fieldOptions.DISTANCE_METRIC
-        );
+          const args: Array<RedisArgument> = [];
 
-        if (fieldOptions.INITIAL_CAP !== undefined) {
-          args.push('INITIAL_CAP', fieldOptions.INITIAL_CAP.toString());
-        }
+          args.push(
+            'TYPE', fieldOptions.TYPE,
+            'DIM', fieldOptions.DIM.toString(),
+            'DISTANCE_METRIC', fieldOptions.DISTANCE_METRIC
+          );
 
-        switch (fieldOptions.ALGORITHM) {          
-          case SCHEMA_VECTOR_FIELD_ALGORITHM.FLAT:
-            if (fieldOptions.BLOCK_SIZE !== undefined) {
-              args.push('BLOCK_SIZE', fieldOptions.BLOCK_SIZE.toString());
-            }
+          if (fieldOptions.INITIAL_CAP !== undefined) {
+            args.push('INITIAL_CAP', fieldOptions.INITIAL_CAP.toString());
+          }
 
-            break;
+          switch (fieldOptions.ALGORITHM) {
+            case SCHEMA_VECTOR_FIELD_ALGORITHM.FLAT:
+              if (fieldOptions.BLOCK_SIZE !== undefined) {
+                args.push('BLOCK_SIZE', fieldOptions.BLOCK_SIZE.toString());
+              }
 
-          case SCHEMA_VECTOR_FIELD_ALGORITHM.HNSW:
-            if (fieldOptions.M !== undefined) {
-              args.push('M', fieldOptions.M.toString());
-            }
+              break;
 
-            if (fieldOptions.EF_CONSTRUCTION !== undefined) {
-              args.push('EF_CONSTRUCTION', fieldOptions.EF_CONSTRUCTION.toString());
-            }
+            case SCHEMA_VECTOR_FIELD_ALGORITHM.HNSW:
+              if (fieldOptions.M !== undefined) {
+                args.push('M', fieldOptions.M.toString());
+              }
 
-            if (fieldOptions.EF_RUNTIME !== undefined) {
-              args.push('EF_RUNTIME', fieldOptions.EF_RUNTIME.toString());
-            }
+              if (fieldOptions.EF_CONSTRUCTION !== undefined) {
+                args.push('EF_CONSTRUCTION', fieldOptions.EF_CONSTRUCTION.toString());
+              }
 
-            break;
+              if (fieldOptions.EF_RUNTIME !== undefined) {
+                args.push('EF_RUNTIME', fieldOptions.EF_RUNTIME.toString());
+              }
 
-          case SCHEMA_VECTOR_FIELD_ALGORITHM['VAMANA']:
-            if (fieldOptions.COMPRESSION) {
-              args.push('COMPRESSION', fieldOptions.COMPRESSION);
-            }
+              break;
 
-            if (fieldOptions.CONSTRUCTION_WINDOW_SIZE !== undefined) {
-              args.push('CONSTRUCTION_WINDOW_SIZE', fieldOptions.CONSTRUCTION_WINDOW_SIZE.toString());
-            }
+            case SCHEMA_VECTOR_FIELD_ALGORITHM['VAMANA']:
+              if (fieldOptions.COMPRESSION) {
+                args.push('COMPRESSION', fieldOptions.COMPRESSION);
+              }
 
-            if (fieldOptions.GRAPH_MAX_DEGREE !== undefined) {
-              args.push('GRAPH_MAX_DEGREE', fieldOptions.GRAPH_MAX_DEGREE.toString());
-            }
+              if (fieldOptions.CONSTRUCTION_WINDOW_SIZE !== undefined) {
+                args.push('CONSTRUCTION_WINDOW_SIZE', fieldOptions.CONSTRUCTION_WINDOW_SIZE.toString());
+              }
 
-            if (fieldOptions.SEARCH_WINDOW_SIZE !== undefined) {
-              args.push('SEARCH_WINDOW_SIZE', fieldOptions.SEARCH_WINDOW_SIZE.toString());
-            }
+              if (fieldOptions.GRAPH_MAX_DEGREE !== undefined) {
+                args.push('GRAPH_MAX_DEGREE', fieldOptions.GRAPH_MAX_DEGREE.toString());
+              }
 
-            if (fieldOptions.EPSILON !== undefined) {
-              args.push('EPSILON', fieldOptions.EPSILON.toString());
-            }
+              if (fieldOptions.SEARCH_WINDOW_SIZE !== undefined) {
+                args.push('SEARCH_WINDOW_SIZE', fieldOptions.SEARCH_WINDOW_SIZE.toString());
+              }
 
-            if (fieldOptions.TRAINING_THRESHOLD !== undefined) {
-              args.push('TRAINING_THRESHOLD', fieldOptions.TRAINING_THRESHOLD.toString());
-            }
+              if (fieldOptions.EPSILON !== undefined) {
+                args.push('EPSILON', fieldOptions.EPSILON.toString());
+              }
 
-            if (fieldOptions.REDUCE !== undefined) {
-              args.push('REDUCE', fieldOptions.REDUCE.toString());
-            }
+              if (fieldOptions.TRAINING_THRESHOLD !== undefined) {
+                args.push('TRAINING_THRESHOLD', fieldOptions.TRAINING_THRESHOLD.toString());
+              }
 
-            break;
-        }
-        parser.pushVariadicWithLength(args);
+              if (fieldOptions.REDUCE !== undefined) {
+                args.push('REDUCE', fieldOptions.REDUCE.toString());
+              }
 
-        break;
-    
-      case SCHEMA_FIELD_TYPE.GEOSHAPE:
-        if (fieldOptions.COORD_SYSTEM !== undefined) {
-          parser.push('COORD_SYSTEM', fieldOptions.COORD_SYSTEM);
-        }
+              break;
+          }
+          parser.pushVariadicWithLength(args);
 
-        break;
+          break;
+
+        case SCHEMA_FIELD_TYPE.GEOSHAPE:
+          if (fieldOptions.COORD_SYSTEM !== undefined) {
+            parser.push('COORD_SYSTEM', fieldOptions.COORD_SYSTEM);
+          }
+
+          break;
+      }
     }
   }
 }
@@ -363,7 +391,8 @@ export default {
    * Creates a new search index with the given schema and options.
    * @param parser - The command parser
    * @param index - Name of the index to create
-   * @param schema - Index schema defining field names and types (TEXT, NUMERIC, GEO, TAG, VECTOR, GEOSHAPE)
+   * @param schema - Index schema defining field names and types (TEXT, NUMERIC, GEO, TAG, VECTOR, GEOSHAPE).
+   *   Each field can be a single definition or an array to index the same field multiple times with different configurations.
    * @param options - Optional parameters:
    *   - ON: Type of container to index (HASH or JSON)
    *   - PREFIX: Prefixes for document keys to index

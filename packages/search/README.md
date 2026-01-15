@@ -32,6 +32,24 @@ await client.ft.create('idx:animals', {
 
 See the [`FT.CREATE` documentation](https://redis.io/commands/ft.create/#description) for information about the different field types and additional options.
 
+#### Indexing a Field Multiple Times
+
+You can index the same field multiple times with different types or aliases by using an array:
+
+```javascript
+await client.ft.create('idx:products', {
+  sku: [
+    { type: SCHEMA_FIELD_TYPE.TEXT, AS: 'sku_text' },
+    { type: SCHEMA_FIELD_TYPE.TAG, AS: 'sku_tag', SORTABLE: true }
+  ]
+}, {
+  ON: 'HASH',
+  PREFIX: 'product:'
+});
+```
+
+This allows querying the same field using different search strategies.
+
 #### Querying the Index
 
 Once we've created an index, and added some data to Redis hashes whose keys begin with the prefix `noderedis:animals`, we can start writing some search queries.  RediSearch supports a rich query syntax for full-text search, faceted search, aggregation and more.  Check out the [`FT.SEARCH` documentation](https://redis.io/commands/ft.search) and the [query syntax reference](https://redis.io/docs/interact/search-and-query/query) for more information.

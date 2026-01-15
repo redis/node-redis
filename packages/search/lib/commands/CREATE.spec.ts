@@ -332,6 +332,28 @@ describe('FT.CREATE', () => {
           ['FT.CREATE', 'index', 'SCHEMA', 'field', 'TEXT', 'INDEXMISSING']
         );
       });
+
+      it('same field indexed twice with different aliases and types', () => {
+        assert.deepEqual(
+          parseArgs(CREATE, 'idx', {
+            sku: [
+              {
+                type: SCHEMA_FIELD_TYPE.TEXT,
+                AS: 'sku_text'
+              },
+              {
+                type: SCHEMA_FIELD_TYPE.TAG,
+                AS: 'sku_tag',
+                SORTABLE: true
+              }
+            ]
+          }, {
+            ON: 'HASH',
+            PREFIX: 'blog:post:'
+          }),
+          ['FT.CREATE', 'idx', 'ON', 'HASH', 'PREFIX', '1', 'blog:post:', 'SCHEMA', 'sku', 'AS', 'sku_text', 'TEXT', 'sku', 'AS', 'sku_tag', 'TAG', 'SORTABLE']
+        );
+      });
     });
 
     it('with ON', () => {
