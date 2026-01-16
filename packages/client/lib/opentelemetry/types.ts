@@ -273,6 +273,12 @@ export interface IOTelCommandMetrics {
     args: ReadonlyArray<RedisArgument>,
     clientAttributes?: OTelClientAttributes
   ): (error?: Error) => void;
+
+  createRecordBatchOperationDuration(
+    operationName: 'MULTI' | 'PIPELINE',
+    batchSize: number,
+    clientAttributes?: OTelClientAttributes
+  ): (error?: Error) => void;
 }
 
 export interface IOTelConnectionBasicMetrics {
