@@ -125,7 +125,7 @@ export default class EnterpriseMaintenanceManager {
           throw error;
         }
 
-        OTelMetrics.instance.resiliencyMetrics.recordClientErrorsHandled(METRIC_ERROR_TYPE.HANDSHAKE_FAILED, {
+        OTelMetrics.instance.resiliencyMetrics.recordClientErrors(METRIC_ERROR_TYPE.HANDSHAKE_FAILED, {
           host,
           // TODO add port
           // port: options?.socket?.port,

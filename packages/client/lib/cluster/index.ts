@@ -444,7 +444,7 @@ export default class RedisCluster<
         }
 
         if (err.message.startsWith('ASK')) {
-          OTelMetrics.instance.resiliencyMetrics.recordClientErrorsHandled(METRIC_ERROR_TYPE.ASK, client._getClientOTelAttributes());
+          OTelMetrics.instance.resiliencyMetrics.recordClientErrors(METRIC_ERROR_TYPE.ASK, client._getClientOTelAttributes());
           const address = err.message.substring(err.message.lastIndexOf(' ') + 1);
           let redirectTo = await this._slots.getMasterByAddress(address);
           if (!redirectTo) {
@@ -462,7 +462,7 @@ export default class RedisCluster<
         }
 
         if (err.message.startsWith('MOVED')) {
-          OTelMetrics.instance.resiliencyMetrics.recordClientErrorsHandled(METRIC_ERROR_TYPE.MOVED, client._getClientOTelAttributes());
+          OTelMetrics.instance.resiliencyMetrics.recordClientErrors(METRIC_ERROR_TYPE.MOVED, client._getClientOTelAttributes());
           await this._slots.rediscover(client);
           const clientAndSlot = await this._slots.getClientAndSlotNumber(firstKey, isReadonly);
           client = clientAndSlot.client;
