@@ -27,14 +27,14 @@ export interface RespType<
 export interface NullReply extends RespType<
   RESP_TYPES['NULL'],
   null
-> {}
+> { }
 
 export interface BooleanReply<
   T extends boolean = boolean
 > extends RespType<
   RESP_TYPES['BOOLEAN'],
   T
-> {}
+> { }
 
 export interface NumberReply<
   T extends number = number
@@ -43,7 +43,7 @@ export interface NumberReply<
   T,
   `${T}`,
   number | string
-> {}
+> { }
 
 export interface BigNumberReply<
   T extends bigint = bigint
@@ -52,7 +52,7 @@ export interface BigNumberReply<
   T,
   number | `${T}`,
   bigint | number | string
-> {}
+> { }
 
 export interface DoubleReply<
   T extends number = number
@@ -61,7 +61,7 @@ export interface DoubleReply<
   T,
   `${T}`,
   number | string
-> {}
+> { }
 
 export interface SimpleStringReply<
   T extends string = string
@@ -70,7 +70,7 @@ export interface SimpleStringReply<
   T,
   Buffer,
   string | Buffer
-> {}
+> { }
 
 export interface BlobStringReply<
   T extends string = string
@@ -90,65 +90,65 @@ export interface VerbatimStringReply<
   T,
   Buffer | VerbatimString,
   string | Buffer | VerbatimString
-> {}
+> { }
 
 export interface SimpleErrorReply extends RespType<
   RESP_TYPES['SIMPLE_ERROR'],
   SimpleError,
   Buffer
-> {}
+> { }
 
 export interface BlobErrorReply extends RespType<
   RESP_TYPES['BLOB_ERROR'],
   BlobError,
   Buffer
-> {}
+> { }
 
 export interface ArrayReply<T> extends RespType<
   RESP_TYPES['ARRAY'],
   Array<T>,
   never,
   Array<any>
-> {}
+> { }
 
 export interface TuplesReply<T extends [...Array<unknown>]> extends RespType<
   RESP_TYPES['ARRAY'],
   T,
   never,
   Array<any>
-> {}
+> { }
 
 export interface SetReply<T> extends RespType<
   RESP_TYPES['SET'],
   Array<T>,
   Set<T>,
   Array<any> | Set<any>
-> {}
+> { }
 
 export interface MapReply<K, V> extends RespType<
   RESP_TYPES['MAP'],
   { [key: string]: V },
   Map<K, V> | Array<K | V>,
   Map<any, any> | Array<any>
-> {}
+> { }
 
 type MapKeyValue = [key: BlobStringReply | SimpleStringReply, value: unknown];
 
 type MapTuples = Array<MapKeyValue>;
 
 type ExtractMapKey<T> = (
-    T extends BlobStringReply<infer S> ? S :
-    T extends SimpleStringReply<infer S> ? S :
-    never
+  T extends BlobStringReply<infer S> ? S :
+  T extends SimpleStringReply<infer S> ? S :
+  never
 );
 
 export interface TuplesToMapReply<T extends MapTuples> extends RespType<
   RESP_TYPES['MAP'],
   {
-    [P in T[number] as ExtractMapKey<P[0]>]: P[1];
+    [P in T[number]as ExtractMapKey<P[0]>]: P[1];
   },
   Map<ExtractMapKey<T[number][0]>, T[number][1]> | FlattenTuples<T>
-> {}
+> { }
 
 type FlattenTuples<T> = (
   T extends [] ? [] :
@@ -193,32 +193,38 @@ type MapKey<
   [RESP_TYPES.BLOB_STRING]: StringConstructor;
 }>;
 
+type UnwrapConstructor<T> =
+  T extends StringConstructor ? string :
+  T extends NumberConstructor ? number :
+  T extends BooleanConstructor ? boolean :
+  T extends BigIntConstructor ? bigint :
+  T;
 export type UnwrapReply<REPLY extends RespType<any, any, any, any>> = REPLY['DEFAULT' | 'TYPES'];
 
 export type ReplyWithTypeMapping<
   REPLY,
   TYPE_MAPPING extends TypeMapping
 > = (
-  // if REPLY is a type, extract the coresponding type from TYPE_MAPPING or use the default type
-  REPLY extends RespType<infer RESP_TYPE, infer DEFAULT, infer TYPES, unknown> ? 
+    // if REPLY is a type, extract the coresponding type from TYPE_MAPPING or use the default type
+    REPLY extends RespType<infer RESP_TYPE, infer DEFAULT, infer TYPES, unknown> ?
     TYPE_MAPPING[RESP_TYPE] extends MappedType<infer T> ?
-      ReplyWithTypeMapping<Extract<DEFAULT | TYPES, T>, TYPE_MAPPING> :
-      ReplyWithTypeMapping<DEFAULT, TYPE_MAPPING>
-  : (
-    // if REPLY is a known generic type, convert its generic arguments
-    // TODO: tuples?
-    REPLY extends Array<infer T> ? Array<ReplyWithTypeMapping<T, TYPE_MAPPING>> :
-    REPLY extends Set<infer T> ? Set<ReplyWithTypeMapping<T, TYPE_MAPPING>> :
-    REPLY extends Map<infer K, infer V> ? Map<MapKey<K, TYPE_MAPPING>, ReplyWithTypeMapping<V, TYPE_MAPPING>> :
-    // `Date | Buffer | Error` are supersets of `Record`, so they need to be checked first
-    REPLY extends Date | Buffer | Error ? REPLY :
-    REPLY extends Record<PropertyKey, any> ? {
-      [P in keyof REPLY]: ReplyWithTypeMapping<REPLY[P], TYPE_MAPPING>;
-    } :
-    // otherwise, just return the REPLY as is
-    REPLY
-  )
-);
+    ReplyWithTypeMapping<Extract<DEFAULT | TYPES, UnwrapConstructor<T>>, TYPE_MAPPING> :
+    ReplyWithTypeMapping<DEFAULT, TYPE_MAPPING>
+    : (
+      // if REPLY is a known generic type, convert its generic arguments
+      // TODO: tuples?
+      REPLY extends Array<infer T> ? Array<ReplyWithTypeMapping<T, TYPE_MAPPING>> :
+      REPLY extends Set<infer T> ? Set<ReplyWithTypeMapping<T, TYPE_MAPPING>> :
+      REPLY extends Map<infer K, infer V> ? Map<MapKey<K, TYPE_MAPPING>, ReplyWithTypeMapping<V, TYPE_MAPPING>> :
+      // `Date | Buffer | Error` are supersets of `Record`, so they need to be checked first
+      REPLY extends Date | Buffer | Error ? REPLY :
+      REPLY extends Record<PropertyKey, any> ? {
+        [P in keyof REPLY]: ReplyWithTypeMapping<REPLY[P], TYPE_MAPPING>;
+      } :
+      // otherwise, just return the REPLY as is
+      REPLY
+    )
+  );
 
 export type TransformReply = (this: void, reply: any, preserve?: any, typeMapping?: TypeMapping) => any; // TODO;
 
@@ -342,17 +348,17 @@ type Resp2Array<T> = (
 
 export type Resp2Reply<RESP3REPLY> = (
   RESP3REPLY extends RespType<infer RESP_TYPE, infer DEFAULT, infer TYPES, unknown> ?
-    // TODO: RESP3 only scalar types
-    RESP_TYPE extends RESP_TYPES['DOUBLE'] ? BlobStringReply :
-    RESP_TYPE extends RESP_TYPES['ARRAY'] | RESP_TYPES['SET'] ? RespType<
-      RESP_TYPE,
-      Resp2Array<DEFAULT>
-    > :
-    RESP_TYPE extends RESP_TYPES['MAP'] ? RespType<
-      RESP_TYPES['ARRAY'],
-      Resp2Array<Extract<TYPES, Array<any>>>
-    > :
-    RESP3REPLY :
+  // TODO: RESP3 only scalar types
+  RESP_TYPE extends RESP_TYPES['DOUBLE'] ? BlobStringReply :
+  RESP_TYPE extends RESP_TYPES['ARRAY'] | RESP_TYPES['SET'] ? RespType<
+    RESP_TYPE,
+    Resp2Array<DEFAULT>
+  > :
+  RESP_TYPE extends RESP_TYPES['MAP'] ? RespType<
+    RESP_TYPES['ARRAY'],
+    Resp2Array<Extract<TYPES, Array<any>>>
+  > :
+  RESP3REPLY :
   RESP3REPLY
 );
 
@@ -362,13 +368,13 @@ export type CommandReply<
   COMMAND extends Command,
   RESP extends RespVersions
 > = (
-  // if transformReply is a function, use its return type
-  COMMAND['transformReply'] extends (...args: any) => infer T ? T :
-  // if transformReply[RESP] is a function, use its return type
-  COMMAND['transformReply'] extends Record<RESP, (...args: any) => infer T> ? T :
-  // otherwise use the generic reply type
-  ReplyUnion
-);
+    // if transformReply is a function, use its return type
+    COMMAND['transformReply'] extends (...args: any) => infer T ? T :
+    // if transformReply[RESP] is a function, use its return type
+    COMMAND['transformReply'] extends Record<RESP, (...args: any) => infer T> ? T :
+    // otherwise use the generic reply type
+    ReplyUnion
+  );
 
 export type CommandSignature<
   COMMAND extends Command,
