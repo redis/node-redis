@@ -206,11 +206,13 @@ class OTelResiliencyMetrics implements IOTelResiliencyMetrics {
   }
 
   public recordMaintenanceNotifications(
-    clientAttributes: OTelClientAttributes
+    notification: string,
+    clientAttributes?: OTelClientAttributes
   ) {
     this.#instruments.redisClientMaintenanceNotifications.add(1, {
       ...this.#options.attributes,
       ...parseClientAttributes(clientAttributes),
+      [OTEL_ATTRIBUTES.redisClientConnectionNotification]: notification,
     });
   }
 }

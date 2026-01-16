@@ -305,7 +305,10 @@ export interface IOTelResiliencyMetrics {
     retryAttempts?: number,
     statusCode?: string
   ): void;
-  recordMaintenanceNotifications(clientAttributes?: OTelClientAttributes): void;
+  recordMaintenanceNotifications(
+    notification: string,
+    clientAttributes?: OTelClientAttributes
+  ): void;
 }
 
 export interface IOTelMetrics {
