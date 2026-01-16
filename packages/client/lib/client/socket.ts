@@ -224,7 +224,10 @@ export default class RedisSocket extends EventEmitter {
     let retries = 0;
     do {
       try {
-        const started = performance.now();
+        const recordConnectionCreateTime = OTelMetrics.instance.connectionBasicMetrics.createRecordConnectionCreateTime({
+          host: this.host,
+          port: this.port,
+        });
         this.#socket = await this.#createSocket();
         this.emit('connect');
 
@@ -251,10 +254,7 @@ export default class RedisSocket extends EventEmitter {
           host: this.host,
           port: this.port,
         });
-        OTelMetrics.instance.connectionBasicMetrics.recordConnectionCreateTime(performance.now() - started, {
-          host: this.host,
-          port: this.port,
-        });
+        recordConnectionCreateTime();
       } catch (err) {
         const retryIn = this.#shouldReconnect(retries++, err as Error);``
         if (typeof retryIn !== 'number') {

@@ -17,10 +17,11 @@ export class NoopConnectionBasicMetrics {
     _clientAttributes?: OTelClientAttributes
   ) {}
 
-  recordConnectionCreateTime(
-    _durationMs: number,
+  createRecordConnectionCreateTime(
     _clientAttributes?: OTelClientAttributes
-  ) {}
+  ): () => void {
+    return noopFunction;
+  }
 
   recordConnectionRelaxedTimeout(
     _value: number,

@@ -280,10 +280,9 @@ export interface IOTelConnectionBasicMetrics {
     value: number,
     clientAttributes?: OTelClientAttributes
   ): void;
-  recordConnectionCreateTime(
-    durationMs: number,
+  createRecordConnectionCreateTime(
     clientAttributes?: OTelClientAttributes
-  ): void;
+  ): () => void;
   recordConnectionRelaxedTimeout(
     value: number,
     clientAttributes?: OTelClientAttributes
