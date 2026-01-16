@@ -7,7 +7,7 @@ import assert from "node:assert";
 import { setTimeout } from "node:timers/promises";
 import RedisSocket, { RedisTcpSocketOptions } from "./socket";
 import diagnostics_channel from "node:diagnostics_channel";
-import { METRIC_ERROR_TYPE, OTelClientAttributes, OTelMetrics } from "../opentelemetry";
+import { OTelClientAttributes, OTelMetrics } from "../opentelemetry";
 
 export const MAINTENANCE_EVENTS = {
   PAUSE_WRITING: "pause-writing",
@@ -112,7 +112,7 @@ export default class EnterpriseMaintenanceManager {
           throw error;
         }
 
-        OTelMetrics.instance.resiliencyMetrics.recordClientErrors(METRIC_ERROR_TYPE.HANDSHAKE_FAILED, {
+        OTelMetrics.instance.resiliencyMetrics.recordClientErrors(error, true, {
           host,
           // TODO add port
           // port: options?.socket?.port,

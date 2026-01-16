@@ -299,8 +299,11 @@ export interface IOTelConnectionAdvancedMetrics {
 
 export interface IOTelResiliencyMetrics {
   recordClientErrors(
-    type: MetricErrorType,
-    clientAttributes?: OTelClientAttributes
+    error: Error,
+    internal: boolean,
+    clientAttributes?: OTelClientAttributes,
+    retryAttempts?: number,
+    statusCode?: string
   ): void;
   recordMaintenanceNotifications(clientAttributes?: OTelClientAttributes): void;
 }
