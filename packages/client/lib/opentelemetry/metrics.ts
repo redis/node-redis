@@ -123,17 +123,20 @@ class OTelConnectionBasicMetrics implements IOTelConnectionBasicMetrics {
       ...parseClientAttributes(clientAttributes),
     });
   }
-  public recordConnectionCreateTime(
-    durationMs: number,
+  public createRecordConnectionCreateTime(
     clientAttributes?: OTelClientAttributes
-  ) {
-    this.#instruments.dbClientConnectionCreateTime.record(
-      durationMs / 1000, // convert to seconds
-      {
-        ...this.#options.attributes,
-        ...parseClientAttributes(clientAttributes),
-      }
-    );
+  ): () => void {
+    const startTime = performance.now();
+
+    return () => {
+      this.#instruments.dbClientConnectionCreateTime.record(
+        (performance.now() - startTime) / 1000,
+        {
+          ...this.#options.attributes,
+          ...parseClientAttributes(clientAttributes),
+        }
+      );
+    };
   }
   public recordConnectionRelaxedTimeout(
     value: number,
