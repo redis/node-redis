@@ -125,13 +125,17 @@ export const OTEL_ATTRIBUTES = {
   networkPeerPort: "network.peer.port",
   dbOperationBatchSize: "db.operation.batch.size",
   dbStoredProcedureName: "db.stored_procedure.name",
-  connectionPoolName: "db.client.connection.pool.name",
-  connectionState: "db.client.connection.state",
+  dbClientConnectionPoolName: "db.client.connection.pool.name",
+  dbClientConnectionState: "db.client.connection.state",
 
   // Redis-specific extensions
   redisClientLibrary: "redis.client.library",
   redisRedirectionKind: "redis.client.redirection.kind",
-  redisClientErrorsHandled: "redis.client.errors.handled",
+  redisClientErrorsInternal: "redis.client.errors.internal",
+  redisClientErrorsCategory: "redis.client.errors.category",
+  redisClientConnectionCloseReason: "redis.client.connection.close.reason",
+  redisClientCscResult: "redis.client.csc.result",
+  redisClientCscReason: "redis.client.csc.reason",
   redisClientPubSubChannel: "redis.client.pubsub.channel",
   redisClientPubSubSharded: "redis.client.pubsub.sharded",
   redisClientStreamName: "redis.client.stream.name",
@@ -139,6 +143,41 @@ export const OTEL_ATTRIBUTES = {
   redisClientOperationBlocking: "redis.client.operation.blocking",
   redisClientConnectionNotification: "redis.client.connection.notification",
 } as const;
+
+export const ERROR_CATEGORY = {
+  NETWORK: "network",
+  TLS: "tls",
+  AUTH: "auth",
+  SERVER: "server",
+  OTHER: "other",
+} as const;
+
+export type ErrorCategory = (typeof ERROR_CATEGORY)[keyof typeof ERROR_CATEGORY];
+
+export const CONNECTION_CLOSE_REASON = {
+  APPLICATION_CLOSE: "application_close",
+  POOL_EVICTION_IDLE: "pool_eviction_idle",
+  SERVER_CLOSE: "server_close",
+  ERROR: "error",
+  HEALTHCHECK_FAILED: "healthcheck_failed",
+} as const;
+
+export type ConnectionCloseReason = (typeof CONNECTION_CLOSE_REASON)[keyof typeof CONNECTION_CLOSE_REASON];
+
+export const CSC_RESULT = {
+  HIT: "hit",
+  MISS: "miss",
+} as const;
+
+export type CscResult = (typeof CSC_RESULT)[keyof typeof CSC_RESULT];
+
+export const CSC_EVICTION_REASON = {
+  FULL: "full",
+  INVALIDATION: "invalidation",
+  TTL: "ttl",
+} as const;
+
+export type CscEvictionReason = (typeof CSC_EVICTION_REASON)[keyof typeof CSC_EVICTION_REASON];
 
 export const DEFAULT_OTEL_ATTRIBUTES = {
   [OTEL_ATTRIBUTES.redisClientLibrary]: "node-redis",
