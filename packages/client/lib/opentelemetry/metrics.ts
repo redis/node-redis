@@ -628,6 +628,47 @@ export class OTelMetrics implements IOTelMetrics {
           metricGroup: METRIC_GROUP.STREAMS,
         }
       ),
+      // Client-Side Caching
+      redisClientCscRequests: this.createCounter(
+        meter,
+        options.enabledMetricGroups,
+        {
+          name: METRIC_NAMES.redisClientCscRequests,
+          unit: "{request}",
+          description: "Number of client-side cache requests (hits and misses)",
+          metricGroup: METRIC_GROUP.CLIENT_SIDE_CACHING,
+        }
+      ),
+      redisClientCscItems: this.createUpDownCounter(
+        meter,
+        options.enabledMetricGroups,
+        {
+          name: METRIC_NAMES.redisClientCscItems,
+          unit: "{item}",
+          description: "Current number of items in the client-side cache",
+          metricGroup: METRIC_GROUP.CLIENT_SIDE_CACHING,
+        }
+      ),
+      redisClientCscEvictions: this.createCounter(
+        meter,
+        options.enabledMetricGroups,
+        {
+          name: METRIC_NAMES.redisClientCscEvictions,
+          unit: "{eviction}",
+          description: "Number of items evicted from the client-side cache",
+          metricGroup: METRIC_GROUP.CLIENT_SIDE_CACHING,
+        }
+      ),
+      redisClientCscNetworkSaved: this.createCounter(
+        meter,
+        options.enabledMetricGroups,
+        {
+          name: METRIC_NAMES.redisClientCscNetworkSaved,
+          unit: "By",
+          description: "Estimated bytes saved by client-side cache hits",
+          metricGroup: METRIC_GROUP.CLIENT_SIDE_CACHING,
+        }
+      ),
     } as const;
   }
 }
