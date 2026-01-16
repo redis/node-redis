@@ -40,3 +40,4 @@ export {
   CscEvictionReason,
 } from "./types";
 export { OTelMetrics } from "./metrics";
+export { categorizeError } from "./utils";
