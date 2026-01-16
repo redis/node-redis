@@ -72,15 +72,23 @@ export interface DatabaseConfig {
 
 export interface IFaultInjectorClient {
   triggerAction(action: ActionRequest): Promise<ActionStatus>;
-  listActionVariants(actionName: string, effect: string): Promise<ActionVariant[]>;
+  listActionTriggers(actionName: string, effect: string): Promise<ActionTrigger[]>;
 }
 
-export interface ActionVariantResponse {
-  variants: ActionVariant[]
+export interface ListActionTriggersResponse {
+  effect: string,
+  cluster: { index: number, nodes: number },
+  triggers: ActionTrigger[]
 }
 
-export interface ActionVariant {
+export interface ActionTrigger {
   name: string,
   description: string,
-  dbConfig?: Record<string, unknown>
+  requirements: ActionTriggerRequirement[]
+}
+
+export interface ActionTriggerRequirement {
+  dbconfig: any,
+  cluster: any,
+  description: string
 }

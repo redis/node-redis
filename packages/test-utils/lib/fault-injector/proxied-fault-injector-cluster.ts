@@ -1,6 +1,6 @@
 import { setTimeout } from "node:timers/promises";
 
-import { ActionRequest, ActionStatus, ActionVariant, IFaultInjectorClient } from "./types";
+import { ActionRequest, ActionStatus, ActionTrigger, IFaultInjectorClient } from "./types";
 import ProxyController from "../proxy/proxy-controller";
 
 const TOTAL_SLOTS = 16384;
@@ -17,7 +17,7 @@ export class ProxiedFaultInjectorClientForCluster
   implements IFaultInjectorClient
 {
   constructor(private readonly proxyController: ProxyController) {}
-    listActionVariants(actionName: string, effect: string): Promise<ActionVariant[]> {
+    listActionTriggers(actionName: string, effect: string): Promise<ActionTrigger[]> {
         throw new Error("Method not implemented.");
     }
 

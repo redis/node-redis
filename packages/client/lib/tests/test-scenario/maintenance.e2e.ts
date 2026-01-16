@@ -4,50 +4,51 @@ import diagnostics_channel from "node:diagnostics_channel";
 
 import testUtils from "../../test-utils";
 import { DiagnosticsEvent } from "../../client/enterprise-maintenance-manager";
-import { FaultInjectorClient, ActionVariant } from "@redis/test-utils/lib/fault-injector";
+import { FaultInjectorClient, ActionTrigger } from "@redis/test-utils/lib/fault-injector";
+
+const KEYS = [
+  "channel:11kv:1000",
+  "channel:osy:2000",
+  "channel:jn6:3000",
+  "channel:l00:4000",
+  "channel:4ez:5000",
+  "channel:4ek:6000",
+  "channel:9vn:7000",
+  "channel:dw1:8000",
+  "channel:9zi:9000",
+  "channel:4vl:10000",
+  "channel:utl:11000",
+  "channel:lyo:12000",
+  "channel:jzn:13000",
+  "channel:14uc:14000",
+  "channel:mz:15000",
+  "channel:d0v:16000",
+];
 
 // Async setup and dynamic test generation using Mocha's --delay option
 (async function() {
-  // Setup Phase: Create fault injector client and fetch all variants
+  // Setup Phase: Create fault injector client and fetch all triggers
   const baseUrl = process.env.RE_FAULT_INJECTOR_URL;
 
-  let addVariants: ActionVariant[] = [];
-  let removeVariants: ActionVariant[] = [];
-  let addRemoveVariants: ActionVariant[] = [];
-  let slotShuffleVariants: ActionVariant[] = [];
+  let addTriggers: ActionTrigger[] = [];
+  let removeTriggers: ActionTrigger[] = [];
+  let addRemoveTriggers: ActionTrigger[] = [];
+  let slotShuffleTriggers: ActionTrigger[] = [];
 
   if (baseUrl) {
     const setupFaultInjectorClient = new FaultInjectorClient(baseUrl);
 
-    // Make 4 asynchronous calls to listActionVariants() in parallel
-    [addVariants, removeVariants, addRemoveVariants, slotShuffleVariants] = await Promise.all([
-      setupFaultInjectorClient.listActionVariants("slot_migrate", "add"),
-      setupFaultInjectorClient.listActionVariants("slot_migrate", "remove"),
-      setupFaultInjectorClient.listActionVariants("slot_migrate", "add-remove"),
-      setupFaultInjectorClient.listActionVariants("slot_migrate", "slot-shuffle"),
+    // Make 4 asynchronous calls to listActionTriggers() in parallel
+    [addTriggers, removeTriggers, addRemoveTriggers, slotShuffleTriggers] = await Promise.all([
+      setupFaultInjectorClient.listActionTriggers("slot-migrate", "add"),
+      setupFaultInjectorClient.listActionTriggers("slot-migrate", "remove"),
+      setupFaultInjectorClient.listActionTriggers("slot-migrate", "remove-add"),
+      setupFaultInjectorClient.listActionTriggers("slot-migrate", "slot-shuffle"),
     ]);
   }
 
   // Dynamic Test Generation
   describe("Cluster Maintenance", () => {
-  const KEYS = [
-    "channel:11kv:1000",
-    "channel:osy:2000",
-    "channel:jn6:3000",
-    "channel:l00:4000",
-    "channel:4ez:5000",
-    "channel:4ek:6000",
-    "channel:9vn:7000",
-    "channel:dw1:8000",
-    "channel:9zi:9000",
-    "channel:4vl:10000",
-    "channel:utl:11000",
-    "channel:lyo:12000",
-    "channel:jzn:13000",
-    "channel:14uc:14000",
-    "channel:mz:15000",
-    "channel:d0v:16000",
-  ];
 
   let diagnosticEvents: DiagnosticsEvent[] = [];
 
@@ -68,58 +69,71 @@ import { FaultInjectorClient, ActionVariant } from "@redis/test-utils/lib/fault-
   });
 
   describe("Notifications", () => {
-    testUtils.testWithRECluster(
-      "should NOT receive notifications when maintNotifications is disabled",
-      async (_cluster, faultInjectorClient) => {
-        assert.equal(
-          diagnosticEvents.length,
-          0,
-          "should not have received any notifications yet"
-        );
 
-        // Trigger migration
-        await faultInjectorClient.triggerAction({
-          type: "slot_migrate",
-          parameters: {
-            scenario: "slot-shuffle",
-            cluster_index: 0,
-          },
-        });
+    assert(slotShuffleTriggers.length > 0, "slotShuffleTriggers should have at least one trigger");
 
-        // Verify NO maintenance notifications received
-        assert.strictEqual(
-          diagnosticEvents.length,
-          0,
-          "should NOT receive any SMIGRATING/SMIGRATED notifications when disabled"
-        );
-      },
-      {
+    for (const trigger of slotShuffleTriggers) {
+      const dbConfig = trigger.requirements[0].dbconfig;
+      // dbConfig.name = 'foo';
+      const testOptions = {
         clusterConfiguration: {
           defaults: {
             maintNotifications: "disabled",
           },
-          RESP: 3,
+          RESP: 3 as const,
         },
-      }
-    );
+        dbConfig,
+      } as const;
+
+      testUtils.testWithRECluster(
+        `[${trigger.name}] should NOT receive notifications when maintNotifications is disabled`,
+        async (_cluster, faultInjectorClient) => {
+          assert.equal(
+            diagnosticEvents.length,
+            0,
+            "should not have received any notifications yet"
+          );
+
+          // Trigger migration
+          await faultInjectorClient.triggerAction({
+            type: "slot_migrate",
+            parameters: {
+              effect: "slot-shuffle",
+              cluster_index: 0,
+              trigger: trigger.name,
+            },
+          });
+
+          // Verify NO maintenance notifications received
+          assert.strictEqual(
+            diagnosticEvents.length,
+            0,
+            "should NOT receive any SMIGRATING/SMIGRATED notifications when disabled"
+          );
+        },
+        testOptions
+      );
+    }
   });
 
   describe("Migrate - source: dying -> dest: existing", () => {
     const MASTERS_COUNT = 3;
 
-    // Dynamically generate tests for each variant from "remove" effect
-    for (const variant of removeVariants) {
+    assert(removeTriggers.length > 0, "removeTriggers should have at least one trigger");
+
+    // Dynamically generate tests for each trigger from "remove" effect
+    for (const trigger of removeTriggers) {
       const MIGRATE_ACTION = {
         type: "migrate",
         parameters: {
           cluster_index: 0,
           slot_migration: "all",
           destination_type: "existing",
-          variant: variant.name,
+          trigger: trigger.name,
         },
       } as const;
 
-      // Build options with variant-specific dbConfig if available
+      // Build options with trigger-specific dbConfig if available
       const testOptions = {
         freshContainer: true,
         numberOfMasters: MASTERS_COUNT,
@@ -130,11 +144,11 @@ import { FaultInjectorClient, ActionVariant } from "@redis/test-utils/lib/fault-
           },
           RESP: 3 as const,
         },
-        ...(variant.dbConfig && { dbConfig: variant.dbConfig }),
-      };
+        dbConfig: trigger.requirements[0].dbconfig,
+      } as const;
 
       testUtils.testWithRECluster(
-        `[${variant.name}] normal - should handle migration`,
+        `[${trigger.name}] normal - should handle migration`,
         async (cluster, faultInjectorClient) => {
           const initialMasterAddresses = new Set(
             cluster.masters.map((m) => m.address)
@@ -203,7 +217,7 @@ import { FaultInjectorClient, ActionVariant } from "@redis/test-utils/lib/fault-
       );
 
       testUtils.testWithRECluster(
-        `[${variant.name}] sharded pubsub - should handle migration`,
+        `[${trigger.name}] sharded pubsub - should handle migration`,
         async (cluster, faultInjectorClient) => {
           const stats: Record<string, { sent: number; received: number }> = {};
           for (const channel of KEYS) {
@@ -280,7 +294,7 @@ import { FaultInjectorClient, ActionVariant } from "@redis/test-utils/lib/fault-
       );
 
       testUtils.testWithRECluster(
-        `[${variant.name}] pubsub - should handle migration`,
+        `[${trigger.name}] pubsub - should handle migration`,
         async (cluster, faultInjectorClient) => {
           const stats: Record<string, { sent: number; received: number }> = {};
           for (const channel of KEYS) {
@@ -362,19 +376,21 @@ import { FaultInjectorClient, ActionVariant } from "@redis/test-utils/lib/fault-
     const MASTERS_NODES_COUNT = 3;
     const VISIBLE_NODES_COUNT = 2;
 
-    // Dynamically generate tests for each variant from "add" effect
-    for (const variant of addVariants) {
+    assert(addTriggers.length > 0, "addTriggers should have at least one trigger");
+
+    // Dynamically generate tests for each trigger from "add" effect
+    for (const trigger of addTriggers) {
       const MIGRATE_ACTION = {
         type: "migrate",
         parameters: {
           cluster_index: 0,
           slot_migration: "all",
           destination_type: "new",
-          variant: variant.name,
+          trigger: trigger.name,
         },
       } as const;
 
-      // Build options with variant-specific dbConfig if available
+      // Build options with trigger-specific dbConfig if available
       const testOptions = {
         freshContainer: true,
         numberOfMasters: MASTERS_NODES_COUNT,
@@ -386,11 +402,11 @@ import { FaultInjectorClient, ActionVariant } from "@redis/test-utils/lib/fault-
           },
           RESP: 3 as const,
         },
-        ...(variant.dbConfig && { dbConfig: variant.dbConfig }),
-      };
+        dbConfig: trigger.requirements[0].dbconfig,
+      } as const;
 
       testUtils.testWithRECluster(
-        `[${variant.name}] normal - should handle migration`,
+        `[${trigger.name}] normal - should handle migration`,
         async (cluster, faultInjectorClient) => {
           const initialMasterAddresses = new Set(
             cluster.masters.map((m) => m.address)
@@ -462,7 +478,7 @@ import { FaultInjectorClient, ActionVariant } from "@redis/test-utils/lib/fault-
       );
 
       testUtils.testWithRECluster(
-        `[${variant.name}] sharded pubsub - should handle migration`,
+        `[${trigger.name}] sharded pubsub - should handle migration`,
         async (cluster, faultInjectorClient) => {
           const stats: Record<string, { sent: number; received: number }> = {};
           for (const channel of KEYS) {
@@ -539,7 +555,7 @@ import { FaultInjectorClient, ActionVariant } from "@redis/test-utils/lib/fault-
       );
 
       testUtils.testWithRECluster(
-        `[${variant.name}] pubsub - should handle migration`,
+        `[${trigger.name}] pubsub - should handle migration`,
         async (cluster, faultInjectorClient) => {
           const stats: Record<string, { sent: number; received: number }> = {};
           for (const channel of KEYS) {
@@ -620,19 +636,21 @@ import { FaultInjectorClient, ActionVariant } from "@redis/test-utils/lib/fault-
   describe("Migrate - source: active -> dest: existing", () => {
     const MASTERS_COUNT = 3;
 
-    // Dynamically generate tests for each variant from "add-remove" effect
-    for (const variant of addRemoveVariants) {
+    assert(addRemoveTriggers.length > 0, "addRemoveTriggers should have at least one trigger");
+
+    // Dynamically generate tests for each trigger from "add-remove" effect
+    for (const trigger of addRemoveTriggers) {
       const MIGRATE_ACTION = {
         type: "migrate",
         parameters: {
           cluster_index: 0,
           slot_migration: "half",
           destination_type: "existing",
-          variant: variant.name,
+          trigger: trigger.name,
         },
       } as const;
 
-      // Build options with variant-specific dbConfig if available
+      // Build options with trigger-specific dbConfig if available
       const testOptions = {
         numberOfMasters: MASTERS_COUNT,
         freshContainer: true,
@@ -643,11 +661,11 @@ import { FaultInjectorClient, ActionVariant } from "@redis/test-utils/lib/fault-
           },
           RESP: 3 as const,
         },
-        ...(variant.dbConfig && { dbConfig: variant.dbConfig }),
-      };
+        dbConfig: trigger.requirements[0].dbconfig,
+      } as const;
 
       testUtils.testWithRECluster(
-        `[${variant.name}] normal - should handle migration`,
+        `[${trigger.name}] normal - should handle migration`,
         async (cluster, faultInjectorClient) => {
           const initialMasterAddresses = new Set(
             cluster.masters.map((m) => m.address)
@@ -716,7 +734,7 @@ import { FaultInjectorClient, ActionVariant } from "@redis/test-utils/lib/fault-
       );
 
       testUtils.testWithRECluster(
-        `[${variant.name}] sharded pubsub - should handle migration`,
+        `[${trigger.name}] sharded pubsub - should handle migration`,
         async (cluster, faultInjectorClient) => {
           const stats: Record<string, { sent: number; received: number }> = {};
           for (const channel of KEYS) {
@@ -793,7 +811,7 @@ import { FaultInjectorClient, ActionVariant } from "@redis/test-utils/lib/fault-
       );
 
       testUtils.testWithRECluster(
-        `[${variant.name}] pubsub - should handle migration`,
+        `[${trigger.name}] pubsub - should handle migration`,
         async (cluster, faultInjectorClient) => {
           const stats: Record<string, { sent: number; received: number }> = {};
           for (const channel of KEYS) {
@@ -875,19 +893,21 @@ import { FaultInjectorClient, ActionVariant } from "@redis/test-utils/lib/fault-
     const MASTERS_NODES_COUNT = 3;
     const VISIBLE_NODES_COUNT = 2;
 
-    // Dynamically generate tests for each variant from "slot-shuffle" effect
-    for (const variant of slotShuffleVariants) {
+    assert(slotShuffleTriggers.length > 0, "slotShuffleTriggers should have at least one trigger");
+
+    // Dynamically generate tests for each trigger from "slot-shuffle" effect
+    for (const trigger of slotShuffleTriggers) {
       const MIGRATE_ACTION = {
         type: "migrate",
         parameters: {
           cluster_index: 0,
           slot_migration: "half",
           destination_type: "new",
-          variant: variant.name,
+          trigger: trigger.name,
         },
       } as const;
 
-      // Build options with variant-specific dbConfig if available
+      // Build options with trigger-specific dbConfig if available
       const testOptions = {
         numberOfMasters: MASTERS_NODES_COUNT,
         startWithReducedNodes: true,
@@ -899,11 +919,11 @@ import { FaultInjectorClient, ActionVariant } from "@redis/test-utils/lib/fault-
           },
           RESP: 3 as const,
         },
-        ...(variant.dbConfig && { dbConfig: variant.dbConfig }),
-      };
+        dbConfig: trigger.requirements[0].dbconfig,
+      } as const;
 
       testUtils.testWithRECluster(
-        `[${variant.name}] normal - should handle migration`,
+        `[${trigger.name}] normal - should handle migration`,
         async (cluster, faultInjectorClient) => {
           const initialMasterAddresses = new Set(
             cluster.masters.map((m) => m.address)
@@ -975,7 +995,7 @@ import { FaultInjectorClient, ActionVariant } from "@redis/test-utils/lib/fault-
       );
 
       testUtils.testWithRECluster(
-        `[${variant.name}] sharded pubsub - should handle migration`,
+        `[${trigger.name}] sharded pubsub - should handle migration`,
         async (cluster, faultInjectorClient) => {
           const stats: Record<string, { sent: number; received: number }> = {};
           for (const channel of KEYS) {
@@ -1052,7 +1072,7 @@ import { FaultInjectorClient, ActionVariant } from "@redis/test-utils/lib/fault-
       );
 
       testUtils.testWithRECluster(
-        `[${variant.name}] pubsub - should handle migration`,
+        `[${trigger.name}] pubsub - should handle migration`,
         async (cluster, faultInjectorClient) => {
           const stats: Record<string, { sent: number; received: number }> = {};
           for (const channel of KEYS) {

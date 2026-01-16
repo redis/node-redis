@@ -3,8 +3,8 @@ import { setTimeout } from "node:timers/promises";
 import {
   ActionRequest,
   ActionStatus,
-  ActionVariant,
-  ActionVariantResponse,
+  ActionTrigger,
+  ListActionTriggersResponse,
   CreateDatabaseConfig,
   DatabaseConfig,
   IFaultInjectorClient,
@@ -21,10 +21,10 @@ export class FaultInjectorClient implements IFaultInjectorClient {
     this.#fetch = fetchImpl;
   }
 
-  async listActionVariants(actionName: string, effect: string): Promise<ActionVariant[]> {
-    const res = await this.#request<ActionVariantResponse>("GET", `/${actionName}?effect=${effect}`);
+  async listActionTriggers(actionName: string, effect: string): Promise<ActionTrigger[]> {
+    const res = await this.#request<ListActionTriggersResponse>("GET", `/${actionName}?effect=${effect}`);
     console.log(res);
-    return res.variants;
+    return res.triggers;
   }
 
   selectDbConfig(dbConfig: DatabaseConfig) {
