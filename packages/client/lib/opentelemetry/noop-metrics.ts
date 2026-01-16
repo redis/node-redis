@@ -46,7 +46,10 @@ export class NoopResiliencyMetrics {
     _retryAttempts?: number,
     _statusCode?: string
   ) {}
-  recordMaintenanceNotifications(_clientAttributes: OTelClientAttributes) {}
+  recordMaintenanceNotifications(
+    _notification: string,
+    _clientAttributes?: OTelClientAttributes
+  ) {}
 }
 
 export class NoopOTelMetrics implements IOTelMetrics {

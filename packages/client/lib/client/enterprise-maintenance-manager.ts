@@ -155,7 +155,7 @@ export default class EnterpriseMaintenanceManager {
 
     const type = String(push[0]);
 
-    OTelMetrics.instance.resiliencyMetrics.recordMaintenanceNotifications(this.#client._getClientOTelAttributes()); 
+    OTelMetrics.instance.resiliencyMetrics.recordMaintenanceNotifications(type, this.#client._getClientOTelAttributes());
 
     emitDiagnostics({
       type,
