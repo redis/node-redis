@@ -97,7 +97,7 @@ export type MetricInstruments = Readonly<{
   redisClientConnectionClosed: Counter<Attributes>;
 
   // Resiliency
-  redisClientErrorsHandled: Counter<Attributes>;
+  redisClientErrors: Counter<Attributes>;
   redisClientMaintenanceNotifications: Counter<Attributes>;
 
   // Pipeline metrics
@@ -210,7 +210,7 @@ export const METRIC_NAMES = {
   redisClientConnectionClosed: "redis.client.connection.closed",
 
   // Resiliency metrics
-  redisClientErrorsHandled: "redis.client.errors.handled",
+  redisClientErrors: "redis.client.errors",
   redisClientMaintenanceNotifications: "redis.client.maintenance.notifications",
 
   // Pipeline metrics
@@ -298,7 +298,7 @@ export interface IOTelConnectionAdvancedMetrics {
 }
 
 export interface IOTelResiliencyMetrics {
-  recordClientErrorsHandled(
+  recordClientErrors(
     type: MetricErrorType,
     clientAttributes?: OTelClientAttributes
   ): void;

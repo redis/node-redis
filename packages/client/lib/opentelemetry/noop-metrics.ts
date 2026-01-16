@@ -39,7 +39,7 @@ export class NoopConnectionAdvancedMetrics {
 }
 
 export class NoopResiliencyMetrics {
-  recordClientErrorsHandled(
+  recordClientErrors(
     _type: MetricErrorType,
     _clientAttributes?: OTelClientAttributes
   ) {}

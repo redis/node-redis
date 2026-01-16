@@ -184,11 +184,11 @@ class OTelResiliencyMetrics implements IOTelResiliencyMetrics {
     this.#instruments = instruments;
   }
 
-  public recordClientErrorsHandled(
+  public recordClientErrors(
     type: MetricErrorType,
     clientAttributes?: OTelClientAttributes
   ) {
-    this.#instruments.redisClientErrorsHandled.add(1, {
+    this.#instruments.redisClientErrors.add(1, {
       ...this.#options.attributes,
       ...parseClientAttributes(clientAttributes),
       [OTEL_ATTRIBUTES.errorType]: type,
@@ -589,13 +589,13 @@ export class OTelMetrics implements IOTelMetrics {
         }
       ),
       // Resiliency
-      redisClientErrorsHandled: this.createCounter(
+      redisClientErrors: this.createCounter(
         meter,
         options.enabledMetricGroups,
         {
-          name: METRIC_NAMES.redisClientErrorsHandled,
+          name: METRIC_NAMES.redisClientErrors,
           unit: "{error}",
-          description: "Number of errors handled by the Redis client",
+          description: "A counter of all errors (both returned and handled internally)",
           metricGroup: METRIC_GROUP.RESILIENCY,
         }
       ),
