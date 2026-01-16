@@ -9,6 +9,14 @@ export class NoopCommandMetrics {
   ): (error?: Error) => void {
     return noopFunction;
   }
+
+  createRecordBatchOperationDuration(
+    _operationName: 'MULTI' | 'PIPELINE',
+    _batchSize: number,
+    _clientAttributes?: OTelClientAttributes
+  ): (error?: Error) => void {
+    return noopFunction;
+  }
 }
 
 export class NoopConnectionBasicMetrics {

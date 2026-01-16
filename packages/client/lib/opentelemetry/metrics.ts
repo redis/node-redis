@@ -21,7 +21,7 @@ import {
   IOTelResiliencyMetrics,
 } from "./types";
 import { createNoopMeter } from "./noop-meter";
-import { categorizeError, noopFunction, parseClientAttributes } from "./utils";
+import { categorizeError, extractRedisStatusCode, noopFunction, parseClientAttributes } from "./utils";
 import {
   NoopCommandMetrics,
   NoopConnectionAdvancedMetrics,
@@ -80,6 +80,7 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
     const startTime = performance.now();
 
     return (error?: Error) => {
+      const statusCode = error ? extractRedisStatusCode(error) : undefined;
       this.#instruments.dbClientOperationDuration.record(
         (performance.now() - startTime) / 1000,
         {
@@ -88,7 +89,39 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
           [OTEL_ATTRIBUTES.dbNamespace]: clientAttributes?.db,
           [OTEL_ATTRIBUTES.serverAddress]: clientAttributes?.host,
           [OTEL_ATTRIBUTES.serverPort]: clientAttributes?.port,
-          ...(error ? { [OTEL_ATTRIBUTES.errorType]: error.message } : {}),
+          ...(error ? {
+            [OTEL_ATTRIBUTES.errorType]: error.constructor.name,
+            [OTEL_ATTRIBUTES.redisClientErrorsCategory]: categorizeError(error),
+          } : {}),
+          ...(statusCode ? { [OTEL_ATTRIBUTES.dbResponseStatusCode]: statusCode } : {}),
+        }
+      );
+    };
+  }
+
+  createRecordBatchOperationDuration(
+    operationName: 'MULTI' | 'PIPELINE',
+    batchSize: number,
+    clientAttributes?: OTelClientAttributes
+  ): (error?: Error) => void {
+    const startTime = performance.now();
+
+    return (error?: Error) => {
+      const statusCode = error ? extractRedisStatusCode(error) : undefined;
+      this.#instruments.dbClientOperationDuration.record(
+        (performance.now() - startTime) / 1000,
+        {
+          ...this.#options.attributes,
+          [OTEL_ATTRIBUTES.dbOperationName]: operationName,
+          [OTEL_ATTRIBUTES.dbOperationBatchSize]: batchSize,
+          [OTEL_ATTRIBUTES.dbNamespace]: clientAttributes?.db,
+          [OTEL_ATTRIBUTES.serverAddress]: clientAttributes?.host,
+          [OTEL_ATTRIBUTES.serverPort]: clientAttributes?.port,
+          ...(error ? {
+            [OTEL_ATTRIBUTES.errorType]: error.constructor.name,
+            [OTEL_ATTRIBUTES.redisClientErrorsCategory]: categorizeError(error),
+          } : {}),
+          ...(statusCode ? { [OTEL_ATTRIBUTES.dbResponseStatusCode]: statusCode } : {}),
         }
       );
     };
@@ -477,6 +510,10 @@ export class OTelMetrics implements IOTelMetrics {
         }
       ),
       // Basic connection
+      // TODO: Convert to Observable Gauge for accurate point-in-time reporting.
+      // Observable Gauges use callback-based collection to report the current value on demand,
+      // which is more appropriate for "current count" metrics. This requires architecture changes
+      // to support callback-based gauge collection. See deferred items in PRD.
       dbClientConnectionCount: this.createUpDownCounter(
         meter,
         options.enabledMetricGroups,
@@ -556,6 +593,10 @@ export class OTelMetrics implements IOTelMetrics {
           histogramBoundaries: options.bucketsConnectionUseTime,
         }
       ),
+      // TODO: Convert to Observable Gauge for accurate point-in-time reporting.
+      // Observable Gauges use callback-based collection to report the current value on demand,
+      // which is more appropriate for "pending count" metrics. This requires architecture changes
+      // to support callback-based gauge collection. See deferred items in PRD.
       dbClientConnectionPendingRequests: this.createUpDownCounter(
         meter,
         options.enabledMetricGroups,

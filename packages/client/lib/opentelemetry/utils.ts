@@ -3,8 +3,30 @@ import {
   InMemoryMetricExporter,
 } from "@opentelemetry/sdk-metrics";
 import { OTEL_ATTRIBUTES, OTelClientAttributes, ErrorCategory, ERROR_CATEGORY } from "./types";
+import { ErrorReply } from "../errors";
 
 export function noopFunction() {}
+
+/**
+ * Extracts the Redis status code (error prefix) from an ErrorReply.
+ *
+ * Redis errors follow the format "PREFIX message" where PREFIX is an uppercase
+ * word like ERR, WRONGTYPE, MOVED, ASK, CLUSTERDOWN, NOSCRIPT, etc.
+ *
+ * @param error - The error to extract the status code from
+ * @returns The error prefix (e.g., "ERR", "WRONGTYPE") or undefined if not an ErrorReply
+ *          or if the message doesn't match the expected format
+ */
+export function extractRedisStatusCode(error: Error): string | undefined {
+  if (!(error instanceof ErrorReply)) {
+    return undefined;
+  }
+
+  // Redis error messages start with an uppercase prefix followed by a space
+  // Examples: "ERR unknown command", "WRONGTYPE Operation against a key...", "MOVED 3999 127.0.0.1:6381"
+  const match = error.message.match(/^([A-Z][A-Z0-9_]*)\s/);
+  return match?.[1];
+}
 
 /**
  * Categorizes an error into one of the predefined error categories.
@@ -87,5 +109,10 @@ export const parseClientAttributes = (
     ...(clientAttributes?.port && {
       [OTEL_ATTRIBUTES.serverPort]: clientAttributes.port.toString(),
     }),
+    [OTEL_ATTRIBUTES.dbClientConnectionPoolName]: formatPoolName(
+      clientAttributes?.host,
+      clientAttributes?.port,
+      clientAttributes?.db
+    ),
   };
 };

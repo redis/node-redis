@@ -1338,8 +1338,20 @@ export default class RedisClient<
     commands: Array<RedisMultiQueuedCommand>,
     selectedDB?: number
   ) {
+    const recordBatch = OTelMetrics.instance.commandMetrics.createRecordBatchOperationDuration(
+      'PIPELINE',
+      commands.length,
+      {
+        host: this._self.#socket.host,
+        port: this._self.#socket.port,
+        db: this._self.#selectedDB,
+      }
+    );
+
     if (!this._self.#socket.isOpen) {
-      return Promise.reject(new ClientClosedError());
+      const error = new ClientClosedError();
+      recordBatch(error);
+      return Promise.reject(error);
     }
 
     const chainId = Symbol('Pipeline Chain'),
@@ -1350,13 +1362,20 @@ export default class RedisClient<
         }))
       );
     this._self.#scheduleWrite();
-    const result = await promise;
 
-    if (selectedDB !== undefined) {
-      this._self.#selectedDB = selectedDB;
+    try {
+      const result = await promise;
+
+      if (selectedDB !== undefined) {
+        this._self.#selectedDB = selectedDB;
+      }
+
+      recordBatch();
+      return result;
+    } catch (error) {
+      recordBatch(error as Error);
+      throw error;
     }
-
-    return result;
   }
 
   /**
@@ -1366,21 +1385,37 @@ export default class RedisClient<
     commands: Array<RedisMultiQueuedCommand>,
     selectedDB?: number
   ) {
+    const recordBatch = OTelMetrics.instance.commandMetrics.createRecordBatchOperationDuration(
+      'MULTI',
+      commands.length,
+      {
+        host: this._self.#socket.host,
+        port: this._self.#socket.port,
+        db: this._self.#selectedDB,
+      }
+    );
+
     const dirtyWatch = this._self.#dirtyWatch;
     this._self.#dirtyWatch = undefined;
     const watchEpoch = this._self.#watchEpoch;
     this._self.#watchEpoch = undefined;
 
     if (!this._self.#socket.isOpen) {
-      throw new ClientClosedError();
+      const error = new ClientClosedError();
+      recordBatch(error);
+      throw error;
     }
 
     if (dirtyWatch) {
-      throw new WatchError(dirtyWatch);
+      const error = new WatchError(dirtyWatch);
+      recordBatch(error);
+      throw error;
     }
 
     if (watchEpoch && watchEpoch !== this._self.socketEpoch) {
-      throw new WatchError('Client reconnected after WATCH');
+      const error = new WatchError('Client reconnected after WATCH');
+      recordBatch(error);
+      throw error;
     }
 
     const typeMapping = this._commandOptions?.typeMapping;
@@ -1404,18 +1439,26 @@ export default class RedisClient<
 
     this._self.#scheduleWrite();
 
-    const results = await Promise.all(promises),
-      execResult = results[results.length - 1];
+    try {
+      const results = await Promise.all(promises),
+        execResult = results[results.length - 1];
 
-    if (execResult === null) {
-      throw new WatchError();
+      if (execResult === null) {
+        const error = new WatchError();
+        recordBatch(error);
+        throw error;
+      }
+
+      if (selectedDB !== undefined) {
+        this._self.#selectedDB = selectedDB;
+      }
+
+      recordBatch();
+      return execResult as Array<unknown>;
+    } catch (error) {
+      recordBatch(error as Error);
+      throw error;
     }
-
-    if (selectedDB !== undefined) {
-      this._self.#selectedDB = selectedDB;
-    }
-
-    return execResult as Array<unknown>;
   }
 
   MULTI<isTyped extends MultiMode = MULTI_MODE['TYPED']>() {
