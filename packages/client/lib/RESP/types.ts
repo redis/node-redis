@@ -195,15 +195,31 @@ type MapKey<
 
 export type UnwrapReply<REPLY extends RespType<any, any, any, any>> = REPLY['DEFAULT' | 'TYPES'];
 
+/**
+ * Helper type that resolves a RespType to its mapped value.
+ * Separated to allow TypeScript to cache the resolution.
+ */
+type ResolveRespTypeMapping<
+  RESP_TYPE extends RespTypes,
+  DEFAULT,
+  TYPES,
+  TYPE_MAPPING extends TypeMapping
+> = TYPE_MAPPING[RESP_TYPE] extends MappedType<infer T>
+  ? Extract<DEFAULT | TYPES, T>
+  : DEFAULT;
+
 export type ReplyWithTypeMapping<
   REPLY,
   TYPE_MAPPING extends TypeMapping
 > = (
-  // if REPLY is a type, extract the coresponding type from TYPE_MAPPING or use the default type
-  REPLY extends RespType<infer RESP_TYPE, infer DEFAULT, infer TYPES, unknown> ? 
-    TYPE_MAPPING[RESP_TYPE] extends MappedType<infer T> ?
-      ReplyWithTypeMapping<Extract<DEFAULT | TYPES, T>, TYPE_MAPPING> :
-      ReplyWithTypeMapping<DEFAULT, TYPE_MAPPING>
+  // Early exit for primitive types - no mapping needed
+  REPLY extends string | number | bigint | boolean | null | undefined ? REPLY :
+  // Handle RespType - extract and apply type mapping using helper
+  REPLY extends RespType<infer RESP_TYPE, infer DEFAULT, infer TYPES, unknown> ?
+    ReplyWithTypeMapping<
+      ResolveRespTypeMapping<RESP_TYPE, DEFAULT, TYPES, TYPE_MAPPING>,
+      TYPE_MAPPING
+    >
   : (
     // if REPLY is a known generic type, convert its generic arguments
     // TODO: tuples?
