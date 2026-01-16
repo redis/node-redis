@@ -16,6 +16,7 @@ export const METRIC_GROUP = {
   STREAMS: "streams",
   PIPELINE: "pipeline",
   HEALTHCHECK: "healthcheck",
+  CLIENT_SIDE_CACHING: "client-side-caching",
   MISC: "misc",
 } as const;
 
@@ -110,6 +111,12 @@ export type MetricInstruments = Readonly<{
 
   // Stream metrics
   redisClientStreamProduced: Counter<Attributes>;
+
+  // Client-Side Caching metrics
+  redisClientCscRequests: Counter<Attributes>;
+  redisClientCscItems: UpDownCounter<Attributes>;
+  redisClientCscEvictions: Counter<Attributes>;
+  redisClientCscNetworkSaved: Counter<Attributes>;
 }>;
 
 export const OTEL_ATTRIBUTES = {
@@ -217,6 +224,12 @@ export const METRIC_NAMES = {
 
   // Stream metrics
   redisClientStreamProduced: "redis.client.stream.produce.messages",
+
+  // Client-Side Caching metrics
+  redisClientCscRequests: "redis.client.csc.requests",
+  redisClientCscItems: "redis.client.csc.items",
+  redisClientCscEvictions: "redis.client.csc.evictions",
+  redisClientCscNetworkSaved: "redis.client.csc.network_saved",
 } as const;
 
 export type BaseInstrumentConfig = {
