@@ -1,5 +1,5 @@
 import { RedisArgument } from "../..";
-import { MetricErrorType, OTelClientAttributes, IOTelMetrics } from "./types";
+import { OTelClientAttributes, IOTelMetrics } from "./types";
 import { noopFunction } from "./utils";
 
 export class NoopCommandMetrics {
@@ -40,8 +40,11 @@ export class NoopConnectionAdvancedMetrics {
 
 export class NoopResiliencyMetrics {
   recordClientErrors(
-    _type: MetricErrorType,
-    _clientAttributes?: OTelClientAttributes
+    _error: Error,
+    _internal: boolean,
+    _clientAttributes?: OTelClientAttributes,
+    _retryAttempts?: number,
+    _statusCode?: string
   ) {}
   recordMaintenanceNotifications(_clientAttributes: OTelClientAttributes) {}
 }

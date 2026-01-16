@@ -7,7 +7,7 @@ import { setTimeout } from "node:timers/promises";
 import { RedisTcpSocketOptions } from "./socket";
 import diagnostics_channel from "node:diagnostics_channel";
 import { RedisArgument } from "../RESP/types";
-import { METRIC_ERROR_TYPE, OTelMetrics } from "../opentelemetry";
+import {  OTelMetrics } from "../opentelemetry";
 
 type RedisType = RedisClient<any, any, any, any, any>;
 
@@ -125,7 +125,7 @@ export default class EnterpriseMaintenanceManager {
           throw error;
         }
 
-        OTelMetrics.instance.resiliencyMetrics.recordClientErrors(METRIC_ERROR_TYPE.HANDSHAKE_FAILED, {
+        OTelMetrics.instance.resiliencyMetrics.recordClientErrors(error, true, {
           host,
           // TODO add port
           // port: options?.socket?.port,

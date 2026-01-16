@@ -13,7 +13,6 @@ import {
   METRIC_GROUP,
   METRIC_NAMES,
   HistogramInstrumentConfig,
-  MetricErrorType,
   OTelClientAttributes,
   IOTelMetrics,
   IOTelCommandMetrics,
@@ -22,7 +21,7 @@ import {
   IOTelResiliencyMetrics,
 } from "./types";
 import { createNoopMeter } from "./noop-meter";
-import { noopFunction, parseClientAttributes } from "./utils";
+import { categorizeError, noopFunction, parseClientAttributes } from "./utils";
 import {
   NoopCommandMetrics,
   NoopConnectionAdvancedMetrics,
@@ -185,13 +184,24 @@ class OTelResiliencyMetrics implements IOTelResiliencyMetrics {
   }
 
   public recordClientErrors(
-    type: MetricErrorType,
-    clientAttributes?: OTelClientAttributes
+    error: Error,
+    internal: boolean,
+    clientAttributes?: OTelClientAttributes,
+    retryAttempts?: number,
+    statusCode?: string
   ) {
     this.#instruments.redisClientErrors.add(1, {
       ...this.#options.attributes,
       ...parseClientAttributes(clientAttributes),
-      [OTEL_ATTRIBUTES.errorType]: type,
+      [OTEL_ATTRIBUTES.errorType]: error.constructor.name,
+      [OTEL_ATTRIBUTES.redisClientErrorsCategory]: categorizeError(error),
+      [OTEL_ATTRIBUTES.redisClientErrorsInternal]: internal,
+      ...(retryAttempts !== undefined && {
+        [OTEL_ATTRIBUTES.redisClientOperationRetryAttempts]: retryAttempts,
+      }),
+      ...(statusCode !== undefined && {
+        [OTEL_ATTRIBUTES.dbResponseStatusCode]: statusCode,
+      }),
     });
   }
 
