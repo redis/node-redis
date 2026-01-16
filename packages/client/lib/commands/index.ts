@@ -360,6 +360,7 @@ import VINFO from './VINFO';
 import VLINKS from './VLINKS';
 import VLINKS_WITHSCORES from './VLINKS_WITHSCORES';
 import VRANDMEMBER from './VRANDMEMBER';
+import VRANGE from './VRANGE';
 import VREM from './VREM';
 import VSETATTR from './VSETATTR';
 import VSIM from './VSIM';
@@ -1103,6 +1104,8 @@ export default {
   vLinksWithScores: VLINKS_WITHSCORES,
   VRANDMEMBER,
   vRandMember: VRANDMEMBER,
+  VRANGE,
+  vRange: VRANGE,
   VREM,
   vRem: VREM,
   VSETATTR,
