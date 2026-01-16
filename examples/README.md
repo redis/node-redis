@@ -12,6 +12,7 @@ This folder contains example scripts showing how to use Node Redis in different 
 | `connect-to-cluster.js`                  | Connect to a Redis cluster.                                                                                                                          |
 | `count-min-sketch.js`                    | Estimate the frequency of a given event using the [RedisBloom](https://redisbloom.io) Count-Min Sketch.                                              |
 | `cuckoo-filter.js`                       | Space efficient set membership checks with a [Cuckoo Filter](https://en.wikipedia.org/wiki/Cuckoo_filter) using [RedisBloom](https://redisbloom.io). |
+| `cas-cad-digest.js`                      | Atomic compare-and-set (CAS) and compare-and-delete (CAD) using digests for single-key optimistic concurrency control.                              |
 | `dump-and-restore.js`                    | Demonstrates the use of the [`DUMP`](https://redis.io/commands/dump/) and [`RESTORE`](https://redis.io/commands/restore/) commands                   |
 | `get-server-time.js`                     | Get the time from the Redis server.                                                                                                                  |
 | `hyperloglog.js`                         | Showing use of Hyperloglog commands [PFADD, PFCOUNT and PFMERGE](https://redis.io/commands/?group=hyperloglog).                                      |
