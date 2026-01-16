@@ -29,6 +29,25 @@ export function categorizeError(error: Error): ErrorCategory {
   return ERROR_CATEGORY.OTHER;
 }
 
+/**
+ * Formats a pool name for the db.client.connection.pool.name attribute.
+ *
+ * @param host - The Redis server host (defaults to 'unknown')
+ * @param port - The Redis server port (defaults to 6379)
+ * @param db - The Redis database number (defaults to 0)
+ * @returns Formatted pool name in the format {host}:{port}/{db}
+ */
+export function formatPoolName(
+  host?: string,
+  port?: string | number,
+  db?: string | number
+): string {
+  const hostStr = host ?? 'unknown';
+  const portStr = port?.toString() ?? '6379';
+  const dbStr = db?.toString() ?? '0';
+  return `${hostStr}:${portStr}/${dbStr}`;
+}
+
 export const waitForMetrics = async (
   meterProvider: MeterProvider,
   exporter: InMemoryMetricExporter,
