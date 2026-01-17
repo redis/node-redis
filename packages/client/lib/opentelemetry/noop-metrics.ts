@@ -96,6 +96,7 @@ export class NoopClientSideCacheMetrics {
 
   recordCacheEviction(
     _reason: CscEvictionReason,
+    _count?: number,
     _clientAttributes?: OTelClientAttributes
   ) {}
 
