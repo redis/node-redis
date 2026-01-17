@@ -2,6 +2,8 @@ import { Meter } from "@opentelemetry/api";
 import { RedisArgument } from "../RESP/types";
 import {
   ConnectionCloseReason,
+  CscEvictionReason,
+  CscResult,
   DEFAULT_OTEL_ATTRIBUTES,
   MetricInstruments,
   ObservabilityConfig,
@@ -20,10 +22,12 @@ import {
   IOTelConnectionBasicMetrics,
   IOTelConnectionAdvancedMetrics,
   IOTelResiliencyMetrics,
+  IOTelClientSideCacheMetrics,
 } from "./types";
 import { createNoopMeter } from "./noop-meter";
 import { categorizeError, extractRedisStatusCode, noopFunction, parseClientAttributes } from "./utils";
 import {
+  NoopClientSideCacheMetrics,
   NoopCommandMetrics,
   NoopConnectionAdvancedMetrics,
   NoopConnectionBasicMetrics,
@@ -306,6 +310,58 @@ class OTelResiliencyMetrics implements IOTelResiliencyMetrics {
   }
 }
 
+class OTelClientSideCacheMetrics implements IOTelClientSideCacheMetrics {
+  readonly #instruments: MetricInstruments;
+  readonly #options: MetricOptions;
+
+  constructor(options: MetricOptions, instruments: MetricInstruments) {
+    this.#options = options;
+    this.#instruments = instruments;
+  }
+
+  public recordCacheRequest(
+    result: CscResult,
+    clientAttributes?: OTelClientAttributes
+  ) {
+    this.#instruments.redisClientCscRequests.add(1, {
+      ...this.#options.attributes,
+      ...parseClientAttributes(clientAttributes),
+      [OTEL_ATTRIBUTES.redisClientCscResult]: result,
+    });
+  }
+
+  public recordCacheItemsChange(
+    delta: number,
+    clientAttributes?: OTelClientAttributes
+  ) {
+    this.#instruments.redisClientCscItems.add(delta, {
+      ...this.#options.attributes,
+      ...parseClientAttributes(clientAttributes),
+    });
+  }
+
+  public recordCacheEviction(
+    reason: CscEvictionReason,
+    clientAttributes?: OTelClientAttributes
+  ) {
+    this.#instruments.redisClientCscEvictions.add(1, {
+      ...this.#options.attributes,
+      ...parseClientAttributes(clientAttributes),
+      [OTEL_ATTRIBUTES.redisClientCscReason]: reason,
+    });
+  }
+
+  public recordNetworkBytesSaved(
+    bytes: number,
+    clientAttributes?: OTelClientAttributes
+  ) {
+    this.#instruments.redisClientCscNetworkSaved.add(bytes, {
+      ...this.#options.attributes,
+      ...parseClientAttributes(clientAttributes),
+    });
+  }
+}
+
 export class OTelMetrics implements IOTelMetrics {
   // Create a noop instance by default
   static #instance: IOTelMetrics = new NoopOTelMetrics();
@@ -315,6 +371,7 @@ export class OTelMetrics implements IOTelMetrics {
   readonly connectionBasicMetrics: IOTelConnectionBasicMetrics;
   readonly connectionAdvancedMetrics: IOTelConnectionAdvancedMetrics;
   readonly resiliencyMetrics: IOTelResiliencyMetrics;
+  readonly clientSideCacheMetrics: IOTelClientSideCacheMetrics;
 
   readonly #meter: Meter;
   readonly #instruments: MetricInstruments;
@@ -371,6 +428,17 @@ export class OTelMetrics implements IOTelMetrics {
       );
     } else {
       this.resiliencyMetrics = new NoopResiliencyMetrics();
+    }
+
+    if (
+      this.#options.enabledMetricGroups.includes(METRIC_GROUP.CLIENT_SIDE_CACHING)
+    ) {
+      this.clientSideCacheMetrics = new OTelClientSideCacheMetrics(
+        this.#options,
+        this.#instruments
+      );
+    } else {
+      this.clientSideCacheMetrics = new NoopClientSideCacheMetrics();
     }
   }
 

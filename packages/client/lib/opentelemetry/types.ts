@@ -341,9 +341,29 @@ export interface IOTelResiliencyMetrics {
   ): void;
 }
 
+export interface IOTelClientSideCacheMetrics {
+  recordCacheRequest(
+    result: CscResult,
+    clientAttributes?: OTelClientAttributes
+  ): void;
+  recordCacheItemsChange(
+    delta: number,
+    clientAttributes?: OTelClientAttributes
+  ): void;
+  recordCacheEviction(
+    reason: CscEvictionReason,
+    clientAttributes?: OTelClientAttributes
+  ): void;
+  recordNetworkBytesSaved(
+    bytes: number,
+    clientAttributes?: OTelClientAttributes
+  ): void;
+}
+
 export interface IOTelMetrics {
   commandMetrics: IOTelCommandMetrics;
   connectionBasicMetrics: IOTelConnectionBasicMetrics;
   connectionAdvancedMetrics: IOTelConnectionAdvancedMetrics;
   resiliencyMetrics: IOTelResiliencyMetrics;
+  clientSideCacheMetrics: IOTelClientSideCacheMetrics;
 }
