@@ -6,6 +6,7 @@ import {
   OTelClientAttributes,
   IOTelMetrics,
   IOTelPubSubMetrics,
+  IOTelStreamMetrics,
 } from "./types";
 import { noopFunction } from "./utils";
 
@@ -116,6 +117,14 @@ export class NoopPubSubMetrics implements IOTelPubSubMetrics {
   ) {}
 }
 
+export class NoopStreamMetrics implements IOTelStreamMetrics {
+  recordStreamProduced(
+    _stream: string,
+    _messages: number,
+    _clientAttributes?: OTelClientAttributes
+  ) {}
+}
+
 export class NoopOTelMetrics implements IOTelMetrics {
   commandMetrics = new NoopCommandMetrics();
   connectionBasicMetrics = new NoopConnectionBasicMetrics();
@@ -123,4 +132,5 @@ export class NoopOTelMetrics implements IOTelMetrics {
   resiliencyMetrics = new NoopResiliencyMetrics();
   clientSideCacheMetrics = new NoopClientSideCacheMetrics();
   pubSubMetrics = new NoopPubSubMetrics();
+  streamMetrics = new NoopStreamMetrics();
 }

@@ -24,6 +24,7 @@ import {
   IOTelResiliencyMetrics,
   IOTelClientSideCacheMetrics,
   IOTelPubSubMetrics,
+  IOTelStreamMetrics,
 } from "./types";
 import { createNoopMeter } from "./noop-meter";
 import { categorizeError, extractRedisStatusCode, noopFunction, parseClientAttributes } from "./utils";
@@ -35,6 +36,7 @@ import {
   NoopOTelMetrics,
   NoopPubSubMetrics,
   NoopResiliencyMetrics,
+  NoopStreamMetrics,
 } from "./noop-metrics";
 
 class OTelCommandMetrics implements IOTelCommandMetrics {
@@ -394,6 +396,30 @@ class OTelPubSubMetrics implements IOTelPubSubMetrics {
   }
 }
 
+class OTelStreamMetrics implements IOTelStreamMetrics {
+  readonly #instruments: MetricInstruments;
+  readonly #options: MetricOptions;
+
+  constructor(options: MetricOptions, instruments: MetricInstruments) {
+    this.#options = options;
+    this.#instruments = instruments;
+  }
+
+  public recordStreamProduced(
+    stream: string,
+    messages: number,
+    clientAttributes?: OTelClientAttributes
+  ) {
+    this.#instruments.redisClientStreamProduced.add(messages, {
+      ...this.#options.attributes,
+      ...parseClientAttributes(clientAttributes),
+      ...(!this.#options.hideStreamNames
+        ? { [OTEL_ATTRIBUTES.redisClientStreamName]: stream }
+        : {}),
+    });
+  }
+}
+
 export class OTelMetrics implements IOTelMetrics {
   // Create a noop instance by default
   static #instance: IOTelMetrics = new NoopOTelMetrics();
@@ -405,6 +431,7 @@ export class OTelMetrics implements IOTelMetrics {
   readonly resiliencyMetrics: IOTelResiliencyMetrics;
   readonly clientSideCacheMetrics: IOTelClientSideCacheMetrics;
   readonly pubSubMetrics: IOTelPubSubMetrics;
+  readonly streamMetrics: IOTelStreamMetrics;
 
   readonly #meter: Meter;
   readonly #instruments: MetricInstruments;
@@ -481,6 +508,15 @@ export class OTelMetrics implements IOTelMetrics {
       );
     } else {
       this.pubSubMetrics = new NoopPubSubMetrics();
+    }
+
+    if (this.#options.enabledMetricGroups.includes(METRIC_GROUP.STREAMS)) {
+      this.streamMetrics = new OTelStreamMetrics(
+        this.#options,
+        this.#instruments
+      );
+    } else {
+      this.streamMetrics = new NoopStreamMetrics();
     }
   }
 

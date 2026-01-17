@@ -40,6 +40,7 @@ export {
   CscEvictionReason,
   IOTelClientSideCacheMetrics,
   IOTelPubSubMetrics,
+  IOTelStreamMetrics,
 } from "./types";
 export { OTelMetrics } from "./metrics";
 export { categorizeError, formatPoolName, extractRedisStatusCode } from "./utils";
