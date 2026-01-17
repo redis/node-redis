@@ -2,7 +2,7 @@ import { EventEmitter } from 'stream';
 import RedisClient from '.';
 import { RedisArgument, ReplyUnion, TransformReply, TypeMapping } from '../RESP/types';
 import { BasicCommandParser } from './parser';
-import { OTelMetrics, CSC_RESULT } from '../opentelemetry';
+import { OTelMetrics, CSC_RESULT, CSC_EVICTION_REASON } from '../opentelemetry';
 
 /**
  * A snapshot of cache statistics.
@@ -621,7 +621,13 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
 
   override invalidate(key: RedisArgument | null) {
     if (key === null) {
+      // Server requested to invalidate all keys
+      const oldSize = this.size();
       this.clear(false);
+      // Record each invalidation as a server-initiated eviction
+      for (let i = 0; i < oldSize; i++) {
+        OTelMetrics.instance.clientSideCacheMetrics.recordCacheEviction(CSC_EVICTION_REASON.INVALIDATION);
+      }
       this.emit("invalidate", key);
 
       return;
@@ -641,6 +647,10 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
       this.#keyToCacheKeySetMap.delete(key.toString());
       if (deletedCount > 0) {
         OTelMetrics.instance.clientSideCacheMetrics.recordCacheItemsChange(-deletedCount);
+        // Record each invalidation as a server-initiated eviction
+        for (let i = 0; i < deletedCount; i++) {
+          OTelMetrics.instance.clientSideCacheMetrics.recordCacheEviction(CSC_EVICTION_REASON.INVALIDATION);
+        }
       }
     }
 
@@ -674,6 +684,8 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
     if (val && !val.validate()) {
       this.delete(cacheKey);
       this.#statsCounter.recordEvictions(1);
+      // Entry failed validation - this is TTL expiry since invalidation marks are handled separately
+      OTelMetrics.instance.clientSideCacheMetrics.recordCacheEviction(CSC_EVICTION_REASON.TTL);
       this.emit("cache-evict", cacheKey);
 
       return undefined;
@@ -713,6 +725,8 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
     if (this.maxEntries > 0 && count >= this.maxEntries) {
       this.deleteOldest();
       this.#statsCounter.recordEvictions(1);
+      // Eviction due to cache capacity limit
+      OTelMetrics.instance.clientSideCacheMetrics.recordCacheEviction(CSC_EVICTION_REASON.FULL);
     }
 
     this.#cacheKeyToEntryMap.set(cacheKey, cacheEntry);
