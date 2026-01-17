@@ -217,6 +217,28 @@ class OTelConnectionAdvancedMetrics implements IOTelConnectionAdvancedMetrics {
       [OTEL_ATTRIBUTES.redisClientConnectionCloseReason]: reason,
     });
   }
+
+  /**
+   * Creates a closure to record connection wait time.
+   *
+   * TODO: Not applicable in single-socket mode. Implement when connection pooling is added.
+   * In single-socket mode, there is no pool to wait for, so this metric is not recorded.
+   */
+  public createRecordConnectionWaitTime(
+    clientAttributes?: OTelClientAttributes
+  ): () => void {
+    const startTime = performance.now();
+
+    return () => {
+      this.#instruments.dbClientConnectionWaitTime.record(
+        (performance.now() - startTime) / 1000,
+        {
+          ...this.#options.attributes,
+          ...parseClientAttributes(clientAttributes),
+        }
+      );
+    };
+  }
 }
 
 class OTelResiliencyMetrics implements IOTelResiliencyMetrics {
