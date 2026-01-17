@@ -558,6 +558,10 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
       if (cacheEntry instanceof ClientSideCacheEntryValue) { // "2b1"
         this.#statsCounter.recordHits(1);
         OTelMetrics.instance.clientSideCacheMetrics.recordCacheRequest(CSC_RESULT.HIT, clientAttributes);
+        // Estimate bytes saved by avoiding network round-trip
+        // Note: JSON.stringify approximation; actual RESP wire size may differ (especially for Buffers)
+        const bytesEstimate = JSON.stringify(cacheEntry.value).length;
+        OTelMetrics.instance.clientSideCacheMetrics.recordNetworkBytesSaved(bytesEstimate, clientAttributes);
 
         return structuredClone(cacheEntry.value);
       } else if (cacheEntry instanceof ClientSideCacheEntryPromise) { // 2b2
