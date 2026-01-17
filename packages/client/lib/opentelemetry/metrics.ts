@@ -1,6 +1,7 @@
 import { Meter } from "@opentelemetry/api";
 import { RedisArgument } from "../RESP/types";
 import {
+  ConnectionCloseReason,
   DEFAULT_OTEL_ATTRIBUTES,
   MetricInstruments,
   ObservabilityConfig,
@@ -203,6 +204,17 @@ class OTelConnectionAdvancedMetrics implements IOTelConnectionAdvancedMetrics {
     this.#instruments.dbClientConnectionPendingRequests.add(value, {
       ...this.#options.attributes,
       ...parseClientAttributes(clientAttributes),
+    });
+  }
+
+  public recordConnectionClosed(
+    reason: ConnectionCloseReason,
+    clientAttributes?: OTelClientAttributes
+  ) {
+    this.#instruments.redisClientConnectionClosed.add(1, {
+      ...this.#options.attributes,
+      ...parseClientAttributes(clientAttributes),
+      [OTEL_ATTRIBUTES.redisClientConnectionCloseReason]: reason,
     });
   }
 }

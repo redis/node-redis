@@ -5,7 +5,7 @@ import { ConnectionTimeoutError, ClientClosedError, SocketClosedUnexpectedlyErro
 import { setTimeout } from 'node:timers/promises';
 import { RedisArgument } from '../RESP/types';
 import { dbgMaintenance } from './enterprise-maintenance-manager';
-import { OTelMetrics } from '../opentelemetry';
+import { OTelMetrics, CONNECTION_CLOSE_REASON } from '../opentelemetry';
 
 type NetOptions = {
   tls?: false;
@@ -340,10 +340,15 @@ export default class RedisSocket extends EventEmitter {
     this.emit('error', err);
 
     if (wasReady) {
-      OTelMetrics.instance.connectionBasicMetrics.recordConnectionCount(-1, {
+      const clientAttributes = {
         host: this.host,
         port: this.port,
-      });
+      };
+      OTelMetrics.instance.connectionBasicMetrics.recordConnectionCount(-1, clientAttributes);
+      OTelMetrics.instance.connectionAdvancedMetrics.recordConnectionClosed(
+        CONNECTION_CLOSE_REASON.ERROR,
+        clientAttributes
+      );
     }
 
     if (!wasReady || !this.#isOpen || typeof this.#shouldReconnect(0, err) !== 'number') return;
@@ -405,10 +410,15 @@ export default class RedisSocket extends EventEmitter {
       this.#socket = undefined;
     }
 
-    OTelMetrics.instance.connectionBasicMetrics.recordConnectionCount(-1, {
+    const clientAttributes = {
       host: this.host,
       port: this.port,
-    });
+    };
+    OTelMetrics.instance.connectionBasicMetrics.recordConnectionCount(-1, clientAttributes);
+    OTelMetrics.instance.connectionAdvancedMetrics.recordConnectionClosed(
+      CONNECTION_CLOSE_REASON.APPLICATION_CLOSE,
+      clientAttributes
+    );
     this.emit('end');
   }
 

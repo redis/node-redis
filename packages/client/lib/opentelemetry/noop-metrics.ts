@@ -1,5 +1,5 @@
 import { RedisArgument } from "../..";
-import { OTelClientAttributes, IOTelMetrics } from "./types";
+import { ConnectionCloseReason, OTelClientAttributes, IOTelMetrics } from "./types";
 import { noopFunction } from "./utils";
 
 export class NoopCommandMetrics {
@@ -42,6 +42,11 @@ export class NoopConnectionBasicMetrics {
 export class NoopConnectionAdvancedMetrics {
   recordPendingRequests(
     _value: number,
+    _clientAttributes?: OTelClientAttributes
+  ) {}
+
+  recordConnectionClosed(
+    _reason: ConnectionCloseReason,
     _clientAttributes?: OTelClientAttributes
   ) {}
 }
