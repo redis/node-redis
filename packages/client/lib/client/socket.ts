@@ -256,7 +256,7 @@ export default class RedisSocket extends EventEmitter {
         });
         recordConnectionCreateTime();
       } catch (err) {
-        const retryIn = this.#shouldReconnect(retries++, err as Error);``
+        const retryIn = this.#shouldReconnect(retries++, err as Error);
         if (typeof retryIn !== 'number') {
           throw retryIn;
         }
