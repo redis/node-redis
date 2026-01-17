@@ -145,6 +145,7 @@ export const OTEL_ATTRIBUTES = {
   redisClientCscReason: "redis.client.csc.reason",
   redisClientPubSubChannel: "redis.client.pubsub.channel",
   redisClientPubSubSharded: "redis.client.pubsub.sharded",
+  redisClientPubSubMessageDirection: "redis.client.pubsub.message.direction",
   redisClientStreamName: "redis.client.stream.name",
   redisClientOperationRetryAttempts: "redis.client.operation.retry_attempts",
   redisClientOperationBlocking: "redis.client.operation.blocking",
@@ -361,10 +362,20 @@ export interface IOTelClientSideCacheMetrics {
   ): void;
 }
 
+export interface IOTelPubSubMetrics {
+  recordPubSubMessage(
+    direction: 'in' | 'out',
+    channel?: string,
+    sharded?: boolean,
+    clientAttributes?: OTelClientAttributes
+  ): void;
+}
+
 export interface IOTelMetrics {
   commandMetrics: IOTelCommandMetrics;
   connectionBasicMetrics: IOTelConnectionBasicMetrics;
   connectionAdvancedMetrics: IOTelConnectionAdvancedMetrics;
   resiliencyMetrics: IOTelResiliencyMetrics;
   clientSideCacheMetrics: IOTelClientSideCacheMetrics;
+  pubSubMetrics: IOTelPubSubMetrics;
 }

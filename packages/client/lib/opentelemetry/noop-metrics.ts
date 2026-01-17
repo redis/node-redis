@@ -5,6 +5,7 @@ import {
   CscResult,
   OTelClientAttributes,
   IOTelMetrics,
+  IOTelPubSubMetrics,
 } from "./types";
 import { noopFunction } from "./utils";
 
@@ -106,10 +107,20 @@ export class NoopClientSideCacheMetrics {
   ) {}
 }
 
+export class NoopPubSubMetrics implements IOTelPubSubMetrics {
+  recordPubSubMessage(
+    _direction: 'in' | 'out',
+    _channel?: string,
+    _sharded?: boolean,
+    _clientAttributes?: OTelClientAttributes
+  ) {}
+}
+
 export class NoopOTelMetrics implements IOTelMetrics {
   commandMetrics = new NoopCommandMetrics();
   connectionBasicMetrics = new NoopConnectionBasicMetrics();
   connectionAdvancedMetrics = new NoopConnectionAdvancedMetrics();
   resiliencyMetrics = new NoopResiliencyMetrics();
   clientSideCacheMetrics = new NoopClientSideCacheMetrics();
+  pubSubMetrics = new NoopPubSubMetrics();
 }
