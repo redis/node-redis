@@ -2,6 +2,7 @@ import { EventEmitter } from 'stream';
 import RedisClient from '.';
 import { RedisArgument, ReplyUnion, TransformReply, TypeMapping } from '../RESP/types';
 import { BasicCommandParser } from './parser';
+import { OTelMetrics, CSC_RESULT } from '../opentelemetry';
 
 /**
  * A snapshot of cache statistics.
@@ -551,21 +552,25 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
 
     // "2"
     let cacheEntry = this.get(cacheKey);
+    const clientAttributes = client._getClientOTelAttributes();
     if (cacheEntry) {
       // If instanceof is "too slow", can add a "type" and then use an "as" cast to call proper getters.
       if (cacheEntry instanceof ClientSideCacheEntryValue) { // "2b1"
         this.#statsCounter.recordHits(1);
+        OTelMetrics.instance.clientSideCacheMetrics.recordCacheRequest(CSC_RESULT.HIT, clientAttributes);
 
         return structuredClone(cacheEntry.value);
       } else if (cacheEntry instanceof ClientSideCacheEntryPromise) { // 2b2
         // This counts as a miss since the value hasn't been fully loaded yet.
         this.#statsCounter.recordMisses(1);
+        OTelMetrics.instance.clientSideCacheMetrics.recordCacheRequest(CSC_RESULT.MISS, clientAttributes);
         reply = await cacheEntry.promise;
       } else {
         throw new Error("unknown cache entry type");
       }
     } else { // 3/3a
       this.#statsCounter.recordMisses(1);
+      OTelMetrics.instance.clientSideCacheMetrics.recordCacheRequest(CSC_RESULT.MISS, clientAttributes);
 
       const startTime = performance.now();
       const promise = fn();
