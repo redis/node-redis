@@ -628,9 +628,9 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
       // Server requested to invalidate all keys
       const oldSize = this.size();
       this.clear(false);
-      // Record each invalidation as a server-initiated eviction
-      for (let i = 0; i < oldSize; i++) {
-        OTelMetrics.instance.clientSideCacheMetrics.recordCacheEviction(CSC_EVICTION_REASON.INVALIDATION);
+      // Record invalidations as server-initiated evictions
+      if (oldSize > 0) {
+        OTelMetrics.instance.clientSideCacheMetrics.recordCacheEviction(CSC_EVICTION_REASON.INVALIDATION, oldSize);
       }
       this.emit("invalidate", key);
 
@@ -651,10 +651,8 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
       this.#keyToCacheKeySetMap.delete(key.toString());
       if (deletedCount > 0) {
         OTelMetrics.instance.clientSideCacheMetrics.recordCacheItemsChange(-deletedCount);
-        // Record each invalidation as a server-initiated eviction
-        for (let i = 0; i < deletedCount; i++) {
-          OTelMetrics.instance.clientSideCacheMetrics.recordCacheEviction(CSC_EVICTION_REASON.INVALIDATION);
-        }
+        // Record invalidations as server-initiated evictions
+        OTelMetrics.instance.clientSideCacheMetrics.recordCacheEviction(CSC_EVICTION_REASON.INVALIDATION, deletedCount);
       }
     }
 

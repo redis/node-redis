@@ -342,9 +342,10 @@ class OTelClientSideCacheMetrics implements IOTelClientSideCacheMetrics {
 
   public recordCacheEviction(
     reason: CscEvictionReason,
+    count: number = 1,
     clientAttributes?: OTelClientAttributes
   ) {
-    this.#instruments.redisClientCscEvictions.add(1, {
+    this.#instruments.redisClientCscEvictions.add(count, {
       ...this.#options.attributes,
       ...parseClientAttributes(clientAttributes),
       [OTEL_ATTRIBUTES.redisClientCscReason]: reason,
