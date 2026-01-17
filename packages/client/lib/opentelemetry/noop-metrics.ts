@@ -49,6 +49,12 @@ export class NoopConnectionAdvancedMetrics {
     _reason: ConnectionCloseReason,
     _clientAttributes?: OTelClientAttributes
   ) {}
+
+  createRecordConnectionWaitTime(
+    _clientAttributes?: OTelClientAttributes
+  ): () => void {
+    return noopFunction;
+  }
 }
 
 export class NoopResiliencyMetrics {

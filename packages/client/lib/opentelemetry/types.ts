@@ -305,6 +305,16 @@ export interface IOTelConnectionAdvancedMetrics {
     reason: ConnectionCloseReason,
     clientAttributes?: OTelClientAttributes
   ): void;
+  /**
+   * Creates a closure to record connection wait time.
+   * Call this when a client begins waiting for an available connection from the pool.
+   * The returned function should be called when the connection becomes available.
+   *
+   * TODO: Not applicable in single-socket mode. Implement when connection pooling is added.
+   */
+  createRecordConnectionWaitTime(
+    clientAttributes?: OTelClientAttributes
+  ): () => void;
 }
 
 export interface IOTelResiliencyMetrics {
