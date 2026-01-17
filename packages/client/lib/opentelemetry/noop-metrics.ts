@@ -1,5 +1,11 @@
 import { RedisArgument } from "../..";
-import { ConnectionCloseReason, OTelClientAttributes, IOTelMetrics } from "./types";
+import {
+  ConnectionCloseReason,
+  CscEvictionReason,
+  CscResult,
+  OTelClientAttributes,
+  IOTelMetrics,
+} from "./types";
 import { noopFunction } from "./utils";
 
 export class NoopCommandMetrics {
@@ -77,9 +83,32 @@ export class NoopResiliencyMetrics {
   ) {}
 }
 
+export class NoopClientSideCacheMetrics {
+  recordCacheRequest(
+    _result: CscResult,
+    _clientAttributes?: OTelClientAttributes
+  ) {}
+
+  recordCacheItemsChange(
+    _delta: number,
+    _clientAttributes?: OTelClientAttributes
+  ) {}
+
+  recordCacheEviction(
+    _reason: CscEvictionReason,
+    _clientAttributes?: OTelClientAttributes
+  ) {}
+
+  recordNetworkBytesSaved(
+    _bytes: number,
+    _clientAttributes?: OTelClientAttributes
+  ) {}
+}
+
 export class NoopOTelMetrics implements IOTelMetrics {
   commandMetrics = new NoopCommandMetrics();
   connectionBasicMetrics = new NoopConnectionBasicMetrics();
   connectionAdvancedMetrics = new NoopConnectionAdvancedMetrics();
   resiliencyMetrics = new NoopResiliencyMetrics();
+  clientSideCacheMetrics = new NoopClientSideCacheMetrics();
 }
