@@ -11,6 +11,7 @@ import { BasicPooledClientSideCache, ClientSideCacheConfig, PooledClientSideCach
 import { BasicCommandParser } from './parser';
 import SingleEntryCache from '../single-entry-cache';
 import { MULTI_MODE, MultiMode } from '../multi-command';
+import { OTelMetrics } from '../opentelemetry';
 
 export interface RedisPoolOptions {
   /**
@@ -241,11 +242,13 @@ export class RedisClientPool<
     return this._self.#idleClients.length + this._self.#clientsInUse.length;
   }
 
+  // TODO: Review task queue type - recordWaitTime added for OTel metrics
   readonly #tasksQueue = new SinglyLinkedList<{
     timeout: NodeJS.Timeout | undefined;
     resolve: (value: unknown) => unknown;
     reject: (reason?: unknown) => unknown;
     fn: PoolTask<M, F, S, RESP, TYPE_MAPPING>;
+    recordWaitTime: () => void;
   }>();
 
   /**
@@ -434,12 +437,14 @@ export class RedisClientPool<
           );
         }
 
+        const recordWaitTime = OTelMetrics.instance.connectionAdvancedMetrics.createRecordConnectionWaitTime();
         const task = this._self.#tasksQueue.push({
           timeout,
           // @ts-ignore
           resolve,
           reject,
-          fn
+          fn,
+          recordWaitTime
         });
 
         if (this.totalClients < this._self.#options.maximum) {
@@ -461,12 +466,17 @@ export class RedisClientPool<
     reject: (reason?: unknown) => void,
     fn: PoolTask<M, F, S, RESP, TYPE_MAPPING>
   ) {
+    const recordUseTime = OTelMetrics.instance.connectionAdvancedMetrics.createRecordConnectionUseTime();
     const result = fn(node.value);
     if (result instanceof Promise) {
       result
       .then(resolve, reject)
-      .finally(() => this.#returnClient(node))
+      .finally(() => {
+        recordUseTime();
+        this.#returnClient(node);
+      })
     } else {
+      recordUseTime();
       resolve(result);
       this.#returnClient(node);
     }
@@ -476,6 +486,7 @@ export class RedisClientPool<
     const task = this.#tasksQueue.shift();
     if (task) {
       clearTimeout(task.timeout);
+      task.recordWaitTime();
       this.#executeTask(node, task.resolve, task.reject, task.fn);
       return;
     }
