@@ -301,6 +301,10 @@ export interface IOTelConnectionAdvancedMetrics {
     value: number,
     clientAttributes?: OTelClientAttributes
   ): void;
+  recordConnectionClosed(
+    reason: ConnectionCloseReason,
+    clientAttributes?: OTelClientAttributes
+  ): void;
 }
 
 export interface IOTelResiliencyMetrics {
