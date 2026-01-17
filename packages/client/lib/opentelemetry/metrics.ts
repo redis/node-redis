@@ -239,6 +239,28 @@ class OTelConnectionAdvancedMetrics implements IOTelConnectionAdvancedMetrics {
       );
     };
   }
+
+  /**
+   * Creates a closure to record connection use time.
+   *
+   * TODO: Equals operation duration in single-socket mode. Implement separately when pooling is added.
+   * In single-socket mode, the connection use time equals the operation duration.
+   */
+  public createRecordConnectionUseTime(
+    clientAttributes?: OTelClientAttributes
+  ): () => void {
+    const startTime = performance.now();
+
+    return () => {
+      this.#instruments.dbClientConnectionUseTime.record(
+        (performance.now() - startTime) / 1000,
+        {
+          ...this.#options.attributes,
+          ...parseClientAttributes(clientAttributes),
+        }
+      );
+    };
+  }
 }
 
 class OTelResiliencyMetrics implements IOTelResiliencyMetrics {

@@ -315,6 +315,16 @@ export interface IOTelConnectionAdvancedMetrics {
   createRecordConnectionWaitTime(
     clientAttributes?: OTelClientAttributes
   ): () => void;
+  /**
+   * Creates a closure to record connection use time.
+   * Call this when a connection is acquired from the pool for an operation.
+   * The returned function should be called when the connection is released back to the pool.
+   *
+   * TODO: Equals operation duration in single-socket mode. Implement separately when pooling is added.
+   */
+  createRecordConnectionUseTime(
+    clientAttributes?: OTelClientAttributes
+  ): () => void;
 }
 
 export interface IOTelResiliencyMetrics {
