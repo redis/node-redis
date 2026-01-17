@@ -352,6 +352,7 @@ export interface IOTelClientSideCacheMetrics {
   ): void;
   recordCacheEviction(
     reason: CscEvictionReason,
+    count?: number,
     clientAttributes?: OTelClientAttributes
   ): void;
   recordNetworkBytesSaved(
