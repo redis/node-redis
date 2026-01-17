@@ -23,6 +23,7 @@ import {
   IOTelConnectionAdvancedMetrics,
   IOTelResiliencyMetrics,
   IOTelClientSideCacheMetrics,
+  IOTelPubSubMetrics,
 } from "./types";
 import { createNoopMeter } from "./noop-meter";
 import { categorizeError, extractRedisStatusCode, noopFunction, parseClientAttributes } from "./utils";
@@ -32,6 +33,7 @@ import {
   NoopConnectionAdvancedMetrics,
   NoopConnectionBasicMetrics,
   NoopOTelMetrics,
+  NoopPubSubMetrics,
   NoopResiliencyMetrics,
 } from "./noop-metrics";
 
@@ -363,6 +365,35 @@ class OTelClientSideCacheMetrics implements IOTelClientSideCacheMetrics {
   }
 }
 
+class OTelPubSubMetrics implements IOTelPubSubMetrics {
+  readonly #instruments: MetricInstruments;
+  readonly #options: MetricOptions;
+
+  constructor(options: MetricOptions, instruments: MetricInstruments) {
+    this.#options = options;
+    this.#instruments = instruments;
+  }
+
+  public recordPubSubMessage(
+    direction: 'in' | 'out',
+    channel?: string,
+    sharded?: boolean,
+    clientAttributes?: OTelClientAttributes
+  ) {
+    this.#instruments.redisClientPubsubMessages.add(1, {
+      ...this.#options.attributes,
+      ...parseClientAttributes(clientAttributes),
+      [OTEL_ATTRIBUTES.redisClientPubSubMessageDirection]: direction,
+      ...(channel !== undefined && !this.#options.hidePubSubChannelNames
+        ? { [OTEL_ATTRIBUTES.redisClientPubSubChannel]: channel }
+        : {}),
+      ...(sharded !== undefined
+        ? { [OTEL_ATTRIBUTES.redisClientPubSubSharded]: sharded }
+        : {}),
+    });
+  }
+}
+
 export class OTelMetrics implements IOTelMetrics {
   // Create a noop instance by default
   static #instance: IOTelMetrics = new NoopOTelMetrics();
@@ -373,6 +404,7 @@ export class OTelMetrics implements IOTelMetrics {
   readonly connectionAdvancedMetrics: IOTelConnectionAdvancedMetrics;
   readonly resiliencyMetrics: IOTelResiliencyMetrics;
   readonly clientSideCacheMetrics: IOTelClientSideCacheMetrics;
+  readonly pubSubMetrics: IOTelPubSubMetrics;
 
   readonly #meter: Meter;
   readonly #instruments: MetricInstruments;
@@ -440,6 +472,15 @@ export class OTelMetrics implements IOTelMetrics {
       );
     } else {
       this.clientSideCacheMetrics = new NoopClientSideCacheMetrics();
+    }
+
+    if (this.#options.enabledMetricGroups.includes(METRIC_GROUP.PUBSUB)) {
+      this.pubSubMetrics = new OTelPubSubMetrics(
+        this.#options,
+        this.#instruments
+      );
+    } else {
+      this.pubSubMetrics = new NoopPubSubMetrics();
     }
   }
 
