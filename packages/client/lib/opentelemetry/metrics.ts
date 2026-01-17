@@ -751,6 +751,10 @@ export class OTelMetrics implements IOTelMetrics {
           metricGroup: METRIC_GROUP.CLIENT_SIDE_CACHING,
         }
       ),
+      // TODO: Convert to Observable Gauge when architecture supports callback-based collection.
+      // An Observable Gauge reports the current cache size on demand via a callback,
+      // which is more appropriate for "current count" metrics.
+      // See deferred items in PRD for full context.
       redisClientCscItems: this.createUpDownCounter(
         meter,
         options.enabledMetricGroups,
