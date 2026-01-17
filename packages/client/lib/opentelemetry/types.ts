@@ -371,6 +371,14 @@ export interface IOTelPubSubMetrics {
   ): void;
 }
 
+export interface IOTelStreamMetrics {
+  recordStreamProduced(
+    stream: string,
+    messages: number,
+    clientAttributes?: OTelClientAttributes
+  ): void;
+}
+
 export interface IOTelMetrics {
   commandMetrics: IOTelCommandMetrics;
   connectionBasicMetrics: IOTelConnectionBasicMetrics;
@@ -378,4 +386,5 @@ export interface IOTelMetrics {
   resiliencyMetrics: IOTelResiliencyMetrics;
   clientSideCacheMetrics: IOTelClientSideCacheMetrics;
   pubSubMetrics: IOTelPubSubMetrics;
+  streamMetrics: IOTelStreamMetrics;
 }

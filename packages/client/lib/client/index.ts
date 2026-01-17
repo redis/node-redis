@@ -1056,6 +1056,18 @@ export default class RedisClient<
         );
       }
 
+      // Record stream messages for XADD command (after successful send)
+      if (cmdName === 'XADD') {
+        const stream = parser.redisArgs[1]?.toString();
+        if (stream) {
+          OTelMetrics.instance.streamMetrics.recordStreamProduced(
+            stream,
+            1,
+            this._getClientOTelAttributes()
+          );
+        }
+      }
+
       if (transformReply) {
         return transformReply(reply, parser.preserve, commandOptions?.typeMapping);
       }
