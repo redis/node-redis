@@ -1,5 +1,7 @@
 import { Meter } from "@opentelemetry/api";
 import { RedisArgument } from "../RESP/types";
+import { Tail } from "../commands/generic-transformers";
+import XADD, { parseXAddArguments } from "../commands/XADD";
 import {
   ConnectionCloseReason,
   CscEvictionReason,
@@ -27,7 +29,12 @@ import {
   IOTelStreamMetrics,
 } from "./types";
 import { createNoopMeter } from "./noop-meter";
-import { categorizeError, extractRedisStatusCode, noopFunction, parseClientAttributes } from "./utils";
+import {
+  categorizeError,
+  extractRedisStatusCode,
+  noopFunction,
+  parseClientAttributes,
+} from "./utils";
 import {
   NoopClientSideCacheMetrics,
   NoopCommandMetrics,
@@ -38,13 +45,15 @@ import {
   NoopResiliencyMetrics,
   NoopStreamMetrics,
 } from "./noop-metrics";
+import SPUBLISH from "../commands/SPUBLISH";
+import PUBLISH from "../commands/PUBLISH";
 
 class OTelCommandMetrics implements IOTelCommandMetrics {
   readonly #instruments: MetricInstruments;
   readonly #options: MetricOptions;
   public readonly createRecordOperationDuration: (
     args: ReadonlyArray<RedisArgument>,
-    clientAttributes?: OTelClientAttributes
+    clientAttributes?: OTelClientAttributes,
   ) => (error?: Error) => void;
 
   constructor(options: MetricOptions, instruments: MetricInstruments) {
@@ -63,7 +72,7 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
 
   #createWithFiltering(
     args: ReadonlyArray<RedisArgument>,
-    clientAttributes?: OTelClientAttributes
+    clientAttributes?: OTelClientAttributes,
   ): (error?: Error) => void {
     const commandName = args[0]?.toString() || "UNKNOWN";
 
@@ -76,7 +85,7 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
 
   #createWithoutFiltering(
     args: ReadonlyArray<RedisArgument>,
-    clientAttributes?: OTelClientAttributes
+    clientAttributes?: OTelClientAttributes,
   ): (error?: Error) => void {
     const commandName = args[0]?.toString() || "UNKNOWN";
     return this.#recordOperation(commandName, clientAttributes);
@@ -84,7 +93,7 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
 
   #recordOperation(
     commandName: string,
-    clientAttributes?: OTelClientAttributes
+    clientAttributes?: OTelClientAttributes,
   ): (error?: Error) => void {
     const startTime = performance.now();
 
@@ -98,20 +107,25 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
           [OTEL_ATTRIBUTES.dbNamespace]: clientAttributes?.db,
           [OTEL_ATTRIBUTES.serverAddress]: clientAttributes?.host,
           [OTEL_ATTRIBUTES.serverPort]: clientAttributes?.port,
-          ...(error ? {
-            [OTEL_ATTRIBUTES.errorType]: error.constructor.name,
-            [OTEL_ATTRIBUTES.redisClientErrorsCategory]: categorizeError(error),
-          } : {}),
-          ...(statusCode ? { [OTEL_ATTRIBUTES.dbResponseStatusCode]: statusCode } : {}),
-        }
+          ...(error
+            ? {
+                [OTEL_ATTRIBUTES.errorType]: error.constructor.name,
+                [OTEL_ATTRIBUTES.redisClientErrorsCategory]:
+                  categorizeError(error),
+              }
+            : {}),
+          ...(statusCode
+            ? { [OTEL_ATTRIBUTES.dbResponseStatusCode]: statusCode }
+            : {}),
+        },
       );
     };
   }
 
   createRecordBatchOperationDuration(
-    operationName: 'MULTI' | 'PIPELINE',
+    operationName: "MULTI" | "PIPELINE",
     batchSize: number,
-    clientAttributes?: OTelClientAttributes
+    clientAttributes?: OTelClientAttributes,
   ): (error?: Error) => void {
     const startTime = performance.now();
 
@@ -126,12 +140,17 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
           [OTEL_ATTRIBUTES.dbNamespace]: clientAttributes?.db,
           [OTEL_ATTRIBUTES.serverAddress]: clientAttributes?.host,
           [OTEL_ATTRIBUTES.serverPort]: clientAttributes?.port,
-          ...(error ? {
-            [OTEL_ATTRIBUTES.errorType]: error.constructor.name,
-            [OTEL_ATTRIBUTES.redisClientErrorsCategory]: categorizeError(error),
-          } : {}),
-          ...(statusCode ? { [OTEL_ATTRIBUTES.dbResponseStatusCode]: statusCode } : {}),
-        }
+          ...(error
+            ? {
+                [OTEL_ATTRIBUTES.errorType]: error.constructor.name,
+                [OTEL_ATTRIBUTES.redisClientErrorsCategory]:
+                  categorizeError(error),
+              }
+            : {}),
+          ...(statusCode
+            ? { [OTEL_ATTRIBUTES.dbResponseStatusCode]: statusCode }
+            : {}),
+        },
       );
     };
   }
@@ -157,7 +176,7 @@ class OTelConnectionBasicMetrics implements IOTelConnectionBasicMetrics {
   public recordConnectionCount(
     value: number,
 
-    clientAttributes?: OTelClientAttributes
+    clientAttributes?: OTelClientAttributes,
   ) {
     this.#instruments.dbClientConnectionCount.add(value, {
       ...this.#options.attributes,
@@ -165,7 +184,7 @@ class OTelConnectionBasicMetrics implements IOTelConnectionBasicMetrics {
     });
   }
   public createRecordConnectionCreateTime(
-    clientAttributes?: OTelClientAttributes
+    clientAttributes?: OTelClientAttributes,
   ): () => void {
     const startTime = performance.now();
 
@@ -175,13 +194,13 @@ class OTelConnectionBasicMetrics implements IOTelConnectionBasicMetrics {
         {
           ...this.#options.attributes,
           ...parseClientAttributes(clientAttributes),
-        }
+        },
       );
     };
   }
   public recordConnectionRelaxedTimeout(
     value: number,
-    clientAttributes?: OTelClientAttributes
+    clientAttributes?: OTelClientAttributes,
   ) {
     this.#instruments.redisClientConnectionRelaxedTimeout.add(value, {
       ...this.#options.attributes,
@@ -207,7 +226,7 @@ class OTelConnectionAdvancedMetrics implements IOTelConnectionAdvancedMetrics {
 
   public recordPendingRequests(
     value: number,
-    clientAttributes?: OTelClientAttributes
+    clientAttributes?: OTelClientAttributes,
   ) {
     this.#instruments.dbClientConnectionPendingRequests.add(value, {
       ...this.#options.attributes,
@@ -217,7 +236,7 @@ class OTelConnectionAdvancedMetrics implements IOTelConnectionAdvancedMetrics {
 
   public recordConnectionClosed(
     reason: ConnectionCloseReason,
-    clientAttributes?: OTelClientAttributes
+    clientAttributes?: OTelClientAttributes,
   ) {
     this.#instruments.redisClientConnectionClosed.add(1, {
       ...this.#options.attributes,
@@ -233,7 +252,7 @@ class OTelConnectionAdvancedMetrics implements IOTelConnectionAdvancedMetrics {
    * In single-socket mode, there is no pool to wait for, so this metric is not recorded.
    */
   public createRecordConnectionWaitTime(
-    clientAttributes?: OTelClientAttributes
+    clientAttributes?: OTelClientAttributes,
   ): () => void {
     const startTime = performance.now();
 
@@ -243,7 +262,7 @@ class OTelConnectionAdvancedMetrics implements IOTelConnectionAdvancedMetrics {
         {
           ...this.#options.attributes,
           ...parseClientAttributes(clientAttributes),
-        }
+        },
       );
     };
   }
@@ -255,7 +274,7 @@ class OTelConnectionAdvancedMetrics implements IOTelConnectionAdvancedMetrics {
    * In single-socket mode, the connection use time equals the operation duration.
    */
   public createRecordConnectionUseTime(
-    clientAttributes?: OTelClientAttributes
+    clientAttributes?: OTelClientAttributes,
   ): () => void {
     const startTime = performance.now();
 
@@ -265,7 +284,7 @@ class OTelConnectionAdvancedMetrics implements IOTelConnectionAdvancedMetrics {
         {
           ...this.#options.attributes,
           ...parseClientAttributes(clientAttributes),
-        }
+        },
       );
     };
   }
@@ -285,7 +304,7 @@ class OTelResiliencyMetrics implements IOTelResiliencyMetrics {
     internal: boolean,
     clientAttributes?: OTelClientAttributes,
     retryAttempts?: number,
-    statusCode?: string
+    statusCode?: string,
   ) {
     this.#instruments.redisClientErrors.add(1, {
       ...this.#options.attributes,
@@ -304,7 +323,7 @@ class OTelResiliencyMetrics implements IOTelResiliencyMetrics {
 
   public recordMaintenanceNotifications(
     notification: string,
-    clientAttributes?: OTelClientAttributes
+    clientAttributes?: OTelClientAttributes,
   ) {
     this.#instruments.redisClientMaintenanceNotifications.add(1, {
       ...this.#options.attributes,
@@ -325,7 +344,7 @@ class OTelClientSideCacheMetrics implements IOTelClientSideCacheMetrics {
 
   public recordCacheRequest(
     result: CscResult,
-    clientAttributes?: OTelClientAttributes
+    clientAttributes?: OTelClientAttributes,
   ) {
     this.#instruments.redisClientCscRequests.add(1, {
       ...this.#options.attributes,
@@ -336,7 +355,7 @@ class OTelClientSideCacheMetrics implements IOTelClientSideCacheMetrics {
 
   public recordCacheItemsChange(
     delta: number,
-    clientAttributes?: OTelClientAttributes
+    clientAttributes?: OTelClientAttributes,
   ) {
     this.#instruments.redisClientCscItems.add(delta, {
       ...this.#options.attributes,
@@ -347,7 +366,7 @@ class OTelClientSideCacheMetrics implements IOTelClientSideCacheMetrics {
   public recordCacheEviction(
     reason: CscEvictionReason,
     count: number = 1,
-    clientAttributes?: OTelClientAttributes
+    clientAttributes?: OTelClientAttributes,
   ) {
     this.#instruments.redisClientCscEvictions.add(count, {
       ...this.#options.attributes,
@@ -358,7 +377,7 @@ class OTelClientSideCacheMetrics implements IOTelClientSideCacheMetrics {
 
   public recordNetworkBytesSaved(
     bytes: number,
-    clientAttributes?: OTelClientAttributes
+    clientAttributes?: OTelClientAttributes,
   ) {
     this.#instruments.redisClientCscNetworkSaved.add(bytes, {
       ...this.#options.attributes,
@@ -377,10 +396,10 @@ class OTelPubSubMetrics implements IOTelPubSubMetrics {
   }
 
   public recordPubSubMessage(
-    direction: 'in' | 'out',
+    direction: "in" | "out",
     channel?: string,
     sharded?: boolean,
-    clientAttributes?: OTelClientAttributes
+    clientAttributes?: OTelClientAttributes,
   ) {
     this.#instruments.redisClientPubsubMessages.add(1, {
       ...this.#options.attributes,
@@ -405,12 +424,12 @@ class OTelStreamMetrics implements IOTelStreamMetrics {
     this.#instruments = instruments;
   }
 
-  public recordStreamProduced(
+  public recordStreamLag(
     stream: string,
-    messages: number,
-    clientAttributes?: OTelClientAttributes
+    lagSec: number,
+    clientAttributes?: OTelClientAttributes,
   ) {
-    this.#instruments.redisClientStreamProduced.add(messages, {
+    this.#instruments.redisClientStreamLag.record(lagSec, {
       ...this.#options.attributes,
       ...parseClientAttributes(clientAttributes),
       ...(!this.#options.hideStreamNames
@@ -424,6 +443,7 @@ export class OTelMetrics implements IOTelMetrics {
   // Create a noop instance by default
   static #instance: IOTelMetrics = new NoopOTelMetrics();
   static #initialized = false;
+  static #enabledMetricGroups: MetricGroup[] = [];
 
   readonly commandMetrics: IOTelCommandMetrics;
   readonly connectionBasicMetrics: IOTelConnectionBasicMetrics;
@@ -451,7 +471,7 @@ export class OTelMetrics implements IOTelMetrics {
     if (this.#options.enabledMetricGroups.includes(METRIC_GROUP.COMMAND)) {
       this.commandMetrics = new OTelCommandMetrics(
         this.#options,
-        this.#instruments
+        this.#instruments,
       );
     } else {
       this.commandMetrics = new NoopCommandMetrics();
@@ -462,7 +482,7 @@ export class OTelMetrics implements IOTelMetrics {
     ) {
       this.connectionBasicMetrics = new OTelConnectionBasicMetrics(
         this.#options,
-        this.#instruments
+        this.#instruments,
       );
     } else {
       this.connectionBasicMetrics = new NoopConnectionBasicMetrics();
@@ -470,12 +490,12 @@ export class OTelMetrics implements IOTelMetrics {
 
     if (
       this.#options.enabledMetricGroups.includes(
-        METRIC_GROUP.CONNECTION_ADVANCED
+        METRIC_GROUP.CONNECTION_ADVANCED,
       )
     ) {
       this.connectionAdvancedMetrics = new OTelConnectionAdvancedMetrics(
         this.#options,
-        this.#instruments
+        this.#instruments,
       );
     } else {
       this.connectionAdvancedMetrics = new NoopConnectionAdvancedMetrics();
@@ -484,18 +504,20 @@ export class OTelMetrics implements IOTelMetrics {
     if (this.#options.enabledMetricGroups.includes(METRIC_GROUP.RESILIENCY)) {
       this.resiliencyMetrics = new OTelResiliencyMetrics(
         this.#options,
-        this.#instruments
+        this.#instruments,
       );
     } else {
       this.resiliencyMetrics = new NoopResiliencyMetrics();
     }
 
     if (
-      this.#options.enabledMetricGroups.includes(METRIC_GROUP.CLIENT_SIDE_CACHING)
+      this.#options.enabledMetricGroups.includes(
+        METRIC_GROUP.CLIENT_SIDE_CACHING,
+      )
     ) {
       this.clientSideCacheMetrics = new OTelClientSideCacheMetrics(
         this.#options,
-        this.#instruments
+        this.#instruments,
       );
     } else {
       this.clientSideCacheMetrics = new NoopClientSideCacheMetrics();
@@ -504,7 +526,7 @@ export class OTelMetrics implements IOTelMetrics {
     if (this.#options.enabledMetricGroups.includes(METRIC_GROUP.PUBSUB)) {
       this.pubSubMetrics = new OTelPubSubMetrics(
         this.#options,
-        this.#instruments
+        this.#instruments,
       );
     } else {
       this.pubSubMetrics = new NoopPubSubMetrics();
@@ -513,7 +535,7 @@ export class OTelMetrics implements IOTelMetrics {
     if (this.#options.enabledMetricGroups.includes(METRIC_GROUP.STREAMS)) {
       this.streamMetrics = new OTelStreamMetrics(
         this.#options,
-        this.#instruments
+        this.#instruments,
       );
     } else {
       this.streamMetrics = new NoopStreamMetrics();
@@ -530,7 +552,9 @@ export class OTelMetrics implements IOTelMetrics {
     if (OTelMetrics.#initialized) {
       throw new Error("OTelMetrics already initialized");
     }
-    OTelMetrics.#instance = new OTelMetrics({ api, config });
+    const instance = new OTelMetrics({ api, config });
+    OTelMetrics.#instance = instance;
+    OTelMetrics.#enabledMetricGroups = instance.#options.enabledMetricGroups;
     OTelMetrics.#initialized = true;
   }
 
@@ -544,6 +568,7 @@ export class OTelMetrics implements IOTelMetrics {
       api: undefined,
       config: undefined,
     });
+    OTelMetrics.#enabledMetricGroups = [];
     OTelMetrics.#initialized = false;
   }
 
@@ -555,9 +580,92 @@ export class OTelMetrics implements IOTelMetrics {
     return OTelMetrics.#instance;
   }
 
+  /**
+   * Wraps a command function with metrics recording if the command needs special metrics.
+   * This is evaluated once at command creation time (factory-time), not on every command execution.
+   * If the relevant metric group is not enabled, returns the original function unchanged.
+   *
+   * @param commandName - The Redis command name (e.g., 'PUBLISH', 'SPUBLISH', 'XADD')
+   * @param fn - The original command function
+   * @returns The wrapped function with metrics, or the original function if no metrics apply
+   */
+  static wrapWithMetrics(commandName: string, fn: Function) {
+    switch (commandName.toUpperCase()) {
+      case "PUBLISH":
+        return async function (
+          this: any,
+          ...args: Tail<Parameters<(typeof PUBLISH)["parseCommand"]>>
+        ) {
+          const result = (await fn.call(this, ...args)) as ReturnType<
+            (typeof PUBLISH)["transformReply"]
+          >;
+          try {
+            const client = this._self ?? this;
+            OTelMetrics.instance.pubSubMetrics.recordPubSubMessage(
+              "out",
+              args[0]?.toString(),
+              false,
+              client._getClientOTelAttributes(),
+            );
+          } catch (error) {
+            // noop
+          }
+          return result;
+        };
+      case "SPUBLISH":
+        return async function (
+          this: any,
+          ...args: Tail<Parameters<(typeof SPUBLISH)["parseCommand"]>>
+        ) {
+          const result = (await fn.call(this, ...args)) as ReturnType<
+            (typeof SPUBLISH)["transformReply"]
+          >;
+          try {
+            const client = this._self ?? this;
+            OTelMetrics.instance.pubSubMetrics.recordPubSubMessage(
+              "out",
+              args[0]?.toString(),
+              true,
+              client._getClientOTelAttributes(),
+            );
+          } catch (error) {
+            // noop
+          }
+          return result;
+        };
+      case "XADD":
+        // TODO check if we need to add XADD_NOMKSTREAM
+        return async function (
+          this: any,
+          ...args: Tail<Tail<Parameters<typeof parseXAddArguments>>>
+        ) {
+          const result = (await fn.call(this, ...args)) as ReturnType<
+            (typeof XADD)["transformReply"]
+          >;
+          const rawId = result.toString();
+          const [tsPart] = rawId.split("-");
+          const messageTimestamp = Number.parseInt(tsPart, 10);
+
+          if (Number.isFinite(messageTimestamp)) {
+            const lagSeconds = (Date.now() - messageTimestamp) / 1000;
+            const client = this._self ?? this;
+            OTelMetrics.instance.streamMetrics.recordStreamLag(
+              args[0]?.toString(),
+              lagSeconds,
+              client._getClientOTelAttributes(),
+            );
+          }
+          return result;
+        };
+      default:
+        // TODO check if we need to wrap other commands instead of recording in sendCommand
+        return fn;
+    }
+  }
+
   private getMeter(
     api: typeof import("@opentelemetry/api") | undefined,
-    options: MetricOptions
+    options: MetricOptions,
   ): Meter {
     if (!api || !options.enabled) {
       return createNoopMeter();
@@ -566,13 +674,13 @@ export class OTelMetrics implements IOTelMetrics {
     if (options?.meterProvider) {
       return options.meterProvider.getMeter(
         options.serviceName ??
-          DEFAULT_OTEL_ATTRIBUTES[OTEL_ATTRIBUTES.redisClientLibrary]
+          DEFAULT_OTEL_ATTRIBUTES[OTEL_ATTRIBUTES.redisClientLibrary],
       );
     }
 
     return api.metrics.getMeter(
       options.serviceName ??
-        DEFAULT_OTEL_ATTRIBUTES[OTEL_ATTRIBUTES.redisClientLibrary]
+        DEFAULT_OTEL_ATTRIBUTES[OTEL_ATTRIBUTES.redisClientLibrary],
     );
   }
 
@@ -626,16 +734,19 @@ export class OTelMetrics implements IOTelMetrics {
       bucketsPipelineSize:
         config?.metrics?.bucketsPipelineSize ??
         DEFAULT_HISTOGRAM_BUCKETS.PIPELINE_SIZE,
+      bucketsStreamLag:
+        config?.metrics?.bucketsStreamLag ??
+        DEFAULT_HISTOGRAM_BUCKETS.STREAM_LAG,
     };
   }
 
   private createHistorgram(
     meter: Meter,
     enabledMetricGroups: MetricGroup[],
-    instrumentConfig: HistogramInstrumentConfig
+    instrumentConfig: HistogramInstrumentConfig,
   ) {
     const isEnabled = enabledMetricGroups.includes(
-      instrumentConfig.metricGroup
+      instrumentConfig.metricGroup,
     );
 
     if (!isEnabled) {
@@ -658,10 +769,10 @@ export class OTelMetrics implements IOTelMetrics {
   private createCounter(
     meter: Meter,
     enabledMetricGroups: MetricGroup[],
-    instrumentConfig: BaseInstrumentConfig
+    instrumentConfig: BaseInstrumentConfig,
   ) {
     const isEnabled = enabledMetricGroups.includes(
-      instrumentConfig.metricGroup
+      instrumentConfig.metricGroup,
     );
 
     if (!isEnabled) {
@@ -677,10 +788,10 @@ export class OTelMetrics implements IOTelMetrics {
   private createUpDownCounter(
     meter: Meter,
     enabledMetricGroups: MetricGroup[],
-    instrumentConfig: BaseInstrumentConfig
+    instrumentConfig: BaseInstrumentConfig,
   ) {
     const isEnabled = enabledMetricGroups.includes(
-      instrumentConfig.metricGroup
+      instrumentConfig.metricGroup,
     );
 
     if (!isEnabled) {
@@ -695,7 +806,7 @@ export class OTelMetrics implements IOTelMetrics {
 
   private registerInstruments(
     meter: Meter,
-    options: MetricOptions
+    options: MetricOptions,
   ): MetricInstruments {
     return {
       // Command
@@ -709,7 +820,7 @@ export class OTelMetrics implements IOTelMetrics {
             "Duration of a Redis client operation (includes retries)",
           metricGroup: METRIC_GROUP.COMMAND,
           histogramBoundaries: options.bucketsOperationDuration,
-        }
+        },
       ),
       // Basic connection
       // TODO: Convert to Observable Gauge for accurate point-in-time reporting.
@@ -724,7 +835,7 @@ export class OTelMetrics implements IOTelMetrics {
           unit: "{connection}",
           description: "Current number of active connections in the pool",
           metricGroup: METRIC_GROUP.CONNECTION_BASIC,
-        }
+        },
       ),
       dbClientConnectionCreateTime: this.createHistorgram(
         meter,
@@ -736,7 +847,7 @@ export class OTelMetrics implements IOTelMetrics {
             "Time taken to create a new connection to the Redis server",
           metricGroup: METRIC_GROUP.CONNECTION_BASIC,
           histogramBoundaries: options.bucketsConnectionCreateTime,
-        }
+        },
       ),
       redisClientConnectionRelaxedTimeout: this.createUpDownCounter(
         meter,
@@ -747,7 +858,7 @@ export class OTelMetrics implements IOTelMetrics {
           description: `How many times the connection timeout has been increased/decreased (after a server maintenance notification).
            Counts up for relaxed timeout, counts down for unrelaxed timeout`,
           metricGroup: METRIC_GROUP.CONNECTION_BASIC,
-        }
+        },
       ),
       redisClientConnectionHandoff: this.createCounter(
         meter,
@@ -758,7 +869,7 @@ export class OTelMetrics implements IOTelMetrics {
           description:
             "Connections that have been handed off to another node (e.g after a MOVING notification)",
           metricGroup: METRIC_GROUP.CONNECTION_BASIC,
-        }
+        },
       ),
       // Advanced connection
       dbClientConnectionWaitTime: this.createHistorgram(
@@ -771,7 +882,7 @@ export class OTelMetrics implements IOTelMetrics {
             "Time spent waiting for an available connection from the pool",
           metricGroup: METRIC_GROUP.CONNECTION_ADVANCED,
           histogramBoundaries: options.bucketsConnectionWaitTime,
-        }
+        },
       ),
       dbClientConnectionTimeouts: this.createCounter(
         meter,
@@ -781,7 +892,7 @@ export class OTelMetrics implements IOTelMetrics {
           unit: "{timeout}",
           description: "Number of connection timeout events",
           metricGroup: METRIC_GROUP.CONNECTION_ADVANCED,
-        }
+        },
       ),
       dbClientConnectionUseTime: this.createHistorgram(
         meter,
@@ -793,7 +904,7 @@ export class OTelMetrics implements IOTelMetrics {
             "Time a connection is actively used for executing operations",
           metricGroup: METRIC_GROUP.CONNECTION_ADVANCED,
           histogramBoundaries: options.bucketsConnectionUseTime,
-        }
+        },
       ),
       // TODO: Convert to Observable Gauge for accurate point-in-time reporting.
       // Observable Gauges use callback-based collection to report the current value on demand,
@@ -807,7 +918,7 @@ export class OTelMetrics implements IOTelMetrics {
           unit: "{request}",
           description: "Number of requests waiting for an available connection",
           metricGroup: METRIC_GROUP.CONNECTION_ADVANCED,
-        }
+        },
       ),
       redisClientConnectionClosed: this.createCounter(
         meter,
@@ -817,7 +928,7 @@ export class OTelMetrics implements IOTelMetrics {
           unit: "{connection}",
           description: "Total number of closed connections",
           metricGroup: METRIC_GROUP.CONNECTION_ADVANCED,
-        }
+        },
       ),
       // Pipeline
       redisClientPipelineDuration: this.createHistorgram(
@@ -829,7 +940,7 @@ export class OTelMetrics implements IOTelMetrics {
           description: "Duration of pipeline execution",
           metricGroup: METRIC_GROUP.PIPELINE,
           histogramBoundaries: options.bucketsPipelineDuration,
-        }
+        },
       ),
       // Healthcheck
       redisClientHealthcheckDuration: this.createHistorgram(
@@ -841,7 +952,7 @@ export class OTelMetrics implements IOTelMetrics {
           description: "Duration of health check operations",
           metricGroup: METRIC_GROUP.HEALTHCHECK,
           histogramBoundaries: options.bucketsHealthcheckDuration,
-        }
+        },
       ),
       // Resiliency
       redisClientErrors: this.createCounter(
@@ -850,9 +961,10 @@ export class OTelMetrics implements IOTelMetrics {
         {
           name: METRIC_NAMES.redisClientErrors,
           unit: "{error}",
-          description: "A counter of all errors (both returned and handled internally)",
+          description:
+            "A counter of all errors (both returned and handled internally)",
           metricGroup: METRIC_GROUP.RESILIENCY,
-        }
+        },
       ),
       redisClientMaintenanceNotifications: this.createCounter(
         meter,
@@ -862,7 +974,7 @@ export class OTelMetrics implements IOTelMetrics {
           unit: "{notification}",
           description: "Number of maintenance notifications received",
           metricGroup: METRIC_GROUP.RESILIENCY,
-        }
+        },
       ),
       // PubSub
       redisClientPubsubMessages: this.createCounter(
@@ -873,18 +985,19 @@ export class OTelMetrics implements IOTelMetrics {
           unit: "{message}",
           description: "Number of pub/sub messages processed",
           metricGroup: METRIC_GROUP.PUBSUB,
-        }
+        },
       ),
       // Streams
-      redisClientStreamProduced: this.createCounter(
+      redisClientStreamLag: this.createHistorgram(
         meter,
         options.enabledMetricGroups,
         {
-          name: METRIC_NAMES.redisClientStreamProduced,
-          unit: "{message}",
-          description: "Number of messages produced to Redis streams",
+          name: METRIC_NAMES.redisClientStreamLag,
+          unit: "s",
+          description: "End-to-end lag per message",
           metricGroup: METRIC_GROUP.STREAMS,
-        }
+          histogramBoundaries: options.bucketsStreamLag,
+        },
       ),
       // Client-Side Caching
       redisClientCscRequests: this.createCounter(
@@ -895,7 +1008,7 @@ export class OTelMetrics implements IOTelMetrics {
           unit: "{request}",
           description: "Number of client-side cache requests (hits and misses)",
           metricGroup: METRIC_GROUP.CLIENT_SIDE_CACHING,
-        }
+        },
       ),
       // TODO: Convert to Observable Gauge when architecture supports callback-based collection.
       // An Observable Gauge reports the current cache size on demand via a callback,
@@ -909,7 +1022,7 @@ export class OTelMetrics implements IOTelMetrics {
           unit: "{item}",
           description: "Current number of items in the client-side cache",
           metricGroup: METRIC_GROUP.CLIENT_SIDE_CACHING,
-        }
+        },
       ),
       redisClientCscEvictions: this.createCounter(
         meter,
@@ -919,7 +1032,7 @@ export class OTelMetrics implements IOTelMetrics {
           unit: "{eviction}",
           description: "Number of items evicted from the client-side cache",
           metricGroup: METRIC_GROUP.CLIENT_SIDE_CACHING,
-        }
+        },
       ),
       redisClientCscNetworkSaved: this.createCounter(
         meter,
@@ -929,7 +1042,7 @@ export class OTelMetrics implements IOTelMetrics {
           unit: "By",
           description: "Estimated bytes saved by client-side cache hits",
           metricGroup: METRIC_GROUP.CLIENT_SIDE_CACHING,
-        }
+        },
       ),
     } as const;
   }

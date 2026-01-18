@@ -1043,31 +1043,6 @@ export default class RedisClient<
     } else {
       const reply = await fn();
 
-      // Record pub/sub messages for PUBLISH and SPUBLISH commands (after successful send)
-      const cmdName = parser.redisArgs[0]?.toString().toUpperCase();
-      if (cmdName === 'PUBLISH' || cmdName === 'SPUBLISH') {
-        const channel = parser.redisArgs[1]?.toString();
-        const sharded = cmdName === 'SPUBLISH';
-        OTelMetrics.instance.pubSubMetrics.recordPubSubMessage(
-          'out',
-          channel,
-          sharded,
-          this._getClientOTelAttributes()
-        );
-      }
-
-      // Record stream messages for XADD command (after successful send)
-      if (cmdName === 'XADD') {
-        const stream = parser.redisArgs[1]?.toString();
-        if (stream) {
-          OTelMetrics.instance.streamMetrics.recordStreamProduced(
-            stream,
-            1,
-            this._getClientOTelAttributes()
-          );
-        }
-      }
-
       if (transformReply) {
         return transformReply(reply, parser.preserve, commandOptions?.typeMapping);
       }
