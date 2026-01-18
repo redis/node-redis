@@ -370,12 +370,15 @@ export default class RedisClusterSlots<
       .finally(() => node.connectPromise = undefined);
   }
 
-  nodeClient(node: ShardNode<M, F, S, RESP, TYPE_MAPPING>) {
-    return (
-      node.connectPromise ?? // if the node is connecting
-      node.client ?? // if the node is connected
-      this.#createNodeClient(node) // if the not is disconnected
-    );
+  nodeClient(node: ShardNode<M, F, S, RESP, TYPE_MAPPING>): Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {
+    // if the node is connecting
+    if (node.connectPromise)
+      return node.connectPromise;
+    // if the node is connected
+    if (node.client)
+      return Promise.resolve(node.client);
+    // if the not is disconnected
+    return this.#createNodeClient(node)
   }
 
   #runningRediscoverPromise?: Promise<void>;
@@ -553,10 +556,10 @@ export default class RedisClusterSlots<
     return this.nodeClient(master);
   }
 
-  getPubSubClient() {
+  getPubSubClient(): Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {
     if (!this.pubSubNode) return this.#initiatePubSubClient();
 
-    return this.pubSubNode.connectPromise ?? this.pubSubNode.client;
+    return this.pubSubNode.connectPromise ?? Promise.resolve(this.pubSubNode.client);
   }
 
   async #initiatePubSubClient(toResubscribe?: PubSubToResubscribe) {
@@ -602,10 +605,10 @@ export default class RedisClusterSlots<
     }
   }
 
-  getShardedPubSubClient(channel: string) {
+  getShardedPubSubClient(channel: string): Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {
     const { master } = this.slots[calculateSlot(channel)];
     if (!master.pubSub) return this.#initiateShardedPubSubClient(master);
-    return master.pubSub.connectPromise ?? master.pubSub.client;
+    return master.pubSub.connectPromise ?? Promise.resolve(master.pubSub.client);
   }
 
   async #initiateShardedPubSubClient(master: MasterNode<M, F, S, RESP, TYPE_MAPPING>) {

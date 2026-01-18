@@ -740,10 +740,10 @@ class RedisSentinelInternal<
    * @returns A client info object or a promise that resolves to a client info object
    *          when a client becomes available
    */
-  getClientLease(): ClientInfo | Promise<ClientInfo> {
+  getClientLease(): Promise<ClientInfo> {
     const id = this.#masterClientQueue.shift();
     if (id !== undefined) {
-      return { id };
+      return Promise.resolve({ id });
     }
 
     return this.#masterClientQueue.wait().then(id => ({ id }));
