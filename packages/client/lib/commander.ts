@@ -1,4 +1,5 @@
 import { Command, CommanderConfig, RedisArgument, RedisCommands, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, RespVersions, TransformReply } from './RESP/types';
+import { OTelMetrics } from './opentelemetry';
 
 interface AttachConfigOptions<
   M extends RedisModules,
@@ -41,7 +42,7 @@ export function attachConfig<
     if (config?.RESP == 3 && command.unstableResp3 && !config.unstableResp3) {
       Class.prototype[name] = throwResp3SearchModuleUnstableError;
     } else {
-      Class.prototype[name] = createCommand(command, RESP);
+      Class.prototype[name] = OTelMetrics.wrapWithMetrics(name, createCommand(command, RESP)) as ReturnType<typeof createCommand>;
     }
   }
 
