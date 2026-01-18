@@ -118,9 +118,9 @@ export class NoopPubSubMetrics implements IOTelPubSubMetrics {
 }
 
 export class NoopStreamMetrics implements IOTelStreamMetrics {
-  recordStreamProduced(
+  recordStreamLag(
     _stream: string,
-    _messages: number,
+    _lagSec: number,
     _clientAttributes?: OTelClientAttributes
   ) {}
 }
