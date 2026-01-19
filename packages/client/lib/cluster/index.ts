@@ -14,6 +14,7 @@ import { BasicCommandParser } from '../client/parser';
 import { ASKING_CMD } from '../commands/ASKING';
 import SingleEntryCache from '../single-entry-cache'
 import { WithCommands, WithFunctions, WithModules, WithScripts } from '../client';
+import { METRIC_ERROR_TYPE, OTelMetrics } from '../opentelemetry';
 
 interface ClusterCommander<
   M extends RedisModules,
@@ -433,6 +434,7 @@ export default class RedisCluster<
         }
 
         if (err.message.startsWith('ASK')) {
+          OTelMetrics.instance.recordClientErrorsHandled(METRIC_ERROR_TYPE.ASK, client._getClientOTelAttributes());
           const address = err.message.substring(err.message.lastIndexOf(' ') + 1);
           let redirectTo = await this._slots.getMasterByAddress(address);
           if (!redirectTo) {
@@ -450,6 +452,7 @@ export default class RedisCluster<
         }
 
         if (err.message.startsWith('MOVED')) {
+          OTelMetrics.instance.recordClientErrorsHandled(METRIC_ERROR_TYPE.MOVED, client._getClientOTelAttributes());
           await this._slots.rediscover(client);
           client = await this._slots.getClient(firstKey, isReadonly);
           continue;

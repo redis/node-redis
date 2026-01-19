@@ -21,6 +21,7 @@ import { BasicCommandParser, CommandParser } from './parser';
 import SingleEntryCache from '../single-entry-cache';
 import { version } from '../../package.json'
 import EnterpriseMaintenanceManager, { MaintenanceUpdate, MovingEndpointType } from './enterprise-maintenance-manager';
+import { OTelClientAttributes, OTelMetrics } from '../opentelemetry';
 
 export interface RedisClientOptions<
   M extends RedisModules = RedisModules,
@@ -1060,25 +1061,56 @@ export default class RedisClient<
       reply;
   }
 
+  /**
+   * @internal
+  */
+  _getClientOTelAttributes(): OTelClientAttributes { // TODO maybe rename this to something more generic
+    return {
+      host: this._self.#socket.host,
+      port: this._self.#socket.port,
+      db: this._self.#selectedDB,
+    };
+  }
+
   sendCommand<T = ReplyUnion>(
     args: ReadonlyArray<RedisArgument>,
     options?: CommandOptions
   ): Promise<T> {
+    const clientAttributes = this._self._getClientOTelAttributes();
+    const recordOperation = OTelMetrics.instance.createRecordOperationDuration(args, clientAttributes);
+
     if (!this._self.#socket.isOpen) {
+      recordOperation(new ClientClosedError());
       return Promise.reject(new ClientClosedError());
-    } else if (!this._self.#socket.isReady && this._self.#options.disableOfflineQueue) {
+    } else if (
+      !this._self.#socket.isReady &&
+      this._self.#options.disableOfflineQueue
+    ) {
+      recordOperation(new ClientOfflineError());
       return Promise.reject(new ClientOfflineError());
     }
 
     // Merge global options with provided options
     const opts = {
       ...this._self._commandOptions,
-      ...options
-    }
+      ...options,
+    };
 
     const promise = this._self.#queue.addCommand<T>(args, opts);
+    OTelMetrics.instance.recordPendingRequests(1, clientAttributes);
+
+    const trackedPromise = promise.then((reply) => {
+      recordOperation();
+      OTelMetrics.instance.recordPendingRequests(-1, clientAttributes);
+      return reply;
+    }).catch((err) => {
+      recordOperation(err);
+      OTelMetrics.instance.recordPendingRequests(-1, clientAttributes);
+      throw err;
+    });
+    
     this._self.#scheduleWrite();
-    return promise;
+    return trackedPromise;
   }
 
   async SELECT(db: number): Promise<void> {
