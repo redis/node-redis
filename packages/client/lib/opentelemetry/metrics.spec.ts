@@ -85,6 +85,7 @@ describe("OTel Metrics Unit Tests", () => {
   it("should not record excluded commands", () => {
     const config: ObservabilityConfig = {
       metrics: {
+        enabledMetricGroups: ["command"],
         enabled: true,
         excludeCommands: ["GET"],
       },
@@ -126,6 +127,7 @@ describe("OTel Metrics Unit Tests", () => {
   it("should only record included commands", () => {
     const config: ObservabilityConfig = {
       metrics: {
+        enabledMetricGroups: ["command"],
         enabled: true,
         includeCommands: ["SET"],
       },
@@ -304,6 +306,7 @@ describe("OTel Metrics E2E", function () {
         api,
         config: {
           metrics: {
+            enabledMetricGroups: ["command"],
             enabled: true,
             meterProvider,
           },
