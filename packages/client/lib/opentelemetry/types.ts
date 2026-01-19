@@ -13,11 +13,8 @@ export const METRIC_GROUP = {
   CONNECTION_ADVANCED: "connection-advanced",
   RESILIENCY: "resiliency",
   PUBSUB: "pubsub",
-  STREAMS: "streams",
-  PIPELINE: "pipeline",
-  HEALTHCHECK: "healthcheck",
+  STREAMING: "streaming",
   CLIENT_SIDE_CACHING: "client-side-caching",
-  MISC: "misc",
 } as const;
 
 export type MetricGroup = (typeof METRIC_GROUP)[keyof typeof METRIC_GROUP];
@@ -49,9 +46,6 @@ export interface MetricConfig {
   bucketsConnectionCreateTime?: number[];
   bucketsConnectionWaitTime?: number[];
   bucketsConnectionUseTime?: number[];
-  bucketsPipelineDuration?: number[];
-  bucketsHealthcheckDuration?: number[];
-  bucketsPipelineSize?: number[];
   bucketsStreamLag?: number[];
 }
 
@@ -91,7 +85,6 @@ export type MetricInstruments = Readonly<{
 
   // Connection Advanced metrics
   dbClientConnectionPendingRequests: UpDownCounter<Attributes>;
-  dbClientConnectionTimeouts: Counter<Attributes>;
   dbClientConnectionWaitTime: Histogram<Attributes>;
   dbClientConnectionUseTime: Histogram<Attributes>;
   redisClientConnectionClosed: Counter<Attributes>;
@@ -99,12 +92,6 @@ export type MetricInstruments = Readonly<{
   // Resiliency
   redisClientErrors: Counter<Attributes>;
   redisClientMaintenanceNotifications: Counter<Attributes>;
-
-  // Pipeline metrics
-  redisClientPipelineDuration: Histogram<Attributes>;
-
-  // Healthcheck metrics
-  redisClientHealthcheckDuration: Histogram<Attributes>;
 
   // PubSub metrics
   redisClientPubsubMessages: Counter<Attributes>;
@@ -208,7 +195,6 @@ export const METRIC_NAMES = {
 
   // Connection Advanced metrics
   dbClientConnectionPendingRequests: "db.client.connection.pending_requests",
-  dbClientConnectionTimeouts: "db.client.connection.timeouts",
   dbClientConnectionWaitTime: "db.client.connection.wait_time",
   dbClientConnectionUseTime: "db.client.connection.use_time",
   redisClientConnectionClosed: "redis.client.connection.closed",
@@ -216,12 +202,6 @@ export const METRIC_NAMES = {
   // Resiliency metrics
   redisClientErrors: "redis.client.errors",
   redisClientMaintenanceNotifications: "redis.client.maintenance.notifications",
-
-  // Pipeline metrics
-  redisClientPipelineDuration: "redis.client.pipeline.duration",
-
-  // Healthcheck metrics
-  redisClientHealthcheckDuration: "redis.client.healthcheck.duration",
 
   // PubSub metrics
   redisClientPubsubMessages: "redis.client.pubsub.messages",
@@ -248,7 +228,6 @@ export type HistogramInstrumentConfig = BaseInstrumentConfig & {
 };
 
 export const DEFAULT_METRIC_GROUPS: MetricGroup[] = [
-  "command",
   "connection-basic",
   "resiliency",
 ];
@@ -258,10 +237,7 @@ export const DEFAULT_HISTOGRAM_BUCKETS = {
   CONNECTION_CREATE_TIME: [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5, 10],
   CONNECTION_WAIT_TIME: [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5, 10],
   CONNECTION_USE_TIME: [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5, 10],
-  PIPELINE_DURATION: [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 2.5, 5],
-  HEALTHCHECK_DURATION: [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 2.5],
-  PIPELINE_SIZE: [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000],
-  STREAM_LAG: [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5, 10], // TODO verify these buckets
+  STREAM_LAG: [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5, 10],
 };
 
 export const METRIC_ERROR_TYPE = {
