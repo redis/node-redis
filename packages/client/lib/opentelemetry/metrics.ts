@@ -443,7 +443,6 @@ export class OTelMetrics implements IOTelMetrics {
   // Create a noop instance by default
   static #instance: IOTelMetrics = new NoopOTelMetrics();
   static #initialized = false;
-  static #enabledMetricGroups: MetricGroup[] = [];
 
   readonly commandMetrics: IOTelCommandMetrics;
   readonly connectionBasicMetrics: IOTelConnectionBasicMetrics;
@@ -532,7 +531,7 @@ export class OTelMetrics implements IOTelMetrics {
       this.pubSubMetrics = new NoopPubSubMetrics();
     }
 
-    if (this.#options.enabledMetricGroups.includes(METRIC_GROUP.STREAMS)) {
+    if (this.#options.enabledMetricGroups.includes(METRIC_GROUP.STREAMING)) {
       this.streamMetrics = new OTelStreamMetrics(
         this.#options,
         this.#instruments,
@@ -554,7 +553,6 @@ export class OTelMetrics implements IOTelMetrics {
     }
     const instance = new OTelMetrics({ api, config });
     OTelMetrics.#instance = instance;
-    OTelMetrics.#enabledMetricGroups = instance.#options.enabledMetricGroups;
     OTelMetrics.#initialized = true;
   }
 
@@ -568,7 +566,6 @@ export class OTelMetrics implements IOTelMetrics {
       api: undefined,
       config: undefined,
     });
-    OTelMetrics.#enabledMetricGroups = [];
     OTelMetrics.#initialized = false;
   }
 
@@ -725,15 +722,6 @@ export class OTelMetrics implements IOTelMetrics {
       bucketsConnectionUseTime:
         config?.metrics?.bucketsConnectionUseTime ??
         DEFAULT_HISTOGRAM_BUCKETS.CONNECTION_WAIT_TIME,
-      bucketsPipelineDuration:
-        config?.metrics?.bucketsPipelineDuration ??
-        DEFAULT_HISTOGRAM_BUCKETS.PIPELINE_DURATION,
-      bucketsHealthcheckDuration:
-        config?.metrics?.bucketsHealthcheckDuration ??
-        DEFAULT_HISTOGRAM_BUCKETS.HEALTHCHECK_DURATION,
-      bucketsPipelineSize:
-        config?.metrics?.bucketsPipelineSize ??
-        DEFAULT_HISTOGRAM_BUCKETS.PIPELINE_SIZE,
       bucketsStreamLag:
         config?.metrics?.bucketsStreamLag ??
         DEFAULT_HISTOGRAM_BUCKETS.STREAM_LAG,
@@ -884,16 +872,6 @@ export class OTelMetrics implements IOTelMetrics {
           histogramBoundaries: options.bucketsConnectionWaitTime,
         },
       ),
-      dbClientConnectionTimeouts: this.createCounter(
-        meter,
-        options.enabledMetricGroups,
-        {
-          name: METRIC_NAMES.dbClientConnectionTimeouts,
-          unit: "{timeout}",
-          description: "Number of connection timeout events",
-          metricGroup: METRIC_GROUP.CONNECTION_ADVANCED,
-        },
-      ),
       dbClientConnectionUseTime: this.createHistorgram(
         meter,
         options.enabledMetricGroups,
@@ -928,30 +906,6 @@ export class OTelMetrics implements IOTelMetrics {
           unit: "{connection}",
           description: "Total number of closed connections",
           metricGroup: METRIC_GROUP.CONNECTION_ADVANCED,
-        },
-      ),
-      // Pipeline
-      redisClientPipelineDuration: this.createHistorgram(
-        meter,
-        options.enabledMetricGroups,
-        {
-          name: METRIC_NAMES.redisClientPipelineDuration,
-          unit: "s",
-          description: "Duration of pipeline execution",
-          metricGroup: METRIC_GROUP.PIPELINE,
-          histogramBoundaries: options.bucketsPipelineDuration,
-        },
-      ),
-      // Healthcheck
-      redisClientHealthcheckDuration: this.createHistorgram(
-        meter,
-        options.enabledMetricGroups,
-        {
-          name: METRIC_NAMES.redisClientHealthcheckDuration,
-          unit: "s",
-          description: "Duration of health check operations",
-          metricGroup: METRIC_GROUP.HEALTHCHECK,
-          histogramBoundaries: options.bucketsHealthcheckDuration,
         },
       ),
       // Resiliency
@@ -995,7 +949,7 @@ export class OTelMetrics implements IOTelMetrics {
           name: METRIC_NAMES.redisClientStreamLag,
           unit: "s",
           description: "End-to-end lag per message",
-          metricGroup: METRIC_GROUP.STREAMS,
+          metricGroup: METRIC_GROUP.STREAMING,
           histogramBoundaries: options.bucketsStreamLag,
         },
       ),
