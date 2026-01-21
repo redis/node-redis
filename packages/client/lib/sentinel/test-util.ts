@@ -174,7 +174,7 @@ export class SentinelFramework extends DockerBase {
     this.#testUtils = TestUtils.createFromConfig({
       dockerImageName: 'redislabs/client-libs-test',
       dockerImageVersionArgument: 'redis-version',
-      defaultDockerVersion: '8.4.0'
+      defaultDockerVersion: 'custom-21183968220-debian-amd64'
     });
     this.#nodeMap = new Map<string, ArrayElement<Awaited<ReturnType<SentinelFramework['spawnRedisSentinelNodes']>>>>();
     this.#sentinelMap = new Map<string, ArrayElement<Awaited<ReturnType<SentinelFramework['spawnRedisSentinelSentinels']>>>>();
