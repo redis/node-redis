@@ -38,26 +38,47 @@ interface TestUtilsConfig {
   dockerImageName: string;
 
   /**
-   * The command-line argument name used to specify the Redis version.
+   * The command-line argument name used to specify the Docker image tag.
    * This argument can be passed when running tests / GH actions.
+   *
+   * @example
+   * If set to 'redis-tag', you can run tests with:
+   * ```bash
+   * npm test -- --redis-tag="8.4"
+   * ```
+   */
+  dockerImageTagArgument: string;
+
+  /**
+   * The command-line argument name used to specify the Redis version.
+   * This is optional and used when the Docker tag doesn't contain a parseable version.
+   * If not provided, the version will be parsed from the tag.
    *
    * @example
    * If set to 'redis-version', you can run tests with:
    * ```bash
-   * npm test -- --redis-version="6.2"
+   * npm test -- --redis-tag="custom-build" --redis-version="8.6"
    * ```
+   * @optional
    */
-  dockerImageVersionArgument: string;
+  dockerImageVersionArgument?: string;
 
   /**
-   * The default Redis version to use if no version is specified via command-line arguments.
-   * Can be a specific version number (e.g., '6.2'), 'latest', or 'edge'.
-   * If not provided, defaults to 'latest'.
+   * The default Docker version to use if no version is specified via command-line arguments.
+   * Can be a string (e.g., '6.2', 'latest', 'edge') or an object with tag and version
+   * for cases where the tag doesn't contain a parseable version.
+   *
+   * @example
+   * // Simple string format
+   * defaultDockerVersion: '8.4'
+   *
+   * // Object format for custom tags
+   * defaultDockerVersion: { tag: 'custom-build-123', version: '8.6' }
    *
    * @optional
    * @default 'latest'
    */
-  defaultDockerVersion?: string;
+  defaultDockerVersion?: string | { tag: string; version: string };
 }
 interface CommonTestOptions {
   serverArguments: Array<string>;
@@ -132,7 +153,7 @@ interface AllTestOptions<
 }
 
 interface Version {
-  string: string;
+  tag: string;
   numbers: Array<number>;
 }
 
@@ -158,30 +179,55 @@ export default class TestUtils {
       return value;
     });
   }
-  static #getVersion(argumentName: string, defaultVersion = 'latest'): Version {
-    return yargs(hideBin(process.argv))
-      .option(argumentName, {
+  static #getVersion(
+    tagArgumentName: string,
+    versionArgumentName: string | undefined,
+    defaultVersion: string | { tag: string; version: string } = 'latest'
+  ): Version {
+    const isObjectFormat = typeof defaultVersion !== 'string';
+    const defaultTag = isObjectFormat ? defaultVersion.tag : defaultVersion;
+    const defaultVersionString = isObjectFormat ? defaultVersion.version : undefined;
+
+    const args = yargs(hideBin(process.argv))
+      .option(tagArgumentName, {
         type: 'string',
-        default: defaultVersion
+        default: defaultTag,
+        description: 'Docker image tag to use'
       })
-      .coerce(argumentName, (version: string) => {
-        return {
-          string: version,
-          numbers: TestUtils.parseVersionNumber(version)
-        };
+      .option(versionArgumentName ?? 'redis-version', {
+        type: 'string',
+        description: 'Redis version (if not parseable from tag)'
       })
-      .demandOption(argumentName)
-      .parseSync()[argumentName];
+      .parseSync();
+
+    const tag = args[tagArgumentName] as string;
+    const explicitVersion = versionArgumentName ? args[versionArgumentName] as string | undefined : undefined;
+
+    // Priority: 1) CLI --redis-version, 2) default version from object format, 3) parse from tag
+    let versionToParse: string;
+    if (explicitVersion) {
+      versionToParse = explicitVersion;
+    } else if (tag === defaultTag && defaultVersionString) {
+      // Using default tag and we have an explicit version for it
+      versionToParse = defaultVersionString;
+    } else {
+      versionToParse = tag;
+    }
+
+    return {
+      tag,
+      numbers: TestUtils.parseVersionNumber(versionToParse)
+    };
   }
 
   readonly #VERSION_NUMBERS: Array<number>;
   readonly #DOCKER_IMAGE: RedisServerDockerOptions;
 
-  constructor({ string, numbers }: Version, dockerImageName: string) {
+  constructor({ tag, numbers }: Version, dockerImageName: string) {
     this.#VERSION_NUMBERS = numbers;
     this.#DOCKER_IMAGE = {
       image: dockerImageName,
-      version: string,
+      version: tag,
       mode: "server"
     };
   }
@@ -191,14 +237,20 @@ export default class TestUtils {
    *
    * @param config - Configuration object containing Docker image and version settings
    * @param config.dockerImageName - The name of the Docker image to use for tests
-   * @param config.dockerImageVersionArgument - The command-line argument name for specifying Redis version
-   * @param config.defaultDockerVersion - Optional default Redis version if not specified via arguments
+   * @param config.dockerImageTagArgument - The command-line argument name for specifying Docker image tag
+   * @param config.dockerImageVersionArgument - Optional command-line argument name for specifying Redis version
+   * @param config.defaultDockerVersion - Optional default Docker version if not specified via arguments
    * @returns A new TestUtils instance configured with the provided settings
    */
   public static createFromConfig(config: TestUtilsConfig) {
     return new TestUtils(
-      TestUtils.#getVersion(config.dockerImageVersionArgument,
-        config.defaultDockerVersion), config.dockerImageName);
+      TestUtils.#getVersion(
+        config.dockerImageTagArgument,
+        config.dockerImageVersionArgument,
+        config.defaultDockerVersion
+      ),
+      config.dockerImageName
+    );
   }
 
   isVersionGreaterThan(minimumVersion: Array<number> | undefined): boolean {

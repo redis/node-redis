@@ -22,7 +22,15 @@ jobs:
       fail-fast: false
       matrix:
         node-version: ["18", "20", "22"]
-        redis-version: ["rs-7.4.0-v1", "8.0.2", "8.2", "8.4.0"]
+        redis:
+          - tag: "rs-7.4.0-v1"
+            version: "7.4"
+          - tag: "8.2"
+            version: "8.2"
+          - tag: "8.4.0"
+            version: "8.4"
+          - tag: "custom-21183968220-debian-amd64"
+            version: "8.6"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -39,7 +47,7 @@ jobs:
       - name: Build
         run: npm run build
       - name: Run Tests
-        run: npm run test -ws --if-present -- --forbid-only --redis-version=${{ matrix.redis-version }}
+        run: npm run test -ws --if-present -- --forbid-only --redis-tag=${{ matrix.redis.tag }} --redis-version=${{ matrix.redis.version }}
       - name: Upload to Codecov
         run: |
           curl https://keybase.io/codecovsecurity/pgp_keys.asc | gpg --no-default-keyring --keyring trustedkeys.gpg --import
