@@ -70,8 +70,13 @@ export interface DatabaseConfig {
   bdbId: number;
 }
 
+export interface TriggerActionOptions {
+  timeoutMs?: number;
+  maxWaitTimeMs?: number;
+}
+
 export interface IFaultInjectorClient {
-  triggerAction(action: ActionRequest): Promise<ActionStatus>;
+  triggerAction(action: ActionRequest, options?: TriggerActionOptions): Promise<ActionStatus>;
   listActionTriggers(actionName: string, effect: string): Promise<ActionTrigger[]>;
 }
 

@@ -136,7 +136,7 @@ interface RETestOptions {
   dbName?: string;
 }
 
-interface REClusterTestOptions<
+export interface REClusterTestOptions<
   M extends RedisModules,
   F extends RedisFunctions,
   S extends RedisScripts,
@@ -361,19 +361,18 @@ export default class TestUtils {
       if (!spawnPromise) return this.skip();
       const { apiPort } = await spawnPromise;
 
-      const proxyController = new ProxyController(
-        `http://localhost:${apiPort}`
+
+      const proxyFI = new ProxiedFaultInjectorClientForCluster(
+        new ProxyController(`http://localhost:${apiPort}`)
       );
 
-      const faultInjectorClient = new ProxiedFaultInjectorClientForCluster(
-        proxyController
-      );
+      const faultInjectorClient = new FaultInjectorClient(`http://localhost:${4000}`);
 
-      const nodes = await faultInjectorClient.getProxyNodes();
+      const nodes = await proxyFI.getProxyNodes();
 
       if (options.startWithReducedNodes) {
         nodes.pop();
-        await faultInjectorClient.updateClusterSlots(nodes);
+        await proxyFI.updateClusterSlots(nodes);
       }
 
       const cluster = createCluster({
@@ -712,7 +711,7 @@ export default class TestUtils {
     let dbConfig: DatabaseConfig;
 
     before(async function () {
-      this.timeout(300000);
+      this.timeout(options.testTimeout ?? 300000);
 
       const baseUrl = process.env.RE_FAULT_INJECTOR_URL;
 
@@ -732,16 +731,11 @@ export default class TestUtils {
 
       console.log('opts.dbConfig', options.dbConfig);
 
-      console.log('getCreate..', getCreateDatabaseConfig(
-        CreateDatabaseConfigType.CLUSTER,
-        options.dbName ?? `test-db-${Date.now()}`
-      ));
-
       dbConfig = await faultInjectorClient.createAndSelectDatabase(db, 0);
     });
 
     after(async function () {
-      this.timeout(30000);
+      this.timeout(options.testTimeout ?? 300000);
 
       await faultInjectorClient.deleteAllDatabases(0);
     });

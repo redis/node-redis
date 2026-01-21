@@ -4,14 +4,7 @@ import diagnostics_channel from "node:diagnostics_channel";
 
 import testUtils from "../../test-utils";
 import { DiagnosticsEvent } from "../../client/enterprise-maintenance-manager";
-import { FaultInjectorClient, ActionTrigger, ActionType, ActionRequest } from "@redis/test-utils/lib/fault-injector";
-import { REClusterTestOptions } from "@redis/test-utils";
-
-type TestOptions = REClusterTestOptions<{}, {}, {}, 3, {}>
-
-const TEST_TIMEOUT = 5 * 60 * 1000; // 5 minutes
-const FI_POLL_INTERVAL = 5000 // 5 seconds
-const ACTION_OPTIONS = { maxWaitTimeMs: TEST_TIMEOUT, timeoutMs: FI_POLL_INTERVAL }
+import { FaultInjectorClient, ActionTrigger } from "@redis/test-utils/lib/fault-injector";
 
 const KEYS = [
   "channel:11kv:1000",
@@ -79,28 +72,33 @@ const KEYS = [
 
     assert(slotShuffleTriggers.length > 0, "slotShuffleTriggers should have at least one trigger");
 
-    for (const trigger of slotShuffleTriggers.slice(0,1)) {
+    for (const trigger of slotShuffleTriggers) {
       describe(`[${trigger.name}]`, () => {
         const dbConfig = trigger.requirements[0].dbconfig;
+        // dbConfig.name = 'foo';
         const testOptions = {
           clusterConfiguration: {
             defaults: {
-              maintNotifications: "disabled",
+              maintNotifications: "enabled",
             },
             RESP: 3 as const,
           },
           dbConfig,
-          testTimeout: TEST_TIMEOUT
-        } satisfies TestOptions;
+        } as const;
 
-        testUtils.testWithRECluster(
+        testUtils.testWithProxiedCluster(
           `should NOT receive notifications when maintNotifications is disabled`,
-          async (_cluster, faultInjectorClient) => {
+          async (cluster, faultInjectorClient) => {
             assert.equal(
               diagnosticEvents.length,
               0,
               "should not have received any notifications yet"
             );
+
+            await cluster.set('key', 'value');
+            const key = await cluster.get('key');
+            assert.equal(key, 'value');
+            console.log(key);
 
             // Trigger migration
             await faultInjectorClient.triggerAction({
@@ -110,7 +108,7 @@ const KEYS = [
                 cluster_index: 0,
                 trigger: trigger.name,
               },
-            }, ACTION_OPTIONS);
+            });
 
             // Verify NO maintenance notifications received
             assert.strictEqual(
@@ -125,23 +123,28 @@ const KEYS = [
     }
   });
 
-  describe.only("Migrate slots - source: dying -> dest: existing", () => {
+  describe("Migrate - source: dying -> dest: existing", () => {
+    const MASTERS_COUNT = 3;
 
     assert(removeTriggers.length > 0, "removeTriggers should have at least one trigger");
 
     // Dynamically generate tests for each trigger from "remove" effect
     for (const trigger of removeTriggers) {
       describe(`[${trigger.name}]`, () => {
-        const ACTION = {
-          type: "slot_migrate",
+        const MIGRATE_ACTION = {
+          type: "migrate",
           parameters: {
-            effect: "remove",
             cluster_index: 0,
+            slot_migration: "all",
+            destination_type: "existing",
             trigger: trigger.name,
           },
-        } satisfies ActionRequest;
+        } as const;
+
         // Build options with trigger-specific dbConfig if available
         const testOptions = {
+          freshContainer: true,
+          numberOfMasters: MASTERS_COUNT,
           clusterConfiguration: {
             defaults: {
               maintNotifications: "enabled",
@@ -150,8 +153,7 @@ const KEYS = [
             RESP: 3 as const,
           },
           dbConfig: trigger.requirements[0].dbconfig,
-          testTimeout: TEST_TIMEOUT
-        } satisfies TestOptions;
+        } as const;
 
         testUtils.testWithRECluster(
           `normal - should handle migration`,
@@ -165,10 +167,14 @@ const KEYS = [
             0,
             "should not have received any notifications yet"
           );
+          assert.equal(
+            cluster.masters.length,
+            MASTERS_COUNT,
+            `should have ${MASTERS_COUNT} masters at start`
+          );
 
-          const masterCountBefore = cluster.masters.length;
-
-          await faultInjectorClient.triggerAction(ACTION, ACTION_OPTIONS);
+          // Trigger migration
+          await faultInjectorClient.triggerAction(MIGRATE_ACTION);
 
           // Verify notifications were received
           const sMigratingEventCount = diagnosticEvents.filter(
@@ -189,8 +195,8 @@ const KEYS = [
           // Verify topology changed
           assert.equal(
             cluster.masters.length,
-            masterCountBefore- 1,
-            `should have ${masterCountBefore - 1} masters after migrate`
+            MASTERS_COUNT - 1,
+            `should have ${MASTERS_COUNT - 1} masters after migrate`
           );
 
           // Verify at least one master address changed
@@ -251,7 +257,7 @@ const KEYS = [
           })();
 
           // Trigger migration during publishing
-          await faultInjectorClient.triggerAction(ACTION, ACTION_OPTIONS);
+          await faultInjectorClient.triggerAction(MIGRATE_ACTION);
 
           // Stop publishing
           publishController.abort();
@@ -328,7 +334,7 @@ const KEYS = [
           })();
 
           // Trigger migration during publishing
-          await faultInjectorClient.triggerAction(ACTION, ACTION_OPTIONS);
+          await faultInjectorClient.triggerAction(MIGRATE_ACTION);
 
           // Stop publishing
           publishController.abort();
@@ -375,7 +381,7 @@ const KEYS = [
     }
   });
 
-  describe("Migrate slots - source: dying -> dest: new", () => {
+  describe("Migrate - source: dying -> dest: new", () => {
     const MASTERS_NODES_COUNT = 3;
     const VISIBLE_NODES_COUNT = 2;
 
@@ -396,6 +402,9 @@ const KEYS = [
 
         // Build options with trigger-specific dbConfig if available
         const testOptions = {
+          freshContainer: true,
+          numberOfMasters: MASTERS_NODES_COUNT,
+          startWithReducedNodes: true,
           clusterConfiguration: {
             defaults: {
               maintNotifications: "enabled",
@@ -404,8 +413,7 @@ const KEYS = [
             RESP: 3 as const,
           },
           dbConfig: trigger.requirements[0].dbconfig,
-          testTimeout: TEST_TIMEOUT
-        } satisfies TestOptions;
+        } as const;
 
         testUtils.testWithRECluster(
           `normal - should handle migration`,
@@ -426,7 +434,7 @@ const KEYS = [
           );
 
           // Trigger migration
-          await faultInjectorClient.triggerAction(MIGRATE_ACTION, ACTION_OPTIONS);
+          await faultInjectorClient.triggerAction(MIGRATE_ACTION);
 
           // Wait for cluster to stabilize
           await setTimeout(1000);
@@ -512,7 +520,7 @@ const KEYS = [
           })();
 
           // Trigger migration during publishing
-          await faultInjectorClient.triggerAction(MIGRATE_ACTION, ACTION_OPTIONS);
+          await faultInjectorClient.triggerAction(MIGRATE_ACTION);
 
           // Stop publishing
           publishController.abort();
@@ -589,7 +597,7 @@ const KEYS = [
           })();
 
           // Trigger migration during publishing
-          await faultInjectorClient.triggerAction(MIGRATE_ACTION, ACTION_OPTIONS);
+          await faultInjectorClient.triggerAction(MIGRATE_ACTION);
 
           // Stop publishing
           publishController.abort();
@@ -636,7 +644,7 @@ const KEYS = [
     }
   });
 
-  describe("Migrate slots - source: active -> dest: existing", () => {
+  describe("Migrate - source: active -> dest: existing", () => {
     const MASTERS_COUNT = 3;
 
     assert(addRemoveTriggers.length > 0, "addRemoveTriggers should have at least one trigger");
@@ -656,6 +664,8 @@ const KEYS = [
 
         // Build options with trigger-specific dbConfig if available
         const testOptions = {
+          numberOfMasters: MASTERS_COUNT,
+          freshContainer: true,
           clusterConfiguration: {
             defaults: {
               maintNotifications: "enabled",
@@ -664,8 +674,7 @@ const KEYS = [
             RESP: 3 as const,
           },
           dbConfig: trigger.requirements[0].dbconfig,
-          testTimeout: TEST_TIMEOUT
-        } satisfies TestOptions;
+        } as const;
 
         testUtils.testWithRECluster(
           `normal - should handle migration`,
@@ -686,7 +695,7 @@ const KEYS = [
           );
 
           // Trigger migration
-          await faultInjectorClient.triggerAction(MIGRATE_ACTION, ACTION_OPTIONS);
+          await faultInjectorClient.triggerAction(MIGRATE_ACTION);
 
           // Verify notifications were received
           const sMigratingEventCount = diagnosticEvents.filter(
@@ -769,7 +778,7 @@ const KEYS = [
           })();
 
           // Trigger migration during publishing
-          await faultInjectorClient.triggerAction(MIGRATE_ACTION, ACTION_OPTIONS);
+          await faultInjectorClient.triggerAction(MIGRATE_ACTION);
 
           // Stop publishing
           publishController.abort();
@@ -846,7 +855,7 @@ const KEYS = [
           })();
 
           // Trigger migration during publishing
-          await faultInjectorClient.triggerAction(MIGRATE_ACTION, ACTION_OPTIONS);
+          await faultInjectorClient.triggerAction(MIGRATE_ACTION);
 
           // Stop publishing
           publishController.abort();
@@ -893,7 +902,7 @@ const KEYS = [
     }
   });
 
-  describe("Migrate slots - source: active -> dest: new", () => {
+  describe("Migrate - source: active -> dest: new", () => {
     const MASTERS_NODES_COUNT = 3;
     const VISIBLE_NODES_COUNT = 2;
 
@@ -914,6 +923,9 @@ const KEYS = [
 
         // Build options with trigger-specific dbConfig if available
         const testOptions = {
+          numberOfMasters: MASTERS_NODES_COUNT,
+          startWithReducedNodes: true,
+          freshContainer: true,
           clusterConfiguration: {
             defaults: {
               maintNotifications: "enabled",
@@ -922,8 +934,7 @@ const KEYS = [
             RESP: 3 as const,
           },
           dbConfig: trigger.requirements[0].dbconfig,
-          testTimeout: TEST_TIMEOUT
-        } satisfies TestOptions;
+        } as const;
 
         testUtils.testWithRECluster(
           `normal - should handle migration`,
@@ -944,7 +955,7 @@ const KEYS = [
           );
 
           // Trigger migration
-          await faultInjectorClient.triggerAction(MIGRATE_ACTION, ACTION_OPTIONS);
+          await faultInjectorClient.triggerAction(MIGRATE_ACTION);
 
           // Wait for cluster to stabilize
           await setTimeout(1000);
@@ -1030,7 +1041,7 @@ const KEYS = [
           })();
 
           // Trigger migration during publishing
-          await faultInjectorClient.triggerAction(MIGRATE_ACTION, ACTION_OPTIONS);
+          await faultInjectorClient.triggerAction(MIGRATE_ACTION);
 
           // Stop publishing
           publishController.abort();
@@ -1107,7 +1118,7 @@ const KEYS = [
           })();
 
           // Trigger migration during publishing
-          await faultInjectorClient.triggerAction(MIGRATE_ACTION, ACTION_OPTIONS);
+          await faultInjectorClient.triggerAction(MIGRATE_ACTION);
 
           // Stop publishing
           publishController.abort();

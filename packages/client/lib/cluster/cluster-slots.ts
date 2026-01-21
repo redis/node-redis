@@ -196,7 +196,6 @@ export default class RedisClusterSlots<
         eagerConnect = this.#options.minimizeConnections !== true;
 
       const shards = await this.#getShards(rootNode);
-      dbgMaintenance(shards);
       this.#resetSlots(); // Reset slots AFTER shards have been fetched to prevent a race condition
       for (const { from, to, master, replicas } of shards) {
         const shard: Shard<M, F, S, RESP, TYPE_MAPPING> = {

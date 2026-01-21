@@ -1,6 +1,6 @@
 import { setTimeout } from "node:timers/promises";
 
-import { ActionRequest, ActionStatus, ActionTrigger, IFaultInjectorClient } from "./types";
+import { ActionRequest, ActionStatus, ActionTrigger, IFaultInjectorClient, TriggerActionOptions } from "./types";
 import ProxyController from "../proxy/proxy-controller";
 
 const TOTAL_SLOTS = 16384;
@@ -21,7 +21,7 @@ export class ProxiedFaultInjectorClientForCluster
         throw new Error("Method not implemented.");
     }
 
-  async triggerAction(action: ActionRequest): Promise<ActionStatus> {
+  async triggerAction(action: ActionRequest, _options?: TriggerActionOptions): Promise<ActionStatus> {
     switch (action.type) {
       case "migrate": {
         return this.triggerMigrate(
