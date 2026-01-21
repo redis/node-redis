@@ -108,7 +108,7 @@ export type MetricInstruments = Readonly<{
 
 export const OTEL_ATTRIBUTES = {
   // Database & network
-  dbSystem: "db.system",
+  dbSystemName: "db.system.name",
   dbNamespace: "db.namespace",
   dbOperationName: "db.operation.name",
   dbResponseStatusCode: "db.response.status_code",
@@ -179,7 +179,7 @@ export type CscEvictionReason =
 
 export const DEFAULT_OTEL_ATTRIBUTES = {
   [OTEL_ATTRIBUTES.redisClientLibrary]: "node-redis",
-  [OTEL_ATTRIBUTES.dbSystem]: "redis",
+  [OTEL_ATTRIBUTES.dbSystemName]: "redis",
 } as const;
 
 export const METRIC_NAMES = {
@@ -314,7 +314,6 @@ export interface IOTelResiliencyMetrics {
     internal: boolean,
     clientAttributes?: OTelClientAttributes,
     retryAttempts?: number,
-    statusCode?: string,
   ): void;
   recordMaintenanceNotifications(
     notification: string,
