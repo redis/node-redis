@@ -80,46 +80,46 @@ const KEYS = [
     assert(slotShuffleTriggers.length > 0, "slotShuffleTriggers should have at least one trigger");
 
     for (const trigger of slotShuffleTriggers.slice(0,1)) {
-        const dbConfig = trigger.requirements[0].dbconfig;
-        const testOptions = {
-          clusterConfiguration: {
-            defaults: {
-              maintNotifications: "disabled",
+      const dbConfig = trigger.requirements[0].dbconfig;
+      const testOptions = {
+        clusterConfiguration: {
+          defaults: {
+            maintNotifications: "disabled",
+          },
+          RESP: 3 as const,
+        },
+        dbConfig,
+        testTimeout: TEST_TIMEOUT
+      } satisfies TestOptions;
+
+      testUtils.testWithRECluster(
+        `(${trigger.name}) should NOT receive notifications when maintNotifications is disabled`,
+        async (_cluster, faultInjectorClient) => {
+          assert.equal(
+            diagnosticEvents.length,
+            0,
+            "should not have received any notifications yet"
+          );
+
+          // Trigger migration
+          await faultInjectorClient.triggerAction({
+            type: "slot_migrate",
+            parameters: {
+              effect: "slot-shuffle",
+              cluster_index: 0,
+              trigger: trigger.name,
             },
-            RESP: 3 as const,
-          },
-          dbConfig,
-          testTimeout: TEST_TIMEOUT
-        } satisfies TestOptions;
+          }, ACTION_OPTIONS);
 
-        testUtils.testWithRECluster(
-          `(${trigger.name}) should NOT receive notifications when maintNotifications is disabled`,
-          async (_cluster, faultInjectorClient) => {
-            assert.equal(
-              diagnosticEvents.length,
-              0,
-              "should not have received any notifications yet"
-            );
-
-            // Trigger migration
-            await faultInjectorClient.triggerAction({
-              type: "slot_migrate",
-              parameters: {
-                effect: "slot-shuffle",
-                cluster_index: 0,
-                trigger: trigger.name,
-              },
-            }, ACTION_OPTIONS);
-
-            // Verify NO maintenance notifications received
-            assert.strictEqual(
-              diagnosticEvents.length,
-              0,
-              "should NOT receive any SMIGRATING/SMIGRATED notifications when disabled"
-            );
-          },
-          testOptions
-        );
+          // Verify NO maintenance notifications received
+          assert.strictEqual(
+            diagnosticEvents.length,
+            0,
+            "should NOT receive any SMIGRATING/SMIGRATED notifications when disabled"
+          );
+        },
+        testOptions
+      );
     }
   });
 
@@ -129,245 +129,245 @@ const KEYS = [
 
     // Dynamically generate tests for each trigger from "remove" effect
     for (const trigger of removeTriggers) {
-        const ACTION = {
-          type: "slot_migrate",
-          parameters: {
-            effect: "remove",
-            cluster_index: 0,
-            trigger: trigger.name,
-          },
-        } satisfies ActionRequest;
-        // Build options with trigger-specific dbConfig if available
-        const testOptions = {
-          clusterConfiguration: {
-            defaults: {
-              maintNotifications: "enabled",
-              maintEndpointType: "auto",
-            },
-            RESP: 3 as const,
-          },
-          dbConfig: trigger.requirements[0].dbconfig,
-          testTimeout: TEST_TIMEOUT
-        } satisfies TestOptions;
-
-        testUtils.testWithRECluster(
-          `(${trigger.name}) normal - should handle migration`,
-        async (cluster, faultInjectorClient) => {
-          const initialMasterAddresses = new Set(
-            cluster.masters.map((m) => m.address)
-          );
-
-          assert.equal(
-            diagnosticEvents.length,
-            0,
-            "should not have received any notifications yet"
-          );
-
-          const masterCountBefore = cluster.masters.length;
-
-          await faultInjectorClient.triggerAction(ACTION, ACTION_OPTIONS);
-
-          // Verify notifications were received
-          const sMigratingEventCount = diagnosticEvents.filter(
-            (event) => event.type === "SMIGRATING"
-          ).length;
-          assert(
-            sMigratingEventCount >= 1,
-            "should have received at least one SMIGRATING notification"
-          );
-          const sMigratedEventCount = diagnosticEvents.filter(
-            (event) => event.type === "SMIGRATED"
-          ).length;
-          assert(
-            sMigratedEventCount >= 1,
-            "should have received at least one SMIGRATED notification"
-          );
-
-          // Verify topology changed
-          assert.equal(
-            cluster.masters.length,
-            masterCountBefore- 1,
-            `should have ${masterCountBefore - 1} masters after migrate`
-          );
-
-          // Verify at least one master address changed
-          const currentMasterAddresses = new Set(
-            cluster.masters.map((m) => m.address)
-          );
-
-          assert.notDeepStrictEqual(
-            currentMasterAddresses,
-            initialMasterAddresses,
-            "addresses should NOT be the same"
-          );
-
-          // Verify data is still accessible after migrate
-          for (const key of KEYS) {
-            await cluster.set(key, `updated-${key}`);
-            const value = await cluster.get(key);
-            assert.strictEqual(
-              value,
-              `updated-${key}`,
-              `New writes should succeed for ${key}`
-            );
-          }
+      const ACTION = {
+        type: "slot_migrate",
+        parameters: {
+          effect: "remove",
+          cluster_index: 0,
+          trigger: trigger.name,
         },
-          testOptions
-        );
-
-        testUtils.testWithRECluster(
-          `(${trigger.name}) sharded pubsub - should handle migration`,
-          async (cluster, faultInjectorClient) => {
-          const stats: Record<string, { sent: number; received: number }> = {};
-          for (const channel of KEYS) {
-            stats[channel] = { sent: 0, received: 0 };
-          }
-
-          for (const channel of KEYS) {
-            await cluster.sSubscribe(channel, (_msg, ch) => {
-              stats[ch].received++;
-            });
-          }
-
-          // Start publishing messages continuously
-          const publishController = new AbortController();
-          const publishPromise = (async () => {
-            while (!publishController.signal.aborted) {
-              for (const channel of KEYS) {
-                cluster
-                  .sPublish(channel, `${Date.now()}`)
-                  .then(() => {
-                    stats[channel].sent++;
-                  })
-                  .catch(() => {
-                    // Ignore publish errors during migrate
-                  });
-              }
-              await setTimeout(50);
-            }
-          })();
-
-          // Trigger migration during publishing
-          await faultInjectorClient.triggerAction(ACTION, ACTION_OPTIONS);
-
-          // Stop publishing
-          publishController.abort();
-          await publishPromise;
-
-          for (const channel of KEYS) {
-            assert.ok(
-              stats[channel].received <= stats[channel].sent,
-              `Channel ${channel}: received (${stats[channel].received}) should be <= sent (${stats[channel].sent}) during migrate`
-            );
-          }
-
-          // Wait for cluster to stabilize
-          await setTimeout(1000);
-
-          // Reset stats for after-migration verification
-          for (const channel of KEYS) {
-            stats[channel] = { sent: 0, received: 0 };
-          }
-
-          // Publish messages after migration - all should be received
-          for (const channel of KEYS) {
-            for (let i = 0; i < 10; i++) {
-              await cluster.sPublish(channel, `after-${i}`);
-              stats[channel].sent++;
-            }
-          }
-
-          // Wait for messages to be received
-          await setTimeout(500);
-
-          // Verify all messages received after migration (subscription preserved)
-          for (const channel of KEYS) {
-            assert.strictEqual(
-              stats[channel].received,
-              stats[channel].sent,
-              `Channel ${channel}: all messages (${stats[channel].sent}) should be received after migrate - subscription preserved`
-            );
-          }
+      } satisfies ActionRequest;
+      // Build options with trigger-specific dbConfig if available
+      const testOptions = {
+        clusterConfiguration: {
+          defaults: {
+            maintNotifications: "enabled",
+            maintEndpointType: "auto",
           },
-          testOptions
+          RESP: 3 as const,
+        },
+        dbConfig: trigger.requirements[0].dbconfig,
+        testTimeout: TEST_TIMEOUT
+      } satisfies TestOptions;
+
+      testUtils.testWithRECluster(
+        `(${trigger.name}) normal - should handle migration`,
+      async (cluster, faultInjectorClient) => {
+        const initialMasterAddresses = new Set(
+          cluster.masters.map((m) => m.address)
         );
 
-        testUtils.testWithRECluster(
-          `(${trigger.name}) pubsub - should handle migration`,
-          async (cluster, faultInjectorClient) => {
-          const stats: Record<string, { sent: number; received: number }> = {};
-          for (const channel of KEYS) {
-            stats[channel] = { sent: 0, received: 0 };
-          }
-
-          for (const channel of KEYS) {
-            await cluster.subscribe(channel, (_msg, ch) => {
-              stats[ch].received++;
-            });
-          }
-
-          // Start publishing messages continuously
-          const publishController = new AbortController();
-          const publishPromise = (async () => {
-            while (!publishController.signal.aborted) {
-              for (const channel of KEYS) {
-                cluster
-                  .publish(channel, `${Date.now()}`)
-                  .then(() => {
-                    stats[channel].sent++;
-                  })
-                  .catch(() => {
-                    // Ignore publish errors during migrate
-                  });
-              }
-              await setTimeout(50);
-            }
-          })();
-
-          // Trigger migration during publishing
-          await faultInjectorClient.triggerAction(ACTION, ACTION_OPTIONS);
-
-          // Stop publishing
-          publishController.abort();
-          await publishPromise;
-
-          for (const channel of KEYS) {
-            assert.ok(
-              stats[channel].received <= stats[channel].sent,
-              `Channel ${channel}: received (${stats[channel].received}) should be <= sent (${stats[channel].sent}) during migrate`
-            );
-          }
-
-          // Wait for cluster to stabilize
-          await setTimeout(1000);
-
-          // Reset stats for after-migration verification
-          for (const channel of KEYS) {
-            stats[channel] = { sent: 0, received: 0 };
-          }
-
-          // Publish messages after migration - all should be received
-          for (const channel of KEYS) {
-            for (let i = 0; i < 10; i++) {
-              await cluster.publish(channel, `after-${i}`);
-              stats[channel].sent++;
-            }
-          }
-
-          // Wait for messages to be received
-          await setTimeout(500);
-
-          // Verify all messages received after migration (subscription preserved)
-          for (const channel of KEYS) {
-            assert.strictEqual(
-              stats[channel].received,
-              stats[channel].sent,
-              `Channel ${channel}: all messages (${stats[channel].sent}) should be received after migrate - subscription preserved`
-            );
-          }
-          },
-          testOptions
+        assert.equal(
+          diagnosticEvents.length,
+          0,
+          "should not have received any notifications yet"
         );
+
+        const masterCountBefore = cluster.masters.length;
+
+        await faultInjectorClient.triggerAction(ACTION, ACTION_OPTIONS);
+
+        // Verify notifications were received
+        const sMigratingEventCount = diagnosticEvents.filter(
+          (event) => event.type === "SMIGRATING"
+        ).length;
+        assert(
+          sMigratingEventCount >= 1,
+          "should have received at least one SMIGRATING notification"
+        );
+        const sMigratedEventCount = diagnosticEvents.filter(
+          (event) => event.type === "SMIGRATED"
+        ).length;
+        assert(
+          sMigratedEventCount >= 1,
+          "should have received at least one SMIGRATED notification"
+        );
+
+        // Verify topology changed
+        assert.equal(
+          cluster.masters.length,
+          masterCountBefore- 1,
+          `should have ${masterCountBefore - 1} masters after migrate`
+        );
+
+        // Verify at least one master address changed
+        const currentMasterAddresses = new Set(
+          cluster.masters.map((m) => m.address)
+        );
+
+        assert.notDeepStrictEqual(
+          currentMasterAddresses,
+          initialMasterAddresses,
+          "addresses should NOT be the same"
+        );
+
+        // Verify data is still accessible after migrate
+        for (const key of KEYS) {
+          await cluster.set(key, `updated-${key}`);
+          const value = await cluster.get(key);
+          assert.strictEqual(
+            value,
+            `updated-${key}`,
+            `New writes should succeed for ${key}`
+          );
+        }
+      },
+        testOptions
+      );
+
+      testUtils.testWithRECluster(
+        `(${trigger.name}) sharded pubsub - should handle migration`,
+        async (cluster, faultInjectorClient) => {
+        const stats: Record<string, { sent: number; received: number }> = {};
+        for (const channel of KEYS) {
+          stats[channel] = { sent: 0, received: 0 };
+        }
+
+        for (const channel of KEYS) {
+          await cluster.sSubscribe(channel, (_msg, ch) => {
+            stats[ch].received++;
+          });
+        }
+
+        // Start publishing messages continuously
+        const publishController = new AbortController();
+        const publishPromise = (async () => {
+          while (!publishController.signal.aborted) {
+            for (const channel of KEYS) {
+              cluster
+                .sPublish(channel, `${Date.now()}`)
+                .then(() => {
+                  stats[channel].sent++;
+                })
+                .catch(() => {
+                  // Ignore publish errors during migrate
+                });
+            }
+            await setTimeout(50);
+          }
+        })();
+
+        // Trigger migration during publishing
+        await faultInjectorClient.triggerAction(ACTION, ACTION_OPTIONS);
+
+        // Stop publishing
+        publishController.abort();
+        await publishPromise;
+
+        for (const channel of KEYS) {
+          assert.ok(
+            stats[channel].received <= stats[channel].sent,
+            `Channel ${channel}: received (${stats[channel].received}) should be <= sent (${stats[channel].sent}) during migrate`
+          );
+        }
+
+        // Wait for cluster to stabilize
+        await setTimeout(1000);
+
+        // Reset stats for after-migration verification
+        for (const channel of KEYS) {
+          stats[channel] = { sent: 0, received: 0 };
+        }
+
+        // Publish messages after migration - all should be received
+        for (const channel of KEYS) {
+          for (let i = 0; i < 10; i++) {
+            await cluster.sPublish(channel, `after-${i}`);
+            stats[channel].sent++;
+          }
+        }
+
+        // Wait for messages to be received
+        await setTimeout(500);
+
+        // Verify all messages received after migration (subscription preserved)
+        for (const channel of KEYS) {
+          assert.strictEqual(
+            stats[channel].received,
+            stats[channel].sent,
+            `Channel ${channel}: all messages (${stats[channel].sent}) should be received after migrate - subscription preserved`
+          );
+        }
+        },
+        testOptions
+      );
+
+      testUtils.testWithRECluster(
+        `(${trigger.name}) pubsub - should handle migration`,
+        async (cluster, faultInjectorClient) => {
+        const stats: Record<string, { sent: number; received: number }> = {};
+        for (const channel of KEYS) {
+          stats[channel] = { sent: 0, received: 0 };
+        }
+
+        for (const channel of KEYS) {
+          await cluster.subscribe(channel, (_msg, ch) => {
+            stats[ch].received++;
+          });
+        }
+
+        // Start publishing messages continuously
+        const publishController = new AbortController();
+        const publishPromise = (async () => {
+          while (!publishController.signal.aborted) {
+            for (const channel of KEYS) {
+              cluster
+                .publish(channel, `${Date.now()}`)
+                .then(() => {
+                  stats[channel].sent++;
+                })
+                .catch(() => {
+                  // Ignore publish errors during migrate
+                });
+            }
+            await setTimeout(50);
+          }
+        })();
+
+        // Trigger migration during publishing
+        await faultInjectorClient.triggerAction(ACTION, ACTION_OPTIONS);
+
+        // Stop publishing
+        publishController.abort();
+        await publishPromise;
+
+        for (const channel of KEYS) {
+          assert.ok(
+            stats[channel].received <= stats[channel].sent,
+            `Channel ${channel}: received (${stats[channel].received}) should be <= sent (${stats[channel].sent}) during migrate`
+          );
+        }
+
+        // Wait for cluster to stabilize
+        await setTimeout(1000);
+
+        // Reset stats for after-migration verification
+        for (const channel of KEYS) {
+          stats[channel] = { sent: 0, received: 0 };
+        }
+
+        // Publish messages after migration - all should be received
+        for (const channel of KEYS) {
+          for (let i = 0; i < 10; i++) {
+            await cluster.publish(channel, `after-${i}`);
+            stats[channel].sent++;
+          }
+        }
+
+        // Wait for messages to be received
+        await setTimeout(500);
+
+        // Verify all messages received after migration (subscription preserved)
+        for (const channel of KEYS) {
+          assert.strictEqual(
+            stats[channel].received,
+            stats[channel].sent,
+            `Channel ${channel}: all messages (${stats[channel].sent}) should be received after migrate - subscription preserved`
+          );
+        }
+        },
+        testOptions
+      );
     }
   });
 
@@ -379,254 +379,254 @@ const KEYS = [
 
     // Dynamically generate tests for each trigger from "add" effect
     for (const trigger of addTriggers) {
-        const MIGRATE_ACTION = {
-          type: "migrate",
-          parameters: {
-            cluster_index: 0,
-            slot_migration: "all",
-            destination_type: "new",
-            trigger: trigger.name,
-          },
-        } as const;
+      const MIGRATE_ACTION = {
+        type: "migrate",
+        parameters: {
+          cluster_index: 0,
+          slot_migration: "all",
+          destination_type: "new",
+          trigger: trigger.name,
+        },
+      } as const;
 
-        // Build options with trigger-specific dbConfig if available
-        const testOptions = {
-          clusterConfiguration: {
-            defaults: {
-              maintNotifications: "enabled",
-              maintEndpointType: "auto",
-            },
-            RESP: 3 as const,
+      // Build options with trigger-specific dbConfig if available
+      const testOptions = {
+        clusterConfiguration: {
+          defaults: {
+            maintNotifications: "enabled",
+            maintEndpointType: "auto",
           },
-          dbConfig: trigger.requirements[0].dbconfig,
-          testTimeout: TEST_TIMEOUT
-        } satisfies TestOptions;
+          RESP: 3 as const,
+        },
+        dbConfig: trigger.requirements[0].dbconfig,
+        testTimeout: TEST_TIMEOUT
+      } satisfies TestOptions;
 
-        testUtils.testWithRECluster(
-          `(${trigger.name}) normal - should handle migration`,
+      testUtils.testWithRECluster(
+        `(${trigger.name}) normal - should handle migration`,
+      async (cluster, faultInjectorClient) => {
+        const initialMasterAddresses = new Set(
+          cluster.masters.map((m) => m.address)
+        );
+
+        assert.equal(
+          diagnosticEvents.length,
+          0,
+          "should not have received any notifications yet"
+        );
+        assert.equal(
+          cluster.masters.length,
+          VISIBLE_NODES_COUNT,
+          `should have ${VISIBLE_NODES_COUNT} masters at start`
+        );
+
+        // Trigger migration
+        await faultInjectorClient.triggerAction(MIGRATE_ACTION, ACTION_OPTIONS);
+
+        // Wait for cluster to stabilize
+        await setTimeout(1000);
+
+        // Verify notifications were received
+        const sMigratingEventCount = diagnosticEvents.filter(
+          (event) => event.type === "SMIGRATING"
+        ).length;
+        assert(
+          sMigratingEventCount >= 1,
+          "should have received at least one SMIGRATING notification"
+        );
+        const sMigratedEventCount = diagnosticEvents.filter(
+          (event) => event.type === "SMIGRATED"
+        ).length;
+        assert(
+          sMigratedEventCount >= 1,
+          "should have received at least one SMIGRATED notification"
+        );
+
+        // Verify topology changed
+        assert.equal(
+          cluster.masters.length,
+          VISIBLE_NODES_COUNT,
+          `should have ${VISIBLE_NODES_COUNT} masters after migrate`
+        );
+
+        // Verify at least one master address changed
+        const currentMasterAddresses = new Set(
+          cluster.masters.map((m) => m.address)
+        );
+
+        assert.notDeepStrictEqual(
+          currentMasterAddresses,
+          initialMasterAddresses,
+          "addresses should NOT be the same"
+        );
+
+        // Verify data is still accessible after migrate
+        for (const key of KEYS) {
+          await cluster.set(key, `updated-${key}`);
+          const value = await cluster.get(key);
+          assert.strictEqual(
+            value,
+            `updated-${key}`,
+            `New writes should succeed for ${key}`
+          );
+        }
+        },
+        testOptions
+      );
+
+      testUtils.testWithRECluster(
+        `(${trigger.name}) sharded pubsub - should handle migration`,
         async (cluster, faultInjectorClient) => {
-          const initialMasterAddresses = new Set(
-            cluster.masters.map((m) => m.address)
-          );
+        const stats: Record<string, { sent: number; received: number }> = {};
+        for (const channel of KEYS) {
+          stats[channel] = { sent: 0, received: 0 };
+        }
 
-          assert.equal(
-            diagnosticEvents.length,
-            0,
-            "should not have received any notifications yet"
-          );
-          assert.equal(
-            cluster.masters.length,
-            VISIBLE_NODES_COUNT,
-            `should have ${VISIBLE_NODES_COUNT} masters at start`
-          );
+        for (const channel of KEYS) {
+          await cluster.sSubscribe(channel, (_msg, ch) => {
+            stats[ch].received++;
+          });
+        }
 
-          // Trigger migration
-          await faultInjectorClient.triggerAction(MIGRATE_ACTION, ACTION_OPTIONS);
-
-          // Wait for cluster to stabilize
-          await setTimeout(1000);
-
-          // Verify notifications were received
-          const sMigratingEventCount = diagnosticEvents.filter(
-            (event) => event.type === "SMIGRATING"
-          ).length;
-          assert(
-            sMigratingEventCount >= 1,
-            "should have received at least one SMIGRATING notification"
-          );
-          const sMigratedEventCount = diagnosticEvents.filter(
-            (event) => event.type === "SMIGRATED"
-          ).length;
-          assert(
-            sMigratedEventCount >= 1,
-            "should have received at least one SMIGRATED notification"
-          );
-
-          // Verify topology changed
-          assert.equal(
-            cluster.masters.length,
-            VISIBLE_NODES_COUNT,
-            `should have ${VISIBLE_NODES_COUNT} masters after migrate`
-          );
-
-          // Verify at least one master address changed
-          const currentMasterAddresses = new Set(
-            cluster.masters.map((m) => m.address)
-          );
-
-          assert.notDeepStrictEqual(
-            currentMasterAddresses,
-            initialMasterAddresses,
-            "addresses should NOT be the same"
-          );
-
-          // Verify data is still accessible after migrate
-          for (const key of KEYS) {
-            await cluster.set(key, `updated-${key}`);
-            const value = await cluster.get(key);
-            assert.strictEqual(
-              value,
-              `updated-${key}`,
-              `New writes should succeed for ${key}`
-            );
-          }
-          },
-          testOptions
-        );
-
-        testUtils.testWithRECluster(
-          `(${trigger.name}) sharded pubsub - should handle migration`,
-          async (cluster, faultInjectorClient) => {
-          const stats: Record<string, { sent: number; received: number }> = {};
-          for (const channel of KEYS) {
-            stats[channel] = { sent: 0, received: 0 };
-          }
-
-          for (const channel of KEYS) {
-            await cluster.sSubscribe(channel, (_msg, ch) => {
-              stats[ch].received++;
-            });
-          }
-
-          // Start publishing messages continuously
-          const publishController = new AbortController();
-          const publishPromise = (async () => {
-            while (!publishController.signal.aborted) {
-              for (const channel of KEYS) {
-                cluster
-                  .sPublish(channel, `${Date.now()}`)
-                  .then(() => {
-                    stats[channel].sent++;
-                  })
-                  .catch(() => {
-                    // Ignore publish errors during migrate
-                  });
-              }
-              await setTimeout(50);
+        // Start publishing messages continuously
+        const publishController = new AbortController();
+        const publishPromise = (async () => {
+          while (!publishController.signal.aborted) {
+            for (const channel of KEYS) {
+              cluster
+                .sPublish(channel, `${Date.now()}`)
+                .then(() => {
+                  stats[channel].sent++;
+                })
+                .catch(() => {
+                  // Ignore publish errors during migrate
+                });
             }
-          })();
-
-          // Trigger migration during publishing
-          await faultInjectorClient.triggerAction(MIGRATE_ACTION, ACTION_OPTIONS);
-
-          // Stop publishing
-          publishController.abort();
-          await publishPromise;
-
-          for (const channel of KEYS) {
-            assert.ok(
-              stats[channel].received <= stats[channel].sent,
-              `Channel ${channel}: received (${stats[channel].received}) should be <= sent (${stats[channel].sent}) during migrate`
-            );
+            await setTimeout(50);
           }
+        })();
 
-          // Wait for cluster to stabilize
-          await setTimeout(1000);
+        // Trigger migration during publishing
+        await faultInjectorClient.triggerAction(MIGRATE_ACTION, ACTION_OPTIONS);
 
-          // Reset stats for after-migration verification
-          for (const channel of KEYS) {
-            stats[channel] = { sent: 0, received: 0 };
+        // Stop publishing
+        publishController.abort();
+        await publishPromise;
+
+        for (const channel of KEYS) {
+          assert.ok(
+            stats[channel].received <= stats[channel].sent,
+            `Channel ${channel}: received (${stats[channel].received}) should be <= sent (${stats[channel].sent}) during migrate`
+          );
+        }
+
+        // Wait for cluster to stabilize
+        await setTimeout(1000);
+
+        // Reset stats for after-migration verification
+        for (const channel of KEYS) {
+          stats[channel] = { sent: 0, received: 0 };
+        }
+
+        // Publish messages after migration - all should be received
+        for (const channel of KEYS) {
+          for (let i = 0; i < 10; i++) {
+            await cluster.sPublish(channel, `after-${i}`);
+            stats[channel].sent++;
           }
+        }
 
-          // Publish messages after migration - all should be received
-          for (const channel of KEYS) {
-            for (let i = 0; i < 10; i++) {
-              await cluster.sPublish(channel, `after-${i}`);
-              stats[channel].sent++;
+        // Wait for messages to be received
+        await setTimeout(500);
+
+        // Verify all messages received after migration (subscription preserved)
+        for (const channel of KEYS) {
+          assert.strictEqual(
+            stats[channel].received,
+            stats[channel].sent,
+            `Channel ${channel}: all messages (${stats[channel].sent}) should be received after migrate - subscription preserved`
+          );
+        }
+        },
+        testOptions
+      );
+
+      testUtils.testWithRECluster(
+        `(${trigger.name}) pubsub - should handle migration`,
+        async (cluster, faultInjectorClient) => {
+        const stats: Record<string, { sent: number; received: number }> = {};
+        for (const channel of KEYS) {
+          stats[channel] = { sent: 0, received: 0 };
+        }
+
+        for (const channel of KEYS) {
+          await cluster.subscribe(channel, (_msg, ch) => {
+            stats[ch].received++;
+          });
+        }
+
+        // Start publishing messages continuously
+        const publishController = new AbortController();
+        const publishPromise = (async () => {
+          while (!publishController.signal.aborted) {
+            for (const channel of KEYS) {
+              cluster
+                .publish(channel, `${Date.now()}`)
+                .then(() => {
+                  stats[channel].sent++;
+                })
+                .catch(() => {
+                  // Ignore publish errors during migrate
+                });
             }
+            await setTimeout(50);
           }
+        })();
 
-          // Wait for messages to be received
-          await setTimeout(500);
+        // Trigger migration during publishing
+        await faultInjectorClient.triggerAction(MIGRATE_ACTION, ACTION_OPTIONS);
 
-          // Verify all messages received after migration (subscription preserved)
-          for (const channel of KEYS) {
-            assert.strictEqual(
-              stats[channel].received,
-              stats[channel].sent,
-              `Channel ${channel}: all messages (${stats[channel].sent}) should be received after migrate - subscription preserved`
-            );
+        // Stop publishing
+        publishController.abort();
+        await publishPromise;
+
+        for (const channel of KEYS) {
+          assert.ok(
+            stats[channel].received <= stats[channel].sent,
+            `Channel ${channel}: received (${stats[channel].received}) should be <= sent (${stats[channel].sent}) during migrate`
+          );
+        }
+
+        // Wait for cluster to stabilize
+        await setTimeout(1000);
+
+        // Reset stats for after-migration verification
+        for (const channel of KEYS) {
+          stats[channel] = { sent: 0, received: 0 };
+        }
+
+        // Publish messages after migration - all should be received
+        for (const channel of KEYS) {
+          for (let i = 0; i < 10; i++) {
+            await cluster.publish(channel, `after-${i}`);
+            stats[channel].sent++;
           }
-          },
-          testOptions
-        );
+        }
 
-        testUtils.testWithRECluster(
-          `(${trigger.name}) pubsub - should handle migration`,
-          async (cluster, faultInjectorClient) => {
-          const stats: Record<string, { sent: number; received: number }> = {};
-          for (const channel of KEYS) {
-            stats[channel] = { sent: 0, received: 0 };
-          }
+        // Wait for messages to be received
+        await setTimeout(500);
 
-          for (const channel of KEYS) {
-            await cluster.subscribe(channel, (_msg, ch) => {
-              stats[ch].received++;
-            });
-          }
-
-          // Start publishing messages continuously
-          const publishController = new AbortController();
-          const publishPromise = (async () => {
-            while (!publishController.signal.aborted) {
-              for (const channel of KEYS) {
-                cluster
-                  .publish(channel, `${Date.now()}`)
-                  .then(() => {
-                    stats[channel].sent++;
-                  })
-                  .catch(() => {
-                    // Ignore publish errors during migrate
-                  });
-              }
-              await setTimeout(50);
-            }
-          })();
-
-          // Trigger migration during publishing
-          await faultInjectorClient.triggerAction(MIGRATE_ACTION, ACTION_OPTIONS);
-
-          // Stop publishing
-          publishController.abort();
-          await publishPromise;
-
-          for (const channel of KEYS) {
-            assert.ok(
-              stats[channel].received <= stats[channel].sent,
-              `Channel ${channel}: received (${stats[channel].received}) should be <= sent (${stats[channel].sent}) during migrate`
-            );
-          }
-
-          // Wait for cluster to stabilize
-          await setTimeout(1000);
-
-          // Reset stats for after-migration verification
-          for (const channel of KEYS) {
-            stats[channel] = { sent: 0, received: 0 };
-          }
-
-          // Publish messages after migration - all should be received
-          for (const channel of KEYS) {
-            for (let i = 0; i < 10; i++) {
-              await cluster.publish(channel, `after-${i}`);
-              stats[channel].sent++;
-            }
-          }
-
-          // Wait for messages to be received
-          await setTimeout(500);
-
-          // Verify all messages received after migration (subscription preserved)
-          for (const channel of KEYS) {
-            assert.strictEqual(
-              stats[channel].received,
-              stats[channel].sent,
-              `Channel ${channel}: all messages (${stats[channel].sent}) should be received after migrate - subscription preserved`
-            );
-          }
-          },
-          testOptions
-        );
+        // Verify all messages received after migration (subscription preserved)
+        for (const channel of KEYS) {
+          assert.strictEqual(
+            stats[channel].received,
+            stats[channel].sent,
+            `Channel ${channel}: all messages (${stats[channel].sent}) should be received after migrate - subscription preserved`
+          );
+        }
+        },
+        testOptions
+      );
     }
   });
 
@@ -637,251 +637,251 @@ const KEYS = [
 
     // Dynamically generate tests for each trigger from "add-remove" effect
     for (const trigger of addRemoveTriggers) {
-        const MIGRATE_ACTION = {
-          type: "migrate",
-          parameters: {
-            cluster_index: 0,
-            slot_migration: "half",
-            destination_type: "existing",
-            trigger: trigger.name,
-          },
-        } as const;
+      const MIGRATE_ACTION = {
+        type: "migrate",
+        parameters: {
+          cluster_index: 0,
+          slot_migration: "half",
+          destination_type: "existing",
+          trigger: trigger.name,
+        },
+      } as const;
 
-        // Build options with trigger-specific dbConfig if available
-        const testOptions = {
-          clusterConfiguration: {
-            defaults: {
-              maintNotifications: "enabled",
-              maintEndpointType: "auto",
-            },
-            RESP: 3 as const,
+      // Build options with trigger-specific dbConfig if available
+      const testOptions = {
+        clusterConfiguration: {
+          defaults: {
+            maintNotifications: "enabled",
+            maintEndpointType: "auto",
           },
-          dbConfig: trigger.requirements[0].dbconfig,
-          testTimeout: TEST_TIMEOUT
-        } satisfies TestOptions;
+          RESP: 3 as const,
+        },
+        dbConfig: trigger.requirements[0].dbconfig,
+        testTimeout: TEST_TIMEOUT
+      } satisfies TestOptions;
 
-        testUtils.testWithRECluster(
-          `(${trigger.name}) normal - should handle migration`,
+      testUtils.testWithRECluster(
+        `(${trigger.name}) normal - should handle migration`,
+      async (cluster, faultInjectorClient) => {
+        const initialMasterAddresses = new Set(
+          cluster.masters.map((m) => m.address)
+        );
+
+        assert.equal(
+          diagnosticEvents.length,
+          0,
+          "should not have received any notifications yet"
+        );
+        assert.equal(
+          cluster.masters.length,
+          MASTERS_COUNT,
+          `should have ${MASTERS_COUNT} masters at start`
+        );
+
+        // Trigger migration
+        await faultInjectorClient.triggerAction(MIGRATE_ACTION, ACTION_OPTIONS);
+
+        // Verify notifications were received
+        const sMigratingEventCount = diagnosticEvents.filter(
+          (event) => event.type === "SMIGRATING"
+        ).length;
+        assert(
+          sMigratingEventCount >= 1,
+          "should have received at least one SMIGRATING notification"
+        );
+        const sMigratedEventCount = diagnosticEvents.filter(
+          (event) => event.type === "SMIGRATED"
+        ).length;
+        assert(
+          sMigratedEventCount >= 1,
+          "should have received at least one SMIGRATED notification"
+        );
+
+        // Verify topology changed
+        assert.equal(
+          cluster.masters.length,
+          MASTERS_COUNT,
+          `should have ${MASTERS_COUNT} masters after migrate`
+        );
+
+        // Verify at least no master address changed
+        const currentMasterAddresses = new Set(
+          cluster.masters.map((m) => m.address)
+        );
+
+        assert.deepStrictEqual(
+          currentMasterAddresses,
+          initialMasterAddresses,
+          "addresses should NOT be the same"
+        );
+
+        // Verify data is still accessible after migrate
+        for (const key of KEYS) {
+          await cluster.set(key, `updated-${key}`);
+          const value = await cluster.get(key);
+          assert.strictEqual(
+            value,
+            `updated-${key}`,
+            `New writes should succeed for ${key}`
+          );
+        }
+        },
+        testOptions
+      );
+
+      testUtils.testWithRECluster(
+        `(${trigger.name}) sharded pubsub - should handle migration`,
         async (cluster, faultInjectorClient) => {
-          const initialMasterAddresses = new Set(
-            cluster.masters.map((m) => m.address)
-          );
+        const stats: Record<string, { sent: number; received: number }> = {};
+        for (const channel of KEYS) {
+          stats[channel] = { sent: 0, received: 0 };
+        }
 
-          assert.equal(
-            diagnosticEvents.length,
-            0,
-            "should not have received any notifications yet"
-          );
-          assert.equal(
-            cluster.masters.length,
-            MASTERS_COUNT,
-            `should have ${MASTERS_COUNT} masters at start`
-          );
+        for (const channel of KEYS) {
+          await cluster.sSubscribe(channel, (_msg, ch) => {
+            stats[ch].received++;
+          });
+        }
 
-          // Trigger migration
-          await faultInjectorClient.triggerAction(MIGRATE_ACTION, ACTION_OPTIONS);
-
-          // Verify notifications were received
-          const sMigratingEventCount = diagnosticEvents.filter(
-            (event) => event.type === "SMIGRATING"
-          ).length;
-          assert(
-            sMigratingEventCount >= 1,
-            "should have received at least one SMIGRATING notification"
-          );
-          const sMigratedEventCount = diagnosticEvents.filter(
-            (event) => event.type === "SMIGRATED"
-          ).length;
-          assert(
-            sMigratedEventCount >= 1,
-            "should have received at least one SMIGRATED notification"
-          );
-
-          // Verify topology changed
-          assert.equal(
-            cluster.masters.length,
-            MASTERS_COUNT,
-            `should have ${MASTERS_COUNT} masters after migrate`
-          );
-
-          // Verify at least no master address changed
-          const currentMasterAddresses = new Set(
-            cluster.masters.map((m) => m.address)
-          );
-
-          assert.deepStrictEqual(
-            currentMasterAddresses,
-            initialMasterAddresses,
-            "addresses should NOT be the same"
-          );
-
-          // Verify data is still accessible after migrate
-          for (const key of KEYS) {
-            await cluster.set(key, `updated-${key}`);
-            const value = await cluster.get(key);
-            assert.strictEqual(
-              value,
-              `updated-${key}`,
-              `New writes should succeed for ${key}`
-            );
-          }
-          },
-          testOptions
-        );
-
-        testUtils.testWithRECluster(
-          `(${trigger.name}) sharded pubsub - should handle migration`,
-          async (cluster, faultInjectorClient) => {
-          const stats: Record<string, { sent: number; received: number }> = {};
-          for (const channel of KEYS) {
-            stats[channel] = { sent: 0, received: 0 };
-          }
-
-          for (const channel of KEYS) {
-            await cluster.sSubscribe(channel, (_msg, ch) => {
-              stats[ch].received++;
-            });
-          }
-
-          // Start publishing messages continuously
-          const publishController = new AbortController();
-          const publishPromise = (async () => {
-            while (!publishController.signal.aborted) {
-              for (const channel of KEYS) {
-                cluster
-                  .sPublish(channel, `${Date.now()}`)
-                  .then(() => {
-                    stats[channel].sent++;
-                  })
-                  .catch(() => {
-                    // Ignore publish errors during migrate
-                  });
-              }
-              await setTimeout(50);
+        // Start publishing messages continuously
+        const publishController = new AbortController();
+        const publishPromise = (async () => {
+          while (!publishController.signal.aborted) {
+            for (const channel of KEYS) {
+              cluster
+                .sPublish(channel, `${Date.now()}`)
+                .then(() => {
+                  stats[channel].sent++;
+                })
+                .catch(() => {
+                  // Ignore publish errors during migrate
+                });
             }
-          })();
-
-          // Trigger migration during publishing
-          await faultInjectorClient.triggerAction(MIGRATE_ACTION, ACTION_OPTIONS);
-
-          // Stop publishing
-          publishController.abort();
-          await publishPromise;
-
-          for (const channel of KEYS) {
-            assert.ok(
-              stats[channel].received <= stats[channel].sent,
-              `Channel ${channel}: received (${stats[channel].received}) should be <= sent (${stats[channel].sent}) during migrate`
-            );
+            await setTimeout(50);
           }
+        })();
 
-          // Wait for cluster to stabilize
-          await setTimeout(1000);
+        // Trigger migration during publishing
+        await faultInjectorClient.triggerAction(MIGRATE_ACTION, ACTION_OPTIONS);
 
-          // Reset stats for after-migration verification
-          for (const channel of KEYS) {
-            stats[channel] = { sent: 0, received: 0 };
+        // Stop publishing
+        publishController.abort();
+        await publishPromise;
+
+        for (const channel of KEYS) {
+          assert.ok(
+            stats[channel].received <= stats[channel].sent,
+            `Channel ${channel}: received (${stats[channel].received}) should be <= sent (${stats[channel].sent}) during migrate`
+          );
+        }
+
+        // Wait for cluster to stabilize
+        await setTimeout(1000);
+
+        // Reset stats for after-migration verification
+        for (const channel of KEYS) {
+          stats[channel] = { sent: 0, received: 0 };
+        }
+
+        // Publish messages after migration - all should be received
+        for (const channel of KEYS) {
+          for (let i = 0; i < 10; i++) {
+            await cluster.sPublish(channel, `after-${i}`);
+            stats[channel].sent++;
           }
+        }
 
-          // Publish messages after migration - all should be received
-          for (const channel of KEYS) {
-            for (let i = 0; i < 10; i++) {
-              await cluster.sPublish(channel, `after-${i}`);
-              stats[channel].sent++;
+        // Wait for messages to be received
+        await setTimeout(500);
+
+        // Verify all messages received after migration (subscription preserved)
+        for (const channel of KEYS) {
+          assert.strictEqual(
+            stats[channel].received,
+            stats[channel].sent,
+            `Channel ${channel}: all messages (${stats[channel].sent}) should be received after migrate - subscription preserved`
+          );
+        }
+        },
+        testOptions
+      );
+
+      testUtils.testWithRECluster(
+        `(${trigger.name}) pubsub - should handle migration`,
+        async (cluster, faultInjectorClient) => {
+        const stats: Record<string, { sent: number; received: number }> = {};
+        for (const channel of KEYS) {
+          stats[channel] = { sent: 0, received: 0 };
+        }
+
+        for (const channel of KEYS) {
+          await cluster.subscribe(channel, (_msg, ch) => {
+            stats[ch].received++;
+          });
+        }
+
+        // Start publishing messages continuously
+        const publishController = new AbortController();
+        const publishPromise = (async () => {
+          while (!publishController.signal.aborted) {
+            for (const channel of KEYS) {
+              cluster
+                .publish(channel, `${Date.now()}`)
+                .then(() => {
+                  stats[channel].sent++;
+                })
+                .catch(() => {
+                  // Ignore publish errors during migrate
+                });
             }
+            await setTimeout(50);
           }
+        })();
 
-          // Wait for messages to be received
-          await setTimeout(500);
+        // Trigger migration during publishing
+        await faultInjectorClient.triggerAction(MIGRATE_ACTION, ACTION_OPTIONS);
 
-          // Verify all messages received after migration (subscription preserved)
-          for (const channel of KEYS) {
-            assert.strictEqual(
-              stats[channel].received,
-              stats[channel].sent,
-              `Channel ${channel}: all messages (${stats[channel].sent}) should be received after migrate - subscription preserved`
-            );
+        // Stop publishing
+        publishController.abort();
+        await publishPromise;
+
+        for (const channel of KEYS) {
+          assert.ok(
+            stats[channel].received <= stats[channel].sent,
+            `Channel ${channel}: received (${stats[channel].received}) should be <= sent (${stats[channel].sent}) during migrate`
+          );
+        }
+
+        // Wait for cluster to stabilize
+        await setTimeout(1000);
+
+        // Reset stats for after-migration verification
+        for (const channel of KEYS) {
+          stats[channel] = { sent: 0, received: 0 };
+        }
+
+        // Publish messages after migration - all should be received
+        for (const channel of KEYS) {
+          for (let i = 0; i < 10; i++) {
+            await cluster.publish(channel, `after-${i}`);
+            stats[channel].sent++;
           }
-          },
-          testOptions
-        );
+        }
 
-        testUtils.testWithRECluster(
-          `(${trigger.name}) pubsub - should handle migration`,
-          async (cluster, faultInjectorClient) => {
-          const stats: Record<string, { sent: number; received: number }> = {};
-          for (const channel of KEYS) {
-            stats[channel] = { sent: 0, received: 0 };
-          }
+        // Wait for messages to be received
+        await setTimeout(500);
 
-          for (const channel of KEYS) {
-            await cluster.subscribe(channel, (_msg, ch) => {
-              stats[ch].received++;
-            });
-          }
-
-          // Start publishing messages continuously
-          const publishController = new AbortController();
-          const publishPromise = (async () => {
-            while (!publishController.signal.aborted) {
-              for (const channel of KEYS) {
-                cluster
-                  .publish(channel, `${Date.now()}`)
-                  .then(() => {
-                    stats[channel].sent++;
-                  })
-                  .catch(() => {
-                    // Ignore publish errors during migrate
-                  });
-              }
-              await setTimeout(50);
-            }
-          })();
-
-          // Trigger migration during publishing
-          await faultInjectorClient.triggerAction(MIGRATE_ACTION, ACTION_OPTIONS);
-
-          // Stop publishing
-          publishController.abort();
-          await publishPromise;
-
-          for (const channel of KEYS) {
-            assert.ok(
-              stats[channel].received <= stats[channel].sent,
-              `Channel ${channel}: received (${stats[channel].received}) should be <= sent (${stats[channel].sent}) during migrate`
-            );
-          }
-
-          // Wait for cluster to stabilize
-          await setTimeout(1000);
-
-          // Reset stats for after-migration verification
-          for (const channel of KEYS) {
-            stats[channel] = { sent: 0, received: 0 };
-          }
-
-          // Publish messages after migration - all should be received
-          for (const channel of KEYS) {
-            for (let i = 0; i < 10; i++) {
-              await cluster.publish(channel, `after-${i}`);
-              stats[channel].sent++;
-            }
-          }
-
-          // Wait for messages to be received
-          await setTimeout(500);
-
-          // Verify all messages received after migration (subscription preserved)
-          for (const channel of KEYS) {
-            assert.strictEqual(
-              stats[channel].received,
-              stats[channel].sent,
-              `Channel ${channel}: all messages (${stats[channel].sent}) should be received after migrate - subscription preserved`
-            );
-          }
-          },
-          testOptions
-        );
+        // Verify all messages received after migration (subscription preserved)
+        for (const channel of KEYS) {
+          assert.strictEqual(
+            stats[channel].received,
+            stats[channel].sent,
+            `Channel ${channel}: all messages (${stats[channel].sent}) should be received after migrate - subscription preserved`
+          );
+        }
+        },
+        testOptions
+      );
     }
   });
 
@@ -893,254 +893,254 @@ const KEYS = [
 
     // Dynamically generate tests for each trigger from "slot-shuffle" effect
     for (const trigger of slotShuffleTriggers) {
-        const MIGRATE_ACTION = {
-          type: "migrate",
-          parameters: {
-            cluster_index: 0,
-            slot_migration: "half",
-            destination_type: "new",
-            trigger: trigger.name,
-          },
-        } as const;
+      const MIGRATE_ACTION = {
+        type: "migrate",
+        parameters: {
+          cluster_index: 0,
+          slot_migration: "half",
+          destination_type: "new",
+          trigger: trigger.name,
+        },
+      } as const;
 
-        // Build options with trigger-specific dbConfig if available
-        const testOptions = {
-          clusterConfiguration: {
-            defaults: {
-              maintNotifications: "enabled",
-              maintEndpointType: "auto",
-            },
-            RESP: 3 as const,
+      // Build options with trigger-specific dbConfig if available
+      const testOptions = {
+        clusterConfiguration: {
+          defaults: {
+            maintNotifications: "enabled",
+            maintEndpointType: "auto",
           },
-          dbConfig: trigger.requirements[0].dbconfig,
-          testTimeout: TEST_TIMEOUT
-        } satisfies TestOptions;
+          RESP: 3 as const,
+        },
+        dbConfig: trigger.requirements[0].dbconfig,
+        testTimeout: TEST_TIMEOUT
+      } satisfies TestOptions;
 
-        testUtils.testWithRECluster(
-          `(${trigger.name}) normal - should handle migration`,
+      testUtils.testWithRECluster(
+        `(${trigger.name}) normal - should handle migration`,
+      async (cluster, faultInjectorClient) => {
+        const initialMasterAddresses = new Set(
+          cluster.masters.map((m) => m.address)
+        );
+
+        assert.equal(
+          diagnosticEvents.length,
+          0,
+          "should not have received any notifications yet"
+        );
+        assert.equal(
+          cluster.masters.length,
+          VISIBLE_NODES_COUNT,
+          `should have ${VISIBLE_NODES_COUNT} masters at start`
+        );
+
+        // Trigger migration
+        await faultInjectorClient.triggerAction(MIGRATE_ACTION, ACTION_OPTIONS);
+
+        // Wait for cluster to stabilize
+        await setTimeout(1000);
+
+        // Verify notifications were received
+        const sMigratingEventCount = diagnosticEvents.filter(
+          (event) => event.type === "SMIGRATING"
+        ).length;
+        assert(
+          sMigratingEventCount >= 1,
+          "should have received at least one SMIGRATING notification"
+        );
+        const sMigratedEventCount = diagnosticEvents.filter(
+          (event) => event.type === "SMIGRATED"
+        ).length;
+        assert(
+          sMigratedEventCount >= 1,
+          "should have received at least one SMIGRATED notification"
+        );
+
+        // Verify topology changed
+        assert.equal(
+          cluster.masters.length,
+          VISIBLE_NODES_COUNT + 1,
+          `should have ${VISIBLE_NODES_COUNT + 1} masters after migrate`
+        );
+
+        // Verify at least one master address changed
+        const currentMasterAddresses = new Set(
+          cluster.masters.map((m) => m.address)
+        );
+
+        assert.notDeepStrictEqual(
+          currentMasterAddresses,
+          initialMasterAddresses,
+          "addresses should NOT be the same"
+        );
+
+        // Verify data is still accessible after migrate
+        for (const key of KEYS) {
+          await cluster.set(key, `updated-${key}`);
+          const value = await cluster.get(key);
+          assert.strictEqual(
+            value,
+            `updated-${key}`,
+            `New writes should succeed for ${key}`
+          );
+        }
+        },
+        testOptions
+      );
+
+      testUtils.testWithRECluster(
+        `(${trigger.name}) sharded pubsub - should handle migration`,
         async (cluster, faultInjectorClient) => {
-          const initialMasterAddresses = new Set(
-            cluster.masters.map((m) => m.address)
-          );
+        const stats: Record<string, { sent: number; received: number }> = {};
+        for (const channel of KEYS) {
+          stats[channel] = { sent: 0, received: 0 };
+        }
 
-          assert.equal(
-            diagnosticEvents.length,
-            0,
-            "should not have received any notifications yet"
-          );
-          assert.equal(
-            cluster.masters.length,
-            VISIBLE_NODES_COUNT,
-            `should have ${VISIBLE_NODES_COUNT} masters at start`
-          );
+        for (const channel of KEYS) {
+          await cluster.sSubscribe(channel, (_msg, ch) => {
+            stats[ch].received++;
+          });
+        }
 
-          // Trigger migration
-          await faultInjectorClient.triggerAction(MIGRATE_ACTION, ACTION_OPTIONS);
-
-          // Wait for cluster to stabilize
-          await setTimeout(1000);
-
-          // Verify notifications were received
-          const sMigratingEventCount = diagnosticEvents.filter(
-            (event) => event.type === "SMIGRATING"
-          ).length;
-          assert(
-            sMigratingEventCount >= 1,
-            "should have received at least one SMIGRATING notification"
-          );
-          const sMigratedEventCount = diagnosticEvents.filter(
-            (event) => event.type === "SMIGRATED"
-          ).length;
-          assert(
-            sMigratedEventCount >= 1,
-            "should have received at least one SMIGRATED notification"
-          );
-
-          // Verify topology changed
-          assert.equal(
-            cluster.masters.length,
-            VISIBLE_NODES_COUNT + 1,
-            `should have ${VISIBLE_NODES_COUNT + 1} masters after migrate`
-          );
-
-          // Verify at least one master address changed
-          const currentMasterAddresses = new Set(
-            cluster.masters.map((m) => m.address)
-          );
-
-          assert.notDeepStrictEqual(
-            currentMasterAddresses,
-            initialMasterAddresses,
-            "addresses should NOT be the same"
-          );
-
-          // Verify data is still accessible after migrate
-          for (const key of KEYS) {
-            await cluster.set(key, `updated-${key}`);
-            const value = await cluster.get(key);
-            assert.strictEqual(
-              value,
-              `updated-${key}`,
-              `New writes should succeed for ${key}`
-            );
-          }
-          },
-          testOptions
-        );
-
-        testUtils.testWithRECluster(
-          `(${trigger.name}) sharded pubsub - should handle migration`,
-          async (cluster, faultInjectorClient) => {
-          const stats: Record<string, { sent: number; received: number }> = {};
-          for (const channel of KEYS) {
-            stats[channel] = { sent: 0, received: 0 };
-          }
-
-          for (const channel of KEYS) {
-            await cluster.sSubscribe(channel, (_msg, ch) => {
-              stats[ch].received++;
-            });
-          }
-
-          // Start publishing messages continuously
-          const publishController = new AbortController();
-          const publishPromise = (async () => {
-            while (!publishController.signal.aborted) {
-              for (const channel of KEYS) {
-                cluster
-                  .sPublish(channel, `${Date.now()}`)
-                  .then(() => {
-                    stats[channel].sent++;
-                  })
-                  .catch(() => {
-                    // Ignore publish errors during migrate
-                  });
-              }
-              await setTimeout(50);
+        // Start publishing messages continuously
+        const publishController = new AbortController();
+        const publishPromise = (async () => {
+          while (!publishController.signal.aborted) {
+            for (const channel of KEYS) {
+              cluster
+                .sPublish(channel, `${Date.now()}`)
+                .then(() => {
+                  stats[channel].sent++;
+                })
+                .catch(() => {
+                  // Ignore publish errors during migrate
+                });
             }
-          })();
-
-          // Trigger migration during publishing
-          await faultInjectorClient.triggerAction(MIGRATE_ACTION, ACTION_OPTIONS);
-
-          // Stop publishing
-          publishController.abort();
-          await publishPromise;
-
-          for (const channel of KEYS) {
-            assert.ok(
-              stats[channel].received <= stats[channel].sent,
-              `Channel ${channel}: received (${stats[channel].received}) should be <= sent (${stats[channel].sent}) during migrate`
-            );
+            await setTimeout(50);
           }
+        })();
 
-          // Wait for cluster to stabilize
-          await setTimeout(1000);
+        // Trigger migration during publishing
+        await faultInjectorClient.triggerAction(MIGRATE_ACTION, ACTION_OPTIONS);
 
-          // Reset stats for after-migration verification
-          for (const channel of KEYS) {
-            stats[channel] = { sent: 0, received: 0 };
+        // Stop publishing
+        publishController.abort();
+        await publishPromise;
+
+        for (const channel of KEYS) {
+          assert.ok(
+            stats[channel].received <= stats[channel].sent,
+            `Channel ${channel}: received (${stats[channel].received}) should be <= sent (${stats[channel].sent}) during migrate`
+          );
+        }
+
+        // Wait for cluster to stabilize
+        await setTimeout(1000);
+
+        // Reset stats for after-migration verification
+        for (const channel of KEYS) {
+          stats[channel] = { sent: 0, received: 0 };
+        }
+
+        // Publish messages after migration - all should be received
+        for (const channel of KEYS) {
+          for (let i = 0; i < 10; i++) {
+            await cluster.sPublish(channel, `after-${i}`);
+            stats[channel].sent++;
           }
+        }
 
-          // Publish messages after migration - all should be received
-          for (const channel of KEYS) {
-            for (let i = 0; i < 10; i++) {
-              await cluster.sPublish(channel, `after-${i}`);
-              stats[channel].sent++;
+        // Wait for messages to be received
+        await setTimeout(500);
+
+        // Verify all messages received after migration (subscription preserved)
+        for (const channel of KEYS) {
+          assert.strictEqual(
+            stats[channel].received,
+            stats[channel].sent,
+            `Channel ${channel}: all messages (${stats[channel].sent}) should be received after migrate - subscription preserved`
+          );
+        }
+        },
+        testOptions
+      );
+
+      testUtils.testWithRECluster(
+        `(${trigger.name}) pubsub - should handle migration`,
+        async (cluster, faultInjectorClient) => {
+        const stats: Record<string, { sent: number; received: number }> = {};
+        for (const channel of KEYS) {
+          stats[channel] = { sent: 0, received: 0 };
+        }
+
+        for (const channel of KEYS) {
+          await cluster.subscribe(channel, (_msg, ch) => {
+            stats[ch].received++;
+          });
+        }
+
+        // Start publishing messages continuously
+        const publishController = new AbortController();
+        const publishPromise = (async () => {
+          while (!publishController.signal.aborted) {
+            for (const channel of KEYS) {
+              cluster
+                .publish(channel, `${Date.now()}`)
+                .then(() => {
+                  stats[channel].sent++;
+                })
+                .catch(() => {
+                  // Ignore publish errors during migrate
+                });
             }
+            await setTimeout(50);
           }
+        })();
 
-          // Wait for messages to be received
-          await setTimeout(500);
+        // Trigger migration during publishing
+        await faultInjectorClient.triggerAction(MIGRATE_ACTION, ACTION_OPTIONS);
 
-          // Verify all messages received after migration (subscription preserved)
-          for (const channel of KEYS) {
-            assert.strictEqual(
-              stats[channel].received,
-              stats[channel].sent,
-              `Channel ${channel}: all messages (${stats[channel].sent}) should be received after migrate - subscription preserved`
-            );
+        // Stop publishing
+        publishController.abort();
+        await publishPromise;
+
+        for (const channel of KEYS) {
+          assert.ok(
+            stats[channel].received <= stats[channel].sent,
+            `Channel ${channel}: received (${stats[channel].received}) should be <= sent (${stats[channel].sent}) during migrate`
+          );
+        }
+
+        // Wait for cluster to stabilize
+        await setTimeout(1000);
+
+        // Reset stats for after-migration verification
+        for (const channel of KEYS) {
+          stats[channel] = { sent: 0, received: 0 };
+        }
+
+        // Publish messages after migration - all should be received
+        for (const channel of KEYS) {
+          for (let i = 0; i < 10; i++) {
+            await cluster.publish(channel, `after-${i}`);
+            stats[channel].sent++;
           }
-          },
-          testOptions
-        );
+        }
 
-        testUtils.testWithRECluster(
-          `(${trigger.name}) pubsub - should handle migration`,
-          async (cluster, faultInjectorClient) => {
-          const stats: Record<string, { sent: number; received: number }> = {};
-          for (const channel of KEYS) {
-            stats[channel] = { sent: 0, received: 0 };
-          }
+        // Wait for messages to be received
+        await setTimeout(500);
 
-          for (const channel of KEYS) {
-            await cluster.subscribe(channel, (_msg, ch) => {
-              stats[ch].received++;
-            });
-          }
-
-          // Start publishing messages continuously
-          const publishController = new AbortController();
-          const publishPromise = (async () => {
-            while (!publishController.signal.aborted) {
-              for (const channel of KEYS) {
-                cluster
-                  .publish(channel, `${Date.now()}`)
-                  .then(() => {
-                    stats[channel].sent++;
-                  })
-                  .catch(() => {
-                    // Ignore publish errors during migrate
-                  });
-              }
-              await setTimeout(50);
-            }
-          })();
-
-          // Trigger migration during publishing
-          await faultInjectorClient.triggerAction(MIGRATE_ACTION, ACTION_OPTIONS);
-
-          // Stop publishing
-          publishController.abort();
-          await publishPromise;
-
-          for (const channel of KEYS) {
-            assert.ok(
-              stats[channel].received <= stats[channel].sent,
-              `Channel ${channel}: received (${stats[channel].received}) should be <= sent (${stats[channel].sent}) during migrate`
-            );
-          }
-
-          // Wait for cluster to stabilize
-          await setTimeout(1000);
-
-          // Reset stats for after-migration verification
-          for (const channel of KEYS) {
-            stats[channel] = { sent: 0, received: 0 };
-          }
-
-          // Publish messages after migration - all should be received
-          for (const channel of KEYS) {
-            for (let i = 0; i < 10; i++) {
-              await cluster.publish(channel, `after-${i}`);
-              stats[channel].sent++;
-            }
-          }
-
-          // Wait for messages to be received
-          await setTimeout(500);
-
-          // Verify all messages received after migration (subscription preserved)
-          for (const channel of KEYS) {
-            assert.strictEqual(
-              stats[channel].received,
-              stats[channel].sent,
-              `Channel ${channel}: all messages (${stats[channel].sent}) should be received after migrate - subscription preserved`
-            );
-          }
-          },
-          testOptions
-        );
+        // Verify all messages received after migration (subscription preserved)
+        for (const channel of KEYS) {
+          assert.strictEqual(
+            stats[channel].received,
+            stats[channel].sent,
+            `Channel ${channel}: all messages (${stats[channel].sent}) should be received after migrate - subscription preserved`
+          );
+        }
+        },
+        testOptions
+      );
     }
   });
   });
