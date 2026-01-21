@@ -77,7 +77,6 @@ export class NoopResiliencyMetrics {
     _internal: boolean,
     _clientAttributes?: OTelClientAttributes,
     _retryAttempts?: number,
-    _statusCode?: string
   ) {}
   recordMaintenanceNotifications(
     _notification: string,

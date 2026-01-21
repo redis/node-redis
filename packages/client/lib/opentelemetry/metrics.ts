@@ -29,12 +29,7 @@ import {
   IOTelStreamMetrics,
 } from "./types";
 import { createNoopMeter } from "./noop-meter";
-import {
-  categorizeError,
-  extractRedisStatusCode,
-  noopFunction,
-  parseClientAttributes,
-} from "./utils";
+import { getErrorInfo, noopFunction, parseClientAttributes } from "./utils";
 import {
   NoopClientSideCacheMetrics,
   NoopCommandMetrics,
@@ -98,7 +93,8 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
     const startTime = performance.now();
 
     return (error?: Error) => {
-      const statusCode = error ? extractRedisStatusCode(error) : undefined;
+      const errorInfo = error ? getErrorInfo(error) : undefined;
+
       this.#instruments.dbClientOperationDuration.record(
         (performance.now() - startTime) / 1000,
         {
@@ -107,15 +103,17 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
           [OTEL_ATTRIBUTES.dbNamespace]: clientAttributes?.db,
           [OTEL_ATTRIBUTES.serverAddress]: clientAttributes?.host,
           [OTEL_ATTRIBUTES.serverPort]: clientAttributes?.port,
-          ...(error
+          ...(errorInfo
             ? {
-                [OTEL_ATTRIBUTES.errorType]: error.constructor.name,
-                [OTEL_ATTRIBUTES.redisClientErrorsCategory]:
-                  categorizeError(error),
+                [OTEL_ATTRIBUTES.errorType]: errorInfo.errorType,
+                [OTEL_ATTRIBUTES.redisClientErrorsCategory]: errorInfo.category,
+                ...(errorInfo?.statusCode
+                  ? {
+                      [OTEL_ATTRIBUTES.dbResponseStatusCode]:
+                        errorInfo.statusCode,
+                    }
+                  : {}),
               }
-            : {}),
-          ...(statusCode
-            ? { [OTEL_ATTRIBUTES.dbResponseStatusCode]: statusCode }
             : {}),
         },
       );
@@ -130,7 +128,7 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
     const startTime = performance.now();
 
     return (error?: Error) => {
-      const statusCode = error ? extractRedisStatusCode(error) : undefined;
+      const errorInfo = error ? getErrorInfo(error) : undefined;
       this.#instruments.dbClientOperationDuration.record(
         (performance.now() - startTime) / 1000,
         {
@@ -140,15 +138,14 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
           [OTEL_ATTRIBUTES.dbNamespace]: clientAttributes?.db,
           [OTEL_ATTRIBUTES.serverAddress]: clientAttributes?.host,
           [OTEL_ATTRIBUTES.serverPort]: clientAttributes?.port,
-          ...(error
+          ...(errorInfo
             ? {
-                [OTEL_ATTRIBUTES.errorType]: error.constructor.name,
-                [OTEL_ATTRIBUTES.redisClientErrorsCategory]:
-                  categorizeError(error),
+                [OTEL_ATTRIBUTES.errorType]: errorInfo.errorType,
+                [OTEL_ATTRIBUTES.redisClientErrorsCategory]: errorInfo.category,
               }
             : {}),
-          ...(statusCode
-            ? { [OTEL_ATTRIBUTES.dbResponseStatusCode]: statusCode }
+          ...(errorInfo?.statusCode
+            ? { [OTEL_ATTRIBUTES.dbResponseStatusCode]: errorInfo.statusCode }
             : {}),
         },
       );
@@ -304,19 +301,19 @@ class OTelResiliencyMetrics implements IOTelResiliencyMetrics {
     internal: boolean,
     clientAttributes?: OTelClientAttributes,
     retryAttempts?: number,
-    statusCode?: string,
   ) {
+    const errorInfo = getErrorInfo(error);
     this.#instruments.redisClientErrors.add(1, {
       ...this.#options.attributes,
       ...parseClientAttributes(clientAttributes),
-      [OTEL_ATTRIBUTES.errorType]: error.constructor.name,
-      [OTEL_ATTRIBUTES.redisClientErrorsCategory]: categorizeError(error),
+      [OTEL_ATTRIBUTES.errorType]: errorInfo.errorType,
+      [OTEL_ATTRIBUTES.redisClientErrorsCategory]: errorInfo.category,
       [OTEL_ATTRIBUTES.redisClientErrorsInternal]: internal,
       ...(retryAttempts !== undefined && {
         [OTEL_ATTRIBUTES.redisClientOperationRetryAttempts]: retryAttempts,
       }),
-      ...(statusCode !== undefined && {
-        [OTEL_ATTRIBUTES.dbResponseStatusCode]: statusCode,
+      ...(errorInfo.statusCode !== undefined && {
+        [OTEL_ATTRIBUTES.dbResponseStatusCode]: errorInfo.statusCode,
       }),
     });
   }
