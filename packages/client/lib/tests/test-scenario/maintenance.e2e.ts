@@ -80,7 +80,6 @@ const KEYS = [
     assert(slotShuffleTriggers.length > 0, "slotShuffleTriggers should have at least one trigger");
 
     for (const trigger of slotShuffleTriggers.slice(0,1)) {
-      describe(`[${trigger.name}]`, () => {
         const dbConfig = trigger.requirements[0].dbconfig;
         const testOptions = {
           clusterConfiguration: {
@@ -94,7 +93,7 @@ const KEYS = [
         } satisfies TestOptions;
 
         testUtils.testWithRECluster(
-          `should NOT receive notifications when maintNotifications is disabled`,
+          `(${trigger.name}) should NOT receive notifications when maintNotifications is disabled`,
           async (_cluster, faultInjectorClient) => {
             assert.equal(
               diagnosticEvents.length,
@@ -121,7 +120,6 @@ const KEYS = [
           },
           testOptions
         );
-      });
     }
   });
 
@@ -131,7 +129,6 @@ const KEYS = [
 
     // Dynamically generate tests for each trigger from "remove" effect
     for (const trigger of removeTriggers) {
-      describe(`[${trigger.name}]`, () => {
         const ACTION = {
           type: "slot_migrate",
           parameters: {
@@ -154,7 +151,7 @@ const KEYS = [
         } satisfies TestOptions;
 
         testUtils.testWithRECluster(
-          `normal - should handle migration`,
+          `(${trigger.name}) normal - should handle migration`,
         async (cluster, faultInjectorClient) => {
           const initialMasterAddresses = new Set(
             cluster.masters.map((m) => m.address)
@@ -219,7 +216,7 @@ const KEYS = [
         );
 
         testUtils.testWithRECluster(
-          `sharded pubsub - should handle migration`,
+          `(${trigger.name}) sharded pubsub - should handle migration`,
           async (cluster, faultInjectorClient) => {
           const stats: Record<string, { sent: number; received: number }> = {};
           for (const channel of KEYS) {
@@ -296,7 +293,7 @@ const KEYS = [
         );
 
         testUtils.testWithRECluster(
-          `pubsub - should handle migration`,
+          `(${trigger.name}) pubsub - should handle migration`,
           async (cluster, faultInjectorClient) => {
           const stats: Record<string, { sent: number; received: number }> = {};
           for (const channel of KEYS) {
@@ -371,7 +368,6 @@ const KEYS = [
           },
           testOptions
         );
-      });
     }
   });
 
@@ -383,7 +379,6 @@ const KEYS = [
 
     // Dynamically generate tests for each trigger from "add" effect
     for (const trigger of addTriggers) {
-      describe(`[${trigger.name}]`, () => {
         const MIGRATE_ACTION = {
           type: "migrate",
           parameters: {
@@ -408,7 +403,7 @@ const KEYS = [
         } satisfies TestOptions;
 
         testUtils.testWithRECluster(
-          `normal - should handle migration`,
+          `(${trigger.name}) normal - should handle migration`,
         async (cluster, faultInjectorClient) => {
           const initialMasterAddresses = new Set(
             cluster.masters.map((m) => m.address)
@@ -480,7 +475,7 @@ const KEYS = [
         );
 
         testUtils.testWithRECluster(
-          `sharded pubsub - should handle migration`,
+          `(${trigger.name}) sharded pubsub - should handle migration`,
           async (cluster, faultInjectorClient) => {
           const stats: Record<string, { sent: number; received: number }> = {};
           for (const channel of KEYS) {
@@ -557,7 +552,7 @@ const KEYS = [
         );
 
         testUtils.testWithRECluster(
-          `pubsub - should handle migration`,
+          `(${trigger.name}) pubsub - should handle migration`,
           async (cluster, faultInjectorClient) => {
           const stats: Record<string, { sent: number; received: number }> = {};
           for (const channel of KEYS) {
@@ -632,7 +627,6 @@ const KEYS = [
           },
           testOptions
         );
-      });
     }
   });
 
@@ -643,7 +637,6 @@ const KEYS = [
 
     // Dynamically generate tests for each trigger from "add-remove" effect
     for (const trigger of addRemoveTriggers) {
-      describe(`[${trigger.name}]`, () => {
         const MIGRATE_ACTION = {
           type: "migrate",
           parameters: {
@@ -668,7 +661,7 @@ const KEYS = [
         } satisfies TestOptions;
 
         testUtils.testWithRECluster(
-          `normal - should handle migration`,
+          `(${trigger.name}) normal - should handle migration`,
         async (cluster, faultInjectorClient) => {
           const initialMasterAddresses = new Set(
             cluster.masters.map((m) => m.address)
@@ -737,7 +730,7 @@ const KEYS = [
         );
 
         testUtils.testWithRECluster(
-          `sharded pubsub - should handle migration`,
+          `(${trigger.name}) sharded pubsub - should handle migration`,
           async (cluster, faultInjectorClient) => {
           const stats: Record<string, { sent: number; received: number }> = {};
           for (const channel of KEYS) {
@@ -814,7 +807,7 @@ const KEYS = [
         );
 
         testUtils.testWithRECluster(
-          `pubsub - should handle migration`,
+          `(${trigger.name}) pubsub - should handle migration`,
           async (cluster, faultInjectorClient) => {
           const stats: Record<string, { sent: number; received: number }> = {};
           for (const channel of KEYS) {
@@ -889,7 +882,6 @@ const KEYS = [
           },
           testOptions
         );
-      });
     }
   });
 
@@ -901,7 +893,6 @@ const KEYS = [
 
     // Dynamically generate tests for each trigger from "slot-shuffle" effect
     for (const trigger of slotShuffleTriggers) {
-      describe(`[${trigger.name}]`, () => {
         const MIGRATE_ACTION = {
           type: "migrate",
           parameters: {
@@ -926,7 +917,7 @@ const KEYS = [
         } satisfies TestOptions;
 
         testUtils.testWithRECluster(
-          `normal - should handle migration`,
+          `(${trigger.name}) normal - should handle migration`,
         async (cluster, faultInjectorClient) => {
           const initialMasterAddresses = new Set(
             cluster.masters.map((m) => m.address)
@@ -998,7 +989,7 @@ const KEYS = [
         );
 
         testUtils.testWithRECluster(
-          `sharded pubsub - should handle migration`,
+          `(${trigger.name}) sharded pubsub - should handle migration`,
           async (cluster, faultInjectorClient) => {
           const stats: Record<string, { sent: number; received: number }> = {};
           for (const channel of KEYS) {
@@ -1075,7 +1066,7 @@ const KEYS = [
         );
 
         testUtils.testWithRECluster(
-          `pubsub - should handle migration`,
+          `(${trigger.name}) pubsub - should handle migration`,
           async (cluster, faultInjectorClient) => {
           const stats: Record<string, { sent: number; received: number }> = {};
           for (const channel of KEYS) {
@@ -1150,7 +1141,6 @@ const KEYS = [
           },
           testOptions
         );
-      });
     }
   });
   });

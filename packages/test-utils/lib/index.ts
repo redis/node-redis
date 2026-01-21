@@ -706,73 +706,74 @@ export default class TestUtils {
     ) => unknown,
     options: REClusterTestOptions<M, F, S, RESP, TYPE_MAPPING>
   ) {
+    describe(title, function () {
+      let faultInjectorClient: FaultInjectorClient;
+      let dbConfig: DatabaseConfig;
 
-    let faultInjectorClient: FaultInjectorClient;
-    let dbConfig: DatabaseConfig;
+      before(async function () {
+        this.timeout(options.testTimeout ?? 300000);
 
-    before(async function () {
-      this.timeout(options.testTimeout ?? 300000);
+        const baseUrl = process.env.RE_FAULT_INJECTOR_URL;
 
-      const baseUrl = process.env.RE_FAULT_INJECTOR_URL;
+        if (!baseUrl) {
+          throw new Error("RE_FAULT_INJECTOR_URL environment variable must be set");
+        }
 
-      if (!baseUrl) {
-        throw new Error("RE_FAULT_INJECTOR_URL environment variable must be set");
-      }
+        faultInjectorClient = new FaultInjectorClient(baseUrl);
 
-      faultInjectorClient = new FaultInjectorClient(baseUrl);
+        await faultInjectorClient.deleteAllDatabases(0);
 
-      await faultInjectorClient.deleteAllDatabases(0);
+        const db = options.dbConfig ||
+          getCreateDatabaseConfig(
+            CreateDatabaseConfigType.CLUSTER,
+            options.dbName ?? `test-db-${Date.now()}`
+          );
 
-      const db = options.dbConfig ||
-        getCreateDatabaseConfig(
-          CreateDatabaseConfigType.CLUSTER,
-          options.dbName ?? `test-db-${Date.now()}`
-        );
+        console.log('opts.dbConfig', options.dbConfig);
 
-      console.log('opts.dbConfig', options.dbConfig);
-
-      dbConfig = await faultInjectorClient.createAndSelectDatabase(db, 0);
-    });
-
-    after(async function () {
-      this.timeout(options.testTimeout ?? 300000);
-
-      await faultInjectorClient.deleteAllDatabases(0);
-    });
-
-    it(title, async function () {
-      if (options.skipTest) return this.skip();
-      if (options.testTimeout) {
-        this.timeout(options.testTimeout);
-      }
-
-      const { defaults, ...rest } = options.clusterConfiguration ?? {};
-
-      const cluster = createCluster({
-        rootNodes: [
-          {
-            socket: {
-              host: dbConfig.host,
-              port: dbConfig.port,
-            },
-          },
-        ],
-        defaults: {
-          password: dbConfig.password,
-          username: dbConfig.username,
-          ...defaults,
-        },
-        ...rest,
+        dbConfig = await faultInjectorClient.createAndSelectDatabase(db, 0);
       });
 
-      await cluster.connect();
+      after(async function () {
+        this.timeout(options.testTimeout ?? 300000);
 
-      try {
-        await TestUtils.#clusterFlushAll(cluster);
-        await fn(cluster, faultInjectorClient);
-      } finally {
-        cluster.destroy();
-      }
+        await faultInjectorClient.deleteAllDatabases(0);
+      });
+
+      it('executes', async function () {
+        if (options.skipTest) return this.skip();
+        if (options.testTimeout) {
+          this.timeout(options.testTimeout);
+        }
+
+        const { defaults, ...rest } = options.clusterConfiguration ?? {};
+
+        const cluster = createCluster({
+          rootNodes: [
+            {
+              socket: {
+                host: dbConfig.host,
+                port: dbConfig.port,
+              },
+            },
+          ],
+          defaults: {
+            password: dbConfig.password,
+            username: dbConfig.username,
+            ...defaults,
+          },
+          ...rest,
+        });
+
+        await cluster.connect();
+
+        try {
+          await TestUtils.#clusterFlushAll(cluster);
+          await fn(cluster, faultInjectorClient);
+        } finally {
+          cluster.destroy();
+        }
+      });
     });
   }
 
