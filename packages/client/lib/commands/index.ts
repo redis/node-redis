@@ -163,6 +163,10 @@ import HSETNX from './HSETNX';
 import HSTRLEN from './HSTRLEN';
 import HTTL from './HTTL';
 import HVALS from './HVALS';
+import HOTKEYS_GET from './HOTKEYS_GET';
+import HOTKEYS_RESET from './HOTKEYS_RESET';
+import HOTKEYS_START from './HOTKEYS_START';
+import HOTKEYS_STOP from './HOTKEYS_STOP';
 import INCR from './INCR';
 import INCRBY from './INCRBY';
 import INCRBYFLOAT from './INCRBYFLOAT';
@@ -706,6 +710,14 @@ export default {
   hTTL: HTTL,
   HVALS,
   hVals: HVALS,
+  HOTKEYS_GET,
+  hotkeysGet: HOTKEYS_GET,
+  HOTKEYS_RESET,
+  hotkeysReset: HOTKEYS_RESET,
+  HOTKEYS_START,
+  hotkeysStart: HOTKEYS_START,
+  HOTKEYS_STOP,
+  hotkeysStop: HOTKEYS_STOP,
   INCR,
   incr: INCR,
   INCRBY,
