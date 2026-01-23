@@ -107,19 +107,6 @@ interface TlsClientTestOptions<
   tls?: TlsConfig;
 }
 
-interface TlsTestClients<
-  M extends RedisModules,
-  F extends RedisFunctions,
-  S extends RedisScripts,
-  RESP extends RespVersions,
-  TYPE_MAPPING extends TypeMapping
-> {
-  /** Client connected via TLS */
-  tlsClient: RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
-  /** Client connected via regular non-TLS connection */
-  client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
-}
-
 interface SentinelTestOptions<
   M extends RedisModules,
   F extends RedisFunctions,
