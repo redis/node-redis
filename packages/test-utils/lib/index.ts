@@ -19,7 +19,7 @@ import {
   RedisClusterType
 } from '@redis/client/index';
 import { RedisNode } from '@redis/client/lib/sentinel/types'
-import { spawnRedisServer, spawnRedisCluster, spawnRedisSentinel, RedisServerDockerOptions, RedisServerDocker, spawnSentinelNode, spawnRedisServerDocker } from './dockers';
+import { spawnRedisServer, spawnRedisCluster, spawnRedisSentinel, RedisServerDockerOptions, RedisServerDocker, spawnSentinelNode, spawnRedisServerDocker, spawnTlsRedisServer, TlsConfig } from './dockers';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 
@@ -95,6 +95,29 @@ interface ClientTestOptions<
 > extends CommonTestOptions {
   clientOptions?: Partial<RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>>;
   disableClientSetup?: boolean;
+}
+
+interface TlsClientTestOptions<
+  M extends RedisModules,
+  F extends RedisFunctions,
+  S extends RedisScripts,
+  RESP extends RespVersions,
+  TYPE_MAPPING extends TypeMapping
+> extends ClientTestOptions<M, F, S, RESP, TYPE_MAPPING> {
+  tls?: TlsConfig;
+}
+
+interface TlsTestClients<
+  M extends RedisModules,
+  F extends RedisFunctions,
+  S extends RedisScripts,
+  RESP extends RespVersions,
+  TYPE_MAPPING extends TypeMapping
+> {
+  /** Client connected via TLS */
+  tlsClient: RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
+  /** Client connected via regular non-TLS connection */
+  client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
 }
 
 interface SentinelTestOptions<
@@ -350,6 +373,75 @@ export default class TestUtils {
       }
     });
   }
+
+  /**
+   * Runs a test with both a TLS-enabled Redis client and a regular non-TLS client.
+   * Automatically spawns a TLS-enabled Redis container with both TLS and non-TLS ports,
+   * extracts certificates, and configures both clients.
+   */
+  testWithTlsClient<
+    M extends RedisModules = {},
+    F extends RedisFunctions = {},
+    S extends RedisScripts = {},
+    RESP extends RespVersions = 2,
+    TYPE_MAPPING extends TypeMapping = {},
+  >(
+    title: string,
+    fn: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>) => unknown,
+    options: TlsClientTestOptions<M, F, S, RESP, TYPE_MAPPING>,
+  ): void {
+    let dockerPromise: ReturnType<typeof spawnTlsRedisServer>;
+    if (this.isVersionGreaterThan(options.minimumDockerVersion)) {
+      const dockerImage = this.#DOCKER_IMAGE;
+      before(function () {
+        this.timeout(60000); // TLS setup takes longer
+
+        dockerPromise = spawnTlsRedisServer(
+          dockerImage,
+          options.serverArguments,
+          options.tls,
+        );
+        return dockerPromise;
+      });
+    }
+
+    it(title, async function () {
+      if (options.skipTest) return this.skip();
+      if (!dockerPromise) return this.skip();
+
+      const docker = await dockerPromise;
+
+      // Create TLS client
+      const client = createClient({
+        ...options.clientOptions,
+        socket: {
+          ...options.clientOptions?.socket,
+          port: docker.tlsPort,
+          tls: true,
+          ca: docker.certs.ca,
+          cert: docker.certs.cert,
+          key: docker.certs.key,
+        },
+      });
+
+      if (options.disableClientSetup) {
+        return fn(client);
+      }
+
+      await client.connect();
+
+      try {
+        await client.flushAll();
+        await fn(client);
+      } finally {
+        if (client.isOpen) {
+          await client.flushAll();
+          client.destroy();
+        }
+      }
+    });
+  }
+
   testWithProxiedClient(
     title: string,
     fn: (proxiedClient: RedisClientType<any, any, any, any, any>, proxy: RedisProxy) => unknown,
