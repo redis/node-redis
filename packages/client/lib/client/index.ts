@@ -1043,10 +1043,13 @@ export default class RedisClient<
     } else {
       const reply = await fn();
 
-      if (transformReply) {
-        return transformReply(reply, parser.preserve, commandOptions?.typeMapping);
+      const finalReply = transformReply ? transformReply(reply, parser.preserve, commandOptions?.typeMapping) : reply;
+
+      if (command.onSuccess) {
+        command.onSuccess(parser.redisArgs, finalReply, this._getClientOTelAttributes());
       }
-      return reply;
+
+      return finalReply;
     }
   }
 

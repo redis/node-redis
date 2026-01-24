@@ -1,4 +1,5 @@
 import { RedisArgument } from "../..";
+import { ReplyUnion } from "../RESP/types";
 import {
   ConnectionCloseReason,
   CscEvictionReason,
@@ -7,10 +8,15 @@ import {
   IOTelMetrics,
   IOTelPubSubMetrics,
   IOTelStreamMetrics,
+  IOTelClientSideCacheMetrics,
+  IOTelResiliencyMetrics,
+  IOTelConnectionAdvancedMetrics,
+  IOTelCommandMetrics,
+  IOTelConnectionBasicMetrics,
 } from "./types";
 import { noopFunction } from "./utils";
 
-export class NoopCommandMetrics {
+export class NoopCommandMetrics implements IOTelCommandMetrics {
   createRecordOperationDuration(
     _args: ReadonlyArray<RedisArgument>,
     _clientAttributes?: OTelClientAttributes
@@ -27,7 +33,7 @@ export class NoopCommandMetrics {
   }
 }
 
-export class NoopConnectionBasicMetrics {
+export class NoopConnectionBasicMetrics implements IOTelConnectionBasicMetrics {
   recordConnectionCount(
     _value: number,
     _clientAttributes?: OTelClientAttributes
@@ -47,7 +53,7 @@ export class NoopConnectionBasicMetrics {
   recordConnectionHandoff(_clientAttributes: OTelClientAttributes) {}
 }
 
-export class NoopConnectionAdvancedMetrics {
+export class NoopConnectionAdvancedMetrics implements IOTelConnectionAdvancedMetrics {
   recordPendingRequests(
     _value: number,
     _clientAttributes?: OTelClientAttributes
@@ -71,7 +77,7 @@ export class NoopConnectionAdvancedMetrics {
   }
 }
 
-export class NoopResiliencyMetrics {
+export class NoopResiliencyMetrics implements IOTelResiliencyMetrics {
   recordClientErrors(
     _error: Error,
     _internal: boolean,
@@ -84,7 +90,7 @@ export class NoopResiliencyMetrics {
   ) {}
 }
 
-export class NoopClientSideCacheMetrics {
+export class NoopClientSideCacheMetrics implements IOTelClientSideCacheMetrics {
   recordCacheRequest(
     _result: CscResult,
     _clientAttributes?: OTelClientAttributes
@@ -110,7 +116,7 @@ export class NoopClientSideCacheMetrics {
 export class NoopPubSubMetrics implements IOTelPubSubMetrics {
   recordPubSubMessage(
     _direction: 'in' | 'out',
-    _channel?: string,
+    _channel?: RedisArgument,
     _sharded?: boolean,
     _clientAttributes?: OTelClientAttributes
   ) {}
@@ -118,8 +124,8 @@ export class NoopPubSubMetrics implements IOTelPubSubMetrics {
 
 export class NoopStreamMetrics implements IOTelStreamMetrics {
   recordStreamLag(
-    _stream: string,
-    _lagSec: number,
+    _args: ReadonlyArray<RedisArgument>,
+    _reply: ReplyUnion,
     _clientAttributes?: OTelClientAttributes
   ) {}
 }
