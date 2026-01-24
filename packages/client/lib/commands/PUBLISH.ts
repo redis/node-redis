@@ -1,4 +1,5 @@
 import { CommandParser } from '../client/parser';
+import { OTelMetrics } from '../opentelemetry';
 import { RedisArgument, NumberReply, Command } from '../RESP/types';
 
 export default {
@@ -16,5 +17,13 @@ export default {
   parseCommand(parser: CommandParser, channel: RedisArgument, message: RedisArgument) {
     parser.push('PUBLISH', channel, message);
   },
-  transformReply: undefined as unknown as () => NumberReply
+  transformReply: undefined as unknown as () => NumberReply,
+  onSuccess: (args, _reply, clientAttrs) => {
+    OTelMetrics.instance.pubSubMetrics.recordPubSubMessage(
+      "out",
+      args[1],
+      false,
+      clientAttrs,
+    );
+  },
 } as const satisfies Command;
