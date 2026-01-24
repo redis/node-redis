@@ -1,7 +1,5 @@
 import { Meter } from "@opentelemetry/api";
 import { RedisArgument } from "../RESP/types";
-import { Tail } from "../commands/generic-transformers";
-import XADD, { parseXAddArguments } from "../commands/XADD";
 import {
   ConnectionCloseReason,
   CscEvictionReason,
@@ -40,8 +38,6 @@ import {
   NoopResiliencyMetrics,
   NoopStreamMetrics,
 } from "./noop-metrics";
-import SPUBLISH from "../commands/SPUBLISH";
-import PUBLISH from "../commands/PUBLISH";
 
 class OTelCommandMetrics implements IOTelCommandMetrics {
   readonly #instruments: MetricInstruments;
@@ -394,7 +390,7 @@ class OTelPubSubMetrics implements IOTelPubSubMetrics {
 
   public recordPubSubMessage(
     direction: "in" | "out",
-    channel?: string,
+    channel?: RedisArgument,
     sharded?: boolean,
     clientAttributes?: OTelClientAttributes,
   ) {
@@ -403,7 +399,7 @@ class OTelPubSubMetrics implements IOTelPubSubMetrics {
       ...parseClientAttributes(clientAttributes),
       [OTEL_ATTRIBUTES.redisClientPubSubMessageDirection]: direction,
       ...(channel !== undefined && !this.#options.hidePubSubChannelNames
-        ? { [OTEL_ATTRIBUTES.redisClientPubSubChannel]: channel }
+        ? { [OTEL_ATTRIBUTES.redisClientPubSubChannel]: channel.toString() }
         : {}),
       ...(sharded !== undefined
         ? { [OTEL_ATTRIBUTES.redisClientPubSubSharded]: sharded }
@@ -422,17 +418,71 @@ class OTelStreamMetrics implements IOTelStreamMetrics {
   }
 
   public recordStreamLag(
-    stream: string,
-    lagSec: number,
+    args: ReadonlyArray<RedisArgument>,
+    reply: unknown,
     clientAttributes?: OTelClientAttributes,
   ) {
-    this.#instruments.redisClientStreamLag.record(lagSec, {
-      ...this.#options.attributes,
-      ...parseClientAttributes(clientAttributes),
-      ...(!this.#options.hideStreamNames
-        ? { [OTEL_ATTRIBUTES.redisClientStreamName]: stream }
-        : {}),
-    });
+    if (!reply || !Array.isArray(reply) || reply.length === 0) {
+      return;
+    }
+
+    const now = Date.now();
+
+    // Extract consumer group and consumer name from XREADGROUP args
+    // XREADGROUP args format: ['XREADGROUP', 'GROUP', group, consumer, ...]
+    const isXReadGroup =
+      args[0]?.toString().toUpperCase() === "XREADGROUP" &&
+      args[1]?.toString().toUpperCase() === "GROUP";
+    const consumerGroup = isXReadGroup ? args[2]?.toString() : undefined;
+    const consumerName = isXReadGroup ? args[3]?.toString() : undefined;
+
+    for (const streamData of reply) {
+      if (!streamData || typeof streamData !== "object") {
+        continue;
+      }
+
+      const { name: stream, messages } = streamData as {
+        name: string;
+        messages: Array<{ id: string; message: unknown }>;
+      };
+
+      if (!messages || !Array.isArray(messages) || messages.length === 0) {
+        continue;
+      }
+
+      // Build common attributes for this stream
+      const streamAttributes = {
+        ...this.#options.attributes,
+        ...parseClientAttributes(clientAttributes),
+        ...(!this.#options.hideStreamNames
+          ? { [OTEL_ATTRIBUTES.redisClientStreamName]: stream }
+          : {}),
+        ...(consumerGroup !== undefined
+          ? { [OTEL_ATTRIBUTES.redisClientConsumerGroup]: consumerGroup }
+          : {}),
+        ...(consumerName !== undefined
+          ? { [OTEL_ATTRIBUTES.redisClientConsumerName]: consumerName }
+          : {}),
+      };
+
+      // Record lag for each message
+      for (const message of messages) {
+        if (!message?.id) {
+          continue;
+        }
+
+        const [tsPart] = message.id.split("-");
+        const messageTimestamp = Number.parseInt(tsPart, 10);
+
+        if (!Number.isFinite(messageTimestamp)) {
+          continue;
+        }
+
+        const lagSec = (now - messageTimestamp) / 1000;
+
+        this.#instruments.redisClientStreamLag.record(lagSec, streamAttributes);
+      }
+    }
   }
 }
 
@@ -574,89 +624,6 @@ export class OTelMetrics implements IOTelMetrics {
     return OTelMetrics.#instance;
   }
 
-  /**
-   * Wraps a command function with metrics recording if the command needs special metrics.
-   * This is evaluated once at command creation time (factory-time), not on every command execution.
-   * If the relevant metric group is not enabled, returns the original function unchanged.
-   *
-   * @param commandName - The Redis command name (e.g., 'PUBLISH', 'SPUBLISH', 'XADD')
-   * @param fn - The original command function
-   * @returns The wrapped function with metrics, or the original function if no metrics apply
-   */
-  static wrapWithMetrics(commandName: string, fn: Function) {
-    switch (commandName.toUpperCase()) {
-      case "PUBLISH":
-        return async function (
-          this: any,
-          ...args: Tail<Parameters<(typeof PUBLISH)["parseCommand"]>>
-        ) {
-          const result = (await fn.call(this, ...args)) as ReturnType<
-            (typeof PUBLISH)["transformReply"]
-          >;
-          try {
-            const client = this._self ?? this;
-            OTelMetrics.instance.pubSubMetrics.recordPubSubMessage(
-              "out",
-              args[0]?.toString(),
-              false,
-              client._getClientOTelAttributes(),
-            );
-          } catch (error) {
-            // noop
-          }
-          return result;
-        };
-      case "SPUBLISH":
-        return async function (
-          this: any,
-          ...args: Tail<Parameters<(typeof SPUBLISH)["parseCommand"]>>
-        ) {
-          const result = (await fn.call(this, ...args)) as ReturnType<
-            (typeof SPUBLISH)["transformReply"]
-          >;
-          try {
-            const client = this._self ?? this;
-            OTelMetrics.instance.pubSubMetrics.recordPubSubMessage(
-              "out",
-              args[0]?.toString(),
-              true,
-              client._getClientOTelAttributes(),
-            );
-          } catch (error) {
-            // noop
-          }
-          return result;
-        };
-      case "XADD":
-        // TODO check if we need to add XADD_NOMKSTREAM
-        return async function (
-          this: any,
-          ...args: Tail<Tail<Parameters<typeof parseXAddArguments>>>
-        ) {
-          const result = (await fn.call(this, ...args)) as ReturnType<
-            (typeof XADD)["transformReply"]
-          >;
-          const rawId = result.toString();
-          const [tsPart] = rawId.split("-");
-          const messageTimestamp = Number.parseInt(tsPart, 10);
-
-          if (Number.isFinite(messageTimestamp)) {
-            const lagSeconds = (Date.now() - messageTimestamp) / 1000;
-            const client = this._self ?? this;
-            OTelMetrics.instance.streamMetrics.recordStreamLag(
-              args[0]?.toString(),
-              lagSeconds,
-              client._getClientOTelAttributes(),
-            );
-          }
-          return result;
-        };
-      default:
-        // TODO check if we need to wrap other commands instead of recording in sendCommand
-        return fn;
-    }
-  }
-
   private getMeter(
     api: typeof import("@opentelemetry/api") | undefined,
     options: MetricOptions,
@@ -725,7 +692,7 @@ export class OTelMetrics implements IOTelMetrics {
     };
   }
 
-  private createHistorgram(
+  private createHistogram(
     meter: Meter,
     enabledMetricGroups: MetricGroup[],
     instrumentConfig: HistogramInstrumentConfig,
@@ -795,7 +762,7 @@ export class OTelMetrics implements IOTelMetrics {
   ): MetricInstruments {
     return {
       // Command
-      dbClientOperationDuration: this.createHistorgram(
+      dbClientOperationDuration: this.createHistogram(
         meter,
         options.enabledMetricGroups,
         {
@@ -822,7 +789,7 @@ export class OTelMetrics implements IOTelMetrics {
           metricGroup: METRIC_GROUP.CONNECTION_BASIC,
         },
       ),
-      dbClientConnectionCreateTime: this.createHistorgram(
+      dbClientConnectionCreateTime: this.createHistogram(
         meter,
         options.enabledMetricGroups,
         {
@@ -857,7 +824,7 @@ export class OTelMetrics implements IOTelMetrics {
         },
       ),
       // Advanced connection
-      dbClientConnectionWaitTime: this.createHistorgram(
+      dbClientConnectionWaitTime: this.createHistogram(
         meter,
         options.enabledMetricGroups,
         {
@@ -869,7 +836,7 @@ export class OTelMetrics implements IOTelMetrics {
           histogramBoundaries: options.bucketsConnectionWaitTime,
         },
       ),
-      dbClientConnectionUseTime: this.createHistorgram(
+      dbClientConnectionUseTime: this.createHistogram(
         meter,
         options.enabledMetricGroups,
         {
@@ -939,7 +906,7 @@ export class OTelMetrics implements IOTelMetrics {
         },
       ),
       // Streams
-      redisClientStreamLag: this.createHistorgram(
+      redisClientStreamLag: this.createHistogram(
         meter,
         options.enabledMetricGroups,
         {
