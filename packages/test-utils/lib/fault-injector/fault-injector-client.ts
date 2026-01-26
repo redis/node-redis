@@ -23,7 +23,13 @@ export class FaultInjectorClient implements IFaultInjectorClient {
 
   async listActionTriggers(actionName: string, effect: string): Promise<ActionTrigger[]> {
     const res = await this.#request<ListActionTriggersResponse>("GET", `/${actionName}?effect=${effect}`);
-    console.log(res);
+    console.log({
+      ...res,
+      triggers: res.triggers.map(trigger => ({
+        ...trigger,
+        requirements: JSON.stringify(trigger.requirements)
+      }))
+    });
     return res.triggers;
   }
 
@@ -46,22 +52,25 @@ export class FaultInjectorClient implements IFaultInjectorClient {
    * @throws {Error} When the HTTP request fails or response cannot be parsed as JSON
    */
   public async triggerAction<T extends { action_id: string }>(
-    action: ActionRequest,
+    action: Readonly<ActionRequest>,
     options?: {
       timeoutMs?: number;
       maxWaitTimeMs?: number;
     }
   ): Promise<ActionStatus> {
-    if (action.parameters !== undefined && action.parameters.bdb_id === undefined) {
+    // Create a deep copy to avoid mutating the original action object
+    const actionCopy: ActionRequest = JSON.parse(JSON.stringify(action));
+
+    if (actionCopy.parameters !== undefined && actionCopy.parameters.bdb_id === undefined) {
       const resolvedBdbId = this.#resolveBdbId();
       if (resolvedBdbId !== undefined) {
         console.log('[FI] bdb_id was not provided. setting selected bdb_id');
-        action.parameters.bdb_id = String(resolvedBdbId);
+        actionCopy.parameters.bdb_id = String(resolvedBdbId);
       }
     }
-    const params = action.parameters ? JSON.stringify(action.parameters) : '';
-    console.log('[FI] triggerAction:', action.type, params);
-    const { action_id } = await this.#request<T>("POST", "/action", action);
+    const params = actionCopy.parameters ? JSON.stringify(actionCopy.parameters) : '';
+    console.log('[FI] triggerAction:', actionCopy.type, params);
+    const { action_id } = await this.#request<T>("POST", "/action", actionCopy);
     console.log('[FI] action_id:', action_id);
 
     return this.waitForAction(action_id, options);

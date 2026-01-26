@@ -76,7 +76,7 @@ export interface TriggerActionOptions {
 }
 
 export interface IFaultInjectorClient {
-  triggerAction(action: ActionRequest, options?: TriggerActionOptions): Promise<ActionStatus>;
+  triggerAction(action: Readonly<ActionRequest>, options?: TriggerActionOptions): Promise<ActionStatus>;
   listActionTriggers(actionName: string, effect: string): Promise<ActionTrigger[]>;
 }
 

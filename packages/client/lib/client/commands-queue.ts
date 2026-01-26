@@ -146,6 +146,10 @@ export default class RedisCommandsQueue {
   }
 
   #onPush(push: Array<any>) {
+    const first = String(push[0])
+    if (first !== 'message' && first !== 'smessage' && first !== 'subscribe' && first !== 'ssubscribe') {
+      console.log('[QUEUE-PUSH]', push.map(String));
+    }
     // TODO: type
     if (this.#pubSub.handleMessageReply(push)) return true;
 

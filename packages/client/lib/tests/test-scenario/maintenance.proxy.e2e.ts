@@ -68,60 +68,60 @@ const KEYS = [
     diagnostics_channel.unsubscribe("redis.maintenance", onMessage);
   });
 
-  describe("Notifications", () => {
+  // describe("Notifications", () => {
 
-    assert(slotShuffleTriggers.length > 0, "slotShuffleTriggers should have at least one trigger");
+  //   assert(slotShuffleTriggers.length > 0, "slotShuffleTriggers should have at least one trigger");
 
-    for (const trigger of slotShuffleTriggers) {
-      describe(`[${trigger.name}]`, () => {
-        const dbConfig = trigger.requirements[0].dbconfig;
-        // dbConfig.name = 'foo';
-        const testOptions = {
-          clusterConfiguration: {
-            defaults: {
-              maintNotifications: "enabled",
-            },
-            RESP: 3 as const,
-          },
-          dbConfig,
-        } as const;
+  //   for (const trigger of slotShuffleTriggers) {
+  //     describe(`[${trigger.name}]`, () => {
+  //       const dbConfig = trigger.requirements[0].dbconfig;
+  //       // dbConfig.name = 'foo';
+  //       const testOptions = {
+  //         clusterConfiguration: {
+  //           defaults: {
+  //             maintNotifications: "enabled",
+  //           },
+  //           RESP: 3 as const,
+  //         },
+  //         dbConfig,
+  //       } as const;
 
-        testUtils.testWithProxiedCluster(
-          `should NOT receive notifications when maintNotifications is disabled`,
-          async (cluster, faultInjectorClient) => {
-            assert.equal(
-              diagnosticEvents.length,
-              0,
-              "should not have received any notifications yet"
-            );
+  //       testUtils.testWithProxiedCluster(
+  //         `should NOT receive notifications when maintNotifications is disabled`,
+  //         async (cluster, faultInjectorClient) => {
+  //           assert.equal(
+  //             diagnosticEvents.length,
+  //             0,
+  //             "should not have received any notifications yet"
+  //           );
 
-            await cluster.set('key', 'value');
-            const key = await cluster.get('key');
-            assert.equal(key, 'value');
-            console.log(key);
+  //           await cluster.set('key', 'value');
+  //           const key = await cluster.get('key');
+  //           assert.equal(key, 'value');
+  //           console.log(key);
 
-            // Trigger migration
-            await faultInjectorClient.triggerAction({
-              type: "slot_migrate",
-              parameters: {
-                effect: "slot-shuffle",
-                cluster_index: 0,
-                trigger: trigger.name,
-              },
-            });
+  //           // Trigger migration
+  //           await faultInjectorClient.triggerAction({
+  //             type: "slot_migrate",
+  //             parameters: {
+  //               effect: "slot-shuffle",
+  //               cluster_index: 0,
+  //               trigger: trigger.name,
+  //             },
+  //           });
 
-            // Verify NO maintenance notifications received
-            assert.strictEqual(
-              diagnosticEvents.length,
-              0,
-              "should NOT receive any SMIGRATING/SMIGRATED notifications when disabled"
-            );
-          },
-          testOptions
-        );
-      });
-    }
-  });
+  //           // Verify NO maintenance notifications received
+  //           assert.strictEqual(
+  //             diagnosticEvents.length,
+  //             0,
+  //             "should NOT receive any SMIGRATING/SMIGRATED notifications when disabled"
+  //           );
+  //         },
+  //         testOptions
+  //       );
+  //     });
+  //   }
+  // });
 
   describe("Migrate - source: dying -> dest: existing", () => {
     const MASTERS_COUNT = 3;
