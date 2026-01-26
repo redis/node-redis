@@ -43,5 +43,14 @@ describe('TS.GET', () => {
         value: 1
       });
     }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('with NaN value', async client => {
+      await client.ts.add('nan-key', 0, Number.NaN);
+      const reply = await client.ts.get('nan-key');
+
+      assert.ok(reply !== null);
+      assert.equal(reply.timestamp, 0);
+      assert.ok(Number.isNaN(reply.value), 'Expected value to be NaN');
+    }, { ...GLOBAL.SERVERS.OPEN, minimumDockerVersion: [8, 6] });
   });
 });

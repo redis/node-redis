@@ -10,6 +10,14 @@ export const TIME_SERIES_AGGREGATION_TYPE = {
   SUM: 'SUM',
   RANGE: 'RANGE',
   COUNT: 'COUNT',
+  /**
+  * Available since 8.6
+  */
+  COUNT_NAN: 'COUNTNAN',
+  /**
+  * Available since 8.6
+  */
+  COUNT_ALL: 'COUNTALL',
   STD_P: 'STD.P',
   STD_S: 'STD.S',
   VAR_P: 'VAR.P',

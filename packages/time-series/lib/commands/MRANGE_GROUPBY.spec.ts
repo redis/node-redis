@@ -37,6 +37,34 @@ describe('TS.MRANGE_GROUPBY', () => {
     );
   });
 
+  it('transformArguments with COUNTNAN reducer', () => {
+    assert.deepEqual(
+      parseArgs(MRANGE_GROUPBY, '-', '+', 'label=value', {
+        REDUCE: TIME_SERIES_REDUCERS.COUNTNAN,
+        label: 'label'
+      }),
+      [
+        'TS.MRANGE', '-', '+',
+        'FILTER', 'label=value',
+        'GROUPBY', 'label', 'REDUCE', 'COUNTNAN'
+      ]
+    );
+  });
+
+  it('transformArguments with COUNTALL reducer', () => {
+    assert.deepEqual(
+      parseArgs(MRANGE_GROUPBY, '-', '+', 'label=value', {
+        REDUCE: TIME_SERIES_REDUCERS.COUNTALL,
+        label: 'label'
+      }),
+      [
+        'TS.MRANGE', '-', '+',
+        'FILTER', 'label=value',
+        'GROUPBY', 'label', 'REDUCE', 'COUNTALL'
+      ]
+    );
+  });
+
   testUtils.testWithClient('client.ts.mRangeGroupBy', async client => {
     const [, reply] = await Promise.all([
       client.ts.add('key', 0, 0, {
@@ -64,4 +92,38 @@ describe('TS.MRANGE_GROUPBY', () => {
       })
     );
   }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.ts.mRangeGroupBy with COUNTNAN', async client => {
+    await client.ts.add('key-countnan', 0, Number.NaN, {
+      LABELS: { label: 'countnan' }
+    });
+
+    const reply = await client.ts.mRangeGroupBy('-', '+', 'label=countnan', {
+      REDUCE: TIME_SERIES_REDUCERS.COUNTNAN,
+      label: 'label'
+    });
+
+    assert.ok(reply['label=countnan']);
+    assert.ok(reply['label=countnan'].samples.length > 0);
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    minimumDockerVersion: [8, 6]
+  });
+
+  testUtils.testWithClient('client.ts.mRangeGroupBy with COUNTALL', async client => {
+    await client.ts.add('key-countall', 0, 1, {
+      LABELS: { label: 'countall' }
+    });
+
+    const reply = await client.ts.mRangeGroupBy('-', '+', 'label=countall', {
+      REDUCE: TIME_SERIES_REDUCERS.COUNTALL,
+      label: 'label'
+    });
+
+    assert.ok(reply['label=countall']);
+    assert.ok(reply['label=countall'].samples.length > 0);
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    minimumDockerVersion: [8, 6]
+  });
 });
