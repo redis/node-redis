@@ -95,7 +95,7 @@ describe('Version Comparison', () => {
     ];
 
     tests.forEach(([version, min, max, expected]) => {
-      const testUtils = new TestUtils({ string: version.join('.'), numbers: version }, "test")
+      const testUtils = new TestUtils({ tag: version.join('.'), numbers: version }, "test")
       assert.equal(
         testUtils.isVersionInRange(min, max),
         expected,
