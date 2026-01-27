@@ -4,7 +4,7 @@ import { isNullReply, transformTuplesReply } from './generic-transformers';
 
 /**
  * Reply structure for XINFO STREAM command containing detailed information about a stream
- * 
+ *
  * @property length - Number of entries in the stream
  * @property radix-tree-keys - Number of radix tree keys
  * @property radix-tree-nodes - Number of radix tree nodes
@@ -12,6 +12,12 @@ import { isNullReply, transformTuplesReply } from './generic-transformers';
  * @property max-deleted-entry-id - Highest message ID deleted (Redis 7.2+)
  * @property entries-added - Total number of entries added (Redis 7.2+)
  * @property recorded-first-entry-id - ID of the first recorded entry (Redis 7.2+)
+ * @property idmp-duration - The duration value configured for the stream's IDMP map (Redis 8.6+)
+ * @property idmp-maxsize - The maxsize value configured for the stream's IDMP map (Redis 8.6+)
+ * @property pids-tracked - The number of idempotent pids currently tracked in the stream (Redis 8.6+)
+ * @property iids-tracked - The number of idempotent ids currently tracked in the stream (Redis 8.6+)
+ * @property iids-added - The count of all entries with an idempotent iid added to the stream (Redis 8.6+)
+ * @property iids-duplicates - The count of all duplicate iids detected during the stream's lifetime (Redis 8.6+)
  * @property groups - Number of consumer groups
  * @property first-entry - First entry in the stream
  * @property last-entry - Last entry in the stream
@@ -27,6 +33,18 @@ export type XInfoStreamReply = TuplesToMapReply<[
   [BlobStringReply<'entries-added'>, NumberReply],
   /** added in 7.2 */
   [BlobStringReply<'recorded-first-entry-id'>, BlobStringReply],
+  /** added in 8.6 */
+  [BlobStringReply<'idmp-duration'>, NumberReply],
+  /** added in 8.6 */
+  [BlobStringReply<'idmp-maxsize'>, NumberReply],
+  /** added in 8.6 */
+  [BlobStringReply<'pids-tracked'>, NumberReply],
+  /** added in 8.6 */
+  [BlobStringReply<'iids-tracked'>, NumberReply],
+  /** added in 8.6 */
+  [BlobStringReply<'iids-added'>, NumberReply],
+  /** added in 8.6 */
+  [BlobStringReply<'iids-duplicates'>, NumberReply],
   [BlobStringReply<'groups'>, NumberReply],
   [BlobStringReply<'first-entry'>, ReturnType<typeof transformEntry>],
   [BlobStringReply<'last-entry'>, ReturnType<typeof transformEntry>]
@@ -77,8 +95,13 @@ export default {
           transformEntry(reply.get('last-entry'))
         );
       } else if (reply instanceof Array) {
-        reply[17] = transformEntry(reply[17]);
-        reply[19] = transformEntry(reply[19]);
+        // Find entries by key name to handle different Redis versions
+        // (8.6+ has additional idempotency fields that shift the indices)
+        for (let i = 0; i < reply.length; i += 2) {
+          if (reply[i] === 'first-entry' || reply[i] === 'last-entry') {
+            reply[i + 1] = transformEntry(reply[i + 1]);
+          }
+        }
       } else {
         reply['first-entry'] = transformEntry(reply['first-entry']);
         reply['last-entry'] = transformEntry(reply['last-entry']);
