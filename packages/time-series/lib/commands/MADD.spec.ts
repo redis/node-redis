@@ -39,4 +39,20 @@ describe('TS.MADD', () => {
     assert.equal(reply[0], 0);
     assert.ok(reply[1] instanceof SimpleError);
   }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.ts.mAdd with NaN', async client => {
+    await client.ts.create('nan-key');
+    const reply = await client.ts.mAdd([{
+      key: 'nan-key',
+      timestamp: 0,
+      value: Number.NaN
+    }]);
+
+    assert.ok(Array.isArray(reply));
+    assert.equal(reply.length, 1);
+    assert.equal(reply[0], 0);
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    minimumDockerVersion: [8, 6]
+  });
 });

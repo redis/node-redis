@@ -83,6 +83,13 @@ describe('TS.ADD', () => {
         ['TS.ADD', 'key', '*', '1', 'RETENTION', '1', 'ENCODING', 'UNCOMPRESSED', 'CHUNK_SIZE', '1', 'ON_DUPLICATE', 'BLOCK', 'LABELS', 'label', 'value', 'IGNORE', '1', '1']
       );
     });
+
+    it('with NaN value', () => {
+      assert.deepEqual(
+        parseArgs(ADD, 'key', '*', Number.NaN),
+        ['TS.ADD', 'key', '*', 'NaN']
+      );
+    });
   });
 
   testUtils.testWithClient('client.ts.add', async client => {
@@ -91,4 +98,14 @@ describe('TS.ADD', () => {
       0
     );
   }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.ts.add NaN', async client => {
+    assert.equal(
+      await client.ts.add('key', 0, Number.NaN),
+      0
+    );
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    minimumDockerVersion: [8, 6]
+  });
 });

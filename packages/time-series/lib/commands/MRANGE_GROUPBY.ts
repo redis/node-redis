@@ -12,6 +12,14 @@ export const TIME_SERIES_REDUCERS = {
   MAX: 'MAX',
   RANGE: 'RANGE',
   COUNT: 'COUNT',
+  /**
+  * Available since 8.6
+  */
+  COUNTNAN: 'COUNTNAN',
+  /**
+  * Available since 8.6
+  */
+  COUNTALL: 'COUNTALL',
   STD_P: 'STD.P',
   STD_S: 'STD.S',
   VAR_P: 'VAR.P',
