@@ -4,8 +4,6 @@ import HOTKEYS_STOP from './HOTKEYS_STOP';
 import { parseArgs } from './generic-transformers';
 
 describe('HOTKEYS STOP', () => {
-  testUtils.isVersionGreaterThanHook([8, 4]);
-
   it('transformArguments', () => {
     assert.deepEqual(
       parseArgs(HOTKEYS_STOP),

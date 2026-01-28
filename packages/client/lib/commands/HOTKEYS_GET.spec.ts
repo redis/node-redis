@@ -4,8 +4,6 @@ import HOTKEYS_GET from './HOTKEYS_GET';
 import { parseArgs } from './generic-transformers';
 
 describe('HOTKEYS GET', () => {
-  testUtils.isVersionGreaterThanHook([8, 4]);
-
   it('transformArguments', () => {
     assert.deepEqual(
       parseArgs(HOTKEYS_GET),
@@ -45,16 +43,13 @@ describe('HOTKEYS GET', () => {
     // GET should return data
     const reply = await client.hotkeysGet();
     assert.notEqual(reply, null);
-
-    if (reply !== null) {
-      assert.equal(typeof reply.trackingActive, 'number');
-      assert.equal(typeof reply.sampleRatio, 'number');
-      assert.ok(Array.isArray(reply.selectedSlots));
-      assert.equal(typeof reply.collectionStartTimeUnixMs, 'number');
-      assert.equal(typeof reply.collectionDurationMs, 'number');
-      assert.ok(Array.isArray(reply.byCpuTime));
-      assert.ok(Array.isArray(reply.byNetBytes));
-    }
+    assert.equal(typeof reply.trackingActive, 'number');
+    assert.equal(typeof reply.sampleRatio, 'number');
+    assert.ok(Array.isArray(reply.selectedSlots));
+    assert.equal(typeof reply.collectionStartTimeUnixMs, 'number');
+    assert.equal(typeof reply.collectionDurationMs, 'number');
+    assert.ok(Array.isArray(reply.byCpuTime));
+    assert.ok(Array.isArray(reply.byNetBytes));
 
     // Stop and reset tracking to clean up
     await client.hotkeysStop();
@@ -84,11 +79,8 @@ describe('HOTKEYS GET', () => {
     // GET should still return data in STOPPED state
     const reply = await client.hotkeysGet();
     assert.notEqual(reply, null);
-
-    if (reply !== null) {
-      // Tracking should be inactive after stop
-      assert.equal(reply.trackingActive, 0);
-    }
+    // Tracking should be inactive after stop
+    assert.equal(reply.trackingActive, 0);
 
     // Reset to clean up
     await client.hotkeysReset();

@@ -4,8 +4,6 @@ import HOTKEYS_RESET from './HOTKEYS_RESET';
 import { parseArgs } from './generic-transformers';
 
 describe('HOTKEYS RESET', () => {
-  testUtils.isVersionGreaterThanHook([8, 4]);
-
   it('transformArguments', () => {
     assert.deepEqual(
       parseArgs(HOTKEYS_RESET),
