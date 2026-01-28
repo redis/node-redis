@@ -233,6 +233,35 @@ export default class TestUtils {
   readonly #VERSION_NUMBERS: Array<number>;
   readonly #DOCKER_IMAGE: RedisServerDockerOptions;
 
+  /**
+   * Cleans up non-default ACL users using a temporary client connection
+   */
+  static async cleanupAclUsers(port: number, clientOptions?: Partial<RedisClientOptions>): Promise<void> {
+    const cleanupClient = createClient({
+      ...clientOptions,
+      socket: {
+        ...clientOptions?.socket,
+        port,
+      },
+    });
+
+    try {
+      await cleanupClient.connect();
+
+      const users = await cleanupClient.aclUsers();
+
+      for (const user of users) {
+        if (user !== 'default') {
+          await cleanupClient.aclDelUser(user);
+        }
+      }
+    } finally {
+      if (cleanupClient.isOpen) {
+        cleanupClient.destroy();
+      }
+    }
+  }
+
   constructor({ tag, numbers }: Version, dockerImageName: string) {
     this.#VERSION_NUMBERS = numbers;
     this.#DOCKER_IMAGE = {
@@ -362,9 +391,13 @@ export default class TestUtils {
   }
 
   /**
-   * Runs a test with both a TLS-enabled Redis client and a regular non-TLS client.
+   * Runs a test using a TLS-enabled Redis client.
    * Automatically spawns a TLS-enabled Redis container with both TLS and non-TLS ports,
-   * extracts certificates, and configures both clients.
+   * extracts certificates, and configures the TLS client.
+   *
+   * @param title - Test title
+   * @param fn - Test function receiving the TLS client and port information
+   * @param options - TLS client test options
    */
   testWithTlsClient<
     M extends RedisModules = {},
@@ -374,7 +407,10 @@ export default class TestUtils {
     TYPE_MAPPING extends TypeMapping = {},
   >(
     title: string,
-    fn: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>) => unknown,
+    fn: (
+      client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>,
+      ports: { port: number; tlsPort: number },
+    ) => unknown,
     options: TlsClientTestOptions<M, F, S, RESP, TYPE_MAPPING>,
   ): void {
     let dockerPromise: ReturnType<typeof spawnTlsRedisServer>;
@@ -411,20 +447,25 @@ export default class TestUtils {
         },
       });
 
+      const ports = { port: docker.port, tlsPort: docker.tlsPort };
+
       if (options.disableClientSetup) {
-        return fn(client);
+        return fn(client, ports);
       }
 
       await client.connect();
 
       try {
         await client.flushAll();
-        await fn(client);
+        await fn(client, ports);
       } finally {
         if (client.isOpen) {
           await client.flushAll();
           client.destroy();
         }
+        // Clean up any leftover ACL users from previous test runs
+        // ! This MUST be done last because it will disconnect the client !
+        await TestUtils.cleanupAclUsers(docker.port, options.clientOptions);
       }
     });
   }

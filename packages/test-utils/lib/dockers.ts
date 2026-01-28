@@ -227,15 +227,23 @@ async function waitForTlsCertificates(
   maxWaitMs: number = 30000,
 ): Promise<void> {
   const startTime = Date.now();
-  const certPath = `${DEFAULT_TLS_PATH}/${certName}.crt`;
+  const certFiles = [
+    `${DEFAULT_TLS_PATH}/ca.crt`,
+    `${DEFAULT_TLS_PATH}/${certName}.crt`,
+    `${DEFAULT_TLS_PATH}/${certName}.key`,
+  ];
 
   while (Date.now() - startTime < maxWaitMs) {
     try {
-      await execAsync("docker", ["exec", dockerId, "test", "-f", certPath]);
-      // If no error, the file exists
+      await Promise.all(
+        certFiles.map(file =>
+          execAsync("docker", ["exec", dockerId, "test", "-f", file]),
+        ),
+      );
+      // All files exist
       return;
     } catch {
-      // File doesn't exist yet, wait and retry
+      // Not all files exist yet, wait and retry
       await setTimeout(100);
     }
   }
@@ -288,7 +296,7 @@ export async function spawnTlsRedisServerDocker(
   }
 
   console.log(
-    `[Docker] Spawning TLS Redis container - Image: ${options.image}:${options.version}, Port: ${port}, TLS Port: ${tlsPort}, CertName: ${certName}}`,
+    `[Docker] Spawning TLS Redis container - Image: ${options.image}:${options.version}, Port: ${port}, TLS Port: ${tlsPort}, CertName: ${certName}`,
   );
 
   const { stdout, stderr } = await execAsync("docker", dockerArgs);
