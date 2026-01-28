@@ -5,6 +5,7 @@ import { ConnectionTimeoutError, ClientClosedError, SocketClosedUnexpectedlyErro
 import { setTimeout } from 'node:timers/promises';
 import { RedisArgument } from '../RESP/types';
 import { dbgMaintenance } from './enterprise-maintenance-manager';
+import { OTelMetrics, CONNECTION_CLOSE_REASON } from '../opentelemetry';
 
 type NetOptions = {
   tls?: false;
@@ -83,6 +84,14 @@ export default class RedisSocket extends EventEmitter {
 
   get socketEpoch() {
     return this.#socketEpoch;
+  }
+
+  get host() {
+    return this.#socket?.remoteAddress;
+  }
+
+  get port() {
+    return this.#socket?.remotePort;
   }
 
   constructor(initiator: RedisSocketInitiator, options?: RedisSocketOptions) {
@@ -215,6 +224,10 @@ export default class RedisSocket extends EventEmitter {
     let retries = 0;
     do {
       try {
+        const recordConnectionCreateTime = OTelMetrics.instance.connectionBasicMetrics.createRecordConnectionCreateTime({
+          host: this.host,
+          port: this.port,
+        });
         this.#socket = await this.#createSocket();
         this.emit('connect');
 
@@ -237,6 +250,11 @@ export default class RedisSocket extends EventEmitter {
         this.#isReady = true;
         this.#socketEpoch++;
         this.emit('ready');
+        OTelMetrics.instance.connectionBasicMetrics.recordConnectionCount(1, {
+          host: this.host,
+          port: this.port,
+        });
+        recordConnectionCreateTime();
       } catch (err) {
         const retryIn = this.#shouldReconnect(retries++, err as Error);
         if (typeof retryIn !== 'number') {
@@ -261,8 +279,16 @@ export default class RedisSocket extends EventEmitter {
 
     if(ms !== undefined) {
       this.#socket?.setTimeout(ms);
+      OTelMetrics.instance.connectionBasicMetrics.recordConnectionRelaxedTimeout(1, {
+        host: this.host,
+        port: this.port,
+      });
     } else {
       this.#socket?.setTimeout(this.#socketTimeout ?? 0);
+      OTelMetrics.instance.connectionBasicMetrics.recordConnectionRelaxedTimeout(-1, {
+        host: this.host,
+        port: this.port,
+      });
     }
   }
 
@@ -312,6 +338,18 @@ export default class RedisSocket extends EventEmitter {
     const wasReady = this.#isReady;
     this.#isReady = false;
     this.emit('error', err);
+
+    if (wasReady) {
+      const clientAttributes = {
+        host: this.host,
+        port: this.port,
+      };
+      OTelMetrics.instance.connectionBasicMetrics.recordConnectionCount(-1, clientAttributes);
+      OTelMetrics.instance.connectionAdvancedMetrics.recordConnectionClosed(
+        CONNECTION_CLOSE_REASON.ERROR,
+        clientAttributes
+      );
+    }
 
     if (!wasReady || !this.#isOpen || typeof this.#shouldReconnect(0, err) !== 'number') return;
 
@@ -372,6 +410,15 @@ export default class RedisSocket extends EventEmitter {
       this.#socket = undefined;
     }
 
+    const clientAttributes = {
+      host: this.host,
+      port: this.port,
+    };
+    OTelMetrics.instance.connectionBasicMetrics.recordConnectionCount(-1, clientAttributes);
+    OTelMetrics.instance.connectionAdvancedMetrics.recordConnectionClosed(
+      CONNECTION_CLOSE_REASON.APPLICATION_CLOSE,
+      clientAttributes
+    );
     this.emit('end');
   }
 
