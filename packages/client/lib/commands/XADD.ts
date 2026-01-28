@@ -5,7 +5,13 @@ import { Tail } from './generic-transformers';
 
 /**
  * Options for the XADD command
- * 
+ *
+ * @property policy - Reference tracking policy for the entry (KEEPREF, DELREF, or ACKED) - added in 8.6
+ * @property IDMPAUTO - Automatically calculate an idempotent ID based on entry content to prevent duplicate entries - added in 8.6
+ * @property IDMPAUTO.pid - Producer ID, must be unique per producer and consistent across restarts
+ * @property IDMP - Use a specific idempotent ID to prevent duplicate entries - added in 8.6
+ * @property IDMP.pid - Producer ID, must be unique per producer and consistent across restarts
+ * @property IDMP.iid - Idempotent ID (binary string), must be unique per message and per pid
  * @property TRIM - Optional trimming configuration
  * @property TRIM.strategy - Trim strategy: MAXLEN (by length) or MINID (by ID)
  * @property TRIM.strategyModifier - Exact ('=') or approximate ('~') trimming
@@ -14,12 +20,23 @@ import { Tail } from './generic-transformers';
  * @property TRIM.policy - Policy to apply when trimming entries (optional, defaults to KEEPREF)
  */
 export interface XAddOptions {
+  /** added in 8.6 */
+  policy?: StreamDeletionPolicy;
+  /** added in 8.6 */
+  IDMPAUTO?: {
+    pid: RedisArgument;
+  };
+  /** added in 8.6 */
+  IDMP?: {
+    pid: RedisArgument;
+    iid: RedisArgument;
+  };
   TRIM?: {
     strategy?: 'MAXLEN' | 'MINID';
     strategyModifier?: '=' | '~';
     threshold: number;
     limit?: number;
-    /** added in 8.2 */
+    /** added in 8.6 */
     policy?: StreamDeletionPolicy;
   };
 }
@@ -27,12 +44,12 @@ export interface XAddOptions {
 /**
  * Parses arguments for the XADD command
  *
- * @param optional - Optional command modifier
+ * @param optional - Optional command modifier (e.g., NOMKSTREAM)
  * @param parser - The command parser
  * @param key - The stream key
  * @param id - Message ID (* for auto-generation)
  * @param message - Key-value pairs representing the message fields
- * @param options - Additional options for stream trimming
+ * @param options - Additional options for reference tracking, idempotency, and trimming
  */
 export function parseXAddArguments(
   optional: RedisArgument | undefined,
@@ -48,6 +65,19 @@ export function parseXAddArguments(
     parser.push(optional);
   }
 
+  // Reference tracking policy (KEEPREF | DELREF | ACKED)
+  if (options?.policy) {
+    parser.push(options.policy);
+  }
+
+  // Idempotency options (IDMPAUTO or IDMP)
+  if (options?.IDMPAUTO) {
+    parser.push('IDMPAUTO', options.IDMPAUTO.pid);
+  } else if (options?.IDMP) {
+    parser.push('IDMP', options.IDMP.pid, options.IDMP.iid);
+  }
+
+  // Trimming options
   if (options?.TRIM) {
     if (options.TRIM.strategy) {
       parser.push(options.TRIM.strategy);
