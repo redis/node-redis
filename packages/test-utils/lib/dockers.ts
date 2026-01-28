@@ -62,6 +62,38 @@ export interface RedisServerDocker {
   dockerId: string;
 }
 
+export interface TlsCertificates {
+  ca: Buffer;
+  cert: Buffer;
+  key: Buffer;
+}
+
+export interface TlsRedisServerDocker extends RedisServerDocker {
+  /** The TLS port */
+  tlsPort: number;
+  /** TLS certificates for client connection */
+  certs: TlsCertificates;
+}
+
+export interface TlsConfig {
+  /**
+   * If provided, enables client certificate CN-based authentication.
+   * Sets TLS_CLIENT_CNS env var and uses this CN for the client certificate.
+   * If not provided, uses the default 'client' certificate without CN-based auth.
+   */
+  clientCertCN?: string;
+}
+
+/**
+ * Default certificate name used for client authentication
+ */
+const DEFAULT_CLIENT_CERT_NAME = "client";
+
+/**
+ * Default path where TLS certificates are stored in the Docker container
+ */
+const DEFAULT_TLS_PATH = "/redis/work/tls";
+
 export async function spawnRedisServerDocker(
 options: RedisServerDockerOptions, serverArguments: Array<string>): Promise<RedisServerDocker> {
   let port;
@@ -139,6 +171,200 @@ after(() => {
     [...RUNNING_SERVERS.values()].map(async dockerPromise =>
       await dockerRemove((await dockerPromise).dockerId)
     )
+  );
+});
+
+/**
+ * Reads a file from a Docker container directly into memory
+ * @param dockerId - The Docker container ID
+ * @param filePath - Path to the file inside the container
+ * @returns Buffer containing the file contents
+ */
+async function readFileFromContainer(
+  dockerId: string,
+  filePath: string,
+): Promise<Buffer> {
+  const { stdout, stderr } = await execAsync("docker", [
+    "exec",
+    dockerId,
+    "cat",
+    filePath,
+  ]);
+  if (stderr) {
+    throw new Error(`Failed to read ${filePath} from container: ${stderr}`);
+  }
+  return Buffer.from(stdout);
+}
+
+/**
+ * Loads TLS certificates from a running Docker container into memory
+ * @param dockerId - The Docker container ID
+ * @param certName - The certificate name (used for client cert/key naming)
+ * @returns TlsCertificates object with ca, cert, and key buffers
+ */
+async function loadTlsCertificates(
+  dockerId: string,
+  certName: string,
+): Promise<TlsCertificates> {
+  const [ca, cert, key] = await Promise.all([
+    readFileFromContainer(dockerId, `${DEFAULT_TLS_PATH}/ca.crt`),
+    readFileFromContainer(dockerId, `${DEFAULT_TLS_PATH}/${certName}.crt`),
+    readFileFromContainer(dockerId, `${DEFAULT_TLS_PATH}/${certName}.key`),
+  ]);
+
+  return { ca, cert, key };
+}
+
+/**
+ * Waits for TLS certificates to be available in the container
+ * @param dockerId - The Docker container ID
+ * @param certName - The certificate name
+ * @param maxWaitMs - Maximum time to wait in milliseconds
+ */
+async function waitForTlsCertificates(
+  dockerId: string,
+  certName: string,
+  maxWaitMs: number = 30000,
+): Promise<void> {
+  const startTime = Date.now();
+  const certFiles = [
+    `${DEFAULT_TLS_PATH}/ca.crt`,
+    `${DEFAULT_TLS_PATH}/${certName}.crt`,
+    `${DEFAULT_TLS_PATH}/${certName}.key`,
+  ];
+
+  while (Date.now() - startTime < maxWaitMs) {
+    try {
+      await Promise.all(
+        certFiles.map(file =>
+          execAsync("docker", ["exec", dockerId, "test", "-f", file]),
+        ),
+      );
+      // All files exist
+      return;
+    } catch {
+      // Not all files exist yet, wait and retry
+      await setTimeout(100);
+    }
+  }
+
+  throw new Error(`TLS certificates not available after ${maxWaitMs}ms`);
+}
+
+/**
+ * Spawns a TLS-enabled Redis server Docker container with both TLS and non-TLS ports
+ */
+export async function spawnTlsRedisServerDocker(
+  options: RedisServerDockerOptions,
+  serverArguments: Array<string> = [],
+  tlsConfig?: TlsConfig,
+): Promise<TlsRedisServerDocker> {
+  const port = (await portIterator.next()).value;
+  const tlsPort = (await portIterator.next()).value;
+  const clientCertCN = tlsConfig?.clientCertCN;
+
+  // Use provided CN for cert name, otherwise use default 'client' cert
+  const certName = clientCertCN ?? DEFAULT_CLIENT_CERT_NAME;
+
+  const dockerArgs = [
+    "run",
+    "--init",
+    "-e",
+    "TLS_ENABLED=yes",
+    "-e",
+    "NODES=1",
+    "-e",
+    `PORT=${port}`,
+    "-e",
+    `TLS_PORT=${tlsPort}`,
+  ];
+
+  // Only add client CN auth if specified
+  if (clientCertCN) {
+    dockerArgs.push("-e", `TLS_CLIENT_CNS=${clientCertCN}`);
+  }
+
+  dockerArgs.push(
+    "-d",
+    "--network",
+    "host",
+    `${options.image}:${options.version}`,
+  );
+
+  for (const arg of serverArguments) {
+    dockerArgs.push(arg);
+  }
+
+  console.log(
+    `[Docker] Spawning TLS Redis container - Image: ${options.image}:${options.version}, Port: ${port}, TLS Port: ${tlsPort}, CertName: ${certName}`,
+  );
+
+  const { stdout, stderr } = await execAsync("docker", dockerArgs);
+
+  if (!stdout) {
+    throw new Error(`docker run error - ${stderr}`);
+  }
+
+  const dockerId = stdout.trim();
+
+  // Wait for both ports to be available
+  while ((await isPortAvailable(port)) || (await isPortAvailable(tlsPort))) {
+    await setTimeout(50);
+  }
+
+  // Wait for TLS certificates to be generated
+  await waitForTlsCertificates(dockerId, certName);
+
+  // Load certificates directly into memory from the container
+  const certs = await loadTlsCertificates(dockerId, certName);
+
+  return {
+    port,
+    tlsPort,
+    dockerId,
+    certs,
+  };
+}
+
+const RUNNING_TLS_SERVERS = new Map<
+  string,
+  ReturnType<typeof spawnTlsRedisServerDocker>
+>();
+
+/**
+ * Spawns a TLS-enabled Redis server, reusing existing containers when possible
+ */
+export function spawnTlsRedisServer(
+  dockerConfig: RedisServerDockerOptions,
+  serverArguments: Array<string>,
+  tlsConfig?: TlsConfig,
+): Promise<TlsRedisServerDocker> {
+  const clientCertCN = tlsConfig?.clientCertCN;
+  const cacheKey = JSON.stringify({ serverArguments, clientCertCN });
+
+  const runningServer = RUNNING_TLS_SERVERS.get(cacheKey);
+  if (runningServer) {
+    return runningServer;
+  }
+
+  const dockerPromise = spawnTlsRedisServerDocker(
+    dockerConfig,
+    serverArguments,
+    tlsConfig,
+  );
+  RUNNING_TLS_SERVERS.set(cacheKey, dockerPromise);
+  return dockerPromise;
+}
+
+/**
+ * Cleanup function for TLS servers - removes containers
+ */
+after(() => {
+  return Promise.all(
+    [...RUNNING_TLS_SERVERS.values()].map(async (dockerPromise) => {
+      const docker = await dockerPromise;
+      await dockerRemove(docker.dockerId);
+    }),
   );
 });
 

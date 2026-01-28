@@ -19,7 +19,7 @@ import {
   RedisClusterType
 } from '@redis/client/index';
 import { RedisNode } from '@redis/client/lib/sentinel/types'
-import { spawnRedisServer, spawnRedisCluster, spawnRedisSentinel, RedisServerDockerOptions, RedisServerDocker, spawnSentinelNode, spawnRedisServerDocker } from './dockers';
+import { spawnRedisServer, spawnRedisCluster, spawnRedisSentinel, RedisServerDockerOptions, RedisServerDocker, spawnSentinelNode, spawnRedisServerDocker, spawnTlsRedisServer, TlsConfig } from './dockers';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 
@@ -95,6 +95,16 @@ interface ClientTestOptions<
 > extends CommonTestOptions {
   clientOptions?: Partial<RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>>;
   disableClientSetup?: boolean;
+}
+
+interface TlsClientTestOptions<
+  M extends RedisModules,
+  F extends RedisFunctions,
+  S extends RedisScripts,
+  RESP extends RespVersions,
+  TYPE_MAPPING extends TypeMapping
+> extends ClientTestOptions<M, F, S, RESP, TYPE_MAPPING> {
+  tls?: TlsConfig;
 }
 
 interface SentinelTestOptions<
@@ -223,6 +233,35 @@ export default class TestUtils {
   readonly #VERSION_NUMBERS: Array<number>;
   readonly #DOCKER_IMAGE: RedisServerDockerOptions;
 
+  /**
+   * Cleans up non-default ACL users using a temporary client connection
+   */
+  static async cleanupAclUsers(port: number, clientOptions?: Partial<RedisClientOptions>): Promise<void> {
+    const cleanupClient = createClient({
+      ...clientOptions,
+      socket: {
+        ...clientOptions?.socket,
+        port,
+      },
+    });
+
+    try {
+      await cleanupClient.connect();
+
+      const users = await cleanupClient.aclUsers();
+
+      for (const user of users) {
+        if (user !== 'default') {
+          await cleanupClient.aclDelUser(user);
+        }
+      }
+    } finally {
+      if (cleanupClient.isOpen) {
+        cleanupClient.destroy();
+      }
+    }
+  }
+
   constructor({ tag, numbers }: Version, dockerImageName: string) {
     this.#VERSION_NUMBERS = numbers;
     this.#DOCKER_IMAGE = {
@@ -350,6 +389,87 @@ export default class TestUtils {
       }
     });
   }
+
+  /**
+   * Runs a test using a TLS-enabled Redis client.
+   * Automatically spawns a TLS-enabled Redis container with both TLS and non-TLS ports,
+   * extracts certificates, and configures the TLS client.
+   *
+   * @param title - Test title
+   * @param fn - Test function receiving the TLS client and port information
+   * @param options - TLS client test options
+   */
+  testWithTlsClient<
+    M extends RedisModules = {},
+    F extends RedisFunctions = {},
+    S extends RedisScripts = {},
+    RESP extends RespVersions = 2,
+    TYPE_MAPPING extends TypeMapping = {},
+  >(
+    title: string,
+    fn: (
+      client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>,
+      ports: { port: number; tlsPort: number },
+    ) => unknown,
+    options: TlsClientTestOptions<M, F, S, RESP, TYPE_MAPPING>,
+  ): void {
+    let dockerPromise: ReturnType<typeof spawnTlsRedisServer>;
+    if (this.isVersionGreaterThan(options.minimumDockerVersion)) {
+      const dockerImage = this.#DOCKER_IMAGE;
+      before(function () {
+        this.timeout(60000); // TLS setup takes longer
+
+        dockerPromise = spawnTlsRedisServer(
+          dockerImage,
+          options.serverArguments,
+          options.tls,
+        );
+        return dockerPromise;
+      });
+    }
+
+    it(title, async function () {
+      if (options.skipTest) return this.skip();
+      if (!dockerPromise) return this.skip();
+
+      const docker = await dockerPromise;
+
+      // Create TLS client
+      const client = createClient({
+        ...options.clientOptions,
+        socket: {
+          ...options.clientOptions?.socket,
+          port: docker.tlsPort,
+          tls: true,
+          ca: docker.certs.ca,
+          cert: docker.certs.cert,
+          key: docker.certs.key,
+        },
+      });
+
+      const ports = { port: docker.port, tlsPort: docker.tlsPort };
+
+      if (options.disableClientSetup) {
+        return fn(client, ports);
+      }
+
+      await client.connect();
+
+      try {
+        await client.flushAll();
+        await fn(client, ports);
+      } finally {
+        if (client.isOpen) {
+          await client.flushAll();
+          client.destroy();
+        }
+        // Clean up any leftover ACL users from previous test runs
+        // ! This MUST be done last because it will disconnect the client !
+        await TestUtils.cleanupAclUsers(docker.port, options.clientOptions);
+      }
+    });
+  }
+
   testWithProxiedClient(
     title: string,
     fn: (proxiedClient: RedisClientType<any, any, any, any, any>, proxy: RedisProxy) => unknown,
