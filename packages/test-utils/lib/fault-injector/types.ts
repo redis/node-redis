@@ -16,7 +16,8 @@ export type ActionType =
   | "cluster_failure"
   | "delete_database"
   | "create_database"
-  | "slot_migrate";
+  | "slot_migrate"
+  | "reset_cluster";
 
 export interface ActionRequest {
   type: ActionType;

@@ -722,9 +722,16 @@ export default class TestUtils {
 
         faultInjectorClient = new FaultInjectorClient(baseUrl);
 
-        console.log(`[DEBUG testWithRECluster] Deleting all databases before test: "${title}"`);
+        console.log(`[DEBUG testWithRECluster] Resetting cluster state before test: "${title}"`);
+        await faultInjectorClient.triggerAction({
+          type: 'reset_cluster',
+          parameters: {
+            "clean_all_dbs": true,
+            "clean_maintenance_mode": true
+          }
+        })
         await faultInjectorClient.deleteAllDatabases(0);
-        console.log(`[DEBUG testWithRECluster] Deleted all databases, now creating new one for: "${title}"`);
+        console.log(`[DEBUG testWithRECluster] cluster cleared, now creating new db for: "${title}"`);
 
         const db = options.dbConfig ||
           getCreateDatabaseConfig(
