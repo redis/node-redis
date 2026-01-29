@@ -550,20 +550,30 @@ export default class RedisClusterSlots<
     this.#emit('disconnect');
   }
 
-  getClient(
+  async getClientAndSlotNumber(
     firstKey: RedisArgument | undefined,
     isReadonly: boolean | undefined
-  ) {
+  ): Promise<{
+    client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>,
+    slotNumber?: number
+  }> {
     if (!firstKey) {
-      return this.nodeClient(this.getRandomNode());
+      return {
+        client: await this.nodeClient(this.getRandomNode())
+      };
     }
 
     const slotNumber = calculateSlot(firstKey);
     if (!isReadonly) {
-      return this.nodeClient(this.slots[slotNumber].master);
+      return {
+        client: await this.nodeClient(this.slots[slotNumber].master),
+        slotNumber
+      };
     }
 
-    return this.nodeClient(this.getSlotRandomNode(slotNumber));
+    return {
+      client: await this.nodeClient(this.getSlotRandomNode(slotNumber))
+    };
   }
 
   *#iterateAllNodes() {

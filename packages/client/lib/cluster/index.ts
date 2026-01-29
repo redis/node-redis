@@ -422,13 +422,16 @@ export default class RedisCluster<
     fn: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>, opts?: ClusterCommandOptions) => Promise<T>
   ): Promise<T> {
     const maxCommandRedirections = this._options.maxCommandRedirections ?? 16;
-    let client = await this._slots.getClient(firstKey, isReadonly);
+    let { client, slotNumber } = await this._slots.getClientAndSlotNumber(firstKey, isReadonly);
     let i = 0;
 
     let myFn = fn;
 
     while (true) {
       try {
+        if(options !== undefined) {
+          options.slotNumber = slotNumber;
+        }
         return await myFn(client, options);
       } catch (err) {
         myFn = fn;
@@ -457,7 +460,9 @@ export default class RedisCluster<
 
         if (err.message.startsWith('MOVED')) {
           await this._slots.rediscover(client);
-          client = await this._slots.getClient(firstKey, isReadonly);
+          const clientAndSlot = await this._slots.getClientAndSlotNumber(firstKey, isReadonly);
+          client = clientAndSlot.client;
+          slotNumber = clientAndSlot.slotNumber;
           continue;
         }
 
@@ -491,11 +496,11 @@ export default class RedisCluster<
     type Multi = new (...args: ConstructorParameters<typeof RedisClusterMultiCommand>) => RedisClusterMultiCommandType<[], M, F, S, RESP, TYPE_MAPPING>;
     return new ((this as any).Multi as Multi)(
       async (firstKey, isReadonly, commands) => {
-        const client = await this._self._slots.getClient(firstKey, isReadonly);
+        const { client } = await this._self._slots.getClientAndSlotNumber(firstKey, isReadonly);
         return client._executeMulti(commands);
       },
       async (firstKey, isReadonly, commands) => {
-        const client = await this._self._slots.getClient(firstKey, isReadonly);
+        const { client } = await this._self._slots.getClientAndSlotNumber(firstKey, isReadonly);
         return client._executePipeline(commands);
       },
       routing,

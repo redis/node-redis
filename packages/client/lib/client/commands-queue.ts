@@ -19,6 +19,11 @@ export interface CommandOptions<T = TypeMapping> {
    * Timeout for the command in milliseconds
    */
   timeout?: number;
+  /**
+   * @internal
+   * The slot the command is targeted to (if any)
+   */
+  slotNumber?: number;
 }
 
 export interface CommandToWrite extends CommandWaitingForReply {
@@ -33,6 +38,7 @@ export interface CommandToWrite extends CommandWaitingForReply {
     listener: () => unknown;
     originalTimeout: number | undefined;
   } | undefined;
+  slotNumber?: number
 }
 
 interface CommandWaitingForReply {
@@ -219,6 +225,7 @@ export default class RedisCommandsQueue {
         channelsCounter: undefined,
         typeMapping: options?.typeMapping
       };
+      value.slotNumber = options?.slotNumber
 
       // If #maintenanceCommandTimeout was explicitly set, we should
       // use it instead of the timeout provided by the command
