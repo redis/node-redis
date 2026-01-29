@@ -1,23 +1,35 @@
 import RedisClient, { RedisClientOptions } from ".";
 import RedisCommandsQueue from "./commands-queue";
-import { RedisArgument } from "../..";
 import { isIP } from "net";
 import { lookup } from "dns/promises";
 import assert from "node:assert";
 import { setTimeout } from "node:timers/promises";
 import { RedisTcpSocketOptions } from "./socket";
 import diagnostics_channel from "node:diagnostics_channel";
+import { RedisArgument } from "../RESP/types";
 
 type RedisType = RedisClient<any, any, any, any, any>;
 
 export const SMIGRATED_EVENT = "__SMIGRATED";
+
+interface Address {
+  host: string;
+  port: number;
+}
+
+interface Destination {
+  addr: Address;
+  slots: (number | [number, number])[];
+}
+
+interface SMigratedEntry {
+    source: Address;
+    destinations: Destination[]
+}
+
 export interface SMigratedEvent {
   seqId: number,
-  source: { host: string, port: number };
-  destinations: {
-    host: string, port: number
-    slots: (number | [number, number])[]
-  }[]
+  entries: SMigratedEntry[]
 }
 
 export const MAINTENANCE_EVENTS = {
@@ -317,42 +329,39 @@ export default class EnterpriseMaintenanceManager {
   };
 
   #onSMigrated = (push: any[]) => {
-    // [ 'SMIGRATED', 15, [ [ '127.0.0.1:6379', '123,456,789-1000' ], [ '127.0.0.1:6380', '124,457,300-500' ] ] ]
-    //                ^seq    ^new endpoint1    ^slots                  ^new endpoint2    ^slots
-    const sequenceId: number = push[1];
-    const smigratedEvent: SMigratedEvent = {
-      seqId: sequenceId,
-      source: {
-        ...this.#getAddress()
-      },
-      destinations: []
-    }
+    const smigratedEvent = EnterpriseMaintenanceManager.parseSMigratedPush(push);
+    dbgMaintenance(`emit smigratedEvent`, smigratedEvent);
+    this.#client._handleSmigrated(smigratedEvent);
+  }
 
-    console.log('push[2]');
-    console.log(push[2]);
-    console.log(String(push[2]));
+  /**
+   * Parses an SMIGRATED push message into a structured SMigratedEvent.
+   *
+   * SMIGRATED format:
+   * - SMIGRATED, "seqid", followed by a list of N triplets:
+   *     - source endpoint
+   *     - target endpoint
+   *     - comma separated list of slot ranges
+   *
+   * A source and a target endpoint may appear in multiple triplets.
+   * There is no optimization of the source, dest, slot-range list in the SMIGRATED message.
+   * The client code should read through the entire list of triplets in order to get a full
+   * list of moved slots, or full list of sources and targets.
+   *
+   * Example:
+   * [ 'SMIGRATED', 15, [ [ '127.0.0.1:6379', '127.0.0.2:6379', '123,456,789-1000' ], [ '127.0.0.3:6380', '127.0.0.4:6380', '124,457,300-500' ] ] ]
+   *                ^seq     ^source1          ^destination1     ^slots                  ^source2          ^destination2    ^slots
+   */
+  static parseSMigratedPush(push: any[]): SMigratedEvent {
+    const map = new Map<string, Destination[]>();
 
-    console.log('push[2][0]');
-    console.log(push[2][0]);
-    console.log(String(push[2][0]));
-
-    console.log('push[2][0][0]');
-    console.log(push[2][0][0]);
-    console.log(String(push[2][0][0]));
-
-    console.log('push[2][0][1]');
-    console.log(push[2][0][1]);
-    console.log(String(push[2][0][1]));
-
-
-    for(const [endpoint, slots] of push[2]) {
-      //TODO not sure if we need to handle fqdn/ip.. cluster manages clients by host:port. If `cluster slots` returns ip,
-      // but this notification returns fqdn, then we need to unify somehow ( maybe lookup )
-      const [ host, port ] = String(endpoint).split(':');
+    for (const [src, destination, slots] of push[2]) {
+      const source = String(src);
+      const [dHost, dPort] = String(destination).split(':');
       // `slots` could be mix of single slots and ranges, for example: 123,456,789-1000
       const parsedSlots = String(slots).split(',').map((singleOrRange): number | [number, number] => {
         const separatorIndex = singleOrRange.indexOf('-');
-        if(separatorIndex === -1) {
+        if (separatorIndex === -1) {
           // Its single slot
           return Number(singleOrRange);
         }
@@ -360,16 +369,40 @@ export default class EnterpriseMaintenanceManager {
         return [Number(singleOrRange.substring(0, separatorIndex)), Number(singleOrRange.substring(separatorIndex + 1))];
       });
 
-      smigratedEvent.destinations.push({
-        host,
-        port: Number(port),
-        slots: parsedSlots
-      })
+      const destinations: Destination[] = map.get(source) ?? [];
+      const dest = destinations.find(d => d.addr.host === dHost && d.addr.port === Number(dPort));
+      if (dest) {
+        // destination already exists, just add the slots
+        dest.slots = dest.slots.concat(parsedSlots);
+      } else {
+        destinations.push({
+          addr: {
+            host: dHost,
+            port: Number(dPort)
+          },
+          slots: parsedSlots
+        });
+      }
+      map.set(source, destinations);
     }
-    dbgMaintenance(`emit smigratedEvent`, smigratedEvent);
-    this.#client._handleSmigrated(smigratedEvent);
-  }
 
+    const entries: SMigratedEntry[] = [];
+    for (const [src, destinations] of map.entries()) {
+      const [host, port] = src.split(":");
+      entries.push({
+        source: {
+          host,
+          port: Number(port)
+        },
+        destinations
+      });
+    }
+
+    return {
+      seqId: push[1],
+      entries
+    };
+  }
 
   #getAddress(): { host: string, port: number } {
     assert(this.#options.socket !== undefined);
