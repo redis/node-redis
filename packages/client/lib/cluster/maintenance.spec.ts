@@ -47,15 +47,12 @@ describe("Cluster Maintenance", () => {
         `should have ${MASTERS_COUNT} masters at start`
       );
 
-      const { action_id: failoverActionId } =
-        await faultInjectorClient.triggerAction({
-          type: "failover",
-          parameters: {
-            cluster_index: 0,
-          },
-        });
-
-      await faultInjectorClient.waitForAction(failoverActionId);
+      await faultInjectorClient.triggerAction({
+        type: "failover",
+        parameters: {
+          cluster_index: 0,
+        },
+      });
 
       const sMigratingEventCount = diagnosticEvents.filter(
         (event) => event.type === "SMIGRATING"
