@@ -289,18 +289,23 @@ export default class RedisClusterSlots<
         sourceNode.pubSub?.client._pause();
       }
 
-      // Destructure addr to get host and port from the nested object
+      // Track all slots being moved and destination nodes for this entry
+      const allMovingSlots = new Set<number>();
+      const destinationNodes: MasterNode<M, F, S, RESP, TYPE_MAPPING>[] = [];
+
+      // 2. Process each destination: create nodes, update slot mappings, pause destinations
       for (const { addr: { host, port }, slots } of entry.destinations) {
         const destinationAddress = `${host}:${port}`;
         let destMasterNode: MasterNode<M, F, S, RESP, TYPE_MAPPING> | undefined = this.nodeByAddress.get(destinationAddress);
         dbgMaintenance(`[CSlots]: Looking for destAddress=${destinationAddress}. Found in nodeByAddress: ${destMasterNode ? 'YES' : 'NO'}`);
         let destShard: Shard<M, F, S, RESP, TYPE_MAPPING>;
-        // 2. Create new Master
+
+        // 2.1 Create new Master if needed
         if (!destMasterNode) {
           const promises: Promise<unknown>[] = [];
           destMasterNode = this.#initiateSlotNode({ host: host, port: port, id: 'asdff' }, false, true, new Set(), promises);
           await Promise.all([...promises, this.#initiateShardedPubSubClient(destMasterNode)]);
-          // 2.1 Pause
+          // Pause new destination until migration is complete
           destMasterNode.client?._pause();
           destMasterNode.pubSub?.client._pause();
           // In case destination node didnt exist, this means Shard didnt exist as well, so creating a new Shard is completely fine
@@ -319,111 +324,110 @@ export default class RedisClusterSlots<
           }
           destShard = existingShard;
         }
+
+        // Track this destination node
+        destinationNodes.push(destMasterNode);
+
         // 3. Soft update shards.
         // After this step we are expecting any new commands that hash to the same slots to be routed to the destinationShard
-        const movingSlots = new Set<number>();
         for (const slot of slots) {
           if (typeof slot === 'number') {
             this.slots[slot] = destShard;
-            movingSlots.add(slot)
+            allMovingSlots.add(slot);
           } else {
             for (let s = slot[0]; s <= slot[1]; s++) {
               this.slots[s] = destShard;
-              movingSlots.add(s)
+              allMovingSlots.add(s);
             }
           }
         }
-        dbgMaintenance(`[CSlots]: Updated ${movingSlots.size} slots to point to destination ${destMasterNode.address}. Sample slots: ${Array.from(movingSlots).slice(0, 10).join(', ')}${movingSlots.size > 10 ? '...' : ''}`);
+        dbgMaintenance(`[CSlots]: Updated slots to point to destination ${destMasterNode.address}. Sample slots: ${Array.from(slots).slice(0, 5).join(', ')}${slots.length > 5 ? '...' : ''}`);
+      }
 
-        // 4. For all affected clients (normal, pubsub, spubsub):
-        // 4.1 Wait for inflight commands to complete
-        const inflightPromises: Promise<void>[] = [];
-        //Normal
-        inflightPromises.push(sourceNode.client!._getQueue().waitForInflightCommandsToComplete());
-        //Sharded pubsub
+      dbgMaintenance(`[CSlots]: Total ${allMovingSlots.size} slots moved from ${sourceAddress}. Sample: ${Array.from(allMovingSlots).slice(0, 10).join(', ')}${allMovingSlots.size > 10 ? '...' : ''}`);
+
+      // 4. Wait for inflight commands on source to complete
+      const inflightPromises: Promise<void>[] = [];
+      inflightPromises.push(sourceNode.client!._getQueue().waitForInflightCommandsToComplete());
+      if ('pubSub' in sourceNode) {
+        inflightPromises.push(sourceNode.pubSub!.client._getQueue().waitForInflightCommandsToComplete());
+      }
+      if (this.pubSubNode?.address === sourceAddress) {
+        inflightPromises.push(this.pubSubNode?.client._getQueue().waitForInflightCommandsToComplete());
+      }
+      await Promise.all(inflightPromises);
+
+      // 5. Extract commands and handle source cleanup (AFTER all destinations processed)
+      const sourceStillHasSlots = this.slots.find(slot => slot.master.address === sourceAddress) !== undefined;
+
+      if (sourceStillHasSlots) {
+        // Source still has slots - only extract commands for the moving slots
+        const normalCommandsToMove = sourceNode.client!._getQueue().extractCommandsForSlots(allMovingSlots);
+        // Prepend to the last destination (or could distribute - for now keeping simple)
+        const lastDestNode = destinationNodes[destinationNodes.length - 1];
+        lastDestNode.client?._getQueue().prependCommandsToWrite(normalCommandsToMove);
+
+        // Handle sharded pubsub listeners
         if ('pubSub' in sourceNode) {
-          inflightPromises.push(sourceNode.pubSub!.client._getQueue().waitForInflightCommandsToComplete());
+          const listeners = sourceNode.pubSub?.client._getQueue().removeShardedPubSubListenersForSlots(allMovingSlots);
+          this.#emit(RESUBSCRIBE_LISTENERS_EVENT, listeners);
         }
-        //Regular pubsub
+
+        // Unpause source since it still has slots
+        sourceNode.client?._unpause();
+        if ('pubSub' in sourceNode) {
+          sourceNode.pubSub?.client._unpause();
+        }
+      } else {
+        // Source has no slots left - move all commands and cleanup
+        const normalCommandsToMove = sourceNode.client!._getQueue().extractAllCommands();
+        const lastDestNode = destinationNodes[destinationNodes.length - 1];
+        lastDestNode.client?._getQueue().prependCommandsToWrite(normalCommandsToMove);
+
+        if ('pubSub' in sourceNode) {
+          const listeners = sourceNode.pubSub?.client._getQueue().removeAllPubSubListeners();
+          this.#emit(RESUBSCRIBE_LISTENERS_EVENT, listeners);
+        }
+
+        // Remove all local references to the dying shard's clients
+        const mastersBefore = this.masters.map(m => m.address);
+        this.masters = this.masters.filter(master => master.address !== sourceAddress);
+        this.replicas = this.replicas.filter(replica => replica.address !== sourceAddress);
+        this.nodeByAddress.delete(sourceAddress);
+        const mastersAfter = this.masters.map(m => m.address);
+        dbgMaintenance(`[CSlots]: Removed source from topology. Masters before: [${mastersBefore.join(', ')}]. Masters after: [${mastersAfter.join(', ')}]`);
+
+        // Close source connections
+        if (sourceNode.client?.isOpen) {
+          await sourceNode.client?.close();
+        }
+        if ('pubSub' in sourceNode) {
+          if (sourceNode.pubSub?.client.isOpen) {
+            await sourceNode.pubSub?.client.close();
+          }
+        }
+
+        // Handle pubSubNode replacement if needed
         if (this.pubSubNode?.address === sourceAddress) {
-          inflightPromises.push(this.pubSubNode?.client._getQueue().waitForInflightCommandsToComplete());
-        }
-        await Promise.all(inflightPromises);
-
-
-        // 4.2 Extract commands, channels, sharded channels
-        // TODO dont forget to extract channels and resubscribe
-        const sourceStillHasSlots = this.slots.find(slot => slot.master.address === sourceAddress) !== undefined;
-        // If source shard still has slots, this means we have to only extract commands for the moving slots.
-        // Commands that are for different slots or have no slots should stay in the source shard.
-        // Same goes for sharded pub sub listeners
-        if (sourceStillHasSlots) {
-          const normalCommandsToMove = sourceNode.client!._getQueue().extractCommandsForSlots(movingSlots);
-          // 5. Prepend extracted commands, chans
-          // 5.1 normal
-          destMasterNode.client?._getQueue().prependCommandsToWrite(normalCommandsToMove);
-          sourceNode.client?._unpause();
-          // 5.2 sharded pubsub
-          if ('pubSub' in sourceNode) {
-            const listeners = sourceNode.pubSub?.client._getQueue().removeShardedPubSubListenersForSlots(movingSlots);
-            this.#emit(RESUBSCRIBE_LISTENERS_EVENT, listeners);
-            sourceNode.pubSub?.client._unpause();
-          }
-          // 5.3 normal pubsub - actually not needed. normal pubsub in cluster works from every client, no hashing needed.
-          // So no redistribution needed if the src client still lives
-        } else {
-          // If source shard doesnt have any slots left, this means we can safely move all commands to the new shard.
-          // Same goes for sharded pub sub listeners
-          const normalCommandsToMove = sourceNode.client!._getQueue().extractAllCommands();
-          // 5. Prepend extracted commands, chans
-          destMasterNode.client?._getQueue().prependCommandsToWrite(normalCommandsToMove);
-          if ('pubSub' in sourceNode) {
-            const listeners = sourceNode.pubSub?.client._getQueue().removeAllPubSubListeners();
-            this.#emit(RESUBSCRIBE_LISTENERS_EVENT, listeners);
-          }
-
-          //Remove all local references to the dying shard's clients
-          const mastersBefore = this.masters.map(m => m.address);
-          this.masters = this.masters.filter(master => master.address !== sourceAddress);
-          //not sure if needed, since there should be no replicas in RE
-          this.replicas = this.replicas.filter(replica => replica.address !== sourceAddress);
-          this.nodeByAddress.delete(sourceAddress);
-          const mastersAfter = this.masters.map(m => m.address);
-          dbgMaintenance(`[CSlots]: Removed source from topology. Masters before: [${mastersBefore.join(', ')}]. Masters after: [${mastersAfter.join(', ')}]`);
-
-          // 4.3 Kill because no slots are pointing to it anymore
-          if (sourceNode.client?.isOpen) {
-            await sourceNode.client?.close()
-          }
-          if ('pubSub' in sourceNode) {
-            if (sourceNode.pubSub?.client.isOpen) {
-              await sourceNode.pubSub?.client.close();
-            }
-          }
-        }
-
-        // 5.1 Unpause
-        destMasterNode.client?._unpause();
-        if ('pubSub' in destMasterNode) {
-          destMasterNode.pubSub?.client._unpause();
-        }
-
-        // We want to replace the pubSubNode ONLY if it is pointing to the affected node AND the affected
-        // node is actually dying ( designated by the fact that there are no remaining slots assigned to it)
-        if (this.pubSubNode?.address === sourceAddress && !sourceStillHasSlots) {
           const channelsListeners = this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.CHANNELS),
             patternsListeners = this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.PATTERNS);
 
           this.pubSubNode.client.destroy();
 
-          // Only create the new pubSubNode if there are actual subscriptions to make.
-          // It will be lazily created later if needed.
           if (channelsListeners.size || patternsListeners.size) {
             await this.#initiatePubSubClient({
               [PUBSUB_TYPE.CHANNELS]: channelsListeners,
               [PUBSUB_TYPE.PATTERNS]: patternsListeners
-            })
+            });
           }
+        }
+      }
+
+      // 6. Unpause all destination nodes
+      for (const destNode of destinationNodes) {
+        destNode.client?._unpause();
+        if ('pubSub' in destNode) {
+          destNode.pubSub?.client._unpause();
         }
       }
     }
