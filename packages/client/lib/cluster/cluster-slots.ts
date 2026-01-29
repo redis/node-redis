@@ -296,7 +296,7 @@ export default class RedisClusterSlots<
           // 2.1 Create new Master if needed
           if (!destMasterNode) {
             const promises: Promise<unknown>[] = [];
-            destMasterNode = this.#initiateSlotNode({ host: host, port: port, id: 'asdff' }, false, true, new Set(), promises);
+            destMasterNode = this.#initiateSlotNode({ host: host, port: port, id: `smigrated-${host}:${port}` }, false, true, new Set(), promises);
             await Promise.all([...promises, this.#initiateShardedPubSubClient(destMasterNode)]);
             // Pause new destination until migration is complete
             destMasterNode.client?._pause();
