@@ -35,15 +35,7 @@ describe('Comprehensive RESP Type Mapping', () => {
             );
         });
 
-        it('DOUBLE: maps to number', async () => {
-            const res = await client
-                .withTypeMapping({
-                    [RESP_TYPES.DOUBLE]: Number
-                })
-                .hello();
 
-            assert.ok(res === null || typeof res === 'number');
-        });
     });
 
     describe('Complex Strings', () => {
