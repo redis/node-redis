@@ -494,6 +494,10 @@ export default class TestUtils {
         // Clean up any leftover ACL users from previous test runs
         // ! This MUST be done last because it will disconnect the client !
         await TestUtils.cleanupAclUsers(docker.port, options.clientOptions);
+      }
+    });
+  }
+
   testWithProxiedCluster<
     M extends RedisModules = {},
     F extends RedisFunctions = {},
