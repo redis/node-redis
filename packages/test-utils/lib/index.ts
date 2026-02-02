@@ -956,7 +956,6 @@ export default class TestUtils {
             "clean_maintenance_mode": true
           }
         })
-        await faultInjectorClient.deleteAllDatabases(0);
         console.log(`[DEBUG testWithRECluster] cluster cleared, now creating new db for: "${title}"`);
 
         const db = options.dbConfig ||
