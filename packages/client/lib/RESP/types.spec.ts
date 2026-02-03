@@ -1,122 +1,99 @@
 import { strict as assert } from 'node:assert';
-import { describe, it, beforeEach, afterEach } from 'mocha';
-import { createClient } from '../../index';
+import testUtils, { GLOBAL } from '../test-utils';
 import { RESP_TYPES } from './decoder';
 
-describe('Comprehensive RESP Type Mapping', () => {
-    let client: any;
+describe('RESP Type Mapping', () => {
+    testUtils.testWithClient('type mappings', async client => {
+        // Scalar Primitives
+        // INTEGER: EXISTS returns number (0|1)
+        const existsRes = await client.withTypeMapping({}).exists('some_key');
+        assert.strictEqual(typeof existsRes, 'number');
 
-    beforeEach(async () => {
-        client = createClient();
-        await client.connect();
-    });
+        // BIG_NUMBER: maps to bigint when configured
+        const bigNumRes = await client
+            .withTypeMapping({
+                [RESP_TYPES.BIG_NUMBER]: BigInt
+            })
+            .hello();
+        assert.ok(
+            typeof bigNumRes === 'bigint' ||
+            typeof bigNumRes === 'number' ||
+            typeof bigNumRes === 'object'
+        );
 
-    afterEach(async () => {
-        await client.destroy();
-    });
+        // DOUBLE: maps to number when configured
+        // Use ZINCRBY which returns a DoubleReply
+        const doubleRes = await client
+            .withTypeMapping({
+                [RESP_TYPES.DOUBLE]: Number
+            })
+            .zIncrBy('zset-double-test', 1.5, 'member');
+        assert.strictEqual(typeof doubleRes, 'number');
+        assert.strictEqual(doubleRes, 1.5);
 
-    describe('Scalar Primitives', () => {
-        it('INTEGER: EXISTS returns number (0|1)', async () => {
-            const res = await client.withTypeMapping({}).exists('some_key');
-            assert.strictEqual(typeof res, 'number');
-        });
+        // Complex Strings
+        // VERBATIM_STRING maps to string
+        const verbatimRes = await client
+            .withTypeMapping({
+                [RESP_TYPES.VERBATIM_STRING]: String
+            })
+            .get('key');
+        assert.ok(
+            verbatimRes === null ||
+            typeof verbatimRes === 'string' ||
+            Buffer.isBuffer(verbatimRes)
+        );
 
-        it('BIG_NUMBER: maps to bigint when configured', async () => {
-            const res = await client
+        // Recursive Collections
+        // ARRAY infers nested mapped types
+        const arrayRes = await client
+            .withTypeMapping({
+                [RESP_TYPES.BLOB_STRING]: String
+            })
+            .lRange('key', 0, -1);
+        assert.ok(Array.isArray(arrayRes));
+
+        // SET infers Set or array
+        const setRes = await client
+            .withTypeMapping({
+                [RESP_TYPES.BLOB_STRING]: String
+            })
+            .sMembers('key');
+        assert.ok(setRes instanceof Set || Array.isArray(setRes));
+
+        // MAP infers Map or object
+        const mapRes = await client
+            .withTypeMapping({
+                [RESP_TYPES.BLOB_STRING]: String
+            })
+            .hGetAll('key');
+        assert.ok(mapRes instanceof Map || typeof mapRes === 'object');
+
+        // Edge Cases
+        // SIMPLE_ERROR remains Error
+        try {
+            await client
                 .withTypeMapping({
-                    [RESP_TYPES.BIG_NUMBER]: BigInt
+                    [RESP_TYPES.SIMPLE_ERROR]: Error
                 })
                 .hello();
+            assert.fail('Expected error');
+        } catch (e) {
+            assert.ok(e instanceof Error);
+        }
 
-            assert.ok(
-                typeof res === 'bigint' ||
-                typeof res === 'number' ||
-                typeof res === 'object'
-            );
-        });
+        // NULL always remains null
+        const nullRes = await client
+            .withTypeMapping({})
+            .get('missing-key-random-12345');
+        assert.strictEqual(nullRes, null);
 
-
-    });
-
-    describe('Complex Strings', () => {
-        it('VERBATIM_STRING maps to string', async () => {
-            const res = await client
-                .withTypeMapping({
-                    [RESP_TYPES.VERBATIM_STRING]: String
-                })
-                .get('key');
-
-            assert.ok(
-                res === null ||
-                typeof res === 'string' ||
-                Buffer.isBuffer(res)
-            );
-        });
-    });
-
-    describe('Recursive Collections', () => {
-        it('ARRAY infers nested mapped types', async () => {
-            const res = await client
-                .withTypeMapping({
-                    [RESP_TYPES.BLOB_STRING]: String
-                })
-                .lRange('key', 0, -1);
-
-            assert.ok(Array.isArray(res));
-        });
-
-        it('SET infers Set or array', async () => {
-            const res = await client
-                .withTypeMapping({
-                    [RESP_TYPES.BLOB_STRING]: String
-                })
-                .sMembers('key');
-
-            assert.ok(res instanceof Set || Array.isArray(res));
-        });
-
-        it('MAP infers Map or object', async () => {
-            const res = await client
-                .withTypeMapping({
-                    [RESP_TYPES.BLOB_STRING]: String
-                })
-                .hGetAll('key');
-
-            assert.ok(res instanceof Map || typeof res === 'object');
-        });
-    });
-
-    describe('Edge Cases', () => {
-        it('SIMPLE_ERROR remains Error', async () => {
-            try {
-                await client
-                    .withTypeMapping({
-                        [RESP_TYPES.SIMPLE_ERROR]: Error
-                    })
-                    .hello();
-
-                assert.fail('Expected error');
-            } catch (e) {
-                assert.ok(e instanceof Error);
-            }
-        });
-
-        it('NULL always remains null', async () => {
-            const res = await client
-                .withTypeMapping({})
-                .get('missing-key-random-12345');
-
-            assert.strictEqual(res, null);
-        });
-
-        it('hGet infers string | null', async () => {
-            const res = await client
-                .withTypeMapping({
-                    [RESP_TYPES.BLOB_STRING]: String
-                })
-                .hGet('foo', 'bar');
-
-            assert.ok(res === null || typeof res === 'string');
-        });
-    });
+        // hGet infers string | null
+        const hGetRes = await client
+            .withTypeMapping({
+                [RESP_TYPES.BLOB_STRING]: String
+            })
+            .hGet('foo', 'bar');
+        assert.ok(hGetRes === null || typeof hGetRes === 'string');
+    }, GLOBAL.SERVERS.OPEN);
 });
