@@ -8,7 +8,7 @@ import {
   RedisVariadicArgument,
   parseOptionalVariadicArgument,
 } from "@redis/client/dist/lib/commands/generic-transformers";
-import { FtSearchParams, parseParamsArgument } from "./SEARCH";
+import { parseParamsArgument } from "./SEARCH";
 
 /**
  * Text search expression configuration for hybrid search.
@@ -17,12 +17,7 @@ export interface FtHybridSearchExpression {
   /** Search query string or parameter reference (e.g., "$q") */
   query: RedisArgument;
   /** Scoring algorithm configuration */
-  SCORER?: {
-    /** Scoring algorithm name (e.g., "BM25", "TFIDF") */
-    algorithm: RedisArgument;
-    /** Optional parameters for the scoring algorithm */
-    params?: Array<RedisArgument>;
-  };
+  SCORER?: RedisArgument;
   /** Alias for the text search score in results */
   YIELD_SCORE_AS?: RedisArgument;
 }
@@ -38,8 +33,6 @@ export interface FtHybridVectorMethod {
     K: number;
     /** HNSW ef_runtime parameter for search accuracy/speed tradeoff */
     EF_RUNTIME?: number;
-    /** Alias for the vector distance in results */
-    YIELD_DISTANCE_AS?: RedisArgument;
   };
   /** Range-based vector search configuration */
   RANGE?: {
@@ -47,8 +40,6 @@ export interface FtHybridVectorMethod {
     RADIUS: number;
     /** Range search epsilon for accuracy tuning */
     EPSILON?: number;
-    /** Alias for the vector distance in results */
-    YIELD_DISTANCE_AS?: RedisArgument;
   };
 }
 
@@ -58,8 +49,8 @@ export interface FtHybridVectorMethod {
 export interface FtHybridVectorExpression {
   /** Vector field name (e.g., "@embedding") */
   field: RedisArgument;
-  /** Vector data as Buffer or parameter reference (e.g., "$v") */
-  vectorData: RedisArgument;
+  /** Vector parameter reference (e.g., "$v") */
+  vector: string;
   /** Search method configuration - KNN or RANGE */
   method?: FtHybridVectorMethod;
   /** Pre-filter expression applied before vector search (e.g., "@tag:{foo}") */
@@ -122,9 +113,9 @@ export interface FtHybridApply {
  */
 export interface FtHybridOptions {
   /** Text search expression configuration */
-  SEARCH?: FtHybridSearchExpression;
+  SEARCH: FtHybridSearchExpression;
   /** Vector similarity search expression configuration */
-  VSIM?: FtHybridVectorExpression;
+  VSIM: FtHybridVectorExpression;
   /** Score fusion configuration for combining SEARCH and VSIM results */
   COMBINE?: {
     /** Fusion method: RRF, LINEAR, or FUNCTION */
@@ -165,9 +156,7 @@ export interface FtHybridOptions {
     count: number | RedisArgument;
   };
   /** Query parameters for parameterized queries */
-  PARAMS?: FtSearchParams;
-  /** Enable score explanation in results for debugging */
-  EXPLAINSCORE?: boolean;
+  PARAMS: Record<string, string | number | Buffer>;
   /** Query timeout in milliseconds */
   TIMEOUT?: number;
 }
@@ -179,10 +168,7 @@ function parseSearchExpression(
   parser.push("SEARCH", search.query);
 
   if (search.SCORER) {
-    parser.push("SCORER", search.SCORER.algorithm);
-    if (search.SCORER.params) {
-      parser.push(...search.SCORER.params);
-    }
+    parser.push("SCORER", search.SCORER);
   }
 
   if (search.YIELD_SCORE_AS) {
@@ -190,57 +176,45 @@ function parseSearchExpression(
   }
 }
 
-function isParameterReference(value: RedisArgument): boolean {
-  if (typeof value === "string" && value.startsWith("$")) {
-    return true;
-  }
-  return false;
-}
-
 function parseVectorExpression(
   parser: CommandParser,
   vsim: FtHybridVectorExpression,
-  isParamRef: boolean,
 ) {
-  // If vectorData is a parameter reference (starts with $), use it directly
-  // Otherwise, use the auto-generated $v parameter reference
-  const vectorRef = isParamRef ? vsim.vectorData : "$v";
-  parser.push("VSIM", vsim.field, vectorRef);
+  parser.push("VSIM", vsim.field, vsim.vector);
 
   if (vsim.method) {
     if (vsim.method.KNN) {
       const knn = vsim.method.KNN;
-      // Calculate nargs: 2 base (K + value) + 2 per optional (EF_RUNTIME, YIELD_DISTANCE_AS)
-      let nargs = 2;
-      if (knn.EF_RUNTIME !== undefined) nargs += 2;
-      if (knn.YIELD_DISTANCE_AS) nargs += 2;
 
-      parser.push("KNN", nargs.toString(), "K", knn.K.toString());
+      let argsCount = 2;
+      if (knn.EF_RUNTIME !== undefined) {
+        argsCount += 2;
+      }
+
+      parser.push("KNN", argsCount.toString(), "K", knn.K.toString());
 
       if (knn.EF_RUNTIME !== undefined) {
         parser.push("EF_RUNTIME", knn.EF_RUNTIME.toString());
-      }
-
-      if (knn.YIELD_DISTANCE_AS) {
-        parser.push("YIELD_DISTANCE_AS", knn.YIELD_DISTANCE_AS);
       }
     }
 
     if (vsim.method.RANGE) {
       const range = vsim.method.RANGE;
-      // Calculate nargs: 2 base (RADIUS + value) + 2 per optional (EPSILON, YIELD_DISTANCE_AS)
-      let nargs = 2;
-      if (range.EPSILON !== undefined) nargs += 2;
-      if (range.YIELD_DISTANCE_AS) nargs += 2;
 
-      parser.push("RANGE", nargs.toString(), "RADIUS", range.RADIUS.toString());
+      let argsCount = 2;
+      if (range.EPSILON !== undefined) {
+        argsCount += 2;
+      }
+
+      parser.push(
+        "RANGE",
+        argsCount.toString(),
+        "RADIUS",
+        range.RADIUS.toString(),
+      );
 
       if (range.EPSILON !== undefined) {
         parser.push("EPSILON", range.EPSILON.toString());
-      }
-
-      if (range.YIELD_DISTANCE_AS) {
-        parser.push("YIELD_DISTANCE_AS", range.YIELD_DISTANCE_AS);
       }
     }
   }
@@ -264,13 +238,20 @@ function parseCombineMethod(
 
   if (combine.method.RRF) {
     const rrf = combine.method.RRF;
-    // Calculate nargs: 2 per optional (WINDOW, CONSTANT, YIELD_SCORE_AS)
-    let nargs = 0;
-    if (rrf.WINDOW !== undefined) nargs += 2;
-    if (rrf.CONSTANT !== undefined) nargs += 2;
-    if (combine.YIELD_SCORE_AS) nargs += 2;
 
-    parser.push("RRF", nargs.toString());
+    // Calculate argsCount: 2 per optional (WINDOW, CONSTANT, YIELD_SCORE_AS)
+    let argsCount = 0;
+    if (rrf.WINDOW !== undefined) {
+      argsCount += 2;
+    }
+    if (rrf.CONSTANT !== undefined) {
+      argsCount += 2;
+    }
+    if (combine.YIELD_SCORE_AS) {
+      argsCount += 2;
+    }
+
+    parser.push("RRF", argsCount.toString());
 
     if (rrf.WINDOW !== undefined) {
       parser.push("WINDOW", rrf.WINDOW.toString());
@@ -287,14 +268,23 @@ function parseCombineMethod(
 
   if (combine.method.LINEAR) {
     const linear = combine.method.LINEAR;
-    // Calculate nargs: 2 per optional (ALPHA, BETA, WINDOW, YIELD_SCORE_AS)
-    let nargs = 0;
-    if (linear.ALPHA !== undefined) nargs += 2;
-    if (linear.BETA !== undefined) nargs += 2;
-    if (linear.WINDOW !== undefined) nargs += 2;
-    if (combine.YIELD_SCORE_AS) nargs += 2;
 
-    parser.push("LINEAR", nargs.toString());
+    // Calculate argsCount: 2 per optional (ALPHA, BETA, WINDOW, YIELD_SCORE_AS)
+    let argsCount = 0;
+    if (linear.ALPHA !== undefined) {
+      argsCount += 2;
+    }
+    if (linear.BETA !== undefined) {
+      argsCount += 2;
+    }
+    if (linear.WINDOW !== undefined) {
+      argsCount += 2;
+    }
+    if (combine.YIELD_SCORE_AS) {
+      argsCount += 2;
+    }
+
+    parser.push("LINEAR", argsCount.toString());
 
     if (linear.ALPHA !== undefined) {
       parser.push("ALPHA", linear.ALPHA.toString());
@@ -340,13 +330,8 @@ function parseHybridOptions(parser: CommandParser, options?: FtHybridOptions) {
     parseSearchExpression(parser, options.SEARCH);
   }
 
-  // Check if vectorData is a parameter reference (starts with $)
-  const isVectorParamRef = options.VSIM
-    ? isParameterReference(options.VSIM.vectorData)
-    : false;
-
   if (options.VSIM) {
-    parseVectorExpression(parser, options.VSIM, isVectorParamRef);
+    parseVectorExpression(parser, options.VSIM);
   }
 
   if (options.COMBINE) {
@@ -380,14 +365,14 @@ function parseHybridOptions(parser: CommandParser, options?: FtHybridOptions) {
   }
 
   if (options.SORTBY) {
-    // nargs is just the count of fields
-    const sortByNargs = options.SORTBY.fields.reduce((acc, field) => {
+    const sortByArgsCount = options.SORTBY.fields.reduce((acc, field) => {
       if (field.direction) {
         return acc + 2;
       }
       return acc + 1;
     }, 0);
-    parser.push("SORTBY", sortByNargs.toString());
+
+    parser.push("SORTBY", sortByArgsCount.toString());
     for (const sortField of options.SORTBY.fields) {
       parser.push(sortField.field);
       if (sortField.direction) {
@@ -412,21 +397,9 @@ function parseHybridOptions(parser: CommandParser, options?: FtHybridOptions) {
     );
   }
 
-  // Merge vector data into PARAMS - vector must be passed as parameter 'v'
-  // Only add 'v' to params if vectorData is NOT a parameter reference (e.g., "$vector")
-  // When vectorData is a parameter reference, the user provides the actual vector in PARAMS
-  const params: FtSearchParams = { ...options.PARAMS };
-  if (options.VSIM && !isVectorParamRef) {
-    params["v"] = options.VSIM.vectorData;
-  }
-  parseParamsArgument(
-    parser,
-    Object.keys(params).length > 0 ? params : undefined,
-  );
+  const hasParams = options.PARAMS && Object.keys(options.PARAMS).length > 0;
 
-  if (options.EXPLAINSCORE) {
-    parser.push("EXPLAINSCORE");
-  }
+  parseParamsArgument(parser, hasParams ? options.PARAMS : undefined);
 
   if (options.TIMEOUT !== undefined) {
     parser.push("TIMEOUT", options.TIMEOUT.toString());
@@ -451,7 +424,7 @@ export default {
    *   - VSIM: Vector similarity expression with KNN/RANGE methods
    *   - COMBINE: Fusion method (RRF, LINEAR, FUNCTION)
    *   - Post-processing operations: LOAD, GROUPBY, APPLY, SORTBY, FILTER
-   *   - Tunable options: LIMIT, PARAMS, EXPLAINSCORE, TIMEOUT
+   *   - Tunable options: LIMIT, PARAMS, TIMEOUT
    */
   parseCommand(
     parser: CommandParser,
@@ -485,7 +458,6 @@ export interface HybridSearchDocument {
 }
 
 function transformHybridSearchResults(reply: any): HybridSearchResult {
-  // console.log('reply', reply);
   // FT.HYBRID returns a map-like structure as flat array:
   // ['total_results', N, 'results', [...], 'warnings', [...], 'execution_time', 'X.XXX']
   const replyMap = parseReplyMap(reply);
@@ -502,23 +474,10 @@ function transformHybridSearchResults(reply: any): HybridSearchResult {
     // Each result is a flat key-value array like FT.AGGREGATE: ['field1', 'value1', 'field2', 'value2', ...]
     const resultMap = parseReplyMap(result);
 
-    // Document ID comes from @__key field if loaded
-    const docId = resultMap["__key"] ?? "";
-
-    // The hybrid score field name is user-defined via COMBINE's YIELD_SCORE_AS
-    // Common conventions are __hybrid_score, combined_score, etc.
-    // We check for these common names but users should use YIELD_SCORE_AS and access the field directly
-    // __score is the default score field returned by Redis when no custom YIELD_SCORE_AS is specified
-    const doc: HybridSearchDocument = {
-      id: docId,
-      ...(resultMap["__score"] && { score: parseScore(resultMap["__score"]) }),
-    };
+    const doc = Object.create(null);
 
     // Add all other fields from the result
     for (const [key, value] of Object.entries(resultMap)) {
-      if (key === "__key") {
-        continue; // Already handled as id and score
-      }
       if (key === "$") {
         // JSON document - parse and merge
         try {
@@ -540,22 +499,6 @@ function transformHybridSearchResults(reply: any): HybridSearchResult {
     warnings,
     results,
   };
-}
-
-function parseScore(value: any): number | undefined {
-  if (value === undefined || value === null) {
-    return undefined;
-  }
-
-  if (typeof value === "number") {
-    return value;
-  }
-
-  if (typeof value === "string") {
-    return Number.parseFloat(value);
-  }
-
-  return undefined;
 }
 
 function parseReplyMap(reply: any): Record<string, any> {

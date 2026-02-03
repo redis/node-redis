@@ -3,7 +3,6 @@ import HYBRID from "./HYBRID";
 import { BasicCommandParser } from "@redis/client/lib/client/parser";
 import testUtils, { GLOBAL } from "../test-utils";
 import { SCHEMA_VECTOR_FIELD_ALGORITHM } from "./CREATE";
-import HYBRID_WITHCURSOR from "./HYBRID_WITHCURSOR";
 
 /**
  * Helper function to create a Float32Array vector as a Buffer
@@ -152,24 +151,32 @@ const addDataForHybridSearch = async (
 
 describe("FT.HYBRID", () => {
   describe("transformArguments", () => {
-    it("minimal command", () => {
-      const parser = new BasicCommandParser();
-      HYBRID.parseCommand(parser, "index");
-      assert.deepEqual(parser.redisArgs, ["FT.HYBRID", "index"]);
-    });
-
-    it("with SEARCH expression", () => {
+    it("minimal command with SEARCH, VSIM, and PARAMS", () => {
       const parser = new BasicCommandParser();
       HYBRID.parseCommand(parser, "index", {
         SEARCH: {
-          query: "@description: bikes",
+          query: "*",
+        },
+        VSIM: {
+          field: "@embedding",
+          vector: "$vec",
+        },
+        PARAMS: {
+          vec: "BLOB_DATA",
         },
       });
       assert.deepEqual(parser.redisArgs, [
         "FT.HYBRID",
         "index",
         "SEARCH",
-        "@description: bikes",
+        "*",
+        "VSIM",
+        "@embedding",
+        "$vec",
+        "PARAMS",
+        "2",
+        "vec",
+        "BLOB_DATA",
       ]);
     });
 
@@ -178,11 +185,15 @@ describe("FT.HYBRID", () => {
       HYBRID.parseCommand(parser, "index", {
         SEARCH: {
           query: "@description: bikes",
-          SCORER: {
-            algorithm: "TFIDF.DOCNORM",
-            params: ["param1", "param2"],
-          },
+          SCORER: "TFIDF.DOCNORM",
           YIELD_SCORE_AS: "search_score",
+        },
+        VSIM: {
+          field: "@embedding",
+          vector: "$vec",
+        },
+        PARAMS: {
+          vec: "BLOB_DATA",
         },
       });
       assert.deepEqual(parser.redisArgs, [
@@ -192,45 +203,55 @@ describe("FT.HYBRID", () => {
         "@description: bikes",
         "SCORER",
         "TFIDF.DOCNORM",
-        "param1",
-        "param2",
         "YIELD_SCORE_AS",
         "search_score",
+        "VSIM",
+        "@embedding",
+        "$vec",
+        "PARAMS",
+        "2",
+        "vec",
+        "BLOB_DATA",
       ]);
     });
 
     it("with VSIM expression and KNN method", () => {
       const parser = new BasicCommandParser();
       HYBRID.parseCommand(parser, "index", {
+        SEARCH: {
+          query: "@description: bikes",
+        },
         VSIM: {
           field: "@vector_field",
-          vectorData: "BLOB_DATA",
+          vector: "$vec",
           method: {
             KNN: {
               K: 10,
               EF_RUNTIME: 50,
-              YIELD_DISTANCE_AS: "vector_dist",
             },
           },
+        },
+        PARAMS: {
+          vec: "BLOB_DATA",
         },
       });
       assert.deepEqual(parser.redisArgs, [
         "FT.HYBRID",
         "index",
+        "SEARCH",
+        "@description: bikes",
         "VSIM",
         "@vector_field",
-        "$v",
+        "$vec",
         "KNN",
-        "6",
+        "4",
         "K",
         "10",
         "EF_RUNTIME",
         "50",
-        "YIELD_DISTANCE_AS",
-        "vector_dist",
         "PARAMS",
         "2",
-        "v",
+        "vec",
         "BLOB_DATA",
       ]);
     });
@@ -238,35 +259,40 @@ describe("FT.HYBRID", () => {
     it("with VSIM expression and RANGE method", () => {
       const parser = new BasicCommandParser();
       HYBRID.parseCommand(parser, "index", {
+        SEARCH: {
+          query: "@description: bikes",
+        },
         VSIM: {
           field: "@vector_field",
-          vectorData: "BLOB_DATA",
+          vector: "$vec",
           method: {
             RANGE: {
               RADIUS: 0.5,
               EPSILON: 0.01,
-              YIELD_DISTANCE_AS: "vector_dist",
             },
           },
+        },
+        PARAMS: {
+          vec: "BLOB_DATA",
         },
       });
       assert.deepEqual(parser.redisArgs, [
         "FT.HYBRID",
         "index",
+        "SEARCH",
+        "@description: bikes",
         "VSIM",
         "@vector_field",
-        "$v",
+        "$vec",
         "RANGE",
-        "6",
+        "4",
         "RADIUS",
         "0.5",
         "EPSILON",
         "0.01",
-        "YIELD_DISTANCE_AS",
-        "vector_dist",
         "PARAMS",
         "2",
-        "v",
+        "vec",
         "BLOB_DATA",
       ]);
     });
@@ -274,26 +300,34 @@ describe("FT.HYBRID", () => {
     it("with VSIM expression and FILTER", () => {
       const parser = new BasicCommandParser();
       HYBRID.parseCommand(parser, "index", {
+        SEARCH: {
+          query: "@description: bikes",
+        },
         VSIM: {
           field: "@vector_field",
-          vectorData: "BLOB_DATA",
+          vector: "$vec",
           FILTER: "@category:{bikes}",
           YIELD_SCORE_AS: "vsim_score",
+        },
+        PARAMS: {
+          vec: "BLOB_DATA",
         },
       });
       assert.deepEqual(parser.redisArgs, [
         "FT.HYBRID",
         "index",
+        "SEARCH",
+        "@description: bikes",
         "VSIM",
         "@vector_field",
-        "$v",
+        "$vec",
         "FILTER",
         "@category:{bikes}",
         "YIELD_SCORE_AS",
         "vsim_score",
         "PARAMS",
         "2",
-        "v",
+        "vec",
         "BLOB_DATA",
       ]);
     });
@@ -301,6 +335,13 @@ describe("FT.HYBRID", () => {
     it("with RRF COMBINE method", () => {
       const parser = new BasicCommandParser();
       HYBRID.parseCommand(parser, "index", {
+        SEARCH: {
+          query: "@description: bikes",
+        },
+        VSIM: {
+          field: "@embedding",
+          vector: "$vec",
+        },
         COMBINE: {
           method: {
             RRF: {
@@ -310,10 +351,18 @@ describe("FT.HYBRID", () => {
           },
           YIELD_SCORE_AS: "combined_score",
         },
+        PARAMS: {
+          vec: "BLOB_DATA",
+        },
       });
       assert.deepEqual(parser.redisArgs, [
         "FT.HYBRID",
         "index",
+        "SEARCH",
+        "@description: bikes",
+        "VSIM",
+        "@embedding",
+        "$vec",
         "COMBINE",
         "RRF",
         "6",
@@ -323,12 +372,23 @@ describe("FT.HYBRID", () => {
         "60",
         "YIELD_SCORE_AS",
         "combined_score",
+        "PARAMS",
+        "2",
+        "vec",
+        "BLOB_DATA",
       ]);
     });
 
     it("with LINEAR COMBINE method", () => {
       const parser = new BasicCommandParser();
       HYBRID.parseCommand(parser, "index", {
+        SEARCH: {
+          query: "@description: bikes",
+        },
+        VSIM: {
+          field: "@embedding",
+          vector: "$vec",
+        },
         COMBINE: {
           method: {
             LINEAR: {
@@ -337,10 +397,18 @@ describe("FT.HYBRID", () => {
             },
           },
         },
+        PARAMS: {
+          vec: "BLOB_DATA",
+        },
       });
       assert.deepEqual(parser.redisArgs, [
         "FT.HYBRID",
         "index",
+        "SEARCH",
+        "@description: bikes",
+        "VSIM",
+        "@embedding",
+        "$vec",
         "COMBINE",
         "LINEAR",
         "4",
@@ -348,12 +416,23 @@ describe("FT.HYBRID", () => {
         "0.7",
         "BETA",
         "0.3",
+        "PARAMS",
+        "2",
+        "vec",
+        "BLOB_DATA",
       ]);
     });
 
     it("with LOAD, SORTBY, and LIMIT", () => {
       const parser = new BasicCommandParser();
       HYBRID.parseCommand(parser, "index", {
+        SEARCH: {
+          query: "@description: bikes",
+        },
+        VSIM: {
+          field: "@embedding",
+          vector: "$vec",
+        },
         LOAD: ["field1", "field2"],
         SORTBY: {
           fields: [{ field: "score", direction: "DESC" }],
@@ -362,10 +441,18 @@ describe("FT.HYBRID", () => {
           offset: 0,
           count: 10,
         },
+        PARAMS: {
+          vec: "BLOB_DATA",
+        },
       });
       assert.deepEqual(parser.redisArgs, [
         "FT.HYBRID",
         "index",
+        "SEARCH",
+        "@description: bikes",
+        "VSIM",
+        "@embedding",
+        "$vec",
         "LOAD",
         "2",
         "field1",
@@ -377,12 +464,23 @@ describe("FT.HYBRID", () => {
         "LIMIT",
         "0",
         "10",
+        "PARAMS",
+        "2",
+        "vec",
+        "BLOB_DATA",
       ]);
     });
 
     it("with GROUPBY and REDUCE", () => {
       const parser = new BasicCommandParser();
       HYBRID.parseCommand(parser, "index", {
+        SEARCH: {
+          query: "@description: bikes",
+        },
+        VSIM: {
+          field: "@embedding",
+          vector: "$vec",
+        },
         GROUPBY: {
           fields: ["@category"],
           REDUCE: {
@@ -391,54 +489,112 @@ describe("FT.HYBRID", () => {
             args: [],
           },
         },
+        PARAMS: {
+          vec: "BLOB_DATA",
+        },
       });
       assert.deepEqual(parser.redisArgs, [
         "FT.HYBRID",
         "index",
+        "SEARCH",
+        "@description: bikes",
+        "VSIM",
+        "@embedding",
+        "$vec",
         "GROUPBY",
         "1",
         "@category",
         "REDUCE",
         "COUNT",
         "0",
+        "PARAMS",
+        "2",
+        "vec",
+        "BLOB_DATA",
       ]);
     });
 
     it("with APPLY", () => {
       const parser = new BasicCommandParser();
       HYBRID.parseCommand(parser, "index", {
+        SEARCH: {
+          query: "@description: bikes",
+        },
+        VSIM: {
+          field: "@embedding",
+          vector: "$vec",
+        },
         APPLY: {
           expression: "@score * 2",
           AS: "double_score",
+        },
+        PARAMS: {
+          vec: "BLOB_DATA",
         },
       });
       assert.deepEqual(parser.redisArgs, [
         "FT.HYBRID",
         "index",
+        "SEARCH",
+        "@description: bikes",
+        "VSIM",
+        "@embedding",
+        "$vec",
         "APPLY",
         "@score * 2",
         "AS",
         "double_score",
+        "PARAMS",
+        "2",
+        "vec",
+        "BLOB_DATA",
       ]);
     });
 
     it("with FILTER and post-processing", () => {
       const parser = new BasicCommandParser();
       HYBRID.parseCommand(parser, "index", {
+        SEARCH: {
+          query: "@description: bikes",
+        },
+        VSIM: {
+          field: "@embedding",
+          vector: "$vec",
+        },
         FILTER: "@price:[100 500]",
+        PARAMS: {
+          vec: "BLOB_DATA",
+        },
       });
       assert.deepEqual(parser.redisArgs, [
         "FT.HYBRID",
         "index",
+        "SEARCH",
+        "@description: bikes",
+        "VSIM",
+        "@embedding",
+        "$vec",
         "FILTER",
         "@price:[100 500]",
+        "PARAMS",
+        "2",
+        "vec",
+        "BLOB_DATA",
       ]);
     });
 
-    it("with PARAMS", () => {
+    it("with additional PARAMS", () => {
       const parser = new BasicCommandParser();
       HYBRID.parseCommand(parser, "index", {
+        SEARCH: {
+          query: "@description: bikes",
+        },
+        VSIM: {
+          field: "@embedding",
+          vector: "$vec",
+        },
         PARAMS: {
+          vec: "BLOB_DATA",
           query_vector: "BLOB_DATA",
           min_price: 100,
         },
@@ -446,8 +602,15 @@ describe("FT.HYBRID", () => {
       assert.deepEqual(parser.redisArgs, [
         "FT.HYBRID",
         "index",
+        "SEARCH",
+        "@description: bikes",
+        "VSIM",
+        "@embedding",
+        "$vec",
         "PARAMS",
-        "4",
+        "6",
+        "vec",
+        "BLOB_DATA",
         "query_vector",
         "BLOB_DATA",
         "min_price",
@@ -458,11 +621,30 @@ describe("FT.HYBRID", () => {
     it("with TIMEOUT", () => {
       const parser = new BasicCommandParser();
       HYBRID.parseCommand(parser, "index", {
+        SEARCH: {
+          query: "@description: bikes",
+        },
+        VSIM: {
+          field: "@embedding",
+          vector: "$vec",
+        },
+        PARAMS: {
+          vec: "BLOB_DATA",
+        },
         TIMEOUT: 5000,
       });
       assert.deepEqual(parser.redisArgs, [
         "FT.HYBRID",
         "index",
+        "SEARCH",
+        "@description: bikes",
+        "VSIM",
+        "@embedding",
+        "$vec",
+        "PARAMS",
+        "2",
+        "vec",
+        "BLOB_DATA",
         "TIMEOUT",
         "5000",
       ]);
@@ -475,6 +657,13 @@ describe("FT.HYBRID", () => {
           query: "shoes",
           YIELD_SCORE_AS: "search_score",
         },
+        VSIM: {
+          field: "@embedding",
+          vector: "$vec",
+        },
+        PARAMS: {
+          vec: "BLOB_DATA",
+        },
       });
       assert.deepEqual(parser.redisArgs, [
         "FT.HYBRID",
@@ -483,29 +672,44 @@ describe("FT.HYBRID", () => {
         "shoes",
         "YIELD_SCORE_AS",
         "search_score",
+        "VSIM",
+        "@embedding",
+        "$vec",
+        "PARAMS",
+        "2",
+        "vec",
+        "BLOB_DATA",
       ]);
     });
 
     it("with VSIM YIELD_SCORE_AS", () => {
       const parser = new BasicCommandParser();
       HYBRID.parseCommand(parser, "index", {
+        SEARCH: {
+          query: "shoes",
+        },
         VSIM: {
           field: "@embedding",
-          vectorData: "BLOB_DATA",
+          vector: "$vec",
           YIELD_SCORE_AS: "vsim_score",
+        },
+        PARAMS: {
+          vec: "BLOB_DATA",
         },
       });
       assert.deepEqual(parser.redisArgs, [
         "FT.HYBRID",
         "index",
+        "SEARCH",
+        "shoes",
         "VSIM",
         "@embedding",
-        "$v",
+        "$vec",
         "YIELD_SCORE_AS",
         "vsim_score",
         "PARAMS",
         "2",
-        "v",
+        "vec",
         "BLOB_DATA",
       ]);
     });
@@ -513,14 +717,29 @@ describe("FT.HYBRID", () => {
     it("with multiple APPLY expressions", () => {
       const parser = new BasicCommandParser();
       HYBRID.parseCommand(parser, "index", {
+        SEARCH: {
+          query: "@description: bikes",
+        },
+        VSIM: {
+          field: "@embedding",
+          vector: "$vec",
+        },
         APPLY: [
           { expression: "@price - (@price * 0.1)", AS: "price_discount" },
           { expression: "@price_discount * 0.2", AS: "tax_discount" },
         ],
+        PARAMS: {
+          vec: "BLOB_DATA",
+        },
       });
       assert.deepEqual(parser.redisArgs, [
         "FT.HYBRID",
         "index",
+        "SEARCH",
+        "@description: bikes",
+        "VSIM",
+        "@embedding",
+        "$vec",
         "APPLY",
         "@price - (@price * 0.1)",
         "AS",
@@ -529,12 +748,23 @@ describe("FT.HYBRID", () => {
         "@price_discount * 0.2",
         "AS",
         "tax_discount",
+        "PARAMS",
+        "2",
+        "vec",
+        "BLOB_DATA",
       ]);
     });
 
     it("with GROUPBY and multiple REDUCE functions", () => {
       const parser = new BasicCommandParser();
       HYBRID.parseCommand(parser, "index", {
+        SEARCH: {
+          query: "@description: bikes",
+        },
+        VSIM: {
+          field: "@embedding",
+          vector: "$vec",
+        },
         GROUPBY: {
           fields: ["@itemType", "@price"],
           REDUCE: [
@@ -551,10 +781,18 @@ describe("FT.HYBRID", () => {
             },
           ],
         },
+        PARAMS: {
+          vec: "BLOB_DATA",
+        },
       });
       assert.deepEqual(parser.redisArgs, [
         "FT.HYBRID",
         "index",
+        "SEARCH",
+        "@description: bikes",
+        "VSIM",
+        "@embedding",
+        "$vec",
         "GROUPBY",
         "2",
         "@itemType",
@@ -569,28 +807,51 @@ describe("FT.HYBRID", () => {
         "MIN",
         "1",
         "@size",
+        "PARAMS",
+        "2",
+        "vec",
+        "BLOB_DATA",
       ]);
     });
 
     it("with multiple SORTBY fields", () => {
       const parser = new BasicCommandParser();
       HYBRID.parseCommand(parser, "index", {
+        SEARCH: {
+          query: "@description: bikes",
+        },
+        VSIM: {
+          field: "@embedding",
+          vector: "$vec",
+        },
         SORTBY: {
           fields: [
             { field: "@price_discount", direction: "DESC" },
             { field: "@color", direction: "ASC" },
           ],
         },
+        PARAMS: {
+          vec: "BLOB_DATA",
+        },
       });
       assert.deepEqual(parser.redisArgs, [
         "FT.HYBRID",
         "index",
+        "SEARCH",
+        "@description: bikes",
+        "VSIM",
+        "@embedding",
+        "$vec",
         "SORTBY",
         "4",
         "@price_discount",
         "DESC",
         "@color",
         "ASC",
+        "PARAMS",
+        "2",
+        "vec",
+        "BLOB_DATA",
       ]);
     });
 
@@ -599,14 +860,12 @@ describe("FT.HYBRID", () => {
       HYBRID.parseCommand(parser, "index", {
         SEARCH: {
           query: "@description: bikes",
-          SCORER: {
-            algorithm: "TFIDF.DOCNORM",
-          },
+          SCORER: "TFIDF.DOCNORM",
           YIELD_SCORE_AS: "text_score",
         },
         VSIM: {
           field: "@vector_field",
-          vectorData: "$query_vector",
+          vector: "$query_vector",
           method: {
             KNN: {
               K: 5,
@@ -691,7 +950,10 @@ describe("FT.HYBRID", () => {
           SEARCH: { query: "@color:{red} @color:{green}" },
           VSIM: {
             field: "@embedding",
-            vectorData: createVectorBuffer([-100, -200, -200, -300]),
+            vector: "$vec",
+          },
+          PARAMS: {
+            vec: createVectorBuffer([-100, -200, -200, -300]),
           },
         });
 
@@ -716,11 +978,11 @@ describe("FT.HYBRID", () => {
         const resultTfidf = await client.ft.hybrid(indexName, {
           SEARCH: {
             query: "shoes",
-            SCORER: { algorithm: "TFIDF" },
+            SCORER: "TFIDF",
           },
           VSIM: {
             field: "@embedding",
-            vectorData: createVectorBuffer([1, 2, 2, 3]),
+            vector: "$vec",
           },
           COMBINE: {
             method: { LINEAR: { ALPHA: 1, BETA: 0 } },
@@ -734,6 +996,9 @@ describe("FT.HYBRID", () => {
             "@__item",
           ],
           LIMIT: { offset: 0, count: 2 },
+          PARAMS: {
+            vec: createVectorBuffer([1, 2, 2, 3]),
+          },
         });
 
         assert.ok(resultTfidf.totalResults >= 2);
@@ -744,11 +1009,11 @@ describe("FT.HYBRID", () => {
         const resultBm25 = await client.ft.hybrid(indexName, {
           SEARCH: {
             query: "shoes",
-            SCORER: { algorithm: "BM25" },
+            SCORER: "BM25",
           },
           VSIM: {
             field: "@embedding",
-            vectorData: createVectorBuffer([1, 2, 2, 3]),
+            vector: "$vec2",
           },
           COMBINE: {
             method: { LINEAR: { ALPHA: 1, BETA: 0 } },
@@ -762,6 +1027,9 @@ describe("FT.HYBRID", () => {
             "@__item",
           ],
           LIMIT: { offset: 0, count: 2 },
+          PARAMS: {
+            vec2: createVectorBuffer([1, 2, 2, 3]),
+          }
         });
 
         assert.ok(resultBm25.totalResults >= 2);
@@ -773,7 +1041,7 @@ describe("FT.HYBRID", () => {
 
     testUtils.testWithClientIfVersionWithinRange(
       [[8, 6], "LATEST"],
-      "hybrid search with vsim method defined in query init",
+      "hybrid search with vsim explicit method",
       async (client) => {
         const indexName = "idx_vsim_method";
         await createHybridSearchIndex(client, indexName);
@@ -783,12 +1051,15 @@ describe("FT.HYBRID", () => {
           SEARCH: { query: "shoes" },
           VSIM: {
             field: "@embeddingHNSW",
-            vectorData: "abcd1234efgh5678",
+            vector: "$vec",
             method: {
               KNN: { K: 3, EF_RUNTIME: 1 },
             },
           },
           TIMEOUT: 10000,
+          PARAMS: {
+            vec: "abcd1234efgh5678",
+          },
         });
 
         assert.ok(result.results.length > 0);
@@ -810,11 +1081,14 @@ describe("FT.HYBRID", () => {
           SEARCH: { query: "@color:{missing}" },
           VSIM: {
             field: "@embedding",
-            vectorData: createVectorBuffer([1, 2, 2, 3]),
+            vector: "$vec",
             FILTER: "@price:[15 16] @size:[10 11]",
           },
           LOAD: ["@price", "@size"],
           TIMEOUT: 10000,
+          PARAMS: {
+            vec: createVectorBuffer([1, 2, 2, 3]),
+          }
         });
 
         assert.ok(result.results.length > 0);
@@ -844,13 +1118,18 @@ describe("FT.HYBRID", () => {
           },
           VSIM: {
             field: "@embedding",
-            vectorData: "abcd1234efgh5678",
+            vector: "$vec",
           },
           TIMEOUT: 10000,
+          PARAMS: {
+            vec: "abcd1234efgh5678",
+          },
         });
 
         assert.ok(result.results.length > 0);
         assert.deepStrictEqual(result.warnings, []);
+
+        assert.ok(result.results.some(item => item.search_score !== undefined));
       },
       GLOBAL.SERVERS.OPEN,
     );
@@ -868,17 +1147,22 @@ describe("FT.HYBRID", () => {
           SEARCH: { query: "shoes" },
           VSIM: {
             field: "@embeddingHNSW",
-            vectorData: "abcd1234efgh5678",
+            vector: "$vec",
             method: {
               KNN: { K: 3, EF_RUNTIME: 1 },
             },
             YIELD_SCORE_AS: "vsim_score",
           },
           TIMEOUT: 10000,
+          PARAMS: {
+            vec: "abcd1234efgh5678",
+          },
         });
 
         assert.ok(result.results.length > 0);
         assert.deepStrictEqual(result.warnings, []);
+
+        assert.ok(result.results.some(item => item.vsim_score !== undefined));
       },
       GLOBAL.SERVERS.OPEN,
     );
@@ -896,13 +1180,16 @@ describe("FT.HYBRID", () => {
           SEARCH: { query: "shoes" },
           VSIM: {
             field: "@embeddingHNSW",
-            vectorData: "abcd1234efgh5678",
+            vector: "$vec",
           },
           COMBINE: {
             method: { LINEAR: { ALPHA: 0.5, BETA: 0.5 } },
             YIELD_SCORE_AS: "combined_score",
           },
           TIMEOUT: 10000,
+          PARAMS: {
+            vec: "abcd1234efgh5678",
+          },
         });
 
         assert.ok(result.results.length > 0);
@@ -931,7 +1218,7 @@ describe("FT.HYBRID", () => {
           },
           VSIM: {
             field: "@embeddingHNSW",
-            vectorData: "abcd1234efgh5678",
+            vector: "$vec",
             method: {
               KNN: { K: 3, EF_RUNTIME: 1 },
             },
@@ -942,6 +1229,9 @@ describe("FT.HYBRID", () => {
             YIELD_SCORE_AS: "combined_score",
           },
           TIMEOUT: 10000,
+          PARAMS: {
+            vec: "abcd1234efgh5678",
+          },
         });
 
         assert.ok(result.results.length > 0);
@@ -968,12 +1258,15 @@ describe("FT.HYBRID", () => {
           SEARCH: { query: "@color:{none}" },
           VSIM: {
             field: "@embedding",
-            vectorData: createVectorBuffer([1, 2, 2, 3]),
+            vector: "$vec",
             method: {
               KNN: { K: 3 },
             },
           },
           TIMEOUT: 10000,
+          PARAMS: {
+            vec: createVectorBuffer([1, 2, 2, 3]),
+          },
         });
 
         assert.strictEqual(result.totalResults, 3); // KNN top-k value
@@ -986,12 +1279,15 @@ describe("FT.HYBRID", () => {
           SEARCH: { query: "@color:{none}" },
           VSIM: {
             field: "@embeddingHNSW",
-            vectorData: createVectorBuffer([1, 2, 2, 3]),
+            vector: "$vec",
             method: {
               KNN: { K: 3, EF_RUNTIME: 1 },
             },
           },
           TIMEOUT: 10000,
+          PARAMS: {
+            vec: createVectorBuffer([1, 2, 2, 3]),
+          },
         });
 
         assert.strictEqual(result2.totalResults, 3);
@@ -1016,13 +1312,16 @@ describe("FT.HYBRID", () => {
           SEARCH: { query: "@color:{none}" },
           VSIM: {
             field: "@embedding",
-            vectorData: createVectorBuffer([1, 2, 7, 6]),
+            vector: "$vec",
             method: {
               RANGE: { RADIUS: 2 },
             },
           },
           LIMIT: { offset: 0, count: 3 },
           TIMEOUT: 10000,
+          PARAMS: {
+            vec: createVectorBuffer([1, 2, 7, 6]),
+          },
         });
 
         assert.ok(result.totalResults >= 3);
@@ -1035,13 +1334,16 @@ describe("FT.HYBRID", () => {
           SEARCH: { query: "@color:{none}" },
           VSIM: {
             field: "@embeddingHNSW",
-            vectorData: createVectorBuffer([1, 2, 7, 6]),
+            vector: "$vec",
             method: {
               RANGE: { RADIUS: 2, EPSILON: 0.5 },
             },
           },
           LIMIT: { offset: 0, count: 3 },
           TIMEOUT: 10000,
+          PARAMS: {
+            vec: createVectorBuffer([1, 2, 7, 6]),
+          },
         });
 
         assert.ok(result2.totalResults >= 3);
@@ -1066,13 +1368,16 @@ describe("FT.HYBRID", () => {
           SEARCH: { query: "@color:{red}" },
           VSIM: {
             field: "@embedding",
-            vectorData: createVectorBuffer([1, 2, 7, 6]),
+            vector: "$vec",
           },
           COMBINE: {
             method: { LINEAR: { ALPHA: 0.5, BETA: 0.5 } },
           },
           LIMIT: { offset: 0, count: 3 },
           TIMEOUT: 10000,
+          PARAMS: {
+            vec: createVectorBuffer([1, 2, 7, 6]),
+          },
         });
 
         assert.ok(resultLinear.totalResults >= 3);
@@ -1085,13 +1390,16 @@ describe("FT.HYBRID", () => {
           SEARCH: { query: "@color:{red}" },
           VSIM: {
             field: "@embedding",
-            vectorData: createVectorBuffer([1, 2, 7, 6]),
+            vector: "$vec",
           },
           COMBINE: {
             method: { RRF: { WINDOW: 3, CONSTANT: 0.5 } },
           },
           LIMIT: { offset: 0, count: 3 },
           TIMEOUT: 10000,
+          PARAMS: {
+            vec: createVectorBuffer([1, 2, 7, 6]),
+          },
         });
 
         assert.ok(resultRrf.totalResults >= 3);
@@ -1104,13 +1412,16 @@ describe("FT.HYBRID", () => {
           SEARCH: { query: "@color:{red}" },
           VSIM: {
             field: "@embedding",
-            vectorData: createVectorBuffer([1, 2, 7, 6]),
+            vector: "$vec",
           },
           COMBINE: {
             method: { RRF: { WINDOW: 3 } },
           },
           LIMIT: { offset: 0, count: 3 },
           TIMEOUT: 10000,
+          PARAMS: {
+            vec: createVectorBuffer([1, 2, 7, 6]),
+          },
         });
 
         assert.ok(resultRrf2.totalResults >= 3);
@@ -1134,7 +1445,7 @@ describe("FT.HYBRID", () => {
           SEARCH: { query: "@color:{red|green|black}" },
           VSIM: {
             field: "@embedding",
-            vectorData: createVectorBuffer([1, 2, 7, 6]),
+            vector: "$vec",
           },
           COMBINE: {
             method: { LINEAR: { ALPHA: 0.5, BETA: 0.5 } },
@@ -1144,10 +1455,12 @@ describe("FT.HYBRID", () => {
             "@color",
             "@price",
             "@size",
-            "@__key AS item_key",
           ],
           LIMIT: { offset: 0, count: 1 },
           TIMEOUT: 10000,
+          PARAMS: {
+            vec: createVectorBuffer([1, 2, 7, 6]),
+          },
         });
 
         assert.ok(result.totalResults >= 1);
@@ -1178,7 +1491,7 @@ describe("FT.HYBRID", () => {
           SEARCH: { query: "@color:{red}" },
           VSIM: {
             field: "@embedding",
-            vectorData: createVectorBuffer([1, 2, 7, 6]),
+            vector: "$vec",
           },
           LOAD: ["@color", "@price", "@size"],
           APPLY: [
@@ -1187,6 +1500,9 @@ describe("FT.HYBRID", () => {
           ],
           LIMIT: { offset: 0, count: 3 },
           TIMEOUT: 10000,
+          PARAMS: {
+            vec: createVectorBuffer([1, 2, 7, 6]),
+          },
         });
 
         assert.strictEqual(result.results.length, 3);
@@ -1218,12 +1534,15 @@ describe("FT.HYBRID", () => {
           SEARCH: { query: "@color:{red|green|black}" },
           VSIM: {
             field: "@embedding",
-            vectorData: createVectorBuffer([1, 2, 7, 6]),
+            vector: "$vec",
           },
           LOAD: ["@description", "@color", "@price", "@size"],
           FILTER: '@price=="15"',
           LIMIT: { offset: 0, count: 3 },
           TIMEOUT: 10000,
+          PARAMS: {
+            vec: createVectorBuffer([1, 2, 7, 6]),
+          },
         });
 
         assert.strictEqual(result.results.length, 3);
@@ -1250,7 +1569,7 @@ describe("FT.HYBRID", () => {
           SEARCH: { query: "@color:{$color_criteria}" },
           VSIM: {
             field: "@embedding",
-            vectorData: "$vector",
+            vector: "$vector",
           },
           LOAD: ["@description", "@color", "@price"],
           APPLY: [
@@ -1291,10 +1610,13 @@ describe("FT.HYBRID", () => {
           SEARCH: { query: "@color:{red}" },
           VSIM: {
             field: "@embedding",
-            vectorData: createVectorBuffer([1, 2, 7, 6]),
+            vector: "$vec",
           },
           LIMIT: { offset: 0, count: 3 },
           TIMEOUT: 10000,
+          PARAMS: {
+            vec: createVectorBuffer([1, 2, 7, 6]),
+          },
         });
 
         assert.strictEqual(result.results.length, 3);
@@ -1316,7 +1638,7 @@ describe("FT.HYBRID", () => {
           SEARCH: { query: "@color:{red|green}" },
           VSIM: {
             field: "@embedding",
-            vectorData: createVectorBuffer([1, 2, 7, 6]),
+            vector: "$vec",
           },
           LOAD: ["@color", "@price"],
           APPLY: [
@@ -1330,12 +1652,16 @@ describe("FT.HYBRID", () => {
           },
           LIMIT: { offset: 0, count: 5 },
           TIMEOUT: 10000,
+          PARAMS: {
+            vec: createVectorBuffer([1, 2, 7, 6]),
+          },
         });
 
         assert.ok(result.totalResults >= 5);
         assert.strictEqual(result.results.length, 5);
         assert.deepStrictEqual(result.warnings, []);
         assert.ok(result.executionTime > 0);
+        assert.ok(result.results[0].price_discount > result.results.at(-1)?.price_discount);
       },
       GLOBAL.SERVERS.OPEN,
     );
@@ -1359,7 +1685,7 @@ describe("FT.HYBRID", () => {
           SEARCH: { query: "*" },
           VSIM: {
             field: "@embeddingHNSW",
-            vectorData: "abcd".repeat(dim),
+            vector: "$vec",
             method: {
               KNN: { K: 1000 },
             },
@@ -1370,6 +1696,9 @@ describe("FT.HYBRID", () => {
             method: { RRF: { WINDOW: 1000 } },
           },
           TIMEOUT: timeout,
+          PARAMS: {
+            vec: "abcd".repeat(dim),
+          },
         });
 
         assert.ok(result.results.length > 0);
@@ -1381,12 +1710,15 @@ describe("FT.HYBRID", () => {
           SEARCH: { query: "*" },
           VSIM: {
             field: "@embeddingHNSW",
-            vectorData: "abcd".repeat(dim),
+            vector: "$vec",
             method: {
               KNN: { K: 1000 },
             },
           },
           TIMEOUT: 1, // 1ms timeout - likely to timeout
+          PARAMS: {
+            vec: "abcd".repeat(dim),
+          },
         });
 
         // May have timeout warnings
@@ -1409,7 +1741,7 @@ describe("FT.HYBRID", () => {
           SEARCH: { query: "@color:{red|green}" },
           VSIM: {
             field: "@embedding",
-            vectorData: createVectorBuffer([1, 2, 7, 6]),
+            vector: "$vec",
           },
           LOAD: ["@color", "@price", "@size", "@itemType"],
           GROUPBY: {
@@ -1433,10 +1765,16 @@ describe("FT.HYBRID", () => {
           },
           LIMIT: { offset: 0, count: 4 },
           TIMEOUT: 10000,
+          PARAMS: {
+            vec: createVectorBuffer([1, 2, 7, 6]),
+          },
         });
 
         assert.strictEqual(result.results.length, 4);
         assert.deepStrictEqual(result.warnings, []);
+        for (const item of result.results) {
+          assert.ok(item.colors_count !== undefined);
+        }
       },
       GLOBAL.SERVERS.OPEN,
     );
@@ -1454,7 +1792,7 @@ describe("FT.HYBRID", () => {
           SEARCH: { query: "@color:{red|green}" },
           VSIM: {
             field: "@embedding",
-            vectorData: createVectorBuffer([1, 2, 7, 6]),
+            vector: "$vec",
           },
           LOAD: ["@color", "@price", "@description"],
           APPLY: [
@@ -1477,6 +1815,9 @@ describe("FT.HYBRID", () => {
           },
           LIMIT: { offset: 0, count: 5 },
           TIMEOUT: 10000,
+          PARAMS: {
+            vec: createVectorBuffer([1, 2, 7, 6]),
+          },
         });
 
         assert.strictEqual(result.results.length, 2);
@@ -1487,270 +1828,6 @@ describe("FT.HYBRID", () => {
           assert.ok(item.discount_10_percents !== undefined);
           assert.ok(item.additional_discount !== undefined);
         }
-      },
-      GLOBAL.SERVERS.OPEN,
-    );
-  });
-});
-
-
-describe("FT.HYBRID_WITHCURSOR", () => {
-  describe("transformArguments", () => {
-    it("minimal command with WITHCURSOR", () => {
-      const parser = new BasicCommandParser();
-      HYBRID_WITHCURSOR.parseCommand(parser, "index");
-      assert.deepEqual(parser.redisArgs, ["FT.HYBRID", "index", "WITHCURSOR"]);
-    });
-
-    it("with COUNT", () => {
-      const parser = new BasicCommandParser();
-      HYBRID_WITHCURSOR.parseCommand(parser, "index", {
-        COUNT: 10,
-      });
-      assert.deepEqual(parser.redisArgs, [
-        "FT.HYBRID",
-        "index",
-        "WITHCURSOR",
-        "COUNT",
-        "10",
-      ]);
-    });
-
-    it("with MAXIDLE", () => {
-      const parser = new BasicCommandParser();
-      HYBRID_WITHCURSOR.parseCommand(parser, "index", {
-        MAXIDLE: 5000,
-      });
-      assert.deepEqual(parser.redisArgs, [
-        "FT.HYBRID",
-        "index",
-        "WITHCURSOR",
-        "MAXIDLE",
-        "5000",
-      ]);
-    });
-
-    it("with COUNT and MAXIDLE", () => {
-      const parser = new BasicCommandParser();
-      HYBRID_WITHCURSOR.parseCommand(parser, "index", {
-        COUNT: 10,
-        MAXIDLE: 5000,
-      });
-      assert.deepEqual(parser.redisArgs, [
-        "FT.HYBRID",
-        "index",
-        "WITHCURSOR",
-        "COUNT",
-        "10",
-        "MAXIDLE",
-        "5000",
-      ]);
-    });
-
-    it("with SEARCH and VSIM options plus cursor options", () => {
-      const parser = new BasicCommandParser();
-      HYBRID_WITHCURSOR.parseCommand(parser, "index", {
-        SEARCH: {
-          query: "@description: bikes",
-        },
-        VSIM: {
-          field: "@vector_field",
-          vectorData: "BLOB_DATA",
-        },
-        COUNT: 5,
-        MAXIDLE: 1000,
-      });
-      assert.deepEqual(parser.redisArgs, [
-        "FT.HYBRID",
-        "index",
-        "SEARCH",
-        "@description: bikes",
-        "VSIM",
-        "@vector_field",
-        "$v",
-        "PARAMS",
-        "2",
-        "v",
-        "BLOB_DATA",
-        "WITHCURSOR",
-        "COUNT",
-        "5",
-        "MAXIDLE",
-        "1000",
-      ]);
-    });
-
-    it("with LIMIT and cursor options", () => {
-      const parser = new BasicCommandParser();
-      HYBRID_WITHCURSOR.parseCommand(parser, "index", {
-        SEARCH: { query: "shoes" },
-        LIMIT: { offset: 0, count: 10 },
-        COUNT: 5,
-      });
-      assert.deepEqual(parser.redisArgs, [
-        "FT.HYBRID",
-        "index",
-        "SEARCH",
-        "shoes",
-        "LIMIT",
-        "0",
-        "10",
-        "WITHCURSOR",
-        "COUNT",
-        "5",
-      ]);
-    });
-  });
-
-  describe("client.ft.hybridWithCursor", () => {
-    testUtils.testWithClientIfVersionWithinRange(
-      [[8, 6], "LATEST"],
-      "basic hybrid search with cursor",
-      async (client) => {
-        const indexName = "idx_cursor_basic";
-        await createHybridSearchIndex(client, indexName);
-        await addDataForHybridSearch(client, 10);
-
-        const result = await client.ft.hybridWithCursor(indexName, {
-          SEARCH: { query: "@color:{red|green}" },
-          VSIM: {
-            field: "@embedding",
-            vectorData: createVectorBuffer([1, 2, 7, 6]),
-          },
-          COUNT: 5,
-          TIMEOUT: 10000,
-        });
-        assert.ok(result !== undefined);
-        assert.ok(!Number.isNaN(result.searchCursor));
-        assert.ok(!Number.isNaN(result.vsimCursor));
-        assert.ok(typeof result.searchCursor === "number");
-        assert.ok(typeof result.vsimCursor === "number");
-        assert.ok(Array.isArray(result.warnings));
-      },
-      GLOBAL.SERVERS.OPEN,
-    );
-
-    // NOTE: FT.HYBRID requires both SEARCH and VSIM subqueries.
-    // Using only SEARCH or only VSIM results in Redis errors:
-    // - SEARCH only: "Unknown argument `TIMEOUT` in SEARCH"
-    // - VSIM only: "Invalid subqueries count: expected an unsigned integer"
-
-    testUtils.testWithClientIfVersionWithinRange(
-      [[8, 6], "LATEST"],
-      "hybrid search with cursor and MAXIDLE",
-      async (client) => {
-        const indexName = "idx_cursor_maxidle";
-        await createHybridSearchIndex(client, indexName);
-        await addDataForHybridSearch(client, 10);
-
-        const result = await client.ft.hybridWithCursor(indexName, {
-          SEARCH: { query: "@color:{red|green}" },
-          VSIM: {
-            field: "@embedding",
-            vectorData: createVectorBuffer([1, 2, 7, 6]),
-          },
-          COUNT: 5,
-          MAXIDLE: 10000,
-          TIMEOUT: 10000,
-        });
-
-        assert.ok(result !== undefined);
-        assert.ok(!Number.isNaN(result.searchCursor));
-        assert.ok(!Number.isNaN(result.vsimCursor));
-        assert.ok(typeof result.searchCursor === "number");
-        assert.ok(typeof result.vsimCursor === "number");
-      },
-      GLOBAL.SERVERS.OPEN,
-    );
-
-    testUtils.testWithClientIfVersionWithinRange(
-      [[8, 6], "LATEST"],
-      "hybrid search with cursor iteration",
-      async (client) => {
-        const indexName = "idx_cursor_iterate";
-        await createHybridSearchIndex(client, indexName);
-        await addDataForHybridSearch(client, 20);
-
-        // First request with cursor
-        const result1 = await client.ft.hybridWithCursor(indexName, {
-          SEARCH: { query: "@color:{red|green|black|orange}" },
-          VSIM: {
-            field: "@embedding",
-            vectorData: createVectorBuffer([1, 2, 7, 6]),
-          },
-          COUNT: 10,
-          MAXIDLE: 30000,
-          TIMEOUT: 10000,
-        });
-
-        assert.ok(result1 !== undefined);
-        assert.ok(!Number.isNaN(result1.searchCursor));
-        assert.ok(!Number.isNaN(result1.vsimCursor));
-        assert.ok(typeof result1.searchCursor === "number");
-        assert.ok(typeof result1.vsimCursor === "number");
-
-        // NOTE: HYBRID cursors work differently from AGGREGATE cursors.
-        // They have separate cursor IDs for SEARCH and VSIM components.
-        // Further cursor reading would need a different mechanism.
-      },
-      GLOBAL.SERVERS.OPEN,
-    );
-
-    testUtils.testWithClientIfVersionWithinRange(
-      [[8, 6], "LATEST"],
-      "hybrid search with cursor and LOAD",
-      async (client) => {
-        const indexName = "idx_cursor_load";
-        await createHybridSearchIndex(client, indexName);
-        await addDataForHybridSearch(client, 10);
-
-        const result = await client.ft.hybridWithCursor(indexName, {
-          SEARCH: { query: "@color:{red|green}" },
-          VSIM: {
-            field: "@embedding",
-            vectorData: createVectorBuffer([1, 2, 7, 6]),
-          },
-          LOAD: ["@description", "@color", "@price"],
-          COUNT: 3,
-          TIMEOUT: 10000,
-        });
-
-        assert.ok(result !== undefined);
-        assert.ok(!Number.isNaN(result.searchCursor));
-        assert.ok(!Number.isNaN(result.vsimCursor));
-        assert.ok(Array.isArray(result.warnings));
-      },
-      GLOBAL.SERVERS.OPEN,
-    );
-
-    testUtils.testWithClientIfVersionWithinRange(
-      [[8, 6], "LATEST"],
-      "hybrid search with cursor and COMBINE",
-      async (client) => {
-        const indexName = "idx_cursor_combine";
-        await createHybridSearchIndex(client, indexName);
-        await addDataForHybridSearch(client, 10);
-
-        const result = await client.ft.hybridWithCursor(indexName, {
-          SEARCH: { query: "@color:{red}" },
-          VSIM: {
-            field: "@embedding",
-            vectorData: createVectorBuffer([1, 2, 7, 6]),
-          },
-          COMBINE: {
-            method: { LINEAR: { ALPHA: 0.5, BETA: 0.5 } },
-            YIELD_SCORE_AS: "combined_score",
-          },
-          COUNT: 5,
-          TIMEOUT: 10000,
-        });
-
-        assert.ok(result !== undefined);
-        assert.ok(!Number.isNaN(result.searchCursor));
-        assert.ok(!Number.isNaN(result.vsimCursor));
-        assert.ok(typeof result.searchCursor === "number");
-        assert.ok(typeof result.vsimCursor === "number");
-        assert.deepStrictEqual(result.warnings, []);
       },
       GLOBAL.SERVERS.OPEN,
     );

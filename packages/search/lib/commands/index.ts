@@ -17,7 +17,6 @@ import DROPINDEX from './DROPINDEX';
 import EXPLAIN from './EXPLAIN';
 import EXPLAINCLI from './EXPLAINCLI';
 import HYBRID from './HYBRID';
-import HYBRID_WITHCURSOR from './HYBRID_WITHCURSOR';
 import INFO from './INFO';
 import PROFILESEARCH from './PROFILE_SEARCH';
 import PROFILEAGGREGATE from './PROFILE_AGGREGATE';
@@ -86,8 +85,6 @@ export default {
   explainCli: EXPLAINCLI,
   HYBRID,
   hybrid: HYBRID,
-  HYBRID_WITHCURSOR,
-  hybridWithCursor: HYBRID_WITHCURSOR,
   INFO,
   info: INFO,
   PROFILESEARCH,
