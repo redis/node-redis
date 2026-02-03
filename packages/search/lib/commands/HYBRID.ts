@@ -10,88 +10,165 @@ import {
 } from "@redis/client/dist/lib/commands/generic-transformers";
 import { FtSearchParams, parseParamsArgument } from "./SEARCH";
 
+/**
+ * Text search expression configuration for hybrid search.
+ */
 export interface FtHybridSearchExpression {
+  /** Search query string or parameter reference (e.g., "$q") */
   query: RedisArgument;
+  /** Scoring algorithm configuration */
   SCORER?: {
+    /** Scoring algorithm name (e.g., "BM25", "TFIDF") */
     algorithm: RedisArgument;
+    /** Optional parameters for the scoring algorithm */
     params?: Array<RedisArgument>;
   };
+  /** Alias for the text search score in results */
   YIELD_SCORE_AS?: RedisArgument;
 }
 
+/**
+ * Vector search method configuration - either KNN or RANGE.
+ * Only one method should be specified.
+ */
 export interface FtHybridVectorMethod {
+  /** K-Nearest Neighbors search configuration */
   KNN?: {
+    /** Number of nearest neighbors to return (default: 10) */
     K: number;
+    /** HNSW ef_runtime parameter for search accuracy/speed tradeoff */
     EF_RUNTIME?: number;
+    /** Alias for the vector distance in results */
     YIELD_DISTANCE_AS?: RedisArgument;
   };
+  /** Range-based vector search configuration */
   RANGE?: {
+    /** Search radius - maximum distance from query vector */
     RADIUS: number;
+    /** Range search epsilon for accuracy tuning */
     EPSILON?: number;
+    /** Alias for the vector distance in results */
     YIELD_DISTANCE_AS?: RedisArgument;
   };
 }
 
+/**
+ * Vector similarity search expression configuration.
+ */
 export interface FtHybridVectorExpression {
+  /** Vector field name (e.g., "@embedding") */
   field: RedisArgument;
+  /** Vector data as Buffer or parameter reference (e.g., "$v") */
   vectorData: RedisArgument;
+  /** Search method configuration - KNN or RANGE */
   method?: FtHybridVectorMethod;
+  /** Pre-filter expression applied before vector search (e.g., "@tag:{foo}") */
   FILTER?: RedisArgument;
+  /** Alias for the vector score in results */
   YIELD_SCORE_AS?: RedisArgument;
 }
 
+/**
+ * Score fusion method configuration for combining search results.
+ * Only one method should be specified: RRF, LINEAR, or FUNCTION.
+ */
 export interface FtHybridCombineMethod {
+  /** Reciprocal Rank Fusion configuration */
   RRF?: {
+    /** RRF window size (default: 20) */
     WINDOW?: number;
+    /** RRF constant (default: 60) */
     CONSTANT?: number;
   };
+  /** Linear weighted combination configuration */
   LINEAR?: {
+    /** Weight for text search score (default: 0.3) */
     ALPHA?: number;
+    /** Weight for vector search score (default: 0.7) */
     BETA?: number;
+    /** Window size for score normalization */
     WINDOW?: number;
   };
+  /** Custom scoring function expression */
   FUNCTION?: RedisArgument;
 }
 
+/**
+ * Reducer configuration for GROUPBY aggregation.
+ */
 export interface FtHybridReducer {
+  /** Reducer function name (e.g., "COUNT", "SUM", "AVG") */
   function: RedisArgument;
+  /** Number of arguments for the reducer */
   nargs: number;
+  /** Arguments for the reducer function */
   args: Array<RedisArgument>;
+  /** Alias for the reducer result in output */
   AS?: RedisArgument;
 }
 
+/**
+ * Apply expression for result transformation.
+ */
 export interface FtHybridApply {
+  /** Transformation expression to apply */
   expression: RedisArgument;
+  /** Alias for the computed value in output */
   AS?: RedisArgument;
 }
 
+/**
+ * Options for the FT.HYBRID command.
+ */
 export interface FtHybridOptions {
+  /** Text search expression configuration */
   SEARCH?: FtHybridSearchExpression;
+  /** Vector similarity search expression configuration */
   VSIM?: FtHybridVectorExpression;
+  /** Score fusion configuration for combining SEARCH and VSIM results */
   COMBINE?: {
+    /** Fusion method: RRF, LINEAR, or FUNCTION */
     method: FtHybridCombineMethod;
+    /** Alias for the combined score in results */
     YIELD_SCORE_AS?: RedisArgument;
   };
+  /** Fields to load and return in results (LOAD clause) */
   LOAD?: RedisVariadicArgument;
+  /** Group by configuration for aggregation */
   GROUPBY?: {
+    /** Fields to group by */
     fields: RedisVariadicArgument;
+    /** Reducer(s) to apply to each group */
     REDUCE?: FtHybridReducer | Array<FtHybridReducer>;
   };
+  /** Apply expression(s) for result transformation */
   APPLY?: FtHybridApply | Array<FtHybridApply>;
+  /** Sort configuration for results */
   SORTBY?: {
+    /** Fields to sort by with optional direction */
     fields: Array<{
+      /** Field name to sort by */
       field: RedisArgument;
+      /** Sort direction: "ASC" (ascending) or "DESC" (descending) */
       direction?: "ASC" | "DESC";
     }>;
   };
+  /** Disable sorting - returns results in arbitrary order */
   NOSORT?: boolean;
+  /** Post-filter expression applied after scoring */
   FILTER?: RedisArgument;
+  /** Pagination configuration */
   LIMIT?: {
+    /** Number of results to skip */
     offset: number | RedisArgument;
+    /** Number of results to return */
     count: number | RedisArgument;
   };
+  /** Query parameters for parameterized queries */
   PARAMS?: FtSearchParams;
+  /** Enable score explanation in results for debugging */
   EXPLAINSCORE?: boolean;
+  /** Query timeout in milliseconds */
   TIMEOUT?: number;
 }
 
@@ -408,6 +485,7 @@ export interface HybridSearchDocument {
 }
 
 function transformHybridSearchResults(reply: any): HybridSearchResult {
+  // console.log('reply', reply);
   // FT.HYBRID returns a map-like structure as flat array:
   // ['total_results', N, 'results', [...], 'warnings', [...], 'execution_time', 'X.XXX']
   const replyMap = parseReplyMap(reply);
