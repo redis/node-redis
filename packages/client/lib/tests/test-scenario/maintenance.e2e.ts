@@ -79,12 +79,13 @@ const KEYS = [
     diagnostics_channel.unsubscribe("redis.maintenance", onMessage);
   });
 
-  describe("Migrate slots - source: dying -> dest: existing", () => {
+  describe("Effect: remove", () => {
 
     assert(removeTriggers.length > 0, "removeTriggers should have at least one trigger");
 
     // Dynamically generate tests for each trigger from "remove" effect
     for (const trigger of removeTriggers) {
+      for (const requirement of trigger.requirements) {
       const ACTION = {
         type: "slot_migrate",
         parameters: {
@@ -102,12 +103,13 @@ const KEYS = [
           },
           RESP: 3 as const,
         },
-        dbConfig: trigger.requirements[0].dbconfig,
+        dbConfig: requirement.dbconfig,
         testTimeout: TEST_TIMEOUT
       } satisfies TestOptions;
 
+      const testName = `Trigger: ${trigger.name}, Db: ${requirement.dbconfig.name}`;
       testUtils.testWithRECluster(
-        `(${trigger.name}) normal - should handle migration`,
+        testName,
       async (cluster, faultInjectorClient) => {
         const initialMasterAddresses = new Set(
           cluster.masters.map((m) => m.address)
@@ -324,16 +326,17 @@ const KEYS = [
       //   },
       //   testOptions
       // );
+      }
     }
   });
 
-  describe("Migrate slots - source: dying -> dest: new", () => {
+  describe("Effect: remove-add", () => {
 
     assert(removeAddTriggers.length > 0, "removeAddTriggers should have at least one trigger");
 
-    // Dynamically generate tests for each trigger from "add" effect
+    // Dynamically generate tests for each trigger from "remove-add" effect
     for (const trigger of removeAddTriggers) {
-
+      for (const requirement of trigger.requirements) {
       const ACTION = {
         type: "slot_migrate",
         parameters: {
@@ -352,12 +355,13 @@ const KEYS = [
           },
           RESP: 3 as const,
         },
-        dbConfig: trigger.requirements[0].dbconfig,
+        dbConfig: requirement.dbconfig,
         testTimeout: TEST_TIMEOUT
       } satisfies TestOptions;
 
+      const testName = `Trigger: ${trigger.name}, Db: ${requirement.dbconfig.name}`;
       testUtils.testWithRECluster(
-        `(${trigger.name}) normal - should handle migration`,
+        testName,
       async (cluster, faultInjectorClient) => {
         const initialMasterAddresses = new Set(
           cluster.masters.map((m) => m.address)
@@ -575,14 +579,16 @@ const KEYS = [
       //   },
       //   testOptions
       // );
+      }
     }
   });
-  describe("Migrate slots - source: active -> dest: existing", () => {
+  describe("Effect: slot-shuffle", () => {
 
     assert(slotShuffleTriggers.length > 0, "slotShuffleTriggers should have at least one trigger");
 
-    // Dynamically generate tests for each trigger from "add-remove" effect
+    // Dynamically generate tests for each trigger from "slot-shuffle" effect
     for (const trigger of slotShuffleTriggers) {
+      for (const requirement of trigger.requirements) {
       const ACTION = {
         type: "slot_migrate",
         parameters: {
@@ -601,12 +607,13 @@ const KEYS = [
           },
           RESP: 3 as const,
         },
-        dbConfig: trigger.requirements[0].dbconfig,
+        dbConfig: requirement.dbconfig,
         testTimeout: TEST_TIMEOUT
       } satisfies TestOptions;
 
+      const testName = `Trigger: ${trigger.name}, Db: ${requirement.dbconfig.name}`;
       testUtils.testWithRECluster(
-        `(${trigger.name}) normal - should handle migration`,
+        testName,
       async (cluster, faultInjectorClient) => {
         const initialMasterAddresses = new Set(
           cluster.masters.map((m) => m.address)
@@ -824,24 +831,25 @@ const KEYS = [
       //   },
       //   testOptions
       // );
+      }
     }
   });
 
-  describe("Migrate slots - source: active -> dest: new", () => {
+  describe("Effect: add", () => {
 
     assert(addTriggers.length > 0, "addTriggers should have at least one trigger");
 
-    // Dynamically generate tests for each trigger from "slot-shuffle" effect
+    // Dynamically generate tests for each trigger from "add" effect
     for (const trigger of addTriggers) {
-
-    const ACTION = {
-      type: "slot_migrate",
-      parameters: {
-        effect: "add",
-        cluster_index: 0,
-        trigger: trigger.name,
-      },
-    } satisfies ActionRequest;
+      for (const requirement of trigger.requirements) {
+      const ACTION = {
+        type: "slot_migrate",
+        parameters: {
+          effect: "add",
+          cluster_index: 0,
+          trigger: trigger.name,
+        },
+      } satisfies ActionRequest;
 
       // Build options with trigger-specific dbConfig if available
       const testOptions = {
@@ -852,12 +860,13 @@ const KEYS = [
           },
           RESP: 3 as const,
         },
-        dbConfig: trigger.requirements[0].dbconfig,
+        dbConfig: requirement.dbconfig,
         testTimeout: TEST_TIMEOUT
       } satisfies TestOptions;
 
+      const testName = `Trigger: ${trigger.name}, Db: ${requirement.dbconfig.name}`;
       testUtils.testWithRECluster(
-        `(${trigger.name}) normal - should handle migration`,
+        testName,
       async (cluster, faultInjectorClient) => {
         const initialMasterAddresses = new Set(
           cluster.masters.map((m) => m.address)
@@ -1074,6 +1083,7 @@ const KEYS = [
       //   },
       //   testOptions
       // );
+      }
     }
   });
   });
