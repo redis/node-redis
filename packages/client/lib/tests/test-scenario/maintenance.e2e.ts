@@ -107,9 +107,10 @@ const KEYS = [
         testTimeout: TEST_TIMEOUT
       } satisfies TestOptions;
 
-      const testName = `Trigger: ${trigger.name}, Db: ${requirement.dbconfig.name}`;
+      const baseTestName = `[Trig] ${trigger.name}, [DB] ${requirement.dbconfig.name}, [Test]`;
+
       testUtils.testWithRECluster(
-        testName,
+        `${baseTestName} DataCommands`,
       async (cluster, faultInjectorClient) => {
         const initialMasterAddresses = new Set(
           cluster.masters.map((m) => m.address)
@@ -174,7 +175,7 @@ const KEYS = [
       );
 
       testUtils.testWithRECluster(
-        `(${trigger.name}) sharded pubsub - should handle migration`,
+        `${baseTestName} ShardedPubSub`,
         async (cluster, faultInjectorClient) => {
         const stats: Record<string, { sent: number; received: number }> = {};
         for (const channel of KEYS) {
@@ -251,7 +252,7 @@ const KEYS = [
       );
 
       testUtils.testWithRECluster(
-        `(${trigger.name}) pubsub - should handle migration`,
+        `${baseTestName} PubSub`,
         async (cluster, faultInjectorClient) => {
         const stats: Record<string, { sent: number; received: number }> = {};
         for (const channel of KEYS) {
@@ -359,9 +360,10 @@ const KEYS = [
         testTimeout: TEST_TIMEOUT
       } satisfies TestOptions;
 
-      const testName = `Trigger: ${trigger.name}, Db: ${requirement.dbconfig.name}`;
+      const baseTestName = `[Trig] ${trigger.name}, [DB] ${requirement.dbconfig.name}, [Test]`;
+
       testUtils.testWithRECluster(
-        testName,
+        `${baseTestName} DataCommands`,
       async (cluster, faultInjectorClient) => {
         const initialMasterAddresses = new Set(
           cluster.masters.map((m) => m.address)
@@ -427,7 +429,7 @@ const KEYS = [
       );
 
       testUtils.testWithRECluster(
-        `(${trigger.name}) sharded pubsub - should handle migration`,
+        `${baseTestName} ShardedPubSub`,
         async (cluster, faultInjectorClient) => {
         const stats: Record<string, { sent: number; received: number }> = {};
         for (const channel of KEYS) {
@@ -504,7 +506,7 @@ const KEYS = [
       );
 
       testUtils.testWithRECluster(
-        `(${trigger.name}) pubsub - should handle migration`,
+        `${baseTestName} PubSub`,
         async (cluster, faultInjectorClient) => {
         const stats: Record<string, { sent: number; received: number }> = {};
         for (const channel of KEYS) {
@@ -611,9 +613,10 @@ const KEYS = [
         testTimeout: TEST_TIMEOUT
       } satisfies TestOptions;
 
-      const testName = `Trigger: ${trigger.name}, Db: ${requirement.dbconfig.name}`;
+      const baseTestName = `[Trig] ${trigger.name}, [DB] ${requirement.dbconfig.name}, [Test]`;
+
       testUtils.testWithRECluster(
-        testName,
+        `${baseTestName} DataCommands`,
       async (cluster, faultInjectorClient) => {
         const initialMasterAddresses = new Set(
           cluster.masters.map((m) => m.address)
@@ -679,7 +682,7 @@ const KEYS = [
       );
 
       testUtils.testWithRECluster(
-        `(${trigger.name}) sharded pubsub - should handle migration`,
+        `${baseTestName} ShardedPubSub`,
         async (cluster, faultInjectorClient) => {
         const stats: Record<string, { sent: number; received: number }> = {};
         for (const channel of KEYS) {
@@ -756,7 +759,7 @@ const KEYS = [
       );
 
       testUtils.testWithRECluster(
-        `(${trigger.name}) pubsub - should handle migration`,
+        `${baseTestName} PubSub`,
         async (cluster, faultInjectorClient) => {
         const stats: Record<string, { sent: number; received: number }> = {};
         for (const channel of KEYS) {
@@ -864,9 +867,10 @@ const KEYS = [
         testTimeout: TEST_TIMEOUT
       } satisfies TestOptions;
 
-      const testName = `Trigger: ${trigger.name}, Db: ${requirement.dbconfig.name}`;
+      const baseTestName = `[Trig] ${trigger.name}, [DB] ${requirement.dbconfig.name}, [Test]`;
+
       testUtils.testWithRECluster(
-        testName,
+        `${baseTestName} DataCommands`,
       async (cluster, faultInjectorClient) => {
         const initialMasterAddresses = new Set(
           cluster.masters.map((m) => m.address)
@@ -931,7 +935,7 @@ const KEYS = [
       );
 
       testUtils.testWithRECluster(
-        `(${trigger.name}) sharded pubsub - should handle migration`,
+        `${baseTestName} ShardedPubSub`,
         async (cluster, faultInjectorClient) => {
         const stats: Record<string, { sent: number; received: number }> = {};
         for (const channel of KEYS) {
@@ -1008,7 +1012,7 @@ const KEYS = [
       );
 
       testUtils.testWithRECluster(
-        `(${trigger.name}) pubsub - should handle migration`,
+        `${baseTestName} PubSub`,
         async (cluster, faultInjectorClient) => {
         const stats: Record<string, { sent: number; received: number }> = {};
         for (const channel of KEYS) {
