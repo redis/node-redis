@@ -594,7 +594,7 @@ const KEYS = [
       }
     }
   });
-  describe.only("Effect: slot-shuffle", () => {
+  describe("Effect: slot-shuffle", () => {
 
     assert(slotShuffleTriggers.length > 0, "slotShuffleTriggers should have at least one trigger");
 

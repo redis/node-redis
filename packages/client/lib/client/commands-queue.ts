@@ -192,14 +192,34 @@ export default class RedisCommandsQueue {
     this.#pushHandlers.push(handler);
   }
 
-  async waitForInflightCommandsToComplete(): Promise<void> {
+  async waitForInflightCommandsToComplete(options?: { timeoutMs?: number, flushOnTimeout?: boolean }): Promise<void> {
     // In-flight commands already completed
     if(this.#waitingForReply.length === 0) {
       return
     };
     // Otherwise wait for in-flight commands to fire `empty` event
     return new Promise(resolve => {
-      this.#waitingForReply.events.on('empty', resolve)
+      const onEmpty = () => {
+        if (timeoutId) clearTimeout(timeoutId);
+        resolve();
+      };
+
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
+      const timeoutMs = options?.timeoutMs;
+      if (timeoutMs !== undefined && timeoutMs > 0) {
+        timeoutId = setTimeout(() => {
+          this.#waitingForReply.events.off('empty', onEmpty);
+          const pendingCount = this.#waitingForReply.length;
+          dbgMaintenance(`waitForInflightCommandsToComplete timed out after ${timeoutMs}ms with ${pendingCount} commands still waiting`);
+          if (options?.flushOnTimeout && pendingCount > 0) {
+            dbgMaintenance(`Flushing ${pendingCount} commands that timed out waiting for reply`);
+            this.#flushWaitingForReply(new TimeoutError());
+          }
+          resolve(); // Resolve instead of reject - we don't want to fail the migration
+        }, timeoutMs);
+      }
+
+      this.#waitingForReply.events.once('empty', onEmpty);
     });
   }
 
@@ -569,6 +589,9 @@ export default class RedisCommandsQueue {
         const toRemove = current;
         current = current.next;
         this.#toWrite.remove(toRemove);
+      } else {
+        // Move to next node even if we don't extract this command
+        current = current.next;
       }
     }
     return result;

@@ -343,14 +343,17 @@ export default class RedisClusterSlots<
 
         dbgMaintenance(`[CSlots]: Total ${allMovingSlots.size} slots moved from ${sourceAddress}. Sample: ${Array.from(allMovingSlots).slice(0, 10).join(', ')}${allMovingSlots.size > 10 ? '...' : ''}`);
 
-        // 4. Wait for inflight commands on source to complete
+        // 4. Wait for inflight commands on source to complete (with timeout to prevent hangs)
+        const INFLIGHT_TIMEOUT_MS = 5000; // 5 seconds max wait for inflight commands
         const inflightPromises: Promise<void>[] = [];
-        inflightPromises.push(sourceNode.client!._getQueue().waitForInflightCommandsToComplete());
+        const inflightOptions = { timeoutMs: INFLIGHT_TIMEOUT_MS, flushOnTimeout: true };
+
+        inflightPromises.push(sourceNode.client!._getQueue().waitForInflightCommandsToComplete(inflightOptions));
         if ('pubSub' in sourceNode) {
-          inflightPromises.push(sourceNode.pubSub!.client._getQueue().waitForInflightCommandsToComplete());
+          inflightPromises.push(sourceNode.pubSub!.client._getQueue().waitForInflightCommandsToComplete(inflightOptions));
         }
         if (this.pubSubNode?.address === sourceAddress) {
-          inflightPromises.push(this.pubSubNode?.client._getQueue().waitForInflightCommandsToComplete());
+          inflightPromises.push(this.pubSubNode?.client._getQueue().waitForInflightCommandsToComplete(inflightOptions));
         }
         await Promise.all(inflightPromises);
 
@@ -387,12 +390,9 @@ export default class RedisClusterSlots<
           }
 
           // Remove all local references to the dying shard's clients
-          const mastersBefore = this.masters.map(m => m.address);
           this.masters = this.masters.filter(master => master.address !== sourceAddress);
           this.replicas = this.replicas.filter(replica => replica.address !== sourceAddress);
           this.nodeByAddress.delete(sourceAddress);
-          const mastersAfter = this.masters.map(m => m.address);
-          dbgMaintenance(`[CSlots]: Removed source from topology. Masters before: [${mastersBefore.join(', ')}]. Masters after: [${mastersAfter.join(', ')}]`);
 
           // Handle pubSubNode replacement BEFORE destroying source connections
           // This ensures subscriptions are resubscribed on a new node before the old connection is lost
