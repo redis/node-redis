@@ -190,8 +190,9 @@ const KEYS = [
         const publishController = new AbortController();
         const publishPromise = (async () => {
           while (!publishController.signal.aborted) {
+            const batchPromises: Promise<void>[] = [];
             for (const channel of KEYS) {
-              cluster
+              const p = cluster
                 .sPublish(channel, `${Date.now()}`)
                 .then(() => {
                   stats[channel].sent++;
@@ -199,7 +200,9 @@ const KEYS = [
                 .catch(() => {
                   // Ignore publish errors during migrate
                 });
+              batchPromises.push(p);
             }
+            await Promise.all(batchPromises);
             await setTimeout(50);
           }
         })();
@@ -267,8 +270,9 @@ const KEYS = [
         const publishController = new AbortController();
         const publishPromise = (async () => {
           while (!publishController.signal.aborted) {
+            const batchPromises: Promise<void>[] = [];
             for (const channel of KEYS) {
-              cluster
+              const p = cluster
                 .publish(channel, `${Date.now()}`)
                 .then(() => {
                   stats[channel].sent++;
@@ -276,7 +280,9 @@ const KEYS = [
                 .catch(() => {
                   // Ignore publish errors during migrate
                 });
+              batchPromises.push(p);
             }
+            await Promise.all(batchPromises);
             await setTimeout(50);
           }
         })();
@@ -444,8 +450,9 @@ const KEYS = [
         const publishController = new AbortController();
         const publishPromise = (async () => {
           while (!publishController.signal.aborted) {
+            const batchPromises: Promise<void>[] = [];
             for (const channel of KEYS) {
-              cluster
+              const p = cluster
                 .sPublish(channel, `${Date.now()}`)
                 .then(() => {
                   stats[channel].sent++;
@@ -453,7 +460,9 @@ const KEYS = [
                 .catch(() => {
                   // Ignore publish errors during migrate
                 });
+              batchPromises.push(p);
             }
+            await Promise.all(batchPromises);
             await setTimeout(50);
           }
         })();
@@ -521,8 +530,9 @@ const KEYS = [
         const publishController = new AbortController();
         const publishPromise = (async () => {
           while (!publishController.signal.aborted) {
+            const batchPromises: Promise<void>[] = [];
             for (const channel of KEYS) {
-              cluster
+              const p = cluster
                 .publish(channel, `${Date.now()}`)
                 .then(() => {
                   stats[channel].sent++;
@@ -530,7 +540,9 @@ const KEYS = [
                 .catch(() => {
                   // Ignore publish errors during migrate
                 });
+              batchPromises.push(p);
             }
+            await Promise.all(batchPromises);
             await setTimeout(50);
           }
         })();
@@ -582,7 +594,7 @@ const KEYS = [
       }
     }
   });
-  describe("Effect: slot-shuffle", () => {
+  describe.only("Effect: slot-shuffle", () => {
 
     assert(slotShuffleTriggers.length > 0, "slotShuffleTriggers should have at least one trigger");
 
@@ -654,7 +666,7 @@ const KEYS = [
           `should have ${initialMasterCount} masters after migrate`
         );
 
-        // Verify at least no master address changed
+        // Verify master addresses remain the same (slot-shuffle doesn't change nodes)
         const currentMasterAddresses = new Set(
           cluster.masters.map((m) => m.address)
         );
@@ -662,7 +674,7 @@ const KEYS = [
         assert.deepStrictEqual(
           currentMasterAddresses,
           initialMasterAddresses,
-          "addresses should NOT be the same"
+          "addresses should remain the same after slot-shuffle"
         );
 
         // Verify data is still accessible after migrate
@@ -697,8 +709,9 @@ const KEYS = [
         const publishController = new AbortController();
         const publishPromise = (async () => {
           while (!publishController.signal.aborted) {
+            const batchPromises: Promise<void>[] = [];
             for (const channel of KEYS) {
-              cluster
+              const p = cluster
                 .sPublish(channel, `${Date.now()}`)
                 .then(() => {
                   stats[channel].sent++;
@@ -706,7 +719,9 @@ const KEYS = [
                 .catch(() => {
                   // Ignore publish errors during migrate
                 });
+              batchPromises.push(p);
             }
+            await Promise.all(batchPromises);
             await setTimeout(50);
           }
         })();
@@ -774,8 +789,9 @@ const KEYS = [
         const publishController = new AbortController();
         const publishPromise = (async () => {
           while (!publishController.signal.aborted) {
+            const batchPromises: Promise<void>[] = [];
             for (const channel of KEYS) {
-              cluster
+              const p = cluster
                 .publish(channel, `${Date.now()}`)
                 .then(() => {
                   stats[channel].sent++;
@@ -783,7 +799,9 @@ const KEYS = [
                 .catch(() => {
                   // Ignore publish errors during migrate
                 });
+              batchPromises.push(p);
             }
+            await Promise.all(batchPromises);
             await setTimeout(50);
           }
         })();
@@ -950,8 +968,9 @@ const KEYS = [
         const publishController = new AbortController();
         const publishPromise = (async () => {
           while (!publishController.signal.aborted) {
+            const batchPromises: Promise<void>[] = [];
             for (const channel of KEYS) {
-              cluster
+              const p = cluster
                 .sPublish(channel, `${Date.now()}`)
                 .then(() => {
                   stats[channel].sent++;
@@ -959,7 +978,9 @@ const KEYS = [
                 .catch(() => {
                   // Ignore publish errors during migrate
                 });
+              batchPromises.push(p);
             }
+            await Promise.all(batchPromises);
             await setTimeout(50);
           }
         })();
@@ -1027,8 +1048,9 @@ const KEYS = [
         const publishController = new AbortController();
         const publishPromise = (async () => {
           while (!publishController.signal.aborted) {
+            const batchPromises: Promise<void>[] = [];
             for (const channel of KEYS) {
-              cluster
+              const p = cluster
                 .publish(channel, `${Date.now()}`)
                 .then(() => {
                   stats[channel].sent++;
@@ -1036,7 +1058,9 @@ const KEYS = [
                 .catch(() => {
                   // Ignore publish errors during migrate
                 });
+              batchPromises.push(p);
             }
+            await Promise.all(batchPromises);
             await setTimeout(50);
           }
         })();

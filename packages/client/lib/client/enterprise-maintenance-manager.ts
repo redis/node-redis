@@ -56,7 +56,7 @@ export type DiagnosticsEvent = {
 
 export const dbgMaintenance = (...args: any[]) => {
   if (!process.env.REDIS_DEBUG_MAINTENANCE) return;
-  return console.log("[MNT]", ...args);
+  return console.log(new Date().toISOString().slice(11, 23), "[MNT]", ...args);
 };
 
 export const emitDiagnostics = (event: DiagnosticsEvent) => {

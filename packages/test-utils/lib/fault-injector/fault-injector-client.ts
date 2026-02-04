@@ -103,7 +103,6 @@ export class FaultInjectorClient implements IFaultInjectorClient {
   ): Promise<ActionStatus> {
     const timeout = timeoutMs || 1000;
     const maxWaitTime = maxWaitTimeMs || 60000;
-    console.log('[FI] waitForAction:', actionId, `(poll: ${timeout}ms, max: ${maxWaitTime}ms)`);
 
     const startTime = Date.now();
 
@@ -111,21 +110,18 @@ export class FaultInjectorClient implements IFaultInjectorClient {
       const action = await this.getActionStatus<ActionStatus>(actionId);
 
       if (action.status === "failed") {
-        console.error('[FI] FAILED:', action.error);
         throw new Error(
           `Action id: ${actionId} failed! Error: ${action.error}`
         );
       }
 
       if (["finished", "success"].includes(action.status)) {
-        console.log('[FI] ✓ completed');
         return action;
       }
 
       await setTimeout(timeout);
     }
 
-    console.error('[FI] TIMEOUT after', maxWaitTime, 'ms');
     throw new Error(`Timeout waiting for action ${actionId}`);
   }
 
@@ -183,7 +179,8 @@ export class FaultInjectorClient implements IFaultInjectorClient {
   async #request<T>(
     method: string,
     path: string,
-    body?: Object | string
+    body?: Object | string,
+    timeoutMs: number = 30000
   ): Promise<T> {
     const url = `${this.baseUrl}${path}`;
     console.log('[FI]', method, path);
@@ -203,27 +200,39 @@ export class FaultInjectorClient implements IFaultInjectorClient {
       }
     }
 
-    const response = await this.#fetch(url, { method, headers, body: payload });
-
-    if (!response.ok) {
-      try {
-        const text = await response.text();
-        console.error('[FI] HTTP', response.status, '-', text);
-        throw new Error(`HTTP ${response.status} - ${text}`);
-      } catch {
-        console.error('[FI] HTTP', response.status);
-        throw new Error(`HTTP ${response.status}`);
-      }
-    }
+    // Add timeout to fetch using AbortController
+    const controller = new AbortController();
+    const timeoutId = globalThis.setTimeout(() => {
+      controller.abort();
+    }, timeoutMs);
 
     try {
-      const result = (await response.json()) as T;
-      return result;
-    } catch {
-      console.error('[FI] Failed to parse JSON response');
-      throw new Error(
-        `HTTP ${response.status} - Unable to parse response as JSON`
-      );
+      const response = await this.#fetch(url, {
+        method,
+        headers,
+        body: payload,
+        signal: controller.signal
+      });
+
+      if (!response.ok) {
+        try {
+          const text = await response.text();
+          throw new Error(`HTTP ${response.status} - ${text}`);
+        } catch {
+          throw new Error(`HTTP ${response.status}`);
+        }
+      }
+
+      try {
+        const result = (await response.json()) as T;
+        return result;
+      } catch {
+        throw new Error(
+          `HTTP ${response.status} - Unable to parse response as JSON`
+        );
+      }
+    } finally {
+      globalThis.clearTimeout(timeoutId);
     }
   }
 

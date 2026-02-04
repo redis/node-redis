@@ -961,8 +961,6 @@ export default class TestUtils {
             options.dbName ?? `test-db-${Date.now()}`
           );
 
-        console.log('opts.dbConfig', options.dbConfig);
-
         dbConfig = await faultInjectorClient.createAndSelectDatabase(db, 0);
       });
 

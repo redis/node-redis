@@ -168,12 +168,16 @@ export default class RedisClusterSlots<
     let start = Math.floor(Math.random() * this.#options.rootNodes.length);
     for (let i = start; i < this.#options.rootNodes.length; i++) {
       if (!this.#isOpen) throw new Error('Cluster closed');
-      if (await this.#discover(this.#options.rootNodes[i])) return;
+      if (await this.#discover(this.#options.rootNodes[i])) {
+        return;
+      }
     }
 
     for (let i = 0; i < start; i++) {
       if (!this.#isOpen) throw new Error('Cluster closed');
-      if (await this.#discover(this.#options.rootNodes[i])) return;
+      if (await this.#discover(this.#options.rootNodes[i])) {
+        return;
+      }
     }
 
     throw new RootNodesUnavailableError();
