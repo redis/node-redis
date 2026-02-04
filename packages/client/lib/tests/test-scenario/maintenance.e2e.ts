@@ -71,11 +71,9 @@ const KEYS = [
     const staleEventCount = diagnosticEvents.length;
     diagnosticEvents = [];
     diagnostics_channel.subscribe("redis.maintenance", onMessage);
-    console.log(`\n[DEBUG] beforeEach: "${this.currentTest?.fullTitle()}" - cleared ${staleEventCount} stale events before subscribing`);
   });
 
   afterEach(function() {
-    console.log(`[DEBUG] afterEach: "${this.currentTest?.fullTitle()}" - diagnosticEvents had ${diagnosticEvents.length} events`);
     diagnostics_channel.unsubscribe("redis.maintenance", onMessage);
   });
 

@@ -328,13 +328,6 @@ export default class RedisSocket extends EventEmitter {
     this.#socket.cork();
     for (const args of iterable) {
       for (const toWrite of args) {
-        // DEBUG: Log wire-level destination for SET commands
-        const str = toWrite.toString();
-        if (str.includes('SET') || str.includes('set')) {
-          const local = `${this.#socket.localAddress}:${this.#socket.localPort}`;
-          const remote = `${this.#socket.remoteAddress}:${this.#socket.remotePort}`;
-          console.log(`[WIRE] local=${local} -> remote=${remote}: ${str.substring(0, 150).replace(/\r\n/g, ' ')}`);
-        }
         this.#socket.write(toWrite);
       }
 

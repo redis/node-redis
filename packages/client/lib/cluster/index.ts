@@ -425,12 +425,6 @@ export default class RedisCluster<
     let { client, slotNumber } = await this._slots.getClientAndSlotNumber(firstKey, isReadonly);
     let i = 0;
 
-    // DEBUG: Log the client being used for this command - also check the actual socket connection
-    const clientSocket = (client as any).options?.socket;
-    const actualSocket = (client as any).socket;
-    const actualRemote = actualSocket ? `${actualSocket?.remoteAddress}:${actualSocket?.remotePort}` : 'N/A';
-    console.log(`[DEBUG _execute] firstKey=${firstKey?.toString()}, slotNumber=${slotNumber}, configuredClient=${clientSocket?.host}:${clientSocket?.port}, actualRemote=${actualRemote}`);
-
     let myFn = fn;
 
     while (true) {
@@ -442,12 +436,9 @@ export default class RedisCluster<
       } catch (err) {
         myFn = fn;
 
-        // DEBUG: Log all errors caught in _execute
-        console.log(`[DEBUG _execute] Caught error for key=${firstKey?.toString()}: ${(err as any)?.message}, iteration=${i+1}/${maxCommandRedirections}`);
 
         // TODO: error class
         if (++i > maxCommandRedirections || !(err instanceof Error)) {
-          console.log(`[DEBUG _execute] Rethrowing: maxRedirections exceeded or not Error instance`);
           throw err;
         }
 
@@ -469,16 +460,13 @@ export default class RedisCluster<
         }
 
         if (err.message.startsWith('MOVED')) {
-          console.log(`[DEBUG _execute] MOVED detected, will rediscover and retry`);
           await this._slots.rediscover(client);
           const clientAndSlot = await this._slots.getClientAndSlotNumber(firstKey, isReadonly);
-          console.log(`[DEBUG _execute] After rediscover: new client=${(clientAndSlot.client as any).options?.socket?.host}:${(clientAndSlot.client as any).options?.socket?.port}`);
           client = clientAndSlot.client;
           slotNumber = clientAndSlot.slotNumber;
           continue;
         }
 
-        console.log(`[DEBUG _execute] Rethrowing unhandled error: ${err.message}`);
         throw err;
       }
     }
@@ -612,7 +600,6 @@ export default class RedisCluster<
   resubscribeAllPubSubListeners(allListeners: Partial<PubSubListeners>) {
     if (allListeners.CHANNELS) {
       for(const [channel, listeners] of allListeners.CHANNELS) {
-        console.log('resubscribe normal pubsub channel', channel);
         listeners.buffers.forEach(bufListener => {
           this.subscribe(channel, bufListener, true);
         });
@@ -624,7 +611,6 @@ export default class RedisCluster<
 
     if (allListeners.PATTERNS) {
       for (const [channel, listeners] of allListeners.PATTERNS) {
-        console.log('resubscribe pattern channel', channel);
         listeners.buffers.forEach(bufListener => {
           this.pSubscribe(channel, bufListener, true);
         });
@@ -636,7 +622,6 @@ export default class RedisCluster<
 
     if (allListeners.SHARDED) {
       for (const [channel, listeners] of allListeners.SHARDED) {
-        console.log('resubscribe sharded pubsub channel', channel);
         listeners.buffers.forEach(bufListener => {
           this.sSubscribe(channel, bufListener, true);
         });

@@ -140,8 +140,6 @@ export default class EnterpriseMaintenanceManager {
   }
 
   #onPush = (push: Array<any>): boolean => {
-    console.log('[MAINT-PUSH]', push.map(String));
-    console.log('[MAINT-PUSH]', push);
     dbgMaintenance("ONPUSH:", push.map(String));
 
     if (!Array.isArray(push) || !Object.values(PN).includes(String(push[0]))) {
@@ -185,7 +183,6 @@ export default class EnterpriseMaintenanceManager {
         try {
           this.#onSMigrated(push);
         } catch (e) {
-          console.log('KUR', e);
           throw e;
         }
         return true;

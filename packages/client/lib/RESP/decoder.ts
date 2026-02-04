@@ -212,10 +212,6 @@ export class Decoder {
       return true;
     }
 
-    // DEBUG: Log every response
-    const valStr = value instanceof Error ? value.message : JSON.stringify(value)?.substring(0, 150) ?? String(value);
-    console.log(`[WIRE IN] ${valStr}`);
-
     cb(value);
     return false;
   }

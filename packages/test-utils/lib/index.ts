@@ -937,7 +937,6 @@ export default class TestUtils {
       let dbConfig: DatabaseConfig;
 
       before(async function () {
-        console.log(`\n[DEBUG testWithRECluster] BEFORE hook starting for: "${title}"`);
         this.timeout(options.testTimeout ?? 300000);
 
         const baseUrl = process.env.RE_FAULT_INJECTOR_URL;
@@ -948,7 +947,6 @@ export default class TestUtils {
 
         faultInjectorClient = new FaultInjectorClient(baseUrl);
 
-        console.log(`[DEBUG testWithRECluster] Resetting cluster state before test: "${title}"`);
         await faultInjectorClient.triggerAction({
           type: 'reset_cluster',
           parameters: {
@@ -956,7 +954,6 @@ export default class TestUtils {
             "clean_maintenance_mode": true
           }
         })
-        console.log(`[DEBUG testWithRECluster] cluster cleared, now creating new db for: "${title}"`);
 
         const db = options.dbConfig ||
           getCreateDatabaseConfig(
@@ -967,23 +964,9 @@ export default class TestUtils {
         console.log('opts.dbConfig', options.dbConfig);
 
         dbConfig = await faultInjectorClient.createAndSelectDatabase(db, 0);
-        console.log(`[DEBUG testWithRECluster] BEFORE hook completed for: "${title}" - dbConfig: ${dbConfig.host}:${dbConfig.port}`);
-      });
-
-      after(async function () {
-        console.log(`\n[DEBUG testWithRECluster] AFTER hook starting for: "${title}"`);
-        this.timeout(options.testTimeout ?? 300000);
-
-        console.log('SKIP DELETION');
-        // await faultInjectorClient.deleteAllDatabases(0);
-        // Wait for cluster to stabilize after database deletion before next test
-        // console.log(`[DEBUG testWithRECluster] Waiting 2s for cluster to stabilize after deletion...`);
-        // await new Promise(resolve => setTimeout(resolve, 2000));
-        // console.log(`[DEBUG testWithRECluster] AFTER hook completed for: "${title}"`);
       });
 
       it(title, async function () {
-        console.log(`\n[DEBUG testWithRECluster] IT starting for: "${title}"`);
         if (options.skipTest) return this.skip();
         if (options.testTimeout) {
           this.timeout(options.testTimeout);
@@ -992,10 +975,8 @@ export default class TestUtils {
         const { defaults, ...rest } = options.clusterConfiguration ?? {};
 
         // Wait for database to be fully ready before connecting
-        console.log(`[DEBUG testWithRECluster] Waiting 1s for database to be fully ready...`);
         await new Promise(resolve => setTimeout(resolve, 1000));
 
-        console.log(`[DEBUG testWithRECluster] Creating cluster for: "${title}" - connecting to ${dbConfig.host}:${dbConfig.port}`);
         const cluster = createCluster({
           rootNodes: [
             {
@@ -1014,18 +995,12 @@ export default class TestUtils {
         });
 
         await cluster.connect();
-        console.log(`[DEBUG testWithRECluster] Cluster connected for: "${title}" - masters: ${cluster.masters.length}`);
 
         try {
-          console.log(`[DEBUG testWithRECluster] Flushing cluster for: "${title}"`);
           await TestUtils.#clusterFlushAll(cluster);
-          console.log(`[DEBUG testWithRECluster] Running test fn for: "${title}"`);
           await fn(cluster, faultInjectorClient);
-          console.log(`[DEBUG testWithRECluster] Test fn completed for: "${title}"`);
         } finally {
-          console.log(`[DEBUG testWithRECluster] Destroying cluster for: "${title}"`);
           cluster.destroy();
-          console.log(`[DEBUG testWithRECluster] IT completed for: "${title}"`);
         }
       });
     });
