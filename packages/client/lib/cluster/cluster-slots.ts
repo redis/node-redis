@@ -390,29 +390,31 @@ export default class RedisClusterSlots<
           const mastersAfter = this.masters.map(m => m.address);
           dbgMaintenance(`[CSlots]: Removed source from topology. Masters before: [${mastersBefore.join(', ')}]. Masters after: [${mastersAfter.join(', ')}]`);
 
-          // Close source connections
-          if (sourceNode.client?.isOpen) {
-            await sourceNode.client?.close();
-          }
-          if ('pubSub' in sourceNode) {
-            if (sourceNode.pubSub?.client.isOpen) {
-              await sourceNode.pubSub?.client.close();
-            }
-          }
-
-          // Handle pubSubNode replacement if needed
+          // Handle pubSubNode replacement BEFORE destroying source connections
+          // This ensures subscriptions are resubscribed on a new node before the old connection is lost
           if (this.pubSubNode?.address === sourceAddress) {
             const channelsListeners = this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.CHANNELS),
               patternsListeners = this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.PATTERNS);
 
-            this.pubSubNode.client.destroy();
+            const oldPubSubClient = this.pubSubNode.client;
 
             if (channelsListeners.size || patternsListeners.size) {
               await this.#initiatePubSubClient({
                 [PUBSUB_TYPE.CHANNELS]: channelsListeners,
                 [PUBSUB_TYPE.PATTERNS]: patternsListeners
               });
+            } else {
+              this.pubSubNode = undefined;
             }
+
+            oldPubSubClient.destroy();
+          }
+
+          // Destroy source connections (use destroy() instead of close() since the node is being removed
+          // and close() can hang if the server is not responding)
+          sourceNode.client?.destroy();
+          if ('pubSub' in sourceNode) {
+            sourceNode.pubSub?.client.destroy();
           }
         }
       } catch (err) {
