@@ -1,5 +1,5 @@
 import { strict as assert } from "node:assert";
-import HYBRID from "./HYBRID";
+import HYBRID, { FT_HYBRID_VECTOR_METHOD } from "./HYBRID";
 import { BasicCommandParser } from "@redis/client/lib/client/parser";
 import testUtils, { GLOBAL } from "../test-utils";
 import { SCHEMA_VECTOR_FIELD_ALGORITHM } from "./CREATE";
@@ -225,10 +225,9 @@ describe("FT.HYBRID", () => {
           field: "@vector_field",
           vector: "$vec",
           method: {
-            KNN: {
-              K: 10,
-              EF_RUNTIME: 50,
-            },
+            type: FT_HYBRID_VECTOR_METHOD.KNN,
+            K: 10,
+            EF_RUNTIME: 50,
           },
         },
         PARAMS: {
@@ -266,10 +265,9 @@ describe("FT.HYBRID", () => {
           field: "@vector_field",
           vector: "$vec",
           method: {
-            RANGE: {
-              RADIUS: 0.5,
-              EPSILON: 0.01,
-            },
+            type: FT_HYBRID_VECTOR_METHOD.RANGE,
+            RADIUS: 0.5,
+            EPSILON: 0.01,
           },
         },
         PARAMS: {
@@ -867,9 +865,8 @@ describe("FT.HYBRID", () => {
           field: "@vector_field",
           vector: "$query_vector",
           method: {
-            KNN: {
-              K: 5,
-            },
+            type: FT_HYBRID_VECTOR_METHOD.KNN,
+            K: 5,
           },
           YIELD_SCORE_AS: "vector_score",
         },
@@ -1029,7 +1026,7 @@ describe("FT.HYBRID", () => {
           LIMIT: { offset: 0, count: 2 },
           PARAMS: {
             vec2: createVectorBuffer([1, 2, 2, 3]),
-          }
+          },
         });
 
         assert.ok(resultBm25.totalResults >= 2);
@@ -1053,7 +1050,9 @@ describe("FT.HYBRID", () => {
             field: "@embeddingHNSW",
             vector: "$vec",
             method: {
-              KNN: { K: 3, EF_RUNTIME: 1 },
+              type: FT_HYBRID_VECTOR_METHOD.KNN,
+              K: 3,
+              EF_RUNTIME: 1,
             },
           },
           TIMEOUT: 10000,
@@ -1088,7 +1087,7 @@ describe("FT.HYBRID", () => {
           TIMEOUT: 10000,
           PARAMS: {
             vec: createVectorBuffer([1, 2, 2, 3]),
-          }
+          },
         });
 
         assert.ok(result.results.length > 0);
@@ -1129,7 +1128,9 @@ describe("FT.HYBRID", () => {
         assert.ok(result.results.length > 0);
         assert.deepStrictEqual(result.warnings, []);
 
-        assert.ok(result.results.some(item => item.search_score !== undefined));
+        assert.ok(
+          result.results.some((item) => item.search_score !== undefined),
+        );
       },
       GLOBAL.SERVERS.OPEN,
     );
@@ -1149,7 +1150,9 @@ describe("FT.HYBRID", () => {
             field: "@embeddingHNSW",
             vector: "$vec",
             method: {
-              KNN: { K: 3, EF_RUNTIME: 1 },
+              type: FT_HYBRID_VECTOR_METHOD.KNN,
+              K: 3,
+              EF_RUNTIME: 1,
             },
             YIELD_SCORE_AS: "vsim_score",
           },
@@ -1162,7 +1165,7 @@ describe("FT.HYBRID", () => {
         assert.ok(result.results.length > 0);
         assert.deepStrictEqual(result.warnings, []);
 
-        assert.ok(result.results.some(item => item.vsim_score !== undefined));
+        assert.ok(result.results.some((item) => item.vsim_score !== undefined));
       },
       GLOBAL.SERVERS.OPEN,
     );
@@ -1220,7 +1223,9 @@ describe("FT.HYBRID", () => {
             field: "@embeddingHNSW",
             vector: "$vec",
             method: {
-              KNN: { K: 3, EF_RUNTIME: 1 },
+              type: FT_HYBRID_VECTOR_METHOD.KNN,
+              K: 3,
+              EF_RUNTIME: 1,
             },
             YIELD_SCORE_AS: "vsim_score",
           },
@@ -1260,7 +1265,8 @@ describe("FT.HYBRID", () => {
             field: "@embedding",
             vector: "$vec",
             method: {
-              KNN: { K: 3 },
+              type: FT_HYBRID_VECTOR_METHOD.KNN,
+              K: 3,
             },
           },
           TIMEOUT: 10000,
@@ -1281,7 +1287,9 @@ describe("FT.HYBRID", () => {
             field: "@embeddingHNSW",
             vector: "$vec",
             method: {
-              KNN: { K: 3, EF_RUNTIME: 1 },
+              type: FT_HYBRID_VECTOR_METHOD.KNN,
+              K: 3,
+              EF_RUNTIME: 1,
             },
           },
           TIMEOUT: 10000,
@@ -1314,7 +1322,8 @@ describe("FT.HYBRID", () => {
             field: "@embedding",
             vector: "$vec",
             method: {
-              RANGE: { RADIUS: 2 },
+              type: FT_HYBRID_VECTOR_METHOD.RANGE,
+              RADIUS: 2,
             },
           },
           LIMIT: { offset: 0, count: 3 },
@@ -1336,7 +1345,9 @@ describe("FT.HYBRID", () => {
             field: "@embeddingHNSW",
             vector: "$vec",
             method: {
-              RANGE: { RADIUS: 2, EPSILON: 0.5 },
+              type: FT_HYBRID_VECTOR_METHOD.RANGE,
+              RADIUS: 2,
+              EPSILON: 0.5,
             },
           },
           LIMIT: { offset: 0, count: 3 },
@@ -1450,12 +1461,7 @@ describe("FT.HYBRID", () => {
           COMBINE: {
             method: { LINEAR: { ALPHA: 0.5, BETA: 0.5 } },
           },
-          LOAD: [
-            "@description",
-            "@color",
-            "@price",
-            "@size",
-          ],
+          LOAD: ["@description", "@color", "@price", "@size"],
           LIMIT: { offset: 0, count: 1 },
           TIMEOUT: 10000,
           PARAMS: {
@@ -1661,7 +1667,10 @@ describe("FT.HYBRID", () => {
         assert.strictEqual(result.results.length, 5);
         assert.deepStrictEqual(result.warnings, []);
         assert.ok(result.executionTime > 0);
-        assert.ok(result.results[0].price_discount > result.results.at(-1)?.price_discount);
+        assert.ok(
+          result.results[0].price_discount >
+            result.results.at(-1)?.price_discount,
+        );
       },
       GLOBAL.SERVERS.OPEN,
     );
@@ -1687,7 +1696,8 @@ describe("FT.HYBRID", () => {
             field: "@embeddingHNSW",
             vector: "$vec",
             method: {
-              KNN: { K: 1000 },
+              type: FT_HYBRID_VECTOR_METHOD.KNN,
+              K: 1000,
             },
             FILTER:
               "((@price:[15 16] @size:[10 11]) | (@price:[13 15] @size:[11 12])) @description:(shoes) -@description:(green)",
@@ -1712,7 +1722,8 @@ describe("FT.HYBRID", () => {
             field: "@embeddingHNSW",
             vector: "$vec",
             method: {
-              KNN: { K: 1000 },
+              type: FT_HYBRID_VECTOR_METHOD.KNN,
+              K: 1000,
             },
           },
           TIMEOUT: 1, // 1ms timeout - likely to timeout

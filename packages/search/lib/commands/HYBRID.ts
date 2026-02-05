@@ -24,23 +24,32 @@ export interface FtHybridSearchExpression {
 
 /**
  * Vector search method configuration - either KNN or RANGE.
- * Only one method should be specified.
  */
-export interface FtHybridVectorMethod {
+export const FT_HYBRID_VECTOR_METHOD = {
   /** K-Nearest Neighbors search configuration */
-  KNN?: {
-    /** Number of nearest neighbors to return (default: 10) */
-    K: number;
-    /** HNSW ef_runtime parameter for search accuracy/speed tradeoff */
-    EF_RUNTIME?: number;
-  };
+  KNN: "KNN",
   /** Range-based vector search configuration */
-  RANGE?: {
-    /** Search radius - maximum distance from query vector */
-    RADIUS: number;
-    /** Range search epsilon for accuracy tuning */
-    EPSILON?: number;
-  };
+  RANGE: "RANGE",
+} as const;
+
+/** Vector search method type */
+export type FtHybridVectorMethodType =
+  (typeof FT_HYBRID_VECTOR_METHOD)[keyof typeof FT_HYBRID_VECTOR_METHOD];
+
+interface FtHybridVectorMethodKNN {
+  type: (typeof FT_HYBRID_VECTOR_METHOD)["KNN"];
+  /** Number of nearest neighbors to find */
+  K: number;
+  /** Controls the search accuracy vs. speed tradeoff */
+  EF_RUNTIME?: number;
+}
+
+interface FtHybridVectorMethodRange {
+  type: (typeof FT_HYBRID_VECTOR_METHOD)["RANGE"];
+  /** Maximum distance for matches */
+  RADIUS: number;
+  /** Provides additional precision control */
+  EPSILON?: number;
 }
 
 /**
@@ -52,7 +61,7 @@ export interface FtHybridVectorExpression {
   /** Vector parameter reference (e.g., "$v") */
   vector: string;
   /** Search method configuration - KNN or RANGE */
-  method?: FtHybridVectorMethod;
+  method?: FtHybridVectorMethodKNN | FtHybridVectorMethodRange;
   /** Pre-filter expression applied before vector search (e.g., "@tag:{foo}") */
   FILTER?: RedisArgument;
   /** Alias for the vector score in results */
@@ -183,26 +192,22 @@ function parseVectorExpression(
   parser.push("VSIM", vsim.field, vsim.vector);
 
   if (vsim.method) {
-    if (vsim.method.KNN) {
-      const knn = vsim.method.KNN;
-
+    if (vsim.method.type === FT_HYBRID_VECTOR_METHOD.KNN) {
       let argsCount = 2;
-      if (knn.EF_RUNTIME !== undefined) {
+      if (vsim.method.EF_RUNTIME !== undefined) {
         argsCount += 2;
       }
 
-      parser.push("KNN", argsCount.toString(), "K", knn.K.toString());
+      parser.push("KNN", argsCount.toString(), "K", vsim.method.K.toString());
 
-      if (knn.EF_RUNTIME !== undefined) {
-        parser.push("EF_RUNTIME", knn.EF_RUNTIME.toString());
+      if (vsim.method.EF_RUNTIME !== undefined) {
+        parser.push("EF_RUNTIME", vsim.method.EF_RUNTIME.toString());
       }
     }
 
-    if (vsim.method.RANGE) {
-      const range = vsim.method.RANGE;
-
+    if (vsim.method.type === FT_HYBRID_VECTOR_METHOD.RANGE) {
       let argsCount = 2;
-      if (range.EPSILON !== undefined) {
+      if (vsim.method.EPSILON !== undefined) {
         argsCount += 2;
       }
 
@@ -210,11 +215,11 @@ function parseVectorExpression(
         "RANGE",
         argsCount.toString(),
         "RADIUS",
-        range.RADIUS.toString(),
+        vsim.method.RADIUS.toString(),
       );
 
-      if (range.EPSILON !== undefined) {
-        parser.push("EPSILON", range.EPSILON.toString());
+      if (vsim.method.EPSILON !== undefined) {
+        parser.push("EPSILON", vsim.method.EPSILON.toString());
       }
     }
   }
