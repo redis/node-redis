@@ -10,28 +10,40 @@ export interface HotkeyEntry {
 }
 
 /**
+ * Slot range with start and end values
+ */
+export interface SlotRange {
+  start: number;
+  end: number;
+}
+
+/**
  * HOTKEYS GET response structure
  */
 export interface HotkeysGetReply {
   trackingActive: number;
   sampleRatio: number;
-  selectedSlots: Array<number>;
-  sampledCommandSelectedSlotsMs?: number;
-  allCommandsSelectedSlotsMs?: number;
-  allCommandsAllSlotsMs: number;
+  selectedSlots: Array<SlotRange>;
+  /** Only present when sample-ratio > 1 AND selected-slots is not empty */
+  sampledCommandSelectedSlotsUs?: number;
+  /** Only present when selected-slots is not empty */
+  allCommandsSelectedSlotsUs?: number;
+  allCommandsAllSlotsUs: number;
+  /** Only present when sample-ratio > 1 AND selected-slots is not empty */
   netBytesSampledCommandsSelectedSlots?: number;
+  /** Only present when selected-slots is not empty */
   netBytesAllCommandsSelectedSlots?: number;
   netBytesAllCommandsAllSlots: number;
   collectionStartTimeUnixMs: number;
   collectionDurationMs: number;
-  usedCpuSysMs: number;
-  usedCpuUserMs: number;
+  totalCpuTimeSysMs: number;
+  totalCpuTimeUserMs: number;
   totalNetBytes: number;
-  byCpuTime: Array<HotkeyEntry>;
-  byNetBytes: Array<HotkeyEntry>;
+  byCpuTimeUs?: Array<HotkeyEntry>;
+  byNetBytes?: Array<HotkeyEntry>;
 }
 
-type HotkeysGetRawReply = ArrayReply<BlobStringReply | NumberReply | ArrayReply<BlobStringReply | NumberReply>>;
+type HotkeysGetRawReply = ArrayReply<ArrayReply<BlobStringReply | NumberReply | ArrayReply<BlobStringReply | NumberReply>>>;
 
 /**
  * Parse the hotkeys array into HotkeyEntry objects
@@ -48,14 +60,40 @@ function parseHotkeysList(arr: Array<BlobStringReply | NumberReply>): Array<Hotk
 }
 
 /**
+ * Parse slot ranges from the server response.
+ * Single slots are represented as arrays with one element: [slot]
+ * Slot ranges are represented as arrays with two elements: [start, end]
+ */
+function parseSlotRanges(arr: Array<ArrayReply<NumberReply>>): Array<SlotRange> {
+  return arr.map(range => {
+    const unwrapped = range as unknown as Array<number>;
+    if (unwrapped.length === 1) {
+      // Single slot - start and end are the same
+      return {
+        start: Number(unwrapped[0]),
+        end: Number(unwrapped[0])
+      };
+    }
+    // Slot range
+    return {
+      start: Number(unwrapped[0]),
+      end: Number(unwrapped[1])
+    };
+  });
+}
+
+/**
  * Transform the raw reply into a structured object
  */
 function transformHotkeysGetReply(reply: UnwrapReply<HotkeysGetRawReply>): HotkeysGetReply {
   const result: Partial<HotkeysGetReply> = {};
 
-  for (let i = 0; i < reply.length; i += 2) {
-    const key = reply[i].toString();
-    const value = reply[i + 1];
+  // The reply is wrapped in an extra array, so we need to access reply[0]
+  const data = reply[0] as unknown as Array<BlobStringReply | NumberReply | ArrayReply<BlobStringReply | NumberReply>>;
+
+  for (let i = 0; i < data.length; i += 2) {
+    const key = data[i].toString();
+    const value = data[i + 1];
 
     switch (key) {
       case 'tracking-active':
@@ -65,16 +103,16 @@ function transformHotkeysGetReply(reply: UnwrapReply<HotkeysGetRawReply>): Hotke
         result.sampleRatio = Number(value);
         break;
       case 'selected-slots':
-        result.selectedSlots = (value as unknown as Array<NumberReply>).map(Number);
+        result.selectedSlots = parseSlotRanges(value as unknown as Array<ArrayReply<NumberReply>>);
         break;
-      case 'sampled-command-selected-slots-ms':
-        result.sampledCommandSelectedSlotsMs = Number(value);
+      case 'sampled-command-selected-slots-us':
+        result.sampledCommandSelectedSlotsUs = Number(value);
         break;
-      case 'all-commands-selected-slots-ms':
-        result.allCommandsSelectedSlotsMs = Number(value);
+      case 'all-commands-selected-slots-us':
+        result.allCommandsSelectedSlotsUs = Number(value);
         break;
-      case 'all-commands-all-slots-ms':
-        result.allCommandsAllSlotsMs = Number(value);
+      case 'all-commands-all-slots-us':
+        result.allCommandsAllSlotsUs = Number(value);
         break;
       case 'net-bytes-sampled-commands-selected-slots':
         result.netBytesSampledCommandsSelectedSlots = Number(value);
@@ -91,17 +129,17 @@ function transformHotkeysGetReply(reply: UnwrapReply<HotkeysGetRawReply>): Hotke
       case 'collection-duration-ms':
         result.collectionDurationMs = Number(value);
         break;
-      case 'used-cpu-sys-ms':
-        result.usedCpuSysMs = Number(value);
+      case 'total-cpu-time-sys-ms':
+        result.totalCpuTimeSysMs = Number(value);
         break;
-      case 'used-cpu-user-ms':
-        result.usedCpuUserMs = Number(value);
+      case 'total-cpu-time-user-ms':
+        result.totalCpuTimeUserMs = Number(value);
         break;
       case 'total-net-bytes':
         result.totalNetBytes = Number(value);
         break;
-      case 'by-cpu-time':
-        result.byCpuTime = parseHotkeysList(value as unknown as Array<BlobStringReply | NumberReply>);
+      case 'by-cpu-time-us':
+        result.byCpuTimeUs = parseHotkeysList(value as unknown as Array<BlobStringReply | NumberReply>);
         break;
       case 'by-net-bytes':
         result.byNetBytes = parseHotkeysList(value as unknown as Array<BlobStringReply | NumberReply>);
@@ -114,18 +152,18 @@ function transformHotkeysGetReply(reply: UnwrapReply<HotkeysGetRawReply>): Hotke
 
 /**
  * HOTKEYS GET command - returns hotkeys tracking data
- * 
+ *
  * State transitions:
  * - ACTIVE -> returns data (does not stop)
  * - STOPPED -> returns data
- * - EMPTY -> returns nil
+ * - EMPTY -> returns null
  */
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
   /**
    * Returns the top K hotkeys by CPU time and network bytes.
-   * Returns nil if no tracking has been started or tracking was reset.
+   * Returns null if no tracking has been started or tracking was reset.
    * @param parser - The Redis command parser
    * @see https://redis.io/commands/hotkeys-get/
    */
@@ -141,4 +179,3 @@ export default {
   },
   unstableResp3: true
 } as const satisfies Command;
-

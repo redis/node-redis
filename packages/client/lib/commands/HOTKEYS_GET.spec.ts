@@ -48,7 +48,7 @@ describe('HOTKEYS GET', () => {
     assert.ok(Array.isArray(reply.selectedSlots));
     assert.equal(typeof reply.collectionStartTimeUnixMs, 'number');
     assert.equal(typeof reply.collectionDurationMs, 'number');
-    assert.ok(Array.isArray(reply.byCpuTime));
+    assert.ok(Array.isArray(reply.byCpuTimeUs));
     assert.ok(Array.isArray(reply.byNetBytes));
 
     // Stop and reset tracking to clean up
