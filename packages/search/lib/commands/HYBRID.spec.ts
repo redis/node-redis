@@ -1834,5 +1834,45 @@ describe("FT.HYBRID", () => {
       },
       GLOBAL.SERVERS.OPEN,
     );
+
+    // Test: Hybrid search with LOAD: "*" loads all fields
+    testUtils.testWithClientIfVersionWithinRange(
+      [[8, 6], "LATEST"],
+      "hybrid search with load all fields using LOAD *",
+      async (client) => {
+        const indexName = "idx_load_all";
+        await createHybridSearchIndex(client, indexName);
+        await addDataForHybridSearch(client, 1);
+
+        const result = await client.ft.hybrid(indexName, {
+          SEARCH: { query: "@color:{red}" },
+          VSIM: {
+            field: "@embedding",
+            vector: "$vec",
+          },
+          LOAD: "*",
+          LIMIT: { offset: 0, count: 1 },
+          TIMEOUT: 10000,
+          PARAMS: {
+            vec: createVectorBuffer([1, 2, 7, 6]),
+          },
+        });
+
+        assert.strictEqual(result.results.length, 1);
+        assert.deepStrictEqual(result.warnings, []);
+
+        // Check that all fields are loaded when using LOAD: "*"
+        const doc = result.results[0];
+        assert.ok(doc.description !== undefined, "description should be loaded");
+        assert.ok(doc.price !== undefined, "price should be loaded");
+        assert.ok(doc.color !== undefined, "color should be loaded");
+        assert.ok(doc.itemType !== undefined, "itemType should be loaded");
+        assert.ok(doc.size !== undefined, "size should be loaded");
+        // embedding and embeddingHNSW are binary vector fields
+        assert.ok(doc.embedding !== undefined, "embedding should be loaded");
+        assert.ok(doc.embeddingHNSW !== undefined, "embeddingHNSW should be loaded");
+      },
+      GLOBAL.SERVERS.OPEN,
+    );
   });
 });

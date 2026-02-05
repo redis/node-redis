@@ -126,7 +126,11 @@ export interface FtHybridOptions {
     /** Alias for the combined score in results */
     YIELD_SCORE_AS?: RedisArgument;
   };
-  /** Fields to load and return in results (LOAD clause) */
+  /**
+   * Fields to load and return in results (LOAD clause).
+   * - Use `"*"` to load all fields from documents
+   * - Use a field name or array of field names to load specific fields
+   */
   LOAD?: RedisVariadicArgument;
   /** Group by configuration for aggregation */
   GROUPBY?: {
@@ -310,7 +314,14 @@ function parseHybridOptions(parser: CommandParser, options: FtHybridOptions) {
     parseCombineMethod(parser, options.COMBINE);
   }
 
-  parseOptionalVariadicArgument(parser, "LOAD", options.LOAD);
+  if (options.LOAD) {
+    if (options.LOAD === "*") {
+      parser.push("LOAD", "*");
+    } else {
+      parseOptionalVariadicArgument(parser, "LOAD", options.LOAD);
+    }
+  }
+
 
   if (options.GROUPBY) {
     parseOptionalVariadicArgument(parser, "GROUPBY", options.GROUPBY.fields);
