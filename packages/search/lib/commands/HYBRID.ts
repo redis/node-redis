@@ -159,7 +159,7 @@ export interface FtHybridOptions {
     count: number | RedisArgument;
   };
   /** Query parameters for parameterized queries */
-  PARAMS: Record<string, string | number | Buffer>;
+  PARAMS?: Record<string, string | number | Buffer>;
   /** Query timeout in milliseconds */
   TIMEOUT?: number;
 }
@@ -257,10 +257,6 @@ function parseCombineMethod(
     if (combine.method.CONSTANT !== undefined) {
       parser.push("CONSTANT", combine.method.CONSTANT.toString());
     }
-
-    if (combine.YIELD_SCORE_AS) {
-      parser.push("YIELD_SCORE_AS", combine.YIELD_SCORE_AS);
-    }
   }
 
   if (combine.method.type === FT_HYBRID_COMBINE_METHOD.LINEAR) {
@@ -292,14 +288,12 @@ function parseCombineMethod(
     if (combine.method.WINDOW !== undefined) {
       parser.push("WINDOW", combine.method.WINDOW.toString());
     }
+  }
 
-    if (combine.YIELD_SCORE_AS) {
-      parser.push("YIELD_SCORE_AS", combine.YIELD_SCORE_AS);
-    }
+  if (combine.YIELD_SCORE_AS) {
+    parser.push("YIELD_SCORE_AS", combine.YIELD_SCORE_AS);
   }
 }
-
-
 
 function parseApply(parser: CommandParser, apply: FtHybridApply) {
   parser.push("APPLY", apply.expression);
@@ -308,16 +302,9 @@ function parseApply(parser: CommandParser, apply: FtHybridApply) {
   }
 }
 
-function parseHybridOptions(parser: CommandParser, options?: FtHybridOptions) {
-  if (!options) return;
-
-  if (options.SEARCH) {
-    parseSearchExpression(parser, options.SEARCH);
-  }
-
-  if (options.VSIM) {
-    parseVectorExpression(parser, options.VSIM);
-  }
+function parseHybridOptions(parser: CommandParser, options: FtHybridOptions) {
+  parseSearchExpression(parser, options.SEARCH);
+  parseVectorExpression(parser, options.VSIM);
 
   if (options.COMBINE) {
     parseCombineMethod(parser, options.COMBINE);
@@ -414,7 +401,7 @@ export default {
   parseCommand(
     parser: CommandParser,
     index: RedisArgument,
-    options?: FtHybridOptions,
+    options: FtHybridOptions,
   ) {
     parser.push("FT.HYBRID", index);
 
@@ -433,13 +420,7 @@ export interface HybridSearchResult {
   totalResults: number;
   executionTime: number;
   warnings: string[];
-  results: HybridSearchDocument[];
-}
-
-export interface HybridSearchDocument {
-  id: string;
-  score?: number | undefined;
-  [field: string]: any;
+  results: Record<string, any>[];
 }
 
 function transformHybridSearchResults(reply: any): HybridSearchResult {
@@ -454,7 +435,7 @@ function transformHybridSearchResults(reply: any): HybridSearchResult {
     ? Number.parseFloat(replyMap["execution_time"])
     : 0;
 
-  const results: HybridSearchDocument[] = [];
+  const results: Record<string, any>[] = [];
   for (const result of rawResults) {
     // Each result is a flat key-value array like FT.AGGREGATE: ['field1', 'value1', 'field2', 'value2', ...]
     const resultMap = parseReplyMap(result);
