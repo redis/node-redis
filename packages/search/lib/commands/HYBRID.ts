@@ -9,6 +9,7 @@ import {
   parseOptionalVariadicArgument,
 } from "@redis/client/dist/lib/commands/generic-transformers";
 import { parseParamsArgument } from "./SEARCH";
+import { GroupByReducers, parseGroupByReducer } from "./AGGREGATE";
 
 /**
  * Text search expression configuration for hybrid search.
@@ -101,20 +102,6 @@ interface FtHybridCombineMethodLinear {
 }
 
 /**
- * Reducer configuration for GROUPBY aggregation.
- */
-export interface FtHybridReducer {
-  /** Reducer function name (e.g., "COUNT", "SUM", "AVG") */
-  function: RedisArgument;
-  /** Number of arguments for the reducer */
-  nargs: number;
-  /** Arguments for the reducer function */
-  args: Array<RedisArgument>;
-  /** Alias for the reducer result in output */
-  AS?: RedisArgument;
-}
-
-/**
  * Apply expression for result transformation.
  */
 export interface FtHybridApply {
@@ -146,7 +133,7 @@ export interface FtHybridOptions {
     /** Fields to group by */
     fields: RedisVariadicArgument;
     /** Reducer(s) to apply to each group */
-    REDUCE?: FtHybridReducer | Array<FtHybridReducer>;
+    REDUCE?: GroupByReducers | Array<GroupByReducers>;
   };
   /** Apply expression(s) for result transformation */
   APPLY?: FtHybridApply | Array<FtHybridApply>;
@@ -312,13 +299,7 @@ function parseCombineMethod(
   }
 }
 
-function parseReducer(parser: CommandParser, reducer: FtHybridReducer) {
-  parser.push("REDUCE", reducer.function, reducer.nargs.toString());
-  parser.push(...reducer.args);
-  if (reducer.AS) {
-    parser.push("AS", reducer.AS);
-  }
-}
+
 
 function parseApply(parser: CommandParser, apply: FtHybridApply) {
   parser.push("APPLY", apply.expression);
@@ -353,7 +334,7 @@ function parseHybridOptions(parser: CommandParser, options?: FtHybridOptions) {
         : [options.GROUPBY.REDUCE];
 
       for (const reducer of reducers) {
-        parseReducer(parser, reducer);
+        parseGroupByReducer(parser, reducer);
       }
     }
   }

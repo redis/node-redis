@@ -3,6 +3,7 @@ import HYBRID, { FT_HYBRID_VECTOR_METHOD, FT_HYBRID_COMBINE_METHOD } from "./HYB
 import { BasicCommandParser } from "@redis/client/lib/client/parser";
 import testUtils, { GLOBAL } from "../test-utils";
 import { SCHEMA_VECTOR_FIELD_ALGORITHM } from "./CREATE";
+import { FT_AGGREGATE_GROUP_BY_REDUCERS } from "./AGGREGATE";
 
 /**
  * Helper function to create a Float32Array vector as a Buffer
@@ -480,9 +481,7 @@ describe("FT.HYBRID", () => {
         GROUPBY: {
           fields: ["@category"],
           REDUCE: {
-            function: "COUNT",
-            nargs: 0,
-            args: [],
+            type: FT_AGGREGATE_GROUP_BY_REDUCERS.COUNT,
           },
         },
         PARAMS: {
@@ -765,15 +764,13 @@ describe("FT.HYBRID", () => {
           fields: ["@itemType", "@price"],
           REDUCE: [
             {
-              function: "COUNT_DISTINCT",
-              nargs: 1,
-              args: ["@color"],
+              type: FT_AGGREGATE_GROUP_BY_REDUCERS.COUNT_DISTINCT,
+              property: "@color",
               AS: "colors_count",
             },
             {
-              function: "MIN",
-              nargs: 1,
-              args: ["@size"],
+              type: FT_AGGREGATE_GROUP_BY_REDUCERS.MIN,
+              property: "@size",
             },
           ],
         },
@@ -1756,15 +1753,13 @@ describe("FT.HYBRID", () => {
             fields: ["@itemType", "@price"],
             REDUCE: [
               {
-                function: "COUNT_DISTINCT",
-                nargs: 1,
-                args: ["@color"],
+                type: FT_AGGREGATE_GROUP_BY_REDUCERS.COUNT_DISTINCT,
+                property: "@color",
                 AS: "colors_count",
               },
               {
-                function: "MIN",
-                nargs: 1,
-                args: ["@size"],
+                type: FT_AGGREGATE_GROUP_BY_REDUCERS.MIN,
+                property: "@size",
               },
             ],
           },
