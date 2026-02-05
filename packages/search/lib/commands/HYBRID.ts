@@ -69,28 +69,35 @@ export interface FtHybridVectorExpression {
 }
 
 /**
- * Score fusion method configuration for combining search results.
- * Only one method should be specified: RRF, LINEAR, or FUNCTION.
+ * Score fusion method type constants for combining search results.
  */
-export interface FtHybridCombineMethod {
-  /** Reciprocal Rank Fusion configuration */
-  RRF?: {
-    /** RRF window size (default: 20) */
-    WINDOW?: number;
-    /** RRF constant (default: 60) */
-    CONSTANT?: number;
-  };
-  /** Linear weighted combination configuration */
-  LINEAR?: {
-    /** Weight for text search score (default: 0.3) */
-    ALPHA?: number;
-    /** Weight for vector search score (default: 0.7) */
-    BETA?: number;
-    /** Window size for score normalization */
-    WINDOW?: number;
-  };
-  /** Custom scoring function expression */
-  FUNCTION?: RedisArgument;
+export const FT_HYBRID_COMBINE_METHOD = {
+  /** Reciprocal Rank Fusion */
+  RRF: "RRF",
+  /** Linear combination with ALPHA and BETA weights */
+  LINEAR: "LINEAR",
+} as const;
+
+/** Combine method type */
+export type FtHybridCombineMethodType =
+  (typeof FT_HYBRID_COMBINE_METHOD)[keyof typeof FT_HYBRID_COMBINE_METHOD];
+
+interface FtHybridCombineMethodRRF {
+  type: (typeof FT_HYBRID_COMBINE_METHOD)["RRF"];
+  /** RRF constant for score calculation */
+  CONSTANT?: number;
+  /** Window size for score normalization */
+  WINDOW?: number;
+}
+
+interface FtHybridCombineMethodLinear {
+  type: (typeof FT_HYBRID_COMBINE_METHOD)["LINEAR"];
+  /** Weight for text search score */
+  ALPHA?: number;
+  /** Weight for vector search score */
+  BETA?: number;
+  /** Window size for score normalization */
+  WINDOW?: number;
 }
 
 /**
@@ -127,8 +134,8 @@ export interface FtHybridOptions {
   VSIM: FtHybridVectorExpression;
   /** Score fusion configuration for combining SEARCH and VSIM results */
   COMBINE?: {
-    /** Fusion method: RRF, LINEAR, or FUNCTION */
-    method: FtHybridCombineMethod;
+    /** Fusion method: RRF or LINEAR */
+    method: FtHybridCombineMethodRRF | FtHybridCombineMethodLinear;
     /** Alias for the combined score in results */
     YIELD_SCORE_AS?: RedisArgument;
   };
@@ -241,15 +248,13 @@ function parseCombineMethod(
 
   parser.push("COMBINE");
 
-  if (combine.method.RRF) {
-    const rrf = combine.method.RRF;
-
+  if (combine.method.type === FT_HYBRID_COMBINE_METHOD.RRF) {
     // Calculate argsCount: 2 per optional (WINDOW, CONSTANT, YIELD_SCORE_AS)
     let argsCount = 0;
-    if (rrf.WINDOW !== undefined) {
+    if (combine.method.WINDOW !== undefined) {
       argsCount += 2;
     }
-    if (rrf.CONSTANT !== undefined) {
+    if (combine.method.CONSTANT !== undefined) {
       argsCount += 2;
     }
     if (combine.YIELD_SCORE_AS) {
@@ -258,12 +263,12 @@ function parseCombineMethod(
 
     parser.push("RRF", argsCount.toString());
 
-    if (rrf.WINDOW !== undefined) {
-      parser.push("WINDOW", rrf.WINDOW.toString());
+    if (combine.method.WINDOW !== undefined) {
+      parser.push("WINDOW", combine.method.WINDOW.toString());
     }
 
-    if (rrf.CONSTANT !== undefined) {
-      parser.push("CONSTANT", rrf.CONSTANT.toString());
+    if (combine.method.CONSTANT !== undefined) {
+      parser.push("CONSTANT", combine.method.CONSTANT.toString());
     }
 
     if (combine.YIELD_SCORE_AS) {
@@ -271,18 +276,16 @@ function parseCombineMethod(
     }
   }
 
-  if (combine.method.LINEAR) {
-    const linear = combine.method.LINEAR;
-
+  if (combine.method.type === FT_HYBRID_COMBINE_METHOD.LINEAR) {
     // Calculate argsCount: 2 per optional (ALPHA, BETA, WINDOW, YIELD_SCORE_AS)
     let argsCount = 0;
-    if (linear.ALPHA !== undefined) {
+    if (combine.method.ALPHA !== undefined) {
       argsCount += 2;
     }
-    if (linear.BETA !== undefined) {
+    if (combine.method.BETA !== undefined) {
       argsCount += 2;
     }
-    if (linear.WINDOW !== undefined) {
+    if (combine.method.WINDOW !== undefined) {
       argsCount += 2;
     }
     if (combine.YIELD_SCORE_AS) {
@@ -291,25 +294,21 @@ function parseCombineMethod(
 
     parser.push("LINEAR", argsCount.toString());
 
-    if (linear.ALPHA !== undefined) {
-      parser.push("ALPHA", linear.ALPHA.toString());
+    if (combine.method.ALPHA !== undefined) {
+      parser.push("ALPHA", combine.method.ALPHA.toString());
     }
 
-    if (linear.BETA !== undefined) {
-      parser.push("BETA", linear.BETA.toString());
+    if (combine.method.BETA !== undefined) {
+      parser.push("BETA", combine.method.BETA.toString());
     }
 
-    if (linear.WINDOW !== undefined) {
-      parser.push("WINDOW", linear.WINDOW.toString());
+    if (combine.method.WINDOW !== undefined) {
+      parser.push("WINDOW", combine.method.WINDOW.toString());
     }
 
     if (combine.YIELD_SCORE_AS) {
       parser.push("YIELD_SCORE_AS", combine.YIELD_SCORE_AS);
     }
-  }
-
-  if (combine.method.FUNCTION) {
-    parser.push("FUNCTION", combine.method.FUNCTION);
   }
 }
 
@@ -427,7 +426,7 @@ export default {
    * @param options - Hybrid search options including:
    *   - SEARCH: Text search expression with optional scoring
    *   - VSIM: Vector similarity expression with KNN/RANGE methods
-   *   - COMBINE: Fusion method (RRF, LINEAR, FUNCTION)
+   *   - COMBINE: Fusion method (RRF, LINEAR)
    *   - Post-processing operations: LOAD, GROUPBY, APPLY, SORTBY, FILTER
    *   - Tunable options: LIMIT, PARAMS, TIMEOUT
    */

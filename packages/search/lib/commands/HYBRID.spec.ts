@@ -1,5 +1,5 @@
 import { strict as assert } from "node:assert";
-import HYBRID, { FT_HYBRID_VECTOR_METHOD } from "./HYBRID";
+import HYBRID, { FT_HYBRID_VECTOR_METHOD, FT_HYBRID_COMBINE_METHOD } from "./HYBRID";
 import { BasicCommandParser } from "@redis/client/lib/client/parser";
 import testUtils, { GLOBAL } from "../test-utils";
 import { SCHEMA_VECTOR_FIELD_ALGORITHM } from "./CREATE";
@@ -342,10 +342,9 @@ describe("FT.HYBRID", () => {
         },
         COMBINE: {
           method: {
-            RRF: {
-              WINDOW: 10,
-              CONSTANT: 60,
-            },
+            type: FT_HYBRID_COMBINE_METHOD.RRF,
+            WINDOW: 10,
+            CONSTANT: 60,
           },
           YIELD_SCORE_AS: "combined_score",
         },
@@ -389,10 +388,9 @@ describe("FT.HYBRID", () => {
         },
         COMBINE: {
           method: {
-            LINEAR: {
-              ALPHA: 0.7,
-              BETA: 0.3,
-            },
+            type: FT_HYBRID_COMBINE_METHOD.LINEAR,
+            ALPHA: 0.7,
+            BETA: 0.3,
           },
         },
         PARAMS: {
@@ -872,9 +870,8 @@ describe("FT.HYBRID", () => {
         },
         COMBINE: {
           method: {
-            RRF: {
-              CONSTANT: 60,
-            },
+            type: FT_HYBRID_COMBINE_METHOD.RRF,
+            CONSTANT: 60,
           },
           YIELD_SCORE_AS: "final_score",
         },
@@ -982,7 +979,7 @@ describe("FT.HYBRID", () => {
             vector: "$vec",
           },
           COMBINE: {
-            method: { LINEAR: { ALPHA: 1, BETA: 0 } },
+            method: { type: FT_HYBRID_COMBINE_METHOD.LINEAR, ALPHA: 1, BETA: 0 },
           },
           LOAD: [
             "@description",
@@ -1013,7 +1010,7 @@ describe("FT.HYBRID", () => {
             vector: "$vec2",
           },
           COMBINE: {
-            method: { LINEAR: { ALPHA: 1, BETA: 0 } },
+            method: { type: FT_HYBRID_COMBINE_METHOD.LINEAR, ALPHA: 1, BETA: 0 },
           },
           LOAD: [
             "@description",
@@ -1186,7 +1183,7 @@ describe("FT.HYBRID", () => {
             vector: "$vec",
           },
           COMBINE: {
-            method: { LINEAR: { ALPHA: 0.5, BETA: 0.5 } },
+            method: { type: FT_HYBRID_COMBINE_METHOD.LINEAR, ALPHA: 0.5, BETA: 0.5 },
             YIELD_SCORE_AS: "combined_score",
           },
           TIMEOUT: 10000,
@@ -1230,7 +1227,7 @@ describe("FT.HYBRID", () => {
             YIELD_SCORE_AS: "vsim_score",
           },
           COMBINE: {
-            method: { LINEAR: { ALPHA: 0.5, BETA: 0.5 } },
+            method: { type: FT_HYBRID_COMBINE_METHOD.LINEAR, ALPHA: 0.5, BETA: 0.5 },
             YIELD_SCORE_AS: "combined_score",
           },
           TIMEOUT: 10000,
@@ -1382,7 +1379,7 @@ describe("FT.HYBRID", () => {
             vector: "$vec",
           },
           COMBINE: {
-            method: { LINEAR: { ALPHA: 0.5, BETA: 0.5 } },
+            method: { type: FT_HYBRID_COMBINE_METHOD.LINEAR, ALPHA: 0.5, BETA: 0.5 },
           },
           LIMIT: { offset: 0, count: 3 },
           TIMEOUT: 10000,
@@ -1404,7 +1401,7 @@ describe("FT.HYBRID", () => {
             vector: "$vec",
           },
           COMBINE: {
-            method: { RRF: { WINDOW: 3, CONSTANT: 0.5 } },
+            method: { type: FT_HYBRID_COMBINE_METHOD.RRF, WINDOW: 3, CONSTANT: 0.5 },
           },
           LIMIT: { offset: 0, count: 3 },
           TIMEOUT: 10000,
@@ -1426,7 +1423,7 @@ describe("FT.HYBRID", () => {
             vector: "$vec",
           },
           COMBINE: {
-            method: { RRF: { WINDOW: 3 } },
+            method: { type: FT_HYBRID_COMBINE_METHOD.RRF, WINDOW: 3 },
           },
           LIMIT: { offset: 0, count: 3 },
           TIMEOUT: 10000,
@@ -1459,7 +1456,7 @@ describe("FT.HYBRID", () => {
             vector: "$vec",
           },
           COMBINE: {
-            method: { LINEAR: { ALPHA: 0.5, BETA: 0.5 } },
+            method: { type: FT_HYBRID_COMBINE_METHOD.LINEAR, ALPHA: 0.5, BETA: 0.5 },
           },
           LOAD: ["@description", "@color", "@price", "@size"],
           LIMIT: { offset: 0, count: 1 },
@@ -1703,7 +1700,7 @@ describe("FT.HYBRID", () => {
               "((@price:[15 16] @size:[10 11]) | (@price:[13 15] @size:[11 12])) @description:(shoes) -@description:(green)",
           },
           COMBINE: {
-            method: { RRF: { WINDOW: 1000 } },
+            method: { type: FT_HYBRID_COMBINE_METHOD.RRF, WINDOW: 1000 },
           },
           TIMEOUT: timeout,
           PARAMS: {
