@@ -185,6 +185,7 @@ export default class EnterpriseMaintenanceManager {
         } catch (e) {
           throw e;
         }
+        this.#onMigrated();  // Un-relax timeouts after slot migration completes
         return true;
       }
     }

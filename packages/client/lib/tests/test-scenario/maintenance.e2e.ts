@@ -6,12 +6,17 @@ import testUtils from "../../test-utils";
 import { DiagnosticsEvent } from "../../client/enterprise-maintenance-manager";
 import { FaultInjectorClient, ActionTrigger, ActionType, ActionRequest } from "@redis/test-utils/lib/fault-injector";
 import { REClusterTestOptions } from "@redis/test-utils";
+import { blockCommand } from "./test-scenario.util";
 
 type TestOptions = REClusterTestOptions<{}, {}, {}, 3, {}>
 
 const TEST_TIMEOUT = 2 * 60 * 1000; // 2 minutes
 const FI_POLL_INTERVAL = 5000 // 5 seconds
 const ACTION_OPTIONS = { maxWaitTimeMs: TEST_TIMEOUT, timeoutMs: FI_POLL_INTERVAL }
+
+// Timeout constants for un-relaxation tests
+const NORMAL_COMMAND_TIMEOUT = 1000;
+const RELAXED_COMMAND_TIMEOUT = 5000;
 
 const KEYS = [
   "channel:11kv:1000",
@@ -93,7 +98,23 @@ const KEYS = [
         },
       } satisfies ActionRequest;
       // Build options with trigger-specific dbConfig if available
-      const testOptions = {
+      // DataCommands test needs short timeout to verify un-relaxation behavior
+      const dataCommandsTestOptions = {
+        clusterConfiguration: {
+          defaults: {
+            maintNotifications: "enabled",
+            maintEndpointType: "auto",
+            maintRelaxedCommandTimeout: RELAXED_COMMAND_TIMEOUT,
+          },
+          commandOptions: { timeout: NORMAL_COMMAND_TIMEOUT },
+          RESP: 3 as const,
+        },
+        dbConfig: requirement.dbconfig,
+        testTimeout: TEST_TIMEOUT
+      } satisfies TestOptions;
+
+      // PubSub tests don't need short timeout - they test subscription preservation
+      const pubSubTestOptions = {
         clusterConfiguration: {
           defaults: {
             maintNotifications: "enabled",
@@ -168,8 +189,28 @@ const KEYS = [
             `New writes should succeed for ${key}`
           );
         }
+
+        // Verify timeout is un-relaxed after SMIGRATED
+        const { error, duration } = await blockCommand(async () => {
+          await cluster.set("timeout-test-key", "value");
+        });
+
+        assert.ok(
+          error instanceof Error,
+          "Command Timeout error should be instanceof Error"
+        );
+        assert.ok(
+          duration >= NORMAL_COMMAND_TIMEOUT * 0.8 &&
+            duration < NORMAL_COMMAND_TIMEOUT * 1.5,
+          `Command should timeout within normal timeout range. Duration: ${duration}ms, Expected: [${NORMAL_COMMAND_TIMEOUT * 0.8}, ${NORMAL_COMMAND_TIMEOUT * 1.5})`
+        );
+        assert.strictEqual(
+          error?.constructor?.name,
+          "TimeoutError",
+          "Command Timeout error should be TimeoutError (not CommandTimeoutDuringMaintenanceError)"
+        );
       },
-        testOptions
+        dataCommandsTestOptions
       );
 
       testUtils.testWithRECluster(
@@ -249,7 +290,7 @@ const KEYS = [
           );
         }
         },
-        testOptions
+        pubSubTestOptions
       );
 
       testUtils.testWithRECluster(
@@ -329,7 +370,7 @@ const KEYS = [
           );
         }
         },
-        testOptions
+        pubSubTestOptions
       );
       }
     }
@@ -352,7 +393,23 @@ const KEYS = [
       } satisfies ActionRequest;
 
       // Build options with trigger-specific dbConfig if available
-      const testOptions = {
+      // DataCommands test needs short timeout to verify un-relaxation behavior
+      const dataCommandsTestOptions = {
+        clusterConfiguration: {
+          defaults: {
+            maintNotifications: "enabled",
+            maintEndpointType: "auto",
+            maintRelaxedCommandTimeout: RELAXED_COMMAND_TIMEOUT,
+          },
+          commandOptions: { timeout: NORMAL_COMMAND_TIMEOUT },
+          RESP: 3 as const,
+        },
+        dbConfig: requirement.dbconfig,
+        testTimeout: TEST_TIMEOUT
+      } satisfies TestOptions;
+
+      // PubSub tests don't need short timeout - they test subscription preservation
+      const pubSubTestOptions = {
         clusterConfiguration: {
           defaults: {
             maintNotifications: "enabled",
@@ -428,8 +485,28 @@ const KEYS = [
             `New writes should succeed for ${key}`
           );
         }
+
+        // Verify timeout is un-relaxed after SMIGRATED
+        const { error, duration } = await blockCommand(async () => {
+          await cluster.set("timeout-test-key", "value");
+        });
+
+        assert.ok(
+          error instanceof Error,
+          "Command Timeout error should be instanceof Error"
+        );
+        assert.ok(
+          duration >= NORMAL_COMMAND_TIMEOUT * 0.8 &&
+            duration < NORMAL_COMMAND_TIMEOUT * 1.5,
+          `Command should timeout within normal timeout range. Duration: ${duration}ms, Expected: [${NORMAL_COMMAND_TIMEOUT * 0.8}, ${NORMAL_COMMAND_TIMEOUT * 1.5})`
+        );
+        assert.strictEqual(
+          error?.constructor?.name,
+          "TimeoutError",
+          "Command Timeout error should be TimeoutError (not CommandTimeoutDuringMaintenanceError)"
+        );
         },
-        testOptions
+        dataCommandsTestOptions
       );
 
       testUtils.testWithRECluster(
@@ -509,7 +586,7 @@ const KEYS = [
           );
         }
         },
-        testOptions
+        pubSubTestOptions
       );
 
       testUtils.testWithRECluster(
@@ -589,7 +666,7 @@ const KEYS = [
           );
         }
         },
-        testOptions
+        pubSubTestOptions
       );
       }
     }
@@ -611,7 +688,23 @@ const KEYS = [
       } satisfies ActionRequest;
 
       // Build options with trigger-specific dbConfig if available
-      const testOptions = {
+      // DataCommands test needs short timeout to verify un-relaxation behavior
+      const dataCommandsTestOptions = {
+        clusterConfiguration: {
+          defaults: {
+            maintNotifications: "enabled",
+            maintEndpointType: "auto",
+            maintRelaxedCommandTimeout: RELAXED_COMMAND_TIMEOUT,
+          },
+          commandOptions: { timeout: NORMAL_COMMAND_TIMEOUT },
+          RESP: 3 as const,
+        },
+        dbConfig: requirement.dbconfig,
+        testTimeout: TEST_TIMEOUT
+      } satisfies TestOptions;
+
+      // PubSub tests don't need short timeout - they test subscription preservation
+      const pubSubTestOptions = {
         clusterConfiguration: {
           defaults: {
             maintNotifications: "enabled",
@@ -687,8 +780,28 @@ const KEYS = [
             `New writes should succeed for ${key}`
           );
         }
+
+        // Verify timeout is un-relaxed after SMIGRATED
+        const { error, duration } = await blockCommand(async () => {
+          await cluster.set("timeout-test-key", "value");
+        });
+
+        assert.ok(
+          error instanceof Error,
+          "Command Timeout error should be instanceof Error"
+        );
+        assert.ok(
+          duration >= NORMAL_COMMAND_TIMEOUT * 0.8 &&
+            duration < NORMAL_COMMAND_TIMEOUT * 1.5,
+          `Command should timeout within normal timeout range. Duration: ${duration}ms, Expected: [${NORMAL_COMMAND_TIMEOUT * 0.8}, ${NORMAL_COMMAND_TIMEOUT * 1.5})`
+        );
+        assert.strictEqual(
+          error?.constructor?.name,
+          "TimeoutError",
+          "Command Timeout error should be TimeoutError (not CommandTimeoutDuringMaintenanceError)"
+        );
         },
-        testOptions
+        dataCommandsTestOptions
       );
 
       testUtils.testWithRECluster(
@@ -768,7 +881,7 @@ const KEYS = [
           );
         }
         },
-        testOptions
+        pubSubTestOptions
       );
 
       testUtils.testWithRECluster(
@@ -848,7 +961,7 @@ const KEYS = [
           );
         }
         },
-        testOptions
+        pubSubTestOptions
       );
       }
     }
@@ -871,7 +984,23 @@ const KEYS = [
       } satisfies ActionRequest;
 
       // Build options with trigger-specific dbConfig if available
-      const testOptions = {
+      // DataCommands test needs short timeout to verify un-relaxation behavior
+      const dataCommandsTestOptions = {
+        clusterConfiguration: {
+          defaults: {
+            maintNotifications: "enabled",
+            maintEndpointType: "auto",
+            maintRelaxedCommandTimeout: RELAXED_COMMAND_TIMEOUT,
+          },
+          commandOptions: { timeout: NORMAL_COMMAND_TIMEOUT },
+          RESP: 3 as const,
+        },
+        dbConfig: requirement.dbconfig,
+        testTimeout: TEST_TIMEOUT
+      } satisfies TestOptions;
+
+      // PubSub tests don't need short timeout - they test subscription preservation
+      const pubSubTestOptions = {
         clusterConfiguration: {
           defaults: {
             maintNotifications: "enabled",
@@ -946,8 +1075,28 @@ const KEYS = [
             `New writes should succeed for ${key}`
           );
         }
+
+        // Verify timeout is un-relaxed after SMIGRATED
+        const { error, duration } = await blockCommand(async () => {
+          await cluster.set("timeout-test-key", "value");
+        });
+
+        assert.ok(
+          error instanceof Error,
+          "Command Timeout error should be instanceof Error"
+        );
+        assert.ok(
+          duration >= NORMAL_COMMAND_TIMEOUT * 0.8 &&
+            duration < NORMAL_COMMAND_TIMEOUT * 1.5,
+          `Command should timeout within normal timeout range. Duration: ${duration}ms, Expected: [${NORMAL_COMMAND_TIMEOUT * 0.8}, ${NORMAL_COMMAND_TIMEOUT * 1.5})`
+        );
+        assert.strictEqual(
+          error?.constructor?.name,
+          "TimeoutError",
+          "Command Timeout error should be TimeoutError (not CommandTimeoutDuringMaintenanceError)"
+        );
         },
-        testOptions
+        dataCommandsTestOptions
       );
 
       testUtils.testWithRECluster(
@@ -1027,7 +1176,7 @@ const KEYS = [
           );
         }
         },
-        testOptions
+        pubSubTestOptions
       );
 
       testUtils.testWithRECluster(
@@ -1107,7 +1256,7 @@ const KEYS = [
           );
         }
         },
-        testOptions
+        pubSubTestOptions
       );
       }
     }
