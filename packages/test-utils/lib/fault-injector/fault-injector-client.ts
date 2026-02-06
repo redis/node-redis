@@ -10,6 +10,10 @@ import {
   IFaultInjectorClient,
 } from "./types";
 
+const dbg = (...args: unknown[]) => {
+  console.log(new Date().toISOString().slice(11, 23), "[FI]", ...args);
+};
+
 export class FaultInjectorClient implements IFaultInjectorClient {
   private baseUrl: string;
   private dbConfig?: DatabaseConfig
@@ -17,13 +21,13 @@ export class FaultInjectorClient implements IFaultInjectorClient {
 
   constructor(baseUrl: string, fetchImpl: typeof fetch = fetch) {
     this.baseUrl = baseUrl.replace(/\/+$/, ""); // trim trailing slash
-    console.log('[FI] Constructor:', this.baseUrl);
+    dbg('Constructor:', this.baseUrl);
     this.#fetch = fetchImpl;
   }
 
   async listActionTriggers(actionName: string, effect: string): Promise<ActionTrigger[]> {
     const res = await this.#request<ListActionTriggersResponse>("GET", `/${actionName}?effect=${effect}`);
-    console.log({
+    dbg('listActionTriggers:', {
       ...res,
       triggers: res.triggers.map(trigger => ({
         ...trigger,
@@ -42,7 +46,7 @@ export class FaultInjectorClient implements IFaultInjectorClient {
    * @throws {Error} When the HTTP request fails or response cannot be parsed as JSON
    */
   public listActions<T = unknown>(): Promise<T> {
-    console.log('[FI] listActions');
+    dbg('listActions');
     return this.#request<T>("GET", "/action");
   }
 
@@ -64,14 +68,14 @@ export class FaultInjectorClient implements IFaultInjectorClient {
     if (actionCopy.parameters !== undefined && actionCopy.parameters.bdb_id === undefined) {
       const resolvedBdbId = this.#resolveBdbId();
       if (resolvedBdbId !== undefined) {
-        console.log('[FI] bdb_id was not provided. setting selected bdb_id');
+        dbg('bdb_id was not provided. setting selected bdb_id');
         actionCopy.parameters.bdb_id = String(resolvedBdbId);
       }
     }
     const params = actionCopy.parameters ? JSON.stringify(actionCopy.parameters) : '';
-    console.log('[FI] triggerAction:', actionCopy.type, params);
+    dbg('triggerAction:', actionCopy.type, params);
     const { action_id } = await this.#request<T>("POST", "/action", actionCopy);
-    console.log('[FI] action_id:', action_id);
+    dbg('action_id:', action_id);
 
     return this.waitForAction(action_id, options);
   }
@@ -116,6 +120,7 @@ export class FaultInjectorClient implements IFaultInjectorClient {
       }
 
       if (["finished", "success"].includes(action.status)) {
+        dbg(`${actionId} completed: ${action.status}`)
         return action;
       }
 
@@ -133,7 +138,7 @@ export class FaultInjectorClient implements IFaultInjectorClient {
     clusterIndex: string | number;
   }) {
     const resolvedBdbId = this.#resolveBdbId(bdbId);
-    console.log('[FI] migrateAndBind: bdb', resolvedBdbId, 'cluster', clusterIndex);
+    dbg('migrateAndBind: bdb', resolvedBdbId, 'cluster', clusterIndex);
     const clusterIndexStr = clusterIndex.toString();
 
     return this.triggerAction<{
@@ -165,7 +170,7 @@ export class FaultInjectorClient implements IFaultInjectorClient {
   #resolveBdbId(bdbId?: string | number): string | undefined {
     if (bdbId !== undefined) {
       if (this.dbConfig?.bdbId !== undefined) {
-        console.warn(`[FI] User provided bdbId(${bdbId}), which will shadow selected bdbId(${this.dbConfig.bdbId})`);
+        dbg(`User provided bdbId(${bdbId}), which will shadow selected bdbId(${this.dbConfig.bdbId})`);
       }
       return String(bdbId);
     }
@@ -183,7 +188,6 @@ export class FaultInjectorClient implements IFaultInjectorClient {
     timeoutMs: number = 30000
   ): Promise<T> {
     const url = `${this.baseUrl}${path}`;
-    console.log('[FI]', method, path);
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     };
@@ -247,7 +251,7 @@ export class FaultInjectorClient implements IFaultInjectorClient {
     clusterIndex: number = 0
   ) {
     const resolvedBdbId = this.#resolveBdbId(bdbId);
-    console.log('[FI] deleteDatabase: bdb', resolvedBdbId, 'cluster', clusterIndex);
+    dbg('deleteDatabase: bdb', resolvedBdbId, 'cluster', clusterIndex);
     return this.triggerAction({
       type: "delete_database",
       parameters: {
@@ -263,7 +267,7 @@ export class FaultInjectorClient implements IFaultInjectorClient {
    * @throws {Error} When the HTTP request fails or response cannot be parsed as JSON
    */
   public async deleteAllDatabases(clusterIndex: number = 0) {
-    console.log('[FI] deleteAllDatabases: cluster', clusterIndex);
+    dbg('deleteAllDatabases: cluster', clusterIndex);
     return this.triggerAction({
       type: "delete_database",
       parameters: {
@@ -283,7 +287,7 @@ export class FaultInjectorClient implements IFaultInjectorClient {
     databaseConfig: CreateDatabaseConfig,
     clusterIndex: number = 0
   ) {
-    console.log('[FI] createDatabase: cluster', clusterIndex);
+    dbg('createDatabase: cluster', clusterIndex);
     const action = await this.triggerAction({
       type: "create_database",
       parameters: {
@@ -300,7 +304,7 @@ export class FaultInjectorClient implements IFaultInjectorClient {
     const rawEndpoints = dbConfig.raw_endpoints[0];
 
     if (!rawEndpoints) {
-      console.error('[FI] No endpoints found');
+      dbg('No endpoints found');
       throw new Error("No endpoints found in database config");
     }
 
@@ -312,7 +316,7 @@ export class FaultInjectorClient implements IFaultInjectorClient {
       tls: dbConfig.tls,
       bdbId: dbConfig.bdb_id,
     };
-    console.log('[FI] created:', result.host + ':' + result.port, 'bdb', result.bdbId);
+    dbg('created:', result.host + ':' + result.port, 'bdb', result.bdbId);
     this.selectDbConfig(result);
 
     return result;
