@@ -178,7 +178,114 @@ describe('Client', () => {
       });
 
       assert.equal(client?.options?.database, 5);
-    })
+    });
+
+    describe('should correctly parse IPv6 literals', () => {
+      it('redis://[::1]:6379', () => {
+        assert.deepEqual(
+          RedisClient.parseURL('redis://[::1]:6379'),
+          {
+            socket: {
+              host: '::1',
+              port: 6379,
+              tls: false
+            }
+          }
+        );
+      });
+
+      it('redis://[2001:db8::1]:6379', () => {
+        assert.deepEqual(
+          RedisClient.parseURL('redis://[2001:db8::1]:6379'),
+          {
+            socket: {
+              host: '2001:db8::1',
+              port: 6379,
+              tls: false
+            }
+          }
+        );
+      });
+
+      it('rediss://[::1]:6379', () => {
+        assert.deepEqual(
+          RedisClient.parseURL('rediss://[::1]:6379'),
+          {
+            socket: {
+              host: '::1',
+              port: 6379,
+              tls: true
+            }
+          }
+        );
+      });
+
+      it('redis://[::1]', () => {
+        assert.deepEqual(
+          RedisClient.parseURL('redis://[::1]'),
+          {
+            socket: {
+              host: '::1',
+              tls: false
+            }
+          }
+        );
+      });
+
+      it('redis://[::1]:6379/5', () => {
+        assert.deepEqual(
+          RedisClient.parseURL('redis://[::1]:6379/5'),
+          {
+            database: 5,
+            socket: {
+              host: '::1',
+              port: 6379,
+              tls: false,
+            }
+          }
+        );
+      });
+
+      it('redis://user:secret@[::1]:6379', async () => {
+        const result = RedisClient.parseURL('redis://user:secret@[::1]:6379');
+        const expected: RedisClientOptions = {
+          socket: {
+            host: '::1',
+            port: 6379,
+            tls: false
+          },
+          username: 'user',
+          password: 'secret',
+          credentialsProvider: {
+            credentials: async () => ({
+              password: 'secret',
+              username: 'user'
+            }),
+            type: 'async-credentials-provider'
+          }
+        };
+
+        // Compare everything except the credentials function
+        const { credentialsProvider: resultCredProvider, ...resultRest } = result;
+        const { credentialsProvider: expectedCredProvider, ...expectedRest } = expected;
+
+        // Compare non-function properties
+        assert.deepEqual(resultRest, expectedRest);
+        assert.equal(resultCredProvider?.type, expectedCredProvider?.type);
+
+        if (result?.credentialsProvider?.type === 'async-credentials-provider' &&
+          expected?.credentialsProvider?.type === 'async-credentials-provider') {
+
+          // Compare the actual output of the credentials functions
+          const resultCreds = await result.credentialsProvider.credentials();
+          const expectedCreds = await expected.credentialsProvider.credentials();
+          assert.deepEqual(resultCreds, expectedCreds);
+
+        } else {
+          assert.fail('Credentials provider type mismatch');
+        }
+      });
+    });
   });
 
   describe('parseOptions', () => {
