@@ -1,4 +1,4 @@
-import COMMANDS from '../commands';
+import { NON_STICKY_COMMANDS } from '../commands';
 import RedisMultiCommand, { MULTI_REPLY, MultiReply, MultiReplyType, RedisMultiQueuedCommand } from '../multi-command';
 import { ReplyWithTypeMapping, CommandReply, Command, CommandArguments, CommanderConfig, RedisFunctions, RedisModules, RedisScripts, RespVersions, TransformReply, RedisScript, RedisFunction, TypeMapping, RedisArgument } from '../RESP/types';
 import { attachConfig, functionArgumentsPrefix, getTransformReply } from '../commander';
@@ -30,7 +30,7 @@ type WithCommands<
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping
 > = {
-  [P in keyof typeof COMMANDS]: CommandSignature<REPLIES, (typeof COMMANDS)[P], M, F, S, RESP, TYPE_MAPPING>;
+  [P in keyof typeof NON_STICKY_COMMANDS]: CommandSignature<REPLIES, (typeof NON_STICKY_COMMANDS)[P], M, F, S, RESP, TYPE_MAPPING>;
 };
 
 type WithModules<
@@ -183,7 +183,7 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
   >(config?: CommanderConfig<M, F, S, RESP>) {
     return attachConfig({
       BaseClass: RedisClusterMultiCommand,
-      commands: COMMANDS,
+      commands: NON_STICKY_COMMANDS,
       createCommand: RedisClusterMultiCommand.#createCommand,
       createModuleCommand: RedisClusterMultiCommand.#createModuleCommand,
       createFunctionCommand: RedisClusterMultiCommand.#createFunctionCommand,

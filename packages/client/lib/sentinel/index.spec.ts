@@ -14,6 +14,22 @@ import { once } from 'node:events'
 const execAsync = promisify(exec);
 
 describe('RedisSentinel', () => {
+  it('should not have HOTKEYS commands (requires session affinity)', () => {
+    // HOTKEYS commands require session affinity and are only available on standalone clients
+    const sentinel = RedisSentinel.create({
+      name: 'mymaster',
+      sentinelRootNodes: [{ host: 'localhost', port: 26379 }]
+    });
+    assert.equal((sentinel as any).hotkeysStart, undefined);
+    assert.equal((sentinel as any).hotkeysStop, undefined);
+    assert.equal((sentinel as any).hotkeysGet, undefined);
+    assert.equal((sentinel as any).hotkeysReset, undefined);
+    assert.equal((sentinel as any).HOTKEYS_START, undefined);
+    assert.equal((sentinel as any).HOTKEYS_STOP, undefined);
+    assert.equal((sentinel as any).HOTKEYS_GET, undefined);
+    assert.equal((sentinel as any).HOTKEYS_RESET, undefined);
+  });
+
   describe('initialization', () => {
     describe('clientSideCache validation', () => {
       const clientSideCacheConfig = { ttl: 0, maxEntries: 0 };

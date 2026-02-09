@@ -1,6 +1,6 @@
-import COMMANDS from '../commands';
-import { Command, RedisArgument, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
-import RedisClient, { RedisClientType, RedisClientOptions, RedisClientExtensions } from '.';
+import { NON_STICKY_COMMANDS } from '../commands';
+import { Command, CommandSignature, RedisArgument, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
+import RedisClient, { RedisClientType, RedisClientOptions, WithModules, WithFunctions, WithScripts } from '.';
 import { EventEmitter } from 'node:events';
 import { DoublyLinkedNode, DoublyLinkedList, SinglyLinkedList } from './linked-list';
 import { TimeoutError } from '../errors';
@@ -88,6 +88,14 @@ export type PoolTask<
   T = unknown
 > = (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>) => T;
 
+// Pool uses NON_STICKY_COMMANDS to exclude commands that require session affinity (like HOTKEYS)
+type PoolWithCommands<
+  RESP extends RespVersions,
+  TYPE_MAPPING extends TypeMapping
+> = {
+  [P in keyof typeof NON_STICKY_COMMANDS]: CommandSignature<(typeof NON_STICKY_COMMANDS)[P], RESP, TYPE_MAPPING>;
+};
+
 export type RedisClientPoolType<
   M extends RedisModules = {},
   F extends RedisFunctions = {},
@@ -96,7 +104,10 @@ export type RedisClientPoolType<
   TYPE_MAPPING extends TypeMapping = {}
 > = (
   RedisClientPool<M, F, S, RESP, TYPE_MAPPING> &
-  RedisClientExtensions<M, F, S, RESP, TYPE_MAPPING>
+  PoolWithCommands<RESP, TYPE_MAPPING> &
+  WithModules<M, RESP, TYPE_MAPPING> &
+  WithFunctions<F, RESP, TYPE_MAPPING> &
+  WithScripts<S, RESP, TYPE_MAPPING>
 );
 
 type ProxyPool = RedisClientPoolType<any, any, any, any, any>;
@@ -174,7 +185,7 @@ export class RedisClientPool<
     if(!Pool) {
       Pool = attachConfig({
         BaseClass: RedisClientPool,
-        commands: COMMANDS,
+        commands: NON_STICKY_COMMANDS,
         createCommand: RedisClientPool.#createCommand,
         createModuleCommand: RedisClientPool.#createModuleCommand,
         createFunctionCommand: RedisClientPool.#createFunctionCommand,
