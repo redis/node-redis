@@ -388,7 +388,8 @@ export default class RedisClient<
         }
       } = {
         socket: {
-          host: hostname,
+          // Use net.SocketAddress.parse() once supported.
+          host: hostname.replace(/^\[([0-9a-f:]+)\]$/, '$1'),
           tls: false
         }
       };
