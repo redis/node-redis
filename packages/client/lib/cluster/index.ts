@@ -1,7 +1,7 @@
-import { RedisClientOptions, RedisClientType } from '../client';
+import { RedisClientOptions, RedisClientType, WithFunctions, WithModules, WithScripts } from '../client';
 import { CommandOptions } from '../client/commands-queue';
-import { Command, CommandArguments, CommanderConfig, TypeMapping, RedisArgument, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions } from '../RESP/types';
-import COMMANDS from '../commands';
+import { Command, CommandArguments, CommanderConfig, CommandSignature, TypeMapping, RedisArgument, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions } from '../RESP/types';
+import { NON_STICKY_COMMANDS } from '../commands';
 import { EventEmitter } from 'node:events';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
 import RedisClusterSlots, { NodeAddressMap, ShardNode } from './cluster-slots';
@@ -13,7 +13,13 @@ import { ClientSideCacheConfig, PooledClientSideCacheProvider } from '../client/
 import { BasicCommandParser } from '../client/parser';
 import { ASKING_CMD } from '../commands/ASKING';
 import SingleEntryCache from '../single-entry-cache'
-import { WithCommands, WithFunctions, WithModules, WithScripts } from '../client';
+
+type WithCommands<
+  RESP extends RespVersions,
+  TYPE_MAPPING extends TypeMapping
+> = {
+  [P in keyof typeof NON_STICKY_COMMANDS]: CommandSignature<(typeof NON_STICKY_COMMANDS)[P], RESP, TYPE_MAPPING>;
+};
 
 interface ClusterCommander<
   M extends RedisModules,
@@ -222,7 +228,7 @@ export default class RedisCluster<
     if (!Cluster) {
       Cluster = attachConfig({
         BaseClass: RedisCluster,
-        commands: COMMANDS,
+        commands: NON_STICKY_COMMANDS,
         createCommand: RedisCluster.#createCommand,
         createModuleCommand: RedisCluster.#createModuleCommand,
         createFunctionCommand: RedisCluster.#createFunctionCommand,

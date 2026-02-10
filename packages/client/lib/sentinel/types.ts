@@ -1,7 +1,7 @@
 import { RedisClientOptions } from '../client';
 import { CommandOptions } from '../client/commands-queue';
 import { CommandSignature, CommanderConfig, RedisFunctions, RedisModules, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
-import COMMANDS from '../commands';
+import { NON_STICKY_COMMANDS } from '../commands';
 import RedisSentinel, { RedisSentinelClient } from '.';
 import { RedisTcpSocketOptions } from '../client/socket';
 import { ClientSideCacheConfig, PooledClientSideCacheProvider } from '../client/cache';
@@ -130,11 +130,12 @@ export type RedisSentinelClientOptions = Omit<
   keyof SentinelCommander<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping/*, CommandPolicies*/>
 >;
 
+// Sentinel uses NON_STICKY_COMMANDS to exclude commands that require session affinity (like HOTKEYS)
 type WithCommands<
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping
 > = {
-  [P in keyof typeof COMMANDS]: CommandSignature<(typeof COMMANDS)[P], RESP, TYPE_MAPPING>;
+  [P in keyof typeof NON_STICKY_COMMANDS]: CommandSignature<(typeof NON_STICKY_COMMANDS)[P], RESP, TYPE_MAPPING>;
 };
 
 type WithModules<

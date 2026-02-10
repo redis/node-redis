@@ -7,6 +7,19 @@ import { spy } from 'sinon';
 import RedisClient from '../client';
 
 describe('Cluster', () => {
+  it('should not have HOTKEYS commands (requires session affinity)', () => {
+    // HOTKEYS commands require session affinity and are only available on standalone clients
+    const cluster = RedisCluster.create({ rootNodes: [] });
+    assert.equal((cluster as any).hotkeysStart, undefined);
+    assert.equal((cluster as any).hotkeysStop, undefined);
+    assert.equal((cluster as any).hotkeysGet, undefined);
+    assert.equal((cluster as any).hotkeysReset, undefined);
+    assert.equal((cluster as any).HOTKEYS_START, undefined);
+    assert.equal((cluster as any).HOTKEYS_STOP, undefined);
+    assert.equal((cluster as any).HOTKEYS_GET, undefined);
+    assert.equal((cluster as any).HOTKEYS_RESET, undefined);
+  });
+
   testUtils.testWithCluster('sendCommand', async cluster => {
     assert.equal(
       await cluster.sendCommand(undefined, true, ['PING']),

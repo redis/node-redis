@@ -1,4 +1,4 @@
-import COMMANDS from '../commands';
+import { NON_STICKY_COMMANDS } from '../commands';
 import RedisMultiCommand, { MULTI_REPLY, MultiReply, MultiReplyType } from '../multi-command';
 import { ReplyWithTypeMapping, CommandReply, Command, CommandArguments, CommanderConfig, RedisFunctions, RedisModules, RedisScripts, RespVersions, TransformReply, RedisScript, RedisFunction, TypeMapping } from '../RESP/types';
 import { attachConfig, functionArgumentsPrefix, getTransformReply } from '../commander';
@@ -23,6 +23,7 @@ type CommandSignature<
   TYPE_MAPPING
 >;
 
+// Sentinel uses NON_STICKY_COMMANDS to exclude commands that require session affinity (like HOTKEYS)
 type WithCommands<
   REPLIES extends Array<unknown>,
   M extends RedisModules,
@@ -31,7 +32,7 @@ type WithCommands<
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping
 > = {
-  [P in keyof typeof COMMANDS]: CommandSignature<REPLIES, (typeof COMMANDS)[P], M, F, S, RESP, TYPE_MAPPING>;
+  [P in keyof typeof NON_STICKY_COMMANDS]: CommandSignature<REPLIES, (typeof NON_STICKY_COMMANDS)[P], M, F, S, RESP, TYPE_MAPPING>;
 };
 
 type WithModules<
@@ -170,7 +171,7 @@ export default class RedisSentinelMultiCommand<REPLIES = []> {
   >(config?: CommanderConfig<M, F, S, RESP>) {
     return attachConfig({
       BaseClass: RedisSentinelMultiCommand,
-      commands: COMMANDS,
+      commands: NON_STICKY_COMMANDS,
       createCommand: RedisSentinelMultiCommand._createCommand,
       createModuleCommand: RedisSentinelMultiCommand._createModuleCommand,
       createFunctionCommand: RedisSentinelMultiCommand._createFunctionCommand,

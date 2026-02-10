@@ -3,7 +3,7 @@ import { CommandArguments, RedisFunctions, RedisModules, RedisScripts, ReplyUnio
 import RedisClient, { RedisClientOptions, RedisClientType } from '../client';
 import { CommandOptions } from '../client/commands-queue';
 import { attachConfig } from '../commander';
-import COMMANDS from '../commands';
+import { NON_STICKY_COMMANDS } from '../commands';
 import { ClientErrorEvent, NamespaceProxySentinel, NamespaceProxySentinelClient, NodeAddressMap, ProxySentinel, ProxySentinelClient, RedisNode, RedisSentinelClientType, RedisSentinelEvent, RedisSentinelOptions, RedisSentinelType, SentinelCommander } from './types';
 import { clientSocketToNode, createCommand, createFunctionCommand, createModuleCommand, createNodeList, createScriptCommand, getMappedNode, parseNode } from './utils';
 import { RedisMultiQueuedCommand } from '../multi-command';
@@ -83,7 +83,7 @@ export class RedisSentinelClient<
   >(config?: SentinelCommander<M, F, S, RESP, TYPE_MAPPING>) {
     const SentinelClient = attachConfig({
       BaseClass: RedisSentinelClient,
-      commands: COMMANDS,
+      commands: NON_STICKY_COMMANDS,
       createCommand: createCommand<ProxySentinelClient>,
       createModuleCommand: createModuleCommand<NamespaceProxySentinelClient>,
       createFunctionCommand: createFunctionCommand<NamespaceProxySentinelClient>,
@@ -338,7 +338,7 @@ export default class RedisSentinel<
   >(config?: SentinelCommander<M, F, S, RESP, TYPE_MAPPING>) {
     const Sentinel = attachConfig({
       BaseClass: RedisSentinel,
-      commands: COMMANDS,
+      commands: NON_STICKY_COMMANDS,
       createCommand: createCommand<ProxySentinel>,
       createModuleCommand: createModuleCommand<NamespaceProxySentinel>,
       createFunctionCommand: createFunctionCommand<NamespaceProxySentinel>,

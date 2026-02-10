@@ -1130,3 +1130,22 @@ export default {
   VSIM_WITHSCORES,
   vSimWithScores: VSIM_WITHSCORES
 } as const satisfies RedisCommands;
+
+// Commands available for cluster clients (excludes commands that require session affinity)
+import COMMANDS from './index';
+
+// TODO: Remove this workaround once the cluster properly implements session affinity (sticky connections).
+// HOTKEYS commands require a sticky connection to a single Redis node to function correctly.
+const {
+  HOTKEYS_GET: _HOTKEYS_GET,
+  hotkeysGet: _hotkeysGet,
+  HOTKEYS_RESET: _HOTKEYS_RESET,
+  hotkeysReset: _hotkeysReset,
+  HOTKEYS_START: _HOTKEYS_START,
+  hotkeysStart: _hotkeysStart,
+  HOTKEYS_STOP: _HOTKEYS_STOP,
+  hotkeysStop: _hotkeysStop,
+  ...NON_STICKY_COMMANDS
+} = COMMANDS;
+
+export { NON_STICKY_COMMANDS };
