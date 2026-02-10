@@ -25,7 +25,7 @@ export interface HotkeysGetReply {
   sampleRatio: number;
   selectedSlots: Array<SlotRange>;
   /** Only present when sample-ratio > 1 AND selected-slots is not empty */
-  sampledCommandSelectedSlotsUs?: number;
+  sampledCommandsSelectedSlotsUs?: number;
   /** Only present when selected-slots is not empty */
   allCommandsSelectedSlotsUs?: number;
   allCommandsAllSlotsUs: number;
@@ -105,8 +105,8 @@ function transformHotkeysGetReply(reply: UnwrapReply<HotkeysGetRawReply>): Hotke
       case 'selected-slots':
         result.selectedSlots = parseSlotRanges(value as unknown as Array<ArrayReply<NumberReply>>);
         break;
-      case 'sampled-command-selected-slots-us':
-        result.sampledCommandSelectedSlotsUs = Number(value);
+      case 'sampled-commands-selected-slots-us':
+        result.sampledCommandsSelectedSlotsUs = Number(value);
         break;
       case 'all-commands-selected-slots-us':
         result.allCommandsSelectedSlotsUs = Number(value);
