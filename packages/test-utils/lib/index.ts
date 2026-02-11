@@ -167,7 +167,7 @@ interface RETestOptions {
   dbName?: string;
 }
 
-interface REClusterTestOptions<
+export interface REClusterTestOptions<
   M extends RedisModules,
   F extends RedisFunctions,
   S extends RedisScripts,
@@ -528,19 +528,18 @@ export default class TestUtils {
       if (!spawnPromise) return this.skip();
       const { apiPort } = await spawnPromise;
 
-      const proxyController = new ProxyController(
-        `http://localhost:${apiPort}`
+
+      const proxyFI = new ProxiedFaultInjectorClientForCluster(
+        new ProxyController(`http://localhost:${apiPort}`)
       );
 
-      const faultInjectorClient = new ProxiedFaultInjectorClientForCluster(
-        proxyController
-      );
+      const faultInjectorClient = new FaultInjectorClient(`http://localhost:${4000}`);
 
-      const nodes = await faultInjectorClient.getProxyNodes();
+      const nodes = await proxyFI.getProxyNodes();
 
       if (options.startWithReducedNodes) {
         nodes.pop();
-        await faultInjectorClient.updateClusterSlots(nodes);
+        await proxyFI.updateClusterSlots(nodes);
       }
 
       const cluster = createCluster({
@@ -925,79 +924,107 @@ export default class TestUtils {
     title: string,
     fn: (
       cluster: RedisClusterType<M, F, S, RESP, TYPE_MAPPING>,
-      {
-        faultInjectorClient,
-      }: {
-        faultInjectorClient: IFaultInjectorClient;
-      }
+      faultInjectorClient: IFaultInjectorClient
     ) => unknown,
     options: REClusterTestOptions<M, F, S, RESP, TYPE_MAPPING>
   ) {
+    describe(title, function () {
+      let faultInjectorClient: FaultInjectorClient;
+      let dbConfig: DatabaseConfig;
 
-    let faultInjectorClient: FaultInjectorClient;
-    let dbConfig: DatabaseConfig;
+      before(async function () {
+        console.log(`\n[DEBUG testWithRECluster] BEFORE hook starting for: "${title}"`);
+        this.timeout(options.testTimeout ?? 300000);
 
-    before(async function () {
-      this.timeout(30000);
+        const baseUrl = process.env.RE_FAULT_INJECTOR_URL;
 
-      const baseUrl = process.env.RE_FAULT_INJECTOR_URL;
+        if (!baseUrl) {
+          throw new Error("RE_FAULT_INJECTOR_URL environment variable must be set");
+        }
 
-      if (!baseUrl) {
-        throw new Error("RE_FAULT_INJECTOR_URL environment variable must be set");
-      }
+        faultInjectorClient = new FaultInjectorClient(baseUrl);
 
-      faultInjectorClient = new FaultInjectorClient(baseUrl);
+        console.log(`[DEBUG testWithRECluster] Resetting cluster state before test: "${title}"`);
+        await faultInjectorClient.triggerAction({
+          type: 'reset_cluster',
+          parameters: {
+            "clean_all_dbs": true,
+            "clean_maintenance_mode": true
+          }
+        })
+        await faultInjectorClient.deleteAllDatabases(0);
+        console.log(`[DEBUG testWithRECluster] cluster cleared, now creating new db for: "${title}"`);
 
-      await faultInjectorClient.deleteAllDatabases(0);
-      dbConfig = await faultInjectorClient.createDatabase(
-        options.dbConfig ||
+        const db = options.dbConfig ||
           getCreateDatabaseConfig(
             CreateDatabaseConfigType.CLUSTER,
             options.dbName ?? `test-db-${Date.now()}`
-          ),
-        0
-      );
-    });
+          );
 
-    after(async function () {
-      this.timeout(30000);
+        console.log('opts.dbConfig', options.dbConfig);
 
-      await faultInjectorClient.deleteAllDatabases(0);
-    });
-
-    it(title, async function () {
-      if (options.skipTest) return this.skip();
-      if (options.testTimeout) {
-        this.timeout(options.testTimeout);
-      }
-
-      const { defaults, ...rest } = options.clusterConfiguration ?? {};
-
-      const cluster = createCluster({
-        rootNodes: [
-          {
-            socket: {
-              host: dbConfig.host,
-              port: dbConfig.port,
-            },
-          },
-        ],
-        defaults: {
-          password: dbConfig.password,
-          username: dbConfig.username,
-          ...defaults,
-        },
-        ...rest,
+        dbConfig = await faultInjectorClient.createAndSelectDatabase(db, 0);
+        console.log(`[DEBUG testWithRECluster] BEFORE hook completed for: "${title}" - dbConfig: ${dbConfig.host}:${dbConfig.port}`);
       });
 
-      await cluster.connect();
+      after(async function () {
+        console.log(`\n[DEBUG testWithRECluster] AFTER hook starting for: "${title}"`);
+        this.timeout(options.testTimeout ?? 300000);
 
-      try {
-        await TestUtils.#clusterFlushAll(cluster);
-        await fn(cluster, { faultInjectorClient });
-      } finally {
-        cluster.destroy();
-      }
+        console.log('SKIP DELETION');
+        // await faultInjectorClient.deleteAllDatabases(0);
+        // Wait for cluster to stabilize after database deletion before next test
+        // console.log(`[DEBUG testWithRECluster] Waiting 2s for cluster to stabilize after deletion...`);
+        // await new Promise(resolve => setTimeout(resolve, 2000));
+        // console.log(`[DEBUG testWithRECluster] AFTER hook completed for: "${title}"`);
+      });
+
+      it(title, async function () {
+        console.log(`\n[DEBUG testWithRECluster] IT starting for: "${title}"`);
+        if (options.skipTest) return this.skip();
+        if (options.testTimeout) {
+          this.timeout(options.testTimeout);
+        }
+
+        const { defaults, ...rest } = options.clusterConfiguration ?? {};
+
+        // Wait for database to be fully ready before connecting
+        console.log(`[DEBUG testWithRECluster] Waiting 1s for database to be fully ready...`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        console.log(`[DEBUG testWithRECluster] Creating cluster for: "${title}" - connecting to ${dbConfig.host}:${dbConfig.port}`);
+        const cluster = createCluster({
+          rootNodes: [
+            {
+              socket: {
+                host: dbConfig.host,
+                port: dbConfig.port,
+              },
+            },
+          ],
+          defaults: {
+            password: dbConfig.password,
+            username: dbConfig.username,
+            ...defaults,
+          },
+          ...rest,
+        });
+
+        await cluster.connect();
+        console.log(`[DEBUG testWithRECluster] Cluster connected for: "${title}" - masters: ${cluster.masters.length}`);
+
+        try {
+          console.log(`[DEBUG testWithRECluster] Flushing cluster for: "${title}"`);
+          await TestUtils.#clusterFlushAll(cluster);
+          console.log(`[DEBUG testWithRECluster] Running test fn for: "${title}"`);
+          await fn(cluster, faultInjectorClient);
+          console.log(`[DEBUG testWithRECluster] Test fn completed for: "${title}"`);
+        } finally {
+          console.log(`[DEBUG testWithRECluster] Destroying cluster for: "${title}"`);
+          cluster.destroy();
+          console.log(`[DEBUG testWithRECluster] IT completed for: "${title}"`);
+        }
+      });
     });
   }
 

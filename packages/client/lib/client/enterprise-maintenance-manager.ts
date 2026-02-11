@@ -128,6 +128,8 @@ export default class EnterpriseMaintenanceManager {
   }
 
   #onPush = (push: Array<any>): boolean => {
+    console.log('[MAINT-PUSH]', push.map(String));
+    console.log('[MAINT-PUSH]', push);
     dbgMaintenance("ONPUSH:", push.map(String));
 
     if (!Array.isArray(push) || !Object.values(PN).includes(String(push[0]))) {
@@ -168,7 +170,12 @@ export default class EnterpriseMaintenanceManager {
       }
       case PN.SMIGRATED: {
         dbgMaintenance("Received SMIGRATED");
-        this.#onSMigrated(push);
+        try {
+          this.#onSMigrated(push);
+        } catch (e) {
+          console.log('KUR', e);
+          throw e;
+        }
         return true;
       }
     }
@@ -320,12 +327,30 @@ export default class EnterpriseMaintenanceManager {
       },
       destinations: []
     }
-    for(const [endpoint, slots] of push[2] as string[]) {
+
+    console.log('push[2]');
+    console.log(push[2]);
+    console.log(String(push[2]));
+
+    console.log('push[2][0]');
+    console.log(push[2][0]);
+    console.log(String(push[2][0]));
+
+    console.log('push[2][0][0]');
+    console.log(push[2][0][0]);
+    console.log(String(push[2][0][0]));
+
+    console.log('push[2][0][1]');
+    console.log(push[2][0][1]);
+    console.log(String(push[2][0][1]));
+
+
+    for(const [endpoint, slots] of push[2]) {
       //TODO not sure if we need to handle fqdn/ip.. cluster manages clients by host:port. If `cluster slots` returns ip,
       // but this notification returns fqdn, then we need to unify somehow ( maybe lookup )
-      const [ host, port ] = endpoint.split(':');
+      const [ host, port ] = String(endpoint).split(':');
       // `slots` could be mix of single slots and ranges, for example: 123,456,789-1000
-      const parsedSlots = slots.split(',').map((singleOrRange): number | [number, number] => {
+      const parsedSlots = String(slots).split(',').map((singleOrRange): number | [number, number] => {
         const separatorIndex = singleOrRange.indexOf('-');
         if(separatorIndex === -1) {
           // Its single slot
@@ -341,6 +366,7 @@ export default class EnterpriseMaintenanceManager {
         slots: parsedSlots
       })
     }
+    dbgMaintenance(`emit smigratedEvent`, smigratedEvent);
     this.#client._handleSmigrated(smigratedEvent);
   }
 

@@ -15,7 +15,9 @@ export type ActionType =
   | "proxy_failure"
   | "cluster_failure"
   | "delete_database"
-  | "create_database";
+  | "create_database"
+  | "slot_migrate"
+  | "reset_cluster";
 
 export interface ActionRequest {
   type: ActionType;
@@ -69,6 +71,30 @@ export interface DatabaseConfig {
   bdbId: number;
 }
 
+export interface TriggerActionOptions {
+  timeoutMs?: number;
+  maxWaitTimeMs?: number;
+}
+
 export interface IFaultInjectorClient {
-  triggerAction(action: ActionRequest): Promise<ActionStatus>;
+  triggerAction(action: Readonly<ActionRequest>, options?: TriggerActionOptions): Promise<ActionStatus>;
+  listActionTriggers(actionName: string, effect: string): Promise<ActionTrigger[]>;
+}
+
+export interface ListActionTriggersResponse {
+  effect: string,
+  cluster: { index: number, nodes: number },
+  triggers: ActionTrigger[]
+}
+
+export interface ActionTrigger {
+  name: string,
+  description: string,
+  requirements: ActionTriggerRequirement[]
+}
+
+export interface ActionTriggerRequirement {
+  dbconfig: any,
+  cluster: any,
+  description: string
 }

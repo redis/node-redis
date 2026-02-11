@@ -196,7 +196,6 @@ export default class RedisClusterSlots<
         eagerConnect = this.#options.minimizeConnections !== true;
 
       const shards = await this.#getShards(rootNode);
-      dbgMaintenance(shards);
       this.#resetSlots(); // Reset slots AFTER shards have been fetched to prevent a race condition
       for (const { from, to, master, replicas } of shards) {
         const shard: Shard<M, F, S, RESP, TYPE_MAPPING> = {
@@ -267,10 +266,19 @@ export default class RedisClusterSlots<
 
     const sourceAddress = `${event.source.host}:${event.source.port}`;
     const sourceNode = this.nodeByAddress.get(sourceAddress);
+    dbgMaintenance(`[CSlots]: Looking for sourceAddress=${sourceAddress}. Available addresses in nodeByAddress: ${Array.from(this.nodeByAddress.keys()).join(', ')}`);
     if(!sourceNode) {
       dbgMaintenance(`[CSlots]: address ${sourceAddress} not in 'nodeByAddress', abort SMIGRATED handling`);
       return;
     }
+
+    // console.log('eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee');
+    // console.log('eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee');
+    // console.log('eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee');
+    // console.log('eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee');
+    // console.log('eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee');
+    // const response  = await sourceNode.client?.clusterSlots()
+    // console.log(response);
 
     // 1. Pausing
     // 1.1 Normal
@@ -283,6 +291,7 @@ export default class RedisClusterSlots<
     for(const {host, port, slots} of event.destinations) {
       const destinationAddress = `${host}:${port}`;
       let destMasterNode: MasterNode<M, F, S, RESP, TYPE_MAPPING> | undefined = this.nodeByAddress.get(destinationAddress);
+      dbgMaintenance(`[CSlots]: Looking for destAddress=${destinationAddress}. Found in nodeByAddress: ${destMasterNode ? 'YES' : 'NO'}`);
       let destShard: Shard<M, F, S, RESP, TYPE_MAPPING>;
       // 2. Create new Master
       if(!destMasterNode) {
@@ -297,6 +306,9 @@ export default class RedisClusterSlots<
           master: destMasterNode
         };
       } else {
+        // DEBUG: Log all master hosts/ports in slots array to diagnose mismatch
+        const allMasters = [...new Set(this.slots)].map(s => `${s.master.host}:${s.master.port}`);
+        dbgMaintenance(`[CSlots]: Searching for shard with host=${host}, port=${port}. Available masters in slots: ${allMasters.join(', ')}`);
         // In case destination node existed, this means there was a Shard already, so its best if we can find it.
         const existingShard = this.slots.find(shard => shard.master.host === host && shard.master.port === port);
         if(!existingShard) {
@@ -319,6 +331,7 @@ export default class RedisClusterSlots<
           }
         }
       }
+      dbgMaintenance(`[CSlots]: Updated ${movingSlots.size} slots to point to destination ${destMasterNode.address}. Sample slots: ${Array.from(movingSlots).slice(0, 10).join(', ')}${movingSlots.size > 10 ? '...' : ''}`);
 
       // 4. For all affected clients (normal, pubsub, spubsub):
       // 4.1 Wait for inflight commands to complete
@@ -368,10 +381,13 @@ export default class RedisClusterSlots<
         }
 
         //Remove all local references to the dying shard's clients
+        const mastersBefore = this.masters.map(m => m.address);
         this.masters = this.masters.filter(master => master.address !== sourceAddress);
         //not sure if needed, since there should be no replicas in RE
         this.replicas = this.replicas.filter(replica => replica.address !== sourceAddress);
         this.nodeByAddress.delete(sourceAddress);
+        const mastersAfter = this.masters.map(m => m.address);
+        dbgMaintenance(`[CSlots]: Removed source from topology. Masters before: [${mastersBefore.join(', ')}]. Masters after: [${mastersAfter.join(', ')}]`);
 
         // 4.3 Kill because no slots are pointing to it anymore
         if (sourceNode.client?.isOpen) {
