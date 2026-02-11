@@ -345,6 +345,12 @@ export default class EnterpriseMaintenanceManager {
    * Example:
    * [ 'SMIGRATED', 15, [ [ '127.0.0.1:6379', '127.0.0.2:6379', '123,456,789-1000' ], [ '127.0.0.3:6380', '127.0.0.4:6380', '124,457,300-500' ] ] ]
    *                ^seq     ^source1          ^destination1     ^slots                  ^source2          ^destination2    ^slots
+   *
+   * Result structure guarantees:
+   * - Each source address appears in exactly one entry (entries are deduplicated by source)
+   * - Within each entry, each destination address appears exactly once (destinations are deduplicated per source)
+   * - Each destination contains the complete list of slots that moved from that source to that destination
+   * - Note: The same destination address CAN appear under different sources (e.g., node X receives slots from both A and B)
    */
   static parseSMigratedPush(push: any[]): SMigratedEvent {
     const map = new Map<string, Destination[]>();

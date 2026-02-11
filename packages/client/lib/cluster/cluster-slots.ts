@@ -281,9 +281,8 @@ export default class RedisClusterSlots<
         continue;
       }
 
-      // Track all slots being moved and destination nodes for this entry
+      // Track all slots being moved for this entry (used for pubsub listener handling)
       const allMovingSlots = new Set<number>();
-      const destinationNodes: MasterNode<M, F, S, RESP, TYPE_MAPPING>[] = [];
 
       try {
         // 1. Pausing
@@ -294,7 +293,8 @@ export default class RedisClusterSlots<
           sourceNode.pubSub?.client._pause();
         }
 
-        // 2. Process each destination: create nodes, update slot mappings, pause destinations
+        // 2. Process each destination: create nodes, update slot mappings, extract commands, unpause
+        let lastDestNode: MasterNode<M, F, S, RESP, TYPE_MAPPING> | undefined;
         for (const { addr: { host, port }, slots } of entry.destinations) {
           const destinationAddress = `${host}:${port}`;
           let destMasterNode: MasterNode<M, F, S, RESP, TYPE_MAPPING> | undefined = this.nodeByAddress.get(destinationAddress);
@@ -324,30 +324,44 @@ export default class RedisClusterSlots<
               throw new Error('Could not find shard');
             }
             destShard = existingShard;
+            // Pause existing destination during command transfer
+            destMasterNode.client?._pause();
+            destMasterNode.pubSub?.client._pause();
           }
 
-          // Track this destination node
-          destinationNodes.push(destMasterNode);
+          // Track last destination for slotless commands later
+          lastDestNode = destMasterNode;
 
-          // 3. Soft update shards.
-          // After this step we are expecting any new commands that hash to the same slots to be routed to the destinationShard
+          // 3. Convert slots to Set and update shard mappings
+          const destinationSlots = new Set<number>();
           for (const slot of slots) {
             if (typeof slot === 'number') {
               this.slots[slot] = destShard;
+              destinationSlots.add(slot);
               allMovingSlots.add(slot);
             } else {
               for (let s = slot[0]; s <= slot[1]; s++) {
                 this.slots[s] = destShard;
+                destinationSlots.add(s);
                 allMovingSlots.add(s);
               }
             }
           }
           dbgMaintenance(`[CSlots]: Updated slots to point to destination ${destMasterNode.address}. Sample slots: ${Array.from(slots).slice(0, 5).join(', ')}${slots.length > 5 ? '...' : ''}`);
+
+          // 4. Extract commands for this destination's slots and prepend to destination queue
+          const commandsForDestination = sourceNode.client._getQueue().extractCommandsForSlots(destinationSlots);
+          destMasterNode.client?._getQueue().prependCommandsToWrite(commandsForDestination);
+          dbgMaintenance(`[CSlots]: Extracted ${commandsForDestination.length} commands for ${destinationSlots.size} slots, prepended to ${destMasterNode.address}`);
+
+          // 5. Unpause destination
+          destMasterNode.client?._unpause();
+          destMasterNode.pubSub?.client._unpause();
         }
 
         dbgMaintenance(`[CSlots]: Total ${allMovingSlots.size} slots moved from ${sourceAddress}. Sample: ${Array.from(allMovingSlots).slice(0, 10).join(', ')}${allMovingSlots.size > 10 ? '...' : ''}`);
 
-        // 4. Wait for inflight commands on source to complete (with timeout to prevent hangs)
+        // 6. Wait for inflight commands on source to complete (with timeout to prevent hangs)
         const INFLIGHT_TIMEOUT_MS = 5000; // 5 seconds max wait for inflight commands
         const inflightPromises: Promise<void>[] = [];
         const inflightOptions = { timeoutMs: INFLIGHT_TIMEOUT_MS, flushOnTimeout: true };
@@ -361,17 +375,11 @@ export default class RedisClusterSlots<
         }
         await Promise.all(inflightPromises);
 
-        // 5. Extract commands and handle source cleanup (AFTER all destinations processed)
+        // 7. Handle source cleanup
         const sourceStillHasSlots = this.slots.find(slot => slot.master.address === sourceAddress) !== undefined;
 
         if (sourceStillHasSlots) {
-          // Source still has slots - only extract commands for the moving slots
-          const normalCommandsToMove = sourceNode.client._getQueue().extractCommandsForSlots(allMovingSlots);
-          // Prepend to the last destination (or could distribute - for now keeping simple)
-          const lastDestNode = destinationNodes[destinationNodes.length - 1];
-          lastDestNode.client?._getQueue().prependCommandsToWrite(normalCommandsToMove);
-
-          // Handle sharded pubsub listeners
+          // Handle sharded pubsub listeners for moving slots
           if ('pubSub' in sourceNode) {
             const listeners = sourceNode.pubSub?.client._getQueue().removeShardedPubSubListenersForSlots(allMovingSlots);
             this.#emit(RESUBSCRIBE_LISTENERS_EVENT, listeners);
@@ -383,10 +391,12 @@ export default class RedisClusterSlots<
             sourceNode.pubSub?.client._unpause();
           }
         } else {
-          // Source has no slots left - move all commands and cleanup
-          const normalCommandsToMove = sourceNode.client._getQueue().extractAllCommands();
-          const lastDestNode = destinationNodes[destinationNodes.length - 1];
-          lastDestNode.client?._getQueue().prependCommandsToWrite(normalCommandsToMove);
+          // Source has no slots left - move remaining slotless commands and cleanup
+          const remainingCommands = sourceNode.client._getQueue().extractAllCommands();
+          if (remainingCommands.length > 0 && lastDestNode) {
+            lastDestNode.client?._getQueue().prependCommandsToWrite(remainingCommands);
+            dbgMaintenance(`[CSlots]: Moved ${remainingCommands.length} remaining slotless commands to ${lastDestNode.address}`);
+          }
 
           if ('pubSub' in sourceNode) {
             const listeners = sourceNode.pubSub?.client._getQueue().removeAllPubSubListeners();
@@ -433,14 +443,6 @@ export default class RedisClusterSlots<
           sourceNode.pubSub?.client._unpause();
         }
         this.#emit(err.message)
-      } finally {
-        // 6. Unpause all destination nodes (always, even on error)
-        for (const destNode of destinationNodes) {
-          destNode.client?._unpause();
-          if ('pubSub' in destNode) {
-            destNode.pubSub?.client._unpause();
-          }
-        }
       }
     }
   }
