@@ -87,7 +87,7 @@ interface RandomSampleReducer extends GroupByReducerWithProperty<FT_AGGREGATE_GR
   sampleSize: number;
 }
 
-type GroupByReducers = CountReducer | CountDistinctReducer | CountDistinctishReducer | SumReducer | MinReducer | MaxReducer | AvgReducer | StdDevReducer | QuantileReducer | ToListReducer | FirstValueReducer | RandomSampleReducer;
+export type GroupByReducers = CountReducer | CountDistinctReducer | CountDistinctishReducer | SumReducer | MinReducer | MaxReducer | AvgReducer | StdDevReducer | QuantileReducer | ToListReducer | FirstValueReducer | RandomSampleReducer;
 
 interface GroupByStep extends AggregateStep<FT_AGGREGATE_STEPS['GROUPBY']> {
   properties?: RediSearchProperty | Array<RediSearchProperty>;
@@ -284,7 +284,7 @@ function pushLoadField(args: Array<RedisArgument>, toLoad: LoadField) {
   }
 }
 
-function parseGroupByReducer(parser: CommandParser, reducer: GroupByReducers) {
+export function parseGroupByReducer(parser: CommandParser, reducer: GroupByReducers) {
   parser.push('REDUCE', reducer.type);
 
   switch (reducer.type) {

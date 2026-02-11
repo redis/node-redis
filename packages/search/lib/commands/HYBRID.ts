@@ -1,234 +1,361 @@
-import { CommandParser } from '@redis/client/dist/lib/client/parser';
-import { RedisArgument, Command, ReplyUnion } from '@redis/client/dist/lib/RESP/types';
-import { RedisVariadicArgument, parseOptionalVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
-import { FtSearchParams, parseParamsArgument } from './SEARCH';
+import { CommandParser } from "@redis/client/dist/lib/client/parser";
+import {
+  RedisArgument,
+  Command,
+  ReplyUnion,
+} from "@redis/client/dist/lib/RESP/types";
+import {
+  RedisVariadicArgument,
+  parseOptionalVariadicArgument,
+} from "@redis/client/dist/lib/commands/generic-transformers";
+import { parseParamsArgument } from "./SEARCH";
+import { GroupByReducers, parseGroupByReducer } from "./AGGREGATE";
 
+/**
+ * Text search expression configuration for hybrid search.
+ */
 export interface FtHybridSearchExpression {
+  /** Search query string or parameter reference (e.g., "$q") */
   query: RedisArgument;
-  SCORER?: {
-    algorithm: RedisArgument;
-    params?: Array<RedisArgument>;
-  };
+  /** Scoring algorithm configuration */
+  SCORER?: RedisArgument;
+  /** Alias for the text search score in results */
   YIELD_SCORE_AS?: RedisArgument;
 }
 
-export interface FtHybridVectorMethod {
-  KNN?: {
-    K: number;
-    EF_RUNTIME?: number;
-    YIELD_DISTANCE_AS?: RedisArgument;
-  };
-  RANGE?: {
-    RADIUS: number;
-    EPSILON?: number;
-    YIELD_DISTANCE_AS?: RedisArgument;
-  };
+/**
+ * Vector search method configuration - either KNN or RANGE.
+ */
+export const FT_HYBRID_VECTOR_METHOD = {
+  /** K-Nearest Neighbors search configuration */
+  KNN: "KNN",
+  /** Range-based vector search configuration */
+  RANGE: "RANGE",
+} as const;
+
+/** Vector search method type */
+export type FtHybridVectorMethodType =
+  (typeof FT_HYBRID_VECTOR_METHOD)[keyof typeof FT_HYBRID_VECTOR_METHOD];
+
+interface FtHybridVectorMethodKNN {
+  type: (typeof FT_HYBRID_VECTOR_METHOD)["KNN"];
+  /** Number of nearest neighbors to find */
+  K: number;
+  /** Controls the search accuracy vs. speed tradeoff */
+  EF_RUNTIME?: number;
 }
 
+interface FtHybridVectorMethodRange {
+  type: (typeof FT_HYBRID_VECTOR_METHOD)["RANGE"];
+  /** Maximum distance for matches */
+  RADIUS: number;
+  /** Provides additional precision control */
+  EPSILON?: number;
+}
+
+/**
+ * Vector similarity search expression configuration.
+ */
 export interface FtHybridVectorExpression {
+  /** Vector field name (e.g., "@embedding") */
   field: RedisArgument;
-  vectorData: RedisArgument;
-  method?: FtHybridVectorMethod;
-  FILTER?: {
-    expression: RedisArgument;
-    POLICY?: 'ADHOC' | 'BATCHES' | 'ACORN';
-    BATCHES?: {
-      BATCH_SIZE: number;
-    };
-  };
+  /** Vector parameter reference (e.g., "$v") */
+  vector: string;
+  /** Search method configuration - KNN or RANGE */
+  method?: FtHybridVectorMethodKNN | FtHybridVectorMethodRange;
+  /** Pre-filter expression applied before vector search (e.g., "@tag:{foo}") */
+  FILTER?: RedisArgument;
+  /** Alias for the vector score in results */
   YIELD_SCORE_AS?: RedisArgument;
 }
 
-export interface FtHybridCombineMethod {
-  RRF?: {
-    count: number;
-    WINDOW?: number;
-    CONSTANT?: number;
-  };
-  LINEAR?: {
-    count: number;
-    ALPHA?: number;
-    BETA?: number;
-  };
-  FUNCTION?: RedisArgument;
+/**
+ * Score fusion method type constants for combining search results.
+ */
+export const FT_HYBRID_COMBINE_METHOD = {
+  /** Reciprocal Rank Fusion */
+  RRF: "RRF",
+  /** Linear combination with ALPHA and BETA weights */
+  LINEAR: "LINEAR",
+} as const;
+
+/** Combine method type */
+export type FtHybridCombineMethodType =
+  (typeof FT_HYBRID_COMBINE_METHOD)[keyof typeof FT_HYBRID_COMBINE_METHOD];
+
+interface FtHybridCombineMethodRRF {
+  type: (typeof FT_HYBRID_COMBINE_METHOD)["RRF"];
+  /** RRF constant for score calculation */
+  CONSTANT?: number;
+  /** Window size for score normalization */
+  WINDOW?: number;
 }
 
+interface FtHybridCombineMethodLinear {
+  type: (typeof FT_HYBRID_COMBINE_METHOD)["LINEAR"];
+  /** Weight for text search score */
+  ALPHA?: number;
+  /** Weight for vector search score */
+  BETA?: number;
+  /** Window size for score normalization */
+  WINDOW?: number;
+}
+
+/**
+ * Apply expression for result transformation.
+ */
+export interface FtHybridApply {
+  /** Transformation expression to apply */
+  expression: RedisArgument;
+  /** Alias for the computed value in output */
+  AS?: RedisArgument;
+}
+
+/**
+ * Options for the FT.HYBRID command.
+ */
 export interface FtHybridOptions {
-  SEARCH?: FtHybridSearchExpression;
-  VSIM?: FtHybridVectorExpression;
+  /** Text search expression configuration */
+  SEARCH: FtHybridSearchExpression;
+  /** Vector similarity search expression configuration */
+  VSIM: FtHybridVectorExpression;
+  /** Score fusion configuration for combining SEARCH and VSIM results */
   COMBINE?: {
-    method: FtHybridCombineMethod;
+    /** Fusion method: RRF or LINEAR */
+    method: FtHybridCombineMethodRRF | FtHybridCombineMethodLinear;
+    /** Alias for the combined score in results */
     YIELD_SCORE_AS?: RedisArgument;
   };
+  /**
+   * Fields to load and return in results (LOAD clause).
+   * - Use `"*"` to load all fields from documents
+   * - Use a field name or array of field names to load specific fields
+   */
   LOAD?: RedisVariadicArgument;
+  /** Group by configuration for aggregation */
   GROUPBY?: {
+    /** Fields to group by */
     fields: RedisVariadicArgument;
-    REDUCE?: {
-      function: RedisArgument;
-      count: number;
-      args: Array<RedisArgument>;
-    };
+    /** Reducer(s) to apply to each group */
+    REDUCE?: GroupByReducers | Array<GroupByReducers>;
   };
-  APPLY?: {
-    expression: RedisArgument;
-    AS: RedisArgument;
-  };
+  /** Apply expression(s) for result transformation */
+  APPLY?: FtHybridApply | Array<FtHybridApply>;
+  /** Sort configuration for results */
   SORTBY?: {
-    count: number;
+    /** Fields to sort by with optional direction */
     fields: Array<{
+      /** Field name to sort by */
       field: RedisArgument;
-      direction?: 'ASC' | 'DESC';
+      /** Sort direction: "ASC" (ascending) or "DESC" (descending) */
+      direction?: "ASC" | "DESC";
     }>;
   };
+  /** Disable sorting - returns results in arbitrary order */
+  NOSORT?: boolean;
+  /** Post-filter expression applied after scoring */
   FILTER?: RedisArgument;
+  /** Pagination configuration */
   LIMIT?: {
+    /** Number of results to skip */
     offset: number | RedisArgument;
-    num: number | RedisArgument;
+    /** Number of results to return */
+    count: number | RedisArgument;
   };
-  PARAMS?: FtSearchParams;
-  EXPLAINSCORE?: boolean;
+  /** Query parameters for parameterized queries */
+  PARAMS?: Record<string, string | number | Buffer>;
+  /** Query timeout in milliseconds */
   TIMEOUT?: number;
-  WITHCURSOR?: {
-    COUNT?: number;
-    MAXIDLE?: number;
-  };
 }
 
-function parseSearchExpression(parser: CommandParser, search: FtHybridSearchExpression) {
-  parser.push('SEARCH', search.query);
+function parseSearchExpression(
+  parser: CommandParser,
+  search: FtHybridSearchExpression,
+) {
+  parser.push("SEARCH", search.query);
 
   if (search.SCORER) {
-    parser.push('SCORER', search.SCORER.algorithm);
-    if (search.SCORER.params) {
-      parser.push(...search.SCORER.params);
-    }
+    parser.push("SCORER", search.SCORER);
   }
 
   if (search.YIELD_SCORE_AS) {
-    parser.push('YIELD_SCORE_AS', search.YIELD_SCORE_AS);
+    parser.push("YIELD_SCORE_AS", search.YIELD_SCORE_AS);
   }
 }
 
-function parseVectorExpression(parser: CommandParser, vsim: FtHybridVectorExpression) {
-  parser.push('VSIM', vsim.field, vsim.vectorData);
+function parseVectorExpression(
+  parser: CommandParser,
+  vsim: FtHybridVectorExpression,
+) {
+  parser.push("VSIM", vsim.field, vsim.vector);
 
   if (vsim.method) {
-    if (vsim.method.KNN) {
-      const knn = vsim.method.KNN;
-      parser.push('KNN', '1', 'K', knn.K.toString());
-
-      if (knn.EF_RUNTIME !== undefined) {
-        parser.push('EF_RUNTIME', knn.EF_RUNTIME.toString());
+    if (vsim.method.type === FT_HYBRID_VECTOR_METHOD.KNN) {
+      let argsCount = 2;
+      if (vsim.method.EF_RUNTIME !== undefined) {
+        argsCount += 2;
       }
 
-      if (knn.YIELD_DISTANCE_AS) {
-        parser.push('YIELD_DISTANCE_AS', knn.YIELD_DISTANCE_AS);
+      parser.push("KNN", argsCount.toString(), "K", vsim.method.K.toString());
+
+      if (vsim.method.EF_RUNTIME !== undefined) {
+        parser.push("EF_RUNTIME", vsim.method.EF_RUNTIME.toString());
       }
     }
 
-    if (vsim.method.RANGE) {
-      const range = vsim.method.RANGE;
-      parser.push('RANGE', '1', 'RADIUS', range.RADIUS.toString());
-
-      if (range.EPSILON !== undefined) {
-        parser.push('EPSILON', range.EPSILON.toString());
+    if (vsim.method.type === FT_HYBRID_VECTOR_METHOD.RANGE) {
+      let argsCount = 2;
+      if (vsim.method.EPSILON !== undefined) {
+        argsCount += 2;
       }
 
-      if (range.YIELD_DISTANCE_AS) {
-        parser.push('YIELD_DISTANCE_AS', range.YIELD_DISTANCE_AS);
+      parser.push(
+        "RANGE",
+        argsCount.toString(),
+        "RADIUS",
+        vsim.method.RADIUS.toString(),
+      );
+
+      if (vsim.method.EPSILON !== undefined) {
+        parser.push("EPSILON", vsim.method.EPSILON.toString());
       }
     }
   }
 
   if (vsim.FILTER) {
-    parser.push('FILTER', vsim.FILTER.expression);
-
-    if (vsim.FILTER.POLICY) {
-      parser.push('POLICY', vsim.FILTER.POLICY);
-
-      if (vsim.FILTER.POLICY === 'BATCHES' && vsim.FILTER.BATCHES) {
-        parser.push('BATCHES', 'BATCH_SIZE', vsim.FILTER.BATCHES.BATCH_SIZE.toString());
-      }
-    }
+    parser.push("FILTER", vsim.FILTER);
   }
 
   if (vsim.YIELD_SCORE_AS) {
-    parser.push('YIELD_SCORE_AS', vsim.YIELD_SCORE_AS);
+    parser.push("YIELD_SCORE_AS", vsim.YIELD_SCORE_AS);
   }
 }
 
-function parseCombineMethod(parser: CommandParser, combine: FtHybridOptions['COMBINE']) {
+function parseCombineMethod(
+  parser: CommandParser,
+  combine: FtHybridOptions["COMBINE"],
+) {
   if (!combine) return;
 
-  parser.push('COMBINE');
+  parser.push("COMBINE");
 
-  if (combine.method.RRF) {
-    const rrf = combine.method.RRF;
-    parser.push('RRF', rrf.count.toString());
-
-    if (rrf.WINDOW !== undefined) {
-      parser.push('WINDOW', rrf.WINDOW.toString());
+  if (combine.method.type === FT_HYBRID_COMBINE_METHOD.RRF) {
+    // Calculate argsCount: 2 per optional (WINDOW, CONSTANT, YIELD_SCORE_AS)
+    let argsCount = 0;
+    if (combine.method.WINDOW !== undefined) {
+      argsCount += 2;
+    }
+    if (combine.method.CONSTANT !== undefined) {
+      argsCount += 2;
+    }
+    if (combine.YIELD_SCORE_AS) {
+      argsCount += 2;
     }
 
-    if (rrf.CONSTANT !== undefined) {
-      parser.push('CONSTANT', rrf.CONSTANT.toString());
-    }
-  }
+    parser.push("RRF", argsCount.toString());
 
-  if (combine.method.LINEAR) {
-    const linear = combine.method.LINEAR;
-    parser.push('LINEAR', linear.count.toString());
-
-    if (linear.ALPHA !== undefined) {
-      parser.push('ALPHA', linear.ALPHA.toString());
+    if (combine.method.WINDOW !== undefined) {
+      parser.push("WINDOW", combine.method.WINDOW.toString());
     }
 
-    if (linear.BETA !== undefined) {
-      parser.push('BETA', linear.BETA.toString());
+    if (combine.method.CONSTANT !== undefined) {
+      parser.push("CONSTANT", combine.method.CONSTANT.toString());
     }
   }
 
-  if (combine.method.FUNCTION) {
-    parser.push('FUNCTION', combine.method.FUNCTION);
+  if (combine.method.type === FT_HYBRID_COMBINE_METHOD.LINEAR) {
+    // Calculate argsCount: 2 per optional (ALPHA, BETA, WINDOW, YIELD_SCORE_AS)
+    let argsCount = 0;
+    if (combine.method.ALPHA !== undefined) {
+      argsCount += 2;
+    }
+    if (combine.method.BETA !== undefined) {
+      argsCount += 2;
+    }
+    if (combine.method.WINDOW !== undefined) {
+      argsCount += 2;
+    }
+    if (combine.YIELD_SCORE_AS) {
+      argsCount += 2;
+    }
+
+    parser.push("LINEAR", argsCount.toString());
+
+    if (combine.method.ALPHA !== undefined) {
+      parser.push("ALPHA", combine.method.ALPHA.toString());
+    }
+
+    if (combine.method.BETA !== undefined) {
+      parser.push("BETA", combine.method.BETA.toString());
+    }
+
+    if (combine.method.WINDOW !== undefined) {
+      parser.push("WINDOW", combine.method.WINDOW.toString());
+    }
   }
 
   if (combine.YIELD_SCORE_AS) {
-    parser.push('YIELD_SCORE_AS', combine.YIELD_SCORE_AS);
+    parser.push("YIELD_SCORE_AS", combine.YIELD_SCORE_AS);
   }
 }
 
-function parseHybridOptions(parser: CommandParser, options?: FtHybridOptions) {
-  if (!options) return;
-
-  if (options.SEARCH) {
-    parseSearchExpression(parser, options.SEARCH);
+function parseApply(parser: CommandParser, apply: FtHybridApply) {
+  parser.push("APPLY", apply.expression);
+  if (apply.AS) {
+    parser.push("AS", apply.AS);
   }
+}
 
-  if (options.VSIM) {
-    parseVectorExpression(parser, options.VSIM);
-  }
+function parseHybridOptions(parser: CommandParser, options: FtHybridOptions) {
+  parseSearchExpression(parser, options.SEARCH);
+  parseVectorExpression(parser, options.VSIM);
 
   if (options.COMBINE) {
     parseCombineMethod(parser, options.COMBINE);
   }
 
-  parseOptionalVariadicArgument(parser, 'LOAD', options.LOAD);
+  if (options.LOAD) {
+    if (options.LOAD === "*") {
+      parser.push("LOAD", "*");
+    } else {
+      parseOptionalVariadicArgument(parser, "LOAD", options.LOAD);
+    }
+  }
+
 
   if (options.GROUPBY) {
-    parseOptionalVariadicArgument(parser, 'GROUPBY', options.GROUPBY.fields);
+    parseOptionalVariadicArgument(parser, "GROUPBY", options.GROUPBY.fields);
 
     if (options.GROUPBY.REDUCE) {
-      parser.push('REDUCE', options.GROUPBY.REDUCE.function, options.GROUPBY.REDUCE.count.toString());
-      parser.push(...options.GROUPBY.REDUCE.args);
+      const reducers = Array.isArray(options.GROUPBY.REDUCE)
+        ? options.GROUPBY.REDUCE
+        : [options.GROUPBY.REDUCE];
+
+      for (const reducer of reducers) {
+        parseGroupByReducer(parser, reducer);
+      }
     }
   }
 
   if (options.APPLY) {
-    parser.push('APPLY', options.APPLY.expression, 'AS', options.APPLY.AS);
+    const applies = Array.isArray(options.APPLY)
+      ? options.APPLY
+      : [options.APPLY];
+
+    for (const apply of applies) {
+      parseApply(parser, apply);
+    }
   }
 
   if (options.SORTBY) {
-    parser.push('SORTBY', options.SORTBY.count.toString());
+    const sortByArgsCount = options.SORTBY.fields.reduce((acc, field) => {
+      if (field.direction) {
+        return acc + 2;
+      }
+      return acc + 1;
+    }, 0);
+
+    parser.push("SORTBY", sortByArgsCount.toString());
     for (const sortField of options.SORTBY.fields) {
       parser.push(sortField.field);
       if (sortField.direction) {
@@ -237,34 +364,28 @@ function parseHybridOptions(parser: CommandParser, options?: FtHybridOptions) {
     }
   }
 
+  if (options.NOSORT) {
+    parser.push("NOSORT");
+  }
+
   if (options.FILTER) {
-    parser.push('FILTER', options.FILTER);
+    parser.push("FILTER", options.FILTER);
   }
 
   if (options.LIMIT) {
-    parser.push('LIMIT', options.LIMIT.offset.toString(), options.LIMIT.num.toString());
+    parser.push(
+      "LIMIT",
+      options.LIMIT.offset.toString(),
+      options.LIMIT.count.toString(),
+    );
   }
 
-  parseParamsArgument(parser, options.PARAMS);
+  const hasParams = options.PARAMS && Object.keys(options.PARAMS).length > 0;
 
-  if (options.EXPLAINSCORE) {
-    parser.push('EXPLAINSCORE');
-  }
+  parseParamsArgument(parser, hasParams ? options.PARAMS : undefined);
 
   if (options.TIMEOUT !== undefined) {
-    parser.push('TIMEOUT', options.TIMEOUT.toString());
-  }
-
-  if (options.WITHCURSOR) {
-    parser.push('WITHCURSOR');
-
-    if (options.WITHCURSOR.COUNT !== undefined) {
-      parser.push('COUNT', options.WITHCURSOR.COUNT.toString());
-    }
-
-    if (options.WITHCURSOR.MAXIDLE !== undefined) {
-      parser.push('MAXIDLE', options.WITHCURSOR.MAXIDLE.toString());
-    }
+    parser.push("TIMEOUT", options.TIMEOUT.toString());
   }
 }
 
@@ -284,80 +405,93 @@ export default {
    * @param options - Hybrid search options including:
    *   - SEARCH: Text search expression with optional scoring
    *   - VSIM: Vector similarity expression with KNN/RANGE methods
-   *   - COMBINE: Fusion method (RRF, LINEAR, FUNCTION)
+   *   - COMBINE: Fusion method (RRF, LINEAR)
    *   - Post-processing operations: LOAD, GROUPBY, APPLY, SORTBY, FILTER
-   *   - Tunable options: LIMIT, PARAMS, EXPLAINSCORE, TIMEOUT, WITHCURSOR
+   *   - Tunable options: LIMIT, PARAMS, TIMEOUT
    */
-  parseCommand(parser: CommandParser, index: RedisArgument, options?: FtHybridOptions) {
-    parser.push('FT.HYBRID', index);
+  parseCommand(
+    parser: CommandParser,
+    index: RedisArgument,
+    options: FtHybridOptions,
+  ) {
+    parser.push("FT.HYBRID", index);
 
     parseHybridOptions(parser, options);
-
   },
   transformReply: {
-    2: (reply: any): any => {
-      // Check if this is a cursor reply: [[results...], cursorId]
-      if (Array.isArray(reply) && reply.length === 2 && typeof reply[1] === 'number') {
-        // This is a cursor reply
-        const [searchResults, cursor] = reply;
-        const transformedResults = transformHybridSearchResults(searchResults);
-
-        return {
-          ...transformedResults,
-          cursor
-        };
-      } else {
-        // Normal reply without cursor
-        return transformHybridSearchResults(reply);
-      }
+    2: (reply: any): HybridSearchResult => {
+      return transformHybridSearchResults(reply);
     },
-    3: undefined as unknown as () => ReplyUnion
+    3: undefined as unknown as () => ReplyUnion,
   },
-  unstableResp3: true
+  unstableResp3: true,
 } as const satisfies Command;
 
-function transformHybridSearchResults(reply: any) {
-  // Similar structure to FT.SEARCH reply transformation
-  const withoutDocuments = reply.length > 2 && !Array.isArray(reply[2]);
-
-  const documents = [];
-  let i = 1;
-  while (i < reply.length) {
-    documents.push({
-      id: reply[i++],
-      value: withoutDocuments ? Object.create(null) : documentValue(reply[i++])
-    });
-  }
-
-  return {
-    total: reply[0],
-    documents
-  };
+export interface HybridSearchResult {
+  totalResults: number;
+  executionTime: number;
+  warnings: string[];
+  results: Record<string, any>[];
 }
 
-function documentValue(tuples: any) {
-  const message = Object.create(null);
+function transformHybridSearchResults(reply: any): HybridSearchResult {
+  // FT.HYBRID returns a map-like structure as flat array:
+  // ['total_results', N, 'results', [...], 'warnings', [...], 'execution_time', 'X.XXX']
+  const replyMap = parseReplyMap(reply);
 
-  if (!tuples) {
-    return message;
-  }
+  const totalResults = replyMap["total_results"] ?? 0;
+  const rawResults = replyMap["results"] ?? [];
+  const warnings = replyMap["warnings"] ?? [];
+  const executionTime = replyMap["execution_time"]
+    ? Number.parseFloat(replyMap["execution_time"])
+    : 0;
 
-  let i = 0;
-  while (i < tuples.length) {
-    const key = tuples[i++];
-    const value = tuples[i++];
+  const results: Record<string, any>[] = [];
+  for (const result of rawResults) {
+    // Each result is a flat key-value array like FT.AGGREGATE: ['field1', 'value1', 'field2', 'value2', ...]
+    const resultMap = parseReplyMap(result);
 
-    if (key === '$') { // might be a JSON reply
-      try {
-        Object.assign(message, JSON.parse(value));
-        continue;
-      } catch {
-        // set as a regular property if not a valid JSON
+    const doc = Object.create(null);
+
+    // Add all other fields from the result
+    for (const [key, value] of Object.entries(resultMap)) {
+      if (key === "$") {
+        // JSON document - parse and merge
+        try {
+          Object.assign(doc, JSON.parse(value as string));
+        } catch {
+          doc[key] = value;
+        }
+      } else {
+        doc[key] = value;
       }
     }
 
-    message[key] = value;
+    results.push(doc);
   }
 
-  return message;
+  return {
+    totalResults,
+    executionTime,
+    warnings,
+    results,
+  };
+}
+
+function parseReplyMap(reply: any): Record<string, any> {
+  const map: Record<string, any> = {};
+
+  if (!Array.isArray(reply)) {
+    return map;
+  }
+
+  for (let i = 0; i < reply.length; i += 2) {
+    const key = reply[i];
+    const value = reply[i + 1];
+    if (typeof key === "string") {
+      map[key] = value;
+    }
+  }
+
+  return map;
 }
