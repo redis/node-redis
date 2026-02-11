@@ -72,8 +72,6 @@ const KEYS = [
   };
 
   beforeEach(function() {
-    // Clear FIRST before subscribing to avoid capturing stale events
-    const staleEventCount = diagnosticEvents.length;
     diagnosticEvents = [];
     diagnostics_channel.subscribe("redis.maintenance", onMessage);
   });

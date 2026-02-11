@@ -180,11 +180,7 @@ export default class EnterpriseMaintenanceManager {
       }
       case PN.SMIGRATED: {
         dbgMaintenance("Received SMIGRATED");
-        try {
-          this.#onSMigrated(push);
-        } catch (e) {
-          throw e;
-        }
+        this.#onSMigrated(push);
         this.#onMigrated();  // Un-relax timeouts after slot migration completes
         return true;
       }

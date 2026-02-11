@@ -276,6 +276,10 @@ export default class RedisClusterSlots<
         dbgMaintenance(`[CSlots]: address ${sourceAddress} not in 'nodeByAddress', skipping this entry`);
         continue;
       }
+      if (sourceNode.client === undefined) {
+        dbgMaintenance(`[CSlots]: Node for ${sourceAddress} does not have a client, skipping this entry`);
+        continue;
+      }
 
       // Track all slots being moved and destination nodes for this entry
       const allMovingSlots = new Set<number>();
@@ -348,12 +352,12 @@ export default class RedisClusterSlots<
         const inflightPromises: Promise<void>[] = [];
         const inflightOptions = { timeoutMs: INFLIGHT_TIMEOUT_MS, flushOnTimeout: true };
 
-        inflightPromises.push(sourceNode.client!._getQueue().waitForInflightCommandsToComplete(inflightOptions));
-        if ('pubSub' in sourceNode) {
-          inflightPromises.push(sourceNode.pubSub!.client._getQueue().waitForInflightCommandsToComplete(inflightOptions));
+        inflightPromises.push(sourceNode.client._getQueue().waitForInflightCommandsToComplete(inflightOptions));
+        if ('pubSub' in sourceNode && sourceNode.pubSub !== undefined) {
+          inflightPromises.push(sourceNode.pubSub.client._getQueue().waitForInflightCommandsToComplete(inflightOptions));
         }
         if (this.pubSubNode?.address === sourceAddress) {
-          inflightPromises.push(this.pubSubNode?.client._getQueue().waitForInflightCommandsToComplete(inflightOptions));
+          inflightPromises.push(this.pubSubNode.client._getQueue().waitForInflightCommandsToComplete(inflightOptions));
         }
         await Promise.all(inflightPromises);
 
@@ -362,7 +366,7 @@ export default class RedisClusterSlots<
 
         if (sourceStillHasSlots) {
           // Source still has slots - only extract commands for the moving slots
-          const normalCommandsToMove = sourceNode.client!._getQueue().extractCommandsForSlots(allMovingSlots);
+          const normalCommandsToMove = sourceNode.client._getQueue().extractCommandsForSlots(allMovingSlots);
           // Prepend to the last destination (or could distribute - for now keeping simple)
           const lastDestNode = destinationNodes[destinationNodes.length - 1];
           lastDestNode.client?._getQueue().prependCommandsToWrite(normalCommandsToMove);
@@ -380,7 +384,7 @@ export default class RedisClusterSlots<
           }
         } else {
           // Source has no slots left - move all commands and cleanup
-          const normalCommandsToMove = sourceNode.client!._getQueue().extractAllCommands();
+          const normalCommandsToMove = sourceNode.client._getQueue().extractAllCommands();
           const lastDestNode = destinationNodes[destinationNodes.length - 1];
           lastDestNode.client?._getQueue().prependCommandsToWrite(normalCommandsToMove);
 
@@ -421,14 +425,14 @@ export default class RedisClusterSlots<
             sourceNode.pubSub?.client.destroy();
           }
         }
-      } catch (err) {
+      } catch (err: any) {
         dbgMaintenance(`[CSlots]: Error during SMIGRATED handling for source ${sourceAddress}: ${err}`);
         // Ensure we unpause source on error to prevent deadlock
         sourceNode.client?._unpause();
         if ('pubSub' in sourceNode) {
           sourceNode.pubSub?.client._unpause();
         }
-        throw err;
+        this.#emit(err.message)
       } finally {
         // 6. Unpause all destination nodes (always, even on error)
         for (const destNode of destinationNodes) {
