@@ -444,7 +444,7 @@ export default class RedisClusterSlots<
         if ('pubSub' in sourceNode) {
           sourceNode.pubSub?.client._unpause();
         }
-        this.#emit(err.message)
+        this.#emit('error', err)
       }
     }
   }
