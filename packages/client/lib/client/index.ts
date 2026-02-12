@@ -1032,7 +1032,8 @@ export default class RedisClient<
     transformReply: TransformReply | undefined,
   ) {
     const csc = this._self.#clientSideCache;
-    const defaultTypeMapping = this._self.#options.commandOptions === commandOptions;
+    const defaultTypeMapping = this._self.#options.commandOptions === commandOptions ||
+      (this._self.#options.commandOptions?.typeMapping === commandOptions?.typeMapping);
 
     const fn = () => { return this.sendCommand(parser.redisArgs, commandOptions) };
 
