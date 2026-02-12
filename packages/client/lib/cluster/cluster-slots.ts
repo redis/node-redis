@@ -395,6 +395,8 @@ export default class RedisClusterSlots<
           const remainingCommands = sourceNode.client._getQueue().extractAllCommands();
           if (remainingCommands.length > 0 && lastDestNode) {
             lastDestNode.client?._getQueue().prependCommandsToWrite(remainingCommands);
+            // Trigger write scheduling since commands were added after destination was unpaused
+            lastDestNode.client?._unpause();
             dbgMaintenance(`[CSlots]: Moved ${remainingCommands.length} remaining slotless commands to ${lastDestNode.address}`);
           }
 
