@@ -429,7 +429,8 @@ export function spawnTlsRedisServer(
 /**
  * Cleanup function for TLS servers - removes containers
  */
-after(() => {
+after(function() {
+  this.timeout(30000); // 30 seconds for Docker cleanup
   return Promise.all(
     [...RUNNING_TLS_SERVERS.values()].map(async (dockerPromise) => {
       const docker = await dockerPromise;
@@ -684,7 +685,8 @@ export async function spawnRedisSentinel(
     return sentinelNodes;
 }
 
-after(() => {
+after(function() {
+  this.timeout(30000); // 30 seconds for Docker cleanup
   return Promise.all([
     ...Array.from(RUNNING_SERVERS.values()).map(async dockerPromise =>
       dockerRemove((await dockerPromise).dockerId)

@@ -609,13 +609,12 @@ describe("Client Side Cache", () => {
       });
     });
   });
-  it('should reflect comprehensive cache operations in stats via BasicClientSideCache', async function () {
-
+  describe('comprehensive stats', () => {
     const csc = new BasicClientSideCache({
       maxEntries: 2, // Small size to easily trigger evictions
     });
 
-    testUtils.testWithClient('comprehensive_stats_run', async client => {
+    testUtils.testWithClient('should reflect comprehensive cache operations in stats via BasicClientSideCache', async client => {
 
       // --- Phase 1: Initial misses and loads ---
       await client.set('keyA', 'valueA_1');
