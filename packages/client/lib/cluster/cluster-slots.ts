@@ -689,7 +689,8 @@ export default class RedisClusterSlots<
     }
 
     return {
-      client: await this.nodeClient(this.getSlotRandomNode(slotNumber))
+      client: await this.nodeClient(this.getSlotRandomNode(slotNumber)),
+      slotNumber
     };
   }
 

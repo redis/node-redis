@@ -429,10 +429,9 @@ export default class RedisCluster<
 
     while (true) {
       try {
-        if(options !== undefined) {
-          options.slotNumber = slotNumber;
-        }
-        return await myFn(client, options);
+        const opts = options ?? {};
+        opts.slotNumber = slotNumber;
+        return await myFn(client, opts);
       } catch (err) {
         myFn = fn;
 
