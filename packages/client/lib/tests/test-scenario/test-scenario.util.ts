@@ -1,6 +1,7 @@
 import { readFileSync } from "fs";
 import { createClient, RedisClientOptions } from "../../..";
 import { stub } from "sinon";
+import { ActionTrigger } from "@redis/test-utils/lib/fault-injector";
 
 type DatabaseEndpoint = {
   addr: string[];
@@ -171,4 +172,64 @@ export async function createTestClient(
   await client.connect();
 
   return client;
+}
+
+export interface TriggerArrays {
+  addTriggers: ActionTrigger[];
+  removeTriggers: ActionTrigger[];
+  removeAddTriggers: ActionTrigger[];
+  slotShuffleTriggers: ActionTrigger[];
+}
+
+/**
+ * Filters trigger arrays based on command-line arguments.
+ * Supports --effect, --trigger, and --db/--database filters.
+ */
+export function filterTriggersByArgs(
+  addTriggers: ActionTrigger[],
+  removeTriggers: ActionTrigger[],
+  removeAddTriggers: ActionTrigger[],
+  slotShuffleTriggers: ActionTrigger[]
+): TriggerArrays {
+  const parseArg = (name: string): string | undefined => {
+    const prefix = `--${name}=`;
+    const arg = process.argv.find(a => a.startsWith(prefix));
+    return arg ? arg.slice(prefix.length) : undefined;
+  };
+
+  const effectFilter = parseArg('effect');
+  const triggerFilter = parseArg('trigger');
+  const dbFilter = parseArg('db') ?? parseArg('database');
+
+  // Filter by effect - only keep relevant trigger arrays
+  let result: TriggerArrays = { addTriggers, removeTriggers, removeAddTriggers, slotShuffleTriggers };
+  if (effectFilter) {
+    const empty: ActionTrigger[] = [];
+    result = {
+      addTriggers: effectFilter === 'add' ? addTriggers : empty,
+      removeTriggers: effectFilter === 'remove' ? removeTriggers : empty,
+      removeAddTriggers: effectFilter === 'remove-add' ? removeAddTriggers : empty,
+      slotShuffleTriggers: effectFilter === 'slot-shuffle' ? slotShuffleTriggers : empty,
+    };
+  }
+
+  // Filter triggers by name and db config
+  const filterTriggers = (triggers: ActionTrigger[]): ActionTrigger[] => {
+    return triggers
+      .filter(t => !triggerFilter || t.name === triggerFilter)
+      .map(t => ({
+        ...t,
+        requirements: dbFilter
+          ? t.requirements.filter(r => r.dbconfig.name.includes(dbFilter))
+          : t.requirements
+      }))
+      .filter(t => t.requirements.length > 0);
+  };
+
+  return {
+    addTriggers: filterTriggers(result.addTriggers),
+    removeTriggers: filterTriggers(result.removeTriggers),
+    removeAddTriggers: filterTriggers(result.removeAddTriggers),
+    slotShuffleTriggers: filterTriggers(result.slotShuffleTriggers),
+  };
 }

@@ -6,7 +6,7 @@ import testUtils from "../../test-utils";
 import { DiagnosticsEvent } from "../../client/enterprise-maintenance-manager";
 import { FaultInjectorClient, ActionTrigger, ActionType, ActionRequest } from "@redis/test-utils/lib/fault-injector";
 import { REClusterTestOptions } from "@redis/test-utils";
-import { blockCommand } from "./test-scenario.util";
+import { blockCommand, filterTriggersByArgs } from "./test-scenario.util";
 
 type TestOptions = REClusterTestOptions<{}, {}, {}, 3, {}>
 
@@ -51,12 +51,16 @@ const KEYS = [
     const setupFaultInjectorClient = new FaultInjectorClient(baseUrl);
 
     // Make 4 asynchronous calls to listActionTriggers() in parallel
-    [addTriggers, removeTriggers, removeAddTriggers, slotShuffleTriggers] = await Promise.all([
+    const [add, remove, removeAdd, slotShuffle] = await Promise.all([
       setupFaultInjectorClient.listActionTriggers("slot-migrate", "add"),
       setupFaultInjectorClient.listActionTriggers("slot-migrate", "remove"),
       setupFaultInjectorClient.listActionTriggers("slot-migrate", "remove-add"),
       setupFaultInjectorClient.listActionTriggers("slot-migrate", "slot-shuffle"),
     ]);
+
+    // Apply command-line filters (--effect, --trigger, --db/--database)
+    ({ addTriggers, removeTriggers, removeAddTriggers, slotShuffleTriggers } =
+      filterTriggersByArgs(add, remove, removeAdd, slotShuffle));
   }
 
   // Dynamic Test Generation
@@ -81,9 +85,6 @@ const KEYS = [
   });
 
   describe("Effect: remove", () => {
-
-    assert(removeTriggers.length > 0, "removeTriggers should have at least one trigger");
-
     // Dynamically generate tests for each trigger from "remove" effect
     for (const trigger of removeTriggers) {
       for (const requirement of trigger.requirements) {
@@ -375,9 +376,6 @@ const KEYS = [
   });
 
   describe("Effect: remove-add", () => {
-
-    assert(removeAddTriggers.length > 0, "removeAddTriggers should have at least one trigger");
-
     // Dynamically generate tests for each trigger from "remove-add" effect
     for (const trigger of removeAddTriggers) {
       for (const requirement of trigger.requirements) {
@@ -670,9 +668,6 @@ const KEYS = [
     }
   });
   describe("Effect: slot-shuffle", () => {
-
-    assert(slotShuffleTriggers.length > 0, "slotShuffleTriggers should have at least one trigger");
-
     // Dynamically generate tests for each trigger from "slot-shuffle" effect
     for (const trigger of slotShuffleTriggers) {
       for (const requirement of trigger.requirements) {
@@ -966,9 +961,6 @@ const KEYS = [
   });
 
   describe("Effect: add", () => {
-
-    assert(addTriggers.length > 0, "addTriggers should have at least one trigger");
-
     // Dynamically generate tests for each trigger from "add" effect
     for (const trigger of addTriggers) {
       for (const requirement of trigger.requirements) {
