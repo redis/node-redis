@@ -98,7 +98,7 @@ export class Decoder {
     this.#next = undefined;
     return this.#decodeTypeValue(type, chunk);
   }
-    
+
   #decodeTypeValue(type, chunk) {
     switch (type) {
       case RESP_TYPES.NULL:
@@ -128,7 +128,7 @@ export class Decoder {
             chunk
           )
         );
-      
+
       case RESP_TYPES.DOUBLE:
         return this.#handleDecodedValue(
           this.onReply,
@@ -137,7 +137,7 @@ export class Decoder {
             chunk
           )
         );
-      
+
       case RESP_TYPES.SIMPLE_STRING:
         return this.#handleDecodedValue(
           this.onReply,
@@ -146,7 +146,7 @@ export class Decoder {
             chunk
           )
         );
-      
+
       case RESP_TYPES.BLOB_STRING:
         return this.#handleDecodedValue(
           this.onReply,
@@ -170,7 +170,7 @@ export class Decoder {
           this.onErrorReply,
           this.#decodeSimpleError(chunk)
         );
-      
+
       case RESP_TYPES.BLOB_ERROR:
         return this.#handleDecodedValue(
           this.onErrorReply,
@@ -188,7 +188,7 @@ export class Decoder {
           this.onReply,
           this.#decodeSet(this.getTypeMapping(), chunk)
         );
-      
+
       case RESP_TYPES.MAP:
         return this.#handleDecodedValue(
           this.onReply,
@@ -421,17 +421,17 @@ export class Decoder {
           return this.#cursor === chunk.length ?
             this.#decodeDoubleExponent.bind(this, d) :
             this.#decodeDoubleExponent(d, chunk);
-        
+
         case ASCII['\r']:
           this.#cursor = cursor + 2; // skip \r\n
           return isNegative ? -double : double;
       }
-      
+
       if (decimalIndex < Decoder.#DOUBLE_DECIMAL_MULTIPLIERS.length) {
         double += (byte - ASCII['0']) * Decoder.#DOUBLE_DECIMAL_MULTIPLIERS[decimalIndex++];
       }
     } while (++cursor < chunk.length);
-    
+
     this.#cursor = cursor;
     return this.#decodeDoubleDecimal.bind(this, isNegative, decimalIndex, double);
   }
@@ -613,7 +613,7 @@ export class Decoder {
   }
 
   #decodeVerbatimStringFormat(stringLength, chunk) {
-    const formatCb = this.#decodeStringWithLength.bind(this, 3, 1, String); 
+    const formatCb = this.#decodeStringWithLength.bind(this, 3, 1, String);
     return this.#cursor >= chunk.length ?
       this.#continueDecodeVerbatimStringFormat.bind(this, stringLength, formatCb) :
       this.#continueDecodeVerbatimStringFormat(stringLength, formatCb, chunk);
@@ -689,13 +689,13 @@ export class Decoder {
 
       case RESP_TYPES.BIG_NUMBER:
         return this.#decodeBigNumber(typeMapping[RESP_TYPES.BIG_NUMBER], chunk);
-      
+
       case RESP_TYPES.DOUBLE:
         return this.#decodeDouble(typeMapping[RESP_TYPES.DOUBLE], chunk);
-      
+
       case RESP_TYPES.SIMPLE_STRING:
         return this.#decodeSimpleString(typeMapping[RESP_TYPES.SIMPLE_STRING], chunk);
-      
+
       case RESP_TYPES.BLOB_STRING:
         return this.#decodeBlobString(typeMapping[RESP_TYPES.BLOB_STRING], chunk);
 
@@ -704,7 +704,7 @@ export class Decoder {
 
       case RESP_TYPES.SIMPLE_ERROR:
         return this.#decodeSimpleError(chunk);
-      
+
       case RESP_TYPES.BLOB_ERROR:
         return this.#decodeBlobError(chunk);
 
@@ -713,7 +713,7 @@ export class Decoder {
 
       case RESP_TYPES.SET:
         return this.#decodeSet(typeMapping, chunk);
-      
+
       case RESP_TYPES.MAP:
         return this.#decodeMap(typeMapping, chunk);
 
@@ -997,7 +997,7 @@ export class Decoder {
       // decode simple string map key as string (and not as buffer)
       case RESP_TYPES.SIMPLE_STRING:
         return this.#decodeSimpleString(String, chunk);
-      
+
       // decode blob string map key as string (and not as buffer)
       case RESP_TYPES.BLOB_STRING:
         return this.#decodeBlobString(String, chunk);
@@ -1028,7 +1028,7 @@ export class Decoder {
         this.#decodeNestedType.bind(this, typeMapping),
         typeMapping
       );
-    }      
+    }
 
     const value = this.#decodeNestedType(typeMapping, chunk);
     if (typeof value === 'function') {

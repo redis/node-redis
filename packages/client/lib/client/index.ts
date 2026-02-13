@@ -20,7 +20,7 @@ import { BasicClientSideCache, ClientSideCacheConfig, ClientSideCacheProvider } 
 import { BasicCommandParser, CommandParser } from './parser';
 import SingleEntryCache from '../single-entry-cache';
 import { version } from '../../package.json'
-import EnterpriseMaintenanceManager, { MaintenanceUpdate, MovingEndpointType } from './enterprise-maintenance-manager';
+import EnterpriseMaintenanceManager, { MaintenanceUpdate, MovingEndpointType, SMIGRATED_EVENT, SMigratedEvent } from './enterprise-maintenance-manager';
 
 export interface RedisClientOptions<
   M extends RedisModules = RedisModules,
@@ -1008,6 +1008,20 @@ export default class RedisClient<
      this._self.#maybeScheduleWrite();
    }
 
+   /**
+    * @internal
+    */
+   _handleSmigrated(smigratedEvent: SMigratedEvent) {
+     this._self.emit(SMIGRATED_EVENT, smigratedEvent);
+   }
+
+   /**
+    * @internal
+    */
+   _getQueue(): RedisCommandsQueue {
+     return this._self.#queue;
+   }
+
   /**
    * @internal
    */
@@ -1018,7 +1032,8 @@ export default class RedisClient<
     transformReply: TransformReply | undefined,
   ) {
     const csc = this._self.#clientSideCache;
-    const defaultTypeMapping = this._self.#options.commandOptions === commandOptions;
+    const defaultTypeMapping = this._self.#options.commandOptions === commandOptions ||
+      (this._self.#options.commandOptions?.typeMapping === commandOptions?.typeMapping);
 
     const fn = () => { return this.sendCommand(parser.redisArgs, commandOptions) };
 
@@ -1074,7 +1089,7 @@ export default class RedisClient<
     // Merge global options with provided options
     const opts = {
       ...this._self._commandOptions,
-      ...options
+      ...options,
     }
 
     const promise = this._self.#queue.addCommand<T>(args, opts);

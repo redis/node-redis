@@ -19,6 +19,11 @@ export interface CommandOptions<T = TypeMapping> {
    * Timeout for the command in milliseconds
    */
   timeout?: number;
+  /**
+   * @internal
+   * The slot the command is targeted to (if any)
+   */
+  slotNumber?: number;
 }
 
 export interface CommandToWrite extends CommandWaitingForReply {
@@ -33,6 +38,7 @@ export interface CommandToWrite extends CommandWaitingForReply {
     listener: () => unknown;
     originalTimeout: number | undefined;
   } | undefined;
+  slotNumber?: number
 }
 
 interface CommandWaitingForReply {
@@ -186,14 +192,34 @@ export default class RedisCommandsQueue {
     this.#pushHandlers.push(handler);
   }
 
-  async waitForInflightCommandsToComplete(): Promise<void> {
+  async waitForInflightCommandsToComplete(options?: { timeoutMs?: number, flushOnTimeout?: boolean }): Promise<void> {
     // In-flight commands already completed
     if(this.#waitingForReply.length === 0) {
       return
     };
     // Otherwise wait for in-flight commands to fire `empty` event
     return new Promise(resolve => {
-      this.#waitingForReply.events.on('empty', resolve)
+      const onEmpty = () => {
+        if (timeoutId) clearTimeout(timeoutId);
+        resolve();
+      };
+
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
+      const timeoutMs = options?.timeoutMs;
+      if (timeoutMs !== undefined && timeoutMs > 0) {
+        timeoutId = setTimeout(() => {
+          this.#waitingForReply.events.off('empty', onEmpty);
+          const pendingCount = this.#waitingForReply.length;
+          dbgMaintenance(`waitForInflightCommandsToComplete timed out after ${timeoutMs}ms with ${pendingCount} commands still waiting`);
+          if (options?.flushOnTimeout && pendingCount > 0) {
+            dbgMaintenance(`Flushing ${pendingCount} commands that timed out waiting for reply`);
+            this.#flushWaitingForReply(new TimeoutError());
+          }
+          resolve(); // Resolve instead of reject - we don't want to fail the migration
+        }, timeoutMs);
+      }
+
+      this.#waitingForReply.events.once('empty', onEmpty);
     });
   }
 
@@ -219,6 +245,7 @@ export default class RedisCommandsQueue {
         channelsCounter: undefined,
         typeMapping: options?.typeMapping
       };
+      value.slotNumber = options?.slotNumber
 
       // If #maintenanceCommandTimeout was explicitly set, we should
       // use it instead of the timeout provided by the command
@@ -283,7 +310,8 @@ export default class RedisCommandsQueue {
       if (Array.isArray(reply)) {
         if (this.#onPush(reply)) return;
 
-        if (PONG.equals(reply[0] as Buffer)) {
+        const firstElement = typeof reply[0] === 'string' ? Buffer.from(reply[0]) : reply[0];
+        if (PONG.equals(firstElement as Buffer)) {
           const { resolve, typeMapping } = this.#waitingForReply.shift()!,
             buffer = ((reply[1] as Buffer).length === 0 ? reply[0] : reply[1]) as Buffer;
           resolve(typeMapping?.[RESP_TYPES.SIMPLE_STRING] === Buffer ? buffer : buffer.toString());
@@ -340,6 +368,10 @@ export default class RedisCommandsQueue {
 
   removeAllPubSubListeners() {
     return this.#pubSub.removeAllListeners();
+  }
+
+  removeShardedPubSubListenersForSlots(slots: Set<number>) {
+    return this.#pubSub.removeShardedPubSubListenersForSlots(slots);
   }
 
   resubscribe(chainId?: symbol) {
@@ -540,5 +572,55 @@ export default class RedisCommandsQueue {
       this.#toWrite.length === 0 &&
       this.#waitingForReply.length === 0
     );
+  }
+
+  /**
+   *
+   * Extracts commands for the given slots from the toWrite queue.
+   * Some commands dont have "slotNumber", which means they are not designated to particular slot/node.
+   * We ignore those.
+   */
+  extractCommandsForSlots(slots: Set<number>): CommandToWrite[] {
+    const result: CommandToWrite[] = [];
+    let current = this.#toWrite.head;
+    while(current !== undefined) {
+      if(current.value.slotNumber !== undefined && slots.has(current.value.slotNumber)) {
+        result.push(current.value);
+        const toRemove = current;
+        current = current.next;
+        this.#toWrite.remove(toRemove);
+      } else {
+        // Move to next node even if we don't extract this command
+        current = current.next;
+      }
+    }
+    return result;
+  }
+
+  /**
+  * Gets all commands from the write queue without removing them.
+  */
+  extractAllCommands(): CommandToWrite[] {
+    const result: CommandToWrite[] = [];
+    let current = this.#toWrite.head;
+    while(current) {
+      result.push(current.value);
+      this.#toWrite.remove(current);
+      current = current.next;
+    }
+    return result;
+  }
+
+  /**
+   * Prepends commands to the write queue in reverse.
+   */
+  prependCommandsToWrite(commands: CommandToWrite[]) {
+    if (!commands.length) {
+      return;
+    }
+
+    for (let i = commands.length - 1; i >= 0; i--) {
+      this.#toWrite.unshift(commands[i]);
+    }
   }
 }

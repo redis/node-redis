@@ -7,6 +7,7 @@ import { RedisArgument, RedisFunctions, RedisModules, RedisScripts, RespVersions
 import calculateSlot from 'cluster-key-slot';
 import { RedisSocketOptions } from '../client/socket';
 import { BasicPooledClientSideCache, PooledClientSideCacheProvider } from '../client/cache';
+import { SMIGRATED_EVENT, SMigratedEvent, dbgMaintenance } from '../client/enterprise-maintenance-manager';
 
 interface NodeAddress {
   host: string;
@@ -16,6 +17,8 @@ interface NodeAddress {
 export type NodeAddressMap = {
   [address: string]: NodeAddress;
 } | ((address: string) => NodeAddress | undefined);
+
+export const RESUBSCRIBE_LISTENERS_EVENT = '__resubscribeListeners'
 
 export interface Node<
   M extends RedisModules,
@@ -113,6 +116,7 @@ export default class RedisClusterSlots<
   readonly nodeByAddress = new Map<string, MasterNode<M, F, S, RESP, TYPE_MAPPING> | ShardNode<M, F, S, RESP, TYPE_MAPPING>>();
   pubSubNode?: PubSubNode<M, F, S, RESP, TYPE_MAPPING>;
   clientSideCache?: PooledClientSideCacheProvider;
+  smigratedSeqIdsSeen = new Set<number>;
 
   #isOpen = false;
 
@@ -164,12 +168,16 @@ export default class RedisClusterSlots<
     let start = Math.floor(Math.random() * this.#options.rootNodes.length);
     for (let i = start; i < this.#options.rootNodes.length; i++) {
       if (!this.#isOpen) throw new Error('Cluster closed');
-      if (await this.#discover(this.#options.rootNodes[i])) return;
+      if (await this.#discover(this.#options.rootNodes[i])) {
+        return;
+      }
     }
 
     for (let i = 0; i < start; i++) {
       if (!this.#isOpen) throw new Error('Cluster closed');
-      if (await this.#discover(this.#options.rootNodes[i])) return;
+      if (await this.#discover(this.#options.rootNodes[i])) {
+        return;
+      }
     }
 
     throw new RootNodesUnavailableError();
@@ -251,12 +259,203 @@ export default class RedisClusterSlots<
     }
   }
 
+  #handleSmigrated = async (event: SMigratedEvent) => {
+    dbgMaintenance(`[CSlots]: handle smigrated`, JSON.stringify(event, null, 2));
+
+    if(this.smigratedSeqIdsSeen.has(event.seqId)) {
+      dbgMaintenance(`[CSlots]: sequence id ${event.seqId} already seen, abort`)
+      return
+    }
+    this.smigratedSeqIdsSeen.add(event.seqId);
+
+    for (const entry of event.entries) {
+      const sourceAddress = `${entry.source.host}:${entry.source.port}`;
+      const sourceNode = this.nodeByAddress.get(sourceAddress);
+      dbgMaintenance(`[CSlots]: Looking for sourceAddress=${sourceAddress}. Available addresses in nodeByAddress: ${Array.from(this.nodeByAddress.keys()).join(', ')}`);
+      if (!sourceNode) {
+        dbgMaintenance(`[CSlots]: address ${sourceAddress} not in 'nodeByAddress', skipping this entry`);
+        continue;
+      }
+      if (sourceNode.client === undefined) {
+        dbgMaintenance(`[CSlots]: Node for ${sourceAddress} does not have a client, skipping this entry`);
+        continue;
+      }
+
+      // Track all slots being moved for this entry (used for pubsub listener handling)
+      const allMovingSlots = new Set<number>();
+
+      try {
+        // 1. Pausing
+        // 1.1 Normal
+        sourceNode.client?._pause();
+        // 1.2 Sharded pubsub
+        if ('pubSub' in sourceNode) {
+          sourceNode.pubSub?.client._pause();
+        }
+
+        // 2. Process each destination: create nodes, update slot mappings, extract commands, unpause
+        let lastDestNode: MasterNode<M, F, S, RESP, TYPE_MAPPING> | undefined;
+        for (const { addr: { host, port }, slots } of entry.destinations) {
+          const destinationAddress = `${host}:${port}`;
+          let destMasterNode: MasterNode<M, F, S, RESP, TYPE_MAPPING> | undefined = this.nodeByAddress.get(destinationAddress);
+          dbgMaintenance(`[CSlots]: Looking for destAddress=${destinationAddress}. Found in nodeByAddress: ${destMasterNode ? 'YES' : 'NO'}`);
+          let destShard: Shard<M, F, S, RESP, TYPE_MAPPING>;
+
+          // 2.1 Create new Master if needed
+          if (!destMasterNode) {
+            const promises: Promise<unknown>[] = [];
+            destMasterNode = this.#initiateSlotNode({ host: host, port: port, id: `smigrated-${host}:${port}` }, false, true, new Set(), promises);
+            await Promise.all([...promises, this.#initiateShardedPubSubClient(destMasterNode)]);
+            // Pause new destination until migration is complete
+            destMasterNode.client?._pause();
+            destMasterNode.pubSub?.client._pause();
+            // In case destination node didnt exist, this means Shard didnt exist as well, so creating a new Shard is completely fine
+            destShard = {
+              master: destMasterNode
+            };
+          } else {
+            // DEBUG: Log all master hosts/ports in slots array to diagnose mismatch
+            const allMasters = [...new Set(this.slots)].map(s => `${s.master.host}:${s.master.port}`);
+            dbgMaintenance(`[CSlots]: Searching for shard with host=${host}, port=${port}. Available masters in slots: ${allMasters.join(', ')}`);
+            // In case destination node existed, this means there was a Shard already, so its best if we can find it.
+            const existingShard = this.slots.find(shard => shard.master.host === host && shard.master.port === port);
+            if (!existingShard) {
+              dbgMaintenance("Could not find shard");
+              throw new Error('Could not find shard');
+            }
+            destShard = existingShard;
+            // Pause existing destination during command transfer
+            destMasterNode.client?._pause();
+            destMasterNode.pubSub?.client._pause();
+          }
+
+          // Track last destination for slotless commands later
+          lastDestNode = destMasterNode;
+
+          // 3. Convert slots to Set and update shard mappings
+          const destinationSlots = new Set<number>();
+          for (const slot of slots) {
+            if (typeof slot === 'number') {
+              this.slots[slot] = destShard;
+              destinationSlots.add(slot);
+              allMovingSlots.add(slot);
+            } else {
+              for (let s = slot[0]; s <= slot[1]; s++) {
+                this.slots[s] = destShard;
+                destinationSlots.add(s);
+                allMovingSlots.add(s);
+              }
+            }
+          }
+          dbgMaintenance(`[CSlots]: Updated slots to point to destination ${destMasterNode.address}. Sample slots: ${Array.from(slots).slice(0, 5).join(', ')}${slots.length > 5 ? '...' : ''}`);
+
+          // 4. Extract commands for this destination's slots and prepend to destination queue
+          const commandsForDestination = sourceNode.client._getQueue().extractCommandsForSlots(destinationSlots);
+          destMasterNode.client?._getQueue().prependCommandsToWrite(commandsForDestination);
+          dbgMaintenance(`[CSlots]: Extracted ${commandsForDestination.length} commands for ${destinationSlots.size} slots, prepended to ${destMasterNode.address}`);
+
+          // 5. Unpause destination
+          destMasterNode.client?._unpause();
+          destMasterNode.pubSub?.client._unpause();
+        }
+
+        dbgMaintenance(`[CSlots]: Total ${allMovingSlots.size} slots moved from ${sourceAddress}. Sample: ${Array.from(allMovingSlots).slice(0, 10).join(', ')}${allMovingSlots.size > 10 ? '...' : ''}`);
+
+        // 6. Wait for inflight commands on source to complete (with timeout to prevent hangs)
+        const INFLIGHT_TIMEOUT_MS = 5000; // 5 seconds max wait for inflight commands
+        const inflightPromises: Promise<void>[] = [];
+        const inflightOptions = { timeoutMs: INFLIGHT_TIMEOUT_MS, flushOnTimeout: true };
+
+        inflightPromises.push(sourceNode.client._getQueue().waitForInflightCommandsToComplete(inflightOptions));
+        if ('pubSub' in sourceNode && sourceNode.pubSub !== undefined) {
+          inflightPromises.push(sourceNode.pubSub.client._getQueue().waitForInflightCommandsToComplete(inflightOptions));
+        }
+        if (this.pubSubNode?.address === sourceAddress) {
+          inflightPromises.push(this.pubSubNode.client._getQueue().waitForInflightCommandsToComplete(inflightOptions));
+        }
+        await Promise.all(inflightPromises);
+
+        // 7. Handle source cleanup
+        const sourceStillHasSlots = this.slots.find(slot => slot.master.address === sourceAddress) !== undefined;
+
+        if (sourceStillHasSlots) {
+          // Handle sharded pubsub listeners for moving slots
+          if ('pubSub' in sourceNode) {
+            const listeners = sourceNode.pubSub?.client._getQueue().removeShardedPubSubListenersForSlots(allMovingSlots);
+            this.#emit(RESUBSCRIBE_LISTENERS_EVENT, listeners);
+          }
+
+          // Unpause source since it still has slots
+          sourceNode.client?._unpause();
+          if ('pubSub' in sourceNode) {
+            sourceNode.pubSub?.client._unpause();
+          }
+        } else {
+          // Source has no slots left - move remaining slotless commands and cleanup
+          const remainingCommands = sourceNode.client._getQueue().extractAllCommands();
+          if (remainingCommands.length > 0 && lastDestNode) {
+            lastDestNode.client?._getQueue().prependCommandsToWrite(remainingCommands);
+            // Trigger write scheduling since commands were added after destination was unpaused
+            lastDestNode.client?._unpause();
+            dbgMaintenance(`[CSlots]: Moved ${remainingCommands.length} remaining slotless commands to ${lastDestNode.address}`);
+          }
+
+          if ('pubSub' in sourceNode) {
+            const listeners = sourceNode.pubSub?.client._getQueue().removeAllPubSubListeners();
+            this.#emit(RESUBSCRIBE_LISTENERS_EVENT, listeners);
+          }
+
+          // Remove all local references to the dying shard's clients
+          this.masters = this.masters.filter(master => master.address !== sourceAddress);
+          this.replicas = this.replicas.filter(replica => replica.address !== sourceAddress);
+          this.nodeByAddress.delete(sourceAddress);
+
+          // Handle pubSubNode replacement BEFORE destroying source connections
+          // This ensures subscriptions are resubscribed on a new node before the old connection is lost
+          if (this.pubSubNode?.address === sourceAddress) {
+            const channelsListeners = this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.CHANNELS),
+              patternsListeners = this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.PATTERNS);
+
+            const oldPubSubClient = this.pubSubNode.client;
+
+            if (channelsListeners.size || patternsListeners.size) {
+              await this.#initiatePubSubClient({
+                [PUBSUB_TYPE.CHANNELS]: channelsListeners,
+                [PUBSUB_TYPE.PATTERNS]: patternsListeners
+              });
+            } else {
+              this.pubSubNode = undefined;
+            }
+
+            oldPubSubClient.destroy();
+          }
+
+          // Destroy source connections (use destroy() instead of close() since the node is being removed
+          // and close() can hang if the server is not responding)
+          sourceNode.client?.destroy();
+          if ('pubSub' in sourceNode) {
+            sourceNode.pubSub?.client.destroy();
+          }
+        }
+      } catch (err: any) {
+        dbgMaintenance(`[CSlots]: Error during SMIGRATED handling for source ${sourceAddress}: ${err}`);
+        // Ensure we unpause source on error to prevent deadlock
+        sourceNode.client?._unpause();
+        if ('pubSub' in sourceNode) {
+          sourceNode.pubSub?.client._unpause();
+        }
+        this.#emit('error', err)
+      }
+    }
+  }
+
   async #getShards(rootNode: RedisClusterClientOptions) {
     const options = this.#clientOptionsDefaults(rootNode)!;
     options.socket ??= {};
     options.socket.reconnectStrategy = false;
     options.RESP = this.#options.RESP;
     options.commandOptions = undefined;
+    options.maintNotifications = 'disabled';
 
     // TODO: find a way to avoid type casting
     const client = await this.#clientFactory(options as RedisClientOptions<M, F, S, RESP, {}>)
@@ -344,8 +543,7 @@ export default class RedisClusterSlots<
       port: socket.port,
     });
     const emit = this.#emit;
-    const client = this.#clientFactory(
-      this.#clientOptionsDefaults({
+    const client = this.#clientFactory( this.#clientOptionsDefaults({
         clientSideCache: this.clientSideCache,
         RESP: this.#options.RESP,
         socket,
@@ -356,9 +554,10 @@ export default class RedisClusterSlots<
       .once('ready', () => emit('node-ready', clientInfo))
       .once('connect', () => emit('node-connect', clientInfo))
       .once('end', () => emit('node-disconnect', clientInfo))
+      .on(SMIGRATED_EVENT, this.#handleSmigrated)
       .on('__MOVED', async (allPubSubListeners: PubSubListeners) => {
         await this.rediscover(client);
-        this.#emit('__resubscribeAllPubSubListeners', allPubSubListeners);
+        this.#emit(RESUBSCRIBE_LISTENERS_EVENT, allPubSubListeners);
       });
 
     return client;
@@ -470,20 +669,31 @@ export default class RedisClusterSlots<
     this.#emit('disconnect');
   }
 
-  getClient(
+  async getClientAndSlotNumber(
     firstKey: RedisArgument | undefined,
     isReadonly: boolean | undefined
-  ) {
+  ): Promise<{
+    client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>,
+    slotNumber?: number
+  }> {
     if (!firstKey) {
-      return this.nodeClient(this.getRandomNode());
+      return {
+        client: await this.nodeClient(this.getRandomNode())
+      };
     }
 
     const slotNumber = calculateSlot(firstKey);
     if (!isReadonly) {
-      return this.nodeClient(this.slots[slotNumber].master);
+      return {
+        client: await this.nodeClient(this.slots[slotNumber].master),
+        slotNumber
+      };
     }
 
-    return this.nodeClient(this.getSlotRandomNode(slotNumber));
+    return {
+      client: await this.nodeClient(this.getSlotRandomNode(slotNumber)),
+      slotNumber
+    };
   }
 
   *#iterateAllNodes() {

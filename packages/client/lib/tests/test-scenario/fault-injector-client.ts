@@ -1,5 +1,6 @@
 import { setTimeout } from "node:timers/promises";
 
+// TODO remove types and utilize IFaultInjectorClient
 export type ActionType =
   | "dmc_restart"
   | "failover"
@@ -53,20 +54,6 @@ export class FaultInjectorClient {
   ): Promise<T> {
     return this.#request<T>("POST", "/action", action);
   }
-
-  // public async printStatus() {
-  //   const action = {
-  //     type: 'execute_rladmin_command',
-  //     parameters: {
-  //       rladmin_command: "status",
-  //       bdb_id: "1"
-  //     }
-  //   }
-  //   const { action_id } = await this.#request<{action_id: string}>("POST", "/action", action);
-  //   const status = await this.waitForAction(action_id);
-  //   //@ts-ignore
-  //   console.log(status.output.output);
-  // }
 
   /**
    * Gets the status of a specific action.

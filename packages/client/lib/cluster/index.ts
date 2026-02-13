@@ -4,7 +4,7 @@ import { Command, CommandArguments, CommanderConfig, CommandSignature, TypeMappi
 import { NON_STICKY_COMMANDS } from '../commands';
 import { EventEmitter } from 'node:events';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
-import RedisClusterSlots, { NodeAddressMap, ShardNode } from './cluster-slots';
+import RedisClusterSlots, { NodeAddressMap, RESUBSCRIBE_LISTENERS_EVENT, ShardNode } from './cluster-slots';
 import RedisClusterMultiCommand, { RedisClusterMultiCommandType } from './multi-command';
 import { PubSubListener, PubSubListeners } from '../client/pub-sub';
 import { ErrorReply } from '../errors';
@@ -316,7 +316,7 @@ export default class RedisCluster<
 
     this._options = options;
     this._slots = new RedisClusterSlots(options, this.emit.bind(this));
-    this.on('__resubscribeAllPubSubListeners', this.resubscribeAllPubSubListeners.bind(this));
+    this.on(RESUBSCRIBE_LISTENERS_EVENT, this.resubscribeAllPubSubListeners.bind(this));
 
     if (options?.commandOptions) {
       this._commandOptions = options.commandOptions;
@@ -422,16 +422,19 @@ export default class RedisCluster<
     fn: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>, opts?: ClusterCommandOptions) => Promise<T>
   ): Promise<T> {
     const maxCommandRedirections = this._options.maxCommandRedirections ?? 16;
-    let client = await this._slots.getClient(firstKey, isReadonly);
+    let { client, slotNumber } = await this._slots.getClientAndSlotNumber(firstKey, isReadonly);
     let i = 0;
 
     let myFn = fn;
 
     while (true) {
       try {
-        return await myFn(client, options);
+        const opts = options ?? {};
+        opts.slotNumber = slotNumber;
+        return await myFn(client, opts);
       } catch (err) {
         myFn = fn;
+
 
         // TODO: error class
         if (++i > maxCommandRedirections || !(err instanceof Error)) {
@@ -457,7 +460,9 @@ export default class RedisCluster<
 
         if (err.message.startsWith('MOVED')) {
           await this._slots.rediscover(client);
-          client = await this._slots.getClient(firstKey, isReadonly);
+          const clientAndSlot = await this._slots.getClientAndSlotNumber(firstKey, isReadonly);
+          client = clientAndSlot.client;
+          slotNumber = clientAndSlot.slotNumber;
           continue;
         }
 
@@ -491,11 +496,11 @@ export default class RedisCluster<
     type Multi = new (...args: ConstructorParameters<typeof RedisClusterMultiCommand>) => RedisClusterMultiCommandType<[], M, F, S, RESP, TYPE_MAPPING>;
     return new ((this as any).Multi as Multi)(
       async (firstKey, isReadonly, commands) => {
-        const client = await this._self._slots.getClient(firstKey, isReadonly);
+        const { client } = await this._self._slots.getClientAndSlotNumber(firstKey, isReadonly);
         return client._executeMulti(commands);
       },
       async (firstKey, isReadonly, commands) => {
-        const client = await this._self._slots.getClient(firstKey, isReadonly);
+        const { client } = await this._self._slots.getClientAndSlotNumber(firstKey, isReadonly);
         return client._executePipeline(commands);
       },
       routing,
@@ -591,31 +596,39 @@ export default class RedisCluster<
     );
   }
 
-  resubscribeAllPubSubListeners(allListeners: PubSubListeners) {
-    for(const [channel, listeners] of allListeners.CHANNELS) {
-      listeners.buffers.forEach(bufListener => {
-        this.subscribe(channel, bufListener, true);
-      });
-      listeners.strings.forEach(strListener => {
-        this.subscribe(channel, strListener);
-      });
-    };
-    for (const [channel, listeners] of allListeners.PATTERNS) {
-      listeners.buffers.forEach(bufListener => {
-        this.pSubscribe(channel, bufListener, true);
-      });
-      listeners.strings.forEach(strListener => {
-        this.pSubscribe(channel, strListener);
-      });
-    };
-    for (const [channel, listeners] of allListeners.SHARDED) {
-      listeners.buffers.forEach(bufListener => {
-        this.sSubscribe(channel, bufListener, true);
-      });
-      listeners.strings.forEach(strListener => {
-        this.sSubscribe(channel, strListener);
-      });
-    };
+  resubscribeAllPubSubListeners(allListeners: Partial<PubSubListeners>) {
+    if (allListeners.CHANNELS) {
+      for(const [channel, listeners] of allListeners.CHANNELS) {
+        listeners.buffers.forEach(bufListener => {
+          this.subscribe(channel, bufListener, true);
+        });
+        listeners.strings.forEach(strListener => {
+          this.subscribe(channel, strListener);
+        });
+      }
+    }
+
+    if (allListeners.PATTERNS) {
+      for (const [channel, listeners] of allListeners.PATTERNS) {
+        listeners.buffers.forEach(bufListener => {
+          this.pSubscribe(channel, bufListener, true);
+        });
+        listeners.strings.forEach(strListener => {
+          this.pSubscribe(channel, strListener);
+        });
+      }
+    }
+
+    if (allListeners.SHARDED) {
+      for (const [channel, listeners] of allListeners.SHARDED) {
+        listeners.buffers.forEach(bufListener => {
+          this.sSubscribe(channel, bufListener, true);
+        });
+        listeners.strings.forEach(strListener => {
+          this.sSubscribe(channel, strListener);
+        });
+      }
+    }
   }
 
   sUnsubscribe = this.SUNSUBSCRIBE;

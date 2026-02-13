@@ -1,5 +1,6 @@
 import { RedisArgument } from '../RESP/types';
 import { CommandToWrite } from './commands-queue';
+import calculateSlot from 'cluster-key-slot';
 
 export const PUBSUB_TYPE = {
   CHANNELS: 'CHANNELS',
@@ -51,17 +52,19 @@ export type PubSubCommand = (
 
 export class PubSub {
   static isStatusReply(reply: Array<Buffer>): boolean {
+    const firstElement = typeof reply[0] === 'string' ? Buffer.from(reply[0]) : reply[0];
     return (
-      COMMANDS[PUBSUB_TYPE.CHANNELS].subscribe.equals(reply[0]) ||
-      COMMANDS[PUBSUB_TYPE.CHANNELS].unsubscribe.equals(reply[0]) ||
-      COMMANDS[PUBSUB_TYPE.PATTERNS].subscribe.equals(reply[0]) ||
-      COMMANDS[PUBSUB_TYPE.PATTERNS].unsubscribe.equals(reply[0]) ||
-      COMMANDS[PUBSUB_TYPE.SHARDED].subscribe.equals(reply[0])
+      COMMANDS[PUBSUB_TYPE.CHANNELS].subscribe.equals(firstElement) ||
+      COMMANDS[PUBSUB_TYPE.CHANNELS].unsubscribe.equals(firstElement) ||
+      COMMANDS[PUBSUB_TYPE.PATTERNS].subscribe.equals(firstElement) ||
+      COMMANDS[PUBSUB_TYPE.PATTERNS].unsubscribe.equals(firstElement) ||
+      COMMANDS[PUBSUB_TYPE.SHARDED].subscribe.equals(firstElement)
     );
   }
 
   static isShardedUnsubscribe(reply: Array<Buffer>): boolean {
-    return COMMANDS[PUBSUB_TYPE.SHARDED].unsubscribe.equals(reply[0]);
+    const firstElement = typeof reply[0] === 'string' ? Buffer.from(reply[0]) : reply[0];
+    return COMMANDS[PUBSUB_TYPE.SHARDED].unsubscribe.equals(firstElement);
   }
 
   static #channelsArray(channels: string | Array<string>) {
@@ -370,14 +373,15 @@ export class PubSub {
   }
 
   handleMessageReply(reply: Array<Buffer>): boolean {
-    if (COMMANDS[PUBSUB_TYPE.CHANNELS].message.equals(reply[0])) {
+    const firstElement = typeof reply[0] === 'string' ? Buffer.from(reply[0]) : reply[0];
+    if (COMMANDS[PUBSUB_TYPE.CHANNELS].message.equals(firstElement)) {
       this.#emitPubSubMessage(
         PUBSUB_TYPE.CHANNELS,
         reply[2],
         reply[1]
       );
       return true;
-    } else if (COMMANDS[PUBSUB_TYPE.PATTERNS].message.equals(reply[0])) {
+    } else if (COMMANDS[PUBSUB_TYPE.PATTERNS].message.equals(firstElement)) {
       this.#emitPubSubMessage(
         PUBSUB_TYPE.PATTERNS,
         reply[3],
@@ -385,7 +389,7 @@ export class PubSub {
         reply[1]
       );
       return true;
-    } else if (COMMANDS[PUBSUB_TYPE.SHARDED].message.equals(reply[0])) {
+    } else if (COMMANDS[PUBSUB_TYPE.SHARDED].message.equals(firstElement)) {
       this.#emitPubSubMessage(
         PUBSUB_TYPE.SHARDED,
         reply[2],
@@ -418,6 +422,22 @@ export class PubSub {
     this.listeners[PUBSUB_TYPE.SHARDED] = new Map();
 
     return result;
+  }
+
+  removeShardedPubSubListenersForSlots(slots: Set<number>) {
+    const sharded = new Map<string, ChannelListeners>();
+    for (const [chanel, value] of this.listeners[PUBSUB_TYPE.SHARDED]) {
+      if (slots.has(calculateSlot(chanel))) {
+        sharded.set(chanel, value);
+        this.listeners[PUBSUB_TYPE.SHARDED].delete(chanel);
+      }
+    }
+
+    this.#updateIsActive();
+
+    return {
+      [PUBSUB_TYPE.SHARDED]: sharded
+    };
   }
 
   #emitPubSubMessage(

@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { EventEmitter } from 'node:events';
-import { RedisClusterOptions, RedisClusterClientOptions } from './index';
+import { RedisClusterClientOptions } from './index';
 import RedisClusterSlots from './cluster-slots';
 
 describe('RedisClusterSlots', () => {

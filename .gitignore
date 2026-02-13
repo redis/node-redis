@@ -9,3 +9,4 @@ dump.rdb
 documentation/
 tsconfig.tsbuildinfo
 junit-results/
+*.log
