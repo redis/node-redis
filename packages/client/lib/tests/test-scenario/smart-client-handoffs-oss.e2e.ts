@@ -1,3 +1,30 @@
+/**
+ * Smart Client Handoffs E2E Test for OSS Redis
+ *
+ * This test validates client behavior during topology changes (failovers, node additions/removals).
+ *
+ * To run this test manually:
+ *
+ *   REDIS_EMIT_DIAGNOSTICS=true REDIS_DEBUG_MAINTENANCE=true RE_FAULT_INJECTOR_URL=http://127.0.0.1:20324 \
+ *   npx mocha -t 1000000 -r tsx packages/client/lib/tests/test-scenario/smart-client-handoffs-oss.e2e.ts \
+ *   -- --nocapture --delay --effect=remove-add --trigger=failover --db=ext-hostname
+ *
+ * Environment variables:
+ *   - REDIS_EMIT_DIAGNOSTICS=true  : Enables diagnostics channel events for monitoring
+ *   - REDIS_DEBUG_MAINTENANCE=true : Enables debug logging for maintenance operations
+ *   - RE_FAULT_INJECTOR_URL        : URL of the fault injector service
+ *
+ * CLI arguments:
+ * REQUIRED:
+ *   - --delay  : Use delayed test execution
+ * OPTIONAL:
+ *   - --nocapture      : Don't capture stdout/stderr
+ *   - --effect         : The effect to test (e.g., remove-add, add-remove)
+ *   - --trigger        : The trigger mechanism (e.g., failover, maintenance)
+ *   - --db             : Database configuration (e.g., ext-hostname)
+ */
+
+
 import assert from "node:assert";
 import { setTimeout } from "node:timers/promises";
 import diagnostics_channel from "node:diagnostics_channel";
@@ -63,8 +90,7 @@ const KEYS = [
       filterTriggersByArgs(add, remove, removeAdd, slotShuffle));
   }
 
-  // Dynamic Test Generation
-  describe("Cluster Maintenance", () => {
+  describe("Smart Client Handoffs E2E Test for OSS Redis", () => {
 
   let diagnosticEvents: DiagnosticsEvent[] = [];
 
