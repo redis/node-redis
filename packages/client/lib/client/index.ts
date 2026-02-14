@@ -22,6 +22,7 @@ import SingleEntryCache from '../single-entry-cache';
 import { version } from '../../package.json'
 import EnterpriseMaintenanceManager, { MaintenanceUpdate, MovingEndpointType, SMIGRATED_EVENT, SMigratedEvent } from './enterprise-maintenance-manager';
 import { OTelClientAttributes, OTelMetrics } from '../opentelemetry';
+import { ClientIdentity, ClientRole, ExtendedClientIdentity, generateClientId } from './identity';
 
 export interface RedisClientOptions<
   M extends RedisModules = RedisModules,
@@ -455,6 +456,7 @@ export default class RedisClient<
   // 1. New socket to be ready after maintenance redirect
   // 2. In-flight commands on the old socket to complete
   #paused = false;
+  #clientIdentity: ClientIdentity;
 
   get clientSideCache() {
     return this._self.#clientSideCache;
@@ -462,6 +464,31 @@ export default class RedisClient<
 
   get options(): RedisClientOptions<M, F, S, RESP> {
     return this._self.#options;
+  }
+
+  /**
+   * @internal
+   * Returns the client identity for tracking in metrics.
+   */
+  _getClientIdentity(): ExtendedClientIdentity {
+    return {
+      ...this._self.#clientIdentity,
+      host: this._self.#socket.host,
+      port: this._self.#socket.port,
+      db: this._self.#selectedDB
+    };
+  }
+
+  /**
+   * @internal
+   * Sets the client identity. Used by pool/cluster/sentinel when creating child clients.
+   */
+  _setIdentity(role: ClientRole, parentId?: string): void {
+    this._self.#clientIdentity = {
+      ...this._self.#clientIdentity,
+      role,
+      parentId
+    };
   }
 
   get isOpen(): boolean {
@@ -506,8 +533,16 @@ export default class RedisClient<
     super();
     this.#validateOptions(options)
     this.#options = this.#initiateOptions(options);
+
     this.#queue = this.#initiateQueue();
     this.#socket = this.#initiateSocket();
+
+    const socketOpts = this.#options.socket as { host?: string; port?: number } | undefined;
+
+    this.#clientIdentity = {
+      id: generateClientId(socketOpts?.host, socketOpts?.port, this.#selectedDB),
+      role: ClientRole.STANDALONE
+    };
 
 
     if(this.#options.maintNotifications !== 'disabled') {
