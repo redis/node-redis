@@ -3,6 +3,7 @@ import {
   Counter,
   Histogram,
   MeterProvider,
+  ObservableGauge,
   UpDownCounter,
 } from "@opentelemetry/api";
 import { RedisArgument } from "../RESP/types";
@@ -53,6 +54,9 @@ export interface OTelClientAttributes {
   host?: string;
   port?: string | number;
   db?: string | number;
+  clientId?: string;
+  parentId?: string;
+  isPubSub?: boolean;
 }
 
 export interface ObservabilityConfig {
@@ -78,13 +82,13 @@ export type MetricInstruments = Readonly<{
   dbClientOperationDuration: Histogram<Attributes>;
 
   // Connection Basic metrics
-  dbClientConnectionCount: UpDownCounter<Attributes>;
+  dbClientConnectionCount: ObservableGauge<Attributes>;
   dbClientConnectionCreateTime: Histogram<Attributes>;
   redisClientConnectionRelaxedTimeout: UpDownCounter<Attributes>;
   redisClientConnectionHandoff: Counter<Attributes>;
 
   // Connection Advanced metrics
-  dbClientConnectionPendingRequests: UpDownCounter<Attributes>;
+  dbClientConnectionPendingRequests: ObservableGauge<Attributes>;
   dbClientConnectionWaitTime: Histogram<Attributes>;
   dbClientConnectionUseTime: Histogram<Attributes>;
   redisClientConnectionClosed: Counter<Attributes>;
@@ -101,7 +105,7 @@ export type MetricInstruments = Readonly<{
 
   // Client-Side Caching metrics
   redisClientCscRequests: Counter<Attributes>;
-  redisClientCscItems: UpDownCounter<Attributes>;
+  redisClientCscItems: ObservableGauge<Attributes>;
   redisClientCscEvictions: Counter<Attributes>;
   redisClientCscNetworkSaved: Counter<Attributes>;
 }>;
@@ -139,6 +143,7 @@ export const OTEL_ATTRIBUTES = {
   redisClientOperationRetryAttempts: "redis.client.operation.retry_attempts",
   redisClientOperationBlocking: "redis.client.operation.blocking",
   redisClientConnectionNotification: "redis.client.connection.notification",
+  redisClientParentId: "redis.client.parent.id",
 } as const;
 
 export const ERROR_CATEGORY = {
@@ -265,10 +270,6 @@ export interface IOTelCommandMetrics {
 }
 
 export interface IOTelConnectionBasicMetrics {
-  recordConnectionCount(
-    value: number,
-    clientAttributes?: OTelClientAttributes,
-  ): void;
   createRecordConnectionCreateTime(
     clientAttributes?: OTelClientAttributes,
   ): () => void;
@@ -280,10 +281,6 @@ export interface IOTelConnectionBasicMetrics {
 }
 
 export interface IOTelConnectionAdvancedMetrics {
-  recordPendingRequests(
-    value: number,
-    clientAttributes?: OTelClientAttributes,
-  ): void;
   recordConnectionClosed(
     reason: ConnectionCloseReason,
     clientAttributes?: OTelClientAttributes,
@@ -326,10 +323,6 @@ export interface IOTelResiliencyMetrics {
 export interface IOTelClientSideCacheMetrics {
   recordCacheRequest(
     result: CscResult,
-    clientAttributes?: OTelClientAttributes,
-  ): void;
-  recordCacheItemsChange(
-    delta: number,
     clientAttributes?: OTelClientAttributes,
   ): void;
   recordCacheEviction(

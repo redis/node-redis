@@ -1,3 +1,4 @@
+import { ClientRegistry } from "./client-registry";
 import { OTelMetrics } from "./metrics";
 import { ObservabilityConfig } from "./types";
 
@@ -22,6 +23,7 @@ export class OpenTelemetry {
     }
 
     OpenTelemetry._instance = new OpenTelemetry();
+    ClientRegistry.init();
     OTelMetrics.init({ api, config });
   }
 }
@@ -43,3 +45,8 @@ export {
   IOTelStreamMetrics,
 } from "./types";
 export { OTelMetrics } from "./metrics";
+export {
+  ClientRegistry,
+  ClientMetricsHandle,
+  IClientRegistry,
+} from "./client-registry";
