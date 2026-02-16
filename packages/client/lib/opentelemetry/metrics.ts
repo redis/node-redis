@@ -1,5 +1,6 @@
-import { Meter } from "@opentelemetry/api";
+import { Meter, BatchObservableResult } from "@opentelemetry/api";
 import { RedisArgument } from "../RESP/types";
+import { ClientRegistry } from "./client-registry";
 import {
   ConnectionCloseReason,
   CscEvictionReason,
@@ -166,16 +167,6 @@ class OTelConnectionBasicMetrics implements IOTelConnectionBasicMetrics {
     this.#instruments = instruments;
   }
 
-  public recordConnectionCount(
-    value: number,
-
-    clientAttributes?: OTelClientAttributes,
-  ) {
-    this.#instruments.dbClientConnectionCount.add(value, {
-      ...this.#options.attributes,
-      ...parseClientAttributes(clientAttributes),
-    });
-  }
   public createRecordConnectionCreateTime(
     clientAttributes?: OTelClientAttributes,
   ): () => void {
@@ -217,15 +208,6 @@ class OTelConnectionAdvancedMetrics implements IOTelConnectionAdvancedMetrics {
     this.#instruments = instruments;
   }
 
-  public recordPendingRequests(
-    value: number,
-    clientAttributes?: OTelClientAttributes,
-  ) {
-    this.#instruments.dbClientConnectionPendingRequests.add(value, {
-      ...this.#options.attributes,
-      ...parseClientAttributes(clientAttributes),
-    });
-  }
 
   public recordConnectionClosed(
     reason: ConnectionCloseReason,
@@ -346,15 +328,6 @@ class OTelClientSideCacheMetrics implements IOTelClientSideCacheMetrics {
     });
   }
 
-  public recordCacheItemsChange(
-    delta: number,
-    clientAttributes?: OTelClientAttributes,
-  ) {
-    this.#instruments.redisClientCscItems.add(delta, {
-      ...this.#options.attributes,
-      ...parseClientAttributes(clientAttributes),
-    });
-  }
 
   public recordCacheEviction(
     reason: CscEvictionReason,
@@ -756,6 +729,37 @@ export class OTelMetrics implements IOTelMetrics {
     });
   }
 
+  private createObservableGaugeWithCallback(
+    meter: Meter,
+    enabledMetricGroups: MetricGroup[],
+    instrumentConfig: BaseInstrumentConfig,
+    options: MetricOptions,
+    callback: (
+      observableResult: BatchObservableResult,
+      options: MetricOptions,
+    ) => void,
+  ) {
+    const isEnabled = enabledMetricGroups.includes(
+      instrumentConfig.metricGroup,
+    );
+
+    if (!isEnabled) {
+      return createNoopMeter().createObservableGauge(instrumentConfig.name);
+    }
+
+    const gauge = meter.createObservableGauge(instrumentConfig.name, {
+      unit: instrumentConfig.unit,
+      description: instrumentConfig.description,
+    });
+
+    meter.addBatchObservableCallback(
+      (observableResult) => callback(observableResult, options),
+      [gauge],
+    );
+
+    return gauge;
+  }
+
   private registerInstruments(
     meter: Meter,
     options: MetricOptions,
@@ -775,18 +779,28 @@ export class OTelMetrics implements IOTelMetrics {
         },
       ),
       // Basic connection
-      // TODO: Convert to Observable Gauge for accurate point-in-time reporting.
-      // Observable Gauges use callback-based collection to report the current value on demand,
-      // which is more appropriate for "current count" metrics. This requires architecture changes
-      // to support callback-based gauge collection. See deferred items in PRD.
-      dbClientConnectionCount: this.createUpDownCounter(
+      // Observable Gauge: emits 1 per registered client (each client = 1 connection)
+      dbClientConnectionCount: this.createObservableGaugeWithCallback(
         meter,
         options.enabledMetricGroups,
         {
           name: METRIC_NAMES.dbClientConnectionCount,
           unit: "{connection}",
-          description: "Current number of active connections in the pool",
+          description: "Current number of active connections",
           metricGroup: METRIC_GROUP.CONNECTION_BASIC,
+        },
+        options,
+        (observableResult, opts) => {
+          for (const handle of ClientRegistry.instance.getAll()) {
+            observableResult.observe(
+              this.#instruments.dbClientConnectionCount,
+              handle.isConnected() ? 1 : 0,
+              {
+                ...opts.attributes,
+                ...parseClientAttributes(handle.getAttributes()),
+              },
+            );
+          }
         },
       ),
       dbClientConnectionCreateTime: this.createHistogram(
@@ -848,18 +862,27 @@ export class OTelMetrics implements IOTelMetrics {
           histogramBoundaries: options.bucketsConnectionUseTime,
         },
       ),
-      // TODO: Convert to Observable Gauge for accurate point-in-time reporting.
-      // Observable Gauges use callback-based collection to report the current value on demand,
-      // which is more appropriate for "pending count" metrics. This requires architecture changes
-      // to support callback-based gauge collection. See deferred items in PRD.
-      dbClientConnectionPendingRequests: this.createUpDownCounter(
+      dbClientConnectionPendingRequests: this.createObservableGaugeWithCallback(
         meter,
         options.enabledMetricGroups,
         {
           name: METRIC_NAMES.dbClientConnectionPendingRequests,
           unit: "{request}",
-          description: "Number of requests waiting for an available connection",
+          description: "Current number of pending requests per connection",
           metricGroup: METRIC_GROUP.CONNECTION_ADVANCED,
+        },
+        options,
+        (observableResult, opts) => {
+          for (const handle of ClientRegistry.instance.getAll()) {
+            observableResult.observe(
+              this.#instruments.dbClientConnectionPendingRequests,
+              handle.getPendingRequests(),
+              {
+                ...opts.attributes,
+                ...parseClientAttributes(handle.getAttributes()),
+              },
+            );
+          }
         },
       ),
       redisClientConnectionClosed: this.createCounter(
@@ -928,11 +951,7 @@ export class OTelMetrics implements IOTelMetrics {
           metricGroup: METRIC_GROUP.CLIENT_SIDE_CACHING,
         },
       ),
-      // TODO: Convert to Observable Gauge when architecture supports callback-based collection.
-      // An Observable Gauge reports the current cache size on demand via a callback,
-      // which is more appropriate for "current count" metrics.
-      // See deferred items in PRD for full context.
-      redisClientCscItems: this.createUpDownCounter(
+      redisClientCscItems: this.createObservableGaugeWithCallback(
         meter,
         options.enabledMetricGroups,
         {
@@ -940,6 +959,19 @@ export class OTelMetrics implements IOTelMetrics {
           unit: "{item}",
           description: "Current number of items in the client-side cache",
           metricGroup: METRIC_GROUP.CLIENT_SIDE_CACHING,
+        },
+        options,
+        (observableResult, opts) => {
+          for (const handle of ClientRegistry.instance.getAll()) {
+            observableResult.observe(
+              this.#instruments.redisClientCscItems,
+              handle.getCacheItemCount(),
+              {
+                ...opts.attributes,
+                ...parseClientAttributes(handle.getAttributes()),
+              },
+            );
+          }
         },
       ),
       redisClientCscEvictions: this.createCounter(

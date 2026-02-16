@@ -21,7 +21,7 @@ import { BasicCommandParser, CommandParser } from './parser';
 import SingleEntryCache from '../single-entry-cache';
 import { version } from '../../package.json'
 import EnterpriseMaintenanceManager, { MaintenanceUpdate, MovingEndpointType, SMIGRATED_EVENT, SMigratedEvent } from './enterprise-maintenance-manager';
-import { OTelClientAttributes, OTelMetrics } from '../opentelemetry';
+import { ClientMetricsHandle, ClientRegistry, OTelClientAttributes, OTelMetrics } from '../opentelemetry';
 import { ClientIdentity, ClientRole, ExtendedClientIdentity, generateClientId } from './identity';
 
 export interface RedisClientOptions<
@@ -457,6 +457,7 @@ export default class RedisClient<
   // 2. In-flight commands on the old socket to complete
   #paused = false;
   #clientIdentity: ClientIdentity;
+  #registered = false;
 
   get clientSideCache() {
     return this._self.#clientSideCache;
@@ -489,6 +490,42 @@ export default class RedisClient<
       role,
       parentId
     };
+  }
+
+  /**
+   * @internal
+   * Creates a metrics handle for this client.
+   */
+  #createMetricsHandle(): ClientMetricsHandle {
+    return {
+      identity: this._self.#clientIdentity,
+      getAttributes: () =>  this._self._getClientOTelAttributes(),
+      getPendingRequests: () => this._self.#queue.pendingCount,
+      getCacheItemCount: () => this._self.#clientSideCache?.size() ?? 0,
+      isConnected: () => this._self.#socket.isReady
+    };
+  }
+
+  /**
+   * @internal
+   * Registers this client with the metrics registry.
+   */
+  #registerForMetrics(): void {
+    if (this.#registered) {
+      return;
+    }
+    ClientRegistry.instance.register(this.#createMetricsHandle());
+    this.#registered = true;
+  }
+
+  /**
+   * @internal
+   * Unregisters this client from the metrics registry.
+   */
+  #unregisterFromMetrics(): void {
+    if (!this.#registered) return;
+    ClientRegistry.instance.unregister(this.#clientIdentity.id);
+    this.#registered = false;
   }
 
   get isOpen(): boolean {
@@ -544,6 +581,7 @@ export default class RedisClient<
       role: ClientRole.STANDALONE
     };
 
+    this.#registerForMetrics();
 
     if(this.#options.maintNotifications !== 'disabled') {
       new EnterpriseMaintenanceManager(this.#queue, this, this.#options);
@@ -1118,11 +1156,14 @@ export default class RedisClient<
   /**
    * @internal
   */
-  _getClientOTelAttributes(): OTelClientAttributes { // TODO maybe rename this to something more generic
+  _getClientOTelAttributes(): OTelClientAttributes {
     return {
       host: this._self.#socket.host,
       port: this._self.#socket.port,
       db: this._self.#selectedDB,
+      clientId: this._self.#clientIdentity.id,
+      parentId: this._self.#clientIdentity.parentId,
+      isPubSub: this._self.#queue.isPubSubActive,
     };
   }
 
@@ -1155,35 +1196,14 @@ export default class RedisClient<
 
     const promise = this._self.#queue.addCommand<T>(args, opts);
 
-    OTelMetrics.instance.connectionAdvancedMetrics.recordPendingRequests(1, {
-      host: this._self.#socket.host,
-      port: this._self.#socket.port,
-      db: this._self.#selectedDB,
-    });
 
     const trackedPromise = promise
       .then((reply) => {
         recordOperation();
-        OTelMetrics.instance.connectionAdvancedMetrics.recordPendingRequests(
-          -1,
-          {
-            host: this._self.#socket.host,
-            port: this._self.#socket.port,
-            db: this._self.#selectedDB,
-          }
-        );
         return reply;
       })
       .catch((err) => {
         recordOperation(err);
-        OTelMetrics.instance.connectionAdvancedMetrics.recordPendingRequests(
-          -1,
-          {
-            host: this._self.#socket.host,
-            port: this._self.#socket.port,
-            db: this._self.#selectedDB,
-          }
-        );
         throw err;
       });
 
@@ -1658,6 +1678,7 @@ export default class RedisClient<
       clearTimeout(this._self.#pingTimer);
       const quitPromise = this._self.#queue.addCommand<string>(['QUIT']);
       this._self.#scheduleWrite();
+      this._self.#unregisterFromMetrics();
       return quitPromise;
     });
   }
@@ -1681,6 +1702,7 @@ export default class RedisClient<
       this._self.#clientSideCache?.onClose();
 
       if (this._self.#queue.isEmpty()) {
+        this._self.#unregisterFromMetrics();
         this._self.#socket.destroySocket();
         return resolve();
       }
@@ -1689,6 +1711,7 @@ export default class RedisClient<
         if (!this._self.#queue.isEmpty()) return;
 
         this._self.#socket.off('data', maybeClose);
+        this._self.#unregisterFromMetrics();
         this._self.#socket.destroySocket();
         resolve();
       };
@@ -1706,6 +1729,7 @@ export default class RedisClient<
     this._self.#queue.flushAll(new DisconnectsClientError());
     this._self.#socket.destroy();
     this._self.#clientSideCache?.onClose();
+    this._self.#unregisterFromMetrics();
     this._self.#credentialsSubscription?.dispose();
     this._self.#credentialsSubscription = null;
   }

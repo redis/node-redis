@@ -250,10 +250,6 @@ export default class RedisSocket extends EventEmitter {
         this.#isReady = true;
         this.#socketEpoch++;
         this.emit('ready');
-        OTelMetrics.instance.connectionBasicMetrics.recordConnectionCount(1, {
-          host: this.host,
-          port: this.port,
-        });
         recordConnectionCreateTime();
       } catch (err) {
         const retryIn = this.#shouldReconnect(retries++, err as Error);
@@ -344,7 +340,6 @@ export default class RedisSocket extends EventEmitter {
         host: this.host,
         port: this.port,
       };
-      OTelMetrics.instance.connectionBasicMetrics.recordConnectionCount(-1, clientAttributes);
       OTelMetrics.instance.connectionAdvancedMetrics.recordConnectionClosed(
         CONNECTION_CLOSE_REASON.ERROR,
         clientAttributes
@@ -414,7 +409,6 @@ export default class RedisSocket extends EventEmitter {
       host: this.host,
       port: this.port,
     };
-    OTelMetrics.instance.connectionBasicMetrics.recordConnectionCount(-1, clientAttributes);
     OTelMetrics.instance.connectionAdvancedMetrics.recordConnectionClosed(
       CONNECTION_CLOSE_REASON.APPLICATION_CLOSE,
       clientAttributes

@@ -13,9 +13,10 @@ import { spy } from "sinon";
 
 import { OTelMetrics } from "./metrics";
 import { METRIC_NAMES, ObservabilityConfig, OTEL_ATTRIBUTES } from "./types";
-import { NOOP_UP_DOWN_COUNTER_METRIC } from "./noop-meter";
+import { NOOP_COUNTER_METRIC } from "./noop-meter";
 import { noopFunction, waitForMetrics } from "./utils";
 import testUtils, { GLOBAL } from "../test-utils";
+import { ClientRegistry } from "./client-registry";
 
 describe("OTel Metrics Unit Tests", () => {
   afterEach(async () => {
@@ -37,9 +38,9 @@ describe("OTel Metrics Unit Tests", () => {
   });
 
   it("should be noop if not initialized", () => {
-    const addSpy = spy(NOOP_UP_DOWN_COUNTER_METRIC, "add");
+    const addSpy = spy(NOOP_COUNTER_METRIC, "add");
 
-    OTelMetrics.instance.connectionBasicMetrics.recordConnectionCount(1);
+    OTelMetrics.instance.resiliencyMetrics.recordClientErrors(new Error('Test error'), true);
 
     assert.equal(addSpy.callCount, 1);
 
@@ -53,11 +54,11 @@ describe("OTel Metrics Unit Tests", () => {
       },
     };
 
-    const addSpy = spy(NOOP_UP_DOWN_COUNTER_METRIC, "add");
+    const addSpy = spy(NOOP_COUNTER_METRIC, "add");
 
     OTelMetrics.init({ api: undefined, config });
 
-    OTelMetrics.instance.connectionBasicMetrics.recordConnectionCount(1);
+    OTelMetrics.instance.resiliencyMetrics.recordClientErrors(new Error('Test error'), true);
 
     assert.equal(addSpy.callCount, 1);
 
@@ -71,11 +72,11 @@ describe("OTel Metrics Unit Tests", () => {
       },
     };
 
-    const addSpy = spy(NOOP_UP_DOWN_COUNTER_METRIC, "add");
+    const addSpy = spy(NOOP_COUNTER_METRIC, "add");
 
     OTelMetrics.init({ api: undefined, config });
 
-    OTelMetrics.instance.connectionBasicMetrics.recordConnectionCount(1);
+    OTelMetrics.instance.resiliencyMetrics.recordClientErrors(new Error('Test error'), true);
 
     assert.equal(addSpy.callCount, 1);
 
@@ -175,6 +176,10 @@ describe("OTel Metrics E2E", function () {
   this.timeout(5000);
 
   beforeEach(function () {
+    // Initialize ClientRegistry before any client is created
+    // This is important because observable gauges read from the registry
+    ClientRegistry.init();
+
     exporter = new InMemoryMetricExporter(AggregationTemporality.CUMULATIVE);
     reader = new PeriodicExportingMetricReader({
       exporter,
@@ -186,6 +191,7 @@ describe("OTel Metrics E2E", function () {
 
   afterEach(async function () {
     OTelMetrics.reset();
+    ClientRegistry.reset();
 
     // Disable global meter provider
     api.metrics.disable();
@@ -205,9 +211,9 @@ describe("OTel Metrics E2E", function () {
 
     OTelMetrics.init({ api, config });
 
-    OTelMetrics.instance.connectionBasicMetrics.recordConnectionCount(1);
-    OTelMetrics.instance.connectionBasicMetrics.recordConnectionCount(2);
-    OTelMetrics.instance.connectionBasicMetrics.recordConnectionCount(3);
+    OTelMetrics.instance.resiliencyMetrics.recordClientErrors(new Error('Test error 1'), true);
+    OTelMetrics.instance.resiliencyMetrics.recordClientErrors(new Error('Test error 2'), true);
+    OTelMetrics.instance.resiliencyMetrics.recordClientErrors(new Error('Test error 3'), true);
 
     await meterProvider.forceFlush();
 
@@ -216,13 +222,13 @@ describe("OTel Metrics E2E", function () {
     const metric = resourceMetrics
       .flatMap((rm) => rm.scopeMetrics)
       .flatMap((sm) => sm.metrics)
-      .find((m) => m.descriptor.name === "db.client.connection.count");
+      .find((m) => m.descriptor.name === "redis.client.errors");
 
     assert.ok(
       metric,
-      "expected db.client.connection.count metric to be present"
+      "expected redis.client.errors metric to be present"
     );
-    assert.strictEqual(metric.dataPoints?.[0].value, 6);
+    assert.strictEqual(metric.dataPoints?.[0].value, 3);
   });
 
   it("should use global meter provider from api.metrics", async () => {
@@ -238,7 +244,8 @@ describe("OTel Metrics E2E", function () {
 
     OTelMetrics.init({ api, config });
 
-    OTelMetrics.instance.connectionBasicMetrics.recordConnectionCount(5);
+    OTelMetrics.instance.resiliencyMetrics.recordClientErrors(new Error('Test error 1'), true);
+    OTelMetrics.instance.resiliencyMetrics.recordClientErrors(new Error('Test error 2'), true);
 
     await meterProvider.forceFlush();
 
@@ -247,13 +254,13 @@ describe("OTel Metrics E2E", function () {
     const metric = resourceMetrics
       .flatMap((rm) => rm.scopeMetrics)
       .flatMap((sm) => sm.metrics)
-      .find((m) => m.descriptor.name === "db.client.connection.count");
+      .find((m) => m.descriptor.name === "redis.client.errors");
 
     assert.ok(
       metric,
-      "expected db.client.connection.count metric to be present"
+      "expected redis.client.errors metric to be present"
     );
-    assert.strictEqual(metric.dataPoints?.[0].value, 5);
+    assert.strictEqual(metric.dataPoints?.[0].value, 2);
   });
 
   testUtils.testWithClient(
@@ -276,11 +283,11 @@ describe("OTel Metrics E2E", function () {
 
         const resourceMetrics = exporter.getMetrics();
         const metric = resourceMetrics
-          .flatMap((rm) => rm.scopeMetrics)
-          .flatMap((sm) => sm.metrics)
-          .find(
-            (m) => m.descriptor.name === METRIC_NAMES.dbClientConnectionCount
-          );
+        .flatMap((rm) => rm.scopeMetrics)
+        .flatMap((sm) => sm.metrics)
+        .find(
+          (m) => m.descriptor.name === METRIC_NAMES.dbClientConnectionCount
+        );
 
         assert.ok(
           metric,
@@ -401,15 +408,18 @@ describe("OTel Metrics E2E", function () {
         },
       });
 
-      const beforeMetric = await waitForMetrics(
-        meterProvider,
-        exporter,
-        METRIC_NAMES.dbClientConnectionPendingRequests
-      );
+      // For standalone client, observable gauges emit with value 0 before any command.
+      // For cluster with minimizeConnections: true, no clients are created until a command is sent,
+      // so the metric may not exist yet. We check this after the command is sent.
 
-      assert.strictEqual(beforeMetric, undefined);
+      // Clear the exporter so we get fresh metrics after the blocking command
+      exporter.reset();
 
+      // Start a blocking command - this will be pending
       const blockingPromise = client.blPop("key${tag}", 1);
+
+      // Give a small delay to ensure the command has been sent and connection established
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       const afterMetric = await waitForMetrics(
         meterProvider,
@@ -417,10 +427,10 @@ describe("OTel Metrics E2E", function () {
         METRIC_NAMES.dbClientConnectionPendingRequests
       );
 
-      await blockingPromise;
-
       assert.ok(afterMetric, "expected pending requests metric to be present");
-      assert.strictEqual(afterMetric.dataPoints[0].value, 1);
+      assert.strictEqual(afterMetric.dataPoints[0].value, 1, "expected 1 pending request while blocking command is in flight");
+
+      await blockingPromise;
     },
     {
       client: GLOBAL.SERVERS.OPEN,

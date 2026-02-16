@@ -485,6 +485,7 @@ export abstract class ClientSideCacheProvider extends EventEmitter {
   abstract invalidate(key: RedisArgument | null): void;
   abstract clear(): void;
   abstract stats(): CacheStats;
+  abstract size(): number;
   abstract onError(): void;
   abstract onClose(): void;
 }
@@ -650,7 +651,6 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
       }
       this.#keyToCacheKeySetMap.delete(key.toString());
       if (deletedCount > 0) {
-        OTelMetrics.instance.clientSideCacheMetrics.recordCacheItemsChange(-deletedCount);
         // Record invalidations as server-initiated evictions
         OTelMetrics.instance.clientSideCacheMetrics.recordCacheEviction(CSC_EVICTION_REASON.INVALIDATION, deletedCount);
       }
@@ -663,10 +663,6 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
     const oldSize = this.#cacheKeyToEntryMap.size;
     this.#cacheKeyToEntryMap.clear();
     this.#keyToCacheKeySetMap.clear();
-
-    if (oldSize > 0) {
-      OTelMetrics.instance.clientSideCacheMetrics.recordCacheItemsChange(-oldSize);
-    }
 
     if (resetStats) {
       if (!(this.#statsCounter instanceof DisabledStatsCounter)) {
@@ -706,7 +702,6 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
     if (entry) {
       entry.invalidate();
       this.#cacheKeyToEntryMap.delete(cacheKey);
-      OTelMetrics.instance.clientSideCacheMetrics.recordCacheItemsChange(-1);
     }
   }
 
@@ -717,10 +712,9 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
   set(cacheKey: string, cacheEntry: ClientSideCacheEntry, keys: Array<RedisArgument>) {
     let count = this.#cacheKeyToEntryMap.size;
     const oldEntry = this.#cacheKeyToEntryMap.get(cacheKey);
-    const isNewEntry = !oldEntry;
 
     if (oldEntry) {
-      count--; // overwriting, so not incrementig
+      count--; // overwriting, so not incrementing
       oldEntry.invalidate();
     }
 
@@ -732,11 +726,6 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
     }
 
     this.#cacheKeyToEntryMap.set(cacheKey, cacheEntry);
-
-    // Record cache items change for OTel metrics
-    if (isNewEntry) {
-      OTelMetrics.instance.clientSideCacheMetrics.recordCacheItemsChange(1);
-    }
 
     for (const key of keys) {
       if (!this.#keyToCacheKeySetMap.has(key.toString())) {
@@ -785,7 +774,6 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
         entry.invalidate();
       }
       this.#cacheKeyToEntryMap.delete(key);
-      OTelMetrics.instance.clientSideCacheMetrics.recordCacheItemsChange(-1);
     }
   }
 

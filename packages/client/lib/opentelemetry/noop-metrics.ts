@@ -34,10 +34,6 @@ export class NoopCommandMetrics implements IOTelCommandMetrics {
 }
 
 export class NoopConnectionBasicMetrics implements IOTelConnectionBasicMetrics {
-  recordConnectionCount(
-    _value: number,
-    _clientAttributes?: OTelClientAttributes
-  ) {}
 
   createRecordConnectionCreateTime(
     _clientAttributes?: OTelClientAttributes
@@ -54,10 +50,6 @@ export class NoopConnectionBasicMetrics implements IOTelConnectionBasicMetrics {
 }
 
 export class NoopConnectionAdvancedMetrics implements IOTelConnectionAdvancedMetrics {
-  recordPendingRequests(
-    _value: number,
-    _clientAttributes?: OTelClientAttributes
-  ) {}
 
   recordConnectionClosed(
     _reason: ConnectionCloseReason,
@@ -96,10 +88,6 @@ export class NoopClientSideCacheMetrics implements IOTelClientSideCacheMetrics {
     _clientAttributes?: OTelClientAttributes
   ) {}
 
-  recordCacheItemsChange(
-    _delta: number,
-    _clientAttributes?: OTelClientAttributes
-  ) {}
 
   recordCacheEviction(
     _reason: CscEvictionReason,
