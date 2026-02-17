@@ -17,9 +17,15 @@ import { WaitQueue } from './wait-queue';
 import { TcpNetConnectOpts } from 'node:net';
 import { RedisTcpSocketOptions } from '../client/socket';
 import { BasicPooledClientSideCache, PooledClientSideCacheProvider } from '../client/cache';
+import { ScanOptions } from '../commands/SCAN';
+import { RedisArgument } from '../RESP/types';
 
 interface ClientInfo {
   id: number;
+}
+
+interface ScanIteratorOptions {
+  cursor?: RedisArgument;
 }
 
 export class RedisSentinelClient<
@@ -598,6 +604,50 @@ export default class RedisSentinel<
     }
 
     this._self.#internal.setTracer(tracer);
+  }
+
+  async *scanIterator(
+    this: RedisSentinelType<M, F, S, RESP, TYPE_MAPPING>,
+    options?: ScanOptions & ScanIteratorOptions
+  ) {
+    // Acquire a master client lease
+    const masterClient = await this.acquire();
+    let cursor = options?.cursor ?? "0";
+    let shouldRestart = false;
+
+    // Set up topology change listener
+    const handleTopologyChange = (event: RedisSentinelEvent) => {
+      if (event.type === "MASTER_CHANGE") {
+        shouldRestart = true;
+      }
+    };
+
+    // Listen for master changes
+    this.on("topology-change", handleTopologyChange);
+
+    try {
+      do {
+        // Check if we need to restart due to master change
+        if (shouldRestart) {
+          cursor = "0";
+          shouldRestart = false;
+        }
+
+        const reply = await masterClient.scan(cursor, options);
+        // If a topology change happened during the scan command (which caused a retry),
+        // the reply is from the new master using the old cursor. We should discard it
+        // and let the loop restart the scan from cursor "0".
+        if (shouldRestart) {
+          continue;
+        }
+        cursor = reply.cursor;
+        yield reply.keys;
+      } while (cursor !== "0");
+    } finally {
+      // Clean up: remove event listener and release the client
+      this.removeListener("topology-change", handleTopologyChange);
+      masterClient.release();
+    }
   }
 }
 
