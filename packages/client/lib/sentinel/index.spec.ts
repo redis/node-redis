@@ -231,6 +231,31 @@ describe('RedisSentinel', () => {
 
       assert.equal(tester, false);
   }, testOptions)
+
+    testUtils.testWithClientSentinel('plain pubsub - sharded', async sentinel => {
+      let pubSubResolve;
+      const pubSubPromise = new Promise((res) => {
+        pubSubResolve = res;
+      });
+
+      let tester = false;
+      await sentinel.sSubscribe('test', () => {
+        tester = true;
+        pubSubResolve && pubSubResolve(1);
+      })
+
+      await sentinel.sPublish('test', 'hello world');
+      await pubSubPromise;
+      assert.equal(tester, true);
+
+      // now unsubscribe
+      tester = false;
+      await sentinel.sUnsubscribe('test')
+      await sentinel.sPublish('test', 'hello world');
+      await setTimeout(1000);
+
+      assert.equal(tester, false);
+    }, testOptions);
   });
 });
 
