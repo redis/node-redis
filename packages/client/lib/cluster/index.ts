@@ -455,6 +455,13 @@ export default class RedisCluster<
 
         // TODO: error class
         if (++i > maxCommandRedirections || !(err instanceof Error)) {
+          if (err instanceof Error) {
+            OTelMetrics.instance.resiliencyMetrics.recordClientErrors(
+              err,
+              false,
+              client._getClientOTelAttributes(),
+            );
+          }
           throw err;
         }
 
@@ -485,6 +492,7 @@ export default class RedisCluster<
           continue;
         }
 
+        OTelMetrics.instance.resiliencyMetrics.recordClientErrors(err, false, client._getClientOTelAttributes());
         throw err;
       }
     }

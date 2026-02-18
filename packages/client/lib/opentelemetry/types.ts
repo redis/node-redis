@@ -46,7 +46,6 @@ export interface MetricConfig {
   bucketsOperationDuration?: number[];
   bucketsConnectionCreateTime?: number[];
   bucketsConnectionWaitTime?: number[];
-  bucketsConnectionUseTime?: number[];
   bucketsStreamLag?: number[];
 }
 
@@ -90,7 +89,6 @@ export type MetricInstruments = Readonly<{
   // Connection Advanced metrics
   dbClientConnectionPendingRequests: ObservableGauge<Attributes>;
   dbClientConnectionWaitTime: Histogram<Attributes>;
-  dbClientConnectionUseTime: Histogram<Attributes>;
   redisClientConnectionClosed: Counter<Attributes>;
 
   // Resiliency
@@ -131,6 +129,7 @@ export const OTEL_ATTRIBUTES = {
   redisRedirectionKind: "redis.client.redirection.kind",
   redisClientErrorsInternal: "redis.client.errors.internal",
   redisClientErrorsCategory: "redis.client.errors.category",
+  redisClientConnectionPubsub: "redis.client.connection.pubsub",
   redisClientConnectionCloseReason: "redis.client.connection.close.reason",
   redisClientCscResult: "redis.client.csc.result",
   redisClientCscReason: "redis.client.csc.reason",
@@ -203,7 +202,6 @@ export const METRIC_NAMES = {
   // Connection Advanced metrics
   dbClientConnectionPendingRequests: "db.client.connection.pending_requests",
   dbClientConnectionWaitTime: "db.client.connection.wait_time",
-  dbClientConnectionUseTime: "db.client.connection.use_time",
   redisClientConnectionClosed: "redis.client.connection.closed",
 
   // Resiliency metrics
@@ -292,19 +290,7 @@ export interface IOTelConnectionAdvancedMetrics {
    *
    * TODO: Not applicable in single-socket mode. Implement when connection pooling is added.
    */
-  createRecordConnectionWaitTime(
-    clientAttributes?: OTelClientAttributes,
-  ): () => void;
-  /**
-   * Creates a closure to record connection use time.
-   * Call this when a connection is acquired from the pool for an operation.
-   * The returned function should be called when the connection is released back to the pool.
-   *
-   * TODO: Equals operation duration in single-socket mode. Implement separately when pooling is added.
-   */
-  createRecordConnectionUseTime(
-    clientAttributes?: OTelClientAttributes,
-  ): () => void;
+  createRecordConnectionWaitTime(): (clientAttributes?: OTelClientAttributes) => void;
 }
 
 export interface IOTelResiliencyMetrics {

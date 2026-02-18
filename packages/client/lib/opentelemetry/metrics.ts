@@ -208,7 +208,6 @@ class OTelConnectionAdvancedMetrics implements IOTelConnectionAdvancedMetrics {
     this.#instruments = instruments;
   }
 
-
   public recordConnectionClosed(
     reason: ConnectionCloseReason,
     clientAttributes?: OTelClientAttributes,
@@ -222,39 +221,12 @@ class OTelConnectionAdvancedMetrics implements IOTelConnectionAdvancedMetrics {
 
   /**
    * Creates a closure to record connection wait time.
-   *
-   * TODO: Not applicable in single-socket mode. Implement when connection pooling is added.
-   * In single-socket mode, there is no pool to wait for, so this metric is not recorded.
    */
-  public createRecordConnectionWaitTime(
-    clientAttributes?: OTelClientAttributes,
-  ): () => void {
+  public createRecordConnectionWaitTime(): () => void {
     const startTime = performance.now();
 
-    return () => {
+    return (clientAttributes?: OTelClientAttributes) => {
       this.#instruments.dbClientConnectionWaitTime.record(
-        (performance.now() - startTime) / 1000,
-        {
-          ...this.#options.attributes,
-          ...parseClientAttributes(clientAttributes),
-        },
-      );
-    };
-  }
-
-  /**
-   * Creates a closure to record connection use time.
-   *
-   * TODO: Equals operation duration in single-socket mode. Implement separately when pooling is added.
-   * In single-socket mode, the connection use time equals the operation duration.
-   */
-  public createRecordConnectionUseTime(
-    clientAttributes?: OTelClientAttributes,
-  ): () => void {
-    const startTime = performance.now();
-
-    return () => {
-      this.#instruments.dbClientConnectionUseTime.record(
         (performance.now() - startTime) / 1000,
         {
           ...this.#options.attributes,
@@ -328,7 +300,6 @@ class OTelClientSideCacheMetrics implements IOTelClientSideCacheMetrics {
     });
   }
 
-
   public recordCacheEviction(
     reason: CscEvictionReason,
     count: number = 1,
@@ -367,17 +338,20 @@ class OTelPubSubMetrics implements IOTelPubSubMetrics {
     sharded?: boolean,
     clientAttributes?: OTelClientAttributes,
   ) {
-    this.#instruments.redisClientPubsubMessages.add(1, {
-      ...this.#options.attributes,
-      ...parseClientAttributes(clientAttributes),
-      [OTEL_ATTRIBUTES.redisClientPubSubMessageDirection]: direction,
-      ...(channel !== undefined && !this.#options.hidePubSubChannelNames
-        ? { [OTEL_ATTRIBUTES.redisClientPubSubChannel]: channel.toString() }
-        : {}),
-      ...(sharded !== undefined
-        ? { [OTEL_ATTRIBUTES.redisClientPubSubSharded]: sharded }
-        : {}),
-    });
+    this.#instruments.redisClientPubsubMessages.add(
+      1,
+      {
+        ...this.#options.attributes,
+        ...parseClientAttributes(clientAttributes),
+        [OTEL_ATTRIBUTES.redisClientPubSubMessageDirection]: direction,
+        ...(channel !== undefined && !this.#options.hidePubSubChannelNames
+          ? { [OTEL_ATTRIBUTES.redisClientPubSubChannel]: channel.toString() }
+          : {}),
+        ...(sharded !== undefined
+          ? { [OTEL_ATTRIBUTES.redisClientPubSubSharded]: sharded }
+          : {}),
+      },
+    );
   }
 }
 
@@ -656,9 +630,6 @@ export class OTelMetrics implements IOTelMetrics {
       bucketsConnectionWaitTime:
         config?.metrics?.bucketsConnectionWaitTime ??
         DEFAULT_HISTOGRAM_BUCKETS.CONNECTION_WAIT_TIME,
-      bucketsConnectionUseTime:
-        config?.metrics?.bucketsConnectionUseTime ??
-        DEFAULT_HISTOGRAM_BUCKETS.CONNECTION_WAIT_TIME,
       bucketsStreamLag:
         config?.metrics?.bucketsStreamLag ??
         DEFAULT_HISTOGRAM_BUCKETS.STREAM_LAG,
@@ -792,12 +763,24 @@ export class OTelMetrics implements IOTelMetrics {
         options,
         (observableResult, opts) => {
           for (const handle of ClientRegistry.instance.getAll()) {
+            if (!handle.isConnected()) {
+              continue;
+            }
+
+            const attributes = handle.getAttributes();
+            const isUsed = handle.getPendingRequests() > 0;
+
             observableResult.observe(
               this.#instruments.dbClientConnectionCount,
-              handle.isConnected() ? 1 : 0,
+              1,
               {
                 ...opts.attributes,
-                ...parseClientAttributes(handle.getAttributes()),
+                ...parseClientAttributes(attributes),
+                [OTEL_ATTRIBUTES.dbClientConnectionState]: isUsed
+                  ? "used"
+                  : "idle",
+                [OTEL_ATTRIBUTES.redisClientConnectionPubsub]:
+                  attributes.isPubSub ?? false,
               },
             );
           }
@@ -848,18 +831,6 @@ export class OTelMetrics implements IOTelMetrics {
             "Time spent waiting for an available connection from the pool",
           metricGroup: METRIC_GROUP.CONNECTION_ADVANCED,
           histogramBoundaries: options.bucketsConnectionWaitTime,
-        },
-      ),
-      dbClientConnectionUseTime: this.createHistogram(
-        meter,
-        options.enabledMetricGroups,
-        {
-          name: METRIC_NAMES.dbClientConnectionUseTime,
-          unit: "s",
-          description:
-            "Time a connection is actively used for executing operations",
-          metricGroup: METRIC_GROUP.CONNECTION_ADVANCED,
-          histogramBoundaries: options.bucketsConnectionUseTime,
         },
       ),
       dbClientConnectionPendingRequests: this.createObservableGaugeWithCallback(
