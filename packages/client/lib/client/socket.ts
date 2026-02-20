@@ -61,7 +61,7 @@ export default class RedisSocket extends EventEmitter {
   readonly #reconnectStrategy;
   readonly #socketFactory;
   readonly #socketTimeout;
-  readonly #clientId?;
+  readonly #clientId: string;
 
   #maintenanceTimeout: number | undefined;
 
@@ -97,8 +97,8 @@ export default class RedisSocket extends EventEmitter {
 
   constructor(
     initiator: RedisSocketInitiator,
+    clientId: string,
     options?: RedisSocketOptions,
-    clientId?: string,
   ) {
     super();
 

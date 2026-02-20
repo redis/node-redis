@@ -101,48 +101,27 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
     return (error?: Error) => {
       const durationSeconds = (performance.now() - startTime) / 1000;
 
-      const attrs = Object.create(this.#options.attributes ?? null);
-      attrs[OTEL_ATTRIBUTES.dbOperationName] = commandName;
-      attrs[OTEL_ATTRIBUTES.dbNamespace] = clientAttributes?.db;
-      attrs[OTEL_ATTRIBUTES.serverAddress] = clientAttributes?.host;
-      attrs[OTEL_ATTRIBUTES.serverPort] = clientAttributes?.port;
+      const attrs: Record<string, any> = {
+        ...this.#options.attributes,
+        [OTEL_ATTRIBUTES.dbNamespace]: clientAttributes?.db,
+        [OTEL_ATTRIBUTES.serverAddress]: clientAttributes?.host,
+        [OTEL_ATTRIBUTES.serverPort]: clientAttributes?.port,
+        [OTEL_ATTRIBUTES.dbOperationName]: commandName,
+      };
 
       if (error) {
         const errorInfo = getErrorInfo(error);
         attrs[OTEL_ATTRIBUTES.errorType] = errorInfo.errorType;
         attrs[OTEL_ATTRIBUTES.redisClientErrorsCategory] = errorInfo.category;
-        if (errorInfo.statusCode)
+        if (errorInfo.statusCode !== undefined) {
           attrs[OTEL_ATTRIBUTES.dbResponseStatusCode] = errorInfo.statusCode;
+        }
       }
 
       this.#instruments.dbClientOperationDuration.record(
         durationSeconds,
         attrs,
       );
-      // const errorInfo = error ? getErrorInfo(error) : undefined;
-
-      // this.#instruments.dbClientOperationDuration.record(
-      //   (performance.now() - startTime) / 1000,
-      //   {
-      //     ...this.#options.attributes,
-      //     [OTEL_ATTRIBUTES.dbOperationName]: commandName,
-      //     [OTEL_ATTRIBUTES.dbNamespace]: clientAttributes?.db,
-      //     [OTEL_ATTRIBUTES.serverAddress]: clientAttributes?.host,
-      //     [OTEL_ATTRIBUTES.serverPort]: clientAttributes?.port,
-      //     ...(errorInfo
-      //       ? {
-      //           [OTEL_ATTRIBUTES.errorType]: errorInfo.errorType,
-      //           [OTEL_ATTRIBUTES.redisClientErrorsCategory]: errorInfo.category,
-      //           ...(errorInfo?.statusCode
-      //             ? {
-      //                 [OTEL_ATTRIBUTES.dbResponseStatusCode]:
-      //                   errorInfo.statusCode,
-      //               }
-      //             : {}),
-      //         }
-      //       : {}),
-      //   },
-      // );
     };
   }
 
@@ -325,7 +304,9 @@ class OTelClientSideCacheMetrics implements IOTelClientSideCacheMetrics {
     const clientAttributes = resolveClientAttributes(clientId);
     this.#instruments.redisClientCscRequests.add(1, {
       ...this.#options.attributes,
-      ...parseClientAttributes(clientAttributes),
+      [OTEL_ATTRIBUTES.serverAddress]: clientAttributes?.host,
+      [OTEL_ATTRIBUTES.serverPort]: clientAttributes?.port,
+      [OTEL_ATTRIBUTES.dbClientConnectionPoolName]: clientAttributes?.clientId,
       [OTEL_ATTRIBUTES.redisClientCscResult]: result,
     });
   }
@@ -338,7 +319,9 @@ class OTelClientSideCacheMetrics implements IOTelClientSideCacheMetrics {
     const clientAttributes = resolveClientAttributes(clientId);
     this.#instruments.redisClientCscEvictions.add(count, {
       ...this.#options.attributes,
-      ...parseClientAttributes(clientAttributes),
+      [OTEL_ATTRIBUTES.serverAddress]: clientAttributes?.host,
+      [OTEL_ATTRIBUTES.serverPort]: clientAttributes?.port,
+      [OTEL_ATTRIBUTES.dbClientConnectionPoolName]: clientAttributes?.clientId,
       [OTEL_ATTRIBUTES.redisClientCscReason]: reason,
     });
   }
@@ -347,7 +330,9 @@ class OTelClientSideCacheMetrics implements IOTelClientSideCacheMetrics {
     const clientAttributes = resolveClientAttributes(clientId);
     this.#instruments.redisClientCscNetworkSaved.add(bytes, {
       ...this.#options.attributes,
-      ...parseClientAttributes(clientAttributes),
+      [OTEL_ATTRIBUTES.serverAddress]: clientAttributes?.host,
+      [OTEL_ATTRIBUTES.serverPort]: clientAttributes?.port,
+      [OTEL_ATTRIBUTES.dbClientConnectionPoolName]: clientAttributes?.clientId,
     });
   }
 }
@@ -363,20 +348,18 @@ class OTelPubSubMetrics implements IOTelPubSubMetrics {
 
   public recordPubSubMessage(
     direction: "in" | "out",
+    clientId: string,
     channel?: RedisArgument,
     sharded?: boolean,
-    clientId?: string,
   ) {
     const clientAttributes = resolveClientAttributes(clientId);
     this.#instruments.redisClientPubsubMessages.add(1, {
       ...this.#options.attributes,
       ...parseClientAttributes(clientAttributes),
       [OTEL_ATTRIBUTES.redisClientPubSubMessageDirection]: direction,
+      [OTEL_ATTRIBUTES.redisClientPubSubSharded]: sharded ?? false,
       ...(channel !== undefined && !this.#options.hidePubSubChannelNames
         ? { [OTEL_ATTRIBUTES.redisClientPubSubChannel]: channel.toString() }
-        : {}),
-      ...(sharded !== undefined
-        ? { [OTEL_ATTRIBUTES.redisClientPubSubSharded]: sharded }
         : {}),
     });
   }

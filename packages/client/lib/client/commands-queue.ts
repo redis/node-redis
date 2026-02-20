@@ -74,7 +74,8 @@ export default class RedisCommandsQueue {
   readonly #onShardedChannelMoved;
   #chainInExecution: symbol | undefined;
   readonly decoder;
-  readonly #pubSub = new PubSub();
+  readonly #pubSub;
+  readonly #clientId: string;
 
   #pushHandlers: PushHandler[] = [this.#onPush.bind(this)];
 
@@ -144,11 +145,14 @@ export default class RedisCommandsQueue {
     respVersion: RespVersions,
     maxLength: number | null | undefined,
     onShardedChannelMoved: OnShardedChannelMoved,
+    clientId: string
   ) {
     this.#respVersion = respVersion;
     this.#maxLength = maxLength;
     this.#onShardedChannelMoved = onShardedChannelMoved;
     this.decoder = this.#initiateDecoder();
+    this.#clientId = clientId;
+    this.#pubSub = new PubSub(this.#clientId);
   }
 
   #onReply(reply: ReplyUnion) {

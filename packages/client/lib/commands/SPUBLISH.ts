@@ -21,9 +21,9 @@ export default {
   onSuccess: (args, _reply, clientId) => {
     OTelMetrics.instance.pubSubMetrics.recordPubSubMessage(
       "out",
+      clientId,
       args[1],
       true,
-      clientId,
     );
   },
 } as const satisfies Command;

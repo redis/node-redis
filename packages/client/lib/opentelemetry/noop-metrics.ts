@@ -97,9 +97,9 @@ export class NoopClientSideCacheMetrics implements IOTelClientSideCacheMetrics {
 export class NoopPubSubMetrics implements IOTelPubSubMetrics {
   recordPubSubMessage(
     _direction: 'in' | 'out',
+    _clientId: string,
     _channel?: RedisArgument,
     _sharded?: boolean,
-    _clientId?: string
   ) {}
 }
 
