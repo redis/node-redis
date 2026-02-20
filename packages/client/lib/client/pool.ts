@@ -3,7 +3,7 @@ import { Command, CommandSignature, RedisArgument, RedisFunction, RedisFunctions
 import RedisClient, { RedisClientType, RedisClientOptions, WithModules, WithFunctions, WithScripts } from '.';
 import { EventEmitter } from 'node:events';
 import { DoublyLinkedNode, DoublyLinkedList, SinglyLinkedList } from './linked-list';
-import { TimeoutError } from '../errors';
+import { ClientClosedError, TimeoutError } from '../errors';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
 import { CommandOptions } from './commands-queue';
 import RedisClientMultiCommand, { RedisClientMultiCommandType } from './multi-command';
@@ -273,6 +273,12 @@ export class RedisClientPool<
     return this._self.#isClosing;
   }
 
+  /**
+   * Resolve function called when all in-flight tasks complete during close().
+   * Used to signal that the pool has finished draining and clients can be closed.
+   */
+  #drainResolve?: () => void;
+
   #clientSideCache?: PooledClientSideCacheProvider;
   get clientSideCache() {
     return this._self.#clientSideCache;
@@ -407,6 +413,10 @@ export class RedisClientPool<
   
   execute<T>(fn: PoolTask<M, F, S, RESP, TYPE_MAPPING, T>) {
     return new Promise<Awaited<T>>((resolve, reject) => {
+      if (this._self.#isClosing || !this._self.#isOpen) {
+        return reject(new ClientClosedError());
+      }
+
       const client = this._self.#idleClients.shift(),
         { tail } = this._self.#tasksQueue;
       if (!client) {
@@ -470,6 +480,12 @@ export class RedisClientPool<
     this.#clientsInUse.remove(node);
     this.#idleClients.push(node.value);
 
+    // If closing and all tasks are done, signal the drain is complete
+    if (this.#isClosing && this.#clientsInUse.length === 0) {
+      this.#drainResolve?.();
+      return;
+    }
+
     this.#scheduleCleanup();
   }
 
@@ -515,29 +531,35 @@ export class RedisClientPool<
     if (!this._self.#isOpen) return; // TODO: throw err?
 
     this._self.#isClosing = true;
-    
-    try {
-      const promises = [];
+    clearTimeout(this._self.cleanupTimeout);
 
-      for (const client of this._self.#idleClients) {
-        promises.push(client.close());
+    try {
+      // Wait for all in-flight and queued tasks to complete
+      if (this._self.#clientsInUse.length > 0) {
+        await new Promise<void>(resolve => {
+          this._self.#drainResolve = resolve;
+        });
       }
-  
-      for (const client of this._self.#clientsInUse) {
+
+      // Now all tasks are done, close all clients (which are now idle)
+      const promises = [];
+      for (const client of this._self.#idleClients) {
         promises.push(client.close());
       }
 
       await Promise.all(promises);
 
       this._self.#clientSideCache?.onPoolClose();
-  
+
       this._self.#idleClients.reset();
       this._self.#clientsInUse.reset();
     } catch (err) {
-      
+
     } finally {
+      this._self.#drainResolve = undefined;
       this._self.#isClosing = false;
-    } 
+      this._self.#isOpen = false;
+    }
   }
 
   destroy() {
