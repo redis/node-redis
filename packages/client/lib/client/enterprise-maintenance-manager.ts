@@ -96,6 +96,7 @@ export default class EnterpriseMaintenanceManager {
 
   static async getHandshakeCommand(
     options: RedisClientOptions,
+    clientId: string,
   ): Promise<
     | { cmd: Array<RedisArgument>; errorHandler: (error: Error) => void }
     | undefined
@@ -125,11 +126,7 @@ export default class EnterpriseMaintenanceManager {
           throw error;
         }
 
-        OTelMetrics.instance.resiliencyMetrics.recordClientErrors(error, true, {
-          host,
-          // TODO add port
-          // port: options?.socket?.port,
-        });
+        OTelMetrics.instance.resiliencyMetrics.recordClientErrors(error, true, clientId);
       },
     };
   }
@@ -155,7 +152,10 @@ export default class EnterpriseMaintenanceManager {
 
     const type = String(push[0]);
 
-    OTelMetrics.instance.resiliencyMetrics.recordMaintenanceNotifications(type, this.#client._getClientOTelAttributes());
+    OTelMetrics.instance.resiliencyMetrics.recordMaintenanceNotifications(
+      type,
+      this.#client._clientId,
+    );
 
     emitDiagnostics({
       type,
@@ -298,7 +298,9 @@ export default class EnterpriseMaintenanceManager {
     dbgMaintenance("Resume writing");
     this.#client._unpause();
     this.#onMigrated();
-    OTelMetrics.instance.connectionBasicMetrics.recordConnectionHandoff(this.#client._getClientOTelAttributes());
+    OTelMetrics.instance.connectionBasicMetrics.recordConnectionHandoff(
+      this.#client._clientId,
+    );
   };
 
   #onMigrating = () => {

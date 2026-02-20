@@ -40,12 +40,20 @@ import {
   NoopStreamMetrics,
 } from "./noop-metrics";
 
+function resolveClientAttributes(
+  clientId?: string,
+): OTelClientAttributes | undefined {
+  return clientId
+    ? ClientRegistry.instance.getById(clientId)?.getAttributes()
+    : undefined;
+}
+
 class OTelCommandMetrics implements IOTelCommandMetrics {
   readonly #instruments: MetricInstruments;
   readonly #options: MetricOptions;
   public readonly createRecordOperationDuration: (
     args: ReadonlyArray<RedisArgument>,
-    clientAttributes?: OTelClientAttributes,
+    clientId?: string,
   ) => (error?: Error) => void;
 
   constructor(options: MetricOptions, instruments: MetricInstruments) {
@@ -64,7 +72,7 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
 
   #createWithFiltering(
     args: ReadonlyArray<RedisArgument>,
-    clientAttributes?: OTelClientAttributes,
+    clientId?: string,
   ): (error?: Error) => void {
     const commandName = args[0]?.toString() || "UNKNOWN";
 
@@ -72,57 +80,79 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
       return noopFunction;
     }
 
-    return this.#recordOperation(commandName, clientAttributes);
+    return this.#recordOperation(commandName, clientId);
   }
 
   #createWithoutFiltering(
     args: ReadonlyArray<RedisArgument>,
-    clientAttributes?: OTelClientAttributes,
+    clientId?: string,
   ): (error?: Error) => void {
     const commandName = args[0]?.toString() || "UNKNOWN";
-    return this.#recordOperation(commandName, clientAttributes);
+    return this.#recordOperation(commandName, clientId);
   }
 
   #recordOperation(
     commandName: string,
-    clientAttributes?: OTelClientAttributes,
+    clientId?: string,
   ): (error?: Error) => void {
     const startTime = performance.now();
+    const clientAttributes = resolveClientAttributes(clientId);
 
     return (error?: Error) => {
-      const errorInfo = error ? getErrorInfo(error) : undefined;
+      const durationSeconds = (performance.now() - startTime) / 1000;
+
+      const attrs = Object.create(this.#options.attributes ?? null);
+      attrs[OTEL_ATTRIBUTES.dbOperationName] = commandName;
+      attrs[OTEL_ATTRIBUTES.dbNamespace] = clientAttributes?.db;
+      attrs[OTEL_ATTRIBUTES.serverAddress] = clientAttributes?.host;
+      attrs[OTEL_ATTRIBUTES.serverPort] = clientAttributes?.port;
+
+      if (error) {
+        const errorInfo = getErrorInfo(error);
+        attrs[OTEL_ATTRIBUTES.errorType] = errorInfo.errorType;
+        attrs[OTEL_ATTRIBUTES.redisClientErrorsCategory] = errorInfo.category;
+        if (errorInfo.statusCode)
+          attrs[OTEL_ATTRIBUTES.dbResponseStatusCode] = errorInfo.statusCode;
+      }
 
       this.#instruments.dbClientOperationDuration.record(
-        (performance.now() - startTime) / 1000,
-        {
-          ...this.#options.attributes,
-          [OTEL_ATTRIBUTES.dbOperationName]: commandName,
-          [OTEL_ATTRIBUTES.dbNamespace]: clientAttributes?.db,
-          [OTEL_ATTRIBUTES.serverAddress]: clientAttributes?.host,
-          [OTEL_ATTRIBUTES.serverPort]: clientAttributes?.port,
-          ...(errorInfo
-            ? {
-                [OTEL_ATTRIBUTES.errorType]: errorInfo.errorType,
-                [OTEL_ATTRIBUTES.redisClientErrorsCategory]: errorInfo.category,
-                ...(errorInfo?.statusCode
-                  ? {
-                      [OTEL_ATTRIBUTES.dbResponseStatusCode]:
-                        errorInfo.statusCode,
-                    }
-                  : {}),
-              }
-            : {}),
-        },
+        durationSeconds,
+        attrs,
       );
+      // const errorInfo = error ? getErrorInfo(error) : undefined;
+
+      // this.#instruments.dbClientOperationDuration.record(
+      //   (performance.now() - startTime) / 1000,
+      //   {
+      //     ...this.#options.attributes,
+      //     [OTEL_ATTRIBUTES.dbOperationName]: commandName,
+      //     [OTEL_ATTRIBUTES.dbNamespace]: clientAttributes?.db,
+      //     [OTEL_ATTRIBUTES.serverAddress]: clientAttributes?.host,
+      //     [OTEL_ATTRIBUTES.serverPort]: clientAttributes?.port,
+      //     ...(errorInfo
+      //       ? {
+      //           [OTEL_ATTRIBUTES.errorType]: errorInfo.errorType,
+      //           [OTEL_ATTRIBUTES.redisClientErrorsCategory]: errorInfo.category,
+      //           ...(errorInfo?.statusCode
+      //             ? {
+      //                 [OTEL_ATTRIBUTES.dbResponseStatusCode]:
+      //                   errorInfo.statusCode,
+      //               }
+      //             : {}),
+      //         }
+      //       : {}),
+      //   },
+      // );
     };
   }
 
   createRecordBatchOperationDuration(
     operationName: "MULTI" | "PIPELINE",
     batchSize: number,
-    clientAttributes?: OTelClientAttributes,
+    clientId?: string,
   ): (error?: Error) => void {
     const startTime = performance.now();
+    const clientAttributes = resolveClientAttributes(clientId);
 
     return (error?: Error) => {
       const errorInfo = error ? getErrorInfo(error) : undefined;
@@ -167,10 +197,9 @@ class OTelConnectionBasicMetrics implements IOTelConnectionBasicMetrics {
     this.#instruments = instruments;
   }
 
-  public createRecordConnectionCreateTime(
-    clientAttributes?: OTelClientAttributes,
-  ): () => void {
+  public createRecordConnectionCreateTime(clientId?: string): () => void {
     const startTime = performance.now();
+    const clientAttributes = resolveClientAttributes(clientId);
 
     return () => {
       this.#instruments.dbClientConnectionCreateTime.record(
@@ -182,16 +211,15 @@ class OTelConnectionBasicMetrics implements IOTelConnectionBasicMetrics {
       );
     };
   }
-  public recordConnectionRelaxedTimeout(
-    value: number,
-    clientAttributes?: OTelClientAttributes,
-  ) {
+  public recordConnectionRelaxedTimeout(value: number, clientId?: string) {
+    const clientAttributes = resolveClientAttributes(clientId);
     this.#instruments.redisClientConnectionRelaxedTimeout.add(value, {
       ...this.#options.attributes,
       ...parseClientAttributes(clientAttributes),
     });
   }
-  public recordConnectionHandoff(clientAttributes: OTelClientAttributes) {
+  public recordConnectionHandoff(clientId?: string) {
+    const clientAttributes = resolveClientAttributes(clientId);
     this.#instruments.redisClientConnectionHandoff.add(1, {
       ...this.#options.attributes,
       ...parseClientAttributes(clientAttributes),
@@ -210,8 +238,9 @@ class OTelConnectionAdvancedMetrics implements IOTelConnectionAdvancedMetrics {
 
   public recordConnectionClosed(
     reason: ConnectionCloseReason,
-    clientAttributes?: OTelClientAttributes,
+    clientId?: string,
   ) {
+    const clientAttributes = resolveClientAttributes(clientId);
     this.#instruments.redisClientConnectionClosed.add(1, {
       ...this.#options.attributes,
       ...parseClientAttributes(clientAttributes),
@@ -222,10 +251,11 @@ class OTelConnectionAdvancedMetrics implements IOTelConnectionAdvancedMetrics {
   /**
    * Creates a closure to record connection wait time.
    */
-  public createRecordConnectionWaitTime(): () => void {
+  public createRecordConnectionWaitTime(): (clientId?: string) => void {
     const startTime = performance.now();
 
-    return (clientAttributes?: OTelClientAttributes) => {
+    return (clientId?: string) => {
+      const clientAttributes = resolveClientAttributes(clientId);
       this.#instruments.dbClientConnectionWaitTime.record(
         (performance.now() - startTime) / 1000,
         {
@@ -249,9 +279,10 @@ class OTelResiliencyMetrics implements IOTelResiliencyMetrics {
   public recordClientErrors(
     error: Error,
     internal: boolean,
-    clientAttributes?: OTelClientAttributes,
+    clientId?: string,
     retryAttempts?: number,
   ) {
+    const clientAttributes = resolveClientAttributes(clientId);
     const errorInfo = getErrorInfo(error);
     this.#instruments.redisClientErrors.add(1, {
       ...this.#options.attributes,
@@ -270,8 +301,9 @@ class OTelResiliencyMetrics implements IOTelResiliencyMetrics {
 
   public recordMaintenanceNotifications(
     notification: string,
-    clientAttributes?: OTelClientAttributes,
+    clientId?: string,
   ) {
+    const clientAttributes = resolveClientAttributes(clientId);
     this.#instruments.redisClientMaintenanceNotifications.add(1, {
       ...this.#options.attributes,
       ...parseClientAttributes(clientAttributes),
@@ -289,10 +321,8 @@ class OTelClientSideCacheMetrics implements IOTelClientSideCacheMetrics {
     this.#instruments = instruments;
   }
 
-  public recordCacheRequest(
-    result: CscResult,
-    clientAttributes?: OTelClientAttributes,
-  ) {
+  public recordCacheRequest(result: CscResult, clientId?: string) {
+    const clientAttributes = resolveClientAttributes(clientId);
     this.#instruments.redisClientCscRequests.add(1, {
       ...this.#options.attributes,
       ...parseClientAttributes(clientAttributes),
@@ -303,8 +333,9 @@ class OTelClientSideCacheMetrics implements IOTelClientSideCacheMetrics {
   public recordCacheEviction(
     reason: CscEvictionReason,
     count: number = 1,
-    clientAttributes?: OTelClientAttributes,
+    clientId?: string,
   ) {
+    const clientAttributes = resolveClientAttributes(clientId);
     this.#instruments.redisClientCscEvictions.add(count, {
       ...this.#options.attributes,
       ...parseClientAttributes(clientAttributes),
@@ -312,10 +343,8 @@ class OTelClientSideCacheMetrics implements IOTelClientSideCacheMetrics {
     });
   }
 
-  public recordNetworkBytesSaved(
-    bytes: number,
-    clientAttributes?: OTelClientAttributes,
-  ) {
+  public recordNetworkBytesSaved(bytes: number, clientId?: string) {
+    const clientAttributes = resolveClientAttributes(clientId);
     this.#instruments.redisClientCscNetworkSaved.add(bytes, {
       ...this.#options.attributes,
       ...parseClientAttributes(clientAttributes),
@@ -336,22 +365,20 @@ class OTelPubSubMetrics implements IOTelPubSubMetrics {
     direction: "in" | "out",
     channel?: RedisArgument,
     sharded?: boolean,
-    clientAttributes?: OTelClientAttributes,
+    clientId?: string,
   ) {
-    this.#instruments.redisClientPubsubMessages.add(
-      1,
-      {
-        ...this.#options.attributes,
-        ...parseClientAttributes(clientAttributes),
-        [OTEL_ATTRIBUTES.redisClientPubSubMessageDirection]: direction,
-        ...(channel !== undefined && !this.#options.hidePubSubChannelNames
-          ? { [OTEL_ATTRIBUTES.redisClientPubSubChannel]: channel.toString() }
-          : {}),
-        ...(sharded !== undefined
-          ? { [OTEL_ATTRIBUTES.redisClientPubSubSharded]: sharded }
-          : {}),
-      },
-    );
+    const clientAttributes = resolveClientAttributes(clientId);
+    this.#instruments.redisClientPubsubMessages.add(1, {
+      ...this.#options.attributes,
+      ...parseClientAttributes(clientAttributes),
+      [OTEL_ATTRIBUTES.redisClientPubSubMessageDirection]: direction,
+      ...(channel !== undefined && !this.#options.hidePubSubChannelNames
+        ? { [OTEL_ATTRIBUTES.redisClientPubSubChannel]: channel.toString() }
+        : {}),
+      ...(sharded !== undefined
+        ? { [OTEL_ATTRIBUTES.redisClientPubSubSharded]: sharded }
+        : {}),
+    });
   }
 }
 
@@ -367,13 +394,14 @@ class OTelStreamMetrics implements IOTelStreamMetrics {
   public recordStreamLag(
     args: ReadonlyArray<RedisArgument>,
     reply: unknown,
-    clientAttributes?: OTelClientAttributes,
+    clientId?: string,
   ) {
     if (!reply || !Array.isArray(reply) || reply.length === 0) {
       return;
     }
 
     const now = Date.now();
+    const clientAttributes = resolveClientAttributes(clientId);
 
     // Extract consumer group and consumer name from XREADGROUP args
     // XREADGROUP args format: ['XREADGROUP', 'GROUP', group, consumer, ...]

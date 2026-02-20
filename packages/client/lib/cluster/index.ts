@@ -459,14 +459,18 @@ export default class RedisCluster<
             OTelMetrics.instance.resiliencyMetrics.recordClientErrors(
               err,
               false,
-              client._getClientOTelAttributes(),
+              client._clientId,
             );
           }
           throw err;
         }
 
         if (err.message.startsWith('ASK')) {
-          OTelMetrics.instance.resiliencyMetrics.recordClientErrors(err, true, client._getClientOTelAttributes());
+          OTelMetrics.instance.resiliencyMetrics.recordClientErrors(
+            err,
+            true,
+            client._clientId,
+          );
           const address = err.message.substring(err.message.lastIndexOf(' ') + 1);
           let redirectTo = await this._slots.getMasterByAddress(address);
           if (!redirectTo) {
@@ -484,7 +488,11 @@ export default class RedisCluster<
         }
 
         if (err.message.startsWith('MOVED')) {
-          OTelMetrics.instance.resiliencyMetrics.recordClientErrors(err, true, client._getClientOTelAttributes());
+          OTelMetrics.instance.resiliencyMetrics.recordClientErrors(
+            err,
+            true,
+            client._clientId,
+          );
           await this._slots.rediscover(client);
           const clientAndSlot = await this._slots.getClientAndSlotNumber(firstKey, isReadonly);
           client = clientAndSlot.client;
@@ -492,7 +500,11 @@ export default class RedisCluster<
           continue;
         }
 
-        OTelMetrics.instance.resiliencyMetrics.recordClientErrors(err, false, client._getClientOTelAttributes());
+        OTelMetrics.instance.resiliencyMetrics.recordClientErrors(
+          err,
+          false,
+          client._clientId,
+        );
         throw err;
       }
     }

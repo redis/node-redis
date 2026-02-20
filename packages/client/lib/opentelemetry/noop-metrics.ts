@@ -4,7 +4,6 @@ import {
   ConnectionCloseReason,
   CscEvictionReason,
   CscResult,
-  OTelClientAttributes,
   IOTelMetrics,
   IOTelPubSubMetrics,
   IOTelStreamMetrics,
@@ -19,7 +18,7 @@ import { noopFunction } from "./utils";
 export class NoopCommandMetrics implements IOTelCommandMetrics {
   createRecordOperationDuration(
     _args: ReadonlyArray<RedisArgument>,
-    _clientAttributes?: OTelClientAttributes
+    _clientId?: string
   ): (error?: Error) => void {
     return noopFunction;
   }
@@ -27,7 +26,7 @@ export class NoopCommandMetrics implements IOTelCommandMetrics {
   createRecordBatchOperationDuration(
     _operationName: 'MULTI' | 'PIPELINE',
     _batchSize: number,
-    _clientAttributes?: OTelClientAttributes
+    _clientId?: string
   ): (error?: Error) => void {
     return noopFunction;
   }
@@ -36,29 +35,29 @@ export class NoopCommandMetrics implements IOTelCommandMetrics {
 export class NoopConnectionBasicMetrics implements IOTelConnectionBasicMetrics {
 
   createRecordConnectionCreateTime(
-    _clientAttributes?: OTelClientAttributes
+    _clientId?: string
   ): () => void {
     return noopFunction;
   }
 
   recordConnectionRelaxedTimeout(
     _value: number,
-    _clientAttributes?: OTelClientAttributes
+    _clientId?: string
   ) {}
 
-  recordConnectionHandoff(_clientAttributes: OTelClientAttributes) {}
+  recordConnectionHandoff(_clientId?: string) {}
 }
 
 export class NoopConnectionAdvancedMetrics implements IOTelConnectionAdvancedMetrics {
 
   recordConnectionClosed(
     _reason: ConnectionCloseReason,
-    _clientAttributes?: OTelClientAttributes
+    _clientId?: string
   ) {}
 
   createRecordConnectionWaitTime(
-    _clientAttributes?: OTelClientAttributes
-  ): () => void {
+    _clientId?: string
+  ): (clientId?: string) => void {
     return noopFunction;
   }
 }
@@ -67,31 +66,31 @@ export class NoopResiliencyMetrics implements IOTelResiliencyMetrics {
   recordClientErrors(
     _error: Error,
     _internal: boolean,
-    _clientAttributes?: OTelClientAttributes,
+    _clientId?: string,
     _retryAttempts?: number,
   ) {}
   recordMaintenanceNotifications(
     _notification: string,
-    _clientAttributes?: OTelClientAttributes
+    _clientId?: string
   ) {}
 }
 
 export class NoopClientSideCacheMetrics implements IOTelClientSideCacheMetrics {
   recordCacheRequest(
     _result: CscResult,
-    _clientAttributes?: OTelClientAttributes
+    _clientId?: string
   ) {}
 
 
   recordCacheEviction(
     _reason: CscEvictionReason,
     _count?: number,
-    _clientAttributes?: OTelClientAttributes
+    _clientId?: string
   ) {}
 
   recordNetworkBytesSaved(
     _bytes: number,
-    _clientAttributes?: OTelClientAttributes
+    _clientId?: string
   ) {}
 }
 
@@ -100,7 +99,7 @@ export class NoopPubSubMetrics implements IOTelPubSubMetrics {
     _direction: 'in' | 'out',
     _channel?: RedisArgument,
     _sharded?: boolean,
-    _clientAttributes?: OTelClientAttributes
+    _clientId?: string
   ) {}
 }
 
@@ -108,7 +107,7 @@ export class NoopStreamMetrics implements IOTelStreamMetrics {
   recordStreamLag(
     _args: ReadonlyArray<RedisArgument>,
     _reply: ReplyUnion,
-    _clientAttributes?: OTelClientAttributes
+    _clientId?: string
   ) {}
 }
 

@@ -66,11 +66,11 @@ export default {
     2: transformStreamsMessagesReplyResp2,
     3: undefined as unknown as () => ReplyUnion
   },
-  onSuccess: (args, reply, clientAttrs) => {
+  onSuccess: (args, reply, clientId) => {
     OTelMetrics.instance.streamMetrics.recordStreamLag(
       args,
       reply,
-      clientAttrs,
+      clientId,
     );
   },
 } as const satisfies Command;

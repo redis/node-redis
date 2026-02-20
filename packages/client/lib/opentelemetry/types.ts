@@ -257,31 +257,29 @@ export type MetricErrorType =
 export interface IOTelCommandMetrics {
   createRecordOperationDuration(
     args: ReadonlyArray<RedisArgument>,
-    clientAttributes?: OTelClientAttributes,
+    clientId?: string,
   ): (error?: Error) => void;
 
   createRecordBatchOperationDuration(
     operationName: "MULTI" | "PIPELINE",
     batchSize: number,
-    clientAttributes?: OTelClientAttributes,
+    clientId?: string,
   ): (error?: Error) => void;
 }
 
 export interface IOTelConnectionBasicMetrics {
-  createRecordConnectionCreateTime(
-    clientAttributes?: OTelClientAttributes,
-  ): () => void;
+  createRecordConnectionCreateTime(clientId?: string): () => void;
   recordConnectionRelaxedTimeout(
     value: number,
-    clientAttributes?: OTelClientAttributes,
+    clientId?: string,
   ): void;
-  recordConnectionHandoff(clientAttributes: OTelClientAttributes): void;
+  recordConnectionHandoff(clientId?: string): void;
 }
 
 export interface IOTelConnectionAdvancedMetrics {
   recordConnectionClosed(
     reason: ConnectionCloseReason,
-    clientAttributes?: OTelClientAttributes,
+    clientId?: string,
   ): void;
   /**
    * Creates a closure to record connection wait time.
@@ -290,36 +288,30 @@ export interface IOTelConnectionAdvancedMetrics {
    *
    * TODO: Not applicable in single-socket mode. Implement when connection pooling is added.
    */
-  createRecordConnectionWaitTime(): (clientAttributes?: OTelClientAttributes) => void;
+  createRecordConnectionWaitTime(): (clientId?: string) => void;
 }
 
 export interface IOTelResiliencyMetrics {
   recordClientErrors(
     error: Error,
     internal: boolean,
-    clientAttributes?: OTelClientAttributes,
+    clientId?: string,
     retryAttempts?: number,
   ): void;
   recordMaintenanceNotifications(
     notification: string,
-    clientAttributes?: OTelClientAttributes,
+    clientId?: string,
   ): void;
 }
 
 export interface IOTelClientSideCacheMetrics {
-  recordCacheRequest(
-    result: CscResult,
-    clientAttributes?: OTelClientAttributes,
-  ): void;
+  recordCacheRequest(result: CscResult, clientId?: string): void;
   recordCacheEviction(
     reason: CscEvictionReason,
     count?: number,
-    clientAttributes?: OTelClientAttributes,
+    clientId?: string,
   ): void;
-  recordNetworkBytesSaved(
-    bytes: number,
-    clientAttributes?: OTelClientAttributes,
-  ): void;
+  recordNetworkBytesSaved(bytes: number, clientId?: string): void;
 }
 
 export interface IOTelPubSubMetrics {
@@ -327,7 +319,7 @@ export interface IOTelPubSubMetrics {
     direction: "in" | "out",
     channel?: RedisArgument,
     sharded?: boolean,
-    clientAttributes?: OTelClientAttributes,
+    clientId?: string,
   ): void;
 }
 
@@ -335,7 +327,7 @@ export interface IOTelStreamMetrics {
   recordStreamLag(
     args: ReadonlyArray<RedisArgument>,
     reply: unknown,
-    clientAttributes?: OTelClientAttributes,
+    clientId?: string,
   ): void;
 }
 

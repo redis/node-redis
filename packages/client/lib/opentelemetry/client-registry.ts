@@ -51,6 +51,11 @@ export interface IClientRegistry {
   unregister(clientId: string): void;
 
   /**
+   * Get a registered client handle by ID.
+   */
+  getById(clientId: string): ClientMetricsHandle | undefined;
+
+  /**
    * Get all registered client handles.
    */
   getAll(): Iterable<ClientMetricsHandle>;
@@ -67,6 +72,10 @@ class NoOpClientRegistry implements IClientRegistry {
 
   unregister(_clientId: string): void {
     // No-op
+  }
+
+  getById(_clientId: string): ClientMetricsHandle | undefined {
+    return undefined;
   }
 
   getAll(): Iterable<ClientMetricsHandle> {
@@ -87,6 +96,10 @@ class ClientRegistryImpl implements IClientRegistry {
 
   unregister(clientId: string): void {
     this.#clients.delete(clientId);
+  }
+
+  getById(clientId: string): ClientMetricsHandle | undefined {
+    return this.#clients.get(clientId);
   }
 
   getAll(): Iterable<ClientMetricsHandle> {
@@ -142,4 +155,3 @@ export class ClientRegistry {
     ClientRegistry.#initialized = false;
   }
 }
-
