@@ -3,7 +3,7 @@ import { Command, CommandSignature, RedisArgument, RedisFunction, RedisFunctions
 import RedisClient, { RedisClientType, RedisClientOptions, WithModules, WithFunctions, WithScripts } from '.';
 import { EventEmitter } from 'node:events';
 import { DoublyLinkedNode, DoublyLinkedList, SinglyLinkedList } from './linked-list';
-import { TimeoutError } from '../errors';
+import { ClientClosedError, TimeoutError } from '../errors';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
 import { CommandOptions } from './commands-queue';
 import RedisClientMultiCommand, { RedisClientMultiCommandType } from './multi-command';
@@ -413,6 +413,10 @@ export class RedisClientPool<
   
   execute<T>(fn: PoolTask<M, F, S, RESP, TYPE_MAPPING, T>) {
     return new Promise<Awaited<T>>((resolve, reject) => {
+      if (this._self.#isClosing || !this._self.#isOpen) {
+        return reject(new ClientClosedError());
+      }
+
       const client = this._self.#idleClients.shift(),
         { tail } = this._self.#tasksQueue;
       if (!client) {

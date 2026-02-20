@@ -84,6 +84,112 @@ describe('RedisClientPool', () => {
     poolOptions: { minimum: 1, maximum: 1, acquireTimeout: 2000, cleanupDelay: 400  }
   });
 
+  testUtils.testWithClientPool('execute rejects when pool is closing', async pool => {
+    // Start a long-running task to keep the pool busy during close
+    const task1Promise = pool.execute(async client => {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      return 'task1';
+    });
+
+    // Start closing (will wait for task1 to complete)
+    const closePromise = pool.close();
+
+    // Try to execute a new command while closing
+    await assert.rejects(
+      pool.execute(client => client.ping()),
+      { message: /closed/i },
+      'execute() should reject when pool is closing'
+    );
+
+    // sendCommand should also reject
+    await assert.rejects(
+      pool.sendCommand(['PING']),
+      { message: /closed/i },
+      'sendCommand() should reject when pool is closing'
+    );
+
+    // ping() should also reject
+    await assert.rejects(
+      pool.ping(),
+      { message: /closed/i },
+      'ping() should reject when pool is closing'
+    );
+
+    // multi() should also reject when executed
+    await assert.rejects(
+      pool.multi().ping().exec(),
+      { message: /closed/i },
+      'multi().exec() should reject when pool is closing'
+    );
+
+    await closePromise;
+    await task1Promise;
+  }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClientPool('execute rejects when pool is closed', async pool => {
+    await pool.close();
+
+    // Try to execute after pool is closed
+    await assert.rejects(
+      pool.execute(client => client.ping()),
+      { message: /closed/i },
+      'execute() should reject when pool is closed'
+    );
+
+    // sendCommand should also reject
+    await assert.rejects(
+      pool.sendCommand(['PING']),
+      { message: /closed/i },
+      'sendCommand() should reject when pool is closed'
+    );
+
+    // ping() should also reject
+    await assert.rejects(
+      pool.ping(),
+      { message: /closed/i },
+      'ping() should reject when pool is closed'
+    );
+
+    // multi() should also reject when executed
+    await assert.rejects(
+      pool.multi().ping().exec(),
+      { message: /closed/i },
+      'multi().exec() should reject when pool is closed'
+    );
+  }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClientPool('execute rejects when pool is destroyed', async pool => {
+    pool.destroy();
+
+    // Try to execute after pool is destroyed
+    await assert.rejects(
+      pool.execute(client => client.ping()),
+      { message: /closed/i },
+      'execute() should reject when pool is destroyed'
+    );
+
+    // sendCommand should also reject
+    await assert.rejects(
+      pool.sendCommand(['PING']),
+      { message: /closed/i },
+      'sendCommand() should reject when pool is destroyed'
+    );
+
+    // ping() should also reject
+    await assert.rejects(
+      pool.ping(),
+      { message: /closed/i },
+      'ping() should reject when pool is destroyed'
+    );
+
+    // multi() should also reject when executed
+    await assert.rejects(
+      pool.multi().ping().exec(),
+      { message: /closed/i },
+      'multi().exec() should reject when pool is destroyed'
+    );
+  }, GLOBAL.SERVERS.OPEN);
+
   testUtils.testWithClientPool(
     'proper error propagation in sequential operations',
     async (pool) => {
