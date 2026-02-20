@@ -233,6 +233,25 @@ describe('FT.CREATE', () => {
             ]
           );
         });
+
+        it('with INDEXMISSING', () => {
+          assert.deepEqual(
+            parseArgs(CREATE, 'index', {
+              field: {
+                type: SCHEMA_FIELD_TYPE.VECTOR,
+                ALGORITHM: SCHEMA_VECTOR_FIELD_ALGORITHM.FLAT,
+                TYPE: 'FLOAT32',
+                DIM: 2,
+                DISTANCE_METRIC: 'L2',
+                INDEXMISSING: true
+              }
+            }),
+            [
+              'FT.CREATE', 'index', 'SCHEMA', 'field', 'VECTOR', 'FLAT', '6', 'TYPE',
+              'FLOAT32', 'DIM', '2', 'DISTANCE_METRIC', 'L2', 'INDEXMISSING'
+            ]
+          );
+        });
       });
 
       describe('GEOSHAPE', () => {
@@ -270,7 +289,7 @@ describe('FT.CREATE', () => {
           );
         });
       });
-  
+
       it('with AS', () => {
         assert.deepEqual(
           parseArgs(CREATE, 'index', {
@@ -514,6 +533,23 @@ describe('FT.CREATE', () => {
     });
   });
 
+  testUtils.testWithClient('no', async client => {
+    await client.ft.create(
+      'idx:example',
+      {
+        vector1: {
+          type: 'VECTOR',
+          ALGORITHM: 'HNSW',
+          TYPE: 'FLOAT32',
+          DIM: 5,
+          DISTANCE_METRIC: 'L2',
+          INDEXMISSING: true,
+        },
+      },
+      { ON: 'HASH' }
+    );
+  }, GLOBAL.SERVERS.OPEN);
+
   testUtils.testWithClient('client.ft.create', async client => {
     assert.equal(
       await client.ft.create('index', {
@@ -578,7 +614,7 @@ describe('FT.CREATE', () => {
       }),
       "OK"
     );
-   
+
     assert.equal(
       await client.ft.create("index_int8", {
         field: {

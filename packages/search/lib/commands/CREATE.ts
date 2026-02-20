@@ -1,6 +1,6 @@
-import { CommandParser } from '@redis/client/dist/lib/client/parser';
-import { RedisArgument, SimpleStringReply, Command } from '@redis/client/dist/lib/RESP/types';
-import { RedisVariadicArgument, parseOptionalVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
+import { CommandParser } from '@redis/client/lib/client/parser';
+import { RedisArgument, SimpleStringReply, Command } from '@redis/client/lib/RESP/types';
+import { RedisVariadicArgument, parseOptionalVariadicArgument } from '@redis/client/lib/commands/generic-transformers';
 
 export const SCHEMA_FIELD_TYPE = {
   TEXT: 'TEXT',
@@ -195,12 +195,12 @@ export function parseSchema(parser: CommandParser, schema: RediSearchSchema) {
 
       parser.push(fieldOptions.type);
 
-      if (fieldOptions.INDEXMISSING) {
-        parser.push('INDEXMISSING');
-      }
-
       switch (fieldOptions.type) {
         case SCHEMA_FIELD_TYPE.TEXT:
+          if (fieldOptions.INDEXMISSING) {
+            parser.push('INDEXMISSING');
+          }
+
           if (fieldOptions.NOSTEM) {
             parser.push('NOSTEM');
           }
@@ -226,10 +226,18 @@ export function parseSchema(parser: CommandParser, schema: RediSearchSchema) {
 
         case SCHEMA_FIELD_TYPE.NUMERIC:
         case SCHEMA_FIELD_TYPE.GEO:
+          if (fieldOptions.INDEXMISSING) {
+            parser.push('INDEXMISSING');
+          }
+
           parseCommonSchemaFieldOptions(parser, fieldOptions)
           break;
 
         case SCHEMA_FIELD_TYPE.TAG:
+          if (fieldOptions.INDEXMISSING) {
+            parser.push('INDEXMISSING');
+          }
+
           if (fieldOptions.SEPARATOR) {
             parser.push('SEPARATOR', fieldOptions.SEPARATOR);
           }
@@ -320,11 +328,19 @@ export function parseSchema(parser: CommandParser, schema: RediSearchSchema) {
           }
           parser.pushVariadicWithLength(args);
 
+          if (fieldOptions.INDEXMISSING) {
+            parser.push('INDEXMISSING');
+          }
+
           break;
 
         case SCHEMA_FIELD_TYPE.GEOSHAPE:
           if (fieldOptions.COORD_SYSTEM !== undefined) {
             parser.push('COORD_SYSTEM', fieldOptions.COORD_SYSTEM);
+          }
+
+          if (fieldOptions.INDEXMISSING) {
+            parser.push('INDEXMISSING');
           }
 
           break;
