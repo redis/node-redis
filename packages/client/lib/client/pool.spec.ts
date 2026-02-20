@@ -36,7 +36,53 @@ describe('RedisClientPool', () => {
     assert.equal(pool.totalClients, 0, 'totalClients should be 0 after destroy');
     assert.equal(pool.isOpen, false, 'isOpen should be false after destroy');
   }, GLOBAL.SERVERS.OPEN);
-  }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClientPool('close waits for in-flight and queued tasks', async pool => {
+    const events: string[] = [];
+
+    // Start a long-running task (will be in-flight)
+    const task1Promise = pool.execute(async client => {
+      events.push('task1 started');
+      await client.set('key1', 'value1');
+      await new Promise(resolve => setTimeout(resolve, 100));
+      events.push('task1 completed');
+      return 'task1';
+    });
+
+    // This task will be queued since the pool has only 1 client (minimum: 1, maximum: 1)
+    const task2Promise = pool.execute(async client => {
+      events.push('task2 started');
+      await client.set('key2', 'value2');
+      events.push('task2 completed');
+      return 'task2';
+    });
+
+    // Verify task2 is queued
+    assert.equal(pool.tasksQueueLength, 1, 'task2 should be queued');
+
+    // Close while task1 is running and task2 is queued
+    await pool.close();
+    events.push('close completed');
+
+    // Desired behavior: close() should wait for all tasks to complete
+    // - Both in-flight tasks and queued tasks should complete before close() returns
+    // - All task promises should be fulfilled (not rejected)
+    assert.deepEqual(events, [
+      'task1 started',
+      'task1 completed',
+      'task2 started',
+      'task2 completed',
+      'close completed'
+    ], 'close() should wait for all tasks to complete');
+
+    // Verify both tasks completed successfully
+    const [result1, result2] = await Promise.all([task1Promise, task2Promise]);
+    assert.equal(result1, 'task1');
+    assert.equal(result2, 'task2');
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    poolOptions: { minimum: 1, maximum: 1, acquireTimeout: 2000, cleanupDelay: 400  }
+  });
 
   testUtils.testWithClientPool(
     'proper error propagation in sequential operations',
