@@ -24,8 +24,18 @@ describe('RedisClientPool', () => {
   }, GLOBAL.SERVERS.OPEN);
 
   testUtils.testWithClientPool('close', async pool => {
-    await pool.close()
-    assert.equal(pool.totalClients, 0)
+    assert.equal(pool.isOpen, true, 'pool should be open before close');
+    await pool.close();
+    assert.equal(pool.totalClients, 0, 'totalClients should be 0 after close');
+    assert.equal(pool.isOpen, false, 'isOpen should be false after close');
+  }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClientPool('destroy', async pool => {
+    assert.equal(pool.isOpen, true, 'pool should be open before destroy');
+    pool.destroy();
+    assert.equal(pool.totalClients, 0, 'totalClients should be 0 after destroy');
+    assert.equal(pool.isOpen, false, 'isOpen should be false after destroy');
+  }, GLOBAL.SERVERS.OPEN);
   }, GLOBAL.SERVERS.OPEN);
 
   testUtils.testWithClientPool(

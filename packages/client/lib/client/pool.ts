@@ -534,10 +534,11 @@ export class RedisClientPool<
       this._self.#idleClients.reset();
       this._self.#clientsInUse.reset();
     } catch (err) {
-      
+
     } finally {
       this._self.#isClosing = false;
-    } 
+      this._self.#isOpen = false;
+    }
   }
 
   destroy() {
