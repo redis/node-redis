@@ -21,7 +21,7 @@ import { BasicCommandParser, CommandParser } from './parser';
 import SingleEntryCache from '../single-entry-cache';
 import { version } from '../../package.json'
 import EnterpriseMaintenanceManager, { MaintenanceUpdate, MovingEndpointType, SMIGRATED_EVENT, SMigratedEvent } from './enterprise-maintenance-manager';
-import { ClientMetricsHandle, ClientRegistry, OTelClientAttributes, OTelMetrics } from '../opentelemetry';
+import { ClientMetricsHandle, ClientRegistry, OTelMetrics } from '../opentelemetry';
 import { ClientIdentity, ClientRole, ExtendedClientIdentity, generateClientId } from './identity';
 
 export interface RedisClientOptions<
@@ -482,6 +482,14 @@ export default class RedisClient<
 
   /**
    * @internal
+   * Returns the client ID for metrics attribution.
+   */
+  get _clientId(): string {
+    return this._self.#clientIdentity.id;
+  }
+
+  /**
+   * @internal
    * Sets the client identity. Used by pool/cluster/sentinel when creating child clients.
    */
   _setIdentity(role: ClientRole, parentId?: string): void {
@@ -499,7 +507,14 @@ export default class RedisClient<
   #createMetricsHandle(): ClientMetricsHandle {
     return {
       identity: this._self.#clientIdentity,
-      getAttributes: () =>  this._self._getClientOTelAttributes(),
+      getAttributes: () => ({
+        host: this._self.#socket.host,
+        port: this._self.#socket.port,
+        db: this._self.#selectedDB,
+        clientId: this._self.#clientIdentity.id,
+        parentId: this._self.#clientIdentity.parentId,
+        isPubSub: this._self.#queue.isPubSubActive,
+      }),
       getPendingRequests: () => this._self.#queue.pendingCount,
       getCacheItemCount: () => this._self.#clientSideCache?.size() ?? 0,
       isConnected: () => this._self.#socket.isReady
@@ -571,15 +586,14 @@ export default class RedisClient<
     this.#validateOptions(options)
     this.#options = this.#initiateOptions(options);
 
-    this.#queue = this.#initiateQueue();
-    this.#socket = this.#initiateSocket();
-
     const socketOpts = this.#options.socket as { host?: string; port?: number } | undefined;
-
     this.#clientIdentity = {
       id: generateClientId(socketOpts?.host, socketOpts?.port, this.#selectedDB),
       role: ClientRole.STANDALONE
     };
+
+    this.#queue = this.#initiateQueue();
+    this.#socket = this.#initiateSocket();
 
     this.#registerForMetrics();
 
@@ -849,7 +863,7 @@ export default class RedisClient<
       commands.push({cmd: ['CLIENT', 'TRACKING', 'ON']});
     }
 
-    const maintenanceHandshakeCmd = await EnterpriseMaintenanceManager.getHandshakeCommand(this.#options);
+    const maintenanceHandshakeCmd = await EnterpriseMaintenanceManager.getHandshakeCommand(this.#options, this._clientId);
 
     if(maintenanceHandshakeCmd) {
       commands.push(maintenanceHandshakeCmd);
@@ -923,7 +937,11 @@ export default class RedisClient<
       }
     };
 
-    const socket = new RedisSocket(socketInitiator, this.#options.socket);
+    const socket = new RedisSocket(
+      socketInitiator,
+      this.#options.socket,
+      this._self._clientId,
+    );
     this.#attachListeners(socket);
     return socket;
   }
@@ -1119,7 +1137,7 @@ export default class RedisClient<
       const finalReply = transformReply ? transformReply(reply, parser.preserve, commandOptions?.typeMapping) : reply;
 
       if (command.onSuccess) {
-        command.onSuccess(parser.redisArgs, finalReply, this._self._getClientOTelAttributes());
+        command.onSuccess(parser.redisArgs, finalReply, this._self._clientId);
       }
 
       return finalReply;
@@ -1153,29 +1171,14 @@ export default class RedisClient<
       reply;
   }
 
-  /**
-   * @internal
-  */
-  _getClientOTelAttributes(): OTelClientAttributes {
-    return {
-      host: this._self.#socket.host,
-      port: this._self.#socket.port,
-      db: this._self.#selectedDB,
-      clientId: this._self.#clientIdentity.id,
-      parentId: this._self.#clientIdentity.parentId,
-      isPubSub: this._self.#queue.isPubSubActive,
-    };
-  }
-
   sendCommand<T = ReplyUnion>(
     args: ReadonlyArray<RedisArgument>,
     options?: CommandOptions
   ): Promise<T> {
-    const recordOperation = OTelMetrics.instance.commandMetrics.createRecordOperationDuration(args, {
-      host: this._self.#socket.host,
-      port: this._self.#socket.port,
-      db: this._self.#selectedDB,
-    });
+    const recordOperation = OTelMetrics.instance.commandMetrics.createRecordOperationDuration(
+      args,
+      this._self._clientId,
+    );
 
     if (!this._self.#socket.isOpen) {
       recordOperation(new ClientClosedError());
@@ -1399,11 +1402,7 @@ export default class RedisClient<
     const recordBatch = OTelMetrics.instance.commandMetrics.createRecordBatchOperationDuration(
       'PIPELINE',
       commands.length,
-      {
-        host: this._self.#socket.host,
-        port: this._self.#socket.port,
-        db: this._self.#selectedDB,
-      }
+      this._self._clientId,
     );
 
     if (!this._self.#socket.isOpen) {
@@ -1446,11 +1445,7 @@ export default class RedisClient<
     const recordBatch = OTelMetrics.instance.commandMetrics.createRecordBatchOperationDuration(
       'MULTI',
       commands.length,
-      {
-        host: this._self.#socket.host,
-        port: this._self.#socket.port,
-        db: this._self.#selectedDB,
-      }
+      this._self._clientId,
     );
 
     const dirtyWatch = this._self.#dirtyWatch;

@@ -61,6 +61,7 @@ export default class RedisSocket extends EventEmitter {
   readonly #reconnectStrategy;
   readonly #socketFactory;
   readonly #socketTimeout;
+  readonly #clientId?;
 
   #maintenanceTimeout: number | undefined;
 
@@ -94,7 +95,11 @@ export default class RedisSocket extends EventEmitter {
     return this.#socket?.remotePort;
   }
 
-  constructor(initiator: RedisSocketInitiator, options?: RedisSocketOptions) {
+  constructor(
+    initiator: RedisSocketInitiator,
+    options?: RedisSocketOptions,
+    clientId?: string,
+  ) {
     super();
 
     this.#initiator = initiator;
@@ -102,6 +107,7 @@ export default class RedisSocket extends EventEmitter {
     this.#reconnectStrategy = this.#createReconnectStrategy(options);
     this.#socketFactory = this.#createSocketFactory(options);
     this.#socketTimeout = options?.socketTimeout;
+    this.#clientId = clientId;
   }
 
   #createReconnectStrategy(options?: RedisSocketOptions): ReconnectStrategyFunction {
@@ -224,10 +230,10 @@ export default class RedisSocket extends EventEmitter {
     let retries = 0;
     do {
       try {
-        const recordConnectionCreateTime = OTelMetrics.instance.connectionBasicMetrics.createRecordConnectionCreateTime({
-          host: this.host,
-          port: this.port,
-        });
+        const recordConnectionCreateTime =
+          OTelMetrics.instance.connectionBasicMetrics.createRecordConnectionCreateTime(
+            this.#clientId,
+          );
         this.#socket = await this.#createSocket();
         this.emit('connect');
 
@@ -275,16 +281,16 @@ export default class RedisSocket extends EventEmitter {
 
     if(ms !== undefined) {
       this.#socket?.setTimeout(ms);
-      OTelMetrics.instance.connectionBasicMetrics.recordConnectionRelaxedTimeout(1, {
-        host: this.host,
-        port: this.port,
-      });
+      OTelMetrics.instance.connectionBasicMetrics.recordConnectionRelaxedTimeout(
+        1,
+        this.#clientId,
+      );
     } else {
       this.#socket?.setTimeout(this.#socketTimeout ?? 0);
-      OTelMetrics.instance.connectionBasicMetrics.recordConnectionRelaxedTimeout(-1, {
-        host: this.host,
-        port: this.port,
-      });
+      OTelMetrics.instance.connectionBasicMetrics.recordConnectionRelaxedTimeout(
+        -1,
+        this.#clientId,
+      );
     }
   }
 
@@ -336,13 +342,9 @@ export default class RedisSocket extends EventEmitter {
     this.emit('error', err);
 
     if (wasReady) {
-      const clientAttributes = {
-        host: this.host,
-        port: this.port,
-      };
       OTelMetrics.instance.connectionAdvancedMetrics.recordConnectionClosed(
         CONNECTION_CLOSE_REASON.ERROR,
-        clientAttributes
+        this.#clientId,
       );
     }
 
@@ -405,13 +407,9 @@ export default class RedisSocket extends EventEmitter {
       this.#socket = undefined;
     }
 
-    const clientAttributes = {
-      host: this.host,
-      port: this.port,
-    };
     OTelMetrics.instance.connectionAdvancedMetrics.recordConnectionClosed(
       CONNECTION_CLOSE_REASON.APPLICATION_CLOSE,
-      clientAttributes
+      this.#clientId,
     );
     this.emit('end');
   }

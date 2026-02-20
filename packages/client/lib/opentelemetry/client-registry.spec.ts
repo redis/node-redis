@@ -59,6 +59,25 @@ describe("ClientRegistry Unit Tests", () => {
     assert.strictEqual(clients[0].identity.id, "test-client-1");
   });
 
+  it("should return undefined from getById when not initialized (noop)", () => {
+    assert.strictEqual(
+      ClientRegistry.instance.getById("test-client-1"),
+      undefined,
+    );
+  });
+
+  it("should get clients by id after registration", () => {
+    ClientRegistry.init();
+    const handle = createMockHandle("test-client-1");
+
+    ClientRegistry.instance.register(handle);
+
+    assert.strictEqual(
+      ClientRegistry.instance.getById("test-client-1"),
+      handle,
+    );
+  });
+
   it("should unregister clients by id", () => {
     ClientRegistry.init();
     const handle = createMockHandle("test-client-1");
@@ -68,6 +87,10 @@ describe("ClientRegistry Unit Tests", () => {
 
     const clients = Array.from(ClientRegistry.instance.getAll());
     assert.strictEqual(clients.length, 0);
+    assert.strictEqual(
+      ClientRegistry.instance.getById("test-client-1"),
+      undefined,
+    );
   });
 
   it("should handle multiple clients", () => {

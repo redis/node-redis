@@ -17,6 +17,7 @@ import { NOOP_COUNTER_METRIC } from "./noop-meter";
 import { noopFunction, waitForMetrics } from "./utils";
 import testUtils, { GLOBAL } from "../test-utils";
 import { ClientRegistry } from "./client-registry";
+import { ClientRole } from "../client/identity";
 
 describe("OTel Metrics Unit Tests", () => {
   afterEach(async () => {
@@ -96,11 +97,7 @@ describe("OTel Metrics Unit Tests", () => {
 
     const recordGET = OTelMetrics.instance.commandMetrics.createRecordOperationDuration(
       ["GET", "key"],
-      {
-        host: "localhost",
-        port: "6379",
-        db: "0",
-      }
+      "test-client",
     );
 
     assert.strictEqual(
@@ -111,11 +108,7 @@ describe("OTel Metrics Unit Tests", () => {
 
     const recordSET = OTelMetrics.instance.commandMetrics.createRecordOperationDuration(
       ["SET", "key"],
-      {
-        host: "localhost",
-        port: "6379",
-        db: "0",
-      }
+      "test-client",
     );
 
     assert.notStrictEqual(
@@ -138,11 +131,7 @@ describe("OTel Metrics Unit Tests", () => {
 
     const recordGET = OTelMetrics.instance.commandMetrics.createRecordOperationDuration(
       ["GET", "key"],
-      {
-        host: "localhost",
-        port: "6379",
-        db: "0",
-      }
+      "test-client",
     );
 
     assert.strictEqual(
@@ -153,11 +142,7 @@ describe("OTel Metrics Unit Tests", () => {
 
     const recordSET = OTelMetrics.instance.commandMetrics.createRecordOperationDuration(
       ["SET", "key"],
-      {
-        host: "localhost",
-        port: "6379",
-        db: "0",
-      }
+      "test-client",
     );
 
     assert.notStrictEqual(
@@ -261,6 +246,89 @@ describe("OTel Metrics E2E", function () {
       "expected redis.client.errors metric to be present"
     );
     assert.strictEqual(metric.dataPoints?.[0].value, 2);
+  });
+
+  it("should resolve client attributes by clientId", async () => {
+    OTelMetrics.init({
+      api,
+      config: {
+        metrics: {
+          enabled: true,
+          meterProvider,
+        },
+      },
+    });
+
+    ClientRegistry.instance.register({
+      identity: { id: "client-1", role: ClientRole.STANDALONE },
+      getAttributes: () => ({
+        host: "127.0.0.1",
+        port: 6379,
+        db: 0,
+        clientId: "client-1",
+      }),
+      getPendingRequests: () => 0,
+      getCacheItemCount: () => 0,
+      isConnected: () => true,
+    });
+
+    OTelMetrics.instance.resiliencyMetrics.recordClientErrors(
+      new Error("Test error"),
+      true,
+      "client-1",
+    );
+
+    await meterProvider.forceFlush();
+
+    const resourceMetrics = exporter.getMetrics();
+    const metric = resourceMetrics
+      .flatMap((rm) => rm.scopeMetrics)
+      .flatMap((sm) => sm.metrics)
+      .find((m) => m.descriptor.name === METRIC_NAMES.redisClientErrors);
+
+    assert.ok(metric, "expected redis.client.errors metric to be present");
+    const point = metric.dataPoints?.[0];
+    assert.ok(point, "expected data point to be present");
+    assert.strictEqual(
+      point.attributes[OTEL_ATTRIBUTES.serverAddress],
+      "127.0.0.1",
+    );
+    assert.strictEqual(point.attributes[OTEL_ATTRIBUTES.serverPort], 6379);
+    assert.strictEqual(point.attributes[OTEL_ATTRIBUTES.dbNamespace], 0);
+  });
+
+  it("should emit metric when clientId lookup misses", async () => {
+    OTelMetrics.init({
+      api,
+      config: {
+        metrics: {
+          enabled: true,
+          meterProvider,
+        },
+      },
+    });
+
+    OTelMetrics.instance.resiliencyMetrics.recordClientErrors(
+      new Error("Test error"),
+      true,
+      "missing-client",
+    );
+
+    await meterProvider.forceFlush();
+
+    const resourceMetrics = exporter.getMetrics();
+    const metric = resourceMetrics
+      .flatMap((rm) => rm.scopeMetrics)
+      .flatMap((sm) => sm.metrics)
+      .find((m) => m.descriptor.name === METRIC_NAMES.redisClientErrors);
+
+    assert.ok(metric, "expected redis.client.errors metric to be present");
+    const point = metric.dataPoints?.[0];
+    assert.ok(point, "expected data point to be present");
+    assert.strictEqual(point.value, 1);
+    assert.strictEqual(point.attributes[OTEL_ATTRIBUTES.serverAddress], undefined);
+    assert.strictEqual(point.attributes[OTEL_ATTRIBUTES.serverPort], undefined);
+    assert.strictEqual(point.attributes[OTEL_ATTRIBUTES.dbNamespace], undefined);
   });
 
   testUtils.testWithClient(

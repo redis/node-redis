@@ -18,12 +18,12 @@ export default {
     parser.push(message);
   },
   transformReply: undefined as unknown as () => NumberReply,
-  onSuccess: (args, _reply, clientAttrs) => {
+  onSuccess: (args, _reply, clientId) => {
     OTelMetrics.instance.pubSubMetrics.recordPubSubMessage(
       "out",
       args[1],
       true,
-      clientAttrs,
+      clientId,
     );
   },
 } as const satisfies Command;

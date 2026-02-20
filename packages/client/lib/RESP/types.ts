@@ -2,7 +2,6 @@ import { CommandParser } from '../client/parser';
 import { Tail } from '../commands/generic-transformers';
 import { BlobError, SimpleError } from '../errors';
 import { RedisScriptConfig, SHA1 } from '../lua-script';
-import { OTelClientAttributes } from '../opentelemetry';
 import { RESP_TYPES } from './decoder';
 import { VerbatimString } from './verbatim-string';
 
@@ -294,7 +293,7 @@ export type Command = {
   TRANSFORM_LEGACY_REPLY?: boolean;
   transformReply: TransformReply | Record<RespVersions, TransformReply>;
   unstableResp3?: boolean;
-  onSuccess?: (args: ReadonlyArray<RedisArgument>, reply: unknown, clientAttrs: OTelClientAttributes) => void;
+  onSuccess?: (args: ReadonlyArray<RedisArgument>, reply: unknown, clientId: string) => void;
 };
 
 export type RedisCommands = Record<string, Command>;

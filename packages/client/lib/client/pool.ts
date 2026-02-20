@@ -11,7 +11,7 @@ import { BasicPooledClientSideCache, ClientSideCacheConfig, PooledClientSideCach
 import { BasicCommandParser } from './parser';
 import SingleEntryCache from '../single-entry-cache';
 import { MULTI_MODE, MultiMode } from '../multi-command';
-import { OTelClientAttributes, OTelMetrics } from '../opentelemetry';
+import { OTelMetrics } from '../opentelemetry';
 import { ClientIdentity, ClientRole, generateClientId } from './identity';
 
 export interface RedisPoolOptions {
@@ -250,7 +250,7 @@ export class RedisClientPool<
     resolve: (value: unknown) => unknown;
     reject: (reason?: unknown) => unknown;
     fn: PoolTask<M, F, S, RESP, TYPE_MAPPING>;
-    recordWaitTime: (clientAttributes?: OTelClientAttributes) => void;
+    recordWaitTime: (clientId?: string) => void;
   }>();
 
   /**
@@ -470,7 +470,7 @@ export class RedisClientPool<
       }
 
       const node = this._self.#clientsInUse.push(client);
-      recordWaitTime(client._getClientOTelAttributes());
+      recordWaitTime(client._clientId);
       // @ts-ignore
       this._self.#executeTask(node, resolve, reject, fn);
     });
@@ -499,7 +499,7 @@ export class RedisClientPool<
     const task = this.#tasksQueue.shift();
     if (task) {
       clearTimeout(task.timeout);
-      task.recordWaitTime(node.value._getClientOTelAttributes());
+      task.recordWaitTime(node.value._clientId);
       this.#executeTask(node, task.resolve, task.reject, task.fn);
       return;
     }

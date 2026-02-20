@@ -81,11 +81,11 @@ export default {
     3: undefined as unknown as () => ReplyUnion
   },
   unstableResp3: true,
-  onSuccess: (args, reply, clientAttrs) => {
+  onSuccess: (args, reply, clientId) => {
     OTelMetrics.instance.streamMetrics.recordStreamLag(
       args,
       reply,
-      clientAttrs,
+      clientId,
     );
   },
 } as const satisfies Command;
