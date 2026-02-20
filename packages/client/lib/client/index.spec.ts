@@ -510,6 +510,16 @@ describe('Client', () => {
       );
     }, GLOBAL.SERVERS.OPEN);
 
+    testUtils.testWithClient('multi sendCommand', async client => {
+      assert.deepEqual(
+        await client.multi()
+          .sendCommand(['SET', 'key', 'value'])
+          .sendCommand(['GET', 'key'])
+          .exec(),
+        ['OK', 'value']
+      );
+    }, GLOBAL.SERVERS.OPEN);
+
     testUtils.testWithClient('should reject the whole chain on error', client => {
       return assert.rejects(
         client.multi()

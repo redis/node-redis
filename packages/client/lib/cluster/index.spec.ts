@@ -48,6 +48,23 @@ describe('Cluster', () => {
     );
   }, GLOBAL.CLUSTERS.OPEN);
 
+  testUtils.testWithCluster('multi sendCommand', async cluster => {
+    const key = 'key';
+    assert.deepEqual(
+      await cluster.multi()
+        .sendCommand(['SET', key, 'value'], {
+          firstKey: key,
+          isReadonly: false
+        })
+        .sendCommand(['GET', key], {
+          firstKey: key,
+          isReadonly: true
+        })
+        .exec(),
+      ['OK', 'value']
+    );
+  }, GLOBAL.CLUSTERS.OPEN);
+
   testUtils.testWithCluster('scripts', async cluster => {
     const [, reply] = await Promise.all([
       cluster.set('key', '2'),
