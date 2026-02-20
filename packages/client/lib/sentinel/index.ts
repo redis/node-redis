@@ -552,6 +552,26 @@ export default class RedisSentinel<
 
   pUnsubscribe = this.PUNSUBSCRIBE;
 
+  async SSUBSCRIBE<T extends boolean = false>(
+    channels: string | Array<string>,
+    listener: PubSubListener<T>,
+    bufferMode?: T
+  ) {
+    return this._self.#internal.sSubscribe(channels, listener, bufferMode);
+  }
+
+  sSubscribe = this.SSUBSCRIBE;
+
+  async SUNSUBSCRIBE<T extends boolean = false>(
+    channels?: string | Array<string>,
+    listener?: PubSubListener<T>,
+    bufferMode?: T
+  ) {
+    return this._self.#internal.sUnsubscribe(channels, listener, bufferMode);
+  }
+
+  sUnsubscribe = this.SUNSUBSCRIBE;
+
   /**
    * Acquires a master client lease for exclusive operations
    *
@@ -1064,6 +1084,22 @@ class RedisSentinelInternal<
     bufferMode?: T
   ) {
     return this.#pubSubProxy.pUnsubscribe(patterns, listener, bufferMode);
+  }
+
+  async sSubscribe<T extends boolean = false>(
+    channels: string | Array<string>,
+    listener: PubSubListener<T>,
+    bufferMode?: T
+  ) {
+    return this.#pubSubProxy.sSubscribe(channels, listener, bufferMode);
+  }
+
+  async sUnsubscribe<T extends boolean = false>(
+    channels?: string | Array<string>,
+    listener?: PubSubListener<T>,
+    bufferMode?: T
+  ) {
+    return this.#pubSubProxy.sUnsubscribe(channels, listener, bufferMode);
   }
 
   // observe/analyze/transform remediation functions
