@@ -52,6 +52,12 @@ export type PubSubCommand = (
 );
 
 export class PubSub {
+  readonly #clientId: string;
+
+  constructor(clientId: string) {
+    this.#clientId = clientId;
+  }
+
   static isStatusReply(reply: Array<Buffer>): boolean {
     const firstElement = typeof reply[0] === 'string' ? Buffer.from(reply[0]) : reply[0];
     return (
@@ -453,12 +459,11 @@ export class PubSub {
     if (!listeners) return;
 
     // Record incoming pub/sub message metric
-    // TODO: Pass clientAttributes once PubSub has access to client context
-    const sharded = type === PUBSUB_TYPE.SHARDED;
     OTelMetrics.instance.pubSubMetrics.recordPubSubMessage(
       'in',
+      this.#clientId,
       channel,
-      sharded
+      type === PUBSUB_TYPE.SHARDED,
     );
 
     for (const listener of listeners.buffers) {

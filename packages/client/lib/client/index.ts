@@ -22,7 +22,7 @@ import SingleEntryCache from '../single-entry-cache';
 import { version } from '../../package.json'
 import EnterpriseMaintenanceManager, { MaintenanceUpdate, MovingEndpointType, SMIGRATED_EVENT, SMigratedEvent } from './enterprise-maintenance-manager';
 import { ClientMetricsHandle, ClientRegistry, OTelMetrics } from '../opentelemetry';
-import { ClientIdentity, ClientRole, ExtendedClientIdentity, generateClientId } from './identity';
+import { ClientIdentity, ClientRole, generateClientId } from './identity';
 
 export interface RedisClientOptions<
   M extends RedisModules = RedisModules,
@@ -469,19 +469,6 @@ export default class RedisClient<
 
   /**
    * @internal
-   * Returns the client identity for tracking in metrics.
-   */
-  _getClientIdentity(): ExtendedClientIdentity {
-    return {
-      ...this._self.#clientIdentity,
-      host: this._self.#socket.host,
-      port: this._self.#socket.port,
-      db: this._self.#selectedDB
-    };
-  }
-
-  /**
-   * @internal
    * Returns the client ID for metrics attribution.
    */
   get _clientId(): string {
@@ -592,8 +579,8 @@ export default class RedisClient<
       role: ClientRole.STANDALONE
     };
 
-    this.#queue = this.#initiateQueue();
-    this.#socket = this.#initiateSocket();
+    this.#queue = this.#initiateQueue(this.#clientIdentity.id);
+    this.#socket = this.#initiateSocket(this.#clientIdentity.id);
 
     this.#registerForMetrics();
 
@@ -689,11 +676,12 @@ export default class RedisClient<
     return options;
   }
 
-  #initiateQueue(): RedisCommandsQueue {
+  #initiateQueue(clientId: string): RedisCommandsQueue {
     return new RedisCommandsQueue(
       this.#options.RESP ?? 2,
       this.#options.commandsQueueMaxLength,
-      (channel, listeners) => this.emit('sharded-channel-moved', channel, listeners)
+      (channel, listeners) => this.emit('sharded-channel-moved', channel, listeners),
+      clientId
     );
   }
 
@@ -901,7 +889,7 @@ export default class RedisClient<
     .on('end', () => this.emit('end'));
   }
 
-  #initiateSocket(): RedisSocket {
+  #initiateSocket(clientId: string): RedisSocket {
     const socketInitiator = async () => {
       const promises = [],
         chainId = Symbol('Socket Initiator');
@@ -939,8 +927,8 @@ export default class RedisClient<
 
     const socket = new RedisSocket(
       socketInitiator,
+      clientId,
       this.#options.socket,
-      this._self._clientId,
     );
     this.#attachListeners(socket);
     return socket;
@@ -1207,6 +1195,7 @@ export default class RedisClient<
       })
       .catch((err) => {
         recordOperation(err);
+        OTelMetrics.instance.resiliencyMetrics.recordClientErrors(err, false, this._self._clientId);
         throw err;
       });
 

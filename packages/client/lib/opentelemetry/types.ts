@@ -317,9 +317,9 @@ export interface IOTelClientSideCacheMetrics {
 export interface IOTelPubSubMetrics {
   recordPubSubMessage(
     direction: "in" | "out",
+    clientId: string,
     channel?: RedisArgument,
     sharded?: boolean,
-    clientId?: string,
   ): void;
 }
 

@@ -460,6 +460,7 @@ export default class RedisCluster<
               err,
               false,
               client._clientId,
+              i
             );
           }
           throw err;
@@ -470,6 +471,7 @@ export default class RedisCluster<
             err,
             true,
             client._clientId,
+            i
           );
           const address = err.message.substring(err.message.lastIndexOf(' ') + 1);
           let redirectTo = await this._slots.getMasterByAddress(address);
@@ -492,6 +494,7 @@ export default class RedisCluster<
             err,
             true,
             client._clientId,
+            i
           );
           await this._slots.rediscover(client);
           const clientAndSlot = await this._slots.getClientAndSlotNumber(firstKey, isReadonly);
@@ -500,11 +503,6 @@ export default class RedisCluster<
           continue;
         }
 
-        OTelMetrics.instance.resiliencyMetrics.recordClientErrors(
-          err,
-          false,
-          client._clientId,
-        );
         throw err;
       }
     }

@@ -122,11 +122,13 @@ export default class EnterpriseMaintenanceManager {
       ],
       errorHandler: (error: Error) => {
         dbgMaintenance("handshake failed:", error);
+        
+        OTelMetrics.instance.resiliencyMetrics.recordClientErrors(error, true, clientId);
+
         if (options.maintNotifications === "enabled") {
           throw error;
         }
 
-        OTelMetrics.instance.resiliencyMetrics.recordClientErrors(error, true, clientId);
       },
     };
   }

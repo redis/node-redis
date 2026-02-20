@@ -4,11 +4,12 @@ import { PubSub, PUBSUB_TYPE } from './pub-sub';
 describe('PubSub', () => {
   const TYPE = PUBSUB_TYPE.CHANNELS,
     CHANNEL = 'channel',
-    LISTENER = () => {};
+    LISTENER = () => {},
+    CLIENT_ID = 'test-client-id';
 
   describe('subscribe to new channel', () => {
     function createAndSubscribe() {
-      const pubSub = new PubSub(),
+      const pubSub = new PubSub(CLIENT_ID),
         command = pubSub.subscribe(TYPE, CHANNEL, LISTENER);
 
       assert.equal(pubSub.isActive, true);
@@ -40,7 +41,7 @@ describe('PubSub', () => {
   });
 
   it('subscribe to already subscribed channel', () => {
-    const pubSub = new PubSub(),
+    const pubSub = new PubSub(CLIENT_ID),
       firstSubscribe = pubSub.subscribe(TYPE, CHANNEL, LISTENER);
     assert.ok(firstSubscribe);
 
@@ -56,7 +57,7 @@ describe('PubSub', () => {
   });
 
   it('unsubscribe all', () => {
-    const pubSub = new PubSub();
+    const pubSub = new PubSub(CLIENT_ID);
 
     const subscribe = pubSub.subscribe(TYPE, CHANNEL, LISTENER);
     assert.ok(subscribe);
@@ -72,7 +73,7 @@ describe('PubSub', () => {
 
   describe('unsubscribe from channel', () => {
     it('when not subscribed', () => {
-      const pubSub = new PubSub(),
+      const pubSub = new PubSub(CLIENT_ID),
         unsubscribe = pubSub.unsubscribe(TYPE, CHANNEL);
       assert.ok(unsubscribe);
       unsubscribe.resolve();
@@ -80,7 +81,7 @@ describe('PubSub', () => {
     });
 
     it('when already subscribed', () => {
-      const pubSub = new PubSub(),
+      const pubSub = new PubSub(CLIENT_ID),
         subscribe = pubSub.subscribe(TYPE, CHANNEL, LISTENER);
       assert.ok(subscribe);
       subscribe.resolve();
@@ -96,7 +97,7 @@ describe('PubSub', () => {
 
   describe('unsubscribe from listener', () => {
     it('when it\'s the only listener', () => {
-      const pubSub = new PubSub(),
+      const pubSub = new PubSub(CLIENT_ID),
         subscribe = pubSub.subscribe(TYPE, CHANNEL, LISTENER);
       assert.ok(subscribe);
       subscribe.resolve();
@@ -109,7 +110,7 @@ describe('PubSub', () => {
     });
 
     it('when there are more listeners', () => {
-      const pubSub = new PubSub(),
+      const pubSub = new PubSub(CLIENT_ID),
         subscribe = pubSub.subscribe(TYPE, CHANNEL, LISTENER);
       assert.ok(subscribe);
       subscribe.resolve();
@@ -128,7 +129,7 @@ describe('PubSub', () => {
 
     describe('non-existing listener', () => {
       it('on subscribed channel', () => {
-        const pubSub = new PubSub(),
+        const pubSub = new PubSub(CLIENT_ID),
           subscribe = pubSub.subscribe(TYPE, CHANNEL, LISTENER);
         assert.ok(subscribe);
         subscribe.resolve();
@@ -142,7 +143,7 @@ describe('PubSub', () => {
       });
 
       it('on unsubscribed channel', () => {
-        const pubSub = new PubSub();
+        const pubSub = new PubSub(CLIENT_ID);
         assert.ok(pubSub.unsubscribe(TYPE, CHANNEL, () => { }));
         assert.equal(pubSub.isActive, false);
       });
