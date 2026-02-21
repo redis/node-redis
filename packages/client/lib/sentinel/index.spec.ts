@@ -137,6 +137,16 @@ describe('RedisSentinel', () => {
       await assert.rejects(sentinel.connect());
     }, testOptions);
 
+    testUtils.testWithClientSentinel('multi sendCommand', async sentinel => {
+      assert.deepEqual(
+        await sentinel.multi()
+          .sendCommand(['SET', 'x', '1'])
+          .sendCommand(['GET', 'x'])
+          .exec(),
+        ['OK', '1']
+      );
+    }, testOptions);
+
 
     testUtils.testWithClientSentinel('should respect type mapping', async sentinel => {
       const typeMapped = sentinel.withTypeMapping({
