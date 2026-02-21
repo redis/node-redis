@@ -44,6 +44,16 @@ describe('RESP Type Mapping', () => {
             Buffer.isBuffer(verbatimRes)
         );
 
+        const uint8Res = await client
+            .withTypeMapping({
+                [RESP_TYPES.BLOB_STRING]: Uint8Array
+            })
+            .get('key');
+        if (uint8Res !== null && typeof uint8Res !== 'string') {
+            assert.ok(ArrayBuffer.isView(uint8Res));
+            assert.ok((uint8Res as any) instanceof Uint8Array);
+        }
+
         // Recursive Collections
         // ARRAY infers nested mapped types
         const arrayRes = await client

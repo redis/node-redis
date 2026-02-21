@@ -32,7 +32,7 @@ export function parseGeoSearchArguments(
 ) {
   parser.pushKey(key);
 
-  if (typeof from === 'string' || from instanceof Buffer) {
+  if (typeof from === 'string' || from instanceof Buffer || from instanceof Uint8Array) {
     parser.push('FROMMEMBER', from);
   } else {
     parser.push('FROMLONLAT', from.longitude.toString(), from.latitude.toString());

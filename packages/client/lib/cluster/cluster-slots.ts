@@ -682,7 +682,7 @@ export default class RedisClusterSlots<
       };
     }
 
-    const slotNumber = calculateSlot(firstKey);
+    const slotNumber = calculateSlot(firstKey as string | Buffer);
     if (!isReadonly) {
       return {
         client: await this.nodeClient(this.slots[slotNumber].master),

@@ -75,13 +75,13 @@ describe('RESP Decoder', () => {
     toWrite: Buffer.from('_\r\n'),
     replies: [null]
   });
-  
+
   describe('Boolean', () => {
     test('true', {
       toWrite: Buffer.from('#t\r\n'),
       replies: [true]
     });
-  
+
     test('false', {
       toWrite: Buffer.from('#f\r\n'),
       replies: [false]
@@ -288,6 +288,30 @@ describe('RESP Decoder', () => {
       },
       toWrite: Buffer.from('=6\r\ntxt:OK\r\n'),
       replies: [Buffer.from('OK')]
+    });
+
+    test("Simple string 'OK' as Uint8Array", {
+      typeMapping: {
+        [RESP_TYPES.SIMPLE_STRING]: Uint8Array
+      },
+      toWrite: Buffer.from('+OK\r\n'),
+      replies: [new Uint8Array([79, 75])]
+    });
+
+    test("Blob string 'OK' as Uint8Array", {
+      typeMapping: {
+        [RESP_TYPES.BLOB_STRING]: Uint8Array
+      },
+      toWrite: Buffer.from('$2\r\nOK\r\n'),
+      replies: [new Uint8Array([79, 75])]
+    });
+
+    test("Verbatim string 'OK' as Uint8Array", {
+      typeMapping: {
+        [RESP_TYPES.VERBATIM_STRING]: Uint8Array
+      },
+      toWrite: Buffer.from('=6\r\ntxt:OK\r\n'),
+      replies: [new Uint8Array([79, 75])]
     });
 
     test("'é'", {
