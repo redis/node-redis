@@ -2,6 +2,7 @@ import { EventEmitter } from 'stream';
 import RedisClient from '.';
 import { RedisArgument, ReplyUnion, TransformReply, TypeMapping } from '../RESP/types';
 import { BasicCommandParser } from './parser';
+import { OTelMetrics, CSC_RESULT, CSC_EVICTION_REASON } from '../opentelemetry';
 
 /**
  * A snapshot of cache statistics.
@@ -484,6 +485,7 @@ export abstract class ClientSideCacheProvider extends EventEmitter {
   abstract invalidate(key: RedisArgument | null): void;
   abstract clear(): void;
   abstract stats(): CacheStats;
+  abstract size(): number;
   abstract onError(): void;
   abstract onClose(): void;
 }
@@ -551,21 +553,41 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
 
     // "2"
     let cacheEntry = this.get(cacheKey);
+
     if (cacheEntry) {
       // If instanceof is "too slow", can add a "type" and then use an "as" cast to call proper getters.
       if (cacheEntry instanceof ClientSideCacheEntryValue) { // "2b1"
         this.#statsCounter.recordHits(1);
+        OTelMetrics.instance.clientSideCacheMetrics.recordCacheRequest(
+          CSC_RESULT.HIT,
+          client._clientId,
+        );
+        // Estimate bytes saved by avoiding network round-trip
+        // Note: JSON.stringify approximation; actual RESP wire size may differ (especially for Buffers)
+        const bytesEstimate = JSON.stringify(cacheEntry.value).length;
+        OTelMetrics.instance.clientSideCacheMetrics.recordNetworkBytesSaved(
+          bytesEstimate,
+          client._clientId,
+        );
 
         return structuredClone(cacheEntry.value);
       } else if (cacheEntry instanceof ClientSideCacheEntryPromise) { // 2b2
         // This counts as a miss since the value hasn't been fully loaded yet.
         this.#statsCounter.recordMisses(1);
+        OTelMetrics.instance.clientSideCacheMetrics.recordCacheRequest(
+          CSC_RESULT.MISS,
+          client._clientId,
+        );
         reply = await cacheEntry.promise;
       } else {
         throw new Error("unknown cache entry type");
       }
     } else { // 3/3a
       this.#statsCounter.recordMisses(1);
+      OTelMetrics.instance.clientSideCacheMetrics.recordCacheRequest(
+        CSC_RESULT.MISS,
+        client._clientId,
+      );
 
       const startTime = performance.now();
       const promise = fn();
@@ -616,7 +638,13 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
 
   override invalidate(key: RedisArgument | null) {
     if (key === null) {
+      // Server requested to invalidate all keys
+      const oldSize = this.size();
       this.clear(false);
+      // Record invalidations as server-initiated evictions
+      if (oldSize > 0) {
+        OTelMetrics.instance.clientSideCacheMetrics.recordCacheEviction(CSC_EVICTION_REASON.INVALIDATION, oldSize);
+      }
       this.emit("invalidate", key);
 
       return;
@@ -624,14 +652,20 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
 
     const keySet = this.#keyToCacheKeySetMap.get(key.toString());
     if (keySet) {
+      let deletedCount = 0;
       for (const cacheKey of keySet) {
         const entry = this.#cacheKeyToEntryMap.get(cacheKey);
         if (entry) {
           entry.invalidate();
+          deletedCount++;
         }
         this.#cacheKeyToEntryMap.delete(cacheKey);
       }
       this.#keyToCacheKeySetMap.delete(key.toString());
+      if (deletedCount > 0) {
+        // Record invalidations as server-initiated evictions
+        OTelMetrics.instance.clientSideCacheMetrics.recordCacheEviction(CSC_EVICTION_REASON.INVALIDATION, deletedCount);
+      }
     }
 
     this.emit('invalidate', key);
@@ -660,6 +694,8 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
     if (val && !val.validate()) {
       this.delete(cacheKey);
       this.#statsCounter.recordEvictions(1);
+      // Entry failed validation - this is TTL expiry since invalidation marks are handled separately
+      OTelMetrics.instance.clientSideCacheMetrics.recordCacheEviction(CSC_EVICTION_REASON.TTL);
       this.emit("cache-evict", cacheKey);
 
       return undefined;
@@ -690,13 +726,15 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
     const oldEntry = this.#cacheKeyToEntryMap.get(cacheKey);
 
     if (oldEntry) {
-      count--; // overwriting, so not incrementig
+      count--; // overwriting, so not incrementing
       oldEntry.invalidate();
     }
 
     if (this.maxEntries > 0 && count >= this.maxEntries) {
       this.deleteOldest();
       this.#statsCounter.recordEvictions(1);
+      // Eviction due to cache capacity limit
+      OTelMetrics.instance.clientSideCacheMetrics.recordCacheEviction(CSC_EVICTION_REASON.FULL);
     }
 
     this.#cacheKeyToEntryMap.set(cacheKey, cacheEntry);
