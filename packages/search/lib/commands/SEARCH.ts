@@ -134,7 +134,7 @@ export function parseSearchOptions(parser: CommandParser, options?: FtSearchOpti
   if (options?.SORTBY) {
     parser.push('SORTBY');
 
-    if (typeof options.SORTBY === 'string' || options.SORTBY instanceof Buffer) {
+    if (typeof options.SORTBY === 'string' || options.SORTBY instanceof Buffer || options.SORTBY instanceof Uint8Array) {
       parser.push(options.SORTBY);
     } else {
       parser.push(options.SORTBY.BY);
