@@ -147,3 +147,27 @@ try {
   clientLease.release();
 }
 ```
+
+## Scan Iterator
+
+The sentinel client supports `scanIterator` for iterating over keys on the master node:
+
+```javascript
+for await (const keys of sentinel.scanIterator()) {
+  // ...
+}
+```
+
+If a failover occurs during the scan, the iterator will automatically restart from the beginning on the new master to ensure all keys are covered. This may result in duplicate keys being yielded. If your application requires processing each key exactly once, you should implement a deduplication mechanism (like a `Set` or Bloom filter).
+
+```javascript
+const processed = new Set();
+for await (const keys of sentinel.scanIterator()) {
+  for (const key of keys) {
+    if (processed.has(key)) continue;
+    processed.add(key);
+
+    // process key
+  }
+}
+```
