@@ -18,7 +18,7 @@ import { TcpNetConnectOpts } from 'node:net';
 import { RedisTcpSocketOptions } from '../client/socket';
 import { BasicPooledClientSideCache, PooledClientSideCacheProvider } from '../client/cache';
 
-function areSentinelListsEqual(a: ReadonlyArray<RedisNode>, b: ReadonlyArray<RedisNode>): boolean {
+export function areSentinelListsEqual(a: ReadonlyArray<RedisNode>, b: ReadonlyArray<RedisNode>): boolean {
   if (a.length !== b.length) return false;
   return a.every((nodeA, i) => nodeA.host === b[i].host && nodeA.port === b[i].port);
 }
