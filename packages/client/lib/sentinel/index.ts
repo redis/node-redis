@@ -18,6 +18,11 @@ import { TcpNetConnectOpts } from 'node:net';
 import { RedisTcpSocketOptions } from '../client/socket';
 import { BasicPooledClientSideCache, PooledClientSideCacheProvider } from '../client/cache';
 
+function areSentinelListsEqual(a: ReadonlyArray<RedisNode>, b: ReadonlyArray<RedisNode>): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((nodeA, i) => nodeA.host === b[i].host && nodeA.port === b[i].port);
+}
+
 interface ClientInfo {
   id: number;
 }
@@ -931,13 +936,7 @@ class RedisSentinelInternal<
     }
   }
 
-  #handleSentinelFailure(node: RedisNode) {
-    const found = this.#sentinelRootNodes.findIndex(
-        (rootNode) => rootNode.host === node.host && rootNode.port === node.port
-    );
-    if (found !== -1) {
-        this.#sentinelRootNodes.splice(found, 1);
-    }
+  #handleSentinelFailure(_node: RedisNode) {
     this.#reset();
   }
 
@@ -1347,7 +1346,7 @@ class RedisSentinelInternal<
       }
     }
 
-    if (analyzed.sentinelList.length != this.#sentinelRootNodes.length) {
+    if (!areSentinelListsEqual(analyzed.sentinelList, this.#sentinelRootNodes)) {
       this.#sentinelRootNodes = analyzed.sentinelList;
       const event: RedisSentinelEvent = {
         type: "SENTINE_LIST_CHANGE",
