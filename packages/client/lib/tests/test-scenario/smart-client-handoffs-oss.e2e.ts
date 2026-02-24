@@ -31,9 +31,9 @@ import diagnostics_channel from "node:diagnostics_channel";
 
 import testUtils from "../../test-utils";
 import { DiagnosticsEvent } from "../../client/enterprise-maintenance-manager";
-import { FaultInjectorClient, ActionTrigger, ActionType, ActionRequest } from "@redis/test-utils/lib/fault-injector";
+import { FaultInjectorClient, ActionTrigger, ActionRequest } from "@redis/test-utils/lib/fault-injector";
 import { REClusterTestOptions } from "@redis/test-utils";
-import { blockCommand, filterTriggersByArgs } from "./test-scenario.util";
+import { blockCommand, newConnectionReceivedSmigraging, filterTriggersByArgs } from "./test-scenario.util";
 
 type TestOptions = REClusterTestOptions<{}, {}, {}, 3, {}>
 
@@ -167,8 +167,11 @@ const KEYS = [
           "should not have received any notifications yet"
         );
 
+        const newConnReceivedSmigratingPromise = newConnectionReceivedSmigraging(cluster);
 
         await faultInjectorClient.triggerAction(ACTION, ACTION_OPTIONS);
+
+        assert.ok(await newConnReceivedSmigratingPromise, 'Did not receive SMIGRATING on new connection');
 
         // Verify notifications were received
         const sMigratingEventCount = diagnosticEvents.filter(
@@ -460,8 +463,12 @@ const KEYS = [
           "should not have received any notifications yet"
         );
 
+        const newConnReceivedSmigratingPromise = newConnectionReceivedSmigraging(cluster);
+
         // Trigger migration
         await faultInjectorClient.triggerAction(ACTION, ACTION_OPTIONS);
+
+        assert.ok(await newConnReceivedSmigratingPromise, 'Did not receive SMIGRATING on new connection');
 
         // Verify notifications were received
         const sMigratingEventCount = diagnosticEvents.filter(
@@ -752,8 +759,14 @@ const KEYS = [
           "should not have received any notifications yet"
         );
 
+
+        const newConnReceivedSmigratingPromise = newConnectionReceivedSmigraging(cluster);
+
         // Trigger migration
         await faultInjectorClient.triggerAction(ACTION, ACTION_OPTIONS);
+
+        assert.ok(await newConnReceivedSmigratingPromise, 'Did not receive SMIGRATING on new connection');
+
 
         // Verify notifications were received
         const sMigratingEventCount = diagnosticEvents.filter(
@@ -1044,8 +1057,12 @@ const KEYS = [
           "should not have received any notifications yet"
         );
 
+        const newConnReceivedSmigratingPromise = newConnectionReceivedSmigraging(cluster);
+
         // Trigger migration
         await faultInjectorClient.triggerAction(ACTION, ACTION_OPTIONS);
+
+        assert.ok(await newConnReceivedSmigratingPromise, 'Did not receive SMIGRATING on new connection');
 
         // Verify notifications were received
         const sMigratingEventCount = diagnosticEvents.filter(
