@@ -454,11 +454,10 @@ export class PubSub {
 
     // Record incoming pub/sub message metric
     // TODO: Pass clientAttributes once PubSub has access to client context
-    const channelName = channel.toString();
     const sharded = type === PUBSUB_TYPE.SHARDED;
     OTelMetrics.instance.pubSubMetrics.recordPubSubMessage(
       'in',
-      channelName,
+      channel,
       sharded
     );
 

@@ -11,7 +11,7 @@ import { BasicPooledClientSideCache, ClientSideCacheConfig, PooledClientSideCach
 import { BasicCommandParser } from './parser';
 import SingleEntryCache from '../single-entry-cache';
 import { MULTI_MODE, MultiMode } from '../multi-command';
-import { OTelMetrics } from '../opentelemetry';
+import { OTelClientAttributes, OTelMetrics } from '../opentelemetry';
 import { ClientIdentity, ClientRole, generateClientId } from './identity';
 
 export interface RedisPoolOptions {
@@ -250,7 +250,7 @@ export class RedisClientPool<
     resolve: (value: unknown) => unknown;
     reject: (reason?: unknown) => unknown;
     fn: PoolTask<M, F, S, RESP, TYPE_MAPPING>;
-    recordWaitTime: () => void;
+    recordWaitTime: (clientAttributes?: OTelClientAttributes) => void;
   }>();
 
   /**
@@ -438,6 +438,7 @@ export class RedisClientPool<
         return reject(new ClientClosedError());
       }
 
+      const recordWaitTime = OTelMetrics.instance.connectionAdvancedMetrics.createRecordConnectionWaitTime();
       const client = this._self.#idleClients.shift(),
         { tail } = this._self.#tasksQueue;
       if (!client) {
@@ -452,14 +453,13 @@ export class RedisClientPool<
           );
         }
 
-        const recordWaitTime = OTelMetrics.instance.connectionAdvancedMetrics.createRecordConnectionWaitTime();
         const task = this._self.#tasksQueue.push({
           timeout,
           // @ts-ignore
           resolve,
           reject,
           fn,
-          recordWaitTime
+          recordWaitTime,
         });
 
         if (this.totalClients < this._self.#options.maximum) {
@@ -470,6 +470,7 @@ export class RedisClientPool<
       }
 
       const node = this._self.#clientsInUse.push(client);
+      recordWaitTime(client._getClientOTelAttributes());
       // @ts-ignore
       this._self.#executeTask(node, resolve, reject, fn);
     });
@@ -481,17 +482,14 @@ export class RedisClientPool<
     reject: (reason?: unknown) => void,
     fn: PoolTask<M, F, S, RESP, TYPE_MAPPING>
   ) {
-    const recordUseTime = OTelMetrics.instance.connectionAdvancedMetrics.createRecordConnectionUseTime();
     const result = fn(node.value);
     if (result instanceof Promise) {
       result
       .then(resolve, reject)
       .finally(() => {
-        recordUseTime();
         this.#returnClient(node);
       })
     } else {
-      recordUseTime();
       resolve(result);
       this.#returnClient(node);
     }
@@ -501,7 +499,7 @@ export class RedisClientPool<
     const task = this.#tasksQueue.shift();
     if (task) {
       clearTimeout(task.timeout);
-      task.recordWaitTime();
+      task.recordWaitTime(node.value._getClientOTelAttributes());
       this.#executeTask(node, task.resolve, task.reject, task.fn);
       return;
     }

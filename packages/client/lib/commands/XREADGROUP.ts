@@ -1,4 +1,5 @@
 import { CommandParser } from '../client/parser';
+import { OTelMetrics } from '../opentelemetry';
 import { Command, RedisArgument, ReplyUnion } from '../RESP/types';
 import { XReadStreams, pushXReadStreams } from './XREAD';
 import { transformStreamsMessagesReplyResp2 } from './generic-transformers';
@@ -64,5 +65,12 @@ export default {
   transformReply: {
     2: transformStreamsMessagesReplyResp2,
     3: undefined as unknown as () => ReplyUnion
+  },
+  onSuccess: (args, reply, clientAttrs) => {
+    OTelMetrics.instance.streamMetrics.recordStreamLag(
+      args,
+      reply,
+      clientAttrs,
+    );
   },
 } as const satisfies Command;

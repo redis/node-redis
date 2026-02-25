@@ -1119,7 +1119,7 @@ export default class RedisClient<
       const finalReply = transformReply ? transformReply(reply, parser.preserve, commandOptions?.typeMapping) : reply;
 
       if (command.onSuccess) {
-        command.onSuccess(parser.redisArgs, finalReply, this._getClientOTelAttributes());
+        command.onSuccess(parser.redisArgs, finalReply, this._self._getClientOTelAttributes());
       }
 
       return finalReply;

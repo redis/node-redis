@@ -61,12 +61,6 @@ export class NoopConnectionAdvancedMetrics implements IOTelConnectionAdvancedMet
   ): () => void {
     return noopFunction;
   }
-
-  createRecordConnectionUseTime(
-    _clientAttributes?: OTelClientAttributes
-  ): () => void {
-    return noopFunction;
-  }
 }
 
 export class NoopResiliencyMetrics implements IOTelResiliencyMetrics {
