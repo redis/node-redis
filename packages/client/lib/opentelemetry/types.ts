@@ -51,8 +51,6 @@ export interface OTelClientAttributes {
 }
 
 export interface ObservabilityConfig {
-  serviceName?: string;
-  resourceAttributes?: Attributes;
   metrics?: MetricConfig;
 }
 
@@ -60,7 +58,6 @@ export interface MetricOptions extends Required<
   Omit<MetricConfig, "meterProvider" | "includeCommands" | "excludeCommands">
 > {
   attributes: Attributes;
-  serviceName?: string;
   meterProvider?: MeterProvider;
   includeCommands: Record<string, true>;
   excludeCommands: Record<string, true>;
@@ -173,7 +170,7 @@ export const CSC_EVICTION_REASON = {
 export type CscEvictionReason =
   (typeof CSC_EVICTION_REASON)[keyof typeof CSC_EVICTION_REASON];
 
-export const DEFAULT_SERVICE_NAME = "node-redis";
+export const INSTRUMENTATION_SCOPE_NAME = "node-redis";
 
 export const DEFAULT_OTEL_ATTRIBUTES = {
   [OTEL_ATTRIBUTES.redisClientLibrary]: `node-redis:${version}`,

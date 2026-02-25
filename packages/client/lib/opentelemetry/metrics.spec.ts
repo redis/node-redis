@@ -331,43 +331,6 @@ describe("OTel Metrics E2E", function () {
     assert.strictEqual(dataPoints[0].value, 2);
   });
 
-  it("should record custom resource attributes", async () => {
-    const serviceInstanceId = "node-redis-metrics-test-instance";
-
-    OTelMetrics.init({
-      api,
-      config: {
-        metrics: {
-          enabled: true,
-          meterProvider,
-        },
-        resourceAttributes: {
-          "service.instance.id": serviceInstanceId,
-        },
-      },
-    });
-
-    OTelMetrics.instance.resiliencyMetrics.recordClientErrors(
-      new Error("Test error"),
-      true,
-    );
-
-    await meterProvider.forceFlush();
-
-    const resourceMetrics = exporter.getMetrics();
-    const dataPoints = getMetricDataPoints(
-      resourceMetrics,
-      METRIC_NAMES.redisClientErrors,
-    );
-
-    assert.ok(dataPoints[0], "expected data point to be present");
-    assert.strictEqual(dataPoints[0].value, 1);
-    assert.strictEqual(
-      dataPoints[0].attributes["service.instance.id"],
-      serviceInstanceId,
-    );
-  });
-
   it("should resolve client attributes by clientId", async () => {
     OTelMetrics.init({
       api,

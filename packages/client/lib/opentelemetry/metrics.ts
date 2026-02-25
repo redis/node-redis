@@ -26,7 +26,7 @@ import {
   IOTelClientSideCacheMetrics,
   IOTelPubSubMetrics,
   IOTelStreamMetrics,
-  DEFAULT_SERVICE_NAME,
+  INSTRUMENTATION_SCOPE_NAME,
 } from "./types";
 import { createNoopMeter } from "./noop-meter";
 import { getErrorInfo, noopFunction, parseClientAttributes } from "./utils";
@@ -587,12 +587,10 @@ export class OTelMetrics implements IOTelMetrics {
     }
 
     if (options?.meterProvider) {
-      return options.meterProvider.getMeter(
-        options.serviceName ?? DEFAULT_SERVICE_NAME,
-      );
+      return options.meterProvider.getMeter(INSTRUMENTATION_SCOPE_NAME);
     }
 
-    return api.metrics.getMeter(options.serviceName ?? DEFAULT_SERVICE_NAME);
+    return api.metrics.getMeter(INSTRUMENTATION_SCOPE_NAME);
   }
 
   private parseOptions(config?: ObservabilityConfig) {
@@ -600,10 +598,8 @@ export class OTelMetrics implements IOTelMetrics {
       enabled: !!config?.metrics?.enabled,
       attributes: {
         ...DEFAULT_OTEL_ATTRIBUTES,
-        ...config?.resourceAttributes,
       },
       meterProvider: config?.metrics?.meterProvider,
-      serviceName: config?.serviceName,
       includeCommands: (config?.metrics?.includeCommands ?? []).reduce<
         Record<string, true>
       >((acc, c) => {
