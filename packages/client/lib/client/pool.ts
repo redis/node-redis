@@ -12,6 +12,7 @@ import { BasicCommandParser } from './parser';
 import SingleEntryCache from '../single-entry-cache';
 import { MULTI_MODE, MultiMode } from '../multi-command';
 import { OTelMetrics } from '../opentelemetry';
+import { ClientIdentity, ClientRole, generateClientId } from './identity';
 
 export interface RedisPoolOptions {
   /**
@@ -216,6 +217,7 @@ export class RedisClientPool<
 
   readonly #clientFactory: () => RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
   readonly #options: RedisPoolOptions;
+  readonly #identity: ClientIdentity;
 
   readonly #idleClients = new SinglyLinkedList<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>();
 
@@ -288,6 +290,14 @@ export class RedisClientPool<
   }
 
   /**
+   * @internal
+   * Returns the pool identity for tracking in metrics.
+   */
+  get identity(): ClientIdentity {
+    return this._self.#identity;
+  }
+
+  /**
    * You are probably looking for {@link RedisClient.createPool `RedisClient.createPool`},
    * {@link RedisClientPool.fromClient `RedisClientPool.fromClient`},
    * or {@link RedisClientPool.fromOptions `RedisClientPool.fromOptions`}...
@@ -298,6 +308,12 @@ export class RedisClientPool<
   ) {
     super();
 
+    const socketOpts = clientOptions?.socket as { host?: string; port?: number } | undefined;
+    
+    this.#identity = {
+      id: generateClientId(socketOpts?.host, socketOpts?.port, clientOptions?.database),
+      role: ClientRole.POOL,
+    };
     this.#options = {
       ...RedisClientPool.#DEFAULTS,
       ...options
@@ -398,16 +414,15 @@ export class RedisClientPool<
   }
 
   async #create() {
+    const client = this._self.#clientFactory();
+    client._setIdentity(ClientRole.POOL_MEMBER, this._self.#identity.id);
+    client.on('error', (err: Error) => this.emit('error', err));
     // Track the client as "in use" during connect so it counts toward capacity.
     // If we waited to add it until after connect, the pool would think it doesn't
     // exist yet and could spin up extra clients when multiple tasks queue up.
-    const node = this._self.#clientsInUse.push(
-      this._self.#clientFactory()
-        .on('error', (err: Error) => this.emit('error', err))
-    );
+    const node = this._self.#clientsInUse.push(client);
 
     try {
-      const client = node.value;
       await client.connect();
     } catch (err) {
       this._self.#clientsInUse.remove(node);

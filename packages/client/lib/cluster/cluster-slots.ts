@@ -8,6 +8,7 @@ import calculateSlot from 'cluster-key-slot';
 import { RedisSocketOptions } from '../client/socket';
 import { BasicPooledClientSideCache, PooledClientSideCacheProvider } from '../client/cache';
 import { SMIGRATED_EVENT, SMigratedEvent, dbgMaintenance } from '../client/enterprise-maintenance-manager';
+import { ClientRole } from '../client/identity';
 
 interface NodeAddress {
   host: string;
@@ -110,6 +111,7 @@ export default class RedisClusterSlots<
   readonly #options;
   readonly #clientFactory;
   readonly #emit: EventEmitter['emit'];
+  readonly #clusterClientId: string;
   slots = new Array<Shard<M, F, S, RESP, TYPE_MAPPING>>(RedisClusterSlots.#SLOTS);
   masters = new Array<MasterNode<M, F, S, RESP, TYPE_MAPPING>>();
   replicas = new Array<ShardNode<M, F, S, RESP, TYPE_MAPPING>>();
@@ -132,10 +134,12 @@ export default class RedisClusterSlots<
 
   constructor(
     options: RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING>,
-    emit: EventEmitter['emit']
+    emit: EventEmitter['emit'],
+    clusterClientId: string
   ) {
     this.#validateOptions(options);
     this.#options = options;
+    this.#clusterClientId = clusterClientId;
 
     if (options?.clientSideCache) {
       if (options.clientSideCache instanceof PooledClientSideCacheProvider) {
@@ -548,7 +552,9 @@ export default class RedisClusterSlots<
         RESP: this.#options.RESP,
         socket,
         readonly,
-      }))
+      }));
+    client._setIdentity(ClientRole.CLUSTER_NODE, this.#clusterClientId);
+    client
       .on('error', error => emit('node-error', error, clientInfo))
       .on('reconnecting', () => emit('node-reconnecting', clientInfo))
       .once('ready', () => emit('node-ready', clientInfo))
