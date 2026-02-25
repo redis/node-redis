@@ -1,7 +1,11 @@
 import { readFileSync } from "fs";
-import { createClient, RedisClientOptions } from "../../..";
+import { createClient, RedisClientOptions } from "../../.."
 import { stub } from "sinon";
 import { ActionTrigger } from "@redis/test-utils/lib/fault-injector";
+import { DiagnosticsEvent } from "../../client/enterprise-maintenance-manager";
+import diagnostics_channel from "node:diagnostics_channel";
+import { setTimeout } from "timers/promises";
+import { RedisClusterType } from "../../cluster";
 
 type DatabaseEndpoint = {
   addr: string[];
@@ -232,4 +236,66 @@ export function filterTriggersByArgs(
     removeAddTriggers: filterTriggers(result.removeAddTriggers),
     slotShuffleTriggers: filterTriggers(result.slotShuffleTriggers),
   };
+}
+
+
+/**
+ * Waits for SMIGRATING on all existing master connections, then opens one new
+ * standalone connection and checks if it also receives SMIGRATING.
+ *
+ * Assumptions/limitations:
+ * - Uses a fixed timeout; resolves false on timeout regardless of progress.
+ * - Assumes one connection per master (no replicas, no pubsub/sharded pubsub).
+ * - Assumes the new connection observes SMIGRATING within a small wait window.
+ */
+export function newConnectionReceivedSmigraging(cluster: RedisClusterType<{}, {}, {}, 3, {}>, timeout = 500) {
+  const mastersCount = cluster.masters.length;
+  let received = 0;
+  let settled = false;
+  let resolve: (value: boolean) => void;
+
+  const finish = (value: boolean) => {
+    if (settled) return;
+    settled = true;
+    diagnostics_channel.unsubscribe("redis.maintenance", onEvent);
+    resolve(value);
+  };
+
+  const onEvent = async (message: unknown) => {
+    const event = message as DiagnosticsEvent;
+    if (event.type !== "SMIGRATING") return;
+
+    received++;
+    if (received !== mastersCount) return;
+
+    const [host, port] = cluster.masters[0].address.split(":");
+    const username = cluster.masters[0].client?.options.username;
+    const password = cluster.masters[0].client?.options.password;
+    const client = createClient({
+      socket: { host, port: Number(port) },
+      username,
+      password,
+      RESP: 3,
+    });
+
+    try {
+      await client.connect();
+    } catch {
+      finish(false);
+      return;
+    }
+
+    await setTimeout(50);
+    await client.close().catch(() => {});
+    finish(received === mastersCount + 1);
+  };
+
+  const promise = new Promise<boolean>((res) => {
+    resolve = res;
+  });
+
+  diagnostics_channel.subscribe("redis.maintenance", onEvent);
+  setTimeout(timeout, () => finish(false));
+
+  return promise;
 }
