@@ -1390,7 +1390,6 @@ export default class RedisClient<
   ) {
     const recordBatch = OTelMetrics.instance.commandMetrics.createRecordBatchOperationDuration(
       'PIPELINE',
-      commands.length,
       this._self._clientId,
     );
 
@@ -1433,7 +1432,6 @@ export default class RedisClient<
   ) {
     const recordBatch = OTelMetrics.instance.commandMetrics.createRecordBatchOperationDuration(
       'MULTI',
-      commands.length,
       this._self._clientId,
     );
 

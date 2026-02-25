@@ -25,7 +25,6 @@ export class NoopCommandMetrics implements IOTelCommandMetrics {
 
   createRecordBatchOperationDuration(
     _operationName: 'MULTI' | 'PIPELINE',
-    _batchSize: number,
     _clientId?: string
   ): (error?: Error) => void {
     return noopFunction;

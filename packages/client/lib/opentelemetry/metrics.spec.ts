@@ -1,7 +1,6 @@
 import { strict as assert } from "node:assert";
 
 import * as api from "@opentelemetry/api";
-import { Counter, ObservableGauge } from "@opentelemetry/api";
 import {
   AggregationTemporality,
   DataPoint,
@@ -12,6 +11,7 @@ import {
 } from "@opentelemetry/sdk-metrics";
 import { spy } from "sinon";
 
+import { createClient } from "@redis/client/index";
 import { OTelMetrics } from "./metrics";
 import {
   CONNECTION_CLOSE_REASON,
@@ -28,6 +28,7 @@ import testUtils, { GLOBAL } from "../test-utils";
 import { ClientRegistry } from "./client-registry";
 import { ClientRole } from "../client/identity";
 import { getMetricDataPoints, waitForMetrics } from "./utils/test.util";
+import { OpenTelemetryError } from "../errors";
 
 describe("OTel Metrics Unit Tests", () => {
   afterEach(async () => {
@@ -40,12 +41,15 @@ describe("OTel Metrics Unit Tests", () => {
       config: undefined,
     });
 
-    assert.throws(() => {
-      OTelMetrics.init({
-        api: undefined,
-        config: undefined,
-      });
-    });
+    assert.throws(
+      () => {
+        OTelMetrics.init({
+          api: undefined,
+          config: undefined,
+        });
+      },
+      OpenTelemetryError,
+    );
   });
 
   it("should be noop if not initialized", () => {
@@ -174,6 +178,55 @@ describe("OTel Metrics Unit Tests", () => {
       "expect record to not be noop function",
     );
   });
+
+  it("should treat include/exclude commands case-insensitively", () => {
+    const config: ObservabilityConfig = {
+      metrics: {
+        enabledMetricGroups: ["command"],
+        enabled: true,
+        includeCommands: ["set"],
+      },
+    };
+
+    OTelMetrics.init({ api: undefined, config });
+
+    const recordSET =
+      OTelMetrics.instance.commandMetrics.createRecordOperationDuration(
+        ["SET", "key"],
+        "test-client",
+      );
+
+    assert.notStrictEqual(
+      recordSET,
+      noopFunction,
+      "expect SET to be included when config uses lowercase includeCommands",
+    );
+  });
+
+  it("should prefer excludeCommands when command exists in both include and exclude", () => {
+    const config: ObservabilityConfig = {
+      metrics: {
+        enabledMetricGroups: ["command"],
+        enabled: true,
+        includeCommands: ["set"],
+        excludeCommands: ["SET"],
+      },
+    };
+
+    OTelMetrics.init({ api: undefined, config });
+
+    const recordSET =
+      OTelMetrics.instance.commandMetrics.createRecordOperationDuration(
+        ["SET", "key"],
+        "test-client",
+      );
+
+    assert.strictEqual(
+      recordSET,
+      noopFunction,
+      "expect excludeCommands to take precedence over includeCommands",
+    );
+  });
 });
 
 describe("OTel Metrics E2E", function () {
@@ -236,13 +289,12 @@ describe("OTel Metrics E2E", function () {
 
     const resourceMetrics = exporter.getMetrics();
 
-    const metric = resourceMetrics
-      .flatMap((rm) => rm.scopeMetrics)
-      .flatMap((sm) => sm.metrics)
-      .find((m) => m.descriptor.name === "redis.client.errors");
+    const dataPoints = getMetricDataPoints(
+      resourceMetrics,
+      METRIC_NAMES.redisClientErrors,
+    );
 
-    assert.ok(metric, "expected redis.client.errors metric to be present");
-    assert.strictEqual(metric.dataPoints?.[0].value, 3);
+    assert.strictEqual(dataPoints[0].value, 3);
   });
 
   it("should use global meter provider from api.metrics", async () => {
@@ -271,13 +323,49 @@ describe("OTel Metrics E2E", function () {
 
     const resourceMetrics = exporter.getMetrics();
 
-    const metric = resourceMetrics
-      .flatMap((rm) => rm.scopeMetrics)
-      .flatMap((sm) => sm.metrics)
-      .find((m) => m.descriptor.name === "redis.client.errors");
+    const dataPoints = getMetricDataPoints(
+      resourceMetrics,
+      METRIC_NAMES.redisClientErrors,
+    );
 
-    assert.ok(metric, "expected redis.client.errors metric to be present");
-    assert.strictEqual(metric.dataPoints?.[0].value, 2);
+    assert.strictEqual(dataPoints[0].value, 2);
+  });
+
+  it("should record custom resource attributes", async () => {
+    const serviceInstanceId = "node-redis-metrics-test-instance";
+
+    OTelMetrics.init({
+      api,
+      config: {
+        metrics: {
+          enabled: true,
+          meterProvider,
+        },
+        resourceAttributes: {
+          "service.instance.id": serviceInstanceId,
+        },
+      },
+    });
+
+    OTelMetrics.instance.resiliencyMetrics.recordClientErrors(
+      new Error("Test error"),
+      true,
+    );
+
+    await meterProvider.forceFlush();
+
+    const resourceMetrics = exporter.getMetrics();
+    const dataPoints = getMetricDataPoints(
+      resourceMetrics,
+      METRIC_NAMES.redisClientErrors,
+    );
+
+    assert.ok(dataPoints[0], "expected data point to be present");
+    assert.strictEqual(dataPoints[0].value, 1);
+    assert.strictEqual(
+      dataPoints[0].attributes["service.instance.id"],
+      serviceInstanceId,
+    );
   });
 
   it("should resolve client attributes by clientId", async () => {
@@ -313,20 +401,23 @@ describe("OTel Metrics E2E", function () {
     await meterProvider.forceFlush();
 
     const resourceMetrics = exporter.getMetrics();
-    const metric = resourceMetrics
-      .flatMap((rm) => rm.scopeMetrics)
-      .flatMap((sm) => sm.metrics)
-      .find((m) => m.descriptor.name === METRIC_NAMES.redisClientErrors);
+    const dataPoints = getMetricDataPoints(
+      resourceMetrics,
+      METRIC_NAMES.redisClientErrors,
+    );
 
-    assert.ok(metric, "expected redis.client.errors metric to be present");
-    const point = metric.dataPoints?.[0];
-    assert.ok(point, "expected data point to be present");
     assert.strictEqual(
-      point.attributes[OTEL_ATTRIBUTES.serverAddress],
+      dataPoints[0].attributes[OTEL_ATTRIBUTES.serverAddress],
       "127.0.0.1",
     );
-    assert.strictEqual(point.attributes[OTEL_ATTRIBUTES.serverPort], "6379");
-    assert.strictEqual(point.attributes[OTEL_ATTRIBUTES.dbNamespace], "0");
+    assert.strictEqual(
+      dataPoints[0].attributes[OTEL_ATTRIBUTES.serverPort],
+      "6379",
+    );
+    assert.strictEqual(
+      dataPoints[0].attributes[OTEL_ATTRIBUTES.dbNamespace],
+      "0",
+    );
   });
 
   it("should emit metric when clientId lookup misses", async () => {
@@ -349,13 +440,13 @@ describe("OTel Metrics E2E", function () {
     await meterProvider.forceFlush();
 
     const resourceMetrics = exporter.getMetrics();
-    const metric = resourceMetrics
-      .flatMap((rm) => rm.scopeMetrics)
-      .flatMap((sm) => sm.metrics)
-      .find((m) => m.descriptor.name === METRIC_NAMES.redisClientErrors);
 
-    assert.ok(metric, "expected redis.client.errors metric to be present");
-    const point = metric.dataPoints?.[0];
+    const dataPoints = getMetricDataPoints(
+      resourceMetrics,
+      METRIC_NAMES.redisClientErrors,
+    );
+    const point = dataPoints[0];
+
     assert.ok(point, "expected data point to be present");
     assert.strictEqual(point.value, 1);
     assert.strictEqual(
@@ -368,6 +459,98 @@ describe("OTel Metrics E2E", function () {
       undefined,
     );
   });
+
+  it("should collect command metrics for unix socket client", async () => {
+    OTelMetrics.init({
+      api,
+      config: {
+        metrics: {
+          enabled: true,
+          meterProvider,
+          enabledMetricGroups: ["command"],
+        },
+      },
+    });
+
+    // Create a client with a unix socket path
+    const client = createClient({
+      socket: {
+        path: "/tmp/redis.sock",
+        tls: false,
+      },
+    });
+
+    // Ping should fail since the client is not connected
+    await assert.rejects(client.ping());
+
+    await meterProvider.forceFlush();
+
+    const resourceMetrics = exporter.getMetrics();
+
+    const operationDataPoints = getMetricDataPoints<Histogram>(
+      resourceMetrics,
+      METRIC_NAMES.dbClientOperationDuration,
+    );
+
+    const pingErrorDataPoint = operationDataPoints.find(
+      (dataPoint) =>
+        dataPoint.attributes[OTEL_ATTRIBUTES.dbOperationName] === "PING" &&
+        dataPoint.attributes[OTEL_ATTRIBUTES.errorType] === "ClientClosedError",
+    );
+
+    assert.ok(
+      pingErrorDataPoint,
+      "expected PING command error metric to be present",
+    );
+    assert.strictEqual(
+      pingErrorDataPoint.attributes[OTEL_ATTRIBUTES.serverAddress],
+      undefined,
+    );
+    assert.strictEqual(
+      pingErrorDataPoint.attributes[OTEL_ATTRIBUTES.serverPort],
+      undefined,
+    );
+    assert.strictEqual(
+      `${pingErrorDataPoint.attributes[OTEL_ATTRIBUTES.dbNamespace]}`,
+      "0",
+    );
+  });
+
+  testUtils.testAll(
+    "should NOT record commands when disabled",
+    async (client) => {
+      OTelMetrics.init({
+        api,
+        config: {
+          metrics: {
+            enabled: false,
+          },
+        },
+      });
+
+      await Promise.all([
+        client.set("key", "value"),
+        client.set("key", "value"),
+        client.set("key", "value"),
+      ]);
+
+      await meterProvider.forceFlush();
+
+      const resourceMetrics = exporter.getMetrics();
+      const metric = resourceMetrics
+        .flatMap((rm) => rm.scopeMetrics)
+        .flatMap((sm) => sm.metrics)
+        .find(
+          (m) => m.descriptor.name === METRIC_NAMES.dbClientOperationDuration,
+        );
+
+      assert.strictEqual(metric, undefined);
+    },
+    {
+      client: GLOBAL.SERVERS.OPEN,
+      cluster: GLOBAL.CLUSTERS.OPEN,
+    },
+  );
 
   describe("Resiliency metrics", () => {
     beforeEach(() => {
@@ -426,9 +609,6 @@ describe("OTel Metrics E2E", function () {
         cluster: GLOBAL.CLUSTERS.OPEN,
       },
     );
-
-    // TODO add tests for hitless upgrades
-    // TODO possibly it would be better to add them to the hitless e2e tests
   });
 
   describe("Connection metrics", () => {
@@ -533,9 +713,6 @@ describe("OTel Metrics E2E", function () {
         },
       },
     );
-
-    // TODO add tests for hitless upgrades
-    // TODO possibly it would be better to add them to the hitless e2e tests
   });
 
   describe("Command metrics", () => {
@@ -580,6 +757,50 @@ describe("OTel Metrics E2E", function () {
 
         assert.strictEqual(value.count, 3);
         assert.strictEqual(attributes[OTEL_ATTRIBUTES.dbOperationName], "SET");
+        assert.ok(OTEL_ATTRIBUTES.dbNamespace in attributes);
+        assert.ok(attributes[OTEL_ATTRIBUTES.serverAddress]);
+        assert.ok(attributes[OTEL_ATTRIBUTES.serverPort]);
+        assert.ok(attributes[OTEL_ATTRIBUTES.redisClientLibrary]);
+        assert.ok(attributes[OTEL_ATTRIBUTES.dbSystemName]);
+      },
+      {
+        client: GLOBAL.SERVERS.OPEN,
+        cluster: GLOBAL.CLUSTERS.OPEN,
+      },
+    );
+
+    testUtils.testAll(
+      "should record db.client.operation.duration for multi as a single operation",
+      async (client) => {
+        await client
+          .multi()
+          .set("${test}key", "value")
+          .set("${test}key2", "value2")
+          .set("${test}key3", "value3")
+          .exec();
+
+        await meterProvider.forceFlush();
+
+        const resourceMetrics = exporter.getMetrics();
+
+        const dataPoints = getMetricDataPoints<Histogram>(
+          resourceMetrics,
+          METRIC_NAMES.dbClientOperationDuration,
+        );
+
+        const multiDataPoint = dataPoints.find(
+          (dp) => dp.attributes[OTEL_ATTRIBUTES.dbOperationName] === "MULTI",
+        );
+
+        assert.ok(multiDataPoint, "expected MULTI data point to be present");
+
+        const { value, attributes } = multiDataPoint;
+
+        assert.strictEqual(value.count, 1);
+        assert.strictEqual(
+          attributes[OTEL_ATTRIBUTES.dbOperationName],
+          "MULTI",
+        );
         assert.ok(OTEL_ATTRIBUTES.dbNamespace in attributes);
         assert.ok(attributes[OTEL_ATTRIBUTES.serverAddress]);
         assert.ok(attributes[OTEL_ATTRIBUTES.serverPort]);
@@ -814,7 +1035,7 @@ describe("OTel Metrics E2E", function () {
         await meterProvider.forceFlush();
 
         const resourceMetrics = exporter.getMetrics();
-        const dataPoints = getMetricDataPoints<Counter>(
+        const dataPoints = getMetricDataPoints<api.Counter>(
           resourceMetrics,
           METRIC_NAMES.redisClientCscRequests,
         );
@@ -824,7 +1045,7 @@ describe("OTel Metrics E2E", function () {
           "expected redis.client.csc.requests metric to be present",
         );
 
-        const { value, attributes } = dataPoints[0] as DataPoint<Counter>;
+        const { value, attributes } = dataPoints[0] as DataPoint<api.Counter>;
 
         assert.strictEqual(value, 1);
         assert.ok(attributes[OTEL_ATTRIBUTES.redisClientLibrary]);
@@ -881,7 +1102,7 @@ describe("OTel Metrics E2E", function () {
         );
 
         const itemDataPoint = (
-          metric.dataPoints as unknown as DataPoint<ObservableGauge>[]
+          metric.dataPoints as unknown as DataPoint<api.ObservableGauge>[]
         ).find((dp) => Number(dp.value) >= 1);
 
         assert.ok(
@@ -889,7 +1110,7 @@ describe("OTel Metrics E2E", function () {
           "expected redis.client.csc.items to report at least one cached item",
         );
 
-        const { attributes } = itemDataPoint as DataPoint<ObservableGauge>;
+        const { attributes } = itemDataPoint as DataPoint<api.ObservableGauge>;
         assert.ok(attributes[OTEL_ATTRIBUTES.redisClientLibrary]);
         assert.strictEqual(attributes[OTEL_ATTRIBUTES.dbSystemName], "redis");
         assert.ok(attributes[OTEL_ATTRIBUTES.dbClientConnectionPoolName]);
@@ -946,7 +1167,8 @@ describe("OTel Metrics E2E", function () {
         );
         assert.strictEqual(metric.descriptor.unit, "{eviction}");
 
-        const dataPoints = metric.dataPoints as unknown as DataPoint<Counter>[];
+        const dataPoints =
+          metric.dataPoints as unknown as DataPoint<api.Counter>[];
 
         const fullEviction = dataPoints.find(
           (dp) =>
@@ -958,16 +1180,16 @@ describe("OTel Metrics E2E", function () {
           "expected full eviction data point to be present",
         );
         assert.ok(
-          Number((fullEviction as DataPoint<Counter>).value) >= 1,
+          Number((fullEviction as DataPoint<api.Counter>).value) >= 1,
           "expected full eviction count to be at least 1",
         );
         assert.ok(
-          (fullEviction as DataPoint<Counter>).attributes[
+          (fullEviction as DataPoint<api.Counter>).attributes[
             OTEL_ATTRIBUTES.redisClientLibrary
           ],
         );
         assert.strictEqual(
-          (fullEviction as DataPoint<Counter>).attributes[
+          (fullEviction as DataPoint<api.Counter>).attributes[
             OTEL_ATTRIBUTES.dbSystemName
           ],
           "redis",
@@ -983,16 +1205,16 @@ describe("OTel Metrics E2E", function () {
           "expected invalidation eviction data point to be present",
         );
         assert.ok(
-          Number((invalidationEviction as DataPoint<Counter>).value) >= 1,
+          Number((invalidationEviction as DataPoint<api.Counter>).value) >= 1,
           "expected invalidation eviction count to be at least 1",
         );
         assert.ok(
-          (invalidationEviction as DataPoint<Counter>).attributes[
+          (invalidationEviction as DataPoint<api.Counter>).attributes[
             OTEL_ATTRIBUTES.redisClientLibrary
           ],
         );
         assert.strictEqual(
-          (invalidationEviction as DataPoint<Counter>).attributes[
+          (invalidationEviction as DataPoint<api.Counter>).attributes[
             OTEL_ATTRIBUTES.dbSystemName
           ],
           "redis",
@@ -1043,14 +1265,14 @@ describe("OTel Metrics E2E", function () {
         assert.strictEqual(metric.descriptor.unit, "By");
 
         const savedBytesPoint = (
-          metric.dataPoints as unknown as DataPoint<Counter>[]
+          metric.dataPoints as unknown as DataPoint<api.Counter>[]
         ).find((dp) => Number(dp.value) > 0);
         assert.ok(
           savedBytesPoint,
           "expected redis.client.csc.network_saved value to be greater than 0",
         );
 
-        const { attributes } = savedBytesPoint as DataPoint<Counter>;
+        const { attributes } = savedBytesPoint as DataPoint<api.Counter>;
         assert.ok(attributes[OTEL_ATTRIBUTES.redisClientLibrary]);
         assert.strictEqual(attributes[OTEL_ATTRIBUTES.dbSystemName], "redis");
       },
@@ -1113,7 +1335,7 @@ describe("OTel Metrics E2E", function () {
         await meterProvider.forceFlush();
 
         const resourceMetrics = exporter.getMetrics();
-        const dataPoints = getMetricDataPoints<Counter>(
+        const dataPoints = getMetricDataPoints<api.Counter>(
           resourceMetrics,
           METRIC_NAMES.redisClientPubsubMessages,
         );
@@ -1168,7 +1390,7 @@ describe("OTel Metrics E2E", function () {
         await meterProvider.forceFlush();
 
         const resourceMetrics = exporter.getMetrics();
-        const dataPoints = getMetricDataPoints<Counter>(
+        const dataPoints = getMetricDataPoints<api.Counter>(
           resourceMetrics,
           METRIC_NAMES.redisClientPubsubMessages,
         );
@@ -1224,7 +1446,7 @@ describe("OTel Metrics E2E", function () {
         await meterProvider.forceFlush();
 
         const resourceMetrics = exporter.getMetrics();
-        const dataPoints = getMetricDataPoints<Counter>(
+        const dataPoints = getMetricDataPoints<api.Counter>(
           resourceMetrics,
           METRIC_NAMES.redisClientPubsubMessages,
         );
@@ -1243,6 +1465,10 @@ describe("OTel Metrics E2E", function () {
         // Outgoing message
         assert.ok(outPoint, "expected outgoing pubsub message data point");
         assert.strictEqual(
+          outPoint.attributes[OTEL_ATTRIBUTES.redisClientPubSubChannel],
+          channel,
+        );
+        assert.strictEqual(
           outPoint.attributes[OTEL_ATTRIBUTES.redisClientPubSubSharded],
           true,
         );
@@ -1254,6 +1480,10 @@ describe("OTel Metrics E2E", function () {
 
         // Incoming message
         assert.ok(inPoint, "expected incoming pubsub message data point");
+        assert.strictEqual(
+          inPoint.attributes[OTEL_ATTRIBUTES.redisClientPubSubChannel],
+          channel,
+        );
         assert.strictEqual(
           inPoint.attributes[OTEL_ATTRIBUTES.redisClientPubSubSharded],
           true,
@@ -1268,6 +1498,67 @@ describe("OTel Metrics E2E", function () {
         ...GLOBAL.CLUSTERS.OPEN,
         minimumDockerVersion: [7],
       },
+    );
+
+    testUtils.testWithClient(
+      "should hide channel names when hidePubSubChannelNames is enabled",
+      async (client) => {
+        OTelMetrics.reset();
+        OTelMetrics.init({
+          api,
+          config: {
+            metrics: {
+              enabled: true,
+              meterProvider,
+              enabledMetricGroups: ["pubsub"],
+              hidePubSubChannelNames: true,
+            },
+          },
+        });
+
+        const channel = "otel-hidden-pubsub-channel";
+
+        const subscriber = await client.duplicate().connect();
+
+        try {
+          await subscriber.subscribe(channel, listener);
+          await client.publish(channel, "hello");
+          await subscriber.unsubscribe(channel, listener);
+        } finally {
+          subscriber.destroy();
+        }
+
+        await meterProvider.forceFlush();
+
+        const resourceMetrics = exporter.getMetrics();
+        const dataPoints = getMetricDataPoints<api.Counter>(
+          resourceMetrics,
+          METRIC_NAMES.redisClientPubsubMessages,
+        );
+
+        const outPoint = dataPoints.find(
+          (dp) =>
+            dp.attributes[OTEL_ATTRIBUTES.redisClientPubSubMessageDirection] ===
+            "out",
+        );
+        const inPoint = dataPoints.find(
+          (dp) =>
+            dp.attributes[OTEL_ATTRIBUTES.redisClientPubSubMessageDirection] ===
+            "in",
+        );
+
+        assert.ok(outPoint, "expected outgoing pubsub message data point");
+        assert.ok(inPoint, "expected incoming pubsub message data point");
+        assert.strictEqual(
+          outPoint.attributes[OTEL_ATTRIBUTES.redisClientPubSubChannel],
+          undefined,
+        );
+        assert.strictEqual(
+          inPoint.attributes[OTEL_ATTRIBUTES.redisClientPubSubChannel],
+          undefined,
+        );
+      },
+      GLOBAL.SERVERS.OPEN,
     );
   });
 
@@ -1310,8 +1601,7 @@ describe("OTel Metrics E2E", function () {
         const streamPoint = dataPoints.find(
           (dp) =>
             dp.attributes[OTEL_ATTRIBUTES.redisClientStreamName] === stream &&
-            dp.attributes[OTEL_ATTRIBUTES.redisClientConsumerGroup] === group &&
-            dp.attributes[OTEL_ATTRIBUTES.redisClientConsumerName] === consumer,
+            dp.attributes[OTEL_ATTRIBUTES.redisClientConsumerGroup] === group,
         );
 
         assert.ok(streamPoint, "expected stream lag data point to be present");
@@ -1321,14 +1611,8 @@ describe("OTel Metrics E2E", function () {
           value.count >= 1,
           "expected stream lag count to be at least 1",
         );
-        assert.ok(
-          value.sum! >= 0,
-          `expected stream lag sum to greater than 0`,
-        );
-        assert.strictEqual(
-          attributes[OTEL_ATTRIBUTES.redisClientLibrary],
-          "node-redis",
-        );
+        assert.ok(value.sum! >= 0, `expected stream lag sum to greater than 0`);
+        assert.ok(attributes[OTEL_ATTRIBUTES.redisClientLibrary]);
         assert.strictEqual(attributes[OTEL_ATTRIBUTES.dbSystemName], "redis");
         assert.ok(OTEL_ATTRIBUTES.dbNamespace in attributes);
         assert.ok(attributes[OTEL_ATTRIBUTES.serverAddress]);
@@ -1361,7 +1645,8 @@ describe("OTel Metrics E2E", function () {
         );
 
         const streamPoint = dataPoints.find(
-          (dp) => dp.attributes[OTEL_ATTRIBUTES.redisClientStreamName] === stream,
+          (dp) =>
+            dp.attributes[OTEL_ATTRIBUTES.redisClientStreamName] === stream,
         );
 
         assert.ok(streamPoint, "expected stream lag data point to be present");
@@ -1371,14 +1656,8 @@ describe("OTel Metrics E2E", function () {
           value.count >= 1,
           "expected stream lag count to be at least 1",
         );
-        assert.ok(
-          value.sum! >= 0,
-          `expected stream lag sum to greater than 0`,
-        );
-        assert.strictEqual(
-          attributes[OTEL_ATTRIBUTES.redisClientLibrary],
-          "node-redis",
-        );
+        assert.ok(value.sum! >= 0, `expected stream lag sum to greater than 0`);
+        assert.ok(attributes[OTEL_ATTRIBUTES.redisClientLibrary]);
         assert.strictEqual(attributes[OTEL_ATTRIBUTES.dbSystemName], "redis");
         assert.ok(OTEL_ATTRIBUTES.dbNamespace in attributes);
         assert.ok(attributes[OTEL_ATTRIBUTES.serverAddress]);
@@ -1392,9 +1671,252 @@ describe("OTel Metrics E2E", function () {
           attributes[OTEL_ATTRIBUTES.redisClientConsumerGroup],
           undefined,
         );
+      },
+      {
+        client: GLOBAL.SERVERS.OPEN,
+        cluster: GLOBAL.CLUSTERS.OPEN,
+      },
+    );
+
+    testUtils.testWithClient(
+      "should hide stream names when hideStreamNames is enabled",
+      async (client) => {
+        OTelMetrics.reset();
+        OTelMetrics.init({
+          api,
+          config: {
+            metrics: {
+              enabled: true,
+              meterProvider,
+              enabledMetricGroups: ["streaming"],
+              hideStreamNames: true,
+            },
+          },
+        });
+
+        const stream = "otel-hidden-stream";
+        const group = "otel-hidden-group";
+        const consumer = "otel-hidden-consumer";
+        const lagDelayMs = 100;
+
+        await client.xGroupCreate(stream, group, "$", { MKSTREAM: true });
+        await client.xAdd(stream, "*", { field: "value" });
+        await new Promise((resolve) => setTimeout(resolve, lagDelayMs));
+        await client.xReadGroup(group, consumer, { key: stream, id: ">" });
+
+        await meterProvider.forceFlush();
+
+        const resourceMetrics = exporter.getMetrics();
+        const dataPoints = getMetricDataPoints<Histogram>(
+          resourceMetrics,
+          METRIC_NAMES.redisClientStreamLag,
+        );
+
+        const streamPoint = dataPoints.find(
+          (dp) =>
+            dp.attributes[OTEL_ATTRIBUTES.redisClientConsumerGroup] === group,
+        );
+
+        assert.ok(streamPoint, "expected stream lag data point to be present");
         assert.strictEqual(
-          attributes[OTEL_ATTRIBUTES.redisClientConsumerName],
+          streamPoint.attributes[OTEL_ATTRIBUTES.redisClientStreamName],
           undefined,
+        );
+      },
+      GLOBAL.SERVERS.OPEN,
+    );
+
+    it("should ignore malformed stream replies without emitting redis.client.stream.lag", async () => {
+      OTelMetrics.instance.streamMetrics.recordStreamLag(
+        ["XREADGROUP", "GROUP", "group-1", "consumer-1"],
+        undefined,
+      );
+      OTelMetrics.instance.streamMetrics.recordStreamLag(
+        ["XREADGROUP", "GROUP", "group-1", "consumer-1"],
+        [],
+      );
+      OTelMetrics.instance.streamMetrics.recordStreamLag(
+        ["XREADGROUP", "GROUP", "group-1", "consumer-1"],
+        [null],
+      );
+      OTelMetrics.instance.streamMetrics.recordStreamLag(
+        ["XREADGROUP", "GROUP", "group-1", "consumer-1"],
+        [{ name: "s", messages: [{ id: "invalid-id", message: {} }] }],
+      );
+      OTelMetrics.instance.streamMetrics.recordStreamLag(
+        ["XREADGROUP", "GROUP", "group-1", "consumer-1"],
+        [{ name: "s", messages: [{ id: "", message: {} }] }],
+      );
+
+      await meterProvider.forceFlush();
+
+      const resourceMetrics = exporter.getMetrics();
+      const metric = resourceMetrics
+        .flatMap((rm) => rm.scopeMetrics)
+        .flatMap((sm) => sm.metrics)
+        .find((m) => m.descriptor.name === METRIC_NAMES.redisClientStreamLag);
+
+      assert.ok(
+        metric === undefined || metric.dataPoints.length === 0,
+        "expected no stream lag datapoints when all stream replies are malformed",
+      );
+    });
+  });
+
+  describe("Metric group gating", () => {
+    const listener = () => {};
+
+    testUtils.testWithClient(
+      "should not record pubsub metric when pubsub group is disabled",
+      async (client) => {
+        OTelMetrics.init({
+          api,
+          config: {
+            metrics: {
+              enabled: true,
+              meterProvider,
+              enabledMetricGroups: ["command"],
+            },
+          },
+        });
+
+        const channel = "otel-pubsub-disabled-channel";
+        const subscriber = await client.duplicate().connect();
+
+        try {
+          await subscriber.subscribe(channel, listener);
+          await client.publish(channel, "hello");
+          await subscriber.unsubscribe(channel, listener);
+        } finally {
+          subscriber.destroy();
+        }
+
+        await meterProvider.forceFlush();
+
+        const resourceMetrics = exporter.getMetrics();
+        const metric = resourceMetrics
+          .flatMap((rm) => rm.scopeMetrics)
+          .flatMap((sm) => sm.metrics)
+          .find(
+            (m) => m.descriptor.name === METRIC_NAMES.redisClientPubsubMessages,
+          );
+
+        assert.strictEqual(metric, undefined);
+      },
+      GLOBAL.SERVERS.OPEN,
+    );
+
+    testUtils.testWithClient(
+      "should not record stream metric when streaming group is disabled",
+      async (client) => {
+        OTelMetrics.init({
+          api,
+          config: {
+            metrics: {
+              enabled: true,
+              meterProvider,
+              enabledMetricGroups: ["command"],
+            },
+          },
+        });
+
+        const stream = "otel-stream-disabled";
+        await client.xAdd(stream, "*", { field: "value" });
+        await client.xRead({ key: stream, id: "0-0" });
+
+        await meterProvider.forceFlush();
+
+        const resourceMetrics = exporter.getMetrics();
+        const metric = resourceMetrics
+          .flatMap((rm) => rm.scopeMetrics)
+          .flatMap((sm) => sm.metrics)
+          .find((m) => m.descriptor.name === METRIC_NAMES.redisClientStreamLag);
+
+        assert.strictEqual(metric, undefined);
+      },
+      GLOBAL.SERVERS.OPEN,
+    );
+  });
+
+  describe("Custom histogram buckets", () => {
+    testUtils.testAll(
+      "should apply custom buckets for db.client.operation.duration",
+      async (client) => {
+        const customBuckets = [0.001, 0.01, 0.1];
+
+        OTelMetrics.init({
+          api,
+          config: {
+            metrics: {
+              enabled: true,
+              meterProvider,
+              enabledMetricGroups: ["command"],
+              bucketsOperationDuration: customBuckets,
+            },
+          },
+        });
+
+        await client.set("otel-bucket-key", "value");
+        await meterProvider.forceFlush();
+
+        const resourceMetrics = exporter.getMetrics();
+        const dataPoints = getMetricDataPoints<Histogram>(
+          resourceMetrics,
+          METRIC_NAMES.dbClientOperationDuration,
+        );
+
+        const setDataPoint = dataPoints.find(
+          (dp) => dp.attributes[OTEL_ATTRIBUTES.dbOperationName] === "SET",
+        );
+        assert.ok(setDataPoint, "expected SET data point to be present");
+        assert.deepStrictEqual(
+          setDataPoint.value.buckets.boundaries,
+          customBuckets,
+        );
+      },
+      {
+        client: GLOBAL.SERVERS.OPEN,
+        cluster: GLOBAL.CLUSTERS.OPEN,
+      },
+    );
+
+    testUtils.testAll(
+      "should apply custom buckets for redis.client.stream.lag",
+      async (client) => {
+        const customBuckets = [0.05, 0.5, 2];
+        const stream = "otel-custom-buckets-stream";
+
+        OTelMetrics.init({
+          api,
+          config: {
+            metrics: {
+              enabled: true,
+              meterProvider,
+              enabledMetricGroups: ["streaming"],
+              bucketsStreamLag: customBuckets,
+            },
+          },
+        });
+
+        await client.xAdd(stream, "*", { field: "value" });
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        await client.xRead({ key: stream, id: "0-0" });
+        await meterProvider.forceFlush();
+
+        const resourceMetrics = exporter.getMetrics();
+        const dataPoints = getMetricDataPoints<Histogram>(
+          resourceMetrics,
+          METRIC_NAMES.redisClientStreamLag,
+        );
+
+        const streamPoint = dataPoints.find(
+          (dp) =>
+            dp.attributes[OTEL_ATTRIBUTES.redisClientStreamName] === stream,
+        );
+        assert.ok(streamPoint, "expected stream lag data point to be present");
+        assert.deepStrictEqual(
+          streamPoint.value.buckets.boundaries,
+          customBuckets,
         );
       },
       {
@@ -1403,40 +1925,4 @@ describe("OTel Metrics E2E", function () {
       },
     );
   });
-
-  testUtils.testAll(
-    "should NOT record commands when disabled",
-    async (client) => {
-      OTelMetrics.init({
-        api,
-        config: {
-          metrics: {
-            enabled: false,
-          },
-        },
-      });
-
-      await Promise.all([
-        client.set("key", "value"),
-        client.set("key", "value"),
-        client.set("key", "value"),
-      ]);
-
-      await meterProvider.forceFlush();
-
-      const resourceMetrics = exporter.getMetrics();
-      const metric = resourceMetrics
-        .flatMap((rm) => rm.scopeMetrics)
-        .flatMap((sm) => sm.metrics)
-        .find(
-          (m) => m.descriptor.name === METRIC_NAMES.dbClientOperationDuration,
-        );
-
-      assert.strictEqual(metric, undefined);
-    },
-    {
-      client: GLOBAL.SERVERS.OPEN,
-      cluster: GLOBAL.CLUSTERS.OPEN,
-    },
-  );
 });

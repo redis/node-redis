@@ -4,6 +4,10 @@ import {
   DataPoint,
 } from "@opentelemetry/sdk-metrics";
 
+/**
+ * Waits for a given metric to be exported.
+ * Returns the first metric data if the metrics is found, undefined otherwise.
+ */
 export const waitForMetrics = async (
   meterProvider: MeterProvider,
   exporter: InMemoryMetricExporter,
@@ -14,14 +18,14 @@ export const waitForMetrics = async (
 
   while (performance.now() - startTime < timeoutMs) {
     await meterProvider.forceFlush();
-    const beforeResourceMetrics = exporter.getMetrics();
-    const beforeMetric = beforeResourceMetrics
+    const resourceMetrics = exporter.getMetrics();
+    const metric = resourceMetrics
       .flatMap((rm) => rm.scopeMetrics)
       .flatMap((sm) => sm.metrics)
       .find((m) => m.descriptor.name === metricName);
 
-    if (beforeMetric) {
-      return beforeMetric;
+    if (metric) {
+      return metric;
     }
 
     await new Promise((resolve) => setTimeout(resolve, 100));

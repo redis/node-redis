@@ -26,6 +26,7 @@ import {
   IOTelClientSideCacheMetrics,
   IOTelPubSubMetrics,
   IOTelStreamMetrics,
+  DEFAULT_SERVICE_NAME,
 } from "./types";
 import { createNoopMeter } from "./noop-meter";
 import { getErrorInfo, noopFunction, parseClientAttributes } from "./utils";
@@ -39,6 +40,7 @@ import {
   NoopResiliencyMetrics,
   NoopStreamMetrics,
 } from "./noop-metrics";
+import { OpenTelemetryError } from "../errors";
 
 function resolveClientAttributes(
   clientId?: string,
@@ -127,7 +129,6 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
 
   createRecordBatchOperationDuration(
     operationName: "MULTI" | "PIPELINE",
-    batchSize: number,
     clientId?: string,
   ): (error?: Error) => void {
     const startTime = performance.now();
@@ -140,7 +141,6 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
         {
           ...this.#options.attributes,
           [OTEL_ATTRIBUTES.dbOperationName]: operationName,
-          [OTEL_ATTRIBUTES.dbOperationBatchSize]: batchSize,
           [OTEL_ATTRIBUTES.dbNamespace]: clientAttributes?.db,
           [OTEL_ATTRIBUTES.serverAddress]: clientAttributes?.host,
           [OTEL_ATTRIBUTES.serverPort]: clientAttributes?.port,
@@ -392,7 +392,6 @@ class OTelStreamMetrics implements IOTelStreamMetrics {
       args[0]?.toString().toUpperCase() === "XREADGROUP" &&
       args[1]?.toString().toUpperCase() === "GROUP";
     const consumerGroup = isXReadGroup ? args[2]?.toString() : undefined;
-    const consumerName = isXReadGroup ? args[3]?.toString() : undefined;
 
     for (const streamData of reply) {
       if (!streamData || typeof streamData !== "object") {
@@ -417,9 +416,6 @@ class OTelStreamMetrics implements IOTelStreamMetrics {
           : {}),
         ...(consumerGroup !== undefined
           ? { [OTEL_ATTRIBUTES.redisClientConsumerGroup]: consumerGroup }
-          : {}),
-        ...(consumerName !== undefined
-          ? { [OTEL_ATTRIBUTES.redisClientConsumerName]: consumerName }
           : {}),
       };
 
@@ -554,7 +550,7 @@ export class OTelMetrics implements IOTelMetrics {
     config?: ObservabilityConfig;
   }) {
     if (OTelMetrics.#initialized) {
-      throw new Error("OTelMetrics already initialized");
+      throw new OpenTelemetryError("OTelMetrics already initialized");
     }
     const instance = new OTelMetrics({ api, config });
     OTelMetrics.#instance = instance;
@@ -592,15 +588,11 @@ export class OTelMetrics implements IOTelMetrics {
 
     if (options?.meterProvider) {
       return options.meterProvider.getMeter(
-        options.serviceName ??
-          DEFAULT_OTEL_ATTRIBUTES[OTEL_ATTRIBUTES.redisClientLibrary],
+        options.serviceName ?? DEFAULT_SERVICE_NAME,
       );
     }
 
-    return api.metrics.getMeter(
-      options.serviceName ??
-        DEFAULT_OTEL_ATTRIBUTES[OTEL_ATTRIBUTES.redisClientLibrary],
-    );
+    return api.metrics.getMeter(options.serviceName ?? DEFAULT_SERVICE_NAME);
   }
 
   private parseOptions(config?: ObservabilityConfig) {
@@ -630,8 +622,6 @@ export class OTelMetrics implements IOTelMetrics {
         config?.metrics?.enabledMetricGroups ?? DEFAULT_METRIC_GROUPS,
       hidePubSubChannelNames: config?.metrics?.hidePubSubChannelNames ?? false,
       hideStreamNames: config?.metrics?.hideStreamNames ?? false,
-      histAggregation:
-        config?.metrics?.histAggregation ?? "explicit_bucket_histogram",
       bucketsOperationDuration:
         config?.metrics?.bucketsOperationDuration ??
         DEFAULT_HISTOGRAM_BUCKETS.OPERATION_DURATION,

@@ -18,7 +18,7 @@ export enum ClientRole {
   POOL = 'pool',
   POOL_MEMBER = 'poolMember',
   SENTINEL = 'sentinel',
-  SENTINEL_CLIENT = 'sentinelClient'
+  SENTINEL_CLIENT = 'sentinelClient',
 }
 
 /**
@@ -33,18 +33,12 @@ export interface ClientIdentity {
   readonly parentId?: string;
 }
 
-export interface ExtendedClientIdentity extends ClientIdentity {
-  host?: string;
-  port?: string | number;
-  db?: string | number;
-}
-
 /**
  * Truncates a prefix string to fit within MAX_ID_LENGTH when combined with suffix.
  * Format when truncated: {truncated_prefix}...-{hash}
  * @internal
  */
-function truncateId(prefix: string, hash: string): string {
+const truncateId = (prefix: string, hash: string): string => {
   const suffix = `-${hash}`;
   const fullId = `${prefix}${suffix}`;
 
@@ -52,32 +46,42 @@ function truncateId(prefix: string, hash: string): string {
     return fullId;
   }
 
-  // Reserve space for "..." and suffix
+  // Reserve space for '...' and suffix
   const ellipsis = '...';
   const maxPrefixLength = MAX_ID_LENGTH - ellipsis.length - suffix.length;
   const truncatedPrefix = prefix.substring(0, maxPrefixLength);
   return `${truncatedPrefix}${ellipsis}${suffix}`;
-}
+};
 
 /**
  * Generates a client identity ID in the format: $host:$port/$db-$hash
  * Truncated to MAX_ID_LENGTH if necessary.
  * @internal
  */
-export function generateClientId(host?: string, port?: number, db?: number): string {
+export const generateClientId = (
+  host?: string,
+  port?: number,
+  db?: number,
+): string => {
   const hash = randomBytes(4).toString('hex');
 
   const prefix = `${host ?? 'unknown'}:${port ?? 'unknown'}/${db ?? 'unknown'}`;
   return truncateId(prefix, hash);
-}
+};
 
 /**
  * Generates a cluster identity ID by concatenating all root nodes: $host1:$port1,$host2:$port2,...-$hash
  * Truncated to MAX_ID_LENGTH if necessary.
  * @internal
  */
-export function generateClusterClientId(nodes: Array<RedisClusterClientOptions>): string {
+export const generateClusterClientId = (
+  nodes: Array<RedisClusterClientOptions>,
+): string => {
   const hash = randomBytes(4).toString('hex');
-  const prefix = nodes.map(n => `${n?.socket?.host ?? 'unknown'}:${n?.socket?.port ?? 'unknown'}`).join(',');
+  const prefix = nodes
+    .map(
+      (n) => `${n?.socket?.host ?? 'unknown'}:${n?.socket?.port ?? 'unknown'}`,
+    )
+    .join(',');
   return truncateId(prefix, hash);
-}
+};

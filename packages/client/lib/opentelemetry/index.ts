@@ -1,3 +1,4 @@
+import { OpenTelemetryError } from "../errors";
 import { ClientRegistry } from "./client-registry";
 import { OTelMetrics } from "./metrics";
 import { ObservabilityConfig } from "./types";
@@ -8,9 +9,50 @@ export class OpenTelemetry {
   // Make sure it's a singleton
   private constructor() {}
 
-  public static init(config?: ObservabilityConfig) {
+  /**
+   * Initializes node-redis OpenTelemetry observability.
+   *
+   * This bootstraps node-redis metrics instrumentation and registers the
+   * internal client registry used by metric collectors.
+   *
+   * Call this once during application startup, before creating Redis clients
+   * you want to observe.
+   *
+   * @param config - Observability configuration.
+   *
+   * @throws {OpenTelemetryError} If OpenTelemetry is already initialized.
+   * @throws {OpenTelemetryError} If `@opentelemetry/api` is not installed.
+   *
+   * @example
+   * ```ts
+   * import { metrics } from "@opentelemetry/api";
+   * import {
+   *   ConsoleMetricExporter,
+   *   MeterProvider,
+   *   PeriodicExportingMetricReader
+   * } from "@opentelemetry/sdk-metrics";
+   * import { OpenTelemetry } from "redis";
+   *
+   * const reader = new PeriodicExportingMetricReader({
+   *   exporter: new ConsoleMetricExporter()
+   * });
+   *
+   * const provider = new MeterProvider({ readers: [reader] });
+   * metrics.setGlobalMeterProvider(provider);
+   *
+   * OpenTelemetry.init({
+   *   metrics: {
+   *     enabled: true,
+   *     enabledMetricGroups: ["pubsub", "connection-basic", "resiliency"],
+   *     includeCommands: ["GET", "SET"],
+   *     hidePubSubChannelNames: true
+   *   }
+   * });
+   * ```
+   */
+  public static init(config: ObservabilityConfig) {
     if (OpenTelemetry._instance) {
-      throw new Error("OpenTelemetry already initialized");
+      throw new OpenTelemetryError("OpenTelemetry already initialized");
     }
 
     let api: typeof import("@opentelemetry/api") | undefined;
@@ -18,8 +60,7 @@ export class OpenTelemetry {
     try {
       api = require("@opentelemetry/api");
     } catch (err: unknown) {
-      // TODO add custom errors
-      throw new Error("OpenTelemetry not found");
+      throw new OpenTelemetryError("@opentelemetry/api not found");
     }
 
     OpenTelemetry._instance = new OpenTelemetry();

@@ -123,6 +123,31 @@ describe("ClientRegistry Unit Tests", () => {
       ClientRegistry.instance.unregister("non-existent-id");
     });
   });
+
+  it("should handle unix socket clients", () => {
+    ClientRegistry.init();
+    
+    createClient({
+      socket: {
+        path: "/tmp/redis.sock",
+        tls: false,
+      },
+    });
+
+    const clients = Array.from(ClientRegistry.instance.getAll());
+    assert.strictEqual(clients.length, 1);
+
+    const handle = clients[0];
+    assert.strictEqual(handle.isConnected(), false);
+    assert.strictEqual(handle.identity.role, ClientRole.STANDALONE);
+    assert.match(handle.identity.id, /^unknown:unknown\/0-[0-9a-f]{8}$/);
+
+    const attributes = handle.getAttributes();
+    assert.strictEqual(attributes.host, undefined);
+    assert.strictEqual(attributes.port, undefined);
+    assert.strictEqual(attributes.db, 0);
+    assert.strictEqual(attributes.clientId, handle.identity.id);
+  });
 });
 
 describe("ClientRegistry E2E", function () {

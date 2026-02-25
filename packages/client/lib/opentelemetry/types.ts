@@ -6,6 +6,7 @@ import {
   ObservableGauge,
   UpDownCounter,
 } from "@opentelemetry/api";
+import { version } from "../../package.json";
 import { RedisArgument } from "../RESP/types";
 
 export const METRIC_GROUP = {
@@ -19,14 +20,6 @@ export const METRIC_GROUP = {
 } as const;
 
 export type MetricGroup = (typeof METRIC_GROUP)[keyof typeof METRIC_GROUP];
-
-export const HISTOGRAM_AGGREGATION = {
-  EXPLICIT_BUCKET_HISTOGRAM: "explicit_bucket_histogram",
-  BASE2_EXPONENTIAL_BUCKET_HISTOGRAM: "base2_exponential_bucket_histogram",
-} as const;
-
-export type HistogramAggregation =
-  (typeof HISTOGRAM_AGGREGATION)[keyof typeof HISTOGRAM_AGGREGATION];
 
 export const METRIC_INSTRUMENT_TYPE = {
   COUNTER: "counter",
@@ -42,7 +35,6 @@ export interface MetricConfig {
   enabledMetricGroups?: MetricGroup[];
   hidePubSubChannelNames?: boolean;
   hideStreamNames?: boolean;
-  histAggregation?: HistogramAggregation;
   bucketsOperationDuration?: number[];
   bucketsConnectionCreateTime?: number[];
   bucketsConnectionWaitTime?: number[];
@@ -119,7 +111,6 @@ export const OTEL_ATTRIBUTES = {
   serverPort: "server.port",
   networkPeerAddress: "network.peer.address",
   networkPeerPort: "network.peer.port",
-  dbOperationBatchSize: "db.operation.batch.size",
   dbStoredProcedureName: "db.stored_procedure.name",
   dbClientConnectionPoolName: "db.client.connection.pool.name",
   dbClientConnectionState: "db.client.connection.state",
@@ -137,8 +128,7 @@ export const OTEL_ATTRIBUTES = {
   redisClientPubSubSharded: "redis.client.pubsub.sharded",
   redisClientPubSubMessageDirection: "redis.client.pubsub.message.direction",
   redisClientStreamName: "redis.client.stream.name",
-  redisClientConsumerGroup: "redis.client.consumer_group",
-  redisClientConsumerName: "redis.client.consumer_name",
+  redisClientConsumerGroup: "redis.client.stream.consumer_group",
   redisClientOperationRetryAttempts: "redis.client.operation.retry_attempts",
   redisClientOperationBlocking: "redis.client.operation.blocking",
   redisClientConnectionNotification: "redis.client.connection.notification",
@@ -183,8 +173,10 @@ export const CSC_EVICTION_REASON = {
 export type CscEvictionReason =
   (typeof CSC_EVICTION_REASON)[keyof typeof CSC_EVICTION_REASON];
 
+export const DEFAULT_SERVICE_NAME = "node-redis";
+
 export const DEFAULT_OTEL_ATTRIBUTES = {
-  [OTEL_ATTRIBUTES.redisClientLibrary]: "node-redis",
+  [OTEL_ATTRIBUTES.redisClientLibrary]: `node-redis:${version}`,
   [OTEL_ATTRIBUTES.dbSystemName]: "redis",
 } as const;
 
@@ -237,12 +229,14 @@ export const DEFAULT_METRIC_GROUPS: MetricGroup[] = [
   "resiliency",
 ];
 
+const DEFAULT_HISTOGRAM_BUCKET = [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5, 10];
+
 export const DEFAULT_HISTOGRAM_BUCKETS = {
-  OPERATION_DURATION: [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5, 10],
-  CONNECTION_CREATE_TIME: [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5, 10],
-  CONNECTION_WAIT_TIME: [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5, 10],
-  CONNECTION_USE_TIME: [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5, 10],
-  STREAM_LAG: [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5, 10],
+  OPERATION_DURATION: DEFAULT_HISTOGRAM_BUCKET,
+  CONNECTION_CREATE_TIME: DEFAULT_HISTOGRAM_BUCKET,
+  CONNECTION_WAIT_TIME: DEFAULT_HISTOGRAM_BUCKET,
+  CONNECTION_USE_TIME: DEFAULT_HISTOGRAM_BUCKET,
+  STREAM_LAG: DEFAULT_HISTOGRAM_BUCKET,
 };
 
 export const METRIC_ERROR_TYPE = {
@@ -262,17 +256,13 @@ export interface IOTelCommandMetrics {
 
   createRecordBatchOperationDuration(
     operationName: "MULTI" | "PIPELINE",
-    batchSize: number,
     clientId?: string,
   ): (error?: Error) => void;
 }
 
 export interface IOTelConnectionBasicMetrics {
   createRecordConnectionCreateTime(clientId?: string): () => void;
-  recordConnectionRelaxedTimeout(
-    value: number,
-    clientId?: string,
-  ): void;
+  recordConnectionRelaxedTimeout(value: number, clientId?: string): void;
   recordConnectionHandoff(clientId?: string): void;
 }
 
@@ -285,8 +275,6 @@ export interface IOTelConnectionAdvancedMetrics {
    * Creates a closure to record connection wait time.
    * Call this when a client begins waiting for an available connection from the pool.
    * The returned function should be called when the connection becomes available.
-   *
-   * TODO: Not applicable in single-socket mode. Implement when connection pooling is added.
    */
   createRecordConnectionWaitTime(): (clientId?: string) => void;
 }
@@ -298,10 +286,7 @@ export interface IOTelResiliencyMetrics {
     clientId?: string,
     retryAttempts?: number,
   ): void;
-  recordMaintenanceNotifications(
-    notification: string,
-    clientId?: string,
-  ): void;
+  recordMaintenanceNotifications(notification: string, clientId?: string): void;
 }
 
 export interface IOTelClientSideCacheMetrics {
