@@ -23,6 +23,16 @@ describe('RedisClientPool', () => {
     );
   }, GLOBAL.SERVERS.OPEN);
 
+  testUtils.testWithClientPool('multi sendCommand', async pool => {
+    assert.deepEqual(
+      await pool.multi()
+        .sendCommand(['SET', 'key', 'value'])
+        .sendCommand(['GET', 'key'])
+        .exec(),
+      ['OK', 'value']
+    );
+  }, GLOBAL.SERVERS.OPEN);
+
   testUtils.testWithClientPool('close', async pool => {
     assert.equal(pool.isOpen, true, 'pool should be open before close');
     await pool.close();

@@ -276,4 +276,23 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
   execAsPipelineTyped() {
     return this.execAsPipeline<MULTI_REPLY['TYPED']>();
   }
+
+  /**
+   * Adds a raw command to the multi/pipeline queue.
+   *
+   * Note: Using this method breaks the type inference for `execTyped` and
+   * `execAsPipelineTyped`. This is a known limitation and will be addressed
+   * in the future.
+   */
+  sendCommand(
+    args: ReadonlyArray<RedisArgument>,
+    options?: {
+      firstKey?: RedisArgument;
+      isReadonly?: boolean;
+    }
+  ) {
+    const redisArgs: CommandArguments = args.slice();
+    this.addCommand(options?.firstKey, options?.isReadonly, redisArgs);
+    return this;
+  }
 }

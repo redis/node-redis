@@ -1,6 +1,6 @@
 import COMMANDS from '../commands';
 import RedisMultiCommand, { MULTI_MODE, MULTI_REPLY, MultiMode, MultiReply, MultiReplyType, RedisMultiQueuedCommand } from '../multi-command';
-import { ReplyWithTypeMapping, CommandReply, Command, CommandArguments, CommanderConfig, RedisFunctions, RedisModules, RedisScripts, RespVersions, TransformReply, RedisScript, RedisFunction, TypeMapping } from '../RESP/types';
+import { ReplyWithTypeMapping, CommandReply, Command, CommandArguments, CommanderConfig, RedisFunctions, RedisModules, RedisScripts, RespVersions, TransformReply, RedisScript, RedisFunction, TypeMapping, RedisArgument } from '../RESP/types';
 import { attachConfig, functionArgumentsPrefix, getTransformReply } from '../commander';
 import { BasicCommandParser } from './parser';
 import { Tail } from '../commands/generic-transformers';
@@ -79,7 +79,7 @@ type InternalRedisClientMultiCommandType<
   TYPE_MAPPING extends TypeMapping
 > = (
   RedisClientMultiCommand<REPLIES> &
-  WithCommands<REPLIES, M, F, S, RESP, TYPE_MAPPING> & 
+  WithCommands<REPLIES, M, F, S, RESP, TYPE_MAPPING> &
   WithModules<REPLIES, M, F, S, RESP, TYPE_MAPPING> &
   WithFunctions<REPLIES, M, F, S, RESP, TYPE_MAPPING> &
   WithScripts<REPLIES, M, F, S, RESP, TYPE_MAPPING>
@@ -248,5 +248,18 @@ export default class RedisClientMultiCommand<REPLIES = []> {
 
   execAsPipelineTyped() {
     return this.execAsPipeline<MULTI_REPLY['TYPED']>();
+  }
+
+  /**
+   * Adds a raw command to the multi/pipeline queue.
+   *
+   * Note: Using this method breaks the type inference for `execTyped` and
+   * `execAsPipelineTyped`. This is a known limitation and will be addressed
+   * in the future.
+   */
+  sendCommand(args: ReadonlyArray<RedisArgument>) {
+    const redisArgs: CommandArguments = args.slice();
+    this.#multi.addCommand(redisArgs);
+    return this;
   }
 }
