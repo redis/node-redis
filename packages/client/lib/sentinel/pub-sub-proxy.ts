@@ -14,7 +14,7 @@ type Client = RedisClient<
 >;
 
 type Subscriptions = Record<
-  PUBSUB_TYPE['CHANNELS'] | PUBSUB_TYPE['PATTERNS'],
+  PUBSUB_TYPE['CHANNELS'] | PUBSUB_TYPE['PATTERNS'] | PUBSUB_TYPE['SHARDED'],
   PubSubTypeListeners
 >;
 
@@ -71,7 +71,8 @@ export class PubSubProxy extends EventEmitter {
         if (withSubscriptions && this.#subscriptions) {
           await Promise.all([
             client.extendPubSubListeners(PUBSUB_TYPE.CHANNELS, this.#subscriptions[PUBSUB_TYPE.CHANNELS]),
-            client.extendPubSubListeners(PUBSUB_TYPE.PATTERNS, this.#subscriptions[PUBSUB_TYPE.PATTERNS])
+            client.extendPubSubListeners(PUBSUB_TYPE.PATTERNS, this.#subscriptions[PUBSUB_TYPE.PATTERNS]),
+            client.extendPubSubListeners(PUBSUB_TYPE.SHARDED, this.#subscriptions[PUBSUB_TYPE.SHARDED])
           ]);
         }
 
@@ -116,7 +117,8 @@ export class PubSubProxy extends EventEmitter {
     if (this.#state.connectPromise === undefined) {
       this.#subscriptions = {
         [PUBSUB_TYPE.CHANNELS]: this.#state.client.getPubSubListeners(PUBSUB_TYPE.CHANNELS),
-        [PUBSUB_TYPE.PATTERNS]: this.#state.client.getPubSubListeners(PUBSUB_TYPE.PATTERNS)
+        [PUBSUB_TYPE.PATTERNS]: this.#state.client.getPubSubListeners(PUBSUB_TYPE.PATTERNS),
+        [PUBSUB_TYPE.SHARDED]: this.#state.client.getPubSubListeners(PUBSUB_TYPE.SHARDED)
       };
 
       this.#state.client.destroy();
@@ -193,6 +195,24 @@ export class PubSubProxy extends EventEmitter {
     bufferMode?: T
   ) {
     return this.#unsubscribe(client => client.PUNSUBSCRIBE(patterns, listener, bufferMode));
+  }
+
+  sSubscribe<T extends boolean = false>(
+    channels: string | Array<string>,
+    listener: PubSubListener<T>,
+    bufferMode?: T
+  ) {
+    return this.#executeCommand(
+      client => client.SSUBSCRIBE(channels, listener, bufferMode)
+    );
+  }
+
+  async sUnsubscribe<T extends boolean = false>(
+    channels?: string | Array<string>,
+    listener?: PubSubListener<T>,
+    bufferMode?: T
+  ) {
+    return this.#unsubscribe(client => client.SUNSUBSCRIBE(channels, listener, bufferMode));
   }
 
   destroy() {
