@@ -766,8 +766,10 @@ export default class TestUtils {
         await pool.flushAll();
         await fn(pool);
       } finally {
-        await pool.flushAll();
-        pool.close();
+        if (pool.isOpen) {
+          await pool.flushAll();
+          pool.destroy();
+        }
       }
     });
   }

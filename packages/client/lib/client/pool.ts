@@ -3,7 +3,7 @@ import { Command, CommandSignature, RedisArgument, RedisFunction, RedisFunctions
 import RedisClient, { RedisClientType, RedisClientOptions, WithModules, WithFunctions, WithScripts } from '.';
 import { EventEmitter } from 'node:events';
 import { DoublyLinkedNode, DoublyLinkedList, SinglyLinkedList } from './linked-list';
-import { TimeoutError } from '../errors';
+import { ClientClosedError, TimeoutError } from '../errors';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
 import { CommandOptions } from './commands-queue';
 import RedisClientMultiCommand, { RedisClientMultiCommandType } from './multi-command';
@@ -27,20 +27,20 @@ export interface RedisPoolOptions {
   acquireTimeout: number;
   /**
    * The delay in milliseconds before a cleanup operation is performed on idle clients.
-   * 
-   * After this delay, the pool will check if there are too many idle clients and destroy 
+   *
+   * After this delay, the pool will check if there are too many idle clients and destroy
    * excess ones to maintain optimal pool size.
    */
   cleanupDelay: number;
   /**
    * Client Side Caching configuration for the pool.
-   * 
-   * Enables Redis Servers and Clients to work together to cache results from commands 
+   *
+   * Enables Redis Servers and Clients to work together to cache results from commands
    * sent to a server. The server will notify the client when cached results are no longer valid.
    * In pooled mode, the cache is shared across all clients in the pool.
-   * 
+   *
    * Note: Client Side Caching is only supported with RESP3.
-   * 
+   *
    * @example Anonymous cache configuration
    * ```
    * const client = createClientPool({RESP: 3}, {
@@ -52,7 +52,7 @@ export interface RedisPoolOptions {
    *   minimum: 5
    * });
    * ```
-   * 
+   *
    * @example Using a controllable cache
    * ```
    * const cache = new BasicPooledClientSideCache({
@@ -69,11 +69,11 @@ export interface RedisPoolOptions {
   clientSideCache?: PooledClientSideCacheProvider | ClientSideCacheConfig;
   /**
    * Enable experimental support for RESP3 module commands.
-   * 
-   * When enabled, allows the use of module commands that have been adapted 
-   * for the RESP3 protocol. This is an unstable feature and may change in 
+   *
+   * When enabled, allows the use of module commands that have been adapted
+   * for the RESP3 protocol. This is an unstable feature and may change in
    * future versions.
-   * 
+   *
    * @default false
    */
   unstableResp3Modules?: boolean;
@@ -273,6 +273,12 @@ export class RedisClientPool<
     return this._self.#isClosing;
   }
 
+  /**
+   * Resolve function called when all in-flight tasks complete during close().
+   * Used to signal that the pool has finished draining and clients can be closed.
+   */
+  #drainResolve?: () => void;
+
   #clientSideCache?: PooledClientSideCacheProvider;
   get clientSideCache() {
     return this._self.#clientSideCache;
@@ -389,6 +395,9 @@ export class RedisClientPool<
   }
 
   async #create() {
+    // Track the client as "in use" during connect so it counts toward capacity.
+    // If we waited to add it until after connect, the pool would think it doesn't
+    // exist yet and could spin up extra clients when multiple tasks queue up.
     const node = this._self.#clientsInUse.push(
       this._self.#clientFactory()
         .on('error', (err: Error) => this.emit('error', err))
@@ -404,9 +413,13 @@ export class RedisClientPool<
 
     this._self.#returnClient(node);
   }
-  
+
   execute<T>(fn: PoolTask<M, F, S, RESP, TYPE_MAPPING, T>) {
     return new Promise<Awaited<T>>((resolve, reject) => {
+      if (this._self.#isClosing || !this._self.#isOpen) {
+        return reject(new ClientClosedError());
+      }
+
       const client = this._self.#idleClients.shift(),
         { tail } = this._self.#tasksQueue;
       if (!client) {
@@ -470,6 +483,12 @@ export class RedisClientPool<
     this.#clientsInUse.remove(node);
     this.#idleClients.push(node.value);
 
+    // If closing and all tasks are done, signal the drain is complete
+    if (this.#isClosing && this.#clientsInUse.length === 0) {
+      this.#drainResolve?.();
+      return;
+    }
+
     this.#scheduleCleanup();
   }
 
@@ -515,29 +534,35 @@ export class RedisClientPool<
     if (!this._self.#isOpen) return; // TODO: throw err?
 
     this._self.#isClosing = true;
-    
-    try {
-      const promises = [];
+    clearTimeout(this._self.cleanupTimeout);
 
-      for (const client of this._self.#idleClients) {
-        promises.push(client.close());
+    try {
+      // Wait for all in-flight and queued tasks to complete
+      if (this._self.#clientsInUse.length > 0) {
+        await new Promise<void>(resolve => {
+          this._self.#drainResolve = resolve;
+        });
       }
-  
-      for (const client of this._self.#clientsInUse) {
+
+      // Now all tasks are done, close all clients (which are now idle)
+      const promises = [];
+      for (const client of this._self.#idleClients) {
         promises.push(client.close());
       }
 
       await Promise.all(promises);
 
       this._self.#clientSideCache?.onPoolClose();
-  
+
       this._self.#idleClients.reset();
       this._self.#clientsInUse.reset();
     } catch (err) {
-      
+
     } finally {
+      this._self.#drainResolve = undefined;
       this._self.#isClosing = false;
-    } 
+      this._self.#isOpen = false;
+    }
   }
 
   destroy() {
