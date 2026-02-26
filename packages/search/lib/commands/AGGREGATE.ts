@@ -337,7 +337,7 @@ export function parseGroupByReducer(parser: CommandParser, reducer: GroupByReduc
 }
 
 function pushSortByProperty(args: Array<RedisArgument>, sortBy: SortByProperty) {
-  if (typeof sortBy === 'string' || sortBy instanceof Buffer) {
+  if (typeof sortBy === 'string' || sortBy instanceof Buffer || sortBy instanceof Uint8Array) {
     args.push(sortBy);
   } else {
     args.push(sortBy.BY);
