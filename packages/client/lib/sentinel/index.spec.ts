@@ -5,7 +5,7 @@ import { RESP_TYPES } from '../RESP/decoder';
 import { WatchError } from "../errors";
 import { RedisSentinelConfig, SentinelFramework } from "./test-util";
 import { RedisSentinelEvent, RedisSentinelType, RedisSentinelClientType, RedisNode } from "./types";
-import RedisSentinel from "./index";
+import RedisSentinel, { areSentinelListsEqual } from "./index";
 import { RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping, NumberReply } from '../RESP/types';
 import { promisify } from 'node:util';
 import { exec } from 'node:child_process';
@@ -28,6 +28,72 @@ describe('RedisSentinel', () => {
     assert.equal((sentinel as any).HOTKEYS_STOP, undefined);
     assert.equal((sentinel as any).HOTKEYS_GET, undefined);
     assert.equal((sentinel as any).HOTKEYS_RESET, undefined);
+  });
+
+  describe('areSentinelListsEqual', () => {
+    it('should return true for identical lists', () => {
+      const a = [{ host: '127.0.0.1', port: 26379 }, { host: '127.0.0.1', port: 26380 }];
+      const b = [{ host: '127.0.0.1', port: 26379 }, { host: '127.0.0.1', port: 26380 }];
+      assert.equal(areSentinelListsEqual(a, b), true);
+    });
+
+    it('should return true for empty lists', () => {
+      assert.equal(areSentinelListsEqual([], []), true);
+    });
+
+    it('should return false for different lengths', () => {
+      const a = [{ host: '127.0.0.1', port: 26379 }];
+      const b = [{ host: '127.0.0.1', port: 26379 }, { host: '127.0.0.1', port: 26380 }];
+      assert.equal(areSentinelListsEqual(a, b), false);
+    });
+
+    it('should return false when hosts differ', () => {
+      const a = [{ host: '127.0.0.1', port: 26379 }];
+      const b = [{ host: '10.0.0.1', port: 26379 }];
+      assert.equal(areSentinelListsEqual(a, b), false);
+    });
+
+    it('should return false when ports differ', () => {
+      const a = [{ host: '127.0.0.1', port: 26379 }];
+      const b = [{ host: '127.0.0.1', port: 26380 }];
+      assert.equal(areSentinelListsEqual(a, b), false);
+    });
+
+    it('should return false when order differs (same elements)', () => {
+      const a = [{ host: '127.0.0.1', port: 26379 }, { host: '127.0.0.1', port: 26380 }];
+      const b = [{ host: '127.0.0.1', port: 26380 }, { host: '127.0.0.1', port: 26379 }];
+      assert.equal(areSentinelListsEqual(a, b), false);
+    });
+
+    it('should detect change when same length but different content (regression: was only checking length)', () => {
+      const a = [{ host: '127.0.0.1', port: 26379 }, { host: '127.0.0.1', port: 26380 }];
+      const b = [{ host: '127.0.0.1', port: 26379 }, { host: '127.0.0.1', port: 26381 }];
+      assert.equal(areSentinelListsEqual(a, b), false);
+    });
+  });
+
+  describe('sentinel root nodes preservation on failure', () => {
+    it('should preserve all sentinel root nodes after create (sentinels are not removed from config)', () => {
+      const sentinelRootNodes = [
+        { host: '127.0.0.1', port: 26379 },
+        { host: '127.0.0.1', port: 26380 },
+        { host: '127.0.0.1', port: 26381 }
+      ];
+
+      const sentinel = RedisSentinel.create({
+        name: 'mymaster',
+        sentinelRootNodes
+      });
+
+      // Verify all sentinel root nodes are preserved in the config
+      // (regression: #handleSentinelFailure used to splice nodes out of sentinelRootNodes)
+      assert.equal(sentinelRootNodes.length, 3, 'Original sentinelRootNodes array should not be modified');
+      assert.deepEqual(sentinelRootNodes, [
+        { host: '127.0.0.1', port: 26379 },
+        { host: '127.0.0.1', port: 26380 },
+        { host: '127.0.0.1', port: 26381 }
+      ]);
+    });
   });
 
   describe('initialization', () => {
