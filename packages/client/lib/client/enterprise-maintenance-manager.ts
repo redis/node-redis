@@ -7,6 +7,7 @@ import { setTimeout } from "node:timers/promises";
 import { RedisTcpSocketOptions } from "./socket";
 import diagnostics_channel from "node:diagnostics_channel";
 import { RedisArgument } from "../RESP/types";
+import {  OTelMetrics } from "../opentelemetry";
 
 type RedisType = RedisClient<any, any, any, any, any>;
 
@@ -95,6 +96,7 @@ export default class EnterpriseMaintenanceManager {
 
   static async getHandshakeCommand(
     options: RedisClientOptions,
+    clientId: string,
   ): Promise<
     | { cmd: Array<RedisArgument>; errorHandler: (error: Error) => void }
     | undefined
@@ -120,9 +122,13 @@ export default class EnterpriseMaintenanceManager {
       ],
       errorHandler: (error: Error) => {
         dbgMaintenance("handshake failed:", error);
+        
+        OTelMetrics.instance.resiliencyMetrics.recordClientErrors(error, true, clientId);
+
         if (options.maintNotifications === "enabled") {
           throw error;
         }
+
       },
     };
   }
@@ -147,6 +153,11 @@ export default class EnterpriseMaintenanceManager {
     }
 
     const type = String(push[0]);
+
+    OTelMetrics.instance.resiliencyMetrics.recordMaintenanceNotifications(
+      type,
+      this.#client._clientId,
+    );
 
     emitDiagnostics({
       type,
@@ -289,6 +300,9 @@ export default class EnterpriseMaintenanceManager {
     dbgMaintenance("Resume writing");
     this.#client._unpause();
     this.#onMigrated();
+    OTelMetrics.instance.connectionBasicMetrics.recordConnectionHandoff(
+      this.#client._clientId,
+    );
   };
 
   #onMigrating = () => {

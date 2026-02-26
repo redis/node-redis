@@ -41,7 +41,7 @@ export function attachConfig<
     if (config?.RESP == 3 && command.unstableResp3 && !config.unstableResp3) {
       Class.prototype[name] = throwResp3SearchModuleUnstableError;
     } else {
-      Class.prototype[name] = createCommand(command, RESP);
+      Class.prototype[name] = createCommand(command, RESP)
     }
   }
 

@@ -293,6 +293,7 @@ export type Command = {
   TRANSFORM_LEGACY_REPLY?: boolean;
   transformReply: TransformReply | Record<RespVersions, TransformReply>;
   unstableResp3?: boolean;
+  onSuccess?: (args: ReadonlyArray<RedisArgument>, reply: unknown, clientId: string) => void;
 };
 
 export type RedisCommands = Record<string, Command>;

@@ -17,6 +17,7 @@ import { WaitQueue } from './wait-queue';
 import { TcpNetConnectOpts } from 'node:net';
 import { RedisTcpSocketOptions } from '../client/socket';
 import { BasicPooledClientSideCache, PooledClientSideCacheProvider } from '../client/cache';
+import { ClientIdentity, ClientRole, generateClientId } from '../client/identity';
 
 interface ClientInfo {
   id: number;
@@ -271,6 +272,7 @@ export default class RedisSentinel<
 
   #internal: RedisSentinelInternal<M, F, S, RESP, TYPE_MAPPING>;
   #options: RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>;
+  readonly #identity: ClientIdentity;
 
   /**
    * Indicates if the sentinel connection is open
@@ -294,6 +296,14 @@ export default class RedisSentinel<
     return this._self.#commandOptions;
   }
 
+  /**
+   * @internal
+   * Returns the sentinel identity for tracking in metrics.
+   */
+  get identity(): ClientIdentity {
+    return this._self.#identity;
+  }
+
   #commandOptions?: CommandOptions<TYPE_MAPPING>;
 
   #trace: (msg: string) => unknown = () => { };
@@ -311,13 +321,19 @@ export default class RedisSentinel<
 
     this._self = this;
 
+    const firstSentinel = options.sentinelRootNodes[0];
+
+    this.#identity = {
+      id: generateClientId(firstSentinel?.host, firstSentinel?.port, undefined),
+      role: ClientRole.SENTINEL,
+    };
     this.#options = options;
 
     if (options.commandOptions) {
       this.#commandOptions = options.commandOptions;
     }
 
-    this.#internal = new RedisSentinelInternal<M, F, S, RESP, TYPE_MAPPING>(options);
+    this.#internal = new RedisSentinelInternal<M, F, S, RESP, TYPE_MAPPING>(options, this.#identity.id);
     this.#internal.on('error', err => this.emit('error', err));
 
     /* pass through underling events */
@@ -641,6 +657,7 @@ class RedisSentinelInternal<
   }
 
   readonly #name: string;
+  readonly #sentinelClientId: string;
   readonly #nodeClientOptions: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING, RedisTcpSocketOptions>;
   readonly #sentinelClientOptions: RedisClientOptions<typeof RedisSentinelModule, RedisFunctions, RedisScripts, RespVersions, TypeMapping, RedisTcpSocketOptions>;
   readonly #nodeAddressMap?: NodeAddressMap;
@@ -688,12 +705,13 @@ class RedisSentinelInternal<
     }
   }
 
-  constructor(options: RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>) {
+  constructor(options: RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>, sentinelClientId: string) {
     super();
 
     this.#validateOptions(options);
 
     this.#name = options.name;
+    this.#sentinelClientId = sentinelClientId;
 
     this.#RESP = options.RESP;
     this.#sentinelRootNodes = Array.from(options.sentinelRootNodes);
@@ -740,7 +758,7 @@ class RedisSentinelInternal<
 
   #createClient(node: RedisNode, clientOptions: RedisClientOptions, reconnectStrategy?: false) {
     const socket = getMappedNode(node.host, node.port, this.#nodeAddressMap);
-    return RedisClient.create({
+    const client = RedisClient.create({
       //first take the globally set RESP
       RESP: this.#RESP,
       //then take the client options, which can in theory overwrite it
@@ -752,6 +770,8 @@ class RedisSentinelInternal<
         ...(reconnectStrategy !== undefined && { reconnectStrategy })
       }
     });
+    client._setIdentity(ClientRole.SENTINEL_CLIENT, this.#sentinelClientId);
+    return client;
   }
 
   /**

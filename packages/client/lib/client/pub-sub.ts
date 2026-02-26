@@ -1,6 +1,7 @@
 import { RedisArgument } from '../RESP/types';
 import { CommandToWrite } from './commands-queue';
 import calculateSlot from 'cluster-key-slot';
+import { OTelMetrics } from '../opentelemetry';
 
 export const PUBSUB_TYPE = {
   CHANNELS: 'CHANNELS',
@@ -51,6 +52,12 @@ export type PubSubCommand = (
 );
 
 export class PubSub {
+  readonly #clientId: string;
+
+  constructor(clientId: string) {
+    this.#clientId = clientId;
+  }
+
   static isStatusReply(reply: Array<Buffer>): boolean {
     const firstElement = typeof reply[0] === 'string' ? Buffer.from(reply[0]) : reply[0];
     return (
@@ -450,6 +457,14 @@ export class PubSub {
       listeners = this.listeners[type].get(keyString);
 
     if (!listeners) return;
+
+    // Record incoming pub/sub message metric
+    OTelMetrics.instance.pubSubMetrics.recordPubSubMessage(
+      'in',
+      this.#clientId,
+      channel,
+      type === PUBSUB_TYPE.SHARDED,
+    );
 
     for (const listener of listeners.buffers) {
       listener(message, channel);

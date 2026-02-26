@@ -13,6 +13,8 @@ import { ClientSideCacheConfig, PooledClientSideCacheProvider } from '../client/
 import { BasicCommandParser } from '../client/parser';
 import { ASKING_CMD } from '../commands/ASKING';
 import SingleEntryCache from '../single-entry-cache'
+import { OTelMetrics } from '../opentelemetry';
+import { ClientIdentity, ClientRole, generateClusterClientId } from '../client/identity';
 
 type WithCommands<
   RESP extends RespVersions,
@@ -20,6 +22,7 @@ type WithCommands<
 > = {
   [P in keyof typeof NON_STICKY_COMMANDS]: CommandSignature<(typeof NON_STICKY_COMMANDS)[P], RESP, TYPE_MAPPING>;
 };
+
 
 interface ClusterCommander<
   M extends RedisModules,
@@ -261,6 +264,8 @@ export default class RedisCluster<
 
   readonly _slots: RedisClusterSlots<M, F, S, RESP, TYPE_MAPPING>;
 
+  readonly #identity: ClientIdentity;
+
   private _self = this;
   private _commandOptions?: ClusterCommandOptions<TYPE_MAPPING/*, POLICIES*/>;
 
@@ -311,11 +316,23 @@ export default class RedisCluster<
     return this._self._slots.isOpen;
   }
 
+  /**
+   * @internal
+   * Returns the cluster identity for tracking in metrics.
+   */
+  get identity(): ClientIdentity {
+    return this._self.#identity;
+  }
+
   constructor(options: RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>) {
     super();
 
+    this.#identity = {
+      id: generateClusterClientId(options.rootNodes),
+      role: ClientRole.CLUSTER
+    };
     this._options = options;
-    this._slots = new RedisClusterSlots(options, this.emit.bind(this));
+    this._slots = new RedisClusterSlots(options, this.emit.bind(this), this.#identity.id);
     this.on(RESUBSCRIBE_LISTENERS_EVENT, this.resubscribeAllPubSubListeners.bind(this));
 
     if (options?.commandOptions) {
@@ -438,10 +455,24 @@ export default class RedisCluster<
 
         // TODO: error class
         if (++i > maxCommandRedirections || !(err instanceof Error)) {
+          if (err instanceof Error) {
+            OTelMetrics.instance.resiliencyMetrics.recordClientErrors(
+              err,
+              false,
+              client._clientId,
+              i
+            );
+          }
           throw err;
         }
 
         if (err.message.startsWith('ASK')) {
+          OTelMetrics.instance.resiliencyMetrics.recordClientErrors(
+            err,
+            true,
+            client._clientId,
+            i
+          );
           const address = err.message.substring(err.message.lastIndexOf(' ') + 1);
           let redirectTo = await this._slots.getMasterByAddress(address);
           if (!redirectTo) {
@@ -459,6 +490,12 @@ export default class RedisCluster<
         }
 
         if (err.message.startsWith('MOVED')) {
+          OTelMetrics.instance.resiliencyMetrics.recordClientErrors(
+            err,
+            true,
+            client._clientId,
+            i
+          );
           await this._slots.rediscover(client);
           const clientAndSlot = await this._slots.getClientAndSlotNumber(firstKey, isReadonly);
           client = clientAndSlot.client;
