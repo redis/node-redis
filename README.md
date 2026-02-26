@@ -311,6 +311,33 @@ See the [Programmability overview](https://github.com/redis/node-redis/blob/mast
 
 Check out the [Clustering Guide](https://github.com/redis/node-redis/blob/master/docs/clustering.md) when using Node Redis to connect to a Redis Cluster.
 
+### OpenTelemetry
+
+#### OpenTelemetry Metrics Instrumentation
+
+```typescript
+import { createClient, OpenTelemetry } from "redis";
+
+OpenTelemetry.init({
+  metrics: {
+    enabled: true
+  }
+});
+
+const client = createClient()
+
+await client.connect();
+// ... use the client as usual
+```
+
+**Important:** Initializing `OpenTelemetry` only enables node-redis metrics instrumentation and requires both `@opentelemetry/api` and an OpenTelemetry SDK configured in your application.
+
+**Important:** Initialize `OpenTelemetry` before creating Redis clients.
+For SDK/provider/exporter setup, verification, and advanced configuration, see:
+
+- [OpenTelemetry Metrics docs](./docs/otel-metrics.md)
+- [OpenTelemetry Metrics example](./examples/otel-metrics.js)
+
 ### Events
 
 The Node Redis client class is an Nodejs EventEmitter and it emits an event each time the network status changes:
