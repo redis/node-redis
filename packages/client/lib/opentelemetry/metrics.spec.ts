@@ -1856,7 +1856,7 @@ describe("OTel Metrics E2E", function () {
               enabled: true,
               meterProvider,
               enabledMetricGroups: ["streaming"],
-              bucketsStreamLag: customBuckets,
+              bucketsStreamProcessingDuration: customBuckets,
             },
           },
         });

@@ -38,7 +38,7 @@ export interface MetricConfig {
   bucketsOperationDuration?: number[];
   bucketsConnectionCreateTime?: number[];
   bucketsConnectionWaitTime?: number[];
-  bucketsStreamLag?: number[];
+  bucketsStreamProcessingDuration?: number[];
 }
 
 export interface OTelClientAttributes {

@@ -627,8 +627,8 @@ export class OTelMetrics implements IOTelMetrics {
       bucketsConnectionWaitTime:
         config?.metrics?.bucketsConnectionWaitTime ??
         DEFAULT_HISTOGRAM_BUCKETS.CONNECTION_WAIT_TIME,
-      bucketsStreamLag:
-        config?.metrics?.bucketsStreamLag ??
+      bucketsStreamProcessingDuration:
+        config?.metrics?.bucketsStreamProcessingDuration ??
         DEFAULT_HISTOGRAM_BUCKETS.STREAM_LAG,
     };
   }
@@ -905,7 +905,7 @@ export class OTelMetrics implements IOTelMetrics {
           unit: "s",
           description: "End-to-end lag per message",
           metricGroup: METRIC_GROUP.STREAMING,
-          histogramBoundaries: options.bucketsStreamLag,
+          histogramBoundaries: options.bucketsStreamProcessingDuration,
         },
       ),
       // Client-Side Caching
