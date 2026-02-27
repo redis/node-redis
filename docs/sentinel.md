@@ -118,6 +118,19 @@ createSentinel({
 });
 ```
 
+## Client Config
+
+Many of the [Client Configs](docs/client-configuration.md) work with sentinel mode for example passwords
+
+```javascript
+createSentinel({
+  // ...
+  nodeClientOptions: {
+    password: password,
+  },
+});
+```
+
 ## Master client lease
 
 Sometimes multiple commands needs to run on an exclusive client (for example, using `WATCH/MULTI/EXEC`).
