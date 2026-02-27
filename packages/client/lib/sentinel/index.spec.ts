@@ -979,6 +979,84 @@ describe('legacy tests', () => {
       assert.notEqual(sentinelNode!.port, newSentinel.port);
     });
 
+    it('Should recover after full outage', async function () {
+      this.timeout(120000);
+
+      const allSentinelPorts = frame.getAllSentinelsPort();
+      const primarySentinelPort = allSentinelPorts[0];
+      const extraSentinelPorts = allSentinelPorts.slice(1);
+
+      // Keep only one sentinel reachable for the test.
+      await Promise.all(extraSentinelPorts.map(port => frame.stopSentinel(port.toString())));
+      await setTimeout(1500);
+
+      sentinel = RedisSentinel.create({
+        name: config.sentinelName,
+        sentinelRootNodes: [{ host: '127.0.0.1', port: primarySentinelPort }],
+        RESP: 3,
+        scanInterval: 250
+      });
+      sentinel.setTracer(tracer);
+      sentinel.on("error", () => { });
+      await sentinel.connect();
+
+      await sentinel.set('some-key', 'value');
+      assert.equal(await sentinel.get('some-key'), 'value');
+
+      const allNodePorts = frame.getAllNodesPort();
+      // Simulate full outage (all Redis nodes + the single configured sentinel).
+      await Promise.all(allNodePorts.map(port => frame.stopNode(port.toString())));
+      await frame.stopSentinel(primarySentinelPort.toString());
+
+      const timedGet = async () => {
+        const getPromise = sentinel!.get('some-key');
+        void getPromise.catch(() => undefined); // Promise.race may timeout first.
+
+        return Promise.race([
+          getPromise,
+          setTimeout(1000).then(() => {
+            throw new Error('1s Timeout');
+          })
+        ]);
+      };
+
+      const pollResults: Array<{ phase: 'outage' | 'recovery'; status: 'success' | 'timeout' | 'error' }> = [];
+      const pollLoop = async (phase: 'outage' | 'recovery', rounds: number) => {
+        for (let i = 0; i < rounds; i++) {
+          try {
+            await timedGet();
+            pollResults.push({ phase, status: 'success' });
+          } catch (err: any) {
+            pollResults.push({
+              phase,
+              status: err?.message === '1s Timeout' ? 'timeout' : 'error'
+            });
+          }
+          await setTimeout(3000);
+        }
+      };
+
+      // Match the issue's periodic GET calls while outage is active.
+      await pollLoop('outage', 3);
+
+      // Bring only the single configured sentinel back; keep extra sentinels down.
+      await Promise.all(allNodePorts.map(port => frame.restartNode(port.toString())));
+      await frame.restartSentinel(primarySentinelPort.toString());
+
+      // Continue periodic GET loop and assert recovery.
+      await pollLoop('recovery', 5);
+
+      const sawOutageFailure = pollResults.some(result =>
+        result.phase === 'outage' && result.status !== 'success'
+      );
+      assert.equal(sawOutageFailure, true, 'expected GET failures during outage');
+
+      const sawRecoverySuccess = pollResults.some(result =>
+        result.phase === 'recovery' && result.status === 'success'
+      );
+      assert.equal(sawRecoverySuccess, true, 'expected periodic GET to recover after restart');
+    });
+
     it('timer works, and updates sentinel list', async function () {
       this.timeout(60000);
 

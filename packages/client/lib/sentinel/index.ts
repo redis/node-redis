@@ -652,6 +652,7 @@ class RedisSentinelInternal<
 
   #configEpoch: number = 0;
 
+  readonly #sentinelSeedNodes: Array<RedisNode>;
   #sentinelRootNodes: Array<RedisNode>;
   #sentinelClient?: RedisClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>;
 
@@ -696,7 +697,8 @@ class RedisSentinelInternal<
     this.#name = options.name;
 
     this.#RESP = options.RESP;
-    this.#sentinelRootNodes = Array.from(options.sentinelRootNodes);
+    this.#sentinelSeedNodes = Array.from(options.sentinelRootNodes);
+    this.#sentinelRootNodes = Array.from(this.#sentinelSeedNodes);
     this.#maxCommandRediscovers = options.maxCommandRediscovers ?? 16;
     this.#masterPoolSize = options.masterPoolSize ?? 1;
     this.#replicaPoolSize = options.replicaPoolSize ?? 0;
@@ -951,6 +953,19 @@ class RedisSentinelInternal<
     }
   }
 
+  #sentinelNodeListKey(nodes: Array<RedisNode>) {
+    return nodes.map(node => `${node.host}:${node.port}`).sort().join('|');
+  }
+
+  #restoreSentinelRootNodesIfEmpty() {
+    if (this.#sentinelRootNodes.length !== 0) {
+      return;
+    }
+
+    this.#trace("restoring sentinel roots from seed nodes");
+    this.#sentinelRootNodes = Array.from(this.#sentinelSeedNodes);
+  }
+
   #handleSentinelFailure(node: RedisNode) {
     const found = this.#sentinelRootNodes.findIndex(
         (rootNode) => rootNode.host === node.host && rootNode.port === node.port
@@ -958,6 +973,7 @@ class RedisSentinelInternal<
     if (found !== -1) {
         this.#sentinelRootNodes.splice(found, 1);
     }
+    this.#restoreSentinelRootNodesIfEmpty();
     this.#reset();
   }
 
@@ -1104,6 +1120,8 @@ class RedisSentinelInternal<
 
   // observe/analyze/transform remediation functions
   async observe() {
+    this.#restoreSentinelRootNodesIfEmpty();
+
     for (const node of this.#sentinelRootNodes) {
       let client: RedisClientType<typeof RedisSentinelModule, {}, {}, RespVersions, {}> | undefined;
       try {
@@ -1247,8 +1265,7 @@ class RedisSentinelInternal<
         };
         this.emit('client-error', event);
         this.#handleSentinelFailure(node);
-      })
-      .on('end', () => this.#handleSentinelFailure(node));
+      });
       this.#sentinelClient = client;
 
       this.#trace(`transform: adding sentinel client connect() to promise list`);
@@ -1383,7 +1400,7 @@ class RedisSentinelInternal<
       }
     }
 
-    if (analyzed.sentinelList.length != this.#sentinelRootNodes.length) {
+    if (this.#sentinelNodeListKey(analyzed.sentinelList) !== this.#sentinelNodeListKey(this.#sentinelRootNodes)) {
       this.#sentinelRootNodes = analyzed.sentinelList;
       const event: RedisSentinelEvent = {
         type: "SENTINE_LIST_CHANGE",
