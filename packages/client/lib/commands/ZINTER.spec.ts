@@ -21,6 +21,20 @@ describe('ZINTER', () => {
       );
     });
 
+    it('key (Uint8Array)', () => {
+      assert.deepEqual(
+        parseArgs(ZINTER, new Uint8Array([1, 2, 3])),
+        ['ZINTER', '1', new Uint8Array([1, 2, 3])]
+      );
+    });
+
+    it('keys (Array<Uint8Array>)', () => {
+      assert.deepEqual(
+        parseArgs(ZINTER, [new Uint8Array([1]), new Uint8Array([2])]),
+        ['ZINTER', '2', new Uint8Array([1]), new Uint8Array([2])]
+      );
+    });
+
     it('key & weight', () => {
       assert.deepEqual(
         parseArgs(ZINTER, {

@@ -489,7 +489,7 @@ export function parseZKeysArguments(
 }
 
 function isPlainKey(key: RedisArgument | ZKeyAndWeight): key is RedisArgument {
-  return typeof key === 'string' || key instanceof Buffer;
+  return typeof key === 'string' || key instanceof Uint8Array;
 }
 
 function isPlainKeys(keys: Array<RedisArgument> | Array<ZKeyAndWeight>): keys is Array<RedisArgument> {

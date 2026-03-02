@@ -21,6 +21,20 @@ describe('ZUNION', () => {
       );
     });
 
+    it('key (Uint8Array)', () => {
+      assert.deepEqual(
+        parseArgs(ZUNION, new Uint8Array([1, 2, 3])),
+        ['ZUNION', '1', new Uint8Array([1, 2, 3])]
+      );
+    });
+
+    it('keys (Array<Uint8Array>)', () => {
+      assert.deepEqual(
+        parseArgs(ZUNION, [new Uint8Array([1]), new Uint8Array([2])]),
+        ['ZUNION', '2', new Uint8Array([1]), new Uint8Array([2])]
+      );
+    });
+
     it('key & weight', () => {
       assert.deepEqual(
         parseArgs(ZUNION, {
