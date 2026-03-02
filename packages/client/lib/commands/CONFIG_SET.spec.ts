@@ -12,6 +12,16 @@ describe('CONFIG SET', () => {
       );
     });
 
+    it('single parameter with Uint8Array key uses single-parameter branch', () => {
+      // Regression: Uint8Array is a valid RedisArgument but was previously not
+      // matched by the `instanceof Buffer` guard, causing it to fall into the
+      // Object.entries() branch and emit wrong arguments.
+      assert.deepEqual(
+        parseArgs(CONFIG_SET, new TextEncoder().encode('maxmemory'), new TextEncoder().encode('0')),
+        ['CONFIG', 'SET', new TextEncoder().encode('maxmemory'), new TextEncoder().encode('0')]
+      );
+    });
+
     it('set muiltiple parameters', () => {
       assert.deepEqual(
         parseArgs(CONFIG_SET, {
