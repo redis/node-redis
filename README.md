@@ -303,6 +303,10 @@ await Promise.all([
 ]);
 ```
 
+### Sentinel
+
+Look at the [sentinel section](docs/sentinel.md) to figure out how to use this library with sentinels.
+
 ### Programmability
 
 See the [Programmability overview](https://github.com/redis/node-redis/blob/master/docs/programmability.md).
