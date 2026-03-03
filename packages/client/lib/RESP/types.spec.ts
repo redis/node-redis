@@ -50,8 +50,8 @@ describe('RESP Type Mapping', () => {
             })
             .get('key');
         if (uint8Res !== null && typeof uint8Res !== 'string') {
-            assert.ok(ArrayBuffer.isView(uint8Res));
-            assert.ok((uint8Res as any) instanceof Uint8Array);
+            assert.ok(uint8Res instanceof Uint8Array, 'expected Uint8Array instance');
+            assert.ok(!Buffer.isBuffer(uint8Res), 'expected plain Uint8Array, not Buffer');
         }
 
         // Recursive Collections

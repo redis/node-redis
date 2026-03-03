@@ -63,7 +63,7 @@ function assertSpyCalls(spy: SinonSpy, replies?: Array<unknown>) {
 
   assert.equal(spy.callCount, replies.length);
   for (const [i, reply] of replies.entries()) {
-    assert.deepEqual(
+    assert.deepStrictEqual(
       spy.getCall(i).args,
       [reply]
     );
