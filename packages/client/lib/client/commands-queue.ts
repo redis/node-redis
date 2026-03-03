@@ -450,10 +450,10 @@ export default class RedisCommandsQueue {
       // overriding onReply to handle `RESET` while in `MONITOR` or PubSub mode
       this.#resetFallbackOnReply = this.decoder.onReply;
       this.decoder.onReply = (reply => {
-        if (
-          (typeof reply === 'string' && reply === 'RESET') ||
-          (reply instanceof Buffer && RESET.equals(reply))
-        ) {
+        const isReset = typeof reply === 'string'
+          ? reply === 'RESET'
+          : reply instanceof Uint8Array && reply.length === RESET.length && reply.every((b, i) => b === RESET[i]);
+        if (isReset) {
           this.#resetDecoderCallbacks();
           this.#resetFallbackOnReply = undefined;
           this.#pubSub.reset();
