@@ -492,6 +492,11 @@ export class Decoder {
     }
 
     const slice = chunk.subarray(start, crlfIndex);
+
+    if (type === Uint8Array) {
+      return new Uint8Array(slice.buffer, slice.byteOffset, slice.byteLength);
+    }
+
     return type === Buffer ?
       slice :
       slice.toString();
@@ -507,6 +512,11 @@ export class Decoder {
 
     chunks.push(chunk.subarray(start, crlfIndex));
     const buffer = Buffer.concat(chunks);
+
+    if (type === Uint8Array) {
+      return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+    }
+
     return type === Buffer ? buffer : buffer.toString();
   }
 
@@ -555,6 +565,11 @@ export class Decoder {
 
     const slice = chunk.subarray(this.#cursor, end);
     this.#cursor = end + skip;
+
+    if (type === Uint8Array) {
+      return new Uint8Array(slice.buffer, slice.byteOffset, slice.byteLength);
+    }
+
     return type === Buffer ?
       slice :
       slice.toString();
@@ -578,6 +593,11 @@ export class Decoder {
     chunks.push(chunk.subarray(this.#cursor, end));
     this.#cursor = end + skip;
     const buffer = Buffer.concat(chunks);
+
+    if (type === Uint8Array) {
+      return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+    }
+
     return type === Buffer ? buffer : buffer.toString();
   }
 

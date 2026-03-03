@@ -20,7 +20,7 @@ export default {
   ) {
     parser.push('CONFIG', 'SET');
   
-    if (typeof parameterOrConfig === 'string' || parameterOrConfig instanceof Buffer) {
+    if (typeof parameterOrConfig === 'string' || parameterOrConfig instanceof Uint8Array) {
       parser.push(parameterOrConfig, value!);
     } else {
       for (const [key, value] of Object.entries(parameterOrConfig)) {

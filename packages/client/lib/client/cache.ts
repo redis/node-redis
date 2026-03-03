@@ -4,6 +4,20 @@ import { RedisArgument, ReplyUnion, TransformReply, TypeMapping } from '../RESP/
 import { BasicCommandParser } from './parser';
 
 /**
+ * Converts a Redis key (string, Buffer, or plain Uint8Array) to a UTF-8 string
+ * suitable for use as a Map key.
+ *
+ * Plain Uint8Array.toString() returns comma-separated byte values (e.g. "120"),
+ * while Buffer.toString() returns the UTF-8 text (e.g. "x"). Using this helper
+ * ensures that Uint8Array keys produce the same map key as their Buffer equivalents.
+ */
+function redisKeyToString(key: RedisArgument): string {
+  if (typeof key === 'string') return key;
+  if (Buffer.isBuffer(key)) return key.toString();
+  return Buffer.from(key).toString();
+}
+
+/**
  * A snapshot of cache statistics.
  *
  * This class provides an immutable view of the cache's operational statistics at a particular
@@ -622,7 +636,8 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
       return;
     }
 
-    const keySet = this.#keyToCacheKeySetMap.get(key.toString());
+    const keyStr = redisKeyToString(key);
+    const keySet = this.#keyToCacheKeySetMap.get(keyStr);
     if (keySet) {
       for (const cacheKey of keySet) {
         const entry = this.#cacheKeyToEntryMap.get(cacheKey);
@@ -631,7 +646,7 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
         }
         this.#cacheKeyToEntryMap.delete(cacheKey);
       }
-      this.#keyToCacheKeySetMap.delete(key.toString());
+      this.#keyToCacheKeySetMap.delete(keyStr);
     }
 
     this.emit('invalidate', key);
@@ -702,12 +717,12 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
     this.#cacheKeyToEntryMap.set(cacheKey, cacheEntry);
 
     for (const key of keys) {
-      if (!this.#keyToCacheKeySetMap.has(key.toString())) {
-        this.#keyToCacheKeySetMap.set(key.toString(), new Set<string>());
+      const keyStr = redisKeyToString(key);
+      if (!this.#keyToCacheKeySetMap.has(keyStr)) {
+        this.#keyToCacheKeySetMap.set(keyStr, new Set<string>());
       }
 
-      const cacheKeySet = this.#keyToCacheKeySetMap.get(key.toString());
-      cacheKeySet!.add(cacheKey);
+      this.#keyToCacheKeySetMap.get(keyStr)!.add(cacheKey);
     }
   }
 

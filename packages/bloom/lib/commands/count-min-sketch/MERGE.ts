@@ -41,5 +41,5 @@ export default {
 } as const satisfies Command;
 
 function isPlainSketches(src: BfMergeSketches): src is Array<RedisArgument> {
-  return typeof src[0] === 'string' || src[0] instanceof Buffer;
+  return typeof src[0] === 'string' || src[0] instanceof Buffer || src[0] instanceof Uint8Array;
 }
