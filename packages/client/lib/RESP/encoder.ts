@@ -11,7 +11,8 @@ export default function encodeCommand(args: ReadonlyArray<RedisArgument>): Reado
     const arg = args[i];
     if (typeof arg === 'string') {
       strings += '$' + Buffer.byteLength(arg) + CRLF + arg + CRLF;
-    } else if (arg instanceof Buffer) { // Check Buffer before Uint8Array since Buffer extends Uint8Array in Node.js
+    } else if (arg instanceof Buffer) { // Buffer must be checked before Uint8Array because Buffer is a subclass;
+      // the Uint8Array branch below handles plain (non-Buffer) typed arrays only.
       toWrite.push(
         strings + '$' + arg.length.toString() + CRLF,
         arg
