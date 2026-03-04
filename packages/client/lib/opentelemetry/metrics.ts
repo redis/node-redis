@@ -112,9 +112,9 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
 
       const attrs: Record<string, any> = {
         ...this.#options.attributes,
-        [OTEL_ATTRIBUTES.dbNamespace]: clientAttributes?.db,
+        [OTEL_ATTRIBUTES.dbNamespace]: clientAttributes?.db?.toString(),
         [OTEL_ATTRIBUTES.serverAddress]: clientAttributes?.host,
-        [OTEL_ATTRIBUTES.serverPort]: clientAttributes?.port,
+        [OTEL_ATTRIBUTES.serverPort]: clientAttributes?.port?.toString(),
         [OTEL_ATTRIBUTES.dbOperationName]: commandName,
       };
 
@@ -148,9 +148,9 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
         {
           ...this.#options.attributes,
           [OTEL_ATTRIBUTES.dbOperationName]: operationName,
-          [OTEL_ATTRIBUTES.dbNamespace]: clientAttributes?.db,
+          [OTEL_ATTRIBUTES.dbNamespace]: clientAttributes?.db?.toString(),
           [OTEL_ATTRIBUTES.serverAddress]: clientAttributes?.host,
-          [OTEL_ATTRIBUTES.serverPort]: clientAttributes?.port,
+          [OTEL_ATTRIBUTES.serverPort]: clientAttributes?.port?.toString(),
           ...(errorInfo
             ? {
                 [OTEL_ATTRIBUTES.errorType]: errorInfo.errorType,
@@ -317,7 +317,7 @@ class OTelClientSideCacheMetrics implements IOTelClientSideCacheMetrics {
     this.#instruments.redisClientCscRequests.add(1, {
       ...this.#options.attributes,
       [OTEL_ATTRIBUTES.serverAddress]: clientAttributes?.host,
-      [OTEL_ATTRIBUTES.serverPort]: clientAttributes?.port,
+      [OTEL_ATTRIBUTES.serverPort]: clientAttributes?.port?.toString(),
       [OTEL_ATTRIBUTES.dbClientConnectionPoolName]: clientAttributes?.clientId,
       [OTEL_ATTRIBUTES.redisClientCscResult]: result,
     });
@@ -332,7 +332,7 @@ class OTelClientSideCacheMetrics implements IOTelClientSideCacheMetrics {
     this.#instruments.redisClientCscEvictions.add(count, {
       ...this.#options.attributes,
       [OTEL_ATTRIBUTES.serverAddress]: clientAttributes?.host,
-      [OTEL_ATTRIBUTES.serverPort]: clientAttributes?.port,
+      [OTEL_ATTRIBUTES.serverPort]: clientAttributes?.port?.toString(),
       [OTEL_ATTRIBUTES.dbClientConnectionPoolName]: clientAttributes?.clientId,
       [OTEL_ATTRIBUTES.redisClientCscReason]: reason,
     });
@@ -343,7 +343,7 @@ class OTelClientSideCacheMetrics implements IOTelClientSideCacheMetrics {
     this.#instruments.redisClientCscNetworkSaved.add(bytes, {
       ...this.#options.attributes,
       [OTEL_ATTRIBUTES.serverAddress]: clientAttributes?.host,
-      [OTEL_ATTRIBUTES.serverPort]: clientAttributes?.port,
+      [OTEL_ATTRIBUTES.serverPort]: clientAttributes?.port?.toString(),
       [OTEL_ATTRIBUTES.dbClientConnectionPoolName]: clientAttributes?.clientId,
     });
   }
