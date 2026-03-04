@@ -12,6 +12,7 @@ import {
   IOTelConnectionAdvancedMetrics,
   IOTelCommandMetrics,
   IOTelConnectionBasicMetrics,
+  RecordClientErrorContext,
 } from "./types";
 import { noopFunction } from "./utils";
 
@@ -62,12 +63,7 @@ export class NoopConnectionAdvancedMetrics implements IOTelConnectionAdvancedMet
 }
 
 export class NoopResiliencyMetrics implements IOTelResiliencyMetrics {
-  recordClientErrors(
-    _error: Error,
-    _internal: boolean,
-    _clientId?: string,
-    _retryAttempts?: number,
-  ) {}
+  recordClientErrors(_context: RecordClientErrorContext) {}
   recordMaintenanceNotifications(
     _notification: string,
     _clientId?: string

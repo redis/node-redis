@@ -8,6 +8,7 @@ import { RedisTcpSocketOptions } from "./socket";
 import diagnostics_channel from "node:diagnostics_channel";
 import { RedisArgument } from "../RESP/types";
 import {  OTelMetrics } from "../opentelemetry";
+import { METRIC_ERROR_ORIGIN } from "../opentelemetry/types";
 
 type RedisType = RedisClient<any, any, any, any, any>;
 
@@ -122,8 +123,13 @@ export default class EnterpriseMaintenanceManager {
       ],
       errorHandler: (error: Error) => {
         dbgMaintenance("handshake failed:", error);
-        
-        OTelMetrics.instance.resiliencyMetrics.recordClientErrors(error, true, clientId);
+
+        OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+          error,
+          origin: METRIC_ERROR_ORIGIN.CLIENT,
+          internal: true,
+          clientId,
+        });
 
         if (options.maintNotifications === "enabled") {
           throw error;

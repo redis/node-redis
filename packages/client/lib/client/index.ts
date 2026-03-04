@@ -22,6 +22,7 @@ import SingleEntryCache from '../single-entry-cache';
 import { version } from '../../package.json'
 import EnterpriseMaintenanceManager, { MaintenanceUpdate, MovingEndpointType, SMIGRATED_EVENT, SMigratedEvent } from './enterprise-maintenance-manager';
 import { ClientMetricsHandle, ClientRegistry, OTelMetrics } from '../opentelemetry';
+import { METRIC_ERROR_ORIGIN } from '../opentelemetry/types';
 import { ClientIdentity, ClientRole, generateClientId } from './identity';
 
 export interface RedisClientOptions<
@@ -1195,7 +1196,12 @@ export default class RedisClient<
       })
       .catch((err) => {
         recordOperation(err);
-        OTelMetrics.instance.resiliencyMetrics.recordClientErrors(err, false, this._self._clientId);
+        OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+          error: err,
+          origin: METRIC_ERROR_ORIGIN.CLIENT,
+          internal: false,
+          clientId: this._self._clientId,
+        });
         throw err;
       });
 

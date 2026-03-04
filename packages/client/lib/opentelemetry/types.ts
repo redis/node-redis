@@ -245,6 +245,22 @@ export const METRIC_ERROR_TYPE = {
 export type MetricErrorType =
   (typeof METRIC_ERROR_TYPE)[keyof typeof METRIC_ERROR_TYPE];
 
+export const METRIC_ERROR_ORIGIN = {
+  CLIENT: "client",
+  CLUSTER: "cluster",
+} as const;
+
+export type ClientErrorOrigin =
+  (typeof METRIC_ERROR_ORIGIN)[keyof typeof METRIC_ERROR_ORIGIN];
+
+export interface RecordClientErrorContext {
+  error: Error;
+  origin: ClientErrorOrigin;
+  internal: boolean;
+  clientId?: string;
+  retryCount?: number;
+}
+
 export interface IOTelCommandMetrics {
   createRecordOperationDuration(
     args: ReadonlyArray<RedisArgument>,
@@ -277,12 +293,7 @@ export interface IOTelConnectionAdvancedMetrics {
 }
 
 export interface IOTelResiliencyMetrics {
-  recordClientErrors(
-    error: Error,
-    internal: boolean,
-    clientId?: string,
-    retryAttempts?: number,
-  ): void;
+  recordClientErrors(context: RecordClientErrorContext): void;
   recordMaintenanceNotifications(notification: string, clientId?: string): void;
 }
 

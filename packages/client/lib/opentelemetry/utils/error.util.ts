@@ -1,4 +1,4 @@
-import { ErrorCategory, ERROR_CATEGORY } from "../types";
+import { ErrorCategory, ERROR_CATEGORY, METRIC_ERROR_TYPE } from "../types";
 import {
   ErrorReply,
   ConnectionTimeoutError,
@@ -241,3 +241,10 @@ export function getErrorInfo(error: unknown): ErrorInfo {
   };
 }
 
+export function isRedirectionError(statusCode?: string): boolean {
+  return (
+    statusCode !== undefined &&
+    (statusCode.startsWith(METRIC_ERROR_TYPE.ASK) ||
+      statusCode.startsWith(METRIC_ERROR_TYPE.MOVED))
+  );
+}

@@ -1,6 +1,6 @@
 import { OTEL_ATTRIBUTES, OTelClientAttributes } from "../types";
 
-export { getErrorInfo } from "./error.util";
+export { getErrorInfo, isRedirectionError } from "./error.util";
 export type { ErrorInfo } from "./error.util";
 
 export function noopFunction() {}

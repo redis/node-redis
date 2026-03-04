@@ -14,6 +14,7 @@ import { spy } from "sinon";
 import { createClient } from "@redis/client/index";
 import { OTelMetrics } from "./metrics";
 import {
+  METRIC_ERROR_ORIGIN,
   CONNECTION_CLOSE_REASON,
   CSC_EVICTION_REASON,
   CSC_RESULT,
@@ -28,7 +29,7 @@ import testUtils, { GLOBAL } from "../test-utils";
 import { ClientRegistry } from "./client-registry";
 import { ClientRole } from "../client/identity";
 import { getMetricDataPoints, waitForMetrics } from "./utils/test.util";
-import { OpenTelemetryError } from "../errors";
+import { ErrorReply, OpenTelemetryError } from "../errors";
 
 describe("OTel Metrics Unit Tests", () => {
   afterEach(async () => {
@@ -41,24 +42,22 @@ describe("OTel Metrics Unit Tests", () => {
       config: undefined,
     });
 
-    assert.throws(
-      () => {
-        OTelMetrics.init({
-          api: undefined,
-          config: undefined,
-        });
-      },
-      OpenTelemetryError,
-    );
+    assert.throws(() => {
+      OTelMetrics.init({
+        api: undefined,
+        config: undefined,
+      });
+    }, OpenTelemetryError);
   });
 
   it("should be noop if not initialized", () => {
     const addSpy = spy(NOOP_COUNTER_METRIC, "add");
 
-    OTelMetrics.instance.resiliencyMetrics.recordClientErrors(
-      new Error("Test error"),
-      true,
-    );
+    OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+      error: new Error("Test error"),
+      origin: METRIC_ERROR_ORIGIN.CLIENT,
+      internal: false,
+    });
 
     assert.equal(addSpy.callCount, 1);
 
@@ -76,10 +75,11 @@ describe("OTel Metrics Unit Tests", () => {
 
     OTelMetrics.init({ api: undefined, config });
 
-    OTelMetrics.instance.resiliencyMetrics.recordClientErrors(
-      new Error("Test error"),
-      true,
-    );
+    OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+      error: new Error("Test error"),
+      origin: METRIC_ERROR_ORIGIN.CLIENT,
+      internal: false,
+    });
 
     assert.equal(addSpy.callCount, 1);
 
@@ -97,10 +97,11 @@ describe("OTel Metrics Unit Tests", () => {
 
     OTelMetrics.init({ api: undefined, config });
 
-    OTelMetrics.instance.resiliencyMetrics.recordClientErrors(
-      new Error("Test error"),
-      true,
-    );
+    OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+      error: new Error("Test error"),
+      origin: METRIC_ERROR_ORIGIN.CLIENT,
+      internal: false,
+    });
 
     assert.equal(addSpy.callCount, 1);
 
@@ -227,6 +228,69 @@ describe("OTel Metrics Unit Tests", () => {
       "expect excludeCommands to take precedence over includeCommands",
     );
   });
+
+  it("should deduplicate client-origin redirection errors but keep cluster-origin", async () => {
+    const exporter = new InMemoryMetricExporter(
+      AggregationTemporality.CUMULATIVE,
+    );
+    const reader = new PeriodicExportingMetricReader({ exporter });
+    const meterProvider = new MeterProvider({ readers: [reader] });
+
+    OTelMetrics.init({
+      api,
+      config: {
+        metrics: {
+          enabled: true,
+          meterProvider,
+        },
+      },
+    });
+
+    OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+      error: new ErrorReply("MOVED 1234 127.0.0.1:7001"),
+      origin: METRIC_ERROR_ORIGIN.CLIENT,
+      internal: false,
+    });
+
+    OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+      error: new ErrorReply("ASK 1234 127.0.0.1:7002"),
+      origin: METRIC_ERROR_ORIGIN.CLIENT,
+      internal: false,
+    });
+
+    OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+      error: new ErrorReply("MOVED 1234 127.0.0.1:7001"),
+      origin: METRIC_ERROR_ORIGIN.CLUSTER,
+      internal: true,
+    });
+
+    await meterProvider.forceFlush();
+
+    const resourceMetrics = exporter.getMetrics();
+    const dataPoints = getMetricDataPoints<api.Counter>(
+      resourceMetrics,
+      METRIC_NAMES.redisClientErrors,
+    );
+
+    const total = dataPoints.reduce(
+      (sum, point) => sum + (point.value as unknown as number),
+      0,
+    );
+
+    assert.strictEqual(total, 1);
+    assert.strictEqual(
+      dataPoints[0].attributes[OTEL_ATTRIBUTES.dbResponseStatusCode],
+      "MOVED",
+    );
+    assert.strictEqual(
+      dataPoints[0].attributes[OTEL_ATTRIBUTES.redisClientErrorsInternal],
+      true,
+    );
+
+    await reader.collect().catch(() => {});
+    await meterProvider.shutdown().catch(() => {});
+    api.metrics.disable();
+  });
 });
 
 describe("OTel Metrics E2E", function () {
@@ -272,18 +336,21 @@ describe("OTel Metrics E2E", function () {
 
     OTelMetrics.init({ api, config });
 
-    OTelMetrics.instance.resiliencyMetrics.recordClientErrors(
-      new Error("Test error 1"),
-      true,
-    );
-    OTelMetrics.instance.resiliencyMetrics.recordClientErrors(
-      new Error("Test error 2"),
-      true,
-    );
-    OTelMetrics.instance.resiliencyMetrics.recordClientErrors(
-      new Error("Test error 3"),
-      true,
-    );
+    OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+      error: new Error("Test error 1"),
+      origin: METRIC_ERROR_ORIGIN.CLIENT,
+      internal: false,
+    });
+    OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+      error: new Error("Test error 2"),
+      origin: METRIC_ERROR_ORIGIN.CLIENT,
+      internal: false,
+    });
+    OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+      error: new Error("Test error 3"),
+      origin: METRIC_ERROR_ORIGIN.CLIENT,
+      internal: false,
+    });
 
     await meterProvider.forceFlush();
 
@@ -310,14 +377,16 @@ describe("OTel Metrics E2E", function () {
 
     OTelMetrics.init({ api, config });
 
-    OTelMetrics.instance.resiliencyMetrics.recordClientErrors(
-      new Error("Test error 1"),
-      true,
-    );
-    OTelMetrics.instance.resiliencyMetrics.recordClientErrors(
-      new Error("Test error 2"),
-      true,
-    );
+    OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+      error: new Error("Test error 1"),
+      origin: METRIC_ERROR_ORIGIN.CLIENT,
+      internal: false,
+    });
+    OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+      error: new Error("Test error 2"),
+      origin: METRIC_ERROR_ORIGIN.CLIENT,
+      internal: false,
+    });
 
     await meterProvider.forceFlush();
 
@@ -355,11 +424,12 @@ describe("OTel Metrics E2E", function () {
       isConnected: () => true,
     });
 
-    OTelMetrics.instance.resiliencyMetrics.recordClientErrors(
-      new Error("Test error"),
-      true,
-      "client-1",
-    );
+    OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+      error: new Error("Test error"),
+      origin: METRIC_ERROR_ORIGIN.CLIENT,
+      internal: false,
+      clientId: "client-1",
+    });
 
     await meterProvider.forceFlush();
 
@@ -394,11 +464,12 @@ describe("OTel Metrics E2E", function () {
       },
     });
 
-    OTelMetrics.instance.resiliencyMetrics.recordClientErrors(
-      new Error("Test error"),
-      true,
-      "missing-client",
-    );
+    OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+      error: new Error("Test error"),
+      origin: METRIC_ERROR_ORIGIN.CLIENT,
+      internal: false,
+      clientId: "missing-client",
+    });
 
     await meterProvider.forceFlush();
 

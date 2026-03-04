@@ -23,13 +23,20 @@ import {
   IOTelConnectionBasicMetrics,
   IOTelConnectionAdvancedMetrics,
   IOTelResiliencyMetrics,
+  RecordClientErrorContext,
   IOTelClientSideCacheMetrics,
   IOTelPubSubMetrics,
   IOTelStreamMetrics,
   INSTRUMENTATION_SCOPE_NAME,
+  METRIC_ERROR_ORIGIN,
 } from "./types";
 import { createNoopMeter } from "./noop-meter";
-import { getErrorInfo, noopFunction, parseClientAttributes } from "./utils";
+import {
+  getErrorInfo,
+  isRedirectionError,
+  noopFunction,
+  parseClientAttributes,
+} from "./utils";
 import {
   NoopClientSideCacheMetrics,
   NoopCommandMetrics,
@@ -255,22 +262,27 @@ class OTelResiliencyMetrics implements IOTelResiliencyMetrics {
     this.#instruments = instruments;
   }
 
-  public recordClientErrors(
-    error: Error,
-    internal: boolean,
-    clientId?: string,
-    retryAttempts?: number,
-  ) {
-    const clientAttributes = resolveClientAttributes(clientId);
-    const errorInfo = getErrorInfo(error);
+  public recordClientErrors(context: RecordClientErrorContext) {
+    const clientAttributes = resolveClientAttributes(context.clientId);
+    const errorInfo = getErrorInfo(context.error);
+
+    // Avoid double-counting ASK/MOVED errors: command-level paths can observe
+    // the same redirection that cluster-level retry logic already records.
+    if (
+      context.origin === METRIC_ERROR_ORIGIN.CLIENT &&
+      isRedirectionError(errorInfo.statusCode)
+    ) {
+      return;
+    }
+
     this.#instruments.redisClientErrors.add(1, {
       ...this.#options.attributes,
       ...parseClientAttributes(clientAttributes),
       [OTEL_ATTRIBUTES.errorType]: errorInfo.errorType,
       [OTEL_ATTRIBUTES.redisClientErrorsCategory]: errorInfo.category,
-      [OTEL_ATTRIBUTES.redisClientErrorsInternal]: internal,
-      ...(retryAttempts !== undefined && {
-        [OTEL_ATTRIBUTES.redisClientOperationRetryAttempts]: retryAttempts,
+      [OTEL_ATTRIBUTES.redisClientErrorsInternal]: context.internal,
+      ...(context.retryCount !== undefined && {
+        [OTEL_ATTRIBUTES.redisClientOperationRetryAttempts]: context.retryCount,
       }),
       ...(errorInfo.statusCode !== undefined && {
         [OTEL_ATTRIBUTES.dbResponseStatusCode]: errorInfo.statusCode,
