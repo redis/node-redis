@@ -304,7 +304,7 @@ export interface IOTelClientSideCacheMetrics {
     count?: number,
     clientId?: string,
   ): void;
-  recordNetworkBytesSaved(bytes: number, clientId?: string): void;
+  recordNetworkBytesSaved(value: unknown, clientId?: string): void;
 }
 
 export interface IOTelPubSubMetrics {

@@ -338,14 +338,10 @@ class OTelClientSideCacheMetrics implements IOTelClientSideCacheMetrics {
     });
   }
 
-  public recordNetworkBytesSaved(bytes: number, clientId?: string) {
-    const clientAttributes = resolveClientAttributes(clientId);
-    this.#instruments.redisClientCscNetworkSaved.add(bytes, {
-      ...this.#options.attributes,
-      [OTEL_ATTRIBUTES.serverAddress]: clientAttributes?.host,
-      [OTEL_ATTRIBUTES.serverPort]: clientAttributes?.port?.toString(),
-      [OTEL_ATTRIBUTES.dbClientConnectionPoolName]: clientAttributes?.clientId,
-    });
+  public recordNetworkBytesSaved(value: unknown, clientId?: string) {
+    // TODO: `redis.client.csc.network_saved` cannot be computed correctly here
+    // because CSC stores transformed replies and does not retain raw byte size.
+    // Implement this at a lower protocol/parsing layer where response bytes are known.
   }
 }
 

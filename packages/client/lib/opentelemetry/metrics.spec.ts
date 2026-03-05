@@ -1278,7 +1278,7 @@ describe("OTel Metrics E2E", function () {
       },
     );
 
-    testUtils.testAll(
+    testUtils.testWithClient(
       "should record redis.client.csc.network_saved",
       async (client) => {
         await client.ping();
@@ -1311,24 +1311,13 @@ describe("OTel Metrics E2E", function () {
         assert.strictEqual(attributes[OTEL_ATTRIBUTES.dbSystemName], "redis");
       },
       {
-        client: {
-          ...GLOBAL.SERVERS.OPEN,
-          clientOptions: {
-            RESP: 3,
-            clientSideCache: {
-              ttl: 1000,
-              maxEntries: 100,
-            },
-          },
-        },
-        cluster: {
-          ...GLOBAL.CLUSTERS.OPEN,
-          clusterConfiguration: {
-            RESP: 3,
-            clientSideCache: {
-              ttl: 1000,
-              maxEntries: 100,
-            },
+        ...GLOBAL.SERVERS.OPEN,
+        skipTest: true,
+        clientOptions: {
+          RESP: 3,
+          clientSideCache: {
+            ttl: 1000,
+            maxEntries: 100,
           },
         },
       },

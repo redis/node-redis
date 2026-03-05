@@ -84,7 +84,7 @@ export class NoopClientSideCacheMetrics implements IOTelClientSideCacheMetrics {
   ) {}
 
   recordNetworkBytesSaved(
-    _bytes: number,
+    _value: unknown,
     _clientId?: string
   ) {}
 }

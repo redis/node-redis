@@ -562,11 +562,8 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
           CSC_RESULT.HIT,
           client._clientId,
         );
-        // Estimate bytes saved by avoiding network round-trip
-        // Note: JSON.stringify approximation; actual RESP wire size may differ (especially for Buffers)
-        const bytesEstimate = JSON.stringify(cacheEntry.value).length;
         OTelMetrics.instance.clientSideCacheMetrics.recordNetworkBytesSaved(
-          bytesEstimate,
+          cacheEntry.value,
           client._clientId,
         );
 
