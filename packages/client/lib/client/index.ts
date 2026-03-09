@@ -1125,9 +1125,11 @@ export default class RedisClient<
 
       const finalReply = transformReply ? transformReply(reply, parser.preserve, commandOptions?.typeMapping) : reply;
 
-      if (command.onSuccess) {
-        command.onSuccess(parser.redisArgs, finalReply, this._self._clientId);
-      }
+      OTelMetrics.instance.recordCommandReplyMetrics(
+        parser.redisArgs,
+        finalReply,
+        this._self._clientId,
+      );
 
       return finalReply;
     }

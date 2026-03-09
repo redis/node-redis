@@ -261,6 +261,12 @@ export interface RecordClientErrorContext {
   retryCount?: number;
 }
 
+export type CommandReplyMetricHandler = (
+  args: ReadonlyArray<RedisArgument>,
+  reply: unknown,
+  clientId: string,
+) => void;
+
 export interface IOTelCommandMetrics {
   createRecordOperationDuration(
     args: ReadonlyArray<RedisArgument>,
@@ -332,4 +338,9 @@ export interface IOTelMetrics {
   clientSideCacheMetrics: IOTelClientSideCacheMetrics;
   pubSubMetrics: IOTelPubSubMetrics;
   streamMetrics: IOTelStreamMetrics;
+  recordCommandReplyMetrics(
+    args: ReadonlyArray<RedisArgument>,
+    reply: unknown,
+    clientId: string,
+  ): void;
 }

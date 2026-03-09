@@ -1,5 +1,4 @@
 import { RedisArgument } from "../..";
-import { ReplyUnion } from "../RESP/types";
 import {
   ConnectionCloseReason,
   CscEvictionReason,
@@ -101,7 +100,7 @@ export class NoopPubSubMetrics implements IOTelPubSubMetrics {
 export class NoopStreamMetrics implements IOTelStreamMetrics {
   recordStreamLag(
     _args: ReadonlyArray<RedisArgument>,
-    _reply: ReplyUnion,
+    _reply: unknown,
     _clientId?: string
   ) {}
 }
@@ -114,4 +113,10 @@ export class NoopOTelMetrics implements IOTelMetrics {
   clientSideCacheMetrics = new NoopClientSideCacheMetrics();
   pubSubMetrics = new NoopPubSubMetrics();
   streamMetrics = new NoopStreamMetrics();
+
+  recordCommandReplyMetrics(
+    _args: ReadonlyArray<RedisArgument>,
+    _reply: unknown,
+    _clientId: string,
+  ) {}
 }

@@ -29,6 +29,7 @@ import {
   IOTelStreamMetrics,
   INSTRUMENTATION_SCOPE_NAME,
   METRIC_ERROR_ORIGIN,
+  CommandReplyMetricHandler,
 } from "./types";
 import { createNoopMeter } from "./noop-meter";
 import {
@@ -460,6 +461,9 @@ export class OTelMetrics implements IOTelMetrics {
   readonly clientSideCacheMetrics: IOTelClientSideCacheMetrics;
   readonly pubSubMetrics: IOTelPubSubMetrics;
   readonly streamMetrics: IOTelStreamMetrics;
+  readonly #commandReplyMetricHandlers: Readonly<
+    Record<string, CommandReplyMetricHandler>
+  >;
 
   readonly #meter: Meter;
   readonly #instruments: MetricInstruments;
@@ -548,6 +552,8 @@ export class OTelMetrics implements IOTelMetrics {
     } else {
       this.streamMetrics = new NoopStreamMetrics();
     }
+
+    this.#commandReplyMetricHandlers = this.#createCommandReplyMetricHandlers();
   }
 
   public static init({
@@ -584,6 +590,66 @@ export class OTelMetrics implements IOTelMetrics {
 
   static get instance() {
     return OTelMetrics.#instance;
+  }
+
+  public recordCommandReplyMetrics(
+    args: ReadonlyArray<RedisArgument>,
+    reply: unknown,
+    clientId: string,
+  ) {
+    const commandName = args[0]?.toString().toUpperCase();
+    if (!commandName) {
+      return;
+    }
+
+    const handler = this.#commandReplyMetricHandlers[commandName];
+    if (!handler) {
+      return;
+    }
+
+    handler(args, reply, clientId);
+  }
+
+  #createCommandReplyMetricHandlers(): Readonly<
+    Record<string, CommandReplyMetricHandler>
+  > {
+    const publishHandler: CommandReplyMetricHandler =
+      this.#options.enabledMetricGroups.includes(METRIC_GROUP.PUBSUB)
+        ? (args, _reply, clientId) => {
+            this.pubSubMetrics.recordPubSubMessage(
+              "out",
+              clientId,
+              args[1],
+              false,
+            );
+          }
+        : noopFunction;
+
+    const sPublishHandler: CommandReplyMetricHandler =
+      this.#options.enabledMetricGroups.includes(METRIC_GROUP.PUBSUB)
+        ? (args, _reply, clientId) => {
+            this.pubSubMetrics.recordPubSubMessage(
+              "out",
+              clientId,
+              args[1],
+              true,
+            );
+          }
+        : noopFunction;
+
+    const streamHandler: CommandReplyMetricHandler =
+      this.#options.enabledMetricGroups.includes(METRIC_GROUP.STREAMING)
+        ? (args, reply, clientId) => {
+            this.streamMetrics.recordStreamLag(args, reply, clientId);
+          }
+        : noopFunction;
+
+    return {
+      PUBLISH: publishHandler,
+      SPUBLISH: sPublishHandler,
+      XREAD: streamHandler,
+      XREADGROUP: streamHandler,
+    };
   }
 
   private getMeter(
