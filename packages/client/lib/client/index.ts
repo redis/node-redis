@@ -960,13 +960,9 @@ export default class RedisClient<
   }
 
   async connect() {
-    const socketOptions = this._self.#options.socket;
     await traceConnect(
       () => this._self.#socket.connect(),
-      () => ({
-        serverAddress: (socketOptions as any)?.host ?? 'localhost',
-        serverPort: (socketOptions as any)?.port ?? 6379
-      })
+      () => this._self.#socketTraceContext()
     );
     return this as unknown as RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
   }
@@ -1111,13 +1107,22 @@ export default class RedisClient<
   }
 
   #commandTraceContext(args: ReadonlyArray<RedisArgument>): CommandTraceContext {
-    const socketOptions = this.#options.socket;
     return {
       command: String(args[0]).toUpperCase(),
       args,
       database: this.#selectedDB,
-      serverAddress: (socketOptions as any)?.host ?? 'localhost',
-      serverPort: (socketOptions as any)?.port ?? 6379
+      ...this.#socketTraceContext()
+    };
+  }
+
+  #socketTraceContext(): { serverAddress: string; serverPort: number | undefined } {
+    const socketOptions = this.#options.socket;
+    if (socketOptions && 'path' in socketOptions) {
+      return { serverAddress: socketOptions.path as string, serverPort: undefined };
+    }
+    return {
+      serverAddress: socketOptions?.host ?? 'localhost',
+      serverPort: socketOptions?.port ?? 6379
     };
   }
 

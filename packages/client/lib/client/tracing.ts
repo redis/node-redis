@@ -18,7 +18,7 @@ export interface CommandTraceContext {
   args: ReadonlyArray<unknown>;
   database: number;
   serverAddress: string;
-  serverPort: number;
+  serverPort: number | undefined;
 }
 
 export interface BatchCommandTraceContext extends CommandTraceContext {
@@ -28,7 +28,7 @@ export interface BatchCommandTraceContext extends CommandTraceContext {
 
 export interface ConnectTraceContext {
   serverAddress: string;
-  serverPort: number;
+  serverPort: number | undefined;
 }
 
 type CommandContext = CommandTraceContext | BatchCommandTraceContext;
