@@ -963,10 +963,10 @@ export default class RedisClient<
     const socketOptions = this._self.#options.socket;
     await traceConnect(
       () => this._self.#socket.connect(),
-      {
+      () => ({
         serverAddress: (socketOptions as any)?.host ?? 'localhost',
         serverPort: (socketOptions as any)?.port ?? 6379
-      }
+      })
     );
     return this as unknown as RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
   }
@@ -1106,7 +1106,7 @@ export default class RedisClient<
         this._self.#scheduleWrite();
         return promise;
       },
-      this._self.#commandTraceContext(args)
+      () => this._self.#commandTraceContext(args)
     );
   }
 
@@ -1318,11 +1318,11 @@ export default class RedisClient<
             chainId,
             typeMapping: this._commandOptions?.typeMapping
           }),
-          {
+          () => ({
             ...this._self.#commandTraceContext(args),
-            batchMode: 'PIPELINE',
+            batchMode: 'PIPELINE' as const,
             batchSize
-          }
+          })
         ))
       );
     this._self.#scheduleWrite();
@@ -1373,11 +1373,11 @@ export default class RedisClient<
             chainId,
             typeMapping
           }),
-          {
+          () => ({
             ...this._self.#commandTraceContext(args),
-            batchMode: 'MULTI',
+            batchMode: 'MULTI' as const,
             batchSize
-          }
+          })
         )
       );
     }
