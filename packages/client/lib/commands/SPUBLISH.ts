@@ -16,5 +16,5 @@ export default {
     parser.pushKey(channel);
     parser.push(message);
   },
-  transformReply: undefined as unknown as () => NumberReply
+  transformReply: undefined as unknown as () => NumberReply,
 } as const satisfies Command;

@@ -6,8 +6,10 @@ import testUtils, { GLOBAL } from '../test-utils';
 import { setTimeout } from 'timers/promises';
 
 describe('Socket', () => {
+  const CLIENT_ID = 'test-client-id';
+
   function createSocket(options: RedisSocketOptions): RedisSocket {
-    const socket = new RedisSocket(() => Promise.resolve(), options);
+    const socket = new RedisSocket(() => Promise.resolve(), CLIENT_ID, options);
 
     socket.on('error', () => {
       // ignore errors
