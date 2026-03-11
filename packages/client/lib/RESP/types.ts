@@ -68,8 +68,8 @@ export interface SimpleStringReply<
 > extends RespType<
   RESP_TYPES['SIMPLE_STRING'],
   T,
-  Buffer,
-  string | Buffer
+  Buffer | Uint8Array,
+  string | Buffer | Uint8Array
 > { }
 
 export interface BlobStringReply<
@@ -77,8 +77,8 @@ export interface BlobStringReply<
 > extends RespType<
   RESP_TYPES['BLOB_STRING'],
   T,
-  Buffer,
-  string | Buffer
+  Buffer | Uint8Array,
+  string | Buffer | Uint8Array
 > {
   toString(): string
 }
@@ -88,8 +88,8 @@ export interface VerbatimStringReply<
 > extends RespType<
   RESP_TYPES['VERBATIM_STRING'],
   T,
-  Buffer | VerbatimString,
-  string | Buffer | VerbatimString
+  Buffer | Uint8Array | VerbatimString,
+  string | Buffer | Uint8Array | VerbatimString
 > { }
 
 export interface SimpleErrorReply extends RespType<
@@ -198,6 +198,8 @@ type UnwrapConstructor<T> =
   T extends NumberConstructor ? number :
   T extends BooleanConstructor ? boolean :
   T extends BigIntConstructor ? bigint :
+  T extends BufferConstructor ? Buffer :
+  T extends Uint8ArrayConstructor ? Uint8Array :
   T;
 export type UnwrapReply<REPLY extends RespType<any, any, any, any>> = REPLY['DEFAULT' | 'TYPES'];
 
@@ -217,7 +219,7 @@ export type ReplyWithTypeMapping<
       REPLY extends Set<infer T> ? Set<ReplyWithTypeMapping<T, TYPE_MAPPING>> :
       REPLY extends Map<infer K, infer V> ? Map<MapKey<K, TYPE_MAPPING>, ReplyWithTypeMapping<V, TYPE_MAPPING>> :
       // `Date | Buffer | Error` are supersets of `Record`, so they need to be checked first
-      REPLY extends Date | Buffer | Error ? REPLY :
+      REPLY extends Date | Buffer | Uint8Array | Error ? REPLY :
       REPLY extends Record<PropertyKey, any> ? {
         [P in keyof REPLY]: ReplyWithTypeMapping<REPLY[P], TYPE_MAPPING>;
       } :
@@ -228,7 +230,7 @@ export type ReplyWithTypeMapping<
 
 export type TransformReply = (this: void, reply: any, preserve?: any, typeMapping?: TypeMapping) => any; // TODO;
 
-export type RedisArgument = string | Buffer;
+export type RedisArgument = string | Buffer | Uint8Array;
 
 export type CommandArguments = Array<RedisArgument> & { preserve?: unknown };
 

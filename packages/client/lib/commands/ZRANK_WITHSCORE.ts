@@ -1,5 +1,6 @@
 import { NullReply, TuplesReply, NumberReply, BlobStringReply, DoubleReply, UnwrapReply, Command } from '../RESP/types';
 import ZRANK from './ZRANK';
+import { blobToString } from './generic-transformers';
 
 export default {
   CACHEABLE: ZRANK.CACHEABLE,
@@ -20,7 +21,7 @@ export default {
 
       return {
         rank: reply[0],
-        score: Number(reply[1])
+        score: Number(blobToString(reply[1] as unknown as string | Buffer | Uint8Array))
       };
     },
     3: (reply: UnwrapReply<NullReply | TuplesReply<[BlobStringReply, DoubleReply]>>) => {

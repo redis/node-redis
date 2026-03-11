@@ -12,6 +12,17 @@ describe('CMS.MERGE', () => {
       );
     });
 
+    it('without WEIGHTS with Uint8Array sources', () => {
+      // Regression: Uint8Array is a valid RedisArgument but was not matched by
+      // the `instanceof Buffer` guard in isPlainSketches, causing it to fall
+      // into the weighted branch and emit wrong arguments.
+      const source = new TextEncoder().encode('source');
+      assert.deepEqual(
+        parseArgs(MERGE, 'destination', [source]),
+        ['CMS.MERGE', 'destination', '1', source]
+      );
+    });
+
     it('with WEIGHTS', () => {
       assert.deepEqual(
         parseArgs(MERGE, 'destination', [{

@@ -1,6 +1,7 @@
 import { CommandParser } from '../client/parser';
 import { RedisArgument, BlobStringReply, NullReply, Command } from '../RESP/types';
 import { GeoUnits } from './GEOSEARCH';
+import { blobToString } from './generic-transformers';
 
 export default {
   CACHEABLE: true,
@@ -28,6 +29,6 @@ export default {
     }
   },
   transformReply(reply: BlobStringReply | NullReply) {
-    return reply === null ? null : Number(reply);
+    return reply === null ? null : Number(blobToString(reply as unknown as string | Buffer | Uint8Array));
   }
 } as const satisfies Command;

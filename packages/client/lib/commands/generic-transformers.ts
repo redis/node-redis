@@ -10,6 +10,19 @@ export function isArrayReply(reply: unknown): reply is ArrayReply<unknown> {
   return Array.isArray(reply);
 }
 
+/**
+ * Converts a Redis blob reply (string, Buffer, or plain Uint8Array) to a UTF-8 string.
+ *
+ * Plain Uint8Array (produced by RESP3 decoders when typeMapping maps BLOB_STRING to
+ * Uint8Array) has a toString() that returns comma-separated byte values rather than
+ * the UTF-8 text, so callers must not rely on .toString() directly.
+ */
+export function blobToString(value: string | Buffer | Uint8Array): string {
+  if (typeof value === 'string') return value;
+  if (Buffer.isBuffer(value)) return value.toString();
+  return Buffer.from(value).toString();
+}
+
 export const transformBooleanReply = {
   2: (reply: NumberReply<0 | 1>) => reply as unknown as UnwrapReply<typeof reply> === 1,
   3: undefined as unknown as () => BooleanReply
@@ -53,20 +66,24 @@ export const transformDoubleReply = {
       }
       default: {
         let ret: number;
+        const str = blobToString(reply as unknown as string | Buffer | Uint8Array);
 
-        switch (reply.toString()) {
+        switch (str) {
           case 'inf':
           case '+inf':
             ret = Infinity;
+            break;
 
           case '-inf':
             ret = -Infinity;
+            break;
 
           case 'nan':
             ret = NaN;
+            break;
 
           default:
-            ret = Number(reply);
+            ret = Number(str);
         }
 
         return ret as unknown as DoubleReply;
@@ -115,7 +132,7 @@ export function transformTuplesToMap<T>(
   const message = Object.create(null);
 
   for (let i = 0; i < reply.length; i+= 2) {
-    message[reply[i].toString()] = func(reply[i + 1]);
+    message[blobToString(reply[i])] = func(reply[i + 1]);
   }
 
   return message;
@@ -144,7 +161,7 @@ export function transformTuplesReply<T extends Stringable>(
       const ret = new Map<string, BlobStringReply>;
 
       for (let i = 0; i < inferred.length; i += 2) {
-        ret.set(inferred[i].toString(), inferred[i + 1] as any);
+        ret.set(blobToString(inferred[i] as string | Buffer | Uint8Array), inferred[i + 1] as any);
       }
 
       return ret as unknown as MapReply<T, T>;;
@@ -153,7 +170,7 @@ export function transformTuplesReply<T extends Stringable>(
       const ret: Record<string, BlobStringReply> = Object.create(null);
 
       for (let i = 0; i < inferred.length; i += 2) {
-        ret[inferred[i].toString()] = inferred[i + 1] as any;
+        ret[blobToString(inferred[i] as string | Buffer | Uint8Array)] = inferred[i + 1] as any;
       }
 
       return ret as unknown as MapReply<T, T>;;
@@ -489,7 +506,7 @@ export function parseZKeysArguments(
 }
 
 function isPlainKey(key: RedisArgument | ZKeyAndWeight): key is RedisArgument {
-  return typeof key === 'string' || key instanceof Buffer;
+  return typeof key === 'string' || key instanceof Uint8Array;
 }
 
 function isPlainKeys(keys: Array<RedisArgument> | Array<ZKeyAndWeight>): keys is Array<RedisArgument> {

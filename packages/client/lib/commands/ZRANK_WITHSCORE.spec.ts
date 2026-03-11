@@ -13,6 +13,20 @@ describe('ZRANK WITHSCORE', () => {
     );
   });
 
+  // Regression: Number(uint8Array) is NaN when the RESP decoder hands back a
+  // Uint8Array for the score BlobStringReply. A plain Uint8Array (not Buffer)
+  // has a .toString() that returns comma-separated byte values instead of the
+  // semantic score string, so Number() silently returns NaN.
+  describe('transformReply[2] Uint8Array score', () => {
+    it('Uint8Array score string is parsed as a finite number, not NaN', () => {
+      const rawReply = [0, new Uint8Array(Buffer.from('1.5'))] as any;
+      assert.deepEqual(
+        ZRANK_WITHSCORE.transformReply[2](rawReply),
+        { rank: 0, score: 1.5 }
+      );
+    });
+  });
+
   testUtils.testAll('zRankWithScore - null', async client => {
     assert.equal(
       await client.zRankWithScore('key', 'member'),
