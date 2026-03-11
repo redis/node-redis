@@ -1,7 +1,6 @@
 import { strict as assert } from 'node:assert';
 import dc from 'node:diagnostics_channel';
 import testUtils, { GLOBAL } from '../test-utils';
-import RedisClient from '.';
 
 const hasTracingChannel = typeof dc.tracingChannel === 'function';
 
@@ -142,25 +141,14 @@ const hasTracingChannel = typeof dc.tracingChannel === 'function';
       }
     }, GLOBAL.SERVERS.OPEN);
 
-    it('should not emit events when there are no subscribers', async () => {
-      const client = RedisClient.create({
-        socket: {
-          port: 6379,
-          host: '127.0.0.1'
-        }
-      });
-
-      try {
-        await client.connect();
-        await client.ping();
-      } finally {
-        await client.destroy();
-      }
-    });
+    testUtils.testWithClient('should not emit events when there are no subscribers', async client => {
+      // No subscribers registered — verify tracing code path doesn't error
+      await client.ping();
+    }, GLOBAL.SERVERS.OPEN);
   });
 
   describe('node-redis:connect', () => {
-    it('should trace client connection', async () => {
+    testUtils.testWithClient('should trace client connection', async client => {
       const startEvents: Array<any> = [];
       const asyncEndEvents: Array<any> = [];
 
@@ -174,29 +162,27 @@ const hasTracingChannel = typeof dc.tracingChannel === 'function';
       dc.subscribe('tracing:node-redis:connect:start', onStart);
       dc.subscribe('tracing:node-redis:connect:asyncEnd', onAsyncEnd);
 
-      const client = RedisClient.create({
-        socket: {
-          port: 6379,
-          host: '127.0.0.1'
-        }
-      });
-
       try {
         await client.connect();
 
         assert.equal(startEvents.length, 1);
-        assert.equal(startEvents[0].serverAddress, '127.0.0.1');
-        assert.equal(startEvents[0].serverPort, 6379);
+        assert.equal(typeof startEvents[0].serverAddress, 'string');
+        assert.equal(typeof startEvents[0].serverPort, 'number');
 
         assert.equal(asyncEndEvents.length, 1);
       } finally {
         dc.unsubscribe('tracing:node-redis:connect:start', onStart);
         dc.unsubscribe('tracing:node-redis:connect:asyncEnd', onAsyncEnd);
-        await client.destroy();
+        if (client.isOpen) {
+          await client.destroy();
+        }
       }
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      disableClientSetup: true
     });
 
-    it('should trace connection errors', async () => {
+    testUtils.testWithClient('should trace connection errors', async client => {
       const errors: Array<any> = [];
 
       const onError = (message: any) => {
@@ -205,7 +191,8 @@ const hasTracingChannel = typeof dc.tracingChannel === 'function';
 
       dc.subscribe('tracing:node-redis:connect:error', onError);
 
-      const client = RedisClient.create({
+      // Create a client pointing to a port that won't have Redis
+      const badClient = client.duplicate({
         socket: {
           port: 1,
           host: '127.0.0.1',
@@ -215,7 +202,7 @@ const hasTracingChannel = typeof dc.tracingChannel === 'function';
       });
 
       try {
-        await client.connect();
+        await badClient.connect();
       } catch {
         // expected
       }
@@ -226,8 +213,8 @@ const hasTracingChannel = typeof dc.tracingChannel === 'function';
         assert.equal(errors[0].serverPort, 1);
       } finally {
         dc.unsubscribe('tracing:node-redis:connect:error', onError);
-        await client.destroy();
+        await badClient.destroy();
       }
-    });
+    }, GLOBAL.SERVERS.OPEN);
   });
 });
