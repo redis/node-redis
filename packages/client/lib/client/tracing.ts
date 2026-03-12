@@ -7,11 +7,17 @@ interface TracingChannel<ContextType extends object> extends NodeTracingChannel<
   tracePromise<T>(fn: () => Promise<T>, context?: ContextType): Promise<T>;
 }
 
-const dc = ('getBuiltinModule' in process)
-  ? (process as any).getBuiltinModule('node:diagnostics_channel')
-  : require('node:diagnostics_channel');
+const dc: any = (() => {
+  try {
+    return ('getBuiltinModule' in process)
+      ? (process as any).getBuiltinModule('node:diagnostics_channel')
+      : require('node:diagnostics_channel');
+  } catch {
+    return undefined;
+  }
+})();
 
-const hasTracingChannel = typeof dc.tracingChannel === 'function';
+const hasTracingChannel = typeof dc?.tracingChannel === 'function';
 
 export interface CommandTraceContext {
   command: string;
