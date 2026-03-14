@@ -13,5 +13,10 @@ export default {
     parser.push('GET');
     parser.pushKey(key);
   },
-  transformReply: undefined as unknown as () => BlobStringReply | NullReply
+  transformReply: (reply: BlobStringReply | NullReply): string | null => {
+    if (reply === null) return null;
+    if (Buffer.isBuffer(reply))
+      return reply.toString('utf8');
+    return (reply as unknown as string);
+  }
 } as const satisfies Command;
