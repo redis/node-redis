@@ -39,6 +39,15 @@ export interface ConnectTraceContext {
 
 type CommandContext = CommandTraceContext | BatchCommandTraceContext;
 
+// Check explicitly for `false` rather than truthiness because `hasSubscribers`
+// is not available on all Node.js versions that support TracingChannel.
+// When `hasSubscribers` is `undefined` (older Node), we assume there are
+// subscribers and trace unconditionally, keeping the zero-cost optimization
+// only for versions where we can reliably check.
+function shouldTrace(channel: TracingChannel<any> | undefined): channel is TracingChannel<any> {
+  return !!channel && channel.hasSubscribers !== false;
+}
+
 const commandChannel: TracingChannel<CommandContext> | undefined = hasTracingChannel
   ? dc.tracingChannel('node-redis:command')
   : undefined;
@@ -51,7 +60,7 @@ export function traceCommand<T>(
   fn: () => Promise<T>,
   contextFactory: () => CommandContext
 ): Promise<T> {
-  if (commandChannel?.hasSubscribers) {
+  if (shouldTrace(commandChannel)) {
     return commandChannel.tracePromise(fn, contextFactory());
   }
   return fn();
@@ -61,7 +70,7 @@ export function traceConnect<T>(
   fn: () => Promise<T>,
   contextFactory: () => ConnectTraceContext
 ): Promise<T> {
-  if (connectChannel?.hasSubscribers) {
+  if (shouldTrace(connectChannel)) {
     return connectChannel.tracePromise(fn, contextFactory());
   }
   return fn();
