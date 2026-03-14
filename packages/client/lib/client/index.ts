@@ -21,6 +21,7 @@ import { BasicCommandParser, CommandParser } from './parser';
 import SingleEntryCache from '../single-entry-cache';
 import { version } from '../../package.json'
 import EnterpriseMaintenanceManager, { MaintenanceUpdate, MovingEndpointType, SMIGRATED_EVENT, SMigratedEvent } from './enterprise-maintenance-manager';
+import { traceCommand, traceConnect, type CommandTraceContext } from './tracing';
 
 export interface RedisClientOptions<
   M extends RedisModules = RedisModules,
@@ -959,7 +960,10 @@ export default class RedisClient<
   }
 
   async connect() {
-    await this._self.#socket.connect();
+    await traceConnect(
+      () => this._self.#socket.connect(),
+      () => this._self.#socketTraceContext()
+    );
     return this as unknown as RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
   }
 
@@ -1092,9 +1096,34 @@ export default class RedisClient<
       ...options,
     }
 
-    const promise = this._self.#queue.addCommand<T>(args, opts);
-    this._self.#scheduleWrite();
-    return promise;
+    return traceCommand(
+      () => {
+        const promise = this._self.#queue.addCommand<T>(args, opts);
+        this._self.#scheduleWrite();
+        return promise;
+      },
+      () => this._self.#commandTraceContext(args)
+    );
+  }
+
+  #commandTraceContext(args: ReadonlyArray<RedisArgument>): CommandTraceContext {
+    return {
+      command: String(args[0]).toUpperCase(),
+      args,
+      database: this.#selectedDB,
+      ...this.#socketTraceContext()
+    };
+  }
+
+  #socketTraceContext(): { serverAddress: string; serverPort: number | undefined } {
+    const socketOptions = this.#options.socket;
+    if (socketOptions && 'path' in socketOptions) {
+      return { serverAddress: socketOptions.path as string, serverPort: undefined };
+    }
+    return {
+      serverAddress: socketOptions?.host ?? 'localhost',
+      serverPort: socketOptions?.port ?? 6379
+    };
   }
 
   async SELECT(db: number): Promise<void> {
@@ -1286,12 +1315,20 @@ export default class RedisClient<
       return Promise.reject(new ClientClosedError());
     }
 
+    const batchSize = commands.length;
     const chainId = Symbol('Pipeline Chain'),
       promise = Promise.all(
-        commands.map(({ args }) => this._self.#queue.addCommand(args, {
-          chainId,
-          typeMapping: this._commandOptions?.typeMapping
-        }))
+        commands.map(({ args }) => traceCommand(
+          () => this._self.#queue.addCommand(args, {
+            chainId,
+            typeMapping: this._commandOptions?.typeMapping
+          }),
+          () => ({
+            ...this._self.#commandTraceContext(args),
+            batchMode: 'PIPELINE' as const,
+            batchSize
+          })
+        ))
       );
     this._self.#scheduleWrite();
     const result = await promise;
@@ -1328,6 +1365,7 @@ export default class RedisClient<
     }
 
     const typeMapping = this._commandOptions?.typeMapping;
+    const batchSize = commands.length;
     const chainId = Symbol('MULTI Chain');
     const promises = [
       this._self.#queue.addCommand(['MULTI'], { chainId }),
@@ -1335,10 +1373,17 @@ export default class RedisClient<
 
     for (const { args } of commands) {
       promises.push(
-        this._self.#queue.addCommand(args, {
-          chainId,
-          typeMapping
-        })
+        traceCommand(
+          () => this._self.#queue.addCommand(args, {
+            chainId,
+            typeMapping
+          }),
+          () => ({
+            ...this._self.#commandTraceContext(args),
+            batchMode: 'MULTI' as const,
+            batchSize
+          })
+        )
       );
     }
 
