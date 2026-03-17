@@ -58,7 +58,9 @@ jobs:
       #     shasum -a 256 -c codecov.SHA256SUM
       #     chmod +x codecov
       #     ./codecov
+      #
       - name: Self Report Metrics
+        if: ${{ secrets.SELF_CHECK_OTEL_AUTHORIZATION_TOKEN != '' }}
         id: self-report-metrics
         uses: redis-developer/cae-otel-ci-visibility@v1.0.2
         with:
