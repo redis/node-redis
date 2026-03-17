@@ -60,7 +60,7 @@ jobs:
       #     ./codecov
       #
       - name: Self Report Metrics
-        if: ${{ secrets.SELF_CHECK_OTEL_AUTHORIZATION_TOKEN != '' }}
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         id: self-report-metrics
         uses: redis-developer/cae-otel-ci-visibility@v1.0.2
         with:
