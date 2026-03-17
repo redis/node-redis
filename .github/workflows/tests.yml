@@ -58,3 +58,18 @@ jobs:
           shasum -a 256 -c codecov.SHA256SUM
           chmod +x codecov
           ./codecov
+      - name: Self Report Metrics
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        id: self-report-metrics
+        uses: redis-developer/cae-otel-ci-visibility@v1.0.2
+        with:
+          junit-xml-folder: "junit-results"
+          service-name: "node-redis"
+          service-namespace: "redis"
+          service-version: "master"
+          deployment-environment: "ci"
+          otlp-endpoint: "https://otlp-gateway-prod-us-central-0.grafana.net/otlp/v1/metrics"
+          otlp-headers: "Authorization=Basic ${{secrets.SELF_CHECK_OTEL_AUTHORIZATION_TOKEN}}"
+        env:
+          OTEL_EXPORTER_OTLP_PROTOCOL: "http/protobuf"
+          ACTIONS_STEP_DEBUG: "true"
