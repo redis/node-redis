@@ -28,14 +28,14 @@ export * from '@redis/json';
 export * from '@redis/search';
 export * from '@redis/time-series';
 
-const modules = {
+const modules: RedisModules = {
   ...RedisBloomModules,
   json: RedisJSON,
   ft: RediSearch,
   ts: RedisTimeSeries
 };
 
-export type RedisDefaultModules = typeof modules;
+export type RedisDefaultModules = RedisModules;
 
 export type RedisClientType<
   M extends RedisModules = RedisDefaultModules,
