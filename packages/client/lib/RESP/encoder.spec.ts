@@ -30,4 +30,13 @@ describe('RESP Encoder', () => {
       ['*1\r\n$6\r\n', Buffer.from('string'), '\r\n']
     );
   });
+
+  it('uint8array', () => {
+    const uint8Array = new Uint8Array([115, 116, 114, 105, 110, 103]); // 'string'
+    assert.deepEqual(
+      encodeCommand([uint8Array]),
+      ['*1\r\n$6\r\n', Buffer.from('string'), '\r\n']
+    );
+  });
+
 });

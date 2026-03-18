@@ -275,7 +275,7 @@ function transformRESP2Sources(sourcesRaw: BlobStringReply) {
     return unwrappedSources.split(',');
   }
 
-  const indexOfComma = unwrappedSources.indexOf(',');
+  const indexOfComma = unwrappedSources.indexOf(','.charCodeAt(0));
   if (indexOfComma === -1) {
     return [unwrappedSources];
   }
@@ -286,7 +286,7 @@ function transformRESP2Sources(sourcesRaw: BlobStringReply) {
 
   let previousComma = indexOfComma + 1;
   while (true) {
-    const indexOf = unwrappedSources.indexOf(',', previousComma);
+    const indexOf = unwrappedSources.indexOf(','.charCodeAt(0), previousComma);
     if (indexOf === -1) {
       sourcesArray.push(
         unwrappedSources.subarray(previousComma)
