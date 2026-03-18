@@ -13,7 +13,7 @@ type CommandSignature<
   S extends RedisScripts,
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping
-> = (...args: Tail<Parameters<C['parseCommand']>>) => InternalRedisClientMultiCommandType<
+> = (...args: Tail<Parameters<C['parseCommand']>>) => RedisClientMultiCommandTyped<
   [...REPLIES, ReplyWithTypeMapping<CommandReply<C, RESP>, TYPE_MAPPING>],
   M,
   F,
@@ -70,7 +70,7 @@ type WithScripts<
   [P in keyof S]: CommandSignature<REPLIES, S[P], M, F, S, RESP, TYPE_MAPPING>;
 };
 
-type InternalRedisClientMultiCommandType<
+export type RedisClientMultiCommandTyped<
   REPLIES extends Array<any>,
   M extends RedisModules,
   F extends RedisFunctions,
@@ -96,7 +96,7 @@ export type RedisClientMultiCommandType<
   S extends RedisScripts,
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping
-> = TypedOrAny<isTyped, InternalRedisClientMultiCommandType<REPLIES, M, F, S, RESP, TYPE_MAPPING>>;
+> = TypedOrAny<isTyped, RedisClientMultiCommandTyped<REPLIES, M, F, S, RESP, TYPE_MAPPING>>;
 
 type ExecuteMulti = (commands: Array<RedisMultiQueuedCommand>, selectedDB?: number) => Promise<Array<unknown>>;
 
