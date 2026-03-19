@@ -20,6 +20,37 @@ await proxyClient.get('key'); // `Buffer | null`
 
 See [RESP](./RESP.md) for a full list of types.
 
+### `DUMP`/`RESTORE` and Binary Data
+
+[`DUMP`](https://redis.io/commands/dump/) returns serialized binary data. If blob strings are decoded as `string` (the default), the payload can be lossy and [`RESTORE`](https://redis.io/commands/restore/) may fail with `ERR DUMP payload version or checksum are wrong`.
+
+Use `Buffer` mapping for blob strings:
+
+```javascript
+import { createClient, RESP_TYPES } from 'redis';
+
+const client = createClient().withTypeMapping({
+  [RESP_TYPES.BLOB_STRING]: Buffer
+});
+
+const dump = await client.dump('source');
+await client.restore('destination', 0, dump);
+```
+
+You can also set it as a default:
+
+```javascript
+const client = createClient({
+  commandOptions: {
+    typeMapping: {
+      [RESP_TYPES.BLOB_STRING]: Buffer
+    }
+  }
+});
+```
+
+In v5, use `withTypeMapping` or `createClient({ commandOptions: { typeMapping } })` instead of the v4 `client.commandOptions({ returnBuffers: true })` call style.
+
 ## Abort Signal
 
 The client [batches commands](./FAQ.md#how-are-commands-batched) before sending them to Redis. Commands that haven't been written to the socket yet can be aborted using the [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) API:
