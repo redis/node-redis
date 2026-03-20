@@ -133,6 +133,17 @@ await client.hGet("key", "field"); // { field: <Buffer 76 61 6c 75 65> }
 
 ```
 
+For commands that return serialized binary payloads, such as `DUMP`, map blob strings to `Buffer` before using the result with commands like `RESTORE`:
+
+```typescript
+const binaryClient = createClient().withTypeMapping({
+  [RESP_TYPES.BLOB_STRING]: Buffer
+});
+
+const dump = await binaryClient.dump("source");
+await binaryClient.restore("destination", 0, dump);
+```
+
 ### Unsupported Redis Commands
 
 If you want to run commands and/or use arguments that Node Redis doesn't know about (yet!) use `.sendCommand()`:
