@@ -29,8 +29,8 @@ jobs:
             version: "8.2"
           - tag: "8.4.0"
             version: "8.4"
-          - tag: "custom-21860421418-debian-amd64"
-            version: "8.6"
+          - tag: "unstable-23321515778-debian"
+            version: "8.8"
     steps:
       - uses: actions/checkout@v4
         with:
