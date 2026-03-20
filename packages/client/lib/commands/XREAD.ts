@@ -79,5 +79,5 @@ export default {
     2: transformStreamsMessagesReplyResp2,
     3: undefined as unknown as () => ReplyUnion
   },
-  unstableResp3: true
+  unstableResp3: true,
 } as const satisfies Command;

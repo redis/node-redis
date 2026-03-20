@@ -16,5 +16,5 @@ export default {
   parseCommand(parser: CommandParser, channel: RedisArgument, message: RedisArgument) {
     parser.push('PUBLISH', channel, message);
   },
-  transformReply: undefined as unknown as () => NumberReply
+  transformReply: undefined as unknown as () => NumberReply,
 } as const satisfies Command;
