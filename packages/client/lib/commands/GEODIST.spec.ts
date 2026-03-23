@@ -20,6 +20,21 @@ describe('GEODIST', () => {
     });
   });
 
+  // Regression: Number(uint8Array) is NaN; the transform must decode the bytes
+  // first. A plain Uint8Array (not Buffer) is what the RESP decoder produces
+  // when typeMapping[BLOB_STRING] = Uint8Array. Its .toString() returns
+  // comma-separated byte values ("49,53,55,50,55,48,...") rather than the
+  // semantic string "157270.0561", so Number() silently returns NaN.
+  describe('transformReply Uint8Array', () => {
+    it('Uint8Array distance string is parsed as a finite number, not NaN', () => {
+      const rawReply = new Uint8Array(Buffer.from('157270.0561'));
+      assert.equal(
+        GEODIST.transformReply(rawReply as any),
+        157270.0561
+      );
+    });
+  });
+
   testUtils.testAll('geoDist null', async client => {
     assert.equal(
       await client.geoDist('key', '1', '2'),

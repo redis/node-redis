@@ -27,6 +27,26 @@ describe('PUBSUB NUMSUB', () => {
     });
   });
 
+  // Regression: Uint8Array channel names must be decoded as UTF-8 strings, not
+  // as comma-separated byte lists produced by Uint8Array#toString().
+  describe('transformReply Uint8Array key preservation', () => {
+    it('Uint8Array channel name is decoded as UTF-8 string', () => {
+      // A plain Uint8Array (not Buffer) is what the RESP decoder produces when
+      // typeMapping[BLOB_STRING] = Uint8Array.  Its .toString() returns a
+      // byte-list like "109,121,99,104,97,110" instead of the semantic "mychan".
+      const channel = new Uint8Array(Buffer.from('mychan'));
+      const rawReply = [channel, 42] as any;
+
+      const result = PUBSUB_NUMSUB.transformReply(rawReply) as unknown as Record<string, number>;
+
+      assert.ok(
+        Object.prototype.hasOwnProperty.call(result, 'mychan'),
+        `expected key 'mychan' but got keys: ${JSON.stringify(Object.keys(result))}`
+      );
+      assert.equal(result['mychan'], 42);
+    });
+  });
+
   testUtils.testWithClient('client.pubSubNumSub resp2', async client => {
     assert.deepEqual(
       await client.pubSubNumSub(),

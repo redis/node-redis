@@ -19,6 +19,20 @@ describe('ZUNIONSTORE', () => {
       );
     });
 
+    it('key (Uint8Array)', () => {
+      assert.deepEqual(
+        parseArgs(ZUNIONSTORE, 'destination', new Uint8Array([1, 2, 3])),
+        ['ZUNIONSTORE', 'destination', '1', new Uint8Array([1, 2, 3])]
+      );
+    });
+
+    it('keys (Array<Uint8Array>)', () => {
+      assert.deepEqual(
+        parseArgs(ZUNIONSTORE, 'destination', [new Uint8Array([1]), new Uint8Array([2])]),
+        ['ZUNIONSTORE', 'destination', '2', new Uint8Array([1]), new Uint8Array([2])]
+      );
+    });
+
     it('key & weight', () => {
       assert.deepEqual(
         parseArgs(ZUNIONSTORE, 'destination', {

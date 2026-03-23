@@ -449,6 +449,92 @@ describe("Client Side Cache", () => {
       }
     })
   });
+  describe('Uint8Array key normalization', () => {
+    //
+    // The server always delivers invalidation keys as Buffers (PUSH_TYPE_MAPPING
+    // maps RESP3 blob-strings to Buffer).  When a command was cached using a
+    // Uint8Array key, #keyToCacheKeySetMap was indexed with
+    //   new Uint8Array([120]).toString()  →  "120"   (TypedArray byte-list)
+    // whereas the incoming invalidation looked up
+    //   Buffer.from('x').toString()       →  "x"     (UTF-8)
+    // The two strings never matched, so the cache entry was never evicted.
+
+    it('invalidate(Buffer) must evict an entry whose Redis key was stored as an equivalent Uint8Array', () => {
+      const localCsc = new BasicClientSideCache();
+      const uint8Key  = new Uint8Array(Buffer.from('x'));   // same bytes as 'x'
+      const cacheKey  = 'sentinel-GET-x';
+
+      // createValueEntry does not use its first argument; null is safe here.
+      const entry = localCsc.createValueEntry(null as any, 'value');
+      localCsc.set(cacheKey, entry, [uint8Key]);
+
+      assert.ok(localCsc.has(cacheKey), 'entry should be present before invalidation');
+
+      // The server pushes invalidation keys decoded as Buffer (PUSH_TYPE_MAPPING).
+      localCsc.invalidate(Buffer.from('x'));
+
+      assert.equal(
+        localCsc.has(cacheKey),
+        false,
+        'entry must be evicted when server-style Buffer invalidation key matches the stored Uint8Array key'
+      );
+    });
+
+    it('invalidate(string) must also evict an entry whose Redis key was stored as an equivalent Uint8Array', () => {
+      const localCsc = new BasicClientSideCache();
+      const uint8Key  = new Uint8Array(Buffer.from('hello'));
+      const cacheKey  = 'sentinel-GET-hello';
+
+      const entry = localCsc.createValueEntry(null as any, 'world');
+      localCsc.set(cacheKey, entry, [uint8Key]);
+
+      assert.ok(localCsc.has(cacheKey), 'entry should be present before invalidation');
+
+      localCsc.invalidate('hello');
+
+      assert.equal(
+        localCsc.has(cacheKey),
+        false,
+        'entry must be evicted when string invalidation key matches the stored Uint8Array key'
+      );
+    });
+
+    const csc = new BasicClientSideCache({ maxEntries: 10 });
+
+    testUtils.testWithClient('Uint8Array key is invalidated by server-side Buffer invalidation (end-to-end)', async client => {
+      csc.clear();
+
+      // The server will deliver the invalidation push for key 'x' encoded as a
+      // Buffer.  If key normalisation for Uint8Array is broken, the cached entry
+      // that was stored with Uint8Array([120]) will never match the Buffer('x')
+      // lookup and the stale value '1' will be returned instead of '2'.
+      const uint8Key = new Uint8Array(Buffer.from('x'));
+
+      await client.set('x', 1);
+      assert.equal(await client.get(uint8Key), '1', 'first get: cache miss, server returns 1');
+      assert.equal(csc.stats().missCount, 1, 'first get should be a cache miss');
+
+      // Confirm the entry is now cached.
+      assert.equal(await client.get(uint8Key), '1', 'second get: cache hit');
+      assert.equal(csc.stats().hitCount, 1, 'second get should be a cache hit');
+
+      // Writing a new value causes the server to push an invalidation message
+      // for key 'x' decoded as a Buffer.
+      await client.set('x', 2);
+
+      // The cache entry must be evicted; the next read must reach the server.
+      assert.equal(await client.get(uint8Key), '2', 'third get: must be a cache miss after server invalidation — stale value means the Uint8Array invalidation path is broken');
+      assert.equal(csc.stats().missCount, 2, 'third get should be a cache miss');
+      assert.equal(csc.stats().hitCount, 1, 'hit count must not increase after invalidation');
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      clientOptions: {
+        RESP: 3,
+        clientSideCache: csc
+      }
+    });
+  });
+
   describe("CacheStats", () => {
     describe("CacheStats.of()", () => {
       it("should correctly initialize stats and calculate derived values", () => {

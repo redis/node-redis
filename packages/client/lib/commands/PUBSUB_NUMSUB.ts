@@ -1,6 +1,6 @@
 import { CommandParser } from '../client/parser';
 import { ArrayReply, BlobStringReply, NumberReply, UnwrapReply, Command } from '../RESP/types';
-import { RedisVariadicArgument } from './generic-transformers';
+import { RedisVariadicArgument, blobToString } from './generic-transformers';
 
 export default {
   NOT_KEYED_COMMAND: true,
@@ -29,7 +29,9 @@ export default {
     const reply = Object.create(null);
     let i = 0;
     while (i < rawReply.length) {
-      reply[rawReply[i++].toString()] = Number(rawReply[i++]);
+      const channel = rawReply[i++];
+      const count = rawReply[i++];
+      reply[blobToString(channel as unknown as string | Buffer | Uint8Array)] = typeof count === 'number' ? count : Number(blobToString(count as unknown as string | Buffer | Uint8Array));
     }
 
     return reply as Record<string, NumberReply>;

@@ -31,7 +31,7 @@ export default {
     parser.push('HSET');
     parser.pushKey(key);
 
-    if (typeof value === 'string' || typeof value === 'number' || value instanceof Buffer) {
+    if (typeof value === 'string' || typeof value === 'number' || value instanceof Buffer || value instanceof Uint8Array) {
       parser.push(
         convertValue(value),
         convertValue(fieldValue!)
