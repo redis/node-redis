@@ -255,6 +255,10 @@ export default class RedisSocket extends EventEmitter {
         }
         this.#isReady = true;
         this.#socketEpoch++;
+        OTelMetrics.instance.connectionBasicMetrics.recordConnectionCount(
+          1,
+          this.#clientId,
+        );
         this.emit('ready');
         recordConnectionCreateTime();
       } catch (err) {
@@ -342,6 +346,10 @@ export default class RedisSocket extends EventEmitter {
     this.emit('error', err);
 
     if (wasReady) {
+      OTelMetrics.instance.connectionBasicMetrics.recordConnectionCount(
+        -1,
+        this.#clientId,
+      );
       OTelMetrics.instance.connectionAdvancedMetrics.recordConnectionClosed(
         CONNECTION_CLOSE_REASON.ERROR,
         this.#clientId,
@@ -400,11 +408,19 @@ export default class RedisSocket extends EventEmitter {
   }
 
   destroySocket() {
+    const wasReady = this.#isReady;
     this.#isReady = false;
 
     if (this.#socket) {
       this.#socket.destroy();
       this.#socket = undefined;
+    }
+
+    if (wasReady) {
+      OTelMetrics.instance.connectionBasicMetrics.recordConnectionCount(
+        -1,
+        this.#clientId,
+      );
     }
 
     OTelMetrics.instance.connectionAdvancedMetrics.recordConnectionClosed(

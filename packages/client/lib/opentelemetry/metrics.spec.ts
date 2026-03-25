@@ -680,10 +680,9 @@ describe("OTel Metrics E2E", function () {
           // Cluster clients should have different ids in the attributes so this should be 1
           assert.strictEqual(value, 1);
 
-          assert.ok(attributes[OTEL_ATTRIBUTES.dbClientConnectionState]);
           assert.strictEqual(
-            attributes[OTEL_ATTRIBUTES.redisClientConnectionPubsub],
-            false,
+            attributes[OTEL_ATTRIBUTES.dbClientConnectionState],
+            "used",
           );
           assert.ok(attributes[OTEL_ATTRIBUTES.dbClientConnectionPoolName]);
           assert.ok(attributes[OTEL_ATTRIBUTES.dbNamespace]);
@@ -948,8 +947,14 @@ describe("OTel Metrics E2E", function () {
         await blockingPromise;
       },
       {
-        client: GLOBAL.SERVERS.OPEN,
-        cluster: GLOBAL.CLUSTERS.OPEN,
+        client: {
+          ...GLOBAL.SERVERS.OPEN,
+          skipTest: true,
+        },
+        cluster: {
+          ...GLOBAL.CLUSTERS.OPEN,
+          skipTest: true,
+        },
       },
     );
 

@@ -151,7 +151,6 @@ OpenTelemetry.init({
 | connection-basic | db.client.connection.create_time |
 | connection-basic | redis.client.connection.relaxed_timeout |
 | connection-basic | redis.client.connection.handoff |
-| connection-advanced | db.client.connection.pending_requests |
 | connection-advanced | db.client.connection.wait_time |
 | connection-advanced | redis.client.connection.closed |
 | resiliency | redis.client.errors |

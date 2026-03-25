@@ -70,7 +70,7 @@ export type MetricInstruments = Readonly<{
   dbClientOperationDuration: Histogram<Attributes>;
 
   // Connection Basic metrics
-  dbClientConnectionCount: ObservableGauge<Attributes>;
+  dbClientConnectionCount: UpDownCounter<Attributes>;
   dbClientConnectionCreateTime: Histogram<Attributes>;
   redisClientConnectionRelaxedTimeout: UpDownCounter<Attributes>;
   redisClientConnectionHandoff: Counter<Attributes>;
@@ -111,13 +111,11 @@ export const OTEL_ATTRIBUTES = {
   dbStoredProcedureName: "db.stored_procedure.name",
   dbClientConnectionPoolName: "db.client.connection.pool.name",
   dbClientConnectionState: "db.client.connection.state",
-
   // Redis-specific extensions
   redisClientLibrary: "redis.client.library",
   redisRedirectionKind: "redis.client.redirection.kind",
   redisClientErrorsInternal: "redis.client.errors.internal",
   redisClientErrorsCategory: "redis.client.errors.category",
-  redisClientConnectionPubsub: "redis.client.connection.pubsub",
   redisClientConnectionCloseReason: "redis.client.connection.close.reason",
   redisClientCscResult: "redis.client.csc.result",
   redisClientCscReason: "redis.client.csc.reason",
@@ -281,6 +279,7 @@ export interface IOTelCommandMetrics {
 
 export interface IOTelConnectionBasicMetrics {
   createRecordConnectionCreateTime(clientId?: string): () => void;
+  recordConnectionCount(value: number, clientId?: string): void;
   recordConnectionRelaxedTimeout(value: number, clientId?: string): void;
   recordConnectionHandoff(clientId?: string): void;
 }

@@ -39,6 +39,8 @@ export class NoopConnectionBasicMetrics implements IOTelConnectionBasicMetrics {
     return noopFunction;
   }
 
+  recordConnectionCount(_value: number, _clientId?: string) {}
+
   recordConnectionRelaxedTimeout(
     _value: number,
     _clientId?: string

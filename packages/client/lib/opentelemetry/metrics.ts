@@ -198,6 +198,20 @@ class OTelConnectionBasicMetrics implements IOTelConnectionBasicMetrics {
       );
     };
   }
+
+  public recordConnectionCount(value: number, clientId?: string) {
+    const clientAttributes = resolveClientAttributes(clientId);
+    // The DB semconv defines this as a pool metric and requires an UpDownCounter
+    // plus a state attribute. node-redis is not pool-shaped in the general case,
+    // so for now we emit only the active client connection as state="used".
+    // See: https://opentelemetry.io/docs/specs/semconv/db/database-metrics/#connection-pools
+    this.#instruments.dbClientConnectionCount.add(value, {
+      ...this.#options.attributes,
+      ...parseClientAttributes(clientAttributes),
+      [OTEL_ATTRIBUTES.dbClientConnectionState]: "used",
+    });
+  }
+
   public recordConnectionRelaxedTimeout(value: number, clientId?: string) {
     const clientAttributes = resolveClientAttributes(clientId);
     this.#instruments.redisClientConnectionRelaxedTimeout.add(value, {
@@ -821,8 +835,7 @@ export class OTelMetrics implements IOTelMetrics {
         },
       ),
       // Basic connection
-      // Observable Gauge: emits 1 per registered client (each client = 1 connection)
-      dbClientConnectionCount: this.createObservableGaugeWithCallback(
+      dbClientConnectionCount: this.createUpDownCounter(
         meter,
         options.enabledMetricGroups,
         {
@@ -830,31 +843,6 @@ export class OTelMetrics implements IOTelMetrics {
           unit: "{connection}",
           description: "Current number of active connections",
           metricGroup: METRIC_GROUP.CONNECTION_BASIC,
-        },
-        options,
-        (observableResult, opts) => {
-          for (const handle of ClientRegistry.instance.getAll()) {
-            if (!handle.isConnected()) {
-              continue;
-            }
-
-            const attributes = handle.getAttributes();
-            const isUsed = handle.getPendingRequests() > 0;
-
-            observableResult.observe(
-              this.#instruments.dbClientConnectionCount,
-              1,
-              {
-                ...opts.attributes,
-                ...parseClientAttributes(attributes),
-                [OTEL_ATTRIBUTES.dbClientConnectionState]: isUsed
-                  ? "used"
-                  : "idle",
-                [OTEL_ATTRIBUTES.redisClientConnectionPubsub]:
-                  attributes.isPubSub ?? false,
-              },
-            );
-          }
         },
       ),
       dbClientConnectionCreateTime: this.createHistogram(
@@ -904,28 +892,36 @@ export class OTelMetrics implements IOTelMetrics {
           histogramBoundaries: options.bucketsConnectionWaitTime,
         },
       ),
-      dbClientConnectionPendingRequests: this.createObservableGaugeWithCallback(
-        meter,
-        options.enabledMetricGroups,
-        {
-          name: METRIC_NAMES.dbClientConnectionPendingRequests,
-          unit: "{request}",
-          description: "Current number of pending requests per connection",
-          metricGroup: METRIC_GROUP.CONNECTION_ADVANCED,
-        },
-        options,
-        (observableResult, opts) => {
-          for (const handle of ClientRegistry.instance.getAll()) {
-            observableResult.observe(
-              this.#instruments.dbClientConnectionPendingRequests,
-              handle.getPendingRequests(),
-              {
-                ...opts.attributes,
-                ...parseClientAttributes(handle.getAttributes()),
-              },
-            );
-          }
-        },
+      // The DB semconv models pending requests as an UpDownCounter on pooled
+      // connections. That does not map cleanly to node-redis today, so we keep
+      // this disabled for now and may reintroduce it later as an async gauge
+      // with a client-specific name.
+      // See: https://opentelemetry.io/docs/specs/semconv/db/database-metrics/#connection-pools
+      // dbClientConnectionPendingRequests: this.createObservableGaugeWithCallback(
+      //   meter,
+      //   options.enabledMetricGroups,
+      //   {
+      //     name: METRIC_NAMES.dbClientConnectionPendingRequests,
+      //     unit: "{request}",
+      //     description: "Current number of pending requests per connection",
+      //     metricGroup: METRIC_GROUP.CONNECTION_ADVANCED,
+      //   },
+      //   options,
+      //   (observableResult, opts) => {
+      //     for (const handle of ClientRegistry.instance.getAll()) {
+      //       observableResult.observe(
+      //         this.#instruments.dbClientConnectionPendingRequests,
+      //         handle.getPendingRequests(),
+      //         {
+      //           ...opts.attributes,
+      //           ...parseClientAttributes(handle.getAttributes()),
+      //         },
+      //       );
+      //     }
+      //   },
+      // ),
+      dbClientConnectionPendingRequests: createNoopMeter().createObservableGauge(
+        METRIC_NAMES.dbClientConnectionPendingRequests,
       ),
       redisClientConnectionClosed: this.createCounter(
         meter,
