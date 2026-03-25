@@ -81,9 +81,6 @@ export {
   CscResult,
   CSC_EVICTION_REASON,
   CscEvictionReason,
-  IOTelClientSideCacheMetrics,
-  IOTelPubSubMetrics,
-  IOTelStreamMetrics,
 } from "./types";
 export { OTelMetrics } from "./metrics";
 export {

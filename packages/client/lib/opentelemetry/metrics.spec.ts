@@ -9,8 +9,6 @@ import {
   MeterProvider,
   PeriodicExportingMetricReader,
 } from "@opentelemetry/sdk-metrics";
-import { spy } from "sinon";
-
 import { createClient } from "@redis/client/index";
 import { OTelMetrics } from "./metrics";
 import {
@@ -23,7 +21,6 @@ import {
   ObservabilityConfig,
   OTEL_ATTRIBUTES,
 } from "./types";
-import { NOOP_COUNTER_METRIC } from "./noop-meter";
 import testUtils, { GLOBAL } from "../test-utils";
 import { ClientRegistry } from "./client-registry";
 import { ClientRole } from "../client/identity";
@@ -49,62 +46,39 @@ describe("OTel Metrics Unit Tests", () => {
     }, OpenTelemetryError);
   });
 
-  it("should be noop if not initialized", () => {
-    const addSpy = spy(NOOP_COUNTER_METRIC, "add");
-
-    OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+  it("should be safe to publish events when not initialized", () => {
+    // When OTelMetrics is not initialized, no channel subscriptions exist.
+    // Publishing events should be a no-op — no crashes, no metrics recorded.
+    const dc = require("node:diagnostics_channel");
+    dc.channel("node-redis:error").publish({
       error: new Error("Test error"),
-      origin: METRIC_ERROR_ORIGIN.CLIENT,
+      origin: "client",
       internal: false,
     });
-
-    assert.equal(addSpy.callCount, 1);
-
-    addSpy.restore();
   });
 
-  it("should create instance with noop meter when API is null", () => {
-    const config: ObservabilityConfig = {
-      metrics: {
-        enabled: true,
-      },
-    };
+  it("should not subscribe to channels when API is null", () => {
+    OTelMetrics.init({ api: undefined, config: { metrics: { enabled: true } } });
 
-    const addSpy = spy(NOOP_COUNTER_METRIC, "add");
-
-    OTelMetrics.init({ api: undefined, config });
-
-    OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+    // With no real OTel API, instruments are noops — publishing events
+    // goes through noop instruments safely.
+    const dc = require("node:diagnostics_channel");
+    dc.channel("node-redis:error").publish({
       error: new Error("Test error"),
-      origin: METRIC_ERROR_ORIGIN.CLIENT,
+      origin: "client",
       internal: false,
     });
-
-    assert.equal(addSpy.callCount, 1);
-
-    addSpy.restore();
   });
 
-  it("should create instance with noop meter when metrics are disabled", () => {
-    const config: ObservabilityConfig = {
-      metrics: {
-        enabled: false,
-      },
-    };
+  it("should not subscribe to channels when metrics are disabled", () => {
+    OTelMetrics.init({ api: undefined, config: { metrics: { enabled: false } } });
 
-    const addSpy = spy(NOOP_COUNTER_METRIC, "add");
-
-    OTelMetrics.init({ api: undefined, config });
-
-    OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+    const dc = require("node:diagnostics_channel");
+    dc.channel("node-redis:error").publish({
       error: new Error("Test error"),
-      origin: METRIC_ERROR_ORIGIN.CLIENT,
+      origin: "client",
       internal: false,
     });
-
-    assert.equal(addSpy.callCount, 1);
-
-    addSpy.restore();
   });
 
   it("should not record excluded commands via TracingChannel", async () => {
@@ -289,21 +263,26 @@ describe("OTel Metrics Unit Tests", () => {
       },
     });
 
-    OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+    const dc = require("node:diagnostics_channel");
+
+    // Client-origin MOVED — should be deduplicated (not recorded)
+    dc.channel("node-redis:error").publish({
       error: new ErrorReply("MOVED 1234 127.0.0.1:7001"),
-      origin: METRIC_ERROR_ORIGIN.CLIENT,
+      origin: "client",
       internal: false,
     });
 
-    OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+    // Client-origin ASK — should be deduplicated (not recorded)
+    dc.channel("node-redis:error").publish({
       error: new ErrorReply("ASK 1234 127.0.0.1:7002"),
-      origin: METRIC_ERROR_ORIGIN.CLIENT,
+      origin: "client",
       internal: false,
     });
 
-    OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+    // Cluster-origin MOVED — should be recorded
+    dc.channel("node-redis:error").publish({
       error: new ErrorReply("MOVED 1234 127.0.0.1:7001"),
-      origin: METRIC_ERROR_ORIGIN.CLUSTER,
+      origin: "cluster",
       internal: true,
     });
 

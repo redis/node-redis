@@ -269,69 +269,6 @@ export interface IOTelCommandMetrics {
   destroy(): void;
 }
 
-export interface IOTelConnectionBasicMetrics {
-  createRecordConnectionCreateTime(clientId?: string): () => void;
-  recordConnectionCount(value: number, clientId?: string): void;
-  recordConnectionRelaxedTimeout(value: number, clientId?: string): void;
-  recordConnectionHandoff(clientId?: string): void;
-}
-
-export interface IOTelConnectionAdvancedMetrics {
-  recordConnectionClosed(
-    reason: ConnectionCloseReason,
-    clientId?: string,
-  ): void;
-  /**
-   * Creates a closure to record connection wait time.
-   * Call this when a client begins waiting for an available connection from the pool.
-   * The returned function should be called when the connection becomes available.
-   */
-  createRecordConnectionWaitTime(): (clientId?: string) => void;
-}
-
-export interface IOTelResiliencyMetrics {
-  recordClientErrors(context: RecordClientErrorContext): void;
-  recordMaintenanceNotifications(notification: string, clientId?: string): void;
-}
-
-export interface IOTelClientSideCacheMetrics {
-  recordCacheRequest(result: CscResult, clientId?: string): void;
-  recordCacheEviction(
-    reason: CscEvictionReason,
-    count?: number,
-    clientId?: string,
-  ): void;
-  recordNetworkBytesSaved(value: unknown, clientId?: string): void;
-}
-
-export interface IOTelPubSubMetrics {
-  recordPubSubMessage(
-    direction: "in" | "out",
-    clientId: string,
-    channel?: RedisArgument,
-    sharded?: boolean,
-  ): void;
-}
-
-export interface IOTelStreamMetrics {
-  recordStreamLag(
-    args: ReadonlyArray<RedisArgument>,
-    reply: unknown,
-    clientId?: string,
-  ): void;
-}
-
 export interface IOTelMetrics {
   commandMetrics: IOTelCommandMetrics;
-  connectionBasicMetrics: IOTelConnectionBasicMetrics;
-  connectionAdvancedMetrics: IOTelConnectionAdvancedMetrics;
-  resiliencyMetrics: IOTelResiliencyMetrics;
-  clientSideCacheMetrics: IOTelClientSideCacheMetrics;
-  pubSubMetrics: IOTelPubSubMetrics;
-  streamMetrics: IOTelStreamMetrics;
-  recordCommandReplyMetrics(
-    args: ReadonlyArray<RedisArgument>,
-    reply: unknown,
-    clientId: string,
-  ): void;
 }
