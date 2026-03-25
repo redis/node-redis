@@ -678,11 +678,13 @@ export function transformRedisJsonArgument(json: RedisJSON): string {
   return JSON.stringify(json);
 }
 
-export function transformRedisJsonReply(json: BlobStringReply): RedisJSON {
-  const res = JSON.parse((json as unknown as UnwrapReply<typeof json>).toString());
+export type JsonReviver = Parameters<typeof JSON.parse>[1];
+
+export function transformRedisJsonReply(json: BlobStringReply, reviver?: JsonReviver): RedisJSON {
+  const res = JSON.parse((json as unknown as UnwrapReply<typeof json>).toString(), reviver);
   return res;
 }
 
-export function transformRedisJsonNullReply(json: NullReply | BlobStringReply): NullReply | RedisJSON {
-  return isNullReply(json) ? json : transformRedisJsonReply(json);
+export function transformRedisJsonNullReply(json: NullReply | BlobStringReply, reviver?: JsonReviver ): NullReply | RedisJSON {
+  return isNullReply(json) ? json : transformRedisJsonReply(json, reviver);
 }
