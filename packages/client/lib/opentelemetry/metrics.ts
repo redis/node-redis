@@ -26,6 +26,7 @@ import {
 } from "./utils";
 import { NoopOTelMetrics } from "./noop-metrics";
 import { OpenTelemetryError } from "../errors";
+import { CHANNELS } from "../client/tracing";
 
 const dc: any = (() => {
   try {
@@ -55,7 +56,7 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
   readonly #instruments: MetricInstruments;
   readonly #options: MetricOptions;
   readonly #metricsState = new WeakMap<object, CommandMetricsState>();
-  readonly #subscriptions: Array<{ channel: string; handler: (ctx: any) => void }> = [];
+  readonly #tracingChannels: Array<{ channel: any; handlers: any }> = [];
 
   constructor(options: MetricOptions, instruments: MetricInstruments) {
     this.#options = options;
@@ -65,7 +66,7 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
   }
 
   #subscribeToTracingChannel() {
-    if (!dc?.subscribe) return;
+    if (!dc?.tracingChannel) return;
 
     const onStart = (ctx: any) => {
       const commandName = ctx.command?.toString() || "UNKNOWN";
@@ -167,27 +168,23 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
       );
     };
 
-    dc.subscribe('tracing:node-redis:command:start', onStart);
-    dc.subscribe('tracing:node-redis:command:asyncEnd', onAsyncEnd);
-    dc.subscribe('tracing:node-redis:command:error', onError);
-    dc.subscribe('tracing:node-redis:batch:start', onBatchStart);
-    dc.subscribe('tracing:node-redis:batch:asyncEnd', onBatchAsyncEnd);
-    dc.subscribe('tracing:node-redis:batch:error', onBatchError);
+    const commandHandlers = { start: onStart, asyncEnd: onAsyncEnd, error: onError };
+    const commandTC = dc.tracingChannel(CHANNELS.TRACE_COMMAND);
+    commandTC.subscribe(commandHandlers);
 
-    this.#subscriptions.push(
-      { channel: 'tracing:node-redis:command:start', handler: onStart },
-      { channel: 'tracing:node-redis:command:asyncEnd', handler: onAsyncEnd },
-      { channel: 'tracing:node-redis:command:error', handler: onError },
-      { channel: 'tracing:node-redis:batch:start', handler: onBatchStart },
-      { channel: 'tracing:node-redis:batch:asyncEnd', handler: onBatchAsyncEnd },
-      { channel: 'tracing:node-redis:batch:error', handler: onBatchError },
+    const batchHandlers = { start: onBatchStart, asyncEnd: onBatchAsyncEnd, error: onBatchError };
+    const batchTC = dc.tracingChannel(CHANNELS.TRACE_BATCH);
+    batchTC.subscribe(batchHandlers);
+
+    this.#tracingChannels.push(
+      { channel: commandTC, handlers: commandHandlers },
+      { channel: batchTC, handlers: batchHandlers },
     );
   }
 
   destroy() {
-    if (!dc?.unsubscribe) return;
-    for (const { channel, handler } of this.#subscriptions) {
-      dc.unsubscribe(channel, handler);
+    for (const { channel, handlers } of this.#tracingChannels) {
+      channel.unsubscribe(handlers);
     }
   }
 
@@ -254,7 +251,7 @@ class OTelChannelSubscribers {
   // -- Connection Basic --
 
   #subscribeConnectionBasic() {
-    this.#sub('node-redis:connection:ready', (ctx: any) => {
+    this.#sub(CHANNELS.CONNECTION_READY, (ctx: any) => {
       const clientAttributes = resolveClientAttributes(ctx.clientId);
       this.#instruments.dbClientConnectionCreateTime.record(
         ctx.createTimeMs / 1000,
@@ -270,7 +267,7 @@ class OTelChannelSubscribers {
       });
     });
 
-    this.#sub('node-redis:connection:closed', (ctx: any) => {
+    this.#sub(CHANNELS.CONNECTION_CLOSED, (ctx: any) => {
       const clientAttributes = resolveClientAttributes(ctx.clientId);
       this.#instruments.dbClientConnectionCount.add(-1, {
         ...this.#options.attributes,
@@ -284,7 +281,7 @@ class OTelChannelSubscribers {
       });
     });
 
-    this.#sub('node-redis:connection:relaxed-timeout', (ctx: any) => {
+    this.#sub(CHANNELS.CONNECTION_RELAXED_TIMEOUT, (ctx: any) => {
       const clientAttributes = resolveClientAttributes(ctx.clientId);
       this.#instruments.redisClientConnectionRelaxedTimeout.add(ctx.value, {
         ...this.#options.attributes,
@@ -292,7 +289,7 @@ class OTelChannelSubscribers {
       });
     });
 
-    this.#sub('node-redis:connection:handoff', (ctx: any) => {
+    this.#sub(CHANNELS.CONNECTION_HANDOFF, (ctx: any) => {
       const clientAttributes = resolveClientAttributes(ctx.clientId);
       this.#instruments.redisClientConnectionHandoff.add(1, {
         ...this.#options.attributes,
@@ -304,7 +301,7 @@ class OTelChannelSubscribers {
   // -- Connection Advanced --
 
   #subscribeConnectionAdvanced() {
-    this.#sub('node-redis:connection:wait:end', (ctx: any) => {
+    this.#sub(CHANNELS.CONNECTION_WAIT_END, (ctx: any) => {
       const clientAttributes = resolveClientAttributes(ctx.clientId);
       this.#instruments.dbClientConnectionWaitTime.record(
         ctx.durationMs / 1000,
@@ -319,7 +316,7 @@ class OTelChannelSubscribers {
   // -- Resiliency --
 
   #subscribeResiliency() {
-    this.#sub('node-redis:error', (ctx: any) => {
+    this.#sub(CHANNELS.ERROR, (ctx: any) => {
       const clientAttributes = resolveClientAttributes(ctx.clientId);
       const errorInfo = getErrorInfo(ctx.error);
 
@@ -344,7 +341,7 @@ class OTelChannelSubscribers {
       });
     });
 
-    this.#sub('node-redis:maintenance', (ctx: any) => {
+    this.#sub(CHANNELS.MAINTENANCE, (ctx: any) => {
       const clientAttributes = resolveClientAttributes(ctx.clientId);
       this.#instruments.redisClientMaintenanceNotifications.add(1, {
         ...this.#options.attributes,
@@ -357,7 +354,7 @@ class OTelChannelSubscribers {
   // -- Client-Side Cache --
 
   #subscribeClientSideCache() {
-    this.#sub('node-redis:cache:request', (ctx: any) => {
+    this.#sub(CHANNELS.CACHE_REQUEST, (ctx: any) => {
       const clientAttributes = resolveClientAttributes(ctx.clientId);
       this.#instruments.redisClientCscRequests.add(1, {
         ...this.#options.attributes,
@@ -368,7 +365,7 @@ class OTelChannelSubscribers {
       });
     });
 
-    this.#sub('node-redis:cache:eviction', (ctx: any) => {
+    this.#sub(CHANNELS.CACHE_EVICTION, (ctx: any) => {
       const clientAttributes = resolveClientAttributes(ctx.clientId);
       this.#instruments.redisClientCscEvictions.add(ctx.count ?? 1, {
         ...this.#options.attributes,
@@ -383,7 +380,7 @@ class OTelChannelSubscribers {
   // -- PubSub --
 
   #subscribePubSub() {
-    this.#sub('node-redis:pubsub', (ctx: any) => {
+    this.#sub(CHANNELS.PUBSUB, (ctx: any) => {
       const clientAttributes = resolveClientAttributes(ctx.clientId);
       this.#instruments.redisClientPubsubMessages.add(1, {
         ...this.#options.attributes,
@@ -397,7 +394,7 @@ class OTelChannelSubscribers {
     });
 
     // Command reply handler for outgoing PUBLISH/SPUBLISH
-    this.#sub('node-redis:command:reply', (ctx: any) => {
+    this.#sub(CHANNELS.COMMAND_REPLY, (ctx: any) => {
       const commandName = ctx.args[0]?.toString().toUpperCase();
       if (commandName === 'PUBLISH') {
         const clientAttributes = resolveClientAttributes(ctx.clientId);
@@ -428,7 +425,7 @@ class OTelChannelSubscribers {
   // -- Streaming --
 
   #subscribeStreaming() {
-    this.#sub('node-redis:command:reply', (ctx: any) => {
+    this.#sub(CHANNELS.COMMAND_REPLY, (ctx: any) => {
       const commandName = ctx.args[0]?.toString().toUpperCase();
       if (commandName !== 'XREAD' && commandName !== 'XREADGROUP') return;
 

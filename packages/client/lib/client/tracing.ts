@@ -19,6 +19,26 @@ const dc: any = (() => {
 
 const hasTracingChannel = typeof dc?.tracingChannel === 'function';
 
+export const CHANNELS = {
+  // TracingChannel names (async lifecycle — use with dc.tracingChannel())
+  TRACE_COMMAND: 'node-redis:command',
+  TRACE_BATCH: 'node-redis:batch',
+  TRACE_CONNECT: 'node-redis:connect',
+  // Point-event channel names (fire-and-forget — use with dc.channel())
+  CONNECTION_READY: 'node-redis:connection:ready',
+  CONNECTION_CLOSED: 'node-redis:connection:closed',
+  CONNECTION_RELAXED_TIMEOUT: 'node-redis:connection:relaxed-timeout',
+  CONNECTION_HANDOFF: 'node-redis:connection:handoff',
+  CONNECTION_WAIT_START: 'node-redis:connection:wait:start',
+  CONNECTION_WAIT_END: 'node-redis:connection:wait:end',
+  ERROR: 'node-redis:error',
+  MAINTENANCE: 'node-redis:maintenance',
+  PUBSUB: 'node-redis:pubsub',
+  CACHE_REQUEST: 'node-redis:cache:request',
+  CACHE_EVICTION: 'node-redis:cache:eviction',
+  COMMAND_REPLY: 'node-redis:command:reply',
+} as const;
+
 /**
  * Argument sanitization rules adapted from @opentelemetry/redis-common (Apache 2.0).
  * Controls how many arguments after the command name are included in trace context.
@@ -101,15 +121,15 @@ function shouldTrace(channel: TracingChannel<any> | undefined): channel is Traci
 }
 
 const commandChannel: TracingChannel<CommandContext> | undefined = hasTracingChannel
-  ? dc.tracingChannel('node-redis:command')
+  ? dc.tracingChannel(CHANNELS.TRACE_COMMAND)
   : undefined;
 
 const connectChannel: TracingChannel<ConnectTraceContext> | undefined = hasTracingChannel
-  ? dc.tracingChannel('node-redis:connect')
+  ? dc.tracingChannel(CHANNELS.TRACE_CONNECT)
   : undefined;
 
 const batchChannel: TracingChannel<BatchTraceContext> | undefined = hasTracingChannel
-  ? dc.tracingChannel('node-redis:batch')
+  ? dc.tracingChannel(CHANNELS.TRACE_BATCH)
   : undefined;
 
 export function traceCommand<T>(
@@ -218,21 +238,6 @@ export interface CommandReplyEvent {
   reply: unknown;
   clientId: string;
 }
-
-export const CHANNELS = {
-  CONNECTION_READY: 'node-redis:connection:ready',
-  CONNECTION_CLOSED: 'node-redis:connection:closed',
-  CONNECTION_RELAXED_TIMEOUT: 'node-redis:connection:relaxed-timeout',
-  CONNECTION_HANDOFF: 'node-redis:connection:handoff',
-  CONNECTION_WAIT_START: 'node-redis:connection:wait:start',
-  CONNECTION_WAIT_END: 'node-redis:connection:wait:end',
-  ERROR: 'node-redis:error',
-  MAINTENANCE: 'node-redis:maintenance',
-  PUBSUB: 'node-redis:pubsub',
-  CACHE_REQUEST: 'node-redis:cache:request',
-  CACHE_EVICTION: 'node-redis:cache:eviction',
-  COMMAND_REPLY: 'node-redis:command:reply',
-} as const;
 
 export interface ChannelEvents {
   [CHANNELS.CONNECTION_READY]: ConnectionReadyEvent;
