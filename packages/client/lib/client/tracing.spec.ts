@@ -1,6 +1,215 @@
 import { strict as assert } from 'node:assert';
 import dc from 'node:diagnostics_channel';
 import testUtils, { GLOBAL } from '../test-utils';
+import { sanitizeArgs } from './tracing';
+
+describe('sanitizeArgs', () => {
+  // Empty / edge cases
+  it('should return empty array for empty args', () => {
+    assert.deepEqual([...sanitizeArgs([])], []);
+  });
+
+  it('should return command name only for command with no arguments', () => {
+    assert.deepEqual([...sanitizeArgs(['PING'])], ['PING']);
+  });
+
+  // args=0 (ECHO — no args serialized after command name)
+  it('should redact all args for ECHO', () => {
+    assert.deepEqual(
+      [...sanitizeArgs(['ECHO', 'hello world'])],
+      ['ECHO', '[REDACTED]']
+    );
+  });
+
+  // args=1 (SET, LPUSH, PUBLISH, etc. — key only)
+  it('should keep key but redact value for SET', () => {
+    assert.deepEqual(
+      [...sanitizeArgs(['SET', 'user:123', 'hunter2'])],
+      ['SET', 'user:123', '[REDACTED]']
+    );
+  });
+
+  it('should keep key but redact value for SET with flags', () => {
+    assert.deepEqual(
+      [...sanitizeArgs(['SET', 'key', 'secret', 'EX', '300', 'NX'])],
+      ['SET', 'key', '[REDACTED]', '[REDACTED]', '[REDACTED]', '[REDACTED]']
+    );
+  });
+
+  it('should keep key but redact value for SETEX (prefix match on SET)', () => {
+    assert.deepEqual(
+      [...sanitizeArgs(['SETEX', 'key', '300', 'secret'])],
+      ['SETEX', 'key', '[REDACTED]', '[REDACTED]']
+    );
+  });
+
+  it('should keep key but redact values for LPUSH with multiple elements', () => {
+    assert.deepEqual(
+      [...sanitizeArgs(['LPUSH', 'mylist', 'a', 'b', 'c'])],
+      ['LPUSH', 'mylist', '[REDACTED]', '[REDACTED]', '[REDACTED]']
+    );
+  });
+
+  it('should keep key but redact message for PUBLISH', () => {
+    assert.deepEqual(
+      [...sanitizeArgs(['PUBLISH', 'channel', 'secret message'])],
+      ['PUBLISH', 'channel', '[REDACTED]']
+    );
+  });
+
+  it('should keep key but redact values for MSET', () => {
+    assert.deepEqual(
+      [...sanitizeArgs(['MSET', 'k1', 'v1', 'k2', 'v2'])],
+      ['MSET', 'k1', '[REDACTED]', '[REDACTED]', '[REDACTED]']
+    );
+  });
+
+  it('should keep key but redact member and score for ZADD', () => {
+    assert.deepEqual(
+      [...sanitizeArgs(['ZADD', 'myzset', '1', 'member1'])],
+      ['ZADD', 'myzset', '[REDACTED]', '[REDACTED]']
+    );
+  });
+
+  it('should keep key but redact fields and values for XADD', () => {
+    assert.deepEqual(
+      [...sanitizeArgs(['XADD', 'stream', '*', 'field', 'value'])],
+      ['XADD', 'stream', '[REDACTED]', '[REDACTED]', '[REDACTED]']
+    );
+  });
+
+  // args=2 (HSET, HMSET, LSET, LINSERT — key + field)
+  it('should keep key and field but redact value for HSET', () => {
+    assert.deepEqual(
+      [...sanitizeArgs(['HSET', 'hash', 'field', 'secret'])],
+      ['HSET', 'hash', 'field', '[REDACTED]']
+    );
+  });
+
+  it('should keep key and field but redact remaining for HMSET', () => {
+    assert.deepEqual(
+      [...sanitizeArgs(['HMSET', 'hash', 'f1', 'v1', 'f2', 'v2'])],
+      ['HMSET', 'hash', 'f1', '[REDACTED]', '[REDACTED]', '[REDACTED]']
+    );
+  });
+
+  it('should keep key and index but redact value for LSET', () => {
+    assert.deepEqual(
+      [...sanitizeArgs(['LSET', 'mylist', '0', 'newvalue'])],
+      ['LSET', 'mylist', '0', '[REDACTED]']
+    );
+  });
+
+  it('should keep key and pivot position for LINSERT', () => {
+    assert.deepEqual(
+      [...sanitizeArgs(['LINSERT', 'mylist', 'BEFORE', 'pivot', 'newvalue'])],
+      ['LINSERT', 'mylist', 'BEFORE', '[REDACTED]', '[REDACTED]']
+    );
+  });
+
+  // args=-1 (all args safe — reads and structural commands)
+  it('should show all args for GET', () => {
+    assert.deepEqual(
+      [...sanitizeArgs(['GET', 'user:123'])],
+      ['GET', 'user:123']
+    );
+  });
+
+  it('should show all args for DEL', () => {
+    assert.deepEqual(
+      [...sanitizeArgs(['DEL', 'key1', 'key2', 'key3'])],
+      ['DEL', 'key1', 'key2', 'key3']
+    );
+  });
+
+  it('should show all args for SUBSCRIBE', () => {
+    assert.deepEqual(
+      [...sanitizeArgs(['SUBSCRIBE', 'ch1', 'ch2'])],
+      ['SUBSCRIBE', 'ch1', 'ch2']
+    );
+  });
+
+  it('should show all args for CONFIG GET', () => {
+    assert.deepEqual(
+      [...sanitizeArgs(['CONFIG', 'GET', 'maxmemory'])],
+      ['CONFIG', 'GET', 'maxmemory']
+    );
+  });
+
+  it('should show all args for EVAL', () => {
+    assert.deepEqual(
+      [...sanitizeArgs(['EVAL', 'return 1', '0'])],
+      ['EVAL', 'return 1', '0']
+    );
+  });
+
+  it('should show all args for HMGET', () => {
+    assert.deepEqual(
+      [...sanitizeArgs(['HMGET', 'hash', 'f1', 'f2'])],
+      ['HMGET', 'hash', 'f1', 'f2']
+    );
+  });
+
+  // Default (unlisted commands — 0 args, command name only)
+  it('should redact all args for AUTH (unlisted, falls to default)', () => {
+    assert.deepEqual(
+      [...sanitizeArgs(['AUTH', 'password123'])],
+      ['AUTH', '[REDACTED]']
+    );
+  });
+
+  it('should redact all args for AUTH with username', () => {
+    assert.deepEqual(
+      [...sanitizeArgs(['AUTH', 'user', 'password123'])],
+      ['AUTH', '[REDACTED]', '[REDACTED]']
+    );
+  });
+
+  it('should redact all args for HELLO with auth', () => {
+    assert.deepEqual(
+      [...sanitizeArgs(['HELLO', '3', 'AUTH', 'user', 'pass'])],
+      ['HELLO', '[REDACTED]', '[REDACTED]', '[REDACTED]', '[REDACTED]']
+    );
+  });
+
+  it('should redact all args for unknown/custom commands', () => {
+    assert.deepEqual(
+      [...sanitizeArgs(['CUSTOMCMD', 'arg1', 'arg2'])],
+      ['CUSTOMCMD', '[REDACTED]', '[REDACTED]']
+    );
+  });
+
+  // Case insensitivity
+  it('should be case-insensitive for command matching', () => {
+    assert.deepEqual(
+      [...sanitizeArgs(['set', 'key', 'value'])],
+      ['set', 'key', '[REDACTED]']
+    );
+    assert.deepEqual(
+      [...sanitizeArgs(['get', 'key'])],
+      ['get', 'key']
+    );
+    assert.deepEqual(
+      [...sanitizeArgs(['hSet', 'hash', 'field', 'value'])],
+      ['hSet', 'hash', 'field', '[REDACTED]']
+    );
+  });
+
+  // Non-string args (Buffer, number)
+  it('should stringify non-string args', () => {
+    assert.deepEqual(
+      [...sanitizeArgs(['GET', Buffer.from('key')])],
+      ['GET', String(Buffer.from('key'))]
+    );
+  });
+
+  it('should stringify numeric args', () => {
+    assert.deepEqual(
+      [...sanitizeArgs(['DEL', 42])],
+      ['DEL', '42']
+    );
+  });
+});
 
 const hasTracingChannel = typeof dc.tracingChannel === 'function';
 
