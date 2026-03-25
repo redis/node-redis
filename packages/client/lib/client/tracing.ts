@@ -80,6 +80,15 @@ export interface ConnectTraceContext {
   clientId: string;
 }
 
+export interface BatchTraceContext {
+  batchMode: 'MULTI' | 'PIPELINE';
+  batchSize: number;
+  database: number;
+  serverAddress: string;
+  serverPort: number | undefined;
+  clientId: string;
+}
+
 type CommandContext = CommandTraceContext | BatchCommandTraceContext;
 
 // Check explicitly for `false` rather than truthiness because `hasSubscribers`
@@ -99,12 +108,26 @@ const connectChannel: TracingChannel<ConnectTraceContext> | undefined = hasTraci
   ? dc.tracingChannel('node-redis:connect')
   : undefined;
 
+const batchChannel: TracingChannel<BatchTraceContext> | undefined = hasTracingChannel
+  ? dc.tracingChannel('node-redis:batch')
+  : undefined;
+
 export function traceCommand<T>(
   fn: () => Promise<T>,
   contextFactory: () => CommandContext
 ): Promise<T> {
   if (shouldTrace(commandChannel)) {
     return commandChannel.tracePromise(fn, contextFactory());
+  }
+  return fn();
+}
+
+export function traceBatch<T>(
+  fn: () => Promise<T>,
+  contextFactory: () => BatchTraceContext
+): Promise<T> {
+  if (shouldTrace(batchChannel)) {
+    return batchChannel.tracePromise(fn, contextFactory());
   }
   return fn();
 }

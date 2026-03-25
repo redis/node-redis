@@ -24,7 +24,6 @@ import {
   OTEL_ATTRIBUTES,
 } from "./types";
 import { NOOP_COUNTER_METRIC } from "./noop-meter";
-import { noopFunction } from "./utils";
 import testUtils, { GLOBAL } from "../test-utils";
 import { ClientRegistry } from "./client-registry";
 import { ClientRole } from "../client/identity";
@@ -108,125 +107,169 @@ describe("OTel Metrics Unit Tests", () => {
     addSpy.restore();
   });
 
-  it("should not record excluded commands", () => {
-    const config: ObservabilityConfig = {
-      metrics: {
-        enabledMetricGroups: ["command"],
-        enabled: true,
-        excludeCommands: ["GET"],
+  it("should not record excluded commands via TracingChannel", async () => {
+    const exporter = new InMemoryMetricExporter(AggregationTemporality.CUMULATIVE);
+    const reader = new PeriodicExportingMetricReader({ exporter });
+    const meterProvider = new MeterProvider({ readers: [reader] });
+
+    OTelMetrics.init({
+      api,
+      config: {
+        metrics: {
+          enabledMetricGroups: ["command"],
+          enabled: true,
+          excludeCommands: ["GET"],
+          meterProvider,
+        },
       },
-    };
+    });
 
-    OTelMetrics.init({ api: undefined, config });
+    // Emit TC events for GET (excluded) and SET (included)
+    const dc = require("node:diagnostics_channel");
+    const getCtx = { command: "GET", clientId: "test" };
+    dc.channel("tracing:node-redis:command:start").publish(getCtx);
+    dc.channel("tracing:node-redis:command:asyncEnd").publish(getCtx);
 
-    const recordGET =
-      OTelMetrics.instance.commandMetrics.createRecordOperationDuration(
-        ["GET", "key"],
-        "test-client",
-      );
+    const setCtx = { command: "SET", clientId: "test" };
+    dc.channel("tracing:node-redis:command:start").publish(setCtx);
+    dc.channel("tracing:node-redis:command:asyncEnd").publish(setCtx);
 
-    assert.strictEqual(
-      recordGET,
-      noopFunction,
-      "expect record to be noop function",
+    await meterProvider.forceFlush();
+    const dataPoints = getMetricDataPoints(
+      exporter.getMetrics(),
+      METRIC_NAMES.dbClientOperationDuration,
     );
 
-    const recordSET =
-      OTelMetrics.instance.commandMetrics.createRecordOperationDuration(
-        ["SET", "key"],
-        "test-client",
-      );
-
-    assert.notStrictEqual(
-      recordSET,
-      noopFunction,
-      "expect record to not be noop function",
+    assert.ok(
+      dataPoints.some((dp) => dp.attributes[OTEL_ATTRIBUTES.dbOperationName] === "SET"),
+      "expected SET to be recorded",
     );
+    assert.ok(
+      !dataPoints.some((dp) => dp.attributes[OTEL_ATTRIBUTES.dbOperationName] === "GET"),
+      "expected GET to be excluded",
+    );
+
+    await meterProvider.shutdown().catch(() => {});
   });
 
-  it("should only record included commands", () => {
-    const config: ObservabilityConfig = {
-      metrics: {
-        enabledMetricGroups: ["command"],
-        enabled: true,
-        includeCommands: ["SET"],
+  it("should only record included commands via TracingChannel", async () => {
+    const exporter = new InMemoryMetricExporter(AggregationTemporality.CUMULATIVE);
+    const reader = new PeriodicExportingMetricReader({ exporter });
+    const meterProvider = new MeterProvider({ readers: [reader] });
+
+    OTelMetrics.init({
+      api,
+      config: {
+        metrics: {
+          enabledMetricGroups: ["command"],
+          enabled: true,
+          includeCommands: ["SET"],
+          meterProvider,
+        },
       },
-    };
+    });
 
-    OTelMetrics.init({ api: undefined, config });
+    const dc = require("node:diagnostics_channel");
+    const getCtx = { command: "GET", clientId: "test" };
+    dc.channel("tracing:node-redis:command:start").publish(getCtx);
+    dc.channel("tracing:node-redis:command:asyncEnd").publish(getCtx);
 
-    const recordGET =
-      OTelMetrics.instance.commandMetrics.createRecordOperationDuration(
-        ["GET", "key"],
-        "test-client",
-      );
+    const setCtx = { command: "SET", clientId: "test" };
+    dc.channel("tracing:node-redis:command:start").publish(setCtx);
+    dc.channel("tracing:node-redis:command:asyncEnd").publish(setCtx);
 
-    assert.strictEqual(
-      recordGET,
-      noopFunction,
-      "expect record to be noop function",
+    await meterProvider.forceFlush();
+    const dataPoints = getMetricDataPoints(
+      exporter.getMetrics(),
+      METRIC_NAMES.dbClientOperationDuration,
     );
 
-    const recordSET =
-      OTelMetrics.instance.commandMetrics.createRecordOperationDuration(
-        ["SET", "key"],
-        "test-client",
-      );
-
-    assert.notStrictEqual(
-      recordSET,
-      noopFunction,
-      "expect record to not be noop function",
+    assert.ok(
+      dataPoints.some((dp) => dp.attributes[OTEL_ATTRIBUTES.dbOperationName] === "SET"),
+      "expected SET to be recorded",
     );
+    assert.ok(
+      !dataPoints.some((dp) => dp.attributes[OTEL_ATTRIBUTES.dbOperationName] === "GET"),
+      "expected GET to be excluded",
+    );
+
+    await meterProvider.shutdown().catch(() => {});
   });
 
-  it("should treat include/exclude commands case-insensitively", () => {
-    const config: ObservabilityConfig = {
-      metrics: {
-        enabledMetricGroups: ["command"],
-        enabled: true,
-        includeCommands: ["set"],
+  it("should treat include/exclude commands case-insensitively via TracingChannel", async () => {
+    const exporter = new InMemoryMetricExporter(AggregationTemporality.CUMULATIVE);
+    const reader = new PeriodicExportingMetricReader({ exporter });
+    const meterProvider = new MeterProvider({ readers: [reader] });
+
+    OTelMetrics.init({
+      api,
+      config: {
+        metrics: {
+          enabledMetricGroups: ["command"],
+          enabled: true,
+          includeCommands: ["set"],
+          meterProvider,
+        },
       },
-    };
+    });
 
-    OTelMetrics.init({ api: undefined, config });
+    const dc = require("node:diagnostics_channel");
+    const ctx = { command: "SET", clientId: "test" };
+    dc.channel("tracing:node-redis:command:start").publish(ctx);
+    dc.channel("tracing:node-redis:command:asyncEnd").publish(ctx);
 
-    const recordSET =
-      OTelMetrics.instance.commandMetrics.createRecordOperationDuration(
-        ["SET", "key"],
-        "test-client",
-      );
-
-    assert.notStrictEqual(
-      recordSET,
-      noopFunction,
-      "expect SET to be included when config uses lowercase includeCommands",
+    await meterProvider.forceFlush();
+    const dataPoints = getMetricDataPoints(
+      exporter.getMetrics(),
+      METRIC_NAMES.dbClientOperationDuration,
     );
+
+    assert.ok(
+      dataPoints.some((dp) => dp.attributes[OTEL_ATTRIBUTES.dbOperationName] === "SET"),
+      "expected SET to be included when config uses lowercase includeCommands",
+    );
+
+    await meterProvider.shutdown().catch(() => {});
   });
 
-  it("should prefer excludeCommands when command exists in both include and exclude", () => {
-    const config: ObservabilityConfig = {
-      metrics: {
-        enabledMetricGroups: ["command"],
-        enabled: true,
-        includeCommands: ["set"],
-        excludeCommands: ["SET"],
+  it("should prefer excludeCommands when command exists in both include and exclude via TracingChannel", async () => {
+    const exporter = new InMemoryMetricExporter(AggregationTemporality.CUMULATIVE);
+    const reader = new PeriodicExportingMetricReader({ exporter });
+    const meterProvider = new MeterProvider({ readers: [reader] });
+
+    OTelMetrics.init({
+      api,
+      config: {
+        metrics: {
+          enabledMetricGroups: ["command"],
+          enabled: true,
+          includeCommands: ["set"],
+          excludeCommands: ["SET"],
+          meterProvider,
+        },
       },
-    };
+    });
 
-    OTelMetrics.init({ api: undefined, config });
+    const dc = require("node:diagnostics_channel");
+    const ctx = { command: "SET", clientId: "test" };
+    dc.channel("tracing:node-redis:command:start").publish(ctx);
+    dc.channel("tracing:node-redis:command:asyncEnd").publish(ctx);
 
-    const recordSET =
-      OTelMetrics.instance.commandMetrics.createRecordOperationDuration(
-        ["SET", "key"],
-        "test-client",
-      );
+    await meterProvider.forceFlush();
+    const resourceMetrics = exporter.getMetrics();
+    const metric = resourceMetrics
+      .flatMap((rm) => rm.scopeMetrics)
+      .flatMap((sm) => sm.metrics)
+      .find((m) => m.descriptor.name === METRIC_NAMES.dbClientOperationDuration);
 
-    assert.strictEqual(
-      recordSET,
-      noopFunction,
-      "expect excludeCommands to take precedence over includeCommands",
+    // No data points should exist — SET is excluded
+    const dataPoints = metric?.dataPoints ?? [];
+    assert.ok(
+      !dataPoints.some((dp: any) => dp.attributes[OTEL_ATTRIBUTES.dbOperationName] === "SET"),
+      "expected excludeCommands to take precedence over includeCommands",
     );
+
+    await meterProvider.shutdown().catch(() => {});
   });
 
   it("should deduplicate client-origin redirection errors but keep cluster-origin", async () => {

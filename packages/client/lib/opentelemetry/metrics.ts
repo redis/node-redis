@@ -50,6 +50,16 @@ import {
 } from "./noop-metrics";
 import { OpenTelemetryError } from "../errors";
 
+const dc: any = (() => {
+  try {
+    return ('getBuiltinModule' in process)
+      ? (process as any).getBuiltinModule('node:diagnostics_channel')
+      : require('node:diagnostics_channel');
+  } catch {
+    return undefined;
+  }
+})();
+
 function resolveClientAttributes(
   clientId?: string,
 ): OTelClientAttributes | undefined {
@@ -58,115 +68,153 @@ function resolveClientAttributes(
     : undefined;
 }
 
+interface CommandMetricsState {
+  startTime: number;
+  clientAttributes: OTelClientAttributes | undefined;
+  commandName: string;
+}
+
 class OTelCommandMetrics implements IOTelCommandMetrics {
   readonly #instruments: MetricInstruments;
   readonly #options: MetricOptions;
-  public readonly createRecordOperationDuration: (
-    args: ReadonlyArray<RedisArgument>,
-    clientId?: string,
-  ) => (error?: Error) => void;
+  readonly #metricsState = new WeakMap<object, CommandMetricsState>();
+  readonly #subscriptions: Array<{ channel: string; handler: (ctx: any) => void }> = [];
 
   constructor(options: MetricOptions, instruments: MetricInstruments) {
     this.#options = options;
     this.#instruments = instruments;
 
-    // Build the appropriate function based on options
-    if (options.hasIncludeCommands || options.hasExcludeCommands) {
-      // Version with filtering
-      this.createRecordOperationDuration = this.#createWithFiltering.bind(this);
-    } else {
-      this.createRecordOperationDuration =
-        this.#createWithoutFiltering.bind(this);
-    }
+    this.#subscribeToTracingChannel();
   }
 
-  #createWithFiltering(
-    args: ReadonlyArray<RedisArgument>,
-    clientId?: string,
-  ): (error?: Error) => void {
-    const commandName = args[0]?.toString() || "UNKNOWN";
+  #subscribeToTracingChannel() {
+    if (!dc?.subscribe) return;
 
-    if (this.isCommandExcluded(commandName)) {
-      return noopFunction;
-    }
+    const onStart = (ctx: any) => {
+      const commandName = ctx.command?.toString() || "UNKNOWN";
 
-    return this.#recordOperation(commandName, clientId);
-  }
+      if (this.#isCommandExcluded(commandName)) return;
 
-  #createWithoutFiltering(
-    args: ReadonlyArray<RedisArgument>,
-    clientId?: string,
-  ): (error?: Error) => void {
-    const commandName = args[0]?.toString() || "UNKNOWN";
-    return this.#recordOperation(commandName, clientId);
-  }
-
-  #recordOperation(
-    commandName: string,
-    clientId?: string,
-  ): (error?: Error) => void {
-    const startTime = performance.now();
-    const clientAttributes = resolveClientAttributes(clientId);
-
-    return (error?: Error) => {
-      const durationSeconds = (performance.now() - startTime) / 1000;
-
-      const attrs: Record<string, any> = {
-        ...this.#options.attributes,
-        [OTEL_ATTRIBUTES.dbNamespace]: clientAttributes?.db?.toString(),
-        [OTEL_ATTRIBUTES.serverAddress]: clientAttributes?.host,
-        [OTEL_ATTRIBUTES.serverPort]: clientAttributes?.port?.toString(),
-        [OTEL_ATTRIBUTES.dbOperationName]: commandName,
-      };
-
-      if (error) {
-        const errorInfo = getErrorInfo(error);
-        attrs[OTEL_ATTRIBUTES.errorType] = errorInfo.errorType;
-        attrs[OTEL_ATTRIBUTES.redisClientErrorsCategory] = errorInfo.category;
-        if (errorInfo.statusCode !== undefined) {
-          attrs[OTEL_ATTRIBUTES.dbResponseStatusCode] = errorInfo.statusCode;
-        }
-      }
-
-      this.#instruments.dbClientOperationDuration.record(
-        durationSeconds,
-        attrs,
-      );
+      this.#metricsState.set(ctx, {
+        startTime: performance.now(),
+        clientAttributes: resolveClientAttributes(ctx.clientId),
+        commandName,
+      });
     };
-  }
 
-  createRecordBatchOperationDuration(
-    operationName: "MULTI" | "PIPELINE",
-    clientId?: string,
-  ): (error?: Error) => void {
-    const startTime = performance.now();
-    const clientAttributes = resolveClientAttributes(clientId);
+    const onAsyncEnd = (ctx: any) => {
+      const state = this.#metricsState.get(ctx);
+      if (!state) return;
+      this.#metricsState.delete(ctx);
 
-    return (error?: Error) => {
-      const errorInfo = error ? getErrorInfo(error) : undefined;
       this.#instruments.dbClientOperationDuration.record(
-        (performance.now() - startTime) / 1000,
+        (performance.now() - state.startTime) / 1000,
         {
           ...this.#options.attributes,
-          [OTEL_ATTRIBUTES.dbOperationName]: operationName,
-          [OTEL_ATTRIBUTES.dbNamespace]: clientAttributes?.db?.toString(),
-          [OTEL_ATTRIBUTES.serverAddress]: clientAttributes?.host,
-          [OTEL_ATTRIBUTES.serverPort]: clientAttributes?.port?.toString(),
-          ...(errorInfo
-            ? {
-                [OTEL_ATTRIBUTES.errorType]: errorInfo.errorType,
-                [OTEL_ATTRIBUTES.redisClientErrorsCategory]: errorInfo.category,
-              }
-            : {}),
-          ...(errorInfo?.statusCode
+          [OTEL_ATTRIBUTES.dbNamespace]: state.clientAttributes?.db?.toString(),
+          [OTEL_ATTRIBUTES.serverAddress]: state.clientAttributes?.host,
+          [OTEL_ATTRIBUTES.serverPort]: state.clientAttributes?.port?.toString(),
+          [OTEL_ATTRIBUTES.dbOperationName]: state.commandName,
+        },
+      );
+    };
+
+    const onError = (ctx: any) => {
+      const state = this.#metricsState.get(ctx);
+      if (!state) return;
+      this.#metricsState.delete(ctx);
+
+      const errorInfo = getErrorInfo(ctx.error);
+      this.#instruments.dbClientOperationDuration.record(
+        (performance.now() - state.startTime) / 1000,
+        {
+          ...this.#options.attributes,
+          [OTEL_ATTRIBUTES.dbNamespace]: state.clientAttributes?.db?.toString(),
+          [OTEL_ATTRIBUTES.serverAddress]: state.clientAttributes?.host,
+          [OTEL_ATTRIBUTES.serverPort]: state.clientAttributes?.port?.toString(),
+          [OTEL_ATTRIBUTES.dbOperationName]: state.commandName,
+          [OTEL_ATTRIBUTES.errorType]: errorInfo.errorType,
+          [OTEL_ATTRIBUTES.redisClientErrorsCategory]: errorInfo.category,
+          ...(errorInfo.statusCode !== undefined
             ? { [OTEL_ATTRIBUTES.dbResponseStatusCode]: errorInfo.statusCode }
             : {}),
         },
       );
     };
+
+    const onBatchStart = (ctx: any) => {
+      this.#metricsState.set(ctx, {
+        startTime: performance.now(),
+        clientAttributes: resolveClientAttributes(ctx.clientId),
+        commandName: ctx.batchMode,
+      });
+    };
+
+    const onBatchAsyncEnd = (ctx: any) => {
+      const state = this.#metricsState.get(ctx);
+      if (!state) return;
+      this.#metricsState.delete(ctx);
+
+      this.#instruments.dbClientOperationDuration.record(
+        (performance.now() - state.startTime) / 1000,
+        {
+          ...this.#options.attributes,
+          [OTEL_ATTRIBUTES.dbNamespace]: state.clientAttributes?.db?.toString(),
+          [OTEL_ATTRIBUTES.serverAddress]: state.clientAttributes?.host,
+          [OTEL_ATTRIBUTES.serverPort]: state.clientAttributes?.port?.toString(),
+          [OTEL_ATTRIBUTES.dbOperationName]: state.commandName,
+        },
+      );
+    };
+
+    const onBatchError = (ctx: any) => {
+      const state = this.#metricsState.get(ctx);
+      if (!state) return;
+      this.#metricsState.delete(ctx);
+
+      const errorInfo = getErrorInfo(ctx.error);
+      this.#instruments.dbClientOperationDuration.record(
+        (performance.now() - state.startTime) / 1000,
+        {
+          ...this.#options.attributes,
+          [OTEL_ATTRIBUTES.dbNamespace]: state.clientAttributes?.db?.toString(),
+          [OTEL_ATTRIBUTES.serverAddress]: state.clientAttributes?.host,
+          [OTEL_ATTRIBUTES.serverPort]: state.clientAttributes?.port?.toString(),
+          [OTEL_ATTRIBUTES.dbOperationName]: state.commandName,
+          [OTEL_ATTRIBUTES.errorType]: errorInfo.errorType,
+          [OTEL_ATTRIBUTES.redisClientErrorsCategory]: errorInfo.category,
+          ...(errorInfo.statusCode !== undefined
+            ? { [OTEL_ATTRIBUTES.dbResponseStatusCode]: errorInfo.statusCode }
+            : {}),
+        },
+      );
+    };
+
+    dc.subscribe('tracing:node-redis:command:start', onStart);
+    dc.subscribe('tracing:node-redis:command:asyncEnd', onAsyncEnd);
+    dc.subscribe('tracing:node-redis:command:error', onError);
+    dc.subscribe('tracing:node-redis:batch:start', onBatchStart);
+    dc.subscribe('tracing:node-redis:batch:asyncEnd', onBatchAsyncEnd);
+    dc.subscribe('tracing:node-redis:batch:error', onBatchError);
+
+    this.#subscriptions.push(
+      { channel: 'tracing:node-redis:command:start', handler: onStart },
+      { channel: 'tracing:node-redis:command:asyncEnd', handler: onAsyncEnd },
+      { channel: 'tracing:node-redis:command:error', handler: onError },
+      { channel: 'tracing:node-redis:batch:start', handler: onBatchStart },
+      { channel: 'tracing:node-redis:batch:asyncEnd', handler: onBatchAsyncEnd },
+      { channel: 'tracing:node-redis:batch:error', handler: onBatchError },
+    );
   }
 
-  private isCommandExcluded(commandName: string) {
+  destroy() {
+    if (!dc?.unsubscribe) return;
+    for (const { channel, handler } of this.#subscriptions) {
+      dc.unsubscribe(channel, handler);
+    }
+  }
+
+  #isCommandExcluded(commandName: string) {
     return (
       (this.#options.hasIncludeCommands &&
         !this.#options.includeCommands[commandName]) ||
@@ -591,6 +639,7 @@ export class OTelMetrics implements IOTelMetrics {
    * @internal
    */
   public static reset() {
+    OTelMetrics.#instance.commandMetrics.destroy();
     OTelMetrics.#instance = new OTelMetrics({
       api: undefined,
       config: undefined,

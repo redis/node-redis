@@ -266,15 +266,7 @@ export type CommandReplyMetricHandler = (
 ) => void;
 
 export interface IOTelCommandMetrics {
-  createRecordOperationDuration(
-    args: ReadonlyArray<RedisArgument>,
-    clientId?: string,
-  ): (error?: Error) => void;
-
-  createRecordBatchOperationDuration(
-    operationName: "MULTI" | "PIPELINE",
-    clientId?: string,
-  ): (error?: Error) => void;
+  destroy(): void;
 }
 
 export interface IOTelConnectionBasicMetrics {

@@ -16,19 +16,7 @@ import {
 import { noopFunction } from "./utils";
 
 export class NoopCommandMetrics implements IOTelCommandMetrics {
-  createRecordOperationDuration(
-    _args: ReadonlyArray<RedisArgument>,
-    _clientId?: string
-  ): (error?: Error) => void {
-    return noopFunction;
-  }
-
-  createRecordBatchOperationDuration(
-    _operationName: 'MULTI' | 'PIPELINE',
-    _clientId?: string
-  ): (error?: Error) => void {
-    return noopFunction;
-  }
+  destroy() {}
 }
 
 export class NoopConnectionBasicMetrics implements IOTelConnectionBasicMetrics {
