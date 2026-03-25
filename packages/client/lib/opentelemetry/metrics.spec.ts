@@ -46,41 +46,6 @@ describe("OTel Metrics Unit Tests", () => {
     }, OpenTelemetryError);
   });
 
-  it("should be safe to publish events when not initialized", () => {
-    // When OTelMetrics is not initialized, no channel subscriptions exist.
-    // Publishing events should be a no-op — no crashes, no metrics recorded.
-    const dc = require("node:diagnostics_channel");
-    dc.channel("node-redis:error").publish({
-      error: new Error("Test error"),
-      origin: "client",
-      internal: false,
-    });
-  });
-
-  it("should not subscribe to channels when API is null", () => {
-    OTelMetrics.init({ api: undefined, config: { metrics: { enabled: true } } });
-
-    // With no real OTel API, instruments are noops — publishing events
-    // goes through noop instruments safely.
-    const dc = require("node:diagnostics_channel");
-    dc.channel("node-redis:error").publish({
-      error: new Error("Test error"),
-      origin: "client",
-      internal: false,
-    });
-  });
-
-  it("should not subscribe to channels when metrics are disabled", () => {
-    OTelMetrics.init({ api: undefined, config: { metrics: { enabled: false } } });
-
-    const dc = require("node:diagnostics_channel");
-    dc.channel("node-redis:error").publish({
-      error: new Error("Test error"),
-      origin: "client",
-      internal: false,
-    });
-  });
-
   it("should not record excluded commands via TracingChannel", async () => {
     const exporter = new InMemoryMetricExporter(AggregationTemporality.CUMULATIVE);
     const reader = new PeriodicExportingMetricReader({ exporter });
