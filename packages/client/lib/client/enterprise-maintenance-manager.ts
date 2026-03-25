@@ -7,8 +7,7 @@ import { setTimeout } from "node:timers/promises";
 import { RedisTcpSocketOptions } from "./socket";
 import diagnostics_channel from "node:diagnostics_channel";
 import { RedisArgument } from "../RESP/types";
-import {  OTelMetrics } from "../opentelemetry";
-import { METRIC_ERROR_ORIGIN } from "../opentelemetry/types";
+import { publish, CHANNELS } from "./tracing";
 
 type RedisType = RedisClient<any, any, any, any, any>;
 
@@ -124,12 +123,12 @@ export default class EnterpriseMaintenanceManager {
       errorHandler: (error: Error) => {
         dbgMaintenance("handshake failed:", error);
 
-        OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+        publish(CHANNELS.ERROR, () => ({
           error,
-          origin: METRIC_ERROR_ORIGIN.CLIENT,
+          origin: 'client',
           internal: true,
           clientId,
-        });
+        }));
 
         if (options.maintNotifications === "enabled") {
           throw error;
@@ -160,10 +159,10 @@ export default class EnterpriseMaintenanceManager {
 
     const type = String(push[0]);
 
-    OTelMetrics.instance.resiliencyMetrics.recordMaintenanceNotifications(
-      type,
-      this.#client._clientId,
-    );
+    publish(CHANNELS.MAINTENANCE, () => ({
+      notification: type,
+      clientId: this.#client._clientId,
+    }));
 
     emitDiagnostics({
       type,
@@ -306,9 +305,7 @@ export default class EnterpriseMaintenanceManager {
     dbgMaintenance("Resume writing");
     this.#client._unpause();
     this.#onMigrated();
-    OTelMetrics.instance.connectionBasicMetrics.recordConnectionHandoff(
-      this.#client._clientId,
-    );
+    publish(CHANNELS.CONNECTION_HANDOFF, () => ({ clientId: this.#client._clientId }));
   };
 
   #onMigrating = () => {

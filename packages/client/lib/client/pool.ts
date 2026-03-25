@@ -11,7 +11,7 @@ import { BasicPooledClientSideCache, ClientSideCacheConfig, PooledClientSideCach
 import { BasicCommandParser } from './parser';
 import SingleEntryCache from '../single-entry-cache';
 import { MULTI_MODE, MultiMode } from '../multi-command';
-import { OTelMetrics } from '../opentelemetry';
+import { publish, CHANNELS } from './tracing';
 import { ClientIdentity, ClientRole, generateClientId } from './identity';
 
 export interface RedisPoolOptions {
@@ -244,13 +244,12 @@ export class RedisClientPool<
     return this._self.#idleClients.length + this._self.#clientsInUse.length;
   }
 
-  // TODO: Review task queue type - recordWaitTime added for OTel metrics
   readonly #tasksQueue = new SinglyLinkedList<{
     timeout: NodeJS.Timeout | undefined;
     resolve: (value: unknown) => unknown;
     reject: (reason?: unknown) => unknown;
     fn: PoolTask<M, F, S, RESP, TYPE_MAPPING>;
-    recordWaitTime: (clientId?: string) => void;
+    waitStartTime: number;
   }>();
 
   /**
@@ -438,7 +437,8 @@ export class RedisClientPool<
         return reject(new ClientClosedError());
       }
 
-      const recordWaitTime = OTelMetrics.instance.connectionAdvancedMetrics.createRecordConnectionWaitTime();
+      const waitStartTime = performance.now();
+      publish(CHANNELS.CONNECTION_WAIT_START, () => ({ startTime: waitStartTime }));
       const client = this._self.#idleClients.shift(),
         { tail } = this._self.#tasksQueue;
       if (!client) {
@@ -459,7 +459,7 @@ export class RedisClientPool<
           resolve,
           reject,
           fn,
-          recordWaitTime,
+          waitStartTime,
         });
 
         if (this.totalClients < this._self.#options.maximum) {
@@ -470,7 +470,7 @@ export class RedisClientPool<
       }
 
       const node = this._self.#clientsInUse.push(client);
-      recordWaitTime(client._clientId);
+      publish(CHANNELS.CONNECTION_WAIT_END, () => ({ clientId: client._clientId, durationMs: performance.now() - waitStartTime }));
       // @ts-ignore
       this._self.#executeTask(node, resolve, reject, fn);
     });
@@ -499,7 +499,7 @@ export class RedisClientPool<
     const task = this.#tasksQueue.shift();
     if (task) {
       clearTimeout(task.timeout);
-      task.recordWaitTime(node.value._clientId);
+      publish(CHANNELS.CONNECTION_WAIT_END, () => ({ clientId: node.value._clientId, durationMs: performance.now() - task.waitStartTime }));
       this.#executeTask(node, task.resolve, task.reject, task.fn);
       return;
     }

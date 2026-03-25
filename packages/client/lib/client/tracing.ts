@@ -141,3 +141,132 @@ export function traceConnect<T>(
   }
   return fn();
 }
+
+// ---------------------------------------------------------------------------
+// Point-event channels (plain dc.channel — fire-and-forget, no async lifecycle)
+// ---------------------------------------------------------------------------
+
+// Connection lifecycle
+export interface ConnectionReadyEvent {
+  clientId: string;
+  serverAddress?: string;
+  serverPort?: number;
+  createTimeMs: number;
+}
+
+export interface ConnectionClosedEvent {
+  clientId: string;
+  reason: string;
+}
+
+export interface ConnectionRelaxedTimeoutEvent {
+  clientId: string;
+  value: number; // +1 relaxed, -1 unrelaxed
+}
+
+export interface ConnectionHandoffEvent {
+  clientId: string;
+}
+
+export interface ConnectionWaitStartEvent {
+  clientId?: string;
+  startTime: number;
+}
+
+export interface ConnectionWaitEndEvent {
+  clientId?: string;
+  durationMs: number;
+}
+
+// Errors and maintenance
+export interface ClientErrorEvent {
+  error: Error;
+  origin: string;
+  internal: boolean;
+  clientId?: string;
+  retryCount?: number;
+}
+
+export interface MaintenanceNotificationEvent {
+  notification: string;
+  clientId?: string;
+}
+
+// PubSub
+export interface PubSubMessageEvent {
+  direction: 'in' | 'out';
+  clientId: string;
+  channel?: unknown;
+  sharded?: boolean;
+}
+
+// Client-side cache
+export interface CacheRequestEvent {
+  result: string; // 'hit' | 'miss'
+  clientId?: string;
+}
+
+export interface CacheEvictionEvent {
+  reason: string;
+  count: number;
+  clientId?: string;
+}
+
+// Command reply (for pubsub out + stream lag)
+export interface CommandReplyEvent {
+  args: ReadonlyArray<unknown>;
+  reply: unknown;
+  clientId: string;
+}
+
+export const CHANNELS = {
+  CONNECTION_READY: 'node-redis:connection:ready',
+  CONNECTION_CLOSED: 'node-redis:connection:closed',
+  CONNECTION_RELAXED_TIMEOUT: 'node-redis:connection:relaxed-timeout',
+  CONNECTION_HANDOFF: 'node-redis:connection:handoff',
+  CONNECTION_WAIT_START: 'node-redis:connection:wait:start',
+  CONNECTION_WAIT_END: 'node-redis:connection:wait:end',
+  ERROR: 'node-redis:error',
+  MAINTENANCE: 'node-redis:maintenance',
+  PUBSUB: 'node-redis:pubsub',
+  CACHE_REQUEST: 'node-redis:cache:request',
+  CACHE_EVICTION: 'node-redis:cache:eviction',
+  COMMAND_REPLY: 'node-redis:command:reply',
+} as const;
+
+export interface ChannelEvents {
+  [CHANNELS.CONNECTION_READY]: ConnectionReadyEvent;
+  [CHANNELS.CONNECTION_CLOSED]: ConnectionClosedEvent;
+  [CHANNELS.CONNECTION_RELAXED_TIMEOUT]: ConnectionRelaxedTimeoutEvent;
+  [CHANNELS.CONNECTION_HANDOFF]: ConnectionHandoffEvent;
+  [CHANNELS.CONNECTION_WAIT_START]: ConnectionWaitStartEvent;
+  [CHANNELS.CONNECTION_WAIT_END]: ConnectionWaitEndEvent;
+  [CHANNELS.ERROR]: ClientErrorEvent;
+  [CHANNELS.MAINTENANCE]: MaintenanceNotificationEvent;
+  [CHANNELS.PUBSUB]: PubSubMessageEvent;
+  [CHANNELS.CACHE_REQUEST]: CacheRequestEvent;
+  [CHANNELS.CACHE_EVICTION]: CacheEvictionEvent;
+  [CHANNELS.COMMAND_REPLY]: CommandReplyEvent;
+}
+
+const channelCache = new Map<string, { hasSubscribers: boolean; publish(message: any): void }>();
+
+function getChannel(name: string) {
+  if (!dc?.channel) return undefined;
+  let ch = channelCache.get(name);
+  if (!ch) {
+    ch = dc.channel(name) as { hasSubscribers: boolean; publish(message: any): void };
+    channelCache.set(name, ch);
+  }
+  return ch!;
+}
+
+export function publish<K extends keyof ChannelEvents>(
+  name: K,
+  factory: () => ChannelEvents[K]
+): void {
+  const ch = getChannel(name);
+  if (ch?.hasSubscribers) {
+    ch.publish(factory());
+  }
+}

@@ -21,10 +21,9 @@ import { BasicCommandParser, CommandParser } from './parser';
 import SingleEntryCache from '../single-entry-cache';
 import { version } from '../../package.json'
 import EnterpriseMaintenanceManager, { MaintenanceUpdate, MovingEndpointType, SMIGRATED_EVENT, SMigratedEvent } from './enterprise-maintenance-manager';
-import { ClientMetricsHandle, ClientRegistry, OTelMetrics } from '../opentelemetry';
-import { METRIC_ERROR_ORIGIN } from '../opentelemetry/types';
+import { ClientMetricsHandle, ClientRegistry } from '../opentelemetry';
 import { ClientIdentity, ClientRole, generateClientId } from './identity';
-import { traceCommand, traceBatch, traceConnect, sanitizeArgs, type CommandTraceContext } from './tracing';
+import { traceCommand, traceBatch, traceConnect, sanitizeArgs, publish, CHANNELS, type CommandTraceContext } from './tracing';
 
 const noop = () => {};
 
@@ -1134,11 +1133,7 @@ export default class RedisClient<
 
       const finalReply = transformReply ? transformReply(reply, parser.preserve, commandOptions?.typeMapping) : reply;
 
-      OTelMetrics.instance.recordCommandReplyMetrics(
-        parser.redisArgs,
-        finalReply,
-        this._self._clientId,
-      );
+      publish(CHANNELS.COMMAND_REPLY, () => ({ args: parser.redisArgs, reply: finalReply, clientId: this._self._clientId }));
 
       return finalReply;
     }
@@ -1200,18 +1195,16 @@ export default class RedisClient<
     ).then(
       (reply) => {
         // Reply-based metrics (pubsub out, stream lag) need raw args + reply
-        OTelMetrics.instance.recordCommandReplyMetrics(
-          args, reply, this._self._clientId,
-        );
+        publish(CHANNELS.COMMAND_REPLY, () => ({ args, reply, clientId: this._self._clientId }));
         return reply;
       },
       (err) => {
-        OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+        publish(CHANNELS.ERROR, () => ({
           error: err,
-          origin: METRIC_ERROR_ORIGIN.CLIENT,
+          origin: 'client',
           internal: false,
           clientId: this._self._clientId,
-        });
+        }));
         throw err;
       }
     );
