@@ -40,7 +40,6 @@ import {
 } from "./utils";
 import {
   NoopClientSideCacheMetrics,
-  NoopCommandMetrics,
   NoopConnectionAdvancedMetrics,
   NoopConnectionBasicMetrics,
   NoopOTelMetrics,
@@ -548,7 +547,7 @@ export class OTelMetrics implements IOTelMetrics {
         this.#instruments,
       );
     } else {
-      this.commandMetrics = new NoopCommandMetrics();
+      this.commandMetrics = { destroy() {} };
     }
 
     if (

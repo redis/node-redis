@@ -9,15 +9,10 @@ import {
   IOTelClientSideCacheMetrics,
   IOTelResiliencyMetrics,
   IOTelConnectionAdvancedMetrics,
-  IOTelCommandMetrics,
   IOTelConnectionBasicMetrics,
   RecordClientErrorContext,
 } from "./types";
 import { noopFunction } from "./utils";
-
-export class NoopCommandMetrics implements IOTelCommandMetrics {
-  destroy() {}
-}
 
 export class NoopConnectionBasicMetrics implements IOTelConnectionBasicMetrics {
 
@@ -96,7 +91,7 @@ export class NoopStreamMetrics implements IOTelStreamMetrics {
 }
 
 export class NoopOTelMetrics implements IOTelMetrics {
-  commandMetrics = new NoopCommandMetrics();
+  commandMetrics = { destroy() {} };
   connectionBasicMetrics = new NoopConnectionBasicMetrics();
   connectionAdvancedMetrics = new NoopConnectionAdvancedMetrics();
   resiliencyMetrics = new NoopResiliencyMetrics();
