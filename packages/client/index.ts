@@ -37,3 +37,5 @@ export { SetOptions, CLIENT_KILL_FILTERS, FAILOVER_MODES, CLUSTER_SLOT_STATES, C
 
 export { BasicClientSideCache, BasicPooledClientSideCache } from './lib/client/cache';
 export { OpenTelemetry } from './lib/opentelemetry';
+
+export { CommandTraceContext, BatchCommandTraceContext, ConnectTraceContext } from './lib/client/tracing';
