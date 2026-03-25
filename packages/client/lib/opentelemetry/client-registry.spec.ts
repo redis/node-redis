@@ -126,7 +126,7 @@ describe("ClientRegistry Unit Tests", () => {
 
   it("should handle unix socket clients", () => {
     ClientRegistry.init();
-    
+
     createClient({
       socket: {
         path: "/tmp/redis.sock",
@@ -147,6 +147,25 @@ describe("ClientRegistry Unit Tests", () => {
     assert.strictEqual(attributes.port, undefined);
     assert.strictEqual(attributes.db, 0);
     assert.strictEqual(attributes.clientId, handle.identity.id);
+  });
+
+  it("should reflect identity updates after _setIdentity", () => {
+    ClientRegistry.init();
+
+    const client = createClient();
+    const originalId = client._clientId;
+
+    client._setIdentity(ClientRole.POOL_MEMBER, "pool-1");
+
+    const handle = ClientRegistry.instance.getById(originalId);
+    assert.ok(handle);
+    assert.strictEqual(handle.identity.id, originalId);
+    assert.strictEqual(handle.identity.role, ClientRole.POOL_MEMBER);
+    assert.strictEqual(handle.identity.parentId, "pool-1");
+
+    const attributes = handle.getAttributes();
+    assert.strictEqual(attributes.clientId, originalId);
+    assert.strictEqual(attributes.parentId, "pool-1");
   });
 });
 

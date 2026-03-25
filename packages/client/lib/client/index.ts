@@ -481,11 +481,11 @@ export default class RedisClient<
    * Sets the client identity. Used by pool/cluster/sentinel when creating child clients.
    */
   _setIdentity(role: ClientRole, parentId?: string): void {
-    this._self.#clientIdentity = {
-      ...this._self.#clientIdentity,
-      role,
-      parentId
-    };
+    this._self.#clientIdentity.role = role;
+
+    if (parentId) {
+      this._self.#clientIdentity.parentId = parentId;
+    }
   }
 
   /**

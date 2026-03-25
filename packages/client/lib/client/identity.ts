@@ -29,8 +29,8 @@ export enum ClientRole {
  */
 export interface ClientIdentity {
   readonly id: string;
-  readonly role: ClientRole;
-  readonly parentId?: string;
+  role: ClientRole;
+  parentId?: string;
 }
 
 /**
