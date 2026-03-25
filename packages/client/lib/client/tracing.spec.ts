@@ -17,7 +17,7 @@ describe('sanitizeArgs', () => {
   it('should redact all args for ECHO', () => {
     assert.deepEqual(
       [...sanitizeArgs(['ECHO', 'hello world'])],
-      ['ECHO', '[REDACTED]']
+      ['ECHO', '?']
     );
   });
 
@@ -25,56 +25,56 @@ describe('sanitizeArgs', () => {
   it('should keep key but redact value for SET', () => {
     assert.deepEqual(
       [...sanitizeArgs(['SET', 'user:123', 'hunter2'])],
-      ['SET', 'user:123', '[REDACTED]']
+      ['SET', 'user:123', '?']
     );
   });
 
   it('should keep key but redact value for SET with flags', () => {
     assert.deepEqual(
       [...sanitizeArgs(['SET', 'key', 'secret', 'EX', '300', 'NX'])],
-      ['SET', 'key', '[REDACTED]', '[REDACTED]', '[REDACTED]', '[REDACTED]']
+      ['SET', 'key', '?', '?', '?', '?']
     );
   });
 
   it('should keep key but redact value for SETEX (prefix match on SET)', () => {
     assert.deepEqual(
       [...sanitizeArgs(['SETEX', 'key', '300', 'secret'])],
-      ['SETEX', 'key', '[REDACTED]', '[REDACTED]']
+      ['SETEX', 'key', '?', '?']
     );
   });
 
   it('should keep key but redact values for LPUSH with multiple elements', () => {
     assert.deepEqual(
       [...sanitizeArgs(['LPUSH', 'mylist', 'a', 'b', 'c'])],
-      ['LPUSH', 'mylist', '[REDACTED]', '[REDACTED]', '[REDACTED]']
+      ['LPUSH', 'mylist', '?', '?', '?']
     );
   });
 
   it('should keep key but redact message for PUBLISH', () => {
     assert.deepEqual(
       [...sanitizeArgs(['PUBLISH', 'channel', 'secret message'])],
-      ['PUBLISH', 'channel', '[REDACTED]']
+      ['PUBLISH', 'channel', '?']
     );
   });
 
   it('should keep key but redact values for MSET', () => {
     assert.deepEqual(
       [...sanitizeArgs(['MSET', 'k1', 'v1', 'k2', 'v2'])],
-      ['MSET', 'k1', '[REDACTED]', '[REDACTED]', '[REDACTED]']
+      ['MSET', 'k1', '?', '?', '?']
     );
   });
 
   it('should keep key but redact member and score for ZADD', () => {
     assert.deepEqual(
       [...sanitizeArgs(['ZADD', 'myzset', '1', 'member1'])],
-      ['ZADD', 'myzset', '[REDACTED]', '[REDACTED]']
+      ['ZADD', 'myzset', '?', '?']
     );
   });
 
   it('should keep key but redact fields and values for XADD', () => {
     assert.deepEqual(
       [...sanitizeArgs(['XADD', 'stream', '*', 'field', 'value'])],
-      ['XADD', 'stream', '[REDACTED]', '[REDACTED]', '[REDACTED]']
+      ['XADD', 'stream', '?', '?', '?']
     );
   });
 
@@ -82,28 +82,28 @@ describe('sanitizeArgs', () => {
   it('should keep key and field but redact value for HSET', () => {
     assert.deepEqual(
       [...sanitizeArgs(['HSET', 'hash', 'field', 'secret'])],
-      ['HSET', 'hash', 'field', '[REDACTED]']
+      ['HSET', 'hash', 'field', '?']
     );
   });
 
   it('should keep key and field but redact remaining for HMSET', () => {
     assert.deepEqual(
       [...sanitizeArgs(['HMSET', 'hash', 'f1', 'v1', 'f2', 'v2'])],
-      ['HMSET', 'hash', 'f1', '[REDACTED]', '[REDACTED]', '[REDACTED]']
+      ['HMSET', 'hash', 'f1', '?', '?', '?']
     );
   });
 
   it('should keep key and index but redact value for LSET', () => {
     assert.deepEqual(
       [...sanitizeArgs(['LSET', 'mylist', '0', 'newvalue'])],
-      ['LSET', 'mylist', '0', '[REDACTED]']
+      ['LSET', 'mylist', '0', '?']
     );
   });
 
   it('should keep key and pivot position for LINSERT', () => {
     assert.deepEqual(
       [...sanitizeArgs(['LINSERT', 'mylist', 'BEFORE', 'pivot', 'newvalue'])],
-      ['LINSERT', 'mylist', 'BEFORE', '[REDACTED]', '[REDACTED]']
+      ['LINSERT', 'mylist', 'BEFORE', '?', '?']
     );
   });
 
@@ -154,28 +154,28 @@ describe('sanitizeArgs', () => {
   it('should redact all args for AUTH (unlisted, falls to default)', () => {
     assert.deepEqual(
       [...sanitizeArgs(['AUTH', 'password123'])],
-      ['AUTH', '[REDACTED]']
+      ['AUTH', '?']
     );
   });
 
   it('should redact all args for AUTH with username', () => {
     assert.deepEqual(
       [...sanitizeArgs(['AUTH', 'user', 'password123'])],
-      ['AUTH', '[REDACTED]', '[REDACTED]']
+      ['AUTH', '?', '?']
     );
   });
 
   it('should redact all args for HELLO with auth', () => {
     assert.deepEqual(
       [...sanitizeArgs(['HELLO', '3', 'AUTH', 'user', 'pass'])],
-      ['HELLO', '[REDACTED]', '[REDACTED]', '[REDACTED]', '[REDACTED]']
+      ['HELLO', '?', '?', '?', '?']
     );
   });
 
   it('should redact all args for unknown/custom commands', () => {
     assert.deepEqual(
       [...sanitizeArgs(['CUSTOMCMD', 'arg1', 'arg2'])],
-      ['CUSTOMCMD', '[REDACTED]', '[REDACTED]']
+      ['CUSTOMCMD', '?', '?']
     );
   });
 
@@ -183,7 +183,7 @@ describe('sanitizeArgs', () => {
   it('should be case-insensitive for command matching', () => {
     assert.deepEqual(
       [...sanitizeArgs(['set', 'key', 'value'])],
-      ['set', 'key', '[REDACTED]']
+      ['set', 'key', '?']
     );
     assert.deepEqual(
       [...sanitizeArgs(['get', 'key'])],
@@ -191,7 +191,7 @@ describe('sanitizeArgs', () => {
     );
     assert.deepEqual(
       [...sanitizeArgs(['hSet', 'hash', 'field', 'value'])],
-      ['hSet', 'hash', 'field', '[REDACTED]']
+      ['hSet', 'hash', 'field', '?']
     );
   });
 
@@ -241,7 +241,7 @@ const hasTracingChannel = typeof dc.tracingChannel === 'function';
         // Verify SET command context — value is redacted (args=1 rule)
         const setStart = startEvents[0].context;
         assert.equal(setStart.command, 'SET');
-        assert.deepEqual([...setStart.args], ['SET', 'tracing-test', '[REDACTED]']);
+        assert.deepEqual([...setStart.args], ['SET', 'tracing-test', '?']);
         assert.equal(typeof setStart.database, 'number');
         assert.equal(typeof setStart.serverAddress, 'string');
         assert.equal(typeof setStart.clientId, 'string');
@@ -280,10 +280,10 @@ const hasTracingChannel = typeof dc.tracingChannel === 'function';
         await client.del('key');
 
         // SET: args=1, key visible, value redacted
-        assert.deepEqual([...events[0].args], ['SET', 'key', '[REDACTED]']);
+        assert.deepEqual([...events[0].args], ['SET', 'key', '?']);
 
         // HSET: args=2, key+field visible, value redacted
-        assert.deepEqual([...events[1].args], ['HSET', 'hash', 'field', '[REDACTED]']);
+        assert.deepEqual([...events[1].args], ['HSET', 'hash', 'field', '?']);
 
         // GET: args=-1, all visible
         assert.deepEqual([...events[2].args], ['GET', 'key']);
@@ -347,7 +347,7 @@ const hasTracingChannel = typeof dc.tracingChannel === 'function';
 
         assert.equal(batchEvents[0].command, 'SET');
         // SET value is redacted in batch context too
-        assert.deepEqual([...batchEvents[0].args], ['SET', 'multi-key-1', '[REDACTED]']);
+        assert.deepEqual([...batchEvents[0].args], ['SET', 'multi-key-1', '?']);
         assert.equal(batchEvents[1].command, 'SET');
         assert.equal(batchEvents[2].command, 'GET');
       } finally {

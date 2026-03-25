@@ -54,7 +54,7 @@ export function sanitizeArgs(args: ReadonlyArray<unknown>): ReadonlyArray<string
     if (i <= allowedArgCount) {
       result.push(String(args[i]));
     } else {
-      result.push('[REDACTED]');
+      result.push('?');
     }
   }
   return result;
