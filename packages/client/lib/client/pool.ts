@@ -440,22 +440,25 @@ export class RedisClientPool<
       const client = this._self.#idleClients.shift(),
         { tail } = this._self.#tasksQueue;
       if (!client) {
+        let resolveWait: () => void;
+        let rejectWait: (err: Error) => void;
+        trace(CHANNELS.TRACE_CONNECTION_WAIT,
+          () => new Promise<void>((res, rej) => { resolveWait = res; rejectWait = rej; }),
+          () => ({})
+        );
+
         let timeout;
         if (this._self.#options.acquireTimeout > 0) {
           timeout = setTimeout(
             () => {
               this._self.#tasksQueue.remove(task, tail);
-              reject(new TimeoutError('Timeout waiting for a client')); // TODO: message
+              const err = new TimeoutError('Timeout waiting for a client');
+              rejectWait!(err);
+              reject(err); // TODO: message
             },
             this._self.#options.acquireTimeout
           );
         }
-
-        let resolveWait: () => void;
-        trace(CHANNELS.TRACE_CONNECTION_WAIT,
-          () => new Promise<void>(r => { resolveWait = r; }),
-          () => ({})
-        );
 
         const task = this._self.#tasksQueue.push({
           timeout,
