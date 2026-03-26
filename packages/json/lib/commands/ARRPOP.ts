@@ -28,10 +28,10 @@ export default {
     if (options) {
       if (options.path !== undefined) {
         parser.push(options.path);
-      }
 
-      if (options.index !== undefined) {
-        parser.push(options.index.toString());
+        if (options.index !== undefined) {
+          parser.push(options.index.toString());
+        }
       }
 
       parser.preserve = options.reviver;
