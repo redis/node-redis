@@ -215,8 +215,8 @@ class OTelChannelSubscribers {
     if (enabledGroups.includes(METRIC_GROUP.PUBSUB)) {
       this.#subscribePubSub();
     }
-    if (enabledGroups.includes(METRIC_GROUP.STREAMING)) {
-      this.#subscribeStreaming();
+    if (enabledGroups.includes(METRIC_GROUP.PUBSUB) || enabledGroups.includes(METRIC_GROUP.STREAMING)) {
+      this.#subscribeCommandReply(enabledGroups);
     }
   }
 
@@ -396,85 +396,76 @@ class OTelChannelSubscribers {
       });
     });
 
-    // Command reply handler for outgoing PUBLISH/SPUBLISH
-    this.#sub(CHANNELS.COMMAND_REPLY, (ctx: any) => {
-      const commandName = ctx.args[0]?.toString().toUpperCase();
-      if (commandName === 'PUBLISH') {
-        const clientAttributes = resolveClientAttributes(ctx.clientId);
-        this.#instruments.redisClientPubsubMessages.add(1, {
-          ...this.#options.attributes,
-          ...parseClientAttributes(clientAttributes),
-          [OTEL_ATTRIBUTES.redisClientPubSubMessageDirection]: 'out',
-          [OTEL_ATTRIBUTES.redisClientPubSubSharded]: false,
-          ...(ctx.args[1] !== undefined && !this.#options.hidePubSubChannelNames
-            ? { [OTEL_ATTRIBUTES.redisClientPubSubChannel]: ctx.args[1].toString() }
-            : {}),
-        });
-      } else if (commandName === 'SPUBLISH') {
-        const clientAttributes = resolveClientAttributes(ctx.clientId);
-        this.#instruments.redisClientPubsubMessages.add(1, {
-          ...this.#options.attributes,
-          ...parseClientAttributes(clientAttributes),
-          [OTEL_ATTRIBUTES.redisClientPubSubMessageDirection]: 'out',
-          [OTEL_ATTRIBUTES.redisClientPubSubSharded]: true,
-          ...(ctx.args[1] !== undefined && !this.#options.hidePubSubChannelNames
-            ? { [OTEL_ATTRIBUTES.redisClientPubSubChannel]: ctx.args[1].toString() }
-            : {}),
-        });
-      }
-    });
   }
 
-  // -- Streaming --
+  // -- Command Reply (shared by PubSub out + Streaming) --
 
-  #subscribeStreaming() {
+  #subscribeCommandReply(enabledGroups: MetricGroup[]) {
+    const hasPubSub = enabledGroups.includes(METRIC_GROUP.PUBSUB);
+    const hasStreaming = enabledGroups.includes(METRIC_GROUP.STREAMING);
+
     this.#sub(CHANNELS.COMMAND_REPLY, (ctx: any) => {
       const commandName = ctx.args[0]?.toString().toUpperCase();
-      if (commandName !== 'XREAD' && commandName !== 'XREADGROUP') return;
 
-      const reply = ctx.reply;
-      if (!reply || !Array.isArray(reply) || reply.length === 0) return;
-
-      const now = Date.now();
-      const clientAttributes = resolveClientAttributes(ctx.clientId);
-
-      const isXReadGroup =
-        commandName === 'XREADGROUP' &&
-        ctx.args[1]?.toString().toUpperCase() === 'GROUP';
-      const consumerGroup = isXReadGroup ? ctx.args[2]?.toString() : undefined;
-
-      for (const streamData of reply) {
-        if (!streamData || typeof streamData !== 'object') continue;
-
-        const { name: stream, messages } = streamData as {
-          name: string;
-          messages: Array<{ id: string; message: unknown }>;
-        };
-
-        if (!messages || !Array.isArray(messages) || messages.length === 0) continue;
-
-        const streamAttributes = {
+      if (hasPubSub && (commandName === 'PUBLISH' || commandName === 'SPUBLISH')) {
+        const clientAttributes = resolveClientAttributes(ctx.clientId);
+        this.#instruments.redisClientPubsubMessages.add(1, {
           ...this.#options.attributes,
           ...parseClientAttributes(clientAttributes),
-          ...(!this.#options.hideStreamNames
-            ? { [OTEL_ATTRIBUTES.redisClientStreamName]: stream }
+          [OTEL_ATTRIBUTES.redisClientPubSubMessageDirection]: 'out',
+          [OTEL_ATTRIBUTES.redisClientPubSubSharded]: commandName === 'SPUBLISH',
+          ...(ctx.args[1] !== undefined && !this.#options.hidePubSubChannelNames
+            ? { [OTEL_ATTRIBUTES.redisClientPubSubChannel]: ctx.args[1].toString() }
             : {}),
-          ...(consumerGroup !== undefined
-            ? { [OTEL_ATTRIBUTES.redisClientConsumerGroup]: consumerGroup }
-            : {}),
-        };
+        });
+        return;
+      }
 
-        for (const message of messages) {
-          if (!message?.id) continue;
+      if (hasStreaming && (commandName === 'XREAD' || commandName === 'XREADGROUP')) {
+        const reply = ctx.reply;
+        if (!reply || !Array.isArray(reply) || reply.length === 0) return;
 
-          const [tsPart] = message.id.split('-');
-          const messageTimestamp = Number.parseInt(tsPart, 10);
-          if (!Number.isFinite(messageTimestamp)) continue;
+        const now = Date.now();
+        const clientAttributes = resolveClientAttributes(ctx.clientId);
 
-          this.#instruments.redisClientStreamLag.record(
-            (now - messageTimestamp) / 1000,
-            streamAttributes,
-          );
+        const isXReadGroup =
+          commandName === 'XREADGROUP' &&
+          ctx.args[1]?.toString().toUpperCase() === 'GROUP';
+        const consumerGroup = isXReadGroup ? ctx.args[2]?.toString() : undefined;
+
+        for (const streamData of reply) {
+          if (!streamData || typeof streamData !== 'object') continue;
+
+          const { name: stream, messages } = streamData as {
+            name: string;
+            messages: Array<{ id: string; message: unknown }>;
+          };
+
+          if (!messages || !Array.isArray(messages) || messages.length === 0) continue;
+
+          const streamAttributes = {
+            ...this.#options.attributes,
+            ...parseClientAttributes(clientAttributes),
+            ...(!this.#options.hideStreamNames
+              ? { [OTEL_ATTRIBUTES.redisClientStreamName]: stream }
+              : {}),
+            ...(consumerGroup !== undefined
+              ? { [OTEL_ATTRIBUTES.redisClientConsumerGroup]: consumerGroup }
+              : {}),
+          };
+
+          for (const message of messages) {
+            if (!message?.id) continue;
+
+            const [tsPart] = message.id.split('-');
+            const messageTimestamp = Number.parseInt(tsPart, 10);
+            if (!Number.isFinite(messageTimestamp)) continue;
+
+            this.#instruments.redisClientStreamLag.record(
+              (now - messageTimestamp) / 1000,
+              streamAttributes,
+            );
+          }
         }
       }
     });

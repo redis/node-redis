@@ -1192,12 +1192,7 @@ export default class RedisClient<
         return promise;
       },
       () => this._self.#commandTraceContext(args)
-    ).then(
-      (reply) => {
-        // Reply-based metrics (pubsub out, stream lag) need raw args + reply
-        publish(CHANNELS.COMMAND_REPLY, () => ({ args, reply, clientId: this._self._clientId }));
-        return reply;
-      },
+    ).catch(
       (err) => {
         publish(CHANNELS.ERROR, () => ({
           error: err,
