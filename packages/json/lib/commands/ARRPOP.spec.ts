@@ -69,7 +69,7 @@ describe('JSON.ARRPOP', () => {
         client.json.set('key', '$', [{ name: 'Alice', birthday: new Date('1998-02-12') }]),
         client.json.arrPop('key', {
           path: '$',
-          reviver: (key, value) => { if (key === 'birthdate') return new Date(value); else return value; }
+          reviver: (key, value) => { if (key === 'birthday') return new Date(value); else return value; }
         })
       ]);
 
