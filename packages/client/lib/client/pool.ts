@@ -438,7 +438,6 @@ export class RedisClientPool<
       }
 
       const waitStartTime = performance.now();
-      publish(CHANNELS.CONNECTION_WAIT_START, () => ({ startTime: waitStartTime }));
       const client = this._self.#idleClients.shift(),
         { tail } = this._self.#tasksQueue;
       if (!client) {

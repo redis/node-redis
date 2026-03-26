@@ -30,7 +30,6 @@ export const CHANNELS = {
   CONNECTION_CLOSED: 'node-redis:connection:closed',
   CONNECTION_RELAXED_TIMEOUT: 'node-redis:connection:relaxed-timeout',
   CONNECTION_HANDOFF: 'node-redis:connection:handoff',
-  CONNECTION_WAIT_START: 'node-redis:connection:wait:start',
   CONNECTION_WAIT_END: 'node-redis:connection:wait:end',
   ERROR: 'node-redis:error',
   MAINTENANCE: 'node-redis:maintenance',
@@ -191,11 +190,6 @@ export interface ConnectionHandoffEvent {
   clientId: string;
 }
 
-export interface ConnectionWaitStartEvent {
-  clientId?: string;
-  startTime: number;
-}
-
 export interface ConnectionWaitEndEvent {
   clientId?: string;
   durationMs: number;
@@ -247,7 +241,6 @@ export interface ChannelEvents {
   [CHANNELS.CONNECTION_CLOSED]: ConnectionClosedEvent;
   [CHANNELS.CONNECTION_RELAXED_TIMEOUT]: ConnectionRelaxedTimeoutEvent;
   [CHANNELS.CONNECTION_HANDOFF]: ConnectionHandoffEvent;
-  [CHANNELS.CONNECTION_WAIT_START]: ConnectionWaitStartEvent;
   [CHANNELS.CONNECTION_WAIT_END]: ConnectionWaitEndEvent;
   [CHANNELS.ERROR]: ClientErrorEvent;
   [CHANNELS.MAINTENANCE]: MaintenanceNotificationEvent;
