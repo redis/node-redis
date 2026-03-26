@@ -252,6 +252,7 @@ export class RedisClientPool<
     reject: (reason?: unknown) => unknown;
     fn: PoolTask<M, F, S, RESP, TYPE_MAPPING>;
     resolveWait: () => void;
+    rejectWait: (err: Error) => void;
   }>();
 
   /**
@@ -469,6 +470,7 @@ export class RedisClientPool<
           reject,
           fn,
           resolveWait: resolveWait!,
+          rejectWait: rejectWait!,
         });
 
         if (this.totalClients < this._self.#options.maximum) {
@@ -598,6 +600,15 @@ export class RedisClientPool<
   }
 
   destroy() {
+    // Reject pending tasks and close their wait traces
+    const err = new ClientClosedError();
+    let task;
+    while (task = this._self.#tasksQueue.shift()) {
+      clearTimeout(task.timeout);
+      task.rejectWait(err);
+      task.reject(err);
+    }
+
     for (const client of this._self.#idleClients) {
       client.destroy();
     }
