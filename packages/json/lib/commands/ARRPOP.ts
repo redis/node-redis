@@ -26,7 +26,9 @@ export default {
     parser.pushKey(key);
 
     if (options) {
-      parser.push(options.path);
+      if (options.path !== undefined) {
+        parser.push(options.path);
+      }
 
       if (options.index !== undefined) {
         parser.push(options.index.toString());
