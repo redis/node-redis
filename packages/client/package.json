@@ -26,8 +26,8 @@
     "sinon": "^17.0.1"
   },
   "peerDependencies": {
-    "@node-rs/xxhash": "^1.1.0",
-    "@opentelemetry/api": ">=1 <2"
+    "@opentelemetry/api": ">=1 <2",
+    "@node-rs/xxhash": "^1.1.0"
   },
   "peerDependenciesMeta": {
     "@opentelemetry/api": {
