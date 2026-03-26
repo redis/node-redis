@@ -1,3 +1,4 @@
+import type * as DC from 'node:diagnostics_channel';
 import { Meter, BatchObservableResult } from "@opentelemetry/api";
 import { ClientRegistry } from "./client-registry";
 import {
@@ -46,7 +47,7 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
   readonly #instruments: MetricInstruments;
   readonly #options: MetricOptions;
   readonly #metricsState = new WeakMap<object, CommandMetricsState>();
-  readonly #tracingChannels: Array<{ channel: any; handlers: any }> = [];
+  readonly #unsubscribers: Array<() => void> = [];
 
   constructor(options: MetricOptions, instruments: MetricInstruments) {
     this.#options = options;
@@ -160,22 +161,17 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
       );
     };
 
-    const commandHandlers = { start: onStart, asyncEnd: onAsyncEnd, error: onError };
+    const commandHandlers = { start: onStart, asyncEnd: onAsyncEnd, error: onError } as DC.TracingChannelSubscribers<any>;
     commandTC.subscribe(commandHandlers);
+    this.#unsubscribers.push(() => commandTC.unsubscribe(commandHandlers));
 
-    const batchHandlers = { start: onBatchStart, asyncEnd: onBatchAsyncEnd, error: onBatchError };
+    const batchHandlers = { start: onBatchStart, asyncEnd: onBatchAsyncEnd, error: onBatchError } as DC.TracingChannelSubscribers<any>;
     batchTC.subscribe(batchHandlers);
-
-    this.#tracingChannels.push(
-      { channel: commandTC, handlers: commandHandlers },
-      { channel: batchTC, handlers: batchHandlers },
-    );
+    this.#unsubscribers.push(() => batchTC.unsubscribe(batchHandlers));
   }
 
   destroy() {
-    for (const { channel, handlers } of this.#tracingChannels) {
-      channel.unsubscribe(handlers);
-    }
+    this.#unsubscribers.forEach(fn => fn());
   }
 
   #isCommandExcluded(commandName: string) {
@@ -195,8 +191,7 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
 class OTelChannelSubscribers {
   readonly #instruments: MetricInstruments;
   readonly #options: MetricOptions;
-  readonly #subscriptions: Array<{ channel: { unsubscribe(handler: any): void }; handler: (ctx: any) => void }> = [];
-  readonly #tracingChannels: Array<{ channel: any; handlers: any }> = [];
+  readonly #unsubscribers: Array<() => void> = [];
 
   constructor(
     options: MetricOptions,
@@ -230,16 +225,11 @@ class OTelChannelSubscribers {
     const ch = getChannel(name);
     if (!ch) return;
     ch.subscribe(handler);
-    this.#subscriptions.push({ channel: ch, handler });
+    this.#unsubscribers.push(() => ch.unsubscribe(handler));
   }
 
   destroy() {
-    for (const { channel, handler } of this.#subscriptions) {
-      channel.unsubscribe(handler);
-    }
-    for (const { channel, handlers } of this.#tracingChannels) {
-      channel.unsubscribe(handlers);
-    }
+    this.#unsubscribers.forEach(fn => fn());
   }
 
   // -- Connection Basic --
@@ -322,8 +312,9 @@ class OTelChannelSubscribers {
       },
     };
 
-    tc.subscribe(handlers);
-    this.#tracingChannels.push({ channel: tc, handlers });
+    const tcHandlers = handlers as DC.TracingChannelSubscribers<any>;
+    tc.subscribe(tcHandlers);
+    this.#unsubscribers.push(() => tc.unsubscribe(tcHandlers));
   }
 
   // -- Resiliency --

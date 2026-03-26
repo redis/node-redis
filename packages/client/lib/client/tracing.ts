@@ -1,17 +1,4 @@
-import type { TracingChannel as NodeTracingChannel } from 'node:diagnostics_channel';
 import type * as DC from 'node:diagnostics_channel';
-
-/**
- * @types/node is missing hasSubscribers on TracingChannel, types tracePromise
- * as returning void, and requires all 5 handlers in subscribe/unsubscribe.
- * All exist/work at runtime — this interface adds the missing pieces.
- */
-interface TracingChannel<ContextType extends object> extends NodeTracingChannel<unknown, ContextType> {
-  readonly hasSubscribers: boolean;
-  tracePromise<T>(fn: () => Promise<T>, context?: ContextType): Promise<T>;
-  subscribe(handlers: Partial<Record<'start' | 'end' | 'asyncStart' | 'asyncEnd' | 'error', (ctx: any) => void>>): void;
-  unsubscribe(handlers: Partial<Record<'start' | 'end' | 'asyncStart' | 'asyncEnd' | 'error', (ctx: any) => void>>): void;
-}
 
 const dc: typeof DC | undefined = (() => {
   try {
@@ -136,27 +123,27 @@ interface TracingChannelContextMap {
  * subscribers and trace unconditionally, keeping the zero-cost optimization
  * only for versions where we can reliably check.
  */
-const tracingChannelCache = new Map<string, TracingChannel<any>>();
+const tracingChannelCache = new Map<string, DC.TracingChannel<any>>();
 
 export function getTracingChannel<K extends keyof TracingChannelContextMap>(
   name: K
-): TracingChannel<TracingChannelContextMap[K]> | undefined {
+): DC.TracingChannel<TracingChannelContextMap[K]> | undefined {
   if (!hasTracingChannel) return undefined;
 
   let ch = tracingChannelCache.get(name);
   if (!ch) {
-    ch = dc?.tracingChannel(name) as TracingChannel<TracingChannelContextMap[K]>;
+    ch = dc?.tracingChannel(name);
     tracingChannelCache.set(name, ch);
   }
 
-  return ch as TracingChannel<TracingChannelContextMap[K]>;
+  return ch as DC.TracingChannel<TracingChannelContextMap[K]>;
 }
 
 /**
  * Checks if a tracing channel has subscribers.
  */
-function shouldTrace(channel: TracingChannel<any> | undefined): channel is TracingChannel<any> {
-  return !!channel && channel.hasSubscribers !== false;
+function shouldTrace(channel: DC.TracingChannel<any> | undefined): channel is DC.TracingChannel<any> {
+  return !!channel && (channel as DC.TracingChannel & { hasSubscribers?: boolean }).hasSubscribers !== false;
 }
 
 export function trace<K extends keyof TracingChannelContextMap, T>(
@@ -166,7 +153,9 @@ export function trace<K extends keyof TracingChannelContextMap, T>(
 ): Promise<T> {
   const channel = getTracingChannel(name);
   if (shouldTrace(channel)) {
-    return channel.tracePromise(fn, contextFactory());
+    // Node types are outdated and don't match the runtime, tracePromise returns the same promise type
+    // as the function, so we need to cast it to the correct type.
+    return channel.tracePromise(fn, contextFactory()) as unknown as Promise<T>;
   }
   return fn();
 }
