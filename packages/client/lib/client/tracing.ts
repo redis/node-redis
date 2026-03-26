@@ -101,7 +101,9 @@ export interface ConnectTraceContext {
   clientId: string;
 }
 
-export interface BatchTraceContext {
+// Context for the batch operation itself (MULTI/PIPELINE as a whole).
+// Distinct from BatchCommandTraceContext which is a single command within a batch.
+export interface BatchOperationContext {
   batchMode: 'MULTI' | 'PIPELINE';
   batchSize: number;
   database: number;
@@ -129,7 +131,7 @@ const connectChannel: TracingChannel<ConnectTraceContext> | undefined = hasTraci
   ? dc.tracingChannel(CHANNELS.TRACE_CONNECT)
   : undefined;
 
-const batchChannel: TracingChannel<BatchTraceContext> | undefined = hasTracingChannel
+const batchChannel: TracingChannel<BatchOperationContext> | undefined = hasTracingChannel
   ? dc.tracingChannel(CHANNELS.TRACE_BATCH)
   : undefined;
 
@@ -145,7 +147,7 @@ export function traceCommand<T>(
 
 export function traceBatch<T>(
   fn: () => Promise<T>,
-  contextFactory: () => BatchTraceContext
+  contextFactory: () => BatchOperationContext
 ): Promise<T> {
   if (shouldTrace(batchChannel)) {
     return batchChannel.tracePromise(fn, contextFactory());
