@@ -25,12 +25,12 @@ export const CHANNELS = {
   TRACE_COMMAND: 'node-redis:command',
   TRACE_BATCH: 'node-redis:batch',
   TRACE_CONNECT: 'node-redis:connect',
+  TRACE_CONNECTION_WAIT: 'node-redis:connection:wait',
   // Point-event channel names (fire-and-forget — use with dc.channel())
   CONNECTION_READY: 'node-redis:connection:ready',
   CONNECTION_CLOSED: 'node-redis:connection:closed',
   CONNECTION_RELAXED_TIMEOUT: 'node-redis:connection:relaxed-timeout',
   CONNECTION_HANDOFF: 'node-redis:connection:handoff',
-  CONNECTION_WAIT_END: 'node-redis:connection:wait:end',
   ERROR: 'node-redis:error',
   MAINTENANCE: 'node-redis:maintenance',
   PUBSUB: 'node-redis:pubsub',
@@ -134,6 +134,10 @@ const batchChannel: TracingChannel<BatchOperationContext> | undefined = hasTraci
   ? dc.tracingChannel(CHANNELS.TRACE_BATCH)
   : undefined;
 
+const connectionWaitChannel: TracingChannel<ConnectionWaitContext> | undefined = hasTracingChannel
+  ? dc.tracingChannel(CHANNELS.TRACE_CONNECTION_WAIT)
+  : undefined;
+
 export function traceCommand<T>(
   fn: () => Promise<T>,
   contextFactory: () => CommandContext
@@ -150,6 +154,16 @@ export function traceBatch<T>(
 ): Promise<T> {
   if (shouldTrace(batchChannel)) {
     return batchChannel.tracePromise(fn, contextFactory());
+  }
+  return fn();
+}
+
+export function traceConnectionWait<T>(
+  fn: () => Promise<T>,
+  contextFactory: () => ConnectionWaitContext
+): Promise<T> {
+  if (shouldTrace(connectionWaitChannel)) {
+    return connectionWaitChannel.tracePromise(fn, contextFactory());
   }
   return fn();
 }
@@ -191,9 +205,8 @@ export interface ConnectionHandoffEvent {
   clientId: string;
 }
 
-export interface ConnectionWaitEndEvent {
+export interface ConnectionWaitContext {
   clientId?: string;
-  durationMs: number;
 }
 
 // Errors and maintenance
@@ -242,7 +255,6 @@ export interface ChannelEvents {
   [CHANNELS.CONNECTION_CLOSED]: ConnectionClosedEvent;
   [CHANNELS.CONNECTION_RELAXED_TIMEOUT]: ConnectionRelaxedTimeoutEvent;
   [CHANNELS.CONNECTION_HANDOFF]: ConnectionHandoffEvent;
-  [CHANNELS.CONNECTION_WAIT_END]: ConnectionWaitEndEvent;
   [CHANNELS.ERROR]: ClientErrorEvent;
   [CHANNELS.MAINTENANCE]: MaintenanceNotificationEvent;
   [CHANNELS.PUBSUB]: PubSubMessageEvent;

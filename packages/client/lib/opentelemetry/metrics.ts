@@ -196,6 +196,7 @@ class OTelChannelSubscribers {
   readonly #instruments: MetricInstruments;
   readonly #options: MetricOptions;
   readonly #subscriptions: Array<{ channel: string; handler: (ctx: any) => void }> = [];
+  readonly #tracingChannels: Array<{ channel: any; handlers: any }> = [];
 
   constructor(
     options: MetricOptions,
@@ -232,9 +233,13 @@ class OTelChannelSubscribers {
   }
 
   destroy() {
-    if (!dc?.unsubscribe) return;
-    for (const { channel, handler } of this.#subscriptions) {
-      dc.unsubscribe(channel, handler);
+    if (dc?.unsubscribe) {
+      for (const { channel, handler } of this.#subscriptions) {
+        dc.unsubscribe(channel, handler);
+      }
+    }
+    for (const { channel, handlers } of this.#tracingChannels) {
+      channel.unsubscribe(handlers);
     }
   }
 
@@ -293,16 +298,33 @@ class OTelChannelSubscribers {
   // -- Connection Advanced --
 
   #subscribeConnectionAdvanced() {
-    this.#sub(CHANNELS.CONNECTION_WAIT_END, (ctx: any) => {
-      const clientAttributes = resolveClientAttributes(ctx.clientId);
-      this.#instruments.dbClientConnectionWaitTime.record(
-        ctx.durationMs / 1000,
-        {
-          ...this.#options.attributes,
-          ...parseClientAttributes(clientAttributes),
-        },
-      );
-    });
+    if (!dc?.tracingChannel) return;
+
+    const startTimes = new WeakMap<object, number>();
+
+    const handlers = {
+      start: (ctx: any) => {
+        startTimes.set(ctx, performance.now());
+      },
+      asyncEnd: (ctx: any) => {
+        const startTime = startTimes.get(ctx);
+        if (startTime === undefined) return;
+        startTimes.delete(ctx);
+
+        const clientAttributes = resolveClientAttributes(ctx.clientId);
+        this.#instruments.dbClientConnectionWaitTime.record(
+          (performance.now() - startTime) / 1000,
+          {
+            ...this.#options.attributes,
+            ...parseClientAttributes(clientAttributes),
+          },
+        );
+      },
+    };
+
+    const tc = dc.tracingChannel(CHANNELS.TRACE_CONNECTION_WAIT);
+    tc.subscribe(handlers);
+    this.#tracingChannels.push({ channel: tc, handlers });
   }
 
   // -- Resiliency --

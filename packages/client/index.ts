@@ -49,7 +49,7 @@ export {
   type ConnectionClosedEvent,
   type ConnectionRelaxedTimeoutEvent,
   type ConnectionHandoffEvent,
-  type ConnectionWaitEndEvent,
+  type ConnectionWaitContext,
   type ClientErrorEvent,
   type MaintenanceNotificationEvent,
   type PubSubMessageEvent,

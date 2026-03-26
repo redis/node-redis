@@ -11,7 +11,7 @@ import { BasicPooledClientSideCache, ClientSideCacheConfig, PooledClientSideCach
 import { BasicCommandParser } from './parser';
 import SingleEntryCache from '../single-entry-cache';
 import { MULTI_MODE, MultiMode } from '../multi-command';
-import { publish, CHANNELS } from './tracing';
+import { traceConnectionWait } from './tracing';
 import { ClientIdentity, ClientRole, generateClientId } from './identity';
 
 export interface RedisPoolOptions {
@@ -249,7 +249,7 @@ export class RedisClientPool<
     resolve: (value: unknown) => unknown;
     reject: (reason?: unknown) => unknown;
     fn: PoolTask<M, F, S, RESP, TYPE_MAPPING>;
-    waitStartTime: number;
+    resolveWait: () => void;
   }>();
 
   /**
@@ -437,7 +437,6 @@ export class RedisClientPool<
         return reject(new ClientClosedError());
       }
 
-      const waitStartTime = performance.now();
       const client = this._self.#idleClients.shift(),
         { tail } = this._self.#tasksQueue;
       if (!client) {
@@ -452,13 +451,19 @@ export class RedisClientPool<
           );
         }
 
+        let resolveWait: () => void;
+        traceConnectionWait(
+          () => new Promise<void>(r => { resolveWait = r; }),
+          () => ({})
+        );
+
         const task = this._self.#tasksQueue.push({
           timeout,
           // @ts-ignore
           resolve,
           reject,
           fn,
-          waitStartTime,
+          resolveWait: resolveWait!,
         });
 
         if (this.totalClients < this._self.#options.maximum) {
@@ -469,7 +474,6 @@ export class RedisClientPool<
       }
 
       const node = this._self.#clientsInUse.push(client);
-      publish(CHANNELS.CONNECTION_WAIT_END, () => ({ clientId: client._clientId, durationMs: performance.now() - waitStartTime }));
       // @ts-ignore
       this._self.#executeTask(node, resolve, reject, fn);
     });
@@ -498,7 +502,7 @@ export class RedisClientPool<
     const task = this.#tasksQueue.shift();
     if (task) {
       clearTimeout(task.timeout);
-      publish(CHANNELS.CONNECTION_WAIT_END, () => ({ clientId: node.value._clientId, durationMs: performance.now() - task.waitStartTime }));
+      task.resolveWait();
       this.#executeTask(node, task.resolve, task.reject, task.fn);
       return;
     }
