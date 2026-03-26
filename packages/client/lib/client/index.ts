@@ -23,7 +23,7 @@ import { version } from '../../package.json'
 import EnterpriseMaintenanceManager, { MaintenanceUpdate, MovingEndpointType, SMIGRATED_EVENT, SMigratedEvent } from './enterprise-maintenance-manager';
 import { ClientMetricsHandle, ClientRegistry } from '../opentelemetry';
 import { ClientIdentity, ClientRole, generateClientId } from './identity';
-import { traceCommand, traceBatch, traceConnect, sanitizeArgs, publish, CHANNELS, type CommandTraceContext } from './tracing';
+import { trace, sanitizeArgs, publish, CHANNELS, type CommandTraceContext } from './tracing';
 
 const noop = () => {};
 
@@ -1042,7 +1042,7 @@ export default class RedisClient<
   }
 
   async connect() {
-    await traceConnect(
+    await trace(CHANNELS.TRACE_CONNECT,
       () => this._self.#socket.connect(),
       () => ({
         ...this._self.#socketTraceContext(),
@@ -1170,7 +1170,7 @@ export default class RedisClient<
     args: ReadonlyArray<RedisArgument>,
     options?: CommandOptions
   ): Promise<T> {
-    return traceCommand(
+    return trace(CHANNELS.TRACE_COMMAND,
       () => {
         if (!this._self.#socket.isOpen) {
           return Promise.reject(new ClientClosedError());
@@ -1422,12 +1422,12 @@ export default class RedisClient<
 
     const batchSize = commands.length;
 
-    return traceBatch(
+    return trace(CHANNELS.TRACE_BATCH,
       async () => {
         const chainId = Symbol('Pipeline Chain');
         const promise = Promise.all(
           commands.map(({ args }) => {
-            const traced = traceCommand(
+            const traced = trace(CHANNELS.TRACE_COMMAND,
               () => this._self.#queue.addCommand(args, {
                 chainId,
                 typeMapping: this._commandOptions?.typeMapping
@@ -1491,7 +1491,7 @@ export default class RedisClient<
 
     const batchSize = commands.length;
 
-    return traceBatch(
+    return trace(CHANNELS.TRACE_BATCH,
       async () => {
         const typeMapping = this._commandOptions?.typeMapping;
         const chainId = Symbol('MULTI Chain');
@@ -1500,7 +1500,7 @@ export default class RedisClient<
         ];
 
         for (const { args } of commands) {
-          const traced = traceCommand(
+          const traced = trace(CHANNELS.TRACE_COMMAND,
             () => this._self.#queue.addCommand(args, {
               chainId,
               typeMapping

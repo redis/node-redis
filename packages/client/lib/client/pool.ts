@@ -11,7 +11,7 @@ import { BasicPooledClientSideCache, ClientSideCacheConfig, PooledClientSideCach
 import { BasicCommandParser } from './parser';
 import SingleEntryCache from '../single-entry-cache';
 import { MULTI_MODE, MultiMode } from '../multi-command';
-import { traceConnectionWait } from './tracing';
+import { trace, CHANNELS } from './tracing';
 import { ClientIdentity, ClientRole, generateClientId } from './identity';
 
 export interface RedisPoolOptions {
@@ -452,7 +452,7 @@ export class RedisClientPool<
         }
 
         let resolveWait: () => void;
-        traceConnectionWait(
+        trace(CHANNELS.TRACE_CONNECTION_WAIT,
           () => new Promise<void>(r => { resolveWait = r; }),
           () => ({})
         );

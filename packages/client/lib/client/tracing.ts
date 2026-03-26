@@ -136,57 +136,37 @@ interface TracingChannelContextMap {
  * subscribers and trace unconditionally, keeping the zero-cost optimization
  * only for versions where we can reliably check.
  */
+const tracingChannelCache = new Map<string, TracingChannel<any>>();
+
 export function getTracingChannel<K extends keyof TracingChannelContextMap>(
   name: K
 ): TracingChannel<TracingChannelContextMap[K]> | undefined {
-  return hasTracingChannel ? dc?.tracingChannel(name) as TracingChannel<TracingChannelContextMap[K]> : undefined;
+  if (!hasTracingChannel) return undefined;
+
+  let ch = tracingChannelCache.get(name);
+  if (!ch) {
+    ch = dc?.tracingChannel(name) as TracingChannel<TracingChannelContextMap[K]>;
+    tracingChannelCache.set(name, ch);
+  }
+
+  return ch as TracingChannel<TracingChannelContextMap[K]>;
 }
 
+/**
+ * Checks if a tracing channel has subscribers.
+ */
 function shouldTrace(channel: TracingChannel<any> | undefined): channel is TracingChannel<any> {
   return !!channel && channel.hasSubscribers !== false;
 }
 
-const commandChannel = getTracingChannel(CHANNELS.TRACE_COMMAND);
-const connectChannel = getTracingChannel(CHANNELS.TRACE_CONNECT);
-const batchChannel = getTracingChannel(CHANNELS.TRACE_BATCH);
-const connectionWaitChannel = getTracingChannel(CHANNELS.TRACE_CONNECTION_WAIT);
-
-export function traceCommand<T>(
+export function trace<K extends keyof TracingChannelContextMap, T>(
+  name: K,
   fn: () => Promise<T>,
-  contextFactory: () => CommandContext
+  contextFactory: () => TracingChannelContextMap[K]
 ): Promise<T> {
-  if (shouldTrace(commandChannel)) {
-    return commandChannel.tracePromise(fn, contextFactory());
-  }
-  return fn();
-}
-
-export function traceBatch<T>(
-  fn: () => Promise<T>,
-  contextFactory: () => BatchOperationContext
-): Promise<T> {
-  if (shouldTrace(batchChannel)) {
-    return batchChannel.tracePromise(fn, contextFactory());
-  }
-  return fn();
-}
-
-export function traceConnectionWait<T>(
-  fn: () => Promise<T>,
-  contextFactory: () => ConnectionWaitContext
-): Promise<T> {
-  if (shouldTrace(connectionWaitChannel)) {
-    return connectionWaitChannel.tracePromise(fn, contextFactory());
-  }
-  return fn();
-}
-
-export function traceConnect<T>(
-  fn: () => Promise<T>,
-  contextFactory: () => ConnectTraceContext
-): Promise<T> {
-  if (shouldTrace(connectChannel)) {
-    return connectChannel.tracePromise(fn, contextFactory());
+  const channel = getTracingChannel(name);
+  if (shouldTrace(channel)) {
+    return channel.tracePromise(fn, contextFactory());
   }
   return fn();
 }
