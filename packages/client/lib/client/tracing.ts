@@ -185,8 +185,8 @@ export function traceConnect<T>(
 // Connection lifecycle
 export interface ConnectionReadyEvent {
   clientId: string;
-  serverAddress?: string;
-  serverPort?: number;
+  serverAddress: string | undefined;
+  serverPort: number | undefined;
   createTimeMs: number;
 }
 
