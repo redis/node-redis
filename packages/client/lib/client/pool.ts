@@ -481,6 +481,11 @@ export class RedisClientPool<
       }
 
       const node = this._self.#clientsInUse.push(client);
+      // Immediate availability — trace resolves instantly (0ms wait)
+      trace(CHANNELS.TRACE_CONNECTION_WAIT,
+        () => Promise.resolve(),
+        () => ({ clientId: client._clientId })
+      ).catch(noop);
       // @ts-ignore
       this._self.#executeTask(node, resolve, reject, fn);
     });
