@@ -15,11 +15,9 @@ import {
   METRIC_NAMES,
   HistogramInstrumentConfig,
   OTelClientAttributes,
-  IOTelMetrics,
   IOTelCommandMetrics,
   INSTRUMENTATION_SCOPE_NAME,
 } from "./types";
-import { createNoopMeter } from "./noop-meter";
 import {
   getErrorInfo,
   isRedirectionError,
@@ -472,28 +470,23 @@ class OTelChannelSubscribers {
   }
 }
 
-export class OTelMetrics implements IOTelMetrics {
+export class OTelMetrics {
   // Create a noop instance by default
-  static #instance: IOTelMetrics = { commandMetrics: { destroy() {} } };
+  static #instance: OTelMetrics;
   static #initialized = false;
 
   readonly commandMetrics: IOTelCommandMetrics;
   readonly #channelSubscribers: OTelChannelSubscribers;
-
-  readonly #meter: Meter;
   readonly #instruments: MetricInstruments;
   readonly #options: MetricOptions;
 
-  private constructor({
-    api,
-    config,
-  }: {
-    api?: typeof import("@opentelemetry/api");
-    config?: ObservabilityConfig;
-  }) {
+  private constructor(
+    api: typeof import("@opentelemetry/api"),
+    config?: ObservabilityConfig,
+  ) {
     this.#options = this.parseOptions(config);
-    this.#meter = this.getMeter(api, this.#options);
-    this.#instruments = this.registerInstruments(this.#meter, this.#options);
+    const meter = this.#getMeter(api, this.#options);
+    this.#instruments = this.registerInstruments(meter, this.#options);
 
     if (this.#options.enabledMetricGroups.includes(METRIC_GROUP.COMMAND)) {
       this.commandMetrics = new OTelCommandMetrics(
@@ -515,13 +508,13 @@ export class OTelMetrics implements IOTelMetrics {
     api,
     config,
   }: {
-    api?: typeof import("@opentelemetry/api");
+    api: typeof import("@opentelemetry/api");
     config?: ObservabilityConfig;
   }) {
     if (OTelMetrics.#initialized) {
       throw new OpenTelemetryError("OTelMetrics already initialized");
     }
-    const instance = new OTelMetrics({ api, config });
+    const instance = new OTelMetrics(api, config);
     OTelMetrics.#instance = instance;
     OTelMetrics.#initialized = true;
   }
@@ -532,15 +525,8 @@ export class OTelMetrics implements IOTelMetrics {
    * @internal
    */
   public static reset() {
-    const prev = OTelMetrics.#instance;
-    if (prev instanceof OTelMetrics) {
-      prev.commandMetrics.destroy();
-      prev.#channelSubscribers.destroy();
-    }
-    OTelMetrics.#instance = new OTelMetrics({
-      api: undefined,
-      config: undefined,
-    });
+    OTelMetrics.#instance.commandMetrics.destroy();
+    OTelMetrics.#instance.#channelSubscribers.destroy();
     OTelMetrics.#initialized = false;
   }
 
@@ -553,15 +539,11 @@ export class OTelMetrics implements IOTelMetrics {
   }
 
 
-  private getMeter(
-    api: typeof import("@opentelemetry/api") | undefined,
+  #getMeter(
+    api: typeof import("@opentelemetry/api"),
     options: MetricOptions,
   ): Meter {
-    if (!api || !options.enabled) {
-      return createNoopMeter();
-    }
-
-    if (options?.meterProvider) {
+    if (options.meterProvider) {
       return options.meterProvider.getMeter(INSTRUMENTATION_SCOPE_NAME);
     }
 
@@ -610,17 +592,8 @@ export class OTelMetrics implements IOTelMetrics {
 
   private createHistogram(
     meter: Meter,
-    enabledMetricGroups: MetricGroup[],
     instrumentConfig: HistogramInstrumentConfig,
   ) {
-    const isEnabled = enabledMetricGroups.includes(
-      instrumentConfig.metricGroup,
-    );
-
-    if (!isEnabled) {
-      return createNoopMeter().createHistogram(instrumentConfig.name);
-    }
-
     return meter.createHistogram(instrumentConfig.name, {
       unit: instrumentConfig.unit,
       description: instrumentConfig.description,
@@ -636,17 +609,8 @@ export class OTelMetrics implements IOTelMetrics {
 
   private createCounter(
     meter: Meter,
-    enabledMetricGroups: MetricGroup[],
     instrumentConfig: BaseInstrumentConfig,
   ) {
-    const isEnabled = enabledMetricGroups.includes(
-      instrumentConfig.metricGroup,
-    );
-
-    if (!isEnabled) {
-      return createNoopMeter().createCounter(instrumentConfig.name);
-    }
-
     return meter.createCounter(instrumentConfig.name, {
       unit: instrumentConfig.unit,
       description: instrumentConfig.description,
@@ -655,17 +619,8 @@ export class OTelMetrics implements IOTelMetrics {
 
   private createUpDownCounter(
     meter: Meter,
-    enabledMetricGroups: MetricGroup[],
     instrumentConfig: BaseInstrumentConfig,
   ) {
-    const isEnabled = enabledMetricGroups.includes(
-      instrumentConfig.metricGroup,
-    );
-
-    if (!isEnabled) {
-      return createNoopMeter().createUpDownCounter(instrumentConfig.name);
-    }
-
     return meter.createUpDownCounter(instrumentConfig.name, {
       unit: instrumentConfig.unit,
       description: instrumentConfig.description,
@@ -674,7 +629,6 @@ export class OTelMetrics implements IOTelMetrics {
 
   private createObservableGaugeWithCallback(
     meter: Meter,
-    enabledMetricGroups: MetricGroup[],
     instrumentConfig: BaseInstrumentConfig,
     options: MetricOptions,
     callback: (
@@ -682,14 +636,6 @@ export class OTelMetrics implements IOTelMetrics {
       options: MetricOptions,
     ) => void,
   ) {
-    const isEnabled = enabledMetricGroups.includes(
-      instrumentConfig.metricGroup,
-    );
-
-    if (!isEnabled) {
-      return createNoopMeter().createObservableGauge(instrumentConfig.name);
-    }
-
     const gauge = meter.createObservableGauge(instrumentConfig.name, {
       unit: instrumentConfig.unit,
       description: instrumentConfig.description,
@@ -711,7 +657,6 @@ export class OTelMetrics implements IOTelMetrics {
       // Command
       dbClientOperationDuration: this.createHistogram(
         meter,
-        options.enabledMetricGroups,
         {
           name: METRIC_NAMES.dbClientOperationDuration,
           unit: "s",
@@ -724,7 +669,6 @@ export class OTelMetrics implements IOTelMetrics {
       // Basic connection
       dbClientConnectionCount: this.createUpDownCounter(
         meter,
-        options.enabledMetricGroups,
         {
           name: METRIC_NAMES.dbClientConnectionCount,
           unit: "{connection}",
@@ -734,7 +678,6 @@ export class OTelMetrics implements IOTelMetrics {
       ),
       dbClientConnectionCreateTime: this.createHistogram(
         meter,
-        options.enabledMetricGroups,
         {
           name: METRIC_NAMES.dbClientConnectionCreateTime,
           unit: "s",
@@ -746,7 +689,6 @@ export class OTelMetrics implements IOTelMetrics {
       ),
       redisClientConnectionRelaxedTimeout: this.createUpDownCounter(
         meter,
-        options.enabledMetricGroups,
         {
           name: METRIC_NAMES.redisClientConnectionRelaxedTimeout,
           unit: "{relaxation}",
@@ -757,7 +699,6 @@ export class OTelMetrics implements IOTelMetrics {
       ),
       redisClientConnectionHandoff: this.createCounter(
         meter,
-        options.enabledMetricGroups,
         {
           name: METRIC_NAMES.redisClientConnectionHandoff,
           unit: "{handoff}",
@@ -769,7 +710,6 @@ export class OTelMetrics implements IOTelMetrics {
       // Advanced connection
       dbClientConnectionWaitTime: this.createHistogram(
         meter,
-        options.enabledMetricGroups,
         {
           name: METRIC_NAMES.dbClientConnectionWaitTime,
           unit: "s",
@@ -807,12 +747,11 @@ export class OTelMetrics implements IOTelMetrics {
       //     }
       //   },
       // ),
-      dbClientConnectionPendingRequests: createNoopMeter().createObservableGauge(
+      dbClientConnectionPendingRequests: meter.createObservableGauge(
         METRIC_NAMES.dbClientConnectionPendingRequests,
       ),
       redisClientConnectionClosed: this.createCounter(
         meter,
-        options.enabledMetricGroups,
         {
           name: METRIC_NAMES.redisClientConnectionClosed,
           unit: "{connection}",
@@ -823,7 +762,6 @@ export class OTelMetrics implements IOTelMetrics {
       // Resiliency
       redisClientErrors: this.createCounter(
         meter,
-        options.enabledMetricGroups,
         {
           name: METRIC_NAMES.redisClientErrors,
           unit: "{error}",
@@ -834,7 +772,6 @@ export class OTelMetrics implements IOTelMetrics {
       ),
       redisClientMaintenanceNotifications: this.createCounter(
         meter,
-        options.enabledMetricGroups,
         {
           name: METRIC_NAMES.redisClientMaintenanceNotifications,
           unit: "{notification}",
@@ -845,7 +782,6 @@ export class OTelMetrics implements IOTelMetrics {
       // PubSub
       redisClientPubsubMessages: this.createCounter(
         meter,
-        options.enabledMetricGroups,
         {
           name: METRIC_NAMES.redisClientPubsubMessages,
           unit: "{message}",
@@ -856,7 +792,6 @@ export class OTelMetrics implements IOTelMetrics {
       // Streams
       redisClientStreamLag: this.createHistogram(
         meter,
-        options.enabledMetricGroups,
         {
           name: METRIC_NAMES.redisClientStreamLag,
           unit: "s",
@@ -868,7 +803,6 @@ export class OTelMetrics implements IOTelMetrics {
       // Client-Side Caching
       redisClientCscRequests: this.createCounter(
         meter,
-        options.enabledMetricGroups,
         {
           name: METRIC_NAMES.redisClientCscRequests,
           unit: "{request}",
@@ -878,7 +812,6 @@ export class OTelMetrics implements IOTelMetrics {
       ),
       redisClientCscItems: this.createObservableGaugeWithCallback(
         meter,
-        options.enabledMetricGroups,
         {
           name: METRIC_NAMES.redisClientCscItems,
           unit: "{item}",
@@ -901,7 +834,6 @@ export class OTelMetrics implements IOTelMetrics {
       ),
       redisClientCscEvictions: this.createCounter(
         meter,
-        options.enabledMetricGroups,
         {
           name: METRIC_NAMES.redisClientCscEvictions,
           unit: "{eviction}",
@@ -911,7 +843,6 @@ export class OTelMetrics implements IOTelMetrics {
       ),
       redisClientCscNetworkSaved: this.createCounter(
         meter,
-        options.enabledMetricGroups,
         {
           name: METRIC_NAMES.redisClientCscNetworkSaved,
           unit: "By",

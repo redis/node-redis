@@ -33,16 +33,10 @@ describe("OTel Metrics Unit Tests", () => {
   });
 
   it("should init only once", () => {
-    OTelMetrics.init({
-      api: undefined,
-      config: undefined,
-    });
+    OTelMetrics.init({ api });
 
     assert.throws(() => {
-      OTelMetrics.init({
-        api: undefined,
-        config: undefined,
-      });
+      OTelMetrics.init({ api });
     }, OpenTelemetryError);
   });
 

@@ -55,13 +55,13 @@ export class OpenTelemetry {
       throw new OpenTelemetryError("OpenTelemetry already initialized");
     }
 
-    let api: typeof import("@opentelemetry/api") | undefined;
-
-    try {
-      api = require("@opentelemetry/api");
-    } catch (err: unknown) {
-      throw new OpenTelemetryError("@opentelemetry/api not found");
-    }
+    const api: typeof import("@opentelemetry/api") = (() => {
+      try {
+        return require("@opentelemetry/api");
+      } catch {
+        throw new OpenTelemetryError("@opentelemetry/api not found");
+      }
+    })();
 
     OpenTelemetry._instance = new OpenTelemetry();
     ClientRegistry.init();

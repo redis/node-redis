@@ -233,7 +233,3 @@ export const METRIC_ERROR_ORIGIN = {
 export interface IOTelCommandMetrics {
   destroy(): void;
 }
-
-export interface IOTelMetrics {
-  commandMetrics: IOTelCommandMetrics;
-}
