@@ -70,17 +70,11 @@ export class OpenTelemetry {
 }
 
 export {
-  METRIC_ERROR_TYPE,
   OTelClientAttributes,
   OTEL_ATTRIBUTES,
-  ERROR_CATEGORY,
-  ErrorCategory,
   CONNECTION_CLOSE_REASON,
-  ConnectionCloseReason,
   CSC_RESULT,
-  CscResult,
   CSC_EVICTION_REASON,
-  CscEvictionReason,
 } from "./types";
 export { OTelMetrics } from "./metrics";
 export {
