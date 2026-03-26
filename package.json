@@ -26,7 +26,7 @@
     "@types/mocha": "^10.0.6",
     "@types/node": "^20.11.16",
     "gh-pages": "^6.1.1",
-    "mocha": "^10.2.0",
+    "mocha": "^10.8.2",
     "mocha-junit-reporter": "^2.2.1",
     "mocha-multi-reporters": "^1.5.1",
     "nyc": "^15.1.0",
