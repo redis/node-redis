@@ -198,11 +198,16 @@ class OTelChannelSubscribers {
     this.#options = options;
     this.#instruments = instruments;
 
-    if (enabledGroups.includes(METRIC_GROUP.CONNECTION_BASIC)) {
+    const hasBasic = enabledGroups.includes(METRIC_GROUP.CONNECTION_BASIC);
+    const hasAdvanced = enabledGroups.includes(METRIC_GROUP.CONNECTION_ADVANCED);
+    if (hasBasic) {
       this.#subscribeConnectionBasic();
     }
-    if (enabledGroups.includes(METRIC_GROUP.CONNECTION_ADVANCED)) {
+    if (hasAdvanced) {
       this.#subscribeConnectionAdvanced();
+    }
+    if (hasBasic || hasAdvanced) {
+      this.#subscribeConnectionClosed(hasBasic, hasAdvanced);
     }
     if (enabledGroups.includes(METRIC_GROUP.RESILIENCY)) {
       this.#subscribeResiliency();
@@ -248,22 +253,6 @@ class OTelChannelSubscribers {
       });
     });
 
-    this.#sub(CHANNELS.CONNECTION_CLOSED, (ctx: any) => {
-      const clientAttributes = resolveClientAttributes(ctx.clientId);
-      if (ctx.wasConnected) {
-        this.#instruments.dbClientConnectionCount.add(-1, {
-          ...this.#options.attributes,
-          ...parseClientAttributes(clientAttributes),
-          [OTEL_ATTRIBUTES.dbClientConnectionState]: "used",
-        });
-      }
-      this.#instruments.redisClientConnectionClosed.add(1, {
-        ...this.#options.attributes,
-        ...parseClientAttributes(clientAttributes),
-        [OTEL_ATTRIBUTES.redisClientConnectionCloseReason]: ctx.reason,
-      });
-    });
-
     this.#sub(CHANNELS.CONNECTION_RELAXED_TIMEOUT, (ctx: any) => {
       const clientAttributes = resolveClientAttributes(ctx.clientId);
       this.#instruments.redisClientConnectionRelaxedTimeout.add(ctx.value, {
@@ -278,6 +267,28 @@ class OTelChannelSubscribers {
         ...this.#options.attributes,
         ...parseClientAttributes(clientAttributes),
       });
+    });
+  }
+
+  // -- Connection Closed (shared by basic + advanced) --
+
+  #subscribeConnectionClosed(hasBasic: boolean, hasAdvanced: boolean) {
+    this.#sub(CHANNELS.CONNECTION_CLOSED, (ctx: any) => {
+      const clientAttributes = resolveClientAttributes(ctx.clientId);
+      if (hasBasic && ctx.wasConnected) {
+        this.#instruments.dbClientConnectionCount.add(-1, {
+          ...this.#options.attributes,
+          ...parseClientAttributes(clientAttributes),
+          [OTEL_ATTRIBUTES.dbClientConnectionState]: "used",
+        });
+      }
+      if (hasAdvanced) {
+        this.#instruments.redisClientConnectionClosed.add(1, {
+          ...this.#options.attributes,
+          ...parseClientAttributes(clientAttributes),
+          [OTEL_ATTRIBUTES.redisClientConnectionCloseReason]: ctx.reason,
+        });
+      }
     });
   }
 

@@ -317,19 +317,20 @@ describe("OTel Metrics E2E", function () {
 
     OTelMetrics.init({ api, config });
 
-    OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+    const dc = require("node:diagnostics_channel");
+    dc.channel("node-redis:error").publish({
       error: new Error("Test error 1"),
-      origin: METRIC_ERROR_ORIGIN.CLIENT,
+      origin: "client",
       internal: false,
     });
-    OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+    dc.channel("node-redis:error").publish({
       error: new Error("Test error 2"),
-      origin: METRIC_ERROR_ORIGIN.CLIENT,
+      origin: "client",
       internal: false,
     });
-    OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+    dc.channel("node-redis:error").publish({
       error: new Error("Test error 3"),
-      origin: METRIC_ERROR_ORIGIN.CLIENT,
+      origin: "client",
       internal: false,
     });
 
@@ -358,14 +359,15 @@ describe("OTel Metrics E2E", function () {
 
     OTelMetrics.init({ api, config });
 
-    OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+    const dc = require("node:diagnostics_channel");
+    dc.channel("node-redis:error").publish({
       error: new Error("Test error 1"),
-      origin: METRIC_ERROR_ORIGIN.CLIENT,
+      origin: "client",
       internal: false,
     });
-    OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+    dc.channel("node-redis:error").publish({
       error: new Error("Test error 2"),
-      origin: METRIC_ERROR_ORIGIN.CLIENT,
+      origin: "client",
       internal: false,
     });
 
@@ -405,9 +407,10 @@ describe("OTel Metrics E2E", function () {
       isConnected: () => true,
     });
 
-    OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+    const dc = require("node:diagnostics_channel");
+    dc.channel("node-redis:error").publish({
       error: new Error("Test error"),
-      origin: METRIC_ERROR_ORIGIN.CLIENT,
+      origin: "client",
       internal: false,
       clientId: "client-1",
     });
@@ -445,9 +448,10 @@ describe("OTel Metrics E2E", function () {
       },
     });
 
-    OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+    const dc = require("node:diagnostics_channel");
+    dc.channel("node-redis:error").publish({
       error: new Error("Test error"),
-      origin: METRIC_ERROR_ORIGIN.CLIENT,
+      origin: "client",
       internal: false,
       clientId: "missing-client",
     });
@@ -1736,26 +1740,32 @@ describe("OTel Metrics E2E", function () {
     );
 
     it("should ignore malformed stream replies without emitting redis.client.stream.lag", async () => {
-      OTelMetrics.instance.streamMetrics.recordStreamLag(
-        ["XREADGROUP", "GROUP", "group-1", "consumer-1"],
-        undefined,
-      );
-      OTelMetrics.instance.streamMetrics.recordStreamLag(
-        ["XREADGROUP", "GROUP", "group-1", "consumer-1"],
-        [],
-      );
-      OTelMetrics.instance.streamMetrics.recordStreamLag(
-        ["XREADGROUP", "GROUP", "group-1", "consumer-1"],
-        [null],
-      );
-      OTelMetrics.instance.streamMetrics.recordStreamLag(
-        ["XREADGROUP", "GROUP", "group-1", "consumer-1"],
-        [{ name: "s", messages: [{ id: "invalid-id", message: {} }] }],
-      );
-      OTelMetrics.instance.streamMetrics.recordStreamLag(
-        ["XREADGROUP", "GROUP", "group-1", "consumer-1"],
-        [{ name: "s", messages: [{ id: "", message: {} }] }],
-      );
+      const dc = require("node:diagnostics_channel");
+      dc.channel("node-redis:command:reply").publish({
+        args: ["XREADGROUP", "GROUP", "group-1", "consumer-1"],
+        reply: undefined,
+        clientId: "test",
+      });
+      dc.channel("node-redis:command:reply").publish({
+        args: ["XREADGROUP", "GROUP", "group-1", "consumer-1"],
+        reply: [],
+        clientId: "test",
+      });
+      dc.channel("node-redis:command:reply").publish({
+        args: ["XREADGROUP", "GROUP", "group-1", "consumer-1"],
+        reply: [null],
+        clientId: "test",
+      });
+      dc.channel("node-redis:command:reply").publish({
+        args: ["XREADGROUP", "GROUP", "group-1", "consumer-1"],
+        reply: [{ name: "s", messages: [{ id: "invalid-id", message: {} }] }],
+        clientId: "test",
+      });
+      dc.channel("node-redis:command:reply").publish({
+        args: ["XREADGROUP", "GROUP", "group-1", "consumer-1"],
+        reply: [{ name: "s", messages: [{ id: "", message: {} }] }],
+        clientId: "test",
+      });
 
       await meterProvider.forceFlush();
 

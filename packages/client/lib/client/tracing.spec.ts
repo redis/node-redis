@@ -458,7 +458,9 @@ const hasTracingChannel = typeof dc.tracingChannel === 'function';
         assert.equal(errors[0].serverPort, 1);
       } finally {
         dc.unsubscribe('tracing:node-redis:connect:error', onError);
-        await badClient.destroy();
+        if (badClient.isOpen) {
+          await badClient.destroy();
+        }
       }
     }, GLOBAL.SERVERS.OPEN);
   });
