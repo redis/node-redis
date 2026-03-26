@@ -12,6 +12,8 @@ import { BasicCommandParser } from './parser';
 import SingleEntryCache from '../single-entry-cache';
 import { MULTI_MODE, MultiMode } from '../multi-command';
 import { trace, CHANNELS } from './tracing';
+
+const noop = () => {};
 import { ClientIdentity, ClientRole, generateClientId } from './identity';
 
 export interface RedisPoolOptions {
@@ -445,7 +447,7 @@ export class RedisClientPool<
         trace(CHANNELS.TRACE_CONNECTION_WAIT,
           () => new Promise<void>((res, rej) => { resolveWait = res; rejectWait = rej; }),
           () => ({})
-        );
+        ).catch(noop);
 
         let timeout;
         if (this._self.#options.acquireTimeout > 0) {

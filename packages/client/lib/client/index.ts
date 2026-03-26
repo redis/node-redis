@@ -1133,7 +1133,7 @@ export default class RedisClient<
 
       const finalReply = transformReply ? transformReply(reply, parser.preserve, commandOptions?.typeMapping) : reply;
 
-      publish(CHANNELS.COMMAND_REPLY, () => ({ args: parser.redisArgs, reply: finalReply, clientId: this._self._clientId }));
+      publish(CHANNELS.COMMAND_REPLY, () => ({ args: sanitizeArgs(parser.redisArgs), reply: finalReply, clientId: this._self._clientId }));
 
       return finalReply;
     }
