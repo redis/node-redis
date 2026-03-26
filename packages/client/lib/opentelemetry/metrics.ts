@@ -259,11 +259,13 @@ class OTelChannelSubscribers {
 
     this.#sub(CHANNELS.CONNECTION_CLOSED, (ctx: any) => {
       const clientAttributes = resolveClientAttributes(ctx.clientId);
-      this.#instruments.dbClientConnectionCount.add(-1, {
-        ...this.#options.attributes,
-        ...parseClientAttributes(clientAttributes),
-        [OTEL_ATTRIBUTES.dbClientConnectionState]: "used",
-      });
+      if (ctx.wasConnected) {
+        this.#instruments.dbClientConnectionCount.add(-1, {
+          ...this.#options.attributes,
+          ...parseClientAttributes(clientAttributes),
+          [OTEL_ATTRIBUTES.dbClientConnectionState]: "used",
+        });
+      }
       this.#instruments.redisClientConnectionClosed.add(1, {
         ...this.#options.attributes,
         ...parseClientAttributes(clientAttributes),

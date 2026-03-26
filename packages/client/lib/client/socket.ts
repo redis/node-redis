@@ -338,7 +338,7 @@ export default class RedisSocket extends EventEmitter {
     this.emit('error', err);
 
     if (wasReady) {
-      publish(CHANNELS.CONNECTION_CLOSED, () => ({ clientId: this.#clientId, reason: 'error' }));
+      publish(CHANNELS.CONNECTION_CLOSED, () => ({ clientId: this.#clientId, reason: 'error', wasConnected: true }));
     }
 
     if (!wasReady || !this.#isOpen || typeof this.#shouldReconnect(0, err) !== 'number') return;
@@ -393,6 +393,7 @@ export default class RedisSocket extends EventEmitter {
   }
 
   destroySocket() {
+    const wasReady = this.#isReady;
     this.#isReady = false;
 
     if (this.#socket) {
@@ -400,7 +401,7 @@ export default class RedisSocket extends EventEmitter {
       this.#socket = undefined;
     }
 
-    publish(CHANNELS.CONNECTION_CLOSED, () => ({ clientId: this.#clientId, reason: 'application_close' }));
+    publish(CHANNELS.CONNECTION_CLOSED, () => ({ clientId: this.#clientId, reason: 'application_close', wasConnected: wasReady }));
     this.emit('end');
   }
 

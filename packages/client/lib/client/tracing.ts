@@ -179,6 +179,7 @@ export interface ConnectionReadyEvent {
 export interface ConnectionClosedEvent {
   clientId: string;
   reason: string;
+  wasConnected: boolean;
 }
 
 export interface ConnectionRelaxedTimeoutEvent {
