@@ -113,30 +113,32 @@ export interface BatchOperationContext {
 
 type CommandContext = CommandTraceContext | BatchCommandTraceContext;
 
+interface TracingChannelContextMap {
+  [CHANNELS.TRACE_COMMAND]: CommandContext;
+  [CHANNELS.TRACE_BATCH]: BatchOperationContext;
+  [CHANNELS.TRACE_CONNECT]: ConnectTraceContext;
+  [CHANNELS.TRACE_CONNECTION_WAIT]: ConnectionWaitContext;
+}
+
 // Check explicitly for `false` rather than truthiness because `hasSubscribers`
 // is not available on all Node.js versions that support TracingChannel.
 // When `hasSubscribers` is `undefined` (older Node), we assume there are
 // subscribers and trace unconditionally, keeping the zero-cost optimization
 // only for versions where we can reliably check.
+function getTracingChannel<K extends keyof TracingChannelContextMap>(
+  name: K
+): TracingChannel<TracingChannelContextMap[K]> | undefined {
+  return hasTracingChannel ? dc.tracingChannel(name) : undefined;
+}
+
 function shouldTrace(channel: TracingChannel<any> | undefined): channel is TracingChannel<any> {
   return !!channel && channel.hasSubscribers !== false;
 }
 
-const commandChannel: TracingChannel<CommandContext> | undefined = hasTracingChannel
-  ? dc.tracingChannel(CHANNELS.TRACE_COMMAND)
-  : undefined;
-
-const connectChannel: TracingChannel<ConnectTraceContext> | undefined = hasTracingChannel
-  ? dc.tracingChannel(CHANNELS.TRACE_CONNECT)
-  : undefined;
-
-const batchChannel: TracingChannel<BatchOperationContext> | undefined = hasTracingChannel
-  ? dc.tracingChannel(CHANNELS.TRACE_BATCH)
-  : undefined;
-
-const connectionWaitChannel: TracingChannel<ConnectionWaitContext> | undefined = hasTracingChannel
-  ? dc.tracingChannel(CHANNELS.TRACE_CONNECTION_WAIT)
-  : undefined;
+const commandChannel = getTracingChannel(CHANNELS.TRACE_COMMAND);
+const connectChannel = getTracingChannel(CHANNELS.TRACE_CONNECT);
+const batchChannel = getTracingChannel(CHANNELS.TRACE_BATCH);
+const connectionWaitChannel = getTracingChannel(CHANNELS.TRACE_CONNECTION_WAIT);
 
 export function traceCommand<T>(
   fn: () => Promise<T>,
