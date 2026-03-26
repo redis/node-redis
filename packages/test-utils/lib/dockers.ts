@@ -109,7 +109,6 @@ options: RedisServerDockerOptions, serverArguments: Array<string>): Promise<Redi
 
   const dockerArgs = [
     'run',
-    '--platform', 'linux/amd64',
     '--init',
     '-e', `PORT=${portStr}`
   ];
@@ -193,7 +192,6 @@ export async function spawnProxiedRedisServerDocker(
 
   const dockerArgs =[
     "run",
-    "--platform", "linux/amd64",
     "-d",
     "--network", "host",
     "-e", `LISTEN_PORT=${ports.join(',')}`,
@@ -340,7 +338,6 @@ export async function spawnTlsRedisServerDocker(
 
   const dockerArgs = [
     "run",
-    "--platform", "linux/amd64",
     "--init",
     "-e",
     "TLS_ENABLED=yes",

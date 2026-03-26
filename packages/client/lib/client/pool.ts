@@ -12,9 +12,9 @@ import { BasicCommandParser } from './parser';
 import SingleEntryCache from '../single-entry-cache';
 import { MULTI_MODE, MultiMode } from '../multi-command';
 import { trace, CHANNELS } from './tracing';
+import { ClientIdentity, ClientRole, generateClientId } from './identity';
 
 const noop = () => {};
-import { ClientIdentity, ClientRole, generateClientId } from './identity';
 
 export interface RedisPoolOptions {
   /**
