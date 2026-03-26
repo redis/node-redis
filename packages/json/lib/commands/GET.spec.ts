@@ -41,4 +41,17 @@ describe('JSON.GET', () => {
     assert.deepEqual(res, { name: 'Alice', age: 32, })
 
   }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.json.get with reviver', async client => {
+    assert.equal(
+      await client.json.get('key',{ reviver: ()=>{ assert.fail() } }),
+      null
+    );
+
+    await client.json.set('noderedis:users:1', '$', { name: 'Alice', birthday: new Date('1998-02-12') });
+    const res = await client.json.get('noderedis:users:1', { reviver: (key, value) => { if (key === 'birthdate') return new Date(value); else return value; } });
+    assert(typeof res === 'object' && res !== null && 'birthday' in res && res.birthday instanceof Date && res.birthday.getTime() === new Date('1998-02-12').getTime());
+
+  }, GLOBAL.SERVERS.OPEN);
+  
 });
