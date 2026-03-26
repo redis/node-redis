@@ -1,17 +1,22 @@
 import type { TracingChannel as NodeTracingChannel } from 'node:diagnostics_channel';
+import type * as DC from 'node:diagnostics_channel';
 
-// @types/node is missing hasSubscribers on TracingChannel and types
-// tracePromise as returning void. Both exist at runtime.
+/**
+ * @types/node is missing hasSubscribers on TracingChannel, types tracePromise
+ * as returning void, and requires all 5 handlers in subscribe/unsubscribe.
+ * All exist/work at runtime — this interface adds the missing pieces.
+ */
 interface TracingChannel<ContextType extends object> extends NodeTracingChannel<unknown, ContextType> {
   readonly hasSubscribers: boolean;
   tracePromise<T>(fn: () => Promise<T>, context?: ContextType): Promise<T>;
+  subscribe(handlers: Partial<Record<'start' | 'end' | 'asyncStart' | 'asyncEnd' | 'error', (ctx: any) => void>>): void;
+  unsubscribe(handlers: Partial<Record<'start' | 'end' | 'asyncStart' | 'asyncEnd' | 'error', (ctx: any) => void>>): void;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const dc: any = (() => {
+const dc: typeof DC | undefined = (() => {
   try {
     return ('getBuiltinModule' in process)
-      ? (process as any).getBuiltinModule('node:diagnostics_channel')
+      ? (process as { getBuiltinModule: (name: string) => typeof DC }).getBuiltinModule('node:diagnostics_channel')
       : require('node:diagnostics_channel');
   } catch {
     return undefined;
@@ -51,6 +56,9 @@ const SERIALIZATION_SUBSETS: Array<{ regex: RegExp; args: number }> = [
   { regex: /^(ACL|BIT|B[LRZ]|CLIENT|CLUSTER|CONFIG|COMMAND|DECR|DEL|EVAL|EX|FUNCTION|GEO|GET|HINCR|HMGET|HSCAN|INCR|L[TRLM]|MEMORY|P[EFISTU]|RPOP|S[CDIMORSU]|XACK|X[CDGILPRT]|Z[CDILMPRS])/i, args: -1 },
 ];
 
+/**
+ * Sanitizes the arguments of a command to remove sensitive information.
+ */
 export function sanitizeArgs(args: ReadonlyArray<unknown>): ReadonlyArray<string> {
   if (args.length === 0) return [];
 
@@ -120,15 +128,18 @@ interface TracingChannelContextMap {
   [CHANNELS.TRACE_CONNECTION_WAIT]: ConnectionWaitContext;
 }
 
-// Check explicitly for `false` rather than truthiness because `hasSubscribers`
-// is not available on all Node.js versions that support TracingChannel.
-// When `hasSubscribers` is `undefined` (older Node), we assume there are
-// subscribers and trace unconditionally, keeping the zero-cost optimization
-// only for versions where we can reliably check.
-function getTracingChannel<K extends keyof TracingChannelContextMap>(
+/**
+ * Acquires a tracing channel from the diagnostics channel, avoids re-acquiring the same channel.
+ * Check explicitly for `false` rather than truthiness because `hasSubscribers`
+ * is not available on all Node.js versions that support TracingChannel.
+ * When `hasSubscribers` is `undefined` (older Node), we assume there are
+ * subscribers and trace unconditionally, keeping the zero-cost optimization
+ * only for versions where we can reliably check.
+ */
+export function getTracingChannel<K extends keyof TracingChannelContextMap>(
   name: K
 ): TracingChannel<TracingChannelContextMap[K]> | undefined {
-  return hasTracingChannel ? dc.tracingChannel(name) : undefined;
+  return hasTracingChannel ? dc?.tracingChannel(name) as TracingChannel<TracingChannelContextMap[K]> : undefined;
 }
 
 function shouldTrace(channel: TracingChannel<any> | undefined): channel is TracingChannel<any> {
@@ -265,16 +276,28 @@ export interface ChannelEvents {
   [CHANNELS.COMMAND_REPLY]: CommandReplyEvent;
 }
 
-const channelCache = new Map<string, { hasSubscribers: boolean; publish(message: any): void }>();
+interface Channel {
+  readonly hasSubscribers: boolean;
+  publish(message: unknown): void;
+  subscribe(handler: (message: any) => void): void;
+  unsubscribe(handler: (message: any) => void): void;
+}
 
-function getChannel(name: string) {
+const channelCache = new Map<string, Channel>();
+
+/**
+ * Acquires a channel from the diagnostics channel, avoids re-acquiring the same channel.
+ */
+export function getChannel(name: string): Channel | undefined {
   if (!dc?.channel) return undefined;
+
   let ch = channelCache.get(name);
   if (!ch) {
-    ch = dc.channel(name) as { hasSubscribers: boolean; publish(message: any): void };
+    ch = dc.channel(name) as unknown as Channel;
     channelCache.set(name, ch);
   }
-  return ch!;
+
+  return ch;
 }
 
 export function publish<K extends keyof ChannelEvents>(

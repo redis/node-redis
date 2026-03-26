@@ -26,7 +26,7 @@ import {
 } from "./utils";
 import { NoopOTelMetrics } from "./noop-metrics";
 import { OpenTelemetryError } from "../errors";
-import { CHANNELS, dc } from "../client/tracing";
+import { CHANNELS, getTracingChannel, getChannel } from "../client/tracing";
 
 function resolveClientAttributes(
   clientId?: string,
@@ -56,7 +56,9 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
   }
 
   #subscribeToTracingChannel() {
-    if (!dc?.tracingChannel) return;
+    const commandTC = getTracingChannel(CHANNELS.TRACE_COMMAND);
+    const batchTC = getTracingChannel(CHANNELS.TRACE_BATCH);
+    if (!commandTC || !batchTC) return;
 
     const onStart = (ctx: any) => {
       const commandName = ctx.command?.toString() || "UNKNOWN";
@@ -159,11 +161,9 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
     };
 
     const commandHandlers = { start: onStart, asyncEnd: onAsyncEnd, error: onError };
-    const commandTC = dc.tracingChannel(CHANNELS.TRACE_COMMAND);
     commandTC.subscribe(commandHandlers);
 
     const batchHandlers = { start: onBatchStart, asyncEnd: onBatchAsyncEnd, error: onBatchError };
-    const batchTC = dc.tracingChannel(CHANNELS.TRACE_BATCH);
     batchTC.subscribe(batchHandlers);
 
     this.#tracingChannels.push(
@@ -195,7 +195,7 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
 class OTelChannelSubscribers {
   readonly #instruments: MetricInstruments;
   readonly #options: MetricOptions;
-  readonly #subscriptions: Array<{ channel: string; handler: (ctx: any) => void }> = [];
+  readonly #subscriptions: Array<{ channel: { unsubscribe(handler: any): void }; handler: (ctx: any) => void }> = [];
   readonly #tracingChannels: Array<{ channel: any; handlers: any }> = [];
 
   constructor(
@@ -205,7 +205,6 @@ class OTelChannelSubscribers {
   ) {
     this.#options = options;
     this.#instruments = instruments;
-    if (!dc?.subscribe) return;
 
     if (enabledGroups.includes(METRIC_GROUP.CONNECTION_BASIC)) {
       this.#subscribeConnectionBasic();
@@ -227,16 +226,16 @@ class OTelChannelSubscribers {
     }
   }
 
-  #sub(channel: string, handler: (ctx: any) => void) {
-    dc.subscribe(channel, handler);
-    this.#subscriptions.push({ channel, handler });
+  #sub(name: string, handler: (ctx: any) => void) {
+    const ch = getChannel(name);
+    if (!ch) return;
+    ch.subscribe(handler);
+    this.#subscriptions.push({ channel: ch, handler });
   }
 
   destroy() {
-    if (dc?.unsubscribe) {
-      for (const { channel, handler } of this.#subscriptions) {
-        dc.unsubscribe(channel, handler);
-      }
+    for (const { channel, handler } of this.#subscriptions) {
+      channel.unsubscribe(handler);
     }
     for (const { channel, handlers } of this.#tracingChannels) {
       channel.unsubscribe(handlers);
@@ -298,7 +297,8 @@ class OTelChannelSubscribers {
   // -- Connection Advanced --
 
   #subscribeConnectionAdvanced() {
-    if (!dc?.tracingChannel) return;
+    const tc = getTracingChannel(CHANNELS.TRACE_CONNECTION_WAIT);
+    if (!tc) return;
 
     const startTimes = new WeakMap<object, number>();
 
@@ -322,7 +322,6 @@ class OTelChannelSubscribers {
       },
     };
 
-    const tc = dc.tracingChannel(CHANNELS.TRACE_CONNECTION_WAIT);
     tc.subscribe(handlers);
     this.#tracingChannels.push({ channel: tc, handlers });
   }
