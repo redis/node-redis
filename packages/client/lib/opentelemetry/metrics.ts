@@ -34,6 +34,15 @@ function resolveClientAttributes(
     : undefined;
 }
 
+function subscribeTC(
+  tc: DC.TracingChannel<any>,
+  handlers: Partial<DC.TracingChannelSubscribers<any>>,
+): () => void {
+  const h = handlers as DC.TracingChannelSubscribers<any>;
+  tc.subscribe(h);
+  return () => tc.unsubscribe(h);
+}
+
 interface CommandMetricsState {
   startTime: number;
   clientAttributes: OTelClientAttributes | undefined;
@@ -158,13 +167,10 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
       );
     };
 
-    const commandHandlers = { start: onStart, asyncEnd: onAsyncEnd, error: onError } as DC.TracingChannelSubscribers<any>;
-    commandTC.subscribe(commandHandlers);
-    this.#unsubscribers.push(() => commandTC.unsubscribe(commandHandlers));
-
-    const batchHandlers = { start: onBatchStart, asyncEnd: onBatchAsyncEnd, error: onBatchError } as DC.TracingChannelSubscribers<any>;
-    batchTC.subscribe(batchHandlers);
-    this.#unsubscribers.push(() => batchTC.unsubscribe(batchHandlers));
+    this.#unsubscribers.push(
+      subscribeTC(commandTC, { start: onStart, asyncEnd: onAsyncEnd, error: onError }),
+      subscribeTC(batchTC, { start: onBatchStart, asyncEnd: onBatchAsyncEnd, error: onBatchError }),
+    );
   }
 
   destroy() {
@@ -319,38 +325,50 @@ class OTelChannelSubscribers {
       },
     };
 
-    const tcHandlers = handlers as DC.TracingChannelSubscribers<any>;
-    tc.subscribe(tcHandlers);
-    this.#unsubscribers.push(() => tc.unsubscribe(tcHandlers));
+    this.#unsubscribers.push(subscribeTC(tc, handlers));
+  }
+
+  #recordError(error: Error, clientId?: string, extra?: Record<string, any>) {
+    const clientAttributes = resolveClientAttributes(clientId);
+    const errorInfo = getErrorInfo(error);
+
+    if (isRedirectionError(errorInfo.statusCode)) return;
+
+    this.#instruments.redisClientErrors.add(1, {
+      ...this.#options.attributes,
+      ...parseClientAttributes(clientAttributes),
+      [OTEL_ATTRIBUTES.errorType]: errorInfo.errorType,
+      [OTEL_ATTRIBUTES.redisClientErrorsCategory]: errorInfo.category,
+      ...(errorInfo.statusCode !== undefined && {
+        [OTEL_ATTRIBUTES.dbResponseStatusCode]: errorInfo.statusCode,
+      }),
+      ...extra,
+    });
   }
 
   // -- Resiliency --
 
   #subscribeResiliency() {
+    // Cluster/internal errors via point-event channel
     this.#sub(CHANNELS.ERROR, (ctx: any) => {
-      const clientAttributes = resolveClientAttributes(ctx.clientId);
-      const errorInfo = getErrorInfo(ctx.error);
-
-      // Avoid double-counting ASK/MOVED errors: command-level paths can observe
-      // the same redirection that cluster-level retry logic already records.
-      if (ctx.origin === 'client' && isRedirectionError(errorInfo.statusCode)) {
-        return;
-      }
-
-      this.#instruments.redisClientErrors.add(1, {
-        ...this.#options.attributes,
-        ...parseClientAttributes(clientAttributes),
-        [OTEL_ATTRIBUTES.errorType]: errorInfo.errorType,
-        [OTEL_ATTRIBUTES.redisClientErrorsCategory]: errorInfo.category,
+      this.#recordError(ctx.error, ctx.clientId, {
         [OTEL_ATTRIBUTES.redisClientErrorsInternal]: ctx.internal,
         ...(ctx.retryCount !== undefined && {
           [OTEL_ATTRIBUTES.redisClientOperationRetryAttempts]: ctx.retryCount,
         }),
-        ...(errorInfo.statusCode !== undefined && {
-          [OTEL_ATTRIBUTES.dbResponseStatusCode]: errorInfo.statusCode,
-        }),
       });
     });
+
+    // Command-level errors via TracingChannel
+    const commandTC = getTracingChannel(CHANNELS.TRACE_COMMAND);
+    if (commandTC) {
+      const onError = (ctx: any) => {
+        this.#recordError(ctx.error, ctx.clientId, {
+          [OTEL_ATTRIBUTES.redisClientErrorsInternal]: false,
+        });
+      };
+      this.#unsubscribers.push(subscribeTC(commandTC, { error: onError }));
+    }
 
     this.#sub(CHANNELS.MAINTENANCE, (ctx: any) => {
       const clientAttributes = resolveClientAttributes(ctx.clientId);

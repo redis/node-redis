@@ -1192,16 +1192,6 @@ export default class RedisClient<
         return promise;
       },
       () => this._self.#commandTraceContext(args)
-    ).catch(
-      (err) => {
-        publish(CHANNELS.ERROR, () => ({
-          error: err,
-          origin: 'client',
-          internal: false,
-          clientId: this._self._clientId,
-        }));
-        throw err;
-      }
     );
   }
 
