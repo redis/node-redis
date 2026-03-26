@@ -115,35 +115,23 @@ interface TracingChannelContextMap {
   [CHANNELS.TRACE_CONNECTION_WAIT]: ConnectionWaitContext;
 }
 
-/**
- * Acquires a tracing channel from the diagnostics channel, avoids re-acquiring the same channel.
- * Check explicitly for `false` rather than truthiness because `hasSubscribers`
- * is not available on all Node.js versions that support TracingChannel.
- * When `hasSubscribers` is `undefined` (older Node), we assume there are
- * subscribers and trace unconditionally, keeping the zero-cost optimization
- * only for versions where we can reliably check.
- */
-const tracingChannelCache = new Map<string, DC.TracingChannel<any>>();
+// Eagerly resolve tracing channels at module load time.
+// Check explicitly for `false` rather than truthiness because `hasSubscribers`
+// is not available on all Node.js versions that support TracingChannel.
+// When `hasSubscribers` is `undefined` (older Node), we assume there are
+// subscribers and trace unconditionally, keeping the zero-cost optimization
+// only for versions where we can reliably check.
+const tracingChannels = hasTracingChannel ? {
+  [CHANNELS.TRACE_COMMAND]: dc!.tracingChannel(CHANNELS.TRACE_COMMAND),
+  [CHANNELS.TRACE_BATCH]: dc!.tracingChannel(CHANNELS.TRACE_BATCH),
+  [CHANNELS.TRACE_CONNECT]: dc!.tracingChannel(CHANNELS.TRACE_CONNECT),
+  [CHANNELS.TRACE_CONNECTION_WAIT]: dc!.tracingChannel(CHANNELS.TRACE_CONNECTION_WAIT),
+} as { [K in keyof TracingChannelContextMap]: DC.TracingChannel<TracingChannelContextMap[K]> } : undefined;
 
 export function getTracingChannel<K extends keyof TracingChannelContextMap>(
   name: K
 ): DC.TracingChannel<TracingChannelContextMap[K]> | undefined {
-  if (!hasTracingChannel) return undefined;
-
-  let ch = tracingChannelCache.get(name);
-  if (!ch) {
-    ch = dc?.tracingChannel(name);
-    tracingChannelCache.set(name, ch);
-  }
-
-  return ch as DC.TracingChannel<TracingChannelContextMap[K]>;
-}
-
-/**
- * Checks if a tracing channel has subscribers.
- */
-function shouldTrace(channel: DC.TracingChannel<any> | undefined): channel is DC.TracingChannel<any> {
-  return !!channel && (channel as DC.TracingChannel & { hasSubscribers?: boolean }).hasSubscribers !== false;
+  return tracingChannels?.[name];
 }
 
 export function trace<K extends keyof TracingChannelContextMap, T>(
@@ -151,10 +139,8 @@ export function trace<K extends keyof TracingChannelContextMap, T>(
   fn: () => Promise<T>,
   contextFactory: () => TracingChannelContextMap[K]
 ): Promise<T> {
-  const channel = getTracingChannel(name);
-  if (shouldTrace(channel)) {
-    // Node types are outdated and don't match the runtime, tracePromise returns the same promise type
-    // as the function, so we need to cast it to the correct type.
+  const channel = tracingChannels?.[name];
+  if (channel && (channel as DC.TracingChannel & { hasSubscribers?: boolean }).hasSubscribers !== false) {
     return channel.tracePromise(fn, contextFactory()) as unknown as Promise<T>;
   }
   return fn();
@@ -252,28 +238,29 @@ interface Channel {
   unsubscribe(handler: (message: any) => void): void;
 }
 
-const channelCache = new Map<string, Channel>();
+// Eagerly resolve point-event channels at module load time
+const pointChannels = dc?.channel ? {
+  [CHANNELS.CONNECTION_READY]: dc.channel(CHANNELS.CONNECTION_READY),
+  [CHANNELS.CONNECTION_CLOSED]: dc.channel(CHANNELS.CONNECTION_CLOSED),
+  [CHANNELS.CONNECTION_RELAXED_TIMEOUT]: dc.channel(CHANNELS.CONNECTION_RELAXED_TIMEOUT),
+  [CHANNELS.CONNECTION_HANDOFF]: dc.channel(CHANNELS.CONNECTION_HANDOFF),
+  [CHANNELS.ERROR]: dc.channel(CHANNELS.ERROR),
+  [CHANNELS.MAINTENANCE]: dc.channel(CHANNELS.MAINTENANCE),
+  [CHANNELS.PUBSUB]: dc.channel(CHANNELS.PUBSUB),
+  [CHANNELS.CACHE_REQUEST]: dc.channel(CHANNELS.CACHE_REQUEST),
+  [CHANNELS.CACHE_EVICTION]: dc.channel(CHANNELS.CACHE_EVICTION),
+  [CHANNELS.COMMAND_REPLY]: dc.channel(CHANNELS.COMMAND_REPLY),
+} as unknown as { [K in keyof ChannelEvents]: Channel } : undefined;
 
-/**
- * Acquires a channel from the diagnostics channel, avoids re-acquiring the same channel.
- */
 export function getChannel(name: string): Channel | undefined {
-  if (!dc?.channel) return undefined;
-
-  let ch = channelCache.get(name);
-  if (!ch) {
-    ch = dc.channel(name) as unknown as Channel;
-    channelCache.set(name, ch);
-  }
-
-  return ch;
+  return pointChannels?.[name as keyof ChannelEvents];
 }
 
 export function publish<K extends keyof ChannelEvents>(
   name: K,
   factory: () => ChannelEvents[K]
 ): void {
-  const ch = getChannel(name);
+  const ch = pointChannels?.[name];
   if (ch?.hasSubscribers) {
     ch.publish(factory());
   }
