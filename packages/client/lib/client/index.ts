@@ -1433,7 +1433,7 @@ export default class RedisClient<
                 batchSize
               })
             );
-            // Prevent unhandled rejection from tracePromise wrapper — individual
+            // Prevent unhandled rejection from tracePromise wrapper; individual
             // rejections are collected by Promise.all, but the tracePromise wrapper
             // is a separate branch that nobody awaits.
             traced.catch(noop);

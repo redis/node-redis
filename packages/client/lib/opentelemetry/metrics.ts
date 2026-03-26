@@ -181,8 +181,7 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
 }
 
 // ---------------------------------------------------------------------------
-// Channel subscriber classes — subscribe to diagnostics_channel events and
-// record OTel metrics. No public methods called from core code.
+// Channel subscribers: record OTel metrics from diagnostics_channel events.
 // ---------------------------------------------------------------------------
 
 class OTelChannelSubscribers {

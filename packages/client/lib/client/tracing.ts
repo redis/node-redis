@@ -13,12 +13,12 @@ const dc: typeof DC | undefined = (() => {
 const hasTracingChannel = typeof dc?.tracingChannel === 'function';
 
 export const CHANNELS = {
-  // TracingChannel names (async lifecycle — use with dc.tracingChannel())
+  // TracingChannel (async lifecycle)
   TRACE_COMMAND: 'node-redis:command',
   TRACE_BATCH: 'node-redis:batch',
   TRACE_CONNECT: 'node-redis:connect',
   TRACE_CONNECTION_WAIT: 'node-redis:connection:wait',
-  // Point-event channel names (fire-and-forget — use with dc.channel())
+  // Point events (fire-and-forget)
   CONNECTION_READY: 'node-redis:connection:ready',
   CONNECTION_CLOSED: 'node-redis:connection:closed',
   CONNECTION_RELAXED_TIMEOUT: 'node-redis:connection:relaxed-timeout',
@@ -161,7 +161,7 @@ export function trace<K extends keyof TracingChannelContextMap, T>(
 }
 
 // ---------------------------------------------------------------------------
-// Point-event channels (plain dc.channel — fire-and-forget, no async lifecycle)
+// Point-event channel payloads
 // ---------------------------------------------------------------------------
 
 // Connection lifecycle

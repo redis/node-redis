@@ -13,7 +13,7 @@ describe('sanitizeArgs', () => {
     assert.deepEqual([...sanitizeArgs(['PING'])], ['PING']);
   });
 
-  // args=0 (ECHO — no args serialized after command name)
+  // args=0: command name only
   it('should redact all args for ECHO', () => {
     assert.deepEqual(
       [...sanitizeArgs(['ECHO', 'hello world'])],
@@ -21,7 +21,7 @@ describe('sanitizeArgs', () => {
     );
   });
 
-  // args=1 (SET, LPUSH, PUBLISH, etc. — key only)
+  // args=1: key only
   it('should keep key but redact value for SET', () => {
     assert.deepEqual(
       [...sanitizeArgs(['SET', 'user:123', 'hunter2'])],
@@ -78,7 +78,7 @@ describe('sanitizeArgs', () => {
     );
   });
 
-  // args=2 (HSET, HMSET, LSET, LINSERT — key + field)
+  // args=2: key + field
   it('should keep key and field but redact value for HSET', () => {
     assert.deepEqual(
       [...sanitizeArgs(['HSET', 'hash', 'field', 'secret'])],
@@ -107,7 +107,7 @@ describe('sanitizeArgs', () => {
     );
   });
 
-  // args=-1 (all args safe — reads and structural commands)
+  // args=-1: all args visible
   it('should show all args for GET', () => {
     assert.deepEqual(
       [...sanitizeArgs(['GET', 'user:123'])],
@@ -150,7 +150,7 @@ describe('sanitizeArgs', () => {
     );
   });
 
-  // Default (unlisted commands — 0 args, command name only)
+  // Default: command name only
   it('should redact all args for AUTH (unlisted, falls to default)', () => {
     assert.deepEqual(
       [...sanitizeArgs(['AUTH', 'password123'])],
@@ -238,7 +238,7 @@ const hasTracingChannel = typeof dc.tracingChannel === 'function';
         assert.equal(startEvents.length, 2);
         assert.equal(asyncEndEvents.length, 2);
 
-        // Verify SET command context — value is redacted (args=1 rule)
+        // SET: value redacted
         const setStart = startEvents[0].context;
         assert.equal(setStart.command, 'SET');
         assert.deepEqual([...setStart.args], ['SET', 'tracing-test', '?']);
@@ -247,7 +247,7 @@ const hasTracingChannel = typeof dc.tracingChannel === 'function';
         assert.equal(typeof setStart.clientId, 'string');
         assert.ok(setStart.clientId.length > 0);
 
-        // Verify GET command context — all args visible (args=-1 rule)
+        // GET: all args visible
         const getStart = startEvents[1].context;
         assert.equal(getStart.command, 'GET');
         assert.deepEqual([...getStart.args], ['GET', 'tracing-test']);
@@ -386,7 +386,7 @@ const hasTracingChannel = typeof dc.tracingChannel === 'function';
     }, GLOBAL.SERVERS.OPEN);
 
     testUtils.testWithClient('should not emit events when there are no subscribers', async client => {
-      // No subscribers registered — verify tracing code path doesn't error
+      // No subscribers: should not error
       await client.ping();
     }, GLOBAL.SERVERS.OPEN);
   });
