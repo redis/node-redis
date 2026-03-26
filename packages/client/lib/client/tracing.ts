@@ -7,7 +7,8 @@ interface TracingChannel<ContextType extends object> extends NodeTracingChannel<
   tracePromise<T>(fn: () => Promise<T>, context?: ContextType): Promise<T>;
 }
 
-const dc: any = (() => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const dc: any = (() => {
   try {
     return ('getBuiltinModule' in process)
       ? (process as any).getBuiltinModule('node:diagnostics_channel')

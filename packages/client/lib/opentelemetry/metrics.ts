@@ -26,17 +26,7 @@ import {
 } from "./utils";
 import { NoopOTelMetrics } from "./noop-metrics";
 import { OpenTelemetryError } from "../errors";
-import { CHANNELS } from "../client/tracing";
-
-const dc: any = (() => {
-  try {
-    return ('getBuiltinModule' in process)
-      ? (process as any).getBuiltinModule('node:diagnostics_channel')
-      : require('node:diagnostics_channel');
-  } catch {
-    return undefined;
-  }
-})();
+import { CHANNELS, dc } from "../client/tracing";
 
 function resolveClientAttributes(
   clientId?: string,
