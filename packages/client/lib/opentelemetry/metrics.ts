@@ -25,7 +25,6 @@ import {
   isRedirectionError,
   parseClientAttributes,
 } from "./utils";
-import { NoopOTelMetrics } from "./noop-metrics";
 import { OpenTelemetryError } from "../errors";
 import { CHANNELS, getTracingChannel, getChannel } from "../client/tracing";
 
@@ -484,7 +483,7 @@ class OTelChannelSubscribers {
 
 export class OTelMetrics implements IOTelMetrics {
   // Create a noop instance by default
-  static #instance: IOTelMetrics = new NoopOTelMetrics();
+  static #instance: IOTelMetrics = { commandMetrics: { destroy() {} } };
   static #initialized = false;
 
   readonly commandMetrics: IOTelCommandMetrics;
