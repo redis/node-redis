@@ -311,7 +311,12 @@ export default class RedisSocket extends EventEmitter {
   #onSocketError(err: Error): void {
     const wasReady = this.#isReady;
     this.#isReady = false;
+    const socket = this.#socket;
+    this.#socket = undefined;
     this.emit('error', err);
+
+    socket?.removeAllListeners('data');
+    socket?.destroy();
 
     if (!wasReady || !this.#isOpen || typeof this.#shouldReconnect(0, err) !== 'number') return;
 
