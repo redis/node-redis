@@ -424,6 +424,20 @@ export default class RedisSentinel<
     return this._commandOptionsProxy('typeMapping', typeMapping);
   }
 
+  duplicate<
+    _M extends RedisModules = M,
+    _F extends RedisFunctions = F,
+    _S extends RedisScripts = S,
+    _RESP extends RespVersions = RESP,
+    _TYPE_MAPPING extends TypeMapping = TYPE_MAPPING
+  >(overrides?: Partial<RedisSentinelOptions<_M, _F, _S, _RESP, _TYPE_MAPPING>>) {
+    return new (Object.getPrototypeOf(this).constructor)({
+      ...this._self.#options,
+      commandOptions: this._commandOptions,
+      ...overrides
+    }) as RedisSentinelType<_M, _F, _S, _RESP, _TYPE_MAPPING>;
+  }
+
   async connect() {
     await this._self.#internal.connect();
 
