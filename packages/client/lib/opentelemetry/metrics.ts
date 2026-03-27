@@ -352,7 +352,7 @@ class OTelChannelSubscribers {
     // transparently by the cluster client and are not real errors.
     // Cluster-origin redirections are recorded as they indicate slot migration.
     this.#sub(CHANNELS.ERROR, (ctx: any) => {
-      if (!ctx.internal && isRedirectionError(getErrorInfo(ctx.error).statusCode)) return;
+      if (ctx.origin === 'client' && isRedirectionError(getErrorInfo(ctx.error).statusCode)) return;
       this.#recordError(ctx.error, ctx.clientId, {
         [OTEL_ATTRIBUTES.redisClientErrorsInternal]: ctx.internal,
         ...(ctx.retryCount !== undefined && {
