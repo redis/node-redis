@@ -320,14 +320,19 @@ const hasTracingChannel = typeof dc.tracingChannel === 'function';
       }
     }, GLOBAL.SERVERS.OPEN);
 
-    testUtils.testWithClient('should trace MULTI commands with batch context', async client => {
-      const startEvents: Array<any> = [];
+    testUtils.testWithClient('should trace MULTI as a single batch operation', async client => {
+      const batchStartEvents: Array<any> = [];
+      const commandStartEvents: Array<any> = [];
 
-      const onStart = (message: any) => {
-        startEvents.push(message);
+      const onBatchStart = (message: any) => {
+        batchStartEvents.push(message);
+      };
+      const onCommandStart = (message: any) => {
+        commandStartEvents.push(message);
       };
 
-      dc.subscribe('tracing:node-redis:command:start', onStart);
+      dc.subscribe('tracing:node-redis:batch:start', onBatchStart);
+      dc.subscribe('tracing:node-redis:command:start', onCommandStart);
 
       try {
         await client.multi()
@@ -336,22 +341,18 @@ const hasTracingChannel = typeof dc.tracingChannel === 'function';
           .get('multi-key-1')
           .exec();
 
-        const batchEvents = startEvents.filter((e: any) => e.batchMode === 'MULTI');
-        assert.equal(batchEvents.length, 3);
+        // MULTI is traced as a single batch, not per-command
+        assert.equal(batchStartEvents.length, 1);
+        assert.equal(batchStartEvents[0].batchMode, 'MULTI');
+        assert.equal(batchStartEvents[0].batchSize, 3);
+        assert.equal(typeof batchStartEvents[0].clientId, 'string');
 
-        for (const event of batchEvents) {
-          assert.equal(event.batchMode, 'MULTI');
-          assert.equal(event.batchSize, 3);
-          assert.equal(typeof event.clientId, 'string');
-        }
-
-        assert.equal(batchEvents[0].command, 'SET');
-        // SET value is redacted in batch context too
-        assert.deepEqual([...batchEvents[0].args], ['SET', 'multi-key-1', '?']);
-        assert.equal(batchEvents[1].command, 'SET');
-        assert.equal(batchEvents[2].command, 'GET');
+        // No per-command traces for MULTI
+        const multiCommandEvents = commandStartEvents.filter((e: any) => e.batchMode === 'MULTI');
+        assert.equal(multiCommandEvents.length, 0);
       } finally {
-        dc.unsubscribe('tracing:node-redis:command:start', onStart);
+        dc.unsubscribe('tracing:node-redis:batch:start', onBatchStart);
+        dc.unsubscribe('tracing:node-redis:command:start', onCommandStart);
       }
     }, GLOBAL.SERVERS.OPEN);
 

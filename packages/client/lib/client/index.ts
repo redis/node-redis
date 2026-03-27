@@ -1485,19 +1485,12 @@ export default class RedisClient<
         ];
 
         for (const { args } of commands) {
-          const traced = trace(CHANNELS.TRACE_COMMAND,
-            () => this._self.#queue.addCommand(args, {
+          promises.push(
+            this._self.#queue.addCommand(args, {
               chainId,
               typeMapping
-            }),
-            () => ({
-              ...this._self.#commandTraceContext(args),
-              batchMode: 'MULTI' as const,
-              batchSize
             })
           );
-          traced.catch(noop);
-          promises.push(traced);
         }
 
         promises.push(
