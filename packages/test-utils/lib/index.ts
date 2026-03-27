@@ -820,6 +820,7 @@ export default class TestUtils {
     }
 
     it(title, async function () {
+      if (options.skipTest) return this.skip();
       if (!dockersPromise) return this.skip();
 
       const dockers = await dockersPromise,
