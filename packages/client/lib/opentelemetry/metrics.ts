@@ -517,6 +517,15 @@ export class OTelMetrics {
     config?: ObservabilityConfig,
   ) {
     this.#options = this.parseOptions(config);
+
+    if (!this.#options.enabled) {
+      // No-op: don't register any instruments or subscribers
+      this.commandMetrics = { destroy() {} };
+      this.#channelSubscribers = { destroy() {} } as unknown as OTelChannelSubscribers;
+      this.#instruments = undefined as unknown as MetricInstruments;
+      return;
+    }
+
     const meter = this.#getMeter(api, this.#options);
     this.#instruments = this.registerInstruments(meter, this.#options);
 

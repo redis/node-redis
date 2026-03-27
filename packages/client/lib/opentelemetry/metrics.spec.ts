@@ -543,6 +543,8 @@ describe("OTel Metrics E2E", function () {
         config: {
           metrics: {
             enabled: false,
+            meterProvider,
+            enabledMetricGroups: ["command"],
           },
         },
       });
