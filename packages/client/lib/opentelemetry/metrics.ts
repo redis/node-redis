@@ -332,8 +332,6 @@ class OTelChannelSubscribers {
     const clientAttributes = resolveClientAttributes(clientId);
     const errorInfo = getErrorInfo(error);
 
-    if (isRedirectionError(errorInfo.statusCode)) return;
-
     this.#instruments.redisClientErrors.add(1, {
       ...this.#options.attributes,
       ...parseClientAttributes(clientAttributes),
@@ -350,7 +348,11 @@ class OTelChannelSubscribers {
 
   #subscribeResiliency() {
     // Cluster/internal errors via point-event channel
+    // Skip client-origin redirections (MOVED/ASK) — these are retried
+    // transparently by the cluster client and are not real errors.
+    // Cluster-origin redirections are recorded as they indicate slot migration.
     this.#sub(CHANNELS.ERROR, (ctx: any) => {
+      if (!ctx.internal && isRedirectionError(getErrorInfo(ctx.error).statusCode)) return;
       this.#recordError(ctx.error, ctx.clientId, {
         [OTEL_ATTRIBUTES.redisClientErrorsInternal]: ctx.internal,
         ...(ctx.retryCount !== undefined && {
@@ -363,6 +365,8 @@ class OTelChannelSubscribers {
     const commandTC = getTracingChannel(CHANNELS.TRACE_COMMAND);
     if (commandTC) {
       const onError = (ctx: any) => {
+        // Command TC errors are always client-origin — skip redirections
+        if (isRedirectionError(getErrorInfo(ctx.error).statusCode)) return;
         this.#recordError(ctx.error, ctx.clientId, {
           [OTEL_ATTRIBUTES.redisClientErrorsInternal]: false,
         });
