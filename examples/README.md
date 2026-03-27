@@ -14,6 +14,7 @@ This folder contains example scripts showing how to use Node Redis in different 
 | `cuckoo-filter.js`                       | Space efficient set membership checks with a [Cuckoo Filter](https://en.wikipedia.org/wiki/Cuckoo_filter) using [RedisBloom](https://redisbloom.io). |
 | `cas-cad-digest.js`                      | Atomic compare-and-set (CAS) and compare-and-delete (CAD) using digests for single-key optimistic concurrency control.                              |
 | `dump-and-restore.js`                    | Demonstrates the use of the [`DUMP`](https://redis.io/commands/dump/) and [`RESTORE`](https://redis.io/commands/restore/) commands                   |
+| `gcra-rate-limiting.js`                  | Demonstrates the [`GCRA`](https://redis.io/commands/gcra/) command for server-side rate limiting with optional weighted requests.                     |
 | `get-server-time.js`                     | Get the time from the Redis server.                                                                                                                  |
 | `hyperloglog.js`                         | Showing use of Hyperloglog commands [PFADD, PFCOUNT and PFMERGE](https://redis.io/commands/?group=hyperloglog).                                      |
 | `lua-multi-incr.js`                      | Define a custom lua script that allows you to perform INCRBY on multiple keys.                                                                       |
