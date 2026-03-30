@@ -58,12 +58,15 @@ export const transformDoubleReply = {
           case 'inf':
           case '+inf':
             ret = Infinity;
+            break;
 
           case '-inf':
             ret = -Infinity;
+            break;
 
           case 'nan':
             ret = NaN;
+            break;
 
           default:
             ret = Number(reply);
