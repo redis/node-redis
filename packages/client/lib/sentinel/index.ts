@@ -433,7 +433,7 @@ export default class RedisSentinel<
   >(overrides?: Partial<RedisSentinelOptions<_M, _F, _S, _RESP, _TYPE_MAPPING>>) {
     return new (Object.getPrototypeOf(this).constructor)({
       ...this._self.#options,
-      commandOptions: this._commandOptions,
+      commandOptions: this._self.#commandOptions,
       ...overrides
     }) as RedisSentinelType<_M, _F, _S, _RESP, _TYPE_MAPPING>;
   }
