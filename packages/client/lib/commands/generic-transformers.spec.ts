@@ -1,685 +1,762 @@
-// import { strict as assert } from 'node:assert';
-// import {
-//     transformBooleanReply,
-//     transformBooleanArrayReply,
-//     pushScanArguments,
-//     transformNumberInfinityReply,
-//     transformNumberInfinityNullReply,
-//     transformNumberInfinityArgument,
-//     transformStringNumberInfinityArgument,
-//     transformTuplesReply,
-//     transformStreamMessagesReply,
-//     transformStreamsMessagesReply,
-//     transformSortedSetWithScoresReply,
-//     pushGeoCountArgument,
-//     pushGeoSearchArguments,
-//     GeoReplyWith,
-//     transformGeoMembersWithReply,
-//     transformEXAT,
-//     transformPXAT,
-//     pushEvalArguments,
-//     pushVariadicArguments,
-//     pushVariadicNumberArguments,
-//     pushVariadicArgument,
-//     pushOptionalVariadicArgument,
-//     transformCommandReply,
-//     CommandFlags,
-//     CommandCategories,
-//     pushSlotRangesArguments
-// } from './generic-transformers';
+import { strict as assert } from 'node:assert';
+import { BasicCommandParser } from '../client/parser';
+import { pushScanArguments } from './SCAN';
+import { parseGeoSearchArguments, parseGeoSearchOptions } from './GEOSEARCH';
+import GEOSEARCH_WITH, { GEO_REPLY_WITH } from './GEOSEARCH_WITH';
+import {
+    transformBooleanReply as transformBooleanReplyTransformer,
+    transformBooleanArrayReply as transformBooleanArrayReplyTransformer,
+    transformDoubleReply,
+    transformNullableDoubleReply,
+    transformDoubleArgument,
+    transformStringDoubleArgument,
+    transformTuplesReply,
+    transformStreamMessagesReply,
+    transformStreamsMessagesReplyResp2,
+    transformSortedSetReply,
+    transformEXAT,
+    transformPXAT,
+    pushEvalArguments,
+    pushVariadicArguments,
+    pushVariadicNumberArguments,
+    pushVariadicArgument,
+    parseOptionalVariadicArgument,
+    transformCommandReply,
+    CommandFlags,
+    CommandCategories,
+    parseSlotRangesArguments
+} from './generic-transformers';
 
-// describe('Generic Transformers', () => {
-//     describe('transformBooleanReply', () => {
-//         it('0', () => {
-//             assert.equal(
-//                 transformBooleanReply(0),
-//                 false
-//             );
-//         });
+const transformBooleanReply = transformBooleanReplyTransformer[2];
+const transformBooleanArrayReply = transformBooleanArrayReplyTransformer[2];
+const transformNumberInfinityReply = transformDoubleReply[2];
+const transformNumberInfinityNullReply = transformNullableDoubleReply[2];
+const transformNumberInfinityArgument = transformDoubleArgument;
+const transformStringNumberInfinityArgument = transformStringDoubleArgument;
+const transformStreamsMessagesReply = transformStreamsMessagesReplyResp2;
+const transformSortedSetWithScoresReply = transformSortedSetReply[2];
+const GeoReplyWith = GEO_REPLY_WITH;
+const transformGeoMembersWithReply = GEOSEARCH_WITH.transformReply;
 
-//         it('1', () => {
-//             assert.equal(
-//                 transformBooleanReply(1),
-//                 true
-//             );
-//         });
-//     });
+function pushGeoCountArgument(
+    args: Array<string>,
+    count: number | {
+        value: number;
+        ANY?: boolean;
+    } | undefined
+) {
+    const parser = new BasicCommandParser();
+    parser.push(...args);
+    parseGeoSearchOptions(parser, count === undefined ? undefined : {
+        COUNT: count
+    });
+    return parser.redisArgs;
+}
 
-//     describe('transformBooleanArrayReply', () => {
-//         it('empty array', () => {
-//             assert.deepEqual(
-//                 transformBooleanArrayReply([]),
-//                 []
-//             );
-//         });
+function pushGeoSearchArguments(
+    args: Array<string>,
+    key: string,
+    from: string | {
+        longitude: number;
+        latitude: number;
+    },
+    by: {
+        radius: number;
+        unit: 'm' | 'km' | 'mi' | 'ft';
+    } | {
+        width: number;
+        height: number;
+        unit: 'm' | 'km' | 'mi' | 'ft';
+    },
+    options?: {
+        SORT?: 'ASC' | 'DESC';
+    }
+) {
+    const parser = new BasicCommandParser();
+    parser.push(...args);
+    parseGeoSearchArguments(parser, key, from, by, options);
+    return parser.redisArgs;
+}
 
-//         it('0, 1', () => {
-//             assert.deepEqual(
-//                 transformBooleanArrayReply([0, 1]),
-//                 [false, true]
-//             );
-//         });
-//     });
+function pushOptionalVariadicArgument(
+    args: Array<string>,
+    name: string,
+    value: string | Array<string> | undefined
+) {
+    const parser = new BasicCommandParser();
+    parser.push(...args);
+    parseOptionalVariadicArgument(parser, name, value);
+    return parser.redisArgs;
+}
 
-//     describe('pushScanArguments', () => {
-//         it('cusror only', () => {
-//             assert.deepEqual(
-//                 pushScanArguments([], 0),
-//                 ['0']
-//             );
-//         });
+function pushSlotRangesArguments(
+    args: Array<string>,
+    ranges: {
+        start: number;
+        end: number;
+    } | Array<{
+        start: number;
+        end: number;
+    }>
+) {
+    const parser = new BasicCommandParser();
+    parser.push(...args);
+    parseSlotRangesArguments(parser, ranges);
+    return parser.redisArgs;
+}
 
-//         it('with MATCH', () => {
-//             assert.deepEqual(
-//                 pushScanArguments([], 0, {
-//                     MATCH: 'pattern'
-//                 }),
-//                 ['0', 'MATCH', 'pattern']
-//             );
-//         });
+describe('Generic Transformers', () => {
+    describe('transformBooleanReply', () => {
+        it('0', () => {
+            assert.equal(
+                transformBooleanReply(0),
+                false
+            );
+        });
 
-//         it('with COUNT', () => {
-//             assert.deepEqual(
-//                 pushScanArguments([], 0, {
-//                     COUNT: 1
-//                 }),
-//                 ['0', 'COUNT', '1']
-//             );
-//         });
+        it('1', () => {
+            assert.equal(
+                transformBooleanReply(1),
+                true
+            );
+        });
+    });
 
-//         it('with MATCH & COUNT', () => {
-//             assert.deepEqual(
-//                 pushScanArguments([], 0, {
-//                     MATCH: 'pattern',
-//                     COUNT: 1
-//                 }),
-//                 ['0', 'MATCH', 'pattern', 'COUNT', '1']
-//             );
-//         });
-//     });
+    describe('transformBooleanArrayReply', () => {
+        it('empty array', () => {
+            assert.deepEqual(
+                transformBooleanArrayReply([]),
+                []
+            );
+        });
 
-//     describe('transformNumberInfinityReply', () => {
-//         it('0.5', () => {
-//             assert.equal(
-//                 transformNumberInfinityReply('0.5'),
-//                 0.5
-//             );
-//         });
+        it('0, 1', () => {
+            assert.deepEqual(
+                transformBooleanArrayReply([0, 1]),
+                [false, true]
+            );
+        });
+    });
 
-//         it('+inf', () => {
-//             assert.equal(
-//                 transformNumberInfinityReply('+inf'),
-//                 Infinity
-//             );
-//         });
+    describe('pushScanArguments', () => {
+        it('cusror only', () => {
+            assert.deepEqual(
+                pushScanArguments([], 0),
+                ['0']
+            );
+        });
 
-//         it('-inf', () => {
-//             assert.equal(
-//                 transformNumberInfinityReply('-inf'),
-//                 -Infinity
-//             );
-//         });
-//     });
+        it('with MATCH', () => {
+            assert.deepEqual(
+                pushScanArguments([], 0, {
+                    MATCH: 'pattern'
+                }),
+                ['0', 'MATCH', 'pattern']
+            );
+        });
 
-//     describe('transformNumberInfinityNullReply', () => {
-//         it('null', () => {
-//             assert.equal(
-//                 transformNumberInfinityNullReply(null),
-//                 null
-//             );
-//         });
+        it('with COUNT', () => {
+            assert.deepEqual(
+                pushScanArguments([], 0, {
+                    COUNT: 1
+                }),
+                ['0', 'COUNT', '1']
+            );
+        });
 
-//         it('1', () => {
-//             assert.equal(
-//                 transformNumberInfinityNullReply('1'),
-//                 1
-//             );
-//         });
-//     });
+        it('with MATCH & COUNT', () => {
+            assert.deepEqual(
+                pushScanArguments([], 0, {
+                    MATCH: 'pattern',
+                    COUNT: 1
+                }),
+                ['0', 'MATCH', 'pattern', 'COUNT', '1']
+            );
+        });
+    });
 
-//     describe('transformNumberInfinityArgument', () => {
-//         it('0.5', () => {
-//             assert.equal(
-//                 transformNumberInfinityArgument(0.5),
-//                 '0.5'
-//             );
-//         });
+    describe('transformNumberInfinityReply', () => {
+        it('0.5', () => {
+            assert.equal(
+                transformNumberInfinityReply('0.5'),
+                0.5
+            );
+        });
 
-//         it('Infinity', () => {
-//             assert.equal(
-//                 transformNumberInfinityArgument(Infinity),
-//                 '+inf'
-//             );
-//         });
+        it('+inf', () => {
+            assert.equal(
+                transformNumberInfinityReply('+inf'),
+                Infinity
+            );
+        });
 
-//         it('-Infinity', () => {
-//             assert.equal(
-//                 transformNumberInfinityArgument(-Infinity),
-//                 '-inf'
-//             );
-//         });
-//     });
+        it('-inf', () => {
+            assert.equal(
+                transformNumberInfinityReply('-inf'),
+                -Infinity
+            );
+        });
+    });
 
-//     describe('transformStringNumberInfinityArgument', () => {
-//         it("'0.5'", () => {
-//             assert.equal(
-//                 transformStringNumberInfinityArgument('0.5'),
-//                 '0.5'
-//             );
-//         });
+    describe('transformNumberInfinityNullReply', () => {
+        it('null', () => {
+            assert.equal(
+                transformNumberInfinityNullReply(null),
+                null
+            );
+        });
 
-//         it('0.5', () => {
-//             assert.equal(
-//                 transformStringNumberInfinityArgument(0.5),
-//                 '0.5'
-//             );
-//         });
-//     });
+        it('1', () => {
+            assert.equal(
+                transformNumberInfinityNullReply('1'),
+                1
+            );
+        });
+    });
 
-//     it('transformTuplesReply', () => {
-//         assert.deepEqual(
-//             transformTuplesReply(['key1', 'value1', 'key2', 'value2']),
-//             Object.create(null, {
-//                 key1: {
-//                     value: 'value1',
-//                     configurable: true,
-//                     enumerable: true
-//                 },
-//                 key2: {
-//                     value: 'value2',
-//                     configurable: true,
-//                     enumerable: true
-//                 }
-//             })
-//         );
-//     });
+    describe('transformNumberInfinityArgument', () => {
+        it('0.5', () => {
+            assert.equal(
+                transformNumberInfinityArgument(0.5),
+                '0.5'
+            );
+        });
 
-//     it('transformStreamMessagesReply', () => {
-//         assert.deepEqual(
-//             transformStreamMessagesReply([['0-0', ['0key', '0value']], ['1-0', ['1key', '1value']]]),
-//             [{
-//                 id: '0-0',
-//                 message: Object.create(null, {
-//                     '0key': {
-//                         value: '0value',
-//                         configurable: true,
-//                         enumerable: true
-//                     }
-//                 })
-//             }, {
-//                 id: '1-0',
-//                 message: Object.create(null, {
-//                     '1key': {
-//                         value: '1value',
-//                         configurable: true,
-//                         enumerable: true
-//                     }
-//                 })
-//             }]
-//         );
-//     });
+        it('Infinity', () => {
+            assert.equal(
+                transformNumberInfinityArgument(Infinity),
+                '+inf'
+            );
+        });
 
-//     describe('transformStreamsMessagesReply', () => {
-//         it('null', () => {
-//             assert.equal(
-//                 transformStreamsMessagesReply(null),
-//                 null
-//             );
-//         });
+        it('-Infinity', () => {
+            assert.equal(
+                transformNumberInfinityArgument(-Infinity),
+                '-inf'
+            );
+        });
+    });
 
-//         it('with messages', () => {
-//             assert.deepEqual(
-//                 transformStreamsMessagesReply([['stream1', [['0-1', ['11key', '11value']], ['1-1', ['12key', '12value']]]], ['stream2', [['0-2', ['2key1', '2value1', '2key2', '2value2']]]]]),
-//                 [{
-//                     name: 'stream1',
-//                     messages: [{
-//                         id: '0-1',
-//                         message: Object.create(null, {
-//                             '11key': {
-//                                 value: '11value',
-//                                 configurable: true,
-//                                 enumerable: true
-//                             }
-//                         })
-//                     }, {
-//                         id: '1-1',
-//                         message: Object.create(null, {
-//                             '12key': {
-//                                 value: '12value',
-//                                 configurable: true,
-//                                 enumerable: true
-//                             }
-//                         })
-//                     }]
-//                 }, {
-//                     name: 'stream2',
-//                     messages: [{
-//                         id: '0-2',
-//                         message: Object.create(null, {
-//                             '2key1': {
-//                                 value: '2value1',
-//                                 configurable: true,
-//                                 enumerable: true
-//                             },
-//                             '2key2': {
-//                                 value: '2value2',
-//                                 configurable: true,
-//                                 enumerable: true
-//                             }
-//                         })
-//                     }]
-//                 }]
-//             );
-//         });
-//     });
+    describe('transformStringNumberInfinityArgument', () => {
+        it("'0.5'", () => {
+            assert.equal(
+                transformStringNumberInfinityArgument('0.5'),
+                '0.5'
+            );
+        });
 
-//     it('transformSortedSetWithScoresReply', () => {
-//         assert.deepEqual(
-//             transformSortedSetWithScoresReply(['member1', '0.5', 'member2', '+inf', 'member3', '-inf']),
-//             [{
-//                 value: 'member1',
-//                 score: 0.5
-//             }, {
-//                 value: 'member2',
-//                 score: Infinity
-//             }, {
-//                 value: 'member3',
-//                 score: -Infinity
-//             }]
-//         );
-//     });
+        it('0.5', () => {
+            assert.equal(
+                transformStringNumberInfinityArgument(0.5),
+                '0.5'
+            );
+        });
+    });
 
-//     describe('pushGeoCountArgument', () => {
-//         it('undefined', () => {
-//             assert.deepEqual(
-//                 pushGeoCountArgument([], undefined),
-//                 []
-//             );
-//         });
+    it('transformTuplesReply', () => {
+        assert.deepEqual(
+            transformTuplesReply(['key1', 'value1', 'key2', 'value2']),
+            Object.create(null, {
+                key1: {
+                    value: 'value1',
+                    configurable: true,
+                    enumerable: true
+                },
+                key2: {
+                    value: 'value2',
+                    configurable: true,
+                    enumerable: true
+                }
+            })
+        );
+    });
 
-//         it('number', () => {
-//             assert.deepEqual(
-//                 pushGeoCountArgument([], 1),
-//                 ['COUNT', '1']
-//             );
-//         });
+    it('transformStreamMessagesReply', () => {
+        assert.deepEqual(
+            transformStreamMessagesReply([['0-0', ['0key', '0value']], ['1-0', ['1key', '1value']]]),
+            [{
+                id: '0-0',
+                message: Object.create(null, {
+                    '0key': {
+                        value: '0value',
+                        configurable: true,
+                        enumerable: true
+                    }
+                })
+            }, {
+                id: '1-0',
+                message: Object.create(null, {
+                    '1key': {
+                        value: '1value',
+                        configurable: true,
+                        enumerable: true
+                    }
+                })
+            }]
+        );
+    });
 
-//         describe('with COUNT', () => {
-//             it('number', () => {
-//                 assert.deepEqual(
-//                     pushGeoCountArgument([], 1),
-//                     ['COUNT', '1']
-//                 );
-//             });
+    describe('transformStreamsMessagesReply', () => {
+        it('null', () => {
+            assert.equal(
+                transformStreamsMessagesReply(null),
+                null
+            );
+        });
 
-//             describe('object', () => {
-//                 it('value', () => {
-//                     assert.deepEqual(
-//                         pushGeoCountArgument([], { value: 1 }),
-//                         ['COUNT', '1']
-//                     );
-//                 });
+        it('with messages', () => {
+            assert.deepEqual(
+                transformStreamsMessagesReply([['stream1', [['0-1', ['11key', '11value']], ['1-1', ['12key', '12value']]]], ['stream2', [['0-2', ['2key1', '2value1', '2key2', '2value2']]]]]),
+                [{
+                    name: 'stream1',
+                    messages: [{
+                        id: '0-1',
+                        message: Object.create(null, {
+                            '11key': {
+                                value: '11value',
+                                configurable: true,
+                                enumerable: true
+                            }
+                        })
+                    }, {
+                        id: '1-1',
+                        message: Object.create(null, {
+                            '12key': {
+                                value: '12value',
+                                configurable: true,
+                                enumerable: true
+                            }
+                        })
+                    }]
+                }, {
+                    name: 'stream2',
+                    messages: [{
+                        id: '0-2',
+                        message: Object.create(null, {
+                            '2key1': {
+                                value: '2value1',
+                                configurable: true,
+                                enumerable: true
+                            },
+                            '2key2': {
+                                value: '2value2',
+                                configurable: true,
+                                enumerable: true
+                            }
+                        })
+                    }]
+                }]
+            );
+        });
+    });
 
-//                 it('value, ANY', () => {
-//                     assert.deepEqual(
-//                         pushGeoCountArgument([], {
-//                             value: 1,
-//                             ANY: true
-//                         }),
-//                         ['COUNT', '1', 'ANY']
-//                     );
-//                 });
-//             });
-//         });
-//     });
+    it('transformSortedSetWithScoresReply', () => {
+        assert.deepEqual(
+            transformSortedSetWithScoresReply(['member1', '0.5', 'member2', '+inf', 'member3', '-inf']),
+            [{
+                value: 'member1',
+                score: 0.5
+            }, {
+                value: 'member2',
+                score: Infinity
+            }, {
+                value: 'member3',
+                score: -Infinity
+            }]
+        );
+    });
 
-//     describe('pushGeoSearchArguments', () => {
-//         it('FROMMEMBER, BYRADIUS', () => {
-//             assert.deepEqual(
-//                 pushGeoSearchArguments([], 'key', 'member', {
-//                     radius: 1,
-//                     unit: 'm'
-//                 }),
-//                 ['key', 'FROMMEMBER', 'member', 'BYRADIUS', '1', 'm']
-//             );
-//         });
+    describe('pushGeoCountArgument', () => {
+        it('undefined', () => {
+            assert.deepEqual(
+                pushGeoCountArgument([], undefined),
+                []
+            );
+        });
 
-//         it('FROMLONLAT, BYBOX', () => {
-//             assert.deepEqual(
-//                 pushGeoSearchArguments([], 'key', {
-//                     longitude: 1,
-//                     latitude: 2
-//                 }, {
-//                     width: 1,
-//                     height: 2,
-//                     unit: 'm'
-//                 }),
-//                 ['key', 'FROMLONLAT', '1', '2', 'BYBOX', '1', '2', 'm']
-//             );
-//         });
+        it('number', () => {
+            assert.deepEqual(
+                pushGeoCountArgument([], 1),
+                ['COUNT', '1']
+            );
+        });
 
-//         it('with SORT', () => {
-//             assert.deepEqual(
-//                 pushGeoSearchArguments([], 'key', 'member', {
-//                     radius: 1,
-//                     unit: 'm'
-//                 }, {
-//                     SORT: 'ASC'
-//                 }),
-//                 ['key', 'FROMMEMBER', 'member', 'BYRADIUS', '1', 'm', 'ASC']
-//             );
-//         });
-//     });
+        describe('with COUNT', () => {
+            it('number', () => {
+                assert.deepEqual(
+                    pushGeoCountArgument([], 1),
+                    ['COUNT', '1']
+                );
+            });
 
-//     describe('transformGeoMembersWithReply', () => {
-//         it('DISTANCE', () => {
-//             assert.deepEqual(
-//                 transformGeoMembersWithReply([
-//                     [
-//                         '1',
-//                         '2'
-//                     ],
-//                     [
-//                         '3',
-//                         '4'
-//                     ]
-//                 ], [GeoReplyWith.DISTANCE]),
-//                 [{
-//                     member: '1',
-//                     distance: '2'
-//                 }, {
-//                     member: '3',
-//                     distance: '4'
-//                 }]
-//             );
-//         });
+            describe('object', () => {
+                it('value', () => {
+                    assert.deepEqual(
+                        pushGeoCountArgument([], { value: 1 }),
+                        ['COUNT', '1']
+                    );
+                });
 
-//         it('HASH', () => {
-//             assert.deepEqual(
-//                 transformGeoMembersWithReply([
-//                     [
-//                         '1',
-//                         2
-//                     ],
-//                     [
-//                         '3',
-//                         4
-//                     ]
-//                 ], [GeoReplyWith.HASH]),
-//                 [{
-//                     member: '1',
-//                     hash: 2
-//                 }, {
-//                     member: '3',
-//                     hash: 4
-//                 }]
-//             );
-//         });
+                it('value, ANY', () => {
+                    assert.deepEqual(
+                        pushGeoCountArgument([], {
+                            value: 1,
+                            ANY: true
+                        }),
+                        ['COUNT', '1', 'ANY']
+                    );
+                });
+            });
+        });
+    });
 
-//         it('COORDINATES', () => {
-//             assert.deepEqual(
-//                 transformGeoMembersWithReply([
-//                     [
-//                         '1',
-//                         [
-//                             '2',
-//                             '3'
-//                         ]
-//                     ],
-//                     [
-//                         '4',
-//                         [
-//                             '5',
-//                             '6'
-//                         ]
-//                     ]
-//                 ], [GeoReplyWith.COORDINATES]),
-//                 [{
-//                     member: '1',
-//                     coordinates: {
-//                         longitude: '2',
-//                         latitude: '3'
-//                     }
-//                 }, {
-//                     member: '4',
-//                     coordinates: {
-//                         longitude: '5',
-//                         latitude: '6'
-//                     }
-//                 }]
-//             );
-//         });
+    describe('pushGeoSearchArguments', () => {
+        it('FROMMEMBER, BYRADIUS', () => {
+            assert.deepEqual(
+                pushGeoSearchArguments([], 'key', 'member', {
+                    radius: 1,
+                    unit: 'm'
+                }),
+                ['key', 'FROMMEMBER', 'member', 'BYRADIUS', '1', 'm']
+            );
+        });
 
-//         it('DISTANCE, HASH, COORDINATES', () => {
-//             assert.deepEqual(
-//                 transformGeoMembersWithReply([
-//                     [
-//                         '1',
-//                         '2',
-//                         3,
-//                         [
-//                             '4',
-//                             '5'
-//                         ]
-//                     ],
-//                     [
-//                         '6',
-//                         '7',
-//                         8,
-//                         [
-//                             '9',
-//                             '10'
-//                         ]
-//                     ]
-//                 ], [GeoReplyWith.DISTANCE, GeoReplyWith.HASH, GeoReplyWith.COORDINATES]),
-//                 [{
-//                     member: '1',
-//                     distance: '2',
-//                     hash: 3,
-//                     coordinates: {
-//                         longitude: '4',
-//                         latitude: '5'
-//                     }
-//                 }, {
-//                     member: '6',
-//                     distance: '7',
-//                     hash: 8,
-//                     coordinates: {
-//                         longitude: '9',
-//                         latitude: '10'
-//                     }
-//                 }]
-//             );
-//         });
-//     });
+        it('FROMLONLAT, BYBOX', () => {
+            assert.deepEqual(
+                pushGeoSearchArguments([], 'key', {
+                    longitude: 1,
+                    latitude: 2
+                }, {
+                    width: 1,
+                    height: 2,
+                    unit: 'm'
+                }),
+                ['key', 'FROMLONLAT', '1', '2', 'BYBOX', '1', '2', 'm']
+            );
+        });
 
-//     describe('transformEXAT', () => {
-//         it('number', () => {
-//             assert.equal(
-//                 transformEXAT(1),
-//                 '1'
-//             );
-//         });
+        it('with SORT', () => {
+            assert.deepEqual(
+                pushGeoSearchArguments([], 'key', 'member', {
+                    radius: 1,
+                    unit: 'm'
+                }, {
+                    SORT: 'ASC'
+                }),
+                ['key', 'FROMMEMBER', 'member', 'BYRADIUS', '1', 'm', 'ASC']
+            );
+        });
+    });
 
-//         it('date', () => {
-//             const d = new Date();
-//             assert.equal(
-//                 transformEXAT(d),
-//                 Math.floor(d.getTime() / 1000).toString()
-//             );
-//         });
-//     });
+    describe('transformGeoMembersWithReply', () => {
+        it('DISTANCE', () => {
+            assert.deepEqual(
+                transformGeoMembersWithReply([
+                    [
+                        '1',
+                        '2'
+                    ],
+                    [
+                        '3',
+                        '4'
+                    ]
+                ], [GeoReplyWith.DISTANCE]),
+                [{
+                    member: '1',
+                    distance: '2'
+                }, {
+                    member: '3',
+                    distance: '4'
+                }]
+            );
+        });
 
-//     describe('transformPXAT', () => {
-//         it('number', () => {
-//             assert.equal(
-//                 transformPXAT(1),
-//                 '1'
-//             );
-//         });
+        it('HASH', () => {
+            assert.deepEqual(
+                transformGeoMembersWithReply([
+                    [
+                        '1',
+                        2
+                    ],
+                    [
+                        '3',
+                        4
+                    ]
+                ], [GeoReplyWith.HASH]),
+                [{
+                    member: '1',
+                    hash: 2
+                }, {
+                    member: '3',
+                    hash: 4
+                }]
+            );
+        });
 
-//         it('date', () => {
-//             const d = new Date();
-//             assert.equal(
-//                 transformPXAT(d),
-//                 d.getTime().toString()
-//             );
-//         });
-//     });
+        it('COORDINATES', () => {
+            assert.deepEqual(
+                transformGeoMembersWithReply([
+                    [
+                        '1',
+                        [
+                            '2',
+                            '3'
+                        ]
+                    ],
+                    [
+                        '4',
+                        [
+                            '5',
+                            '6'
+                        ]
+                    ]
+                ], [GeoReplyWith.COORDINATES]),
+                [{
+                    member: '1',
+                    coordinates: {
+                        longitude: '2',
+                        latitude: '3'
+                    }
+                }, {
+                    member: '4',
+                    coordinates: {
+                        longitude: '5',
+                        latitude: '6'
+                    }
+                }]
+            );
+        });
 
-//     describe('pushEvalArguments', () => {
-//         it('empty', () => {
-//             assert.deepEqual(
-//                 pushEvalArguments([]),
-//                 ['0']
-//             );
-//         });
+        it('DISTANCE, HASH, COORDINATES', () => {
+            assert.deepEqual(
+                transformGeoMembersWithReply([
+                    [
+                        '1',
+                        '2',
+                        3,
+                        [
+                            '4',
+                            '5'
+                        ]
+                    ],
+                    [
+                        '6',
+                        '7',
+                        8,
+                        [
+                            '9',
+                            '10'
+                        ]
+                    ]
+                ], [GeoReplyWith.DISTANCE, GeoReplyWith.HASH, GeoReplyWith.COORDINATES]),
+                [{
+                    member: '1',
+                    distance: '2',
+                    hash: 3,
+                    coordinates: {
+                        longitude: '4',
+                        latitude: '5'
+                    }
+                }, {
+                    member: '6',
+                    distance: '7',
+                    hash: 8,
+                    coordinates: {
+                        longitude: '9',
+                        latitude: '10'
+                    }
+                }]
+            );
+        });
+    });
 
-//         it('with keys', () => {
-//             assert.deepEqual(
-//                 pushEvalArguments([], {
-//                     keys: ['key']
-//                 }),
-//                 ['1', 'key']
-//             );
-//         });
+    describe('transformEXAT', () => {
+        it('number', () => {
+            assert.equal(
+                transformEXAT(1),
+                '1'
+            );
+        });
 
-//         it('with arguments', () => {
-//             assert.deepEqual(
-//                 pushEvalArguments([], {
-//                     arguments: ['argument']
-//                 }),
-//                 ['0', 'argument']
-//             );
-//         });
+        it('date', () => {
+            const d = new Date();
+            assert.equal(
+                transformEXAT(d),
+                Math.floor(d.getTime() / 1000).toString()
+            );
+        });
+    });
 
-//         it('with keys and arguments', () => {
-//             assert.deepEqual(
-//                 pushEvalArguments([], {
-//                     keys: ['key'],
-//                     arguments: ['argument']
-//                 }),
-//                 ['1', 'key', 'argument']
-//             );
-//         });
-//     });
+    describe('transformPXAT', () => {
+        it('number', () => {
+            assert.equal(
+                transformPXAT(1),
+                '1'
+            );
+        });
 
-//     describe('pushVariadicArguments', () => {
-//         it('string', () => {
-//             assert.deepEqual(
-//                 pushVariadicArguments([], 'string'),
-//                 ['string']
-//             );
-//         });
+        it('date', () => {
+            const d = new Date();
+            assert.equal(
+                transformPXAT(d),
+                d.getTime().toString()
+            );
+        });
+    });
 
-//         it('array', () => {
-//             assert.deepEqual(
-//                 pushVariadicArguments([], ['1', '2']),
-//                 ['1', '2']
-//             );
-//         });
-//     });
+    describe('pushEvalArguments', () => {
+        it('empty', () => {
+            assert.deepEqual(
+                pushEvalArguments([]),
+                ['0']
+            );
+        });
 
-//     describe('pushVariadicNumberArguments', () => {
-//         it('number', () => {
-//             assert.deepEqual(
-//                 pushVariadicNumberArguments([], 0),
-//                 ['0']
-//             );
-//         });
+        it('with keys', () => {
+            assert.deepEqual(
+                pushEvalArguments([], {
+                    keys: ['key']
+                }),
+                ['1', 'key']
+            );
+        });
 
-//         it('array', () => {
-//             assert.deepEqual(
-//                 pushVariadicNumberArguments([], [0, 1]),
-//                 ['0', '1']
-//             );
-//         });
-//     });
+        it('with arguments', () => {
+            assert.deepEqual(
+                pushEvalArguments([], {
+                    arguments: ['argument']
+                }),
+                ['0', 'argument']
+            );
+        });
 
-//     describe('pushVariadicArgument', () => {
-//         it('string', () => {
-//             assert.deepEqual(
-//                 pushVariadicArgument([], 'string'),
-//                 ['1', 'string']
-//             );
-//         });
+        it('with keys and arguments', () => {
+            assert.deepEqual(
+                pushEvalArguments([], {
+                    keys: ['key'],
+                    arguments: ['argument']
+                }),
+                ['1', 'key', 'argument']
+            );
+        });
+    });
 
-//         it('array', () => {
-//             assert.deepEqual(
-//                 pushVariadicArgument([], ['1', '2']),
-//                 ['2', '1', '2']
-//             );
-//         });
-//     });
+    describe('pushVariadicArguments', () => {
+        it('string', () => {
+            assert.deepEqual(
+                pushVariadicArguments([], 'string'),
+                ['string']
+            );
+        });
 
-//     describe('pushOptionalVariadicArgument', () => {
-//         it('undefined', () => {
-//             assert.deepEqual(
-//                 pushOptionalVariadicArgument([], 'name', undefined),
-//                 []
-//             );
-//         });
+        it('array', () => {
+            assert.deepEqual(
+                pushVariadicArguments([], ['1', '2']),
+                ['1', '2']
+            );
+        });
+    });
 
-//         it('string', () => {
-//             assert.deepEqual(
-//                 pushOptionalVariadicArgument([], 'name', 'string'),
-//                 ['name', '1', 'string']
-//             );
-//         });
+    describe('pushVariadicNumberArguments', () => {
+        it('number', () => {
+            assert.deepEqual(
+                pushVariadicNumberArguments([], 0),
+                ['0']
+            );
+        });
 
-//         it('array', () => {
-//             assert.deepEqual(
-//                 pushOptionalVariadicArgument([], 'name', ['1', '2']),
-//                 ['name', '2', '1', '2']
-//             );
-//         });
-//     });
+        it('array', () => {
+            assert.deepEqual(
+                pushVariadicNumberArguments([], [0, 1]),
+                ['0', '1']
+            );
+        });
+    });
 
-//     it('transformCommandReply', () => {
-//         assert.deepEqual(
-//             transformCommandReply([
-//                 'ping',
-//                 -1,
-//                 [CommandFlags.STALE, CommandFlags.FAST],
-//                 0,
-//                 0,
-//                 0,
-//                 [CommandCategories.FAST, CommandCategories.CONNECTION]
-//             ]),
-//             {
-//                 name: 'ping',
-//                 arity: -1,
-//                 flags: new Set([CommandFlags.STALE, CommandFlags.FAST]),
-//                 firstKeyIndex: 0,
-//                 lastKeyIndex: 0,
-//                 step: 0,
-//                 categories: new Set([CommandCategories.FAST, CommandCategories.CONNECTION])
-//             }
-//         );
-//     });
+    describe('pushVariadicArgument', () => {
+        it('string', () => {
+            assert.deepEqual(
+                pushVariadicArgument([], 'string'),
+                ['1', 'string']
+            );
+        });
 
-//     describe('pushSlotRangesArguments', () => {
-//         it('single range', () => {
-//             assert.deepEqual(
-//                 pushSlotRangesArguments([], {
-//                     start: 0,
-//                     end: 1
-//                 }),
-//                 ['0', '1']
-//             );
-//         });
+        it('array', () => {
+            assert.deepEqual(
+                pushVariadicArgument([], ['1', '2']),
+                ['2', '1', '2']
+            );
+        });
+    });
 
-//         it('multiple ranges', () => {
-//             assert.deepEqual(
-//                 pushSlotRangesArguments([], [{
-//                     start: 0,
-//                     end: 1
-//                 }, {
-//                     start: 2,
-//                     end: 3
-//                 }]),
-//                 ['0', '1', '2', '3']
-//             );
-//         });
-//     });
-// });
+    describe('pushOptionalVariadicArgument', () => {
+        it('undefined', () => {
+            assert.deepEqual(
+                pushOptionalVariadicArgument([], 'name', undefined),
+                []
+            );
+        });
+
+        it('string', () => {
+            assert.deepEqual(
+                pushOptionalVariadicArgument([], 'name', 'string'),
+                ['name', '1', 'string']
+            );
+        });
+
+        it('array', () => {
+            assert.deepEqual(
+                pushOptionalVariadicArgument([], 'name', ['1', '2']),
+                ['name', '2', '1', '2']
+            );
+        });
+    });
+
+    it('transformCommandReply', () => {
+        assert.deepEqual(
+            transformCommandReply([
+                'ping',
+                -1,
+                [CommandFlags.STALE, CommandFlags.FAST],
+                0,
+                0,
+                0,
+                [CommandCategories.FAST, CommandCategories.CONNECTION]
+            ]),
+            {
+                name: 'ping',
+                arity: -1,
+                flags: new Set([CommandFlags.STALE, CommandFlags.FAST]),
+                firstKeyIndex: 0,
+                lastKeyIndex: 0,
+                step: 0,
+                categories: new Set([CommandCategories.FAST, CommandCategories.CONNECTION])
+            }
+        );
+    });
+
+    describe('pushSlotRangesArguments', () => {
+        it('single range', () => {
+            assert.deepEqual(
+                pushSlotRangesArguments([], {
+                    start: 0,
+                    end: 1
+                }),
+                ['0', '1']
+            );
+        });
+
+        it('multiple ranges', () => {
+            assert.deepEqual(
+                pushSlotRangesArguments([], [{
+                    start: 0,
+                    end: 1
+                }, {
+                    start: 2,
+                    end: 3
+                }]),
+                ['0', '1', '2', '3']
+            );
+        });
+    });
+});
