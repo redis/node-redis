@@ -1,4 +1,5 @@
 import { strict as assert } from 'node:assert';
+import testUtils, { GLOBAL } from '../test-utils';
 import EVALSHA from './EVALSHA';
 import { parseArgs } from './generic-transformers';
 
@@ -12,4 +13,13 @@ describe('EVALSHA', () => {
       ['EVALSHA', 'sha1', '1', 'key', 'argument']
     );
   });
+
+  testUtils.testWithClient('client.evalSha', async client => {
+    const sha1 = await client.scriptLoad('return 1');
+
+    assert.equal(
+      await client.evalSha(sha1),
+      1
+    );
+  }, GLOBAL.SERVERS.OPEN);
 });
