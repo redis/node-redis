@@ -53,5 +53,17 @@ describe('JSON.GET', () => {
     assert(typeof res === 'object' && res !== null && 'birthday' in res && res.birthday instanceof Date && res.birthday.getTime() === new Date('1998-02-12').getTime());
 
   }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.multi().json.get with reviver', async client => {
+    assert.equal(
+      (await client.multi().json.get('key',{ reviver: ()=>{ assert.fail() } }).exec())[0],
+      null
+    );
+
+    await client.json.set('noderedis:users:1', '$', { name: 'Alice', birthday: new Date('1998-02-12') });
+    const res = (await client.multi().json.get('noderedis:users:1', { reviver: (key, value) => { if (key === 'birthday') return new Date(value); else return value; } }).exec())[0];
+    assert(typeof res === 'object' && res !== null && 'birthday' in res && res.birthday instanceof Date && res.birthday.getTime() === new Date('1998-02-12').getTime());
+
+  }, GLOBAL.SERVERS.OPEN);
   
 });
