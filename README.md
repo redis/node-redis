@@ -353,6 +353,10 @@ For SDK/provider/exporter setup, verification, and advanced configuration, see:
 - [OpenTelemetry Metrics docs](./docs/otel-metrics.md)
 - [OpenTelemetry Metrics example](./examples/otel-metrics.js)
 
+### Diagnostics Channel
+
+Node Redis publishes telemetry through Node.js [`diagnostics_channel`](https://nodejs.org/api/diagnostics_channel.html), enabling APM tools and custom instrumentation to observe commands, connections, and internal events. See the [Diagnostics Channel guide](./docs/diagnostics-channel.md) for the full channel reference and usage examples.
+
 ### Events
 
 The Node Redis client class is an Nodejs EventEmitter and it emits an event each time the network status changes:
