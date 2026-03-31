@@ -2,6 +2,7 @@ import { NON_STICKY_COMMANDS } from '../commands';
 import { Command, CommandSignature, RedisArgument, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
 import RedisClient, { RedisClientType, RedisClientOptions, WithModules, WithFunctions, WithScripts } from '.';
 import { EventEmitter } from 'node:events';
+import { performance } from 'node:perf_hooks';
 import { DoublyLinkedNode, DoublyLinkedList, SinglyLinkedList } from './linked-list';
 import { ClientClosedError, TimeoutError } from '../errors';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
@@ -11,10 +12,8 @@ import { BasicPooledClientSideCache, ClientSideCacheConfig, PooledClientSideCach
 import { BasicCommandParser } from './parser';
 import SingleEntryCache from '../single-entry-cache';
 import { MULTI_MODE, MultiMode } from '../multi-command';
-import { trace, CHANNELS } from './tracing';
+import { publish, CHANNELS } from './tracing';
 import { ClientIdentity, ClientRole, generateClientId } from './identity';
-
-const noop = () => {};
 
 export interface RedisPoolOptions {
   /**
@@ -251,8 +250,7 @@ export class RedisClientPool<
     resolve: (value: unknown) => unknown;
     reject: (reason?: unknown) => unknown;
     fn: PoolTask<M, F, S, RESP, TYPE_MAPPING>;
-    resolveWait: () => void;
-    rejectWait: (err: Error) => void;
+    waitStartTimestamp: number;
   }>();
 
   /**
@@ -440,24 +438,16 @@ export class RedisClientPool<
         return reject(new ClientClosedError());
       }
 
+      const waitStartTimestamp = performance.now();
       const client = this._self.#idleClients.shift(),
         { tail } = this._self.#tasksQueue;
       if (!client) {
-        let resolveWait: () => void;
-        let rejectWait: (err: Error) => void;
-        trace(CHANNELS.TRACE_CONNECTION_WAIT,
-          () => new Promise<void>((res, rej) => { resolveWait = res; rejectWait = rej; }),
-          () => ({})
-        ).catch(noop);
-
         let timeout;
         if (this._self.#options.acquireTimeout > 0) {
           timeout = setTimeout(
             () => {
               this._self.#tasksQueue.remove(task, tail);
-              const err = new TimeoutError('Timeout waiting for a client');
-              rejectWait!(err);
-              reject(err); // TODO: message
+              reject(new TimeoutError('Timeout waiting for a client')); // TODO: message
             },
             this._self.#options.acquireTimeout
           );
@@ -469,8 +459,7 @@ export class RedisClientPool<
           resolve,
           reject,
           fn,
-          resolveWait: resolveWait!,
-          rejectWait: rejectWait!,
+          waitStartTimestamp,
         });
 
         if (this.totalClients < this._self.#options.maximum) {
@@ -481,11 +470,7 @@ export class RedisClientPool<
       }
 
       const node = this._self.#clientsInUse.push(client);
-      // Client available immediately, record 0ms wait
-      trace(CHANNELS.TRACE_CONNECTION_WAIT,
-        () => Promise.resolve(),
-        () => ({ clientId: client._clientId })
-      ).catch(noop);
+      publish(CHANNELS.POOL_CONNECTION_WAIT, () => ({ clientId: client._clientId, waitStartTimestamp }));
       // @ts-ignore
       this._self.#executeTask(node, resolve, reject, fn);
     });
@@ -514,7 +499,7 @@ export class RedisClientPool<
     const task = this.#tasksQueue.shift();
     if (task) {
       clearTimeout(task.timeout);
-      task.resolveWait();
+      publish(CHANNELS.POOL_CONNECTION_WAIT, () => ({ clientId: node.value._clientId, waitStartTimestamp: task.waitStartTimestamp }));
       this.#executeTask(node, task.resolve, task.reject, task.fn);
       return;
     }
@@ -605,15 +590,6 @@ export class RedisClientPool<
   }
 
   destroy() {
-    // Reject pending tasks and close their wait traces
-    const err = new ClientClosedError();
-    let task;
-    while (task = this._self.#tasksQueue.shift()) {
-      clearTimeout(task.timeout);
-      task.rejectWait(err);
-      task.reject(err);
-    }
-
     for (const client of this._self.#idleClients) {
       client.destroy();
     }

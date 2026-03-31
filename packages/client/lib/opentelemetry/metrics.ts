@@ -300,32 +300,18 @@ class OTelChannelSubscribers {
   // -- Connection Advanced --
 
   #subscribeConnectionAdvanced() {
-    const tc = getTracingChannel(CHANNELS.TRACE_CONNECTION_WAIT);
-    if (!tc) return;
+    this.#sub(CHANNELS.POOL_CONNECTION_WAIT, (ctx: any) => {
+      if (!ctx.waitStartTimestamp) return;
 
-    const startTimes = new WeakMap<object, number>();
-
-    const handlers = {
-      start: (ctx: any) => {
-        startTimes.set(ctx, performance.now());
-      },
-      asyncEnd: (ctx: any) => {
-        const startTime = startTimes.get(ctx);
-        if (startTime === undefined) return;
-        startTimes.delete(ctx);
-
-        const clientAttributes = resolveClientAttributes(ctx.clientId);
-        this.#instruments.dbClientConnectionWaitTime.record(
-          (performance.now() - startTime) / 1000,
-          {
-            ...this.#options.attributes,
-            ...parseClientAttributes(clientAttributes),
-          },
-        );
-      },
-    };
-
-    this.#unsubscribers.push(subscribeTC(tc, handlers));
+      const clientAttributes = resolveClientAttributes(ctx.clientId);
+      this.#instruments.dbClientConnectionWaitTime.record(
+        (performance.now() - ctx.waitStartTimestamp) / 1000,
+        {
+          ...this.#options.attributes,
+          ...parseClientAttributes(clientAttributes),
+        },
+      );
+    });
   }
 
   #recordError(error: Error, clientId?: string, extra?: Record<string, any>) {

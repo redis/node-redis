@@ -17,7 +17,6 @@ export const CHANNELS = {
   TRACE_COMMAND: 'node-redis:command',
   TRACE_BATCH: 'node-redis:batch',
   TRACE_CONNECT: 'node-redis:connect',
-  TRACE_CONNECTION_WAIT: 'node-redis:connection:wait',
   // Point events (fire-and-forget)
   CONNECTION_READY: 'node-redis:connection:ready',
   CONNECTION_CLOSED: 'node-redis:connection:closed',
@@ -29,6 +28,7 @@ export const CHANNELS = {
   CACHE_REQUEST: 'node-redis:cache:request',
   CACHE_EVICTION: 'node-redis:cache:eviction',
   COMMAND_REPLY: 'node-redis:command:reply',
+  POOL_CONNECTION_WAIT: 'node-redis:pool:connection-wait',
 } as const;
 
 /**
@@ -112,7 +112,6 @@ interface TracingChannelContextMap {
   [CHANNELS.TRACE_COMMAND]: CommandContext;
   [CHANNELS.TRACE_BATCH]: BatchOperationContext;
   [CHANNELS.TRACE_CONNECT]: ConnectTraceContext;
-  [CHANNELS.TRACE_CONNECTION_WAIT]: ConnectionWaitContext;
 }
 
 // Eagerly resolve tracing channels at module load time.
@@ -125,7 +124,6 @@ const tracingChannels = hasTracingChannel ? {
   [CHANNELS.TRACE_COMMAND]: dc!.tracingChannel(CHANNELS.TRACE_COMMAND),
   [CHANNELS.TRACE_BATCH]: dc!.tracingChannel(CHANNELS.TRACE_BATCH),
   [CHANNELS.TRACE_CONNECT]: dc!.tracingChannel(CHANNELS.TRACE_CONNECT),
-  [CHANNELS.TRACE_CONNECTION_WAIT]: dc!.tracingChannel(CHANNELS.TRACE_CONNECTION_WAIT),
 } as { [K in keyof TracingChannelContextMap]: DC.TracingChannel<TracingChannelContextMap[K]> } : undefined;
 
 export function getTracingChannel<K extends keyof TracingChannelContextMap>(
@@ -173,10 +171,6 @@ export interface ConnectionHandoffEvent {
   clientId: string;
 }
 
-export interface ConnectionWaitContext {
-  clientId?: string;
-}
-
 // Errors and maintenance
 export interface ClientErrorEvent {
   error: Error;
@@ -218,6 +212,12 @@ export interface CommandReplyEvent {
   clientId: string;
 }
 
+// Pool task wait
+export interface PoolConnectionWaitEvent {
+  clientId: string;
+  waitStartTimestamp: number;
+}
+
 export interface ChannelEvents {
   [CHANNELS.CONNECTION_READY]: ConnectionReadyEvent;
   [CHANNELS.CONNECTION_CLOSED]: ConnectionClosedEvent;
@@ -229,6 +229,7 @@ export interface ChannelEvents {
   [CHANNELS.CACHE_REQUEST]: CacheRequestEvent;
   [CHANNELS.CACHE_EVICTION]: CacheEvictionEvent;
   [CHANNELS.COMMAND_REPLY]: CommandReplyEvent;
+  [CHANNELS.POOL_CONNECTION_WAIT]: PoolConnectionWaitEvent;
 }
 
 interface Channel {
@@ -250,6 +251,7 @@ const pointChannels = dc?.channel ? {
   [CHANNELS.CACHE_REQUEST]: dc.channel(CHANNELS.CACHE_REQUEST),
   [CHANNELS.CACHE_EVICTION]: dc.channel(CHANNELS.CACHE_EVICTION),
   [CHANNELS.COMMAND_REPLY]: dc.channel(CHANNELS.COMMAND_REPLY),
+  [CHANNELS.POOL_CONNECTION_WAIT]: dc.channel(CHANNELS.POOL_CONNECTION_WAIT),
 } as unknown as { [K in keyof ChannelEvents]: Channel } : undefined;
 
 export function getChannel(name: string): Channel | undefined {

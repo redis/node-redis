@@ -49,11 +49,11 @@ export {
   type ConnectionClosedEvent,
   type ConnectionRelaxedTimeoutEvent,
   type ConnectionHandoffEvent,
-  type ConnectionWaitContext,
   type ClientErrorEvent,
   type MaintenanceNotificationEvent,
   type PubSubMessageEvent,
   type CacheRequestEvent,
   type CacheEvictionEvent,
   type CommandReplyEvent,
+  type PoolConnectionWaitEvent,
 } from './lib/client/tracing';
