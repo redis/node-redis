@@ -29,6 +29,15 @@ describe('CONFIG GET', () => {
     }
   }, GLOBAL.SERVERS.OPEN);
 
+  testUtils.testWithClient('client.configGet RESP3', async client => {
+    const config = await client.configGet('*');
+    assert.equal(typeof config, 'object');
+    for (const [key, value] of Object.entries(config)) {
+      assert.equal(typeof key, 'string');
+      assert.equal(typeof value, 'string');
+    }
+  }, GLOBAL.SERVERS.OPEN);
+
   testUtils.testWithClient('client.configSet.getSearchConfigSettingTest | Redis >= 8', async client => {
     assert.ok(
       await client.configGet('search-timeout'),

@@ -75,4 +75,35 @@ describe('TS.MRANGE_WITHLABELS_GROUPBY', () => {
       })
     );
   }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.ts.mRangeWithLabelsGroupBy RESP3', async client => {
+    const [, reply] = await Promise.all([
+      client.ts.add('key', 0, 0, {
+        LABELS: { label: 'value' }
+      }),
+      client.ts.mRangeWithLabelsGroupBy('-', '+', 'label=value', {
+        label: 'label',
+        REDUCE: TIME_SERIES_REDUCERS.AVG
+      })
+    ]);
+
+    // RESP3 returns Map reply at protocol level, transformed to Object
+    assert.ok(typeof reply === 'object' && !Array.isArray(reply));
+    assert.ok('label=value' in reply);
+
+    const entry = reply['label=value'];
+    // Labels should be an object (Map in RESP3 vs Array of pairs in RESP2)
+    assert.ok(typeof entry.labels === 'object' && !Array.isArray(entry.labels));
+    assert.equal(entry.labels.label, 'value');
+
+    // RESP3 includes sources metadata
+    assert.ok(Array.isArray(entry.sources));
+    assert.ok(entry.sources.length > 0);
+
+    // Sample values should be numbers (Double in RESP3 vs Simple string in RESP2)
+    assert.equal(entry.samples.length, 1);
+    assert.equal(typeof entry.samples[0].value, 'number');
+    assert.equal(entry.samples[0].timestamp, 0);
+    assert.equal(entry.samples[0].value, 0);
+  }, GLOBAL.SERVERS.OPEN);
 });

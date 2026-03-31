@@ -42,4 +42,21 @@ describe('FT.CURSOR READ', () => {
       }
     );
   }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('[RESP3] client.ft.cursorRead', async client => {
+    const [, , cursorResult] = await Promise.all([
+      client.ft.create('idx', {
+        field: 'TEXT'
+      }),
+      client.hSet('key', 'field', 'value'),
+      client.ft.aggregateWithCursor('idx', '*', {
+        COUNT: 1
+      })
+    ]);
+
+    // In RESP3, the raw response is returned (no transform) — extract cursor from the raw structure
+    const cursor = (cursorResult as any).cursor ?? (Array.isArray(cursorResult) ? cursorResult[1] : 0);
+    const reply = await client.ft.cursorRead('idx', cursor);
+    assert.ok(typeof reply === 'object' && reply !== null);
+  }, GLOBAL.SERVERS.OPEN);
 });

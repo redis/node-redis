@@ -1874,5 +1874,39 @@ describe("FT.HYBRID", () => {
       },
       GLOBAL.SERVERS.OPEN,
     );
+
+    // RESP3: hybrid search returns Map instead of Array
+    testUtils.testWithClientIfVersionWithinRange(
+      [[8, 6], "LATEST"],
+      "hybrid search with RESP3 returns proper map structure",
+      async (client) => {
+        const indexName = "idx_resp3_basic";
+        await createHybridSearchIndex(client, indexName);
+        await addDataForHybridSearch(client, 5);
+
+        const result = await client.ft.hybrid(indexName, {
+          SEARCH: { query: "@color:{red}" },
+          VSIM: {
+            field: "@embedding",
+            vector: "$vec",
+          },
+          LOAD: ["@description", "@color", "@price"],
+          LIMIT: { offset: 0, count: 3 },
+          TIMEOUT: 10000,
+          PARAMS: {
+            vec: createVectorBuffer([1, 2, 7, 6]),
+          },
+        });
+
+        // RESP3 returns a Map with structured fields
+        assert.ok(result.total_results !== undefined, "total_results should exist");
+        assert.ok(typeof result.total_results === "number", "total_results should be a number");
+        assert.ok(Array.isArray(result.results), "results should be an array");
+        assert.ok(result.results.length <= 3, "results should respect LIMIT");
+        assert.ok(Array.isArray(result.warnings), "warnings should be an array");
+        assert.ok(typeof result.execution_time === "number", "execution_time should be a double");
+      },
+      GLOBAL.SERVERS.OPEN,
+    );
   });
 });

@@ -22,4 +22,35 @@ describe('FT.SYNDUMP', () => {
 
     assert.deepEqual(reply, {});
   }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.ft.synDump with data', async client => {
+    await client.ft.create('index', {
+      field: SCHEMA_FIELD_TYPE.TEXT
+    });
+
+    await client.ft.synUpdate('index', 'group1', ['hello', 'hi']);
+
+    const reply = await client.ft.synDump('index');
+
+    // RESP2 returns a flat array that transformReply converts to an object
+    assert.ok(reply !== null && typeof reply === 'object');
+    assert.ok('hello' in reply);
+    assert.ok('hi' in reply);
+  }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('[RESP3] client.ft.synDump with data', async client => {
+    await Promise.all([
+      client.ft.create('index', {
+        field: SCHEMA_FIELD_TYPE.TEXT
+      }),
+      client.ft.synUpdate('index', 'group1', ['hello', 'hi'])
+    ]);
+
+    const reply = await client.ft.synDump('index');
+
+    // RESP3 returns a Map reply natively (no transformReply needed)
+    assert.ok(reply !== null && typeof reply === 'object');
+    assert.ok('hello' in reply);
+    assert.ok('hi' in reply);
+  }, GLOBAL.SERVERS.OPEN);
 });

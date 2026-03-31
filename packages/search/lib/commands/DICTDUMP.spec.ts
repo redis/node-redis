@@ -19,4 +19,13 @@ describe('FT.DICTDUMP', () => {
 
     assert.deepEqual(reply, ['string']);
   }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.ft.dictDump RESP3', async client => {
+    const [, reply] = await Promise.all([
+      client.ft.dictAdd('dictionary', 'string'),
+      client.ft.dictDump('dictionary')
+    ]);
+
+    assert.deepEqual(reply, ['string']);
+  }, GLOBAL.SERVERS.OPEN);
 });

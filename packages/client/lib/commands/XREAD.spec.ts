@@ -164,4 +164,18 @@ describe('XREAD', () => {
     }
   });
 
+  testUtils.testWithClient('client.xRead with RESP3 returns Map response', async client => {
+    const id = await client.xAdd('key', '*', { field: 'value' });
+    const reply = await client.xRead({
+      key: 'key',
+      id: '0-0'
+    });
+
+    // RESP3 returns a Map reply (object keyed by stream name) instead of Array
+    assert.ok(reply !== null && typeof reply === 'object');
+    assert.ok(!Array.isArray(reply));
+    const keys = Object.keys(reply as Record<string, unknown>);
+    assert.ok(keys.includes('key'));
+  }, GLOBAL.SERVERS.OPEN);
+
 });

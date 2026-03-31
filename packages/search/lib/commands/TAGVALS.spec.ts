@@ -22,4 +22,15 @@ describe('FT.TAGVALS', () => {
 
     assert.deepEqual(reply, []);
   }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.ft.tagVals RESP3', async client => {
+    const [, reply] = await Promise.all([
+      client.ft.create('index', {
+        field: SCHEMA_FIELD_TYPE.TAG
+      }),
+      client.ft.tagVals('index', 'field')
+    ]);
+
+    assert.deepEqual(reply, []);
+  }, GLOBAL.SERVERS.OPEN);
 });

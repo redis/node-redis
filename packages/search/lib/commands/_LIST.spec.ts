@@ -17,4 +17,11 @@ describe('_LIST', () => {
       []
     );
   }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('[RESP3] client.ft._list', async client => {
+    assert.deepEqual(
+      await client.ft._list(),
+      []
+    );
+  }, GLOBAL.SERVERS.OPEN);
 });

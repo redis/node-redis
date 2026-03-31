@@ -327,6 +327,24 @@ describe('FT.SEARCH', () => {
       );
     }, GLOBAL.SERVERS.OPEN);
 
+    testUtils.testWithClient('[RESP3] without optional options', async client => {
+      await Promise.all([
+        client.ft.create('index', {
+          field: 'TEXT'
+        }),
+        client.hSet('1', 'field', '1')
+      ]);
+
+      const reply = await client.ft.search('index', '*');
+
+      // RESP3 returns a Map reply (object) instead of Array
+      assert.ok(reply !== null && typeof reply === 'object');
+      assert.equal(typeof reply.total_results, 'number');
+      assert.equal(reply.total_results, 1);
+      assert.ok(Array.isArray(reply.results));
+      assert.equal(reply.results.length, 1);
+    }, GLOBAL.SERVERS.OPEN);
+
     testUtils.testWithClient('properly parse content/nocontent scenarios', async client => {
 
       const indexName = 'foo';

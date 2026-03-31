@@ -92,4 +92,24 @@ describe('PROFILE SEARCH', () => {
 
   }, GLOBAL.SERVERS.OPEN);
 
+  testUtils.testWithClientIfVersionWithinRange([[8], 'LATEST'], 'client.ft.profileSearch RESP3 returns Map response', async client => {
+    await Promise.all([
+      client.ft.create('index', {
+        field: SCHEMA_FIELD_TYPE.NUMERIC
+      }),
+      client.hSet('1', 'field', '1')
+    ]);
+
+    const res = await client.ft.profileSearch('index', '*');
+
+    // RESP3 returns a Map reply (object) instead of Array
+    assert.ok(typeof res === 'object' && res !== null);
+    assert.ok(!Array.isArray(res));
+
+    // Verify Map keys exist: 'Results' and 'Profile'
+    const keys = Object.keys(res as Record<string, unknown>);
+    assert.ok(keys.includes('Results'), `Expected 'Results' key in RESP3 response, got keys: ${keys}`);
+    assert.ok(keys.includes('Profile'), `Expected 'Profile' key in RESP3 response, got keys: ${keys}`);
+  }, GLOBAL.SERVERS.OPEN);
+
 });

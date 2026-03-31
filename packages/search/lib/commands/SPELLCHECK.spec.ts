@@ -78,4 +78,18 @@ describe('FT.SPELLCHECK', () => {
       }]
     }]);
   }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('[RESP3] client.ft.spellCheck', async client => {
+    const [,, reply] = await Promise.all([
+      client.ft.create('index', {
+        field: 'TEXT'
+      }),
+      client.hSet('key', 'field', 'query'),
+      client.ft.spellCheck('index', 'quer')
+    ]);
+
+    // RESP3 returns a Map reply instead of Array
+    // With unstableResp3/no transformReply.3, the raw response shape differs
+    assert.ok(reply !== null && typeof reply === 'object');
+  }, GLOBAL.SERVERS.OPEN);
 });

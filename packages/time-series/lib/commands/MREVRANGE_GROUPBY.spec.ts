@@ -65,4 +65,25 @@ describe('TS.MREVRANGE_GROUPBY', () => {
       })
     );
   }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.ts.mRevRangeGroupBy RESP3', async client => {
+    const [, reply] = await Promise.all([
+      client.ts.add('key', 0, 0, {
+        LABELS: { label: 'value' }
+      }),
+      client.ts.mRevRangeGroupBy('-', '+', 'label=value', {
+        REDUCE: TIME_SERIES_REDUCERS.AVG,
+        label: 'label'
+      })
+    ]);
+
+    // RESP3 returns a sources field (array of source keys) not present in RESP2
+    assert.ok(reply['label=value'], 'expected group key in reply');
+    assert.ok(Array.isArray(reply['label=value'].sources), 'RESP3 should include sources array');
+    assert.ok(reply['label=value'].sources.length > 0, 'sources should not be empty');
+    assert.deepStrictEqual(reply['label=value'].samples, [{
+      timestamp: 0,
+      value: 0
+    }]);
+  }, GLOBAL.SERVERS.OPEN);
 });

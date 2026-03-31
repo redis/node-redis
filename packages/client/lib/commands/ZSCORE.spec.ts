@@ -11,10 +11,21 @@ describe('ZSCORE', () => {
     );
   });
 
-  testUtils.testAll('zScore', async client => {
+  testUtils.testAll('zScore null', async client => {
     assert.equal(
       await client.zScore('key', 'member'),
       null
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
+
+  testUtils.testAll('zScore with existing member', async client => {
+    await client.zAdd('key', { score: 1.5, value: 'member' });
+    assert.equal(
+      await client.zScore('key', 'member'),
+      1.5
     );
   }, {
     client: GLOBAL.SERVERS.OPEN,

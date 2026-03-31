@@ -78,4 +78,36 @@ describe('TS.MRANGE_SELECTED_LABELS_GROUPBY', () => {
       })
     );
   }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.ts.mRangeSelectedLabelsGroupBy RESP3', async client => {
+    const [, reply] = await Promise.all([
+      client.ts.add('key', 0, 0, {
+        LABELS: { label: 'value' }
+      }),
+      client.ts.mRangeSelectedLabelsGroupBy('-', '+', ['label', 'NX'], 'label=value', {
+        REDUCE: TIME_SERIES_REDUCERS.AVG,
+        label: 'label'
+      })
+    ]);
+
+    // RESP3 returns Map instead of Array at top level
+    assert.ok(typeof reply === 'object' && !Array.isArray(reply));
+    assert.ok('label=value' in reply);
+
+    const entry = reply['label=value'];
+
+    // Labels should be a Map/object, not an array of tuples
+    assert.ok(typeof entry.labels === 'object' && !Array.isArray(entry.labels));
+    assert.equal(entry.labels['label'], 'value');
+    assert.equal(entry.labels['NX'], null);
+
+    // RESP3 includes sources metadata
+    assert.ok(Array.isArray(entry.sources));
+
+    // Sample values should be numbers (Double in RESP3)
+    assert.equal(entry.samples.length, 1);
+    assert.equal(typeof entry.samples[0].value, 'number');
+    assert.equal(entry.samples[0].value, 0);
+    assert.equal(entry.samples[0].timestamp, 0);
+  }, GLOBAL.SERVERS.OPEN);
 });

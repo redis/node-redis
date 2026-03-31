@@ -204,6 +204,40 @@ describe('XREADGROUP', () => {
     cluster: GLOBAL.CLUSTERS.OPEN
   });
 
+  testUtils.testWithClient('xReadGroup - with a message RESP3', async client => {
+    const [, id, readGroupReply] = await Promise.all([
+      client.xGroupCreate('key', 'group', '$', {
+        MKSTREAM: true
+      }),
+      client.xAdd('key', '*', { field: 'value' }),
+      client.xReadGroup('group', 'consumer', {
+        key: 'key',
+        id: '>'
+      })
+    ]);
+
+    // RESP3 returns a Map reply instead of Array reply
+    // With no transformReply for RESP3, the raw map-like response is returned
+    assert.ok(readGroupReply !== null, 'readGroupReply should not be null');
+
+    // The response should be a map-like structure (Object with null prototype or Map)
+    // with stream name as key and array of messages as value
+    if (readGroupReply instanceof Map) {
+      const messages = readGroupReply.get('key');
+      assert.ok(Array.isArray(messages));
+      assert.equal(messages.length, 1);
+      assert.equal(messages[0].id ?? messages[0][0], id);
+    } else if (Array.isArray(readGroupReply)) {
+      // If transform normalizes to array format
+      assert.equal(readGroupReply[0].name, 'key');
+      assert.equal(readGroupReply[0].messages[0].id, id);
+    } else {
+      // Object with null prototype
+      const messages = (readGroupReply as any)['key'] ?? (readGroupReply as any).key;
+      assert.ok(messages, 'should have messages for key');
+    }
+  }, GLOBAL.SERVERS.OPEN);
+
   testUtils.testWithClientIfVersionWithinRange([[8,4], 'LATEST'],'xReadGroup - with CLAIM should include delivery fields', async client => {
     const [, id] = await Promise.all([
       client.xGroupCreate('key', 'group', '$', {

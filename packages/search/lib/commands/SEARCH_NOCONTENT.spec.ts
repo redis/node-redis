@@ -32,5 +32,24 @@ describe('FT.SEARCH NOCONTENT', () => {
         }
       );
     }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('[RESP3] returns raw map reply', async client => {
+      await Promise.all([
+        client.ft.create('index', {
+          field: 'TEXT'
+        }),
+        client.hSet('1', 'field', 'field1'),
+        client.hSet('2', 'field', 'field2')
+      ]);
+
+      const reply = await client.ft.searchNoContent('index', '*') as any;
+
+      // RESP3 returns a Map reply (object) instead of flat Array
+      assert.ok(reply !== null && typeof reply === 'object');
+      assert.equal(typeof reply.total_results, 'number');
+      assert.equal(reply.total_results, 2);
+      assert.ok(Array.isArray(reply.results));
+      assert.equal(reply.results.length, 2);
+    }, GLOBAL.SERVERS.OPEN);
   });
 });

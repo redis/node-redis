@@ -32,4 +32,30 @@ describe('LCS IDX WITHMATCHLEN', () => {
       }
     );
   }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.lcsIdxWithMatchLen RESP3', async client => {
+    const [, reply] = await Promise.all([
+      client.mSet({
+        '1': 'abc',
+        '2': 'bc'
+      }),
+      client.lcsIdxWithMatchLen('1', '2')
+    ]);
+
+    assert.deepEqual(
+      reply,
+      Object.create(null, {
+        matches: {
+          value: [
+            [[1, 2], [0, 1], 2]
+          ],
+          enumerable: true
+        },
+        len: {
+          value: 2,
+          enumerable: true
+        }
+      })
+    );
+  }, GLOBAL.SERVERS.OPEN);
 });
