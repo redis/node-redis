@@ -552,6 +552,7 @@ export class OTelMetrics {
    * @internal
    */
   public static reset() {
+    if (!OTelMetrics.#initialized) return;
     OTelMetrics.#instance.commandMetrics.destroy();
     OTelMetrics.#instance.#channelSubscribers.destroy();
     OTelMetrics.#initialized = false;
@@ -668,10 +669,12 @@ export class OTelMetrics {
       description: instrumentConfig.description,
     });
 
-    meter.addBatchObservableCallback(
-      (observableResult) => callback(observableResult, options),
-      [gauge],
-    );
+    if (options.enabledMetricGroups.includes(instrumentConfig.metricGroup)) {
+      meter.addBatchObservableCallback(
+        (observableResult) => callback(observableResult, options),
+        [gauge],
+      );
+    }
 
     return gauge;
   }
