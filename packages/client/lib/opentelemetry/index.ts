@@ -20,6 +20,8 @@ export class OpenTelemetry {
    *
    * @param config - Observability configuration.
    *
+   * @remarks Requires Node.js >= 18.19.0.
+   *
    * @throws {OpenTelemetryError} If OpenTelemetry is already initialized.
    * @throws {OpenTelemetryError} If `@opentelemetry/api` is not installed.
    *

@@ -20,7 +20,7 @@
     "@redis/test-utils": "*"
   },
   "engines": {
-    "node": ">= 18"
+    "node": ">= 18.19.0"
   },
   "repository": {
     "type": "git",
