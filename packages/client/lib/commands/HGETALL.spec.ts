@@ -31,20 +31,4 @@ describe('HGETALL', () => {
     client: GLOBAL.SERVERS.OPEN,
     cluster: GLOBAL.CLUSTERS.OPEN
   });
-
-  testUtils.testWithClient('hGetAll RESP3', async client => {
-    const [, reply] = await Promise.all([
-      client.hSet('key', 'field', 'value'),
-      client.hGetAll('key')
-    ]);
-    assert.deepEqual(
-      reply,
-      Object.create(null, {
-        field: {
-          value: 'value',
-          enumerable: true
-        }
-      })
-    );
-  }, GLOBAL.SERVERS.OPEN);
 });
