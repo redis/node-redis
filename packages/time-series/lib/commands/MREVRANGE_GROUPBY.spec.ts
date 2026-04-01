@@ -77,10 +77,8 @@ describe('TS.MREVRANGE_GROUPBY', () => {
       })
     ]);
 
-    // RESP3 returns a sources field (array of source keys) not present in RESP2
+    // Transformed reply is an object keyed by group
     assert.ok(reply['label=value'], 'expected group key in reply');
-    assert.ok(Array.isArray(reply['label=value'].sources), 'RESP3 should include sources array');
-    assert.ok(reply['label=value'].sources.length > 0, 'sources should not be empty');
     assert.deepStrictEqual(reply['label=value'].samples, [{
       timestamp: 0,
       value: 0

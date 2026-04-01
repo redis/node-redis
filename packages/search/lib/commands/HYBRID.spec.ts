@@ -1898,13 +1898,11 @@ describe("FT.HYBRID", () => {
           },
         });
 
-        // RESP3 returns a Map with structured fields
-        assert.ok(result.total_results !== undefined, "total_results should exist");
-        assert.ok(typeof result.total_results === "number", "total_results should be a number");
+        // Transformed reply has { results, warnings, executionTime }
         assert.ok(Array.isArray(result.results), "results should be an array");
         assert.ok(result.results.length <= 3, "results should respect LIMIT");
         assert.ok(Array.isArray(result.warnings), "warnings should be an array");
-        assert.ok(typeof result.execution_time === "number", "execution_time should be a double");
+        assert.ok(typeof result.executionTime === "number", "executionTime should be a number");
       },
       GLOBAL.SERVERS.OPEN,
     );

@@ -42,14 +42,14 @@ describe('FT.SEARCH NOCONTENT', () => {
         client.hSet('2', 'field', 'field2')
       ]);
 
-      const reply = await client.ft.searchNoContent('index', '*') as any;
+      const reply = await client.ft.searchNoContent('index', '*');
 
-      // RESP3 returns a Map reply (object) instead of flat Array
+      // Transformed reply has { total, documents }
       assert.ok(reply !== null && typeof reply === 'object');
-      assert.equal(typeof reply.total_results, 'number');
-      assert.equal(reply.total_results, 2);
-      assert.ok(Array.isArray(reply.results));
-      assert.equal(reply.results.length, 2);
+      assert.equal(typeof reply.total, 'number');
+      assert.equal(reply.total, 2);
+      assert.ok(Array.isArray(reply.documents));
+      assert.equal(reply.documents.length, 2);
     }, GLOBAL.SERVERS.OPEN);
   });
 });

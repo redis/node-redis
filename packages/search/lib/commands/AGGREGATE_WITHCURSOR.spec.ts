@@ -52,15 +52,14 @@ describe('AGGREGATE WITHCURSOR', () => {
       field: 'NUMERIC'
     });
 
-    const reply: any = await client.ft.aggregateWithCursor('index', '*');
+    const reply = await client.ft.aggregateWithCursor('index', '*');
 
-    // RESP3 returns [Map, cursor] instead of RESP2's [Array, cursor]
-    // The aggregate result is a Map with total_results, results, etc. instead of a flat Array
-    assert.ok(Array.isArray(reply));
-    assert.equal(reply.length, 2);
-    assert.ok(reply[0] !== null && typeof reply[0] === 'object');
-    assert.ok('total_results' in reply[0]);
-    assert.ok('results' in reply[0]);
-    assert.equal(typeof reply[1], 'number'); // cursor
+    // Transformed reply has { total, results, cursor }
+    assert.equal(typeof reply.total, 'number');
+    assert.ok(Array.isArray(reply.results));
+    assert.equal(typeof reply.cursor, 'number');
+    assert.equal(reply.total, 0);
+    assert.deepEqual(reply.results, []);
+    assert.equal(reply.cursor, 0);
   }, GLOBAL.SERVERS.OPEN);
 });

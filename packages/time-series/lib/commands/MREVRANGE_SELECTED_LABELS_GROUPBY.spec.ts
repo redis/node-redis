@@ -90,19 +90,15 @@ describe('TS.MREVRANGE_SELECTED_LABELS_GROUPBY', () => {
       })
     ]);
 
-    // RESP3 returns Map reply at protocol level, transformed to Object
+    // Transformed reply is an object keyed by group
     assert.ok(typeof reply === 'object' && !Array.isArray(reply));
     assert.ok('label=value' in reply);
 
     const entry = reply['label=value'];
-    // RESP3 includes labels as a Map (converted to object) with selected labels
+    // Labels should be an object
     assert.ok(typeof entry.labels === 'object');
 
-    // RESP3 includes sources metadata not present in RESP2
-    assert.ok(Array.isArray(entry.sources));
-    assert.ok(entry.sources.length > 0);
-
-    // Sample values should be numbers (Double in RESP3) not strings
+    // Sample values should be numbers
     assert.equal(entry.samples.length, 1);
     assert.equal(typeof entry.samples[0].value, 'number');
     assert.equal(entry.samples[0].timestamp, 0);

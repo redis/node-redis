@@ -90,21 +90,18 @@ describe('TS.MRANGE_SELECTED_LABELS_GROUPBY', () => {
       })
     ]);
 
-    // RESP3 returns Map instead of Array at top level
+    // Transformed reply is an object keyed by group
     assert.ok(typeof reply === 'object' && !Array.isArray(reply));
     assert.ok('label=value' in reply);
 
     const entry = reply['label=value'];
 
-    // Labels should be a Map/object, not an array of tuples
+    // Labels should be an object
     assert.ok(typeof entry.labels === 'object' && !Array.isArray(entry.labels));
     assert.equal(entry.labels['label'], 'value');
     assert.equal(entry.labels['NX'], null);
 
-    // RESP3 includes sources metadata
-    assert.ok(Array.isArray(entry.sources));
-
-    // Sample values should be numbers (Double in RESP3)
+    // Sample values should be numbers
     assert.equal(entry.samples.length, 1);
     assert.equal(typeof entry.samples[0].value, 'number');
     assert.equal(entry.samples[0].value, 0);

@@ -102,14 +102,13 @@ describe('PROFILE SEARCH', () => {
 
     const res = await client.ft.profileSearch('index', '*');
 
-    // RESP3 returns a Map reply (object) instead of Array
+    // Transformed reply has { results, profile }
     assert.ok(typeof res === 'object' && res !== null);
     assert.ok(!Array.isArray(res));
 
-    // Verify Map keys exist: 'Results' and 'Profile'
     const keys = Object.keys(res as Record<string, unknown>);
-    assert.ok(keys.includes('Results'), `Expected 'Results' key in RESP3 response, got keys: ${keys}`);
-    assert.ok(keys.includes('Profile'), `Expected 'Profile' key in RESP3 response, got keys: ${keys}`);
+    assert.ok(keys.includes('results'), `Expected 'results' key in response, got keys: ${keys}`);
+    assert.ok(keys.includes('profile'), `Expected 'profile' key in response, got keys: ${keys}`);
   }, GLOBAL.SERVERS.OPEN);
 
 });

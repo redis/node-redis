@@ -337,12 +337,12 @@ describe('FT.SEARCH', () => {
 
       const reply = await client.ft.search('index', '*');
 
-      // RESP3 returns a Map reply (object) instead of Array
+      // Transformed reply has { total, documents }
       assert.ok(reply !== null && typeof reply === 'object');
-      assert.equal(typeof reply.total_results, 'number');
-      assert.equal(reply.total_results, 1);
-      assert.ok(Array.isArray(reply.results));
-      assert.equal(reply.results.length, 1);
+      assert.equal(typeof reply.total, 'number');
+      assert.equal(reply.total, 1);
+      assert.ok(Array.isArray(reply.documents));
+      assert.equal(reply.documents.length, 1);
     }, GLOBAL.SERVERS.OPEN);
 
     testUtils.testWithClient('properly parse content/nocontent scenarios', async client => {
