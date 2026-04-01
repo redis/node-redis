@@ -29,6 +29,17 @@ describe('CONFIG GET', () => {
     }
   }, GLOBAL.SERVERS.OPEN);
 
+  testUtils.testWithClient('client.configGet with specific parameter pins RESP2 structure', async client => {
+    const reply = await client.configGet('maxmemory');
+    // RESP2 returns object (transformed from array of tuples)
+    // This structural assertion would break if RESP3 returns a Map
+    assert.deepEqual(
+      Object.keys(reply).sort(),
+      ['maxmemory']
+    );
+    assert.equal(typeof reply.maxmemory, 'string');
+  }, GLOBAL.SERVERS.OPEN);
+
   testUtils.testWithClient('client.configSet.getSearchConfigSettingTest | Redis >= 8', async client => {
     assert.ok(
       await client.configGet('search-timeout'),

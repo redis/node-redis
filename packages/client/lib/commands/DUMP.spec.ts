@@ -20,4 +20,15 @@ describe('DUMP', () => {
     client: GLOBAL.SERVERS.OPEN,
     cluster: GLOBAL.CLUSTERS.OPEN
   });
+
+  testUtils.testAll('client.dump with data', async client => {
+    await client.set('dumpKey', 'value');
+    const reply = await client.dump('dumpKey');
+    assert.ok(reply !== null);
+    assert.ok(Buffer.isBuffer(reply) || typeof reply === 'string');
+    assert.ok(reply.length > 0);
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

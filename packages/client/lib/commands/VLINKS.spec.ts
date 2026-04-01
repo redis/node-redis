@@ -25,6 +25,24 @@ describe('VLINKS', () => {
     cluster: { ...GLOBAL.CLUSTERS.OPEN, minimumDockerVersion: [8, 0] }
   });
 
+  testUtils.testWithClient('vLinks RESP2 response structure', async client => {
+    await client.vAdd('key', [1.0, 2.0, 3.0], 'element1');
+    await client.vAdd('key', [1.1, 2.1, 3.1], 'element2');
+    await client.vAdd('key', [1.2, 2.2, 3.2], 'element3');
+
+    const result = await client.vLinks('key', 'element1');
+    assert.ok(Array.isArray(result));
+    for (const layer of result) {
+      assert.ok(Array.isArray(layer));
+      for (const element of layer) {
+        assert.equal(typeof element, 'string');
+      }
+    }
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    minimumDockerVersion: [8, 0]
+  });
+
   testUtils.testWithClient('vLinks with RESP3', async client => {
     await client.vAdd('resp3-key', [1.0, 2.0, 3.0], 'element1');
     await client.vAdd('resp3-key', [1.1, 2.1, 3.1], 'element2');

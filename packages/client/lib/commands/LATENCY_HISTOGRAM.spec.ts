@@ -49,6 +49,32 @@ describe("LATENCY HISTOGRAM", () => {
       },
       GLOBAL.SERVERS.OPEN,
     );
+
+    testUtils.testWithClient(
+      "structural validation of response shape",
+      async (client) => {
+        await client.configResetStat();
+        await client.set("test-key", "test-value");
+        const histogram = await client.latencyHistogram("set");
+
+        // Assert the response is a plain object (RESP2), not a Map (RESP3)
+        assert.equal(typeof histogram, "object");
+        assert.ok(histogram !== null);
+        assert.ok(!Array.isArray(histogram));
+        assert.ok(!(histogram instanceof Map));
+
+        // Assert the structure of each command entry
+        assert.ok("set" in histogram);
+        assert.equal(typeof histogram.set, "object");
+        assert.equal(typeof histogram.set.calls, "number");
+        assert.ok(histogram.set.calls > 0);
+        assert.equal(typeof histogram.set.histogram_usec, "object");
+        assert.ok(histogram.set.histogram_usec !== null);
+        assert.ok(!Array.isArray(histogram.set.histogram_usec));
+        assert.ok(!(histogram.set.histogram_usec instanceof Map));
+      },
+      GLOBAL.SERVERS.OPEN,
+    );
   });
 
   describe("RESP 3", () => {

@@ -20,4 +20,15 @@ describe('GET', () => {
     client: GLOBAL.SERVERS.OPEN,
     cluster: GLOBAL.CLUSTERS.OPEN
   });
+
+  testUtils.testAll('get with value', async client => {
+    await client.set('key', 'value');
+    assert.deepEqual(
+      await client.get('key'),
+      'value'
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

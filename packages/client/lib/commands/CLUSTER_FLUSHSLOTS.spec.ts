@@ -1,4 +1,5 @@
 import { strict as assert } from 'node:assert';
+import testUtils, { GLOBAL } from '../test-utils';
 import CLUSTER_FLUSHSLOTS from './CLUSTER_FLUSHSLOTS';
 import { parseArgs } from './generic-transformers';
 
@@ -9,4 +10,12 @@ describe('CLUSTER FLUSHSLOTS', () => {
       ['CLUSTER', 'FLUSHSLOTS']
     );
   });
+
+  testUtils.testWithCluster('clusterNode.clusterFlushSlots', async cluster => {
+    const client = await cluster.nodeClient(cluster.masters[0]);
+    assert.equal(
+      await client.clusterFlushSlots(),
+      'OK'
+    );
+  }, GLOBAL.CLUSTERS.OPEN);
 });

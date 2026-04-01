@@ -1,64 +1,68 @@
-You are auditing test coverage for a single Redis command in a Node.js Redis client monorepo. The goal is to ensure we have tests that exercise response shapes that **differ between RESP2 and RESP3** so we can detect protocol-level differences.
+You are auditing test coverage for a single Redis command in a Node.js Redis client monorepo.
 
-**Your job is to find gaps and fix only what is missing. If the command's response is identical in RESP2 and RESP3, or coverage is already sufficient, change nothing.**
+## NORTH STAR
+The Redis client must return identical responses regardless of which RESP version (RESP2 or RESP3) the user selects. We are in **Phase 1**: ensure every command listed in `resp-diff.txt` has a test that structurally asserts the RESP2 response shape so thoroughly that switching the server to RESP3 would immediately break the test if the shape differs.
 
-**Target command**: `{{CMD}}` in package `{{PKG}}`
+## YOUR TASK
+**Command**: `{{CMD}}`
+**Package**: `{{PKG}}`
 **Implementation file**: `{{IMPL_PATH}}`
 **Test file**: `{{SPEC_PATH}}`
-**Redis docs file**: `{{DOCS_PATH}}`
 
-## Phase 1: Check for RESP2/RESP3 differences (do this FIRST)
+### Known RESP2 vs RESP3 difference for this command
+```
+{{RESP_DIFF}}
+```
 
-1. **Read the Redis docs file** (`{{DOCS_PATH}}`). Look at the `## Return information` section. It contains a `multitabs` block with separate RESP2 and RESP3 tabs separated by `-tab-sep-`.
+## RULES — read these carefully
 
-2. **Compare the RESP2 and RESP3 response descriptions**, but **ignore the following differences** — the client's decoder normalizes these to the same JavaScript value, so they are NOT real differences:
+1. **All tests run against RESP2.** Use `GLOBAL.SERVERS.OPEN` (or `GLOBAL.CLUSTERS.OPEN` for cluster commands). This is the RESP2 server. Do NOT use any RESP3 server config.
 
-   - **Nil reply ↔ Null reply**: both decode to `null` in JS
-   - **Simple string reply ↔ Bulk string reply**: both decode to `string` in JS
-   - **Bulk string reply ↔ Verbatim string reply**: both decode to `string` in JS (with default type mapping)
+2. **Do NOT duplicate existing tests.** If an existing `testWithClient`, `testAll`, or `testWith*` already exercises the command with data and asserts the response structure, that is sufficient. Do not add another test that does the same thing.
 
-   After ignoring those, if RESP2 and RESP3 are identical, this command has no real RESP2/RESP3 difference. **Skip Phase 2 entirely and go straight to the summary with STATUS: SKIP and REASON: no real RESP2/RESP3 difference (only cosmetic protocol-level differences normalized by the decoder).**
+3. **Do NOT rename existing test descriptions.** Leave them exactly as they are.
 
-3. **If there ARE real differences** after applying the exclusions above, note exactly what differs. These are the patterns that produce different JavaScript types and need test coverage:
+4. **Do NOT rewrite or remove existing tests.** Only add new test cases alongside existing ones if coverage is missing.
 
-   - **Integer reply ↔ Boolean reply**: `number` vs `boolean` in JS
-   - **Array reply ↔ Map reply**: `Array` vs `Object` (or `Map`) in JS
-   - **Array reply ↔ Set reply**: `Array` vs `Array` (or `Set` with type mapping) in JS
-   - **Integer/Bulk string reply ↔ Double reply**: `number`/`string` vs `number` in JS
-   - **Simple string reply ↔ Double reply**: `string` vs `number` in JS
+5. **What counts as sufficient structural coverage:**
+   - `assert.deepEqual(reply, { ... })` or `assert.deepStrictEqual(reply, { ... })` — **sufficient**, this pins the exact shape.
+   - `assert.ok(Array.isArray(reply))` followed by assertions on element structure — **sufficient**.
+   - `assert.equal(typeof reply, 'object')` or `assert.ok(reply !== null)` — **NOT sufficient**, this is too weak to catch Array→Map or other shape changes.
+   - No integration test at all (only `transformArguments` unit tests) — **NOT sufficient**.
 
-## Phase 2: Audit existing coverage (only if differences found)
+6. **If coverage is already sufficient, change NOTHING.** Go straight to the summary with STATUS: ALREADY_COVERED.
 
-4. **Read the implementation file** (`{{IMPL_PATH}}`) to understand the command's arguments, options, and response transformation logic.
+## STEPS
 
-5. **Read the test file** (`{{SPEC_PATH}}`) if it exists, to understand current test coverage.
+### Step 1: Read the implementation and test files
+- Read `{{IMPL_PATH}}` to understand the command's response transformation (`transformReply`).
+- Read `{{SPEC_PATH}}` (if it exists) to understand current test coverage.
 
-6. **Identify which RESP2/RESP3-differing response shapes are already tested.** A shape is covered if there is a `testWithClient`, `testAll`, `testWithCluster`, or any `testWith*` call that exercises that specific argument/response combination.
+### Step 2: Evaluate existing coverage
+Ask: does the test file already have at least one integration test (`testWithClient`/`testAll`/`testWith*`) that:
+- Calls the command with real data (not just empty/null results where possible)
+- Asserts the response structure strongly enough to catch the known RESP2→RESP3 shape change listed above
 
-7. **Determine the gaps**: which differing response shapes have no test coverage? If all are covered, skip Phase 3 and go straight to the summary.
+If YES → STATUS: ALREADY_COVERED, change nothing.
+If NO → proceed to Step 3.
 
-## Phase 3: Fix gaps (ONLY if Phase 2 found missing coverage)
+### Step 3: Add minimal test coverage (only if Step 2 found a gap)
+- Add ONE test that exercises the command with data and uses `assert.deepEqual` or structural assertions that would break if the response shape changed.
+- Import pattern: `import testUtils, { GLOBAL } from '../test-utils';`
+- Keep the test name descriptive and consistent with existing test naming in the file.
+- Run the test to verify it passes:
+  ```
+  npm run test-single -- '{{SPEC_PATH}}'
+  ```
+  If the test fails, fix it until it passes. Do NOT leave a failing test.
 
-8. **If the test file has no server integration test at all** (only `transformArguments`/`parseCommand` unit tests), add at least one `testWithClient` or `testAll` test. Import pattern: `import testUtils, { GLOBAL } from '../test-utils';`
+## Summary (always print this at the end)
 
-9. **Add tests only for uncovered response shapes that differ between RESP2 and RESP3.** Do not add tests for shapes that are already covered. Do not add redundant variations. Cover up to the top 3 most important missing shapes.
-
-10. **Do NOT break existing tests.** Add new test cases alongside existing ones. Do not rewrite or remove working tests.
-
-11. **Run the specific test** to make sure everything passes:
-    ```
-    npm run test-single -- 'packages/{{PKG}}/lib/commands/{{CMD}}.spec.ts'
-    ```
-    If tests fail, fix them before finishing.
-
-## Summary (always print this)
-
-- COMMAND: {{CMD}}
-- PACKAGE: {{PKG}}
-- RESP_DIFF: YES or NO (whether RESP2 and RESP3 responses differ)
-- DIFF_DETAILS: <brief description of what differs, or "N/A">
-- ALREADY_COVERED: <number of differing shapes already tested, or "N/A">
-- GAPS_FOUND: <number of uncovered differing shapes, or 0>
-- NEW_TESTS_ADDED: <number of new test cases added, 0 if none needed>
-- STATUS: PASS, SKIP, or FAIL
-- REASON: <why this status, e.g., "identical RESP2/RESP3 response", "all gaps covered", "added 2 tests for Map vs Array difference">
+```
+COMMAND: {{CMD}}
+PACKAGE: {{PKG}}
+RESP_DIFF: {{RESP_DIFF_SUMMARY}}
+STATUS: ALREADY_COVERED | ADDED_TEST | FAIL
+REASON: <one line explanation>
+TESTS_ADDED: <number, 0 if none>
+```

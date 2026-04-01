@@ -178,5 +178,81 @@ describe('HOTKEYS GET', () => {
     ...GLOBAL.SERVERS.OPEN,
     minimumDockerVersion: [8, 6]
   });
+
+  testUtils.testWithClient('client.hotkeysGet returns correct RESP2 structure', async client => {
+    // Clean up any existing state first
+    await client.hotkeysStop();
+    await client.hotkeysReset();
+
+    // Start tracking with both CPU and NET metrics
+    await client.hotkeysStart({
+      METRICS: { count: 2, CPU: true, NET: true }
+    });
+
+    // Perform some operations to generate hotkey data
+    await client.set('structureTestKey', 'value');
+    await client.get('structureTestKey');
+
+    // GET should return data with the expected RESP2 structure
+    const reply = await client.hotkeysGet();
+    assert.ok(reply !== null, 'Expected reply to not be null');
+
+    // Verify the structure is a plain object (not a Map or Array)
+    // This assertion pins down that RESP2 returns an array-of-pairs that gets transformed to an object
+    // If RESP3 sends a Map instead and transformReply isn't updated, this will break
+    assert.ok(typeof reply === 'object' && reply !== null && !Array.isArray(reply) && !(reply instanceof Map));
+
+    // Verify all required fields are present with correct types
+    // This structural assertion would break if the RESP2 array-of-pairs format changed to RESP3 map
+    const requiredFields = {
+      trackingActive: 'number',
+      sampleRatio: 'number',
+      selectedSlots: 'array',
+      allCommandsAllSlotsUs: 'number',
+      netBytesAllCommandsAllSlots: 'number',
+      collectionStartTimeUnixMs: 'number',
+      collectionDurationMs: 'number',
+      totalCpuTimeSysMs: 'number',
+      totalCpuTimeUserMs: 'number',
+      totalNetBytes: 'number'
+    };
+
+    for (const [field, expectedType] of Object.entries(requiredFields)) {
+      assert.ok(Object.prototype.hasOwnProperty.call(reply, field), `Field ${field} must be present`);
+      if (expectedType === 'array') {
+        assert.ok(Array.isArray((reply as any)[field]), `Field ${field} must be an array`);
+      } else {
+        assert.equal(typeof (reply as any)[field], expectedType, `Field ${field} must be ${expectedType}`);
+      }
+    }
+
+    // Verify metric arrays structure if present
+    if (reply.byCpuTimeUs) {
+      assert.ok(Array.isArray(reply.byCpuTimeUs), 'byCpuTimeUs must be an array');
+      reply.byCpuTimeUs.forEach(entry => {
+        // Each entry must be a plain object with 'key' and 'value' properties
+        // This pins down the RESP2 flat array [k1,v1,k2,v2] -> [{key:k1,value:v1},{key:k2,value:v2}] structure
+        assert.deepEqual(Object.keys(entry).sort(), ['key', 'value']);
+        assert.equal(typeof entry.key, 'string');
+        assert.equal(typeof entry.value, 'number');
+      });
+    }
+
+    if (reply.byNetBytes) {
+      assert.ok(Array.isArray(reply.byNetBytes), 'byNetBytes must be an array');
+      reply.byNetBytes.forEach(entry => {
+        assert.deepEqual(Object.keys(entry).sort(), ['key', 'value']);
+        assert.equal(typeof entry.key, 'string');
+        assert.equal(typeof entry.value, 'number');
+      });
+    }
+
+    // Clean up
+    await client.hotkeysStop();
+    await client.hotkeysReset();
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    minimumDockerVersion: [8, 6]
+  });
 });
 

@@ -33,9 +33,14 @@ describe('FT.SYNDUMP', () => {
     const reply = await client.ft.synDump('index');
 
     // RESP2 returns a flat array that transformReply converts to an object
+    // Each key should map to an array of synonym group IDs (as Buffer[])
     assert.ok(reply !== null && typeof reply === 'object');
     assert.ok('hello' in reply);
     assert.ok('hi' in reply);
+    assert.ok(Array.isArray(reply.hello));
+    assert.ok(Array.isArray(reply.hi));
+    assert.ok(reply.hello.length > 0);
+    assert.ok(reply.hi.length > 0);
   }, GLOBAL.SERVERS.OPEN);
 
 });
