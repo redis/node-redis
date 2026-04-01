@@ -21,7 +21,7 @@ describe('HKEYS', () => {
     cluster: GLOBAL.CLUSTERS.OPEN
   });
 
-  testUtils.testAll('hKeys with data', async client => {
+  testUtils.testWithClient('hKeys with data', async client => {
     await client.hSet('hash', {
       field1: 'value1',
       field2: 'value2',
@@ -33,8 +33,5 @@ describe('HKEYS', () => {
       keys.sort(),
       ['field1', 'field2', 'field3']
     );
-  }, {
-    client: GLOBAL.SERVERS.OPEN,
-    cluster: GLOBAL.CLUSTERS.OPEN
-  });
+  }, GLOBAL.SERVERS.OPEN);
 });
