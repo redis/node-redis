@@ -39,7 +39,7 @@ describe('TS.INFO_DEBUG', () => {
         }
     }, GLOBAL.SERVERS.OPEN);
 
-    testUtils.testWithClient('client.ts.infoDebug RESP3', async client => {
+    testUtils.testWithClient('client.ts.infoDebug with data', async client => {
         await Promise.all([
             client.ts.create('key', {
                 LABELS: { id: '1' },

@@ -38,7 +38,7 @@ describe('FT.SYNDUMP', () => {
     assert.ok('hi' in reply);
   }, GLOBAL.SERVERS.OPEN);
 
-  testUtils.testWithClient('[RESP3] client.ft.synDump with data', async client => {
+  testUtils.testWithClient('client.ft.synDump with synonym data', async client => {
     await Promise.all([
       client.ft.create('index', {
         field: SCHEMA_FIELD_TYPE.TEXT

@@ -27,7 +27,7 @@ describe('CLUSTER LINKS', () => {
     }
   }, GLOBAL.CLUSTERS.OPEN);
 
-  testUtils.testWithCluster('clusterNode.clusterLinks RESP3', async cluster => {
+  testUtils.testWithCluster('clusterNode.clusterLinks with data', async cluster => {
     const client = await cluster.nodeClient(cluster.masters[0]),
       links = await client.clusterLinks();
     assert.ok(Array.isArray(links));

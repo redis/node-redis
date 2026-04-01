@@ -33,7 +33,7 @@ describe('FT.SEARCH NOCONTENT', () => {
       );
     }, GLOBAL.SERVERS.OPEN);
 
-    testUtils.testWithClient('[RESP3] returns raw map reply', async client => {
+    testUtils.testWithClient('returns structured reply', async client => {
       await Promise.all([
         client.ft.create('index', {
           field: 'TEXT'

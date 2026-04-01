@@ -47,7 +47,7 @@ describe('AGGREGATE WITHCURSOR', () => {
     );
   }, GLOBAL.SERVERS.OPEN);
 
-  testUtils.testWithClient('[RESP3] client.ft.aggregateWithCursor', async client => {
+  testUtils.testWithClient('client.ft.aggregateWithCursor with data', async client => {
     await client.ft.create('index', {
       field: 'NUMERIC'
     });

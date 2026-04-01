@@ -33,7 +33,7 @@ describe('TS.QUERYINDEX', () => {
     assert.deepEqual(reply, ['key']);
   }, GLOBAL.SERVERS.OPEN);
 
-  testUtils.testWithClient('client.ts.queryIndex with RESP3', async client => {
+  testUtils.testWithClient('client.ts.queryIndex with data', async client => {
     const [, reply] = await Promise.all([
       client.ts.create('key', {
         LABELS: {

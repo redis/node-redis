@@ -24,7 +24,7 @@ describe('CLIENT TRACKINGINFO', () => {
     );
   }, GLOBAL.SERVERS.OPEN);
 
-  testUtils.testWithClient('client.clientTrackingInfo RESP3', async client => {
+  testUtils.testWithClient('client.clientTrackingInfo with data', async client => {
     const reply = await client.clientTrackingInfo();
     assert.equal(reply.redirect, -1);
     assert.deepEqual(reply.prefixes, []);

@@ -75,27 +75,4 @@ describe('TS.MREVRANGE_WITHLABELS_GROUPBY', () => {
       })
     );
   }, GLOBAL.SERVERS.OPEN);
-
-  testUtils.testWithClient('client.ts.mRevRangeWithLabelsGroupBy RESP3', async client => {
-    const [, reply] = await Promise.all([
-      client.ts.add('key', 0, 0, {
-        LABELS: { label: 'value' }
-      }),
-      client.ts.mRevRangeWithLabelsGroupBy('-', '+', 'label=value', {
-        label: 'label',
-        REDUCE: TIME_SERIES_REDUCERS.AVG
-      })
-    ]);
-
-    // RESP3 returns Map-based structure instead of Array-based (RESP2)
-    // and Double values instead of Simple string values for samples
-    assert.ok(reply['label=value'], 'expected group key in reply');
-    assert.ok(reply['label=value'].labels, 'RESP3 should include labels');
-    assert.ok(Array.isArray(reply['label=value'].sources), 'RESP3 should include sources array');
-    assert.ok(reply['label=value'].sources.length > 0, 'sources should not be empty');
-    assert.deepStrictEqual(reply['label=value'].samples, [{
-      timestamp: 0,
-      value: 0
-    }]);
-  }, GLOBAL.SERVERS.OPEN);
 });

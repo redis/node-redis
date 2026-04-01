@@ -79,7 +79,7 @@ describe('FT.SPELLCHECK', () => {
     }]);
   }, GLOBAL.SERVERS.OPEN);
 
-  testUtils.testWithClient('[RESP3] client.ft.spellCheck', async client => {
+  testUtils.testWithClient('client.ft.spellCheck with data', async client => {
     const [,, reply] = await Promise.all([
       client.ft.create('index', {
         field: 'TEXT'

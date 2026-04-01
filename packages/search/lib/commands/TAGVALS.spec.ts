@@ -23,7 +23,7 @@ describe('FT.TAGVALS', () => {
     assert.deepEqual(reply, []);
   }, GLOBAL.SERVERS.OPEN);
 
-  testUtils.testWithClient('client.ft.tagVals RESP3', async client => {
+  testUtils.testWithClient('client.ft.tagVals with data', async client => {
     const [, reply] = await Promise.all([
       client.ft.create('index', {
         field: SCHEMA_FIELD_TYPE.TAG

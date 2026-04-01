@@ -40,7 +40,7 @@ describe('TS.MGET_WITHLABELS', () => {
     }));
   }, GLOBAL.SERVERS.OPEN);
 
-  testUtils.testWithClient('client.ts.mGetWithLabels RESP3', async client => {
+  testUtils.testWithClient('client.ts.mGetWithLabels with data', async client => {
     const [, reply] = await Promise.all([
       client.ts.add('key', 0, 0, {
         LABELS: { label: 'value' }

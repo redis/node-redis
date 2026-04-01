@@ -1875,12 +1875,11 @@ describe("FT.HYBRID", () => {
       GLOBAL.SERVERS.OPEN,
     );
 
-    // RESP3: hybrid search returns Map instead of Array
     testUtils.testWithClientIfVersionWithinRange(
       [[8, 6], "LATEST"],
-      "hybrid search with RESP3 returns proper map structure",
+      "hybrid search with structured response",
       async (client) => {
-        const indexName = "idx_resp3_basic";
+        const indexName = "idx_structured_basic";
         await createHybridSearchIndex(client, indexName);
         await addDataForHybridSearch(client, 5);
 

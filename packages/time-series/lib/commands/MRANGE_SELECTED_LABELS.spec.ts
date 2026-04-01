@@ -71,7 +71,7 @@ describe('TS.MRANGE_SELECTED_LABELS', () => {
     );
   }, GLOBAL.SERVERS.OPEN);
 
-  testUtils.testWithClient('client.ts.mRangeSelectedLabels with RESP3', async client => {
+  testUtils.testWithClient('client.ts.mRangeSelectedLabels with data', async client => {
     const [, reply] = await Promise.all([
       client.ts.add('key', 0, 0, {
         LABELS: { label: 'value' }

@@ -164,7 +164,7 @@ describe('XREAD', () => {
     }
   });
 
-  testUtils.testWithClient('client.xRead with RESP3 returns Map response', async client => {
+  testUtils.testWithClient('client.xRead with data', async client => {
     const id = await client.xAdd('key', '*', { field: 'value' });
     const reply = await client.xRead({
       key: 'key',

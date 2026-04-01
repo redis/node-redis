@@ -39,7 +39,7 @@ describe('TS.REVRANGE', () => {
     }]);
   }, GLOBAL.SERVERS.OPEN);
 
-  testUtils.testWithClient('client.ts.revRange with RESP3', async client => {
+  testUtils.testWithClient('client.ts.revRange with data', async client => {
     const [, reply] = await Promise.all([
       client.ts.add('key', 1, 2),
       client.ts.revRange('key', '-', '+')

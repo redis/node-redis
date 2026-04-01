@@ -79,7 +79,7 @@ describe('TS.MRANGE_SELECTED_LABELS_GROUPBY', () => {
     );
   }, GLOBAL.SERVERS.OPEN);
 
-  testUtils.testWithClient('client.ts.mRangeSelectedLabelsGroupBy RESP3', async client => {
+  testUtils.testWithClient('client.ts.mRangeSelectedLabelsGroupBy with data', async client => {
     const [, reply] = await Promise.all([
       client.ts.add('key', 0, 0, {
         LABELS: { label: 'value' }

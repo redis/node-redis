@@ -72,7 +72,7 @@ describe('TS.MREVRANGE_SELECTED_LABELS', () => {
     );
   }, GLOBAL.SERVERS.OPEN);
 
-  testUtils.testWithClient('client.ts.mRevRangeSelectedLabels with RESP3', async client => {
+  testUtils.testWithClient('client.ts.mRevRangeSelectedLabels with data', async client => {
     const [, reply] = await Promise.all([
       client.ts.add('key', 0, 0, {
         LABELS: { label: 'value' }

@@ -30,7 +30,7 @@ describe('SINTER', () => {
     cluster: GLOBAL.CLUSTERS.OPEN
   });
 
-  testUtils.testWithClient('sInter with RESP3 - returns Set reply', async client => {
+  testUtils.testWithClient('sInter with data', async client => {
     await client.sAdd('sinter-r3-1', ['a', 'b', 'c']);
     await client.sAdd('sinter-r3-2', ['b', 'c', 'd']);
 

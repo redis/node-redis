@@ -34,7 +34,7 @@ describe('HRANDFIELD COUNT WITHVALUES', () => {
     cluster: GLOBAL.CLUSTERS.OPEN
   });
 
-  testUtils.testWithClient('hRandFieldCountWithValues with RESP3', async client => {
+  testUtils.testWithClient('hRandFieldCountWithValues with data', async client => {
     await client.hSet('key', 'field', 'value');
 
     assert.deepEqual(

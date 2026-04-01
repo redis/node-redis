@@ -24,7 +24,7 @@ describe('FUNCTION STATS', () => {
     }
   }, GLOBAL.SERVERS.OPEN);
 
-  testUtils.testWithClient('client.functionStats RESP3', async client => {
+  testUtils.testWithClient('client.functionStats with data', async client => {
     const stats = await client.functionStats();
     assert.equal(stats.running_script, null);
     assert.equal(typeof stats.engines, 'object');

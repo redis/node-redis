@@ -204,7 +204,7 @@ describe('XREADGROUP', () => {
     cluster: GLOBAL.CLUSTERS.OPEN
   });
 
-  testUtils.testWithClient('xReadGroup - with a message RESP3', async client => {
+  testUtils.testWithClient('xReadGroup - with a message and data', async client => {
     const [, id, readGroupReply] = await Promise.all([
       client.xGroupCreate('key', 'group', '$', {
         MKSTREAM: true

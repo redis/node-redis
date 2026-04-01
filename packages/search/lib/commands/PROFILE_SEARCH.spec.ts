@@ -92,7 +92,7 @@ describe('PROFILE SEARCH', () => {
 
   }, GLOBAL.SERVERS.OPEN);
 
-  testUtils.testWithClientIfVersionWithinRange([[8], 'LATEST'], 'client.ft.profileSearch RESP3 returns Map response', async client => {
+  testUtils.testWithClientIfVersionWithinRange([[8], 'LATEST'], 'client.ft.profileSearch returns structured response', async client => {
     await Promise.all([
       client.ft.create('index', {
         field: SCHEMA_FIELD_TYPE.NUMERIC

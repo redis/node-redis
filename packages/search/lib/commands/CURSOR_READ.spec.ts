@@ -43,7 +43,7 @@ describe('FT.CURSOR READ', () => {
     );
   }, GLOBAL.SERVERS.OPEN);
 
-  testUtils.testWithClient('[RESP3] client.ft.cursorRead', async client => {
+  testUtils.testWithClient('client.ft.cursorRead with data', async client => {
     const [, , cursorResult] = await Promise.all([
       client.ft.create('idx', {
         field: 'TEXT'

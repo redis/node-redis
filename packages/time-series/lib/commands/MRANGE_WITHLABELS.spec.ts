@@ -67,7 +67,7 @@ describe('TS.MRANGE_WITHLABELS', () => {
     );
   }, GLOBAL.SERVERS.OPEN);
 
-  testUtils.testWithClient('client.ts.mRangeWithLabels RESP3', async client => {
+  testUtils.testWithClient('client.ts.mRangeWithLabels with data', async client => {
     const [, reply] = await Promise.all([
       client.ts.add('key', 0, 0, {
         LABELS: { label: 'value' }

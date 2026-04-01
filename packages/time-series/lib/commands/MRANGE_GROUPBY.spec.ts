@@ -110,7 +110,7 @@ describe('TS.MRANGE_GROUPBY', () => {
     minimumDockerVersion: [8, 6]
   });
 
-  testUtils.testWithClient('client.ts.mRangeGroupBy RESP3', async client => {
+  testUtils.testWithClient('client.ts.mRangeGroupBy with data', async client => {
     const [, reply] = await Promise.all([
       client.ts.add('key', 0, 0, {
         LABELS: { label: 'value' }

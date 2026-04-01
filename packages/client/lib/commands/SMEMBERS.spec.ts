@@ -21,7 +21,7 @@ describe('SMEMBERS', () => {
     cluster: GLOBAL.CLUSTERS.OPEN
   });
 
-  testUtils.testWithClient('sMembers with RESP3 - returns Set reply', async client => {
+  testUtils.testWithClient('sMembers with data', async client => {
     await client.sAdd('smembers-r3', ['a', 'b', 'c']);
 
     const result = await client.sMembers('smembers-r3');

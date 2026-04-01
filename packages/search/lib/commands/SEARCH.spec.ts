@@ -327,7 +327,7 @@ describe('FT.SEARCH', () => {
       );
     }, GLOBAL.SERVERS.OPEN);
 
-    testUtils.testWithClient('[RESP3] without optional options', async client => {
+    testUtils.testWithClient('with data', async client => {
       await Promise.all([
         client.ft.create('index', {
           field: 'TEXT'

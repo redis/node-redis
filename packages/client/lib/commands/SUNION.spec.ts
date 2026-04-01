@@ -30,7 +30,7 @@ describe('SUNION', () => {
     cluster: GLOBAL.CLUSTERS.OPEN
   });
 
-  testUtils.testWithClient('sUnion with RESP3 - returns Set reply', async client => {
+  testUtils.testWithClient('sUnion with data', async client => {
     await client.sAdd('sunion-r3-1', ['a', 'b', 'c', 'd']);
     await client.sAdd('sunion-r3-2', ['c', 'e']);
 

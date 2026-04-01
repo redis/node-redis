@@ -45,7 +45,7 @@ describe('MEMORY STATS', () => {
     }
   }, GLOBAL.SERVERS.OPEN);
 
-  testUtils.testWithClient('client.memoryStats with RESP3', async client => {
+  testUtils.testWithClient('client.memoryStats with data', async client => {
     const memoryStats = await client.memoryStats();
     assert.equal(typeof memoryStats['peak.allocated'], 'number');
     assert.equal(typeof memoryStats['total.allocated'], 'number');

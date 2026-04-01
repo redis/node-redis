@@ -518,7 +518,7 @@ describe('AGGREGATE', () => {
     );
   }, GLOBAL.SERVERS.OPEN);
 
-  testUtils.testWithClient('[RESP3] client.ft.aggregate', async client => {
+  testUtils.testWithClient('client.ft.aggregate with data', async client => {
     await client.ft.create('index', {
       field: 'NUMERIC'
     });

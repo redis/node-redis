@@ -30,7 +30,7 @@ describe('SDIFF', () => {
     cluster: GLOBAL.CLUSTERS.OPEN
   });
 
-  testUtils.testWithClient('sDiff with RESP3 - returns Set reply', async client => {
+  testUtils.testWithClient('sDiff with data', async client => {
     await client.sAdd('sdiff-r3-1', ['a', 'b', 'c', 'd']);
     await client.sAdd('sdiff-r3-2', ['c']);
     await client.sAdd('sdiff-r3-3', ['a', 'c', 'e']);
