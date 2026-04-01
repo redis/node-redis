@@ -86,6 +86,7 @@ import DECRBY from './DECRBY';
 import DEL from './DEL';
 import DELEX from './DELEX';
 import DIGEST from './DIGEST';
+import DISCARD from './DISCARD';
 import DUMP from './DUMP';
 import ECHO from './ECHO';
 import EVAL_RO from './EVAL_RO';
@@ -557,6 +558,8 @@ export default {
   delEx: DELEX,
   DIGEST,
   digest: DIGEST,
+  DISCARD,
+  discard: DISCARD,
   DUMP,
   dump: DUMP,
   ECHO,
