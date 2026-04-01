@@ -1,6 +1,5 @@
 import TestUtils from '@redis/test-utils';
 import TimeSeries from '.';
-import { RespVersions } from '@redis/client';
 
 export default TestUtils.createFromConfig({
   dockerImageName: 'redislabs/client-libs-test',
@@ -14,16 +13,6 @@ export const GLOBAL = {
     OPEN: {
       serverArguments: [],
       clientOptions: {
-        modules: {
-          ts: TimeSeries
-        }
-      }
-    },
-    OPEN_3: {
-      serverArguments: [],
-      clientOptions: {
-        RESP: 3 as RespVersions,
-        unstableResp3: true,
         modules: {
           ts: TimeSeries
         }
