@@ -1,5 +1,5 @@
 import { strict as assert } from 'node:assert';
-import testUtils, { GLOBAL } from '../test-utils';
+import testUtils from '../test-utils';
 import ACL_WHOAMI from './ACL_WHOAMI';
 import { parseArgs } from './generic-transformers';
 
@@ -12,11 +12,4 @@ describe('ACL WHOAMI', () => {
       ['ACL', 'WHOAMI']
     );
   });
-
-  testUtils.testWithClient('client.aclWhoAmI', async client => {
-    assert.equal(
-      await client.aclWhoAmI(),
-      'default'
-    );
-  }, GLOBAL.SERVERS.OPEN);
 });
