@@ -1,0 +1,51 @@
+# Server Test Gaps Checklist
+
+## TODO
+
+## DONE
+- [x] `EXPLAIN` — Implemented: live `client.ft.explainCli()` coverage added to match `EXPLAIN`.
+- [x] `SHUTDOWN` — Rejected: terminates Redis server process.
+- [x] `HRANDFIELD_COUNT_WITHVALUES` — Implemented: live RESP2/RESP3 tests verify WITHVALUES field/value object mapping.
+- [x] `-1` — Implemented: `client.clientGetRedir()` returns `-1` when unset on a live server.
+- [x] `EVALSHA` — Implemented: live `scriptLoad` + `evalSha` verifies SHA-based script execution.
+- [x] `CLUSTER_MEET` — Rejected: requires extra-node orchestration.
+- [x] `CLIENT_CACHING` — Rejected: Meaningful assertions require specific tracking mode setup.
+- [x] `ACL_LOAD` — Rejected: Requires ACL file fixture and filesystem side effects that are brittle in CI.
+- [x] `ACL_SAVE` — Rejected: Writes ACL state to disk; behavior depends on environment and permissions.
+- [x] `ACL_SETUSER` — Implemented: temporary user lifecycle validated with create/update/delete on live server.
+- [x] `ACL_USERS` — Implemented: live ACL listing validates default and temporary user presence.
+- [x] `ACL_WHOAMI` — Implemented: live server deterministically reports the default authenticated user identity.
+- [x] `ASKING` — Rejected: Cluster redirection-context command is hard to assert reliably in server tests.
+- [x] `AUTH` — Rejected: covered by connection/auth integration flows.
+- [x] `CLUSTER_ADDSLOTS` — Rejected: topology-mutating cluster admin command.
+- [x] `CLUSTER_ADDSLOTSRANGE` — Rejected: topology-mutating cluster admin command.
+- [x] `CLUSTER_DELSLOTS` — Rejected: topology-mutating cluster admin command.
+- [x] `CLUSTER_DELSLOTSRANGE` — Rejected: topology-mutating cluster admin command.
+- [x] `CLUSTER_FLUSHSLOTS` — Rejected: destabilizing topology reset operation.
+- [x] `CLUSTER_FORGET` — Rejected: mutates cluster membership.
+- [x] `CLUSTER_FAILOVER` — Rejected: disruptive, timing-sensitive failover path.
+- [x] `CLUSTER_REPLICATE` — Rejected: mutates replication topology.
+- [x] `CLUSTER_RESET` — Rejected: destructive cluster reset behavior.
+- [x] `CLUSTER_SET-CONFIG-EPOCH` — Rejected: niche cluster-admin path with low ROI.
+- [x] `CLUSTER_SETSLOT` — Rejected: slot-state mutation with high flake risk.
+- [x] `CLIENT_KILL` — Rejected: Disruptive and flaky because it kills connections.
+- [x] `COMMAND` — Implemented: live `client.command()` test validates transformed metadata shape.
+- [x] `COMMAND_GETKEYSANDFLAGS` — Implemented: live test validates version-gated transformed key/flags reply.
+- [x] `COMMAND_INFO` — Implemented: live mixed lookup validates transformed metadata and nullable missing-command entry.
+- [x] `CONFIG_RESETSTAT` — Rejected: low-value smoke for simple `OK` reply.
+- [x] `CONFIG_REWRITE` — Rejected: filesystem/config rewrite side effects.
+- [x] `DISCARD` — Implemented: live test verifies queued writes are canceled by `client.discard()`.
+- [x] `EVALSHA_RO` — Implemented: live `scriptLoad` + `evalShaRo` verifies read-only SHA script execution.
+- [x] `FAILOVER` — Rejected: requires replication topology and is disruptive.
+- [x] `FUNCTION_KILL` — Rejected: requires long-running function and race-prone kill flow.
+- [x] `SCRIPT_KILL` — Rejected: requires long-running script kill race.
+- [x] `MIGRATE` — Rejected: requires cross-instance setup (second Redis target).
+- [x] `MODULE_LOAD` — Rejected: requires real module artifacts and mutates runtime.
+- [x] `MODULE_UNLOAD` — Rejected: depends on loaded module and mutates runtime.
+- [x] `MODULE_LIST` — Rejected: module availability varies by environment.
+- [x] `READONLY` — Rejected: cluster-routing toggle with low standalone value.
+- [x] `READWRITE` — Rejected: cluster-routing toggle with low standalone value.
+- [x] `REPLICAOF` — Rejected: mutates replication topology.
+- [x] `RESTORE-ASKING` — Rejected: specialized cluster migration context required.
+- [x] `SAVE` — Rejected: blocking persistence side effects can destabilize CI.
+- [ ] _None yet_

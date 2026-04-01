@@ -23,16 +23,4 @@ describe('CLIENT TRACKINGINFO', () => {
       }
     );
   }, GLOBAL.SERVERS.OPEN);
-
-  testUtils.testWithClient('client.clientTrackingInfo with data', async client => {
-    const reply = await client.clientTrackingInfo();
-    assert.equal(reply.redirect, -1);
-    assert.deepEqual(reply.prefixes, []);
-    assert.ok(
-      Array.isArray(reply.flags) || reply.flags instanceof Set,
-      'flags should be an array or Set'
-    );
-    const flags = Array.isArray(reply.flags) ? reply.flags : [...reply.flags];
-    assert.deepEqual(flags, ['off']);
-  }, GLOBAL.SERVERS.OPEN);
 });

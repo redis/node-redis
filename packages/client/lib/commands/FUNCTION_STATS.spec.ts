@@ -23,15 +23,4 @@ describe('FUNCTION STATS', () => {
       assert.equal(typeof functions_count, 'number');
     }
   }, GLOBAL.SERVERS.OPEN);
-
-  testUtils.testWithClient('client.functionStats with data', async client => {
-    const stats = await client.functionStats();
-    assert.equal(stats.running_script, null);
-    assert.equal(typeof stats.engines, 'object');
-    for (const [engine, { libraries_count, functions_count }] of Object.entries(stats.engines)) {
-      assert.equal(typeof engine, 'string');
-      assert.equal(typeof libraries_count, 'number');
-      assert.equal(typeof functions_count, 'number');
-    }
-  }, GLOBAL.SERVERS.OPEN);
 });

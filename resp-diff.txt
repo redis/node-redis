@@ -1,0 +1,479 @@
+ACL GETUSER
+RESP2: One of the following: Array reply: a list of ACL rule definitions for the user. Nil reply: if user does not exist.
+RESP3: One of the following: Map reply: a set of ACL rule definitions for the user Null reply: if user does not exist.
+
+BF.ADD
+RESP2: One of the following: Integer reply: `1` for successfully adding an item, or `0` if there's a probability that the item was already added to the filter. Simple error reply in these cases: invalid arguments, wrong key type, or when the filter is full.
+RESP3: One of the following: Boolean reply: `true` for successfully adding an item, or `false` if there's a probability that the item was already added to the filter. Simple error reply in these cases: invalid arguments, wrong key type, or when the filter is full.
+
+BF.EXISTS
+RESP2: One of the following: Integer reply: `1` means that, with high probability, `item` was already added to the filter, and `0` means that either the `key` does not exist or that the `item` had not been added to the filter. Simple error reply if invalid arguments are passed.
+RESP3: One of the following: Boolean reply: `true` means that, with high probability, `item` was already added to the filter, and `false` means that either `key` does not exist or that `item` had not been added to the filter. Simple error reply if invalid arguments are passed or `key` is not of the correct type.
+
+BF.INFO
+RESP2: One of the following: A singleton array reply with an integer representing the value of the requested property. An array reply with simple string and integer pairs. Simple error reply in these cases: invalid arguments, wrong key type, or when the key does not exist.
+RESP3: One of the following: Map reply with simple string and integer pairs. Simple error reply in these cases: invalid arguments, wrong key type, or when the key does not exist.
+
+BF.INSERT
+RESP2: One of the following: where each element is one of these options: Array reply, where each element is one of the following options: Integer reply `1` for successfully adding an item, or `0` if there's a probability that the item was already added to the filter. Simple string reply when the item cannot be added because the filter is full. Simple error reply when the number of arguments or key type is wrong, and also when `NOCREATE` is specified and `key` does not exist.
+RESP3: One of the following: where each element is one of these options: Array reply, where each element is one of the following options: Boolean reply `true` for successfully adding an item, or `false` if there's a probability that the item was already added to the filter. Simple string reply when the item cannot be added because the filter is full. Simple error reply when the number of arguments or key type is wrong, and also when `NOCREATE` is specified and `key` does not exist.
+
+BF.MADD
+RESP2: One of the following: Array reply where each element is either an integer reply, where `1` means that the item has been added successfully, and `0` means there's a probability that the item was already added to the filter. a simple error reply when the item cannot be added because the filter is full. Simple error reply in these cases: invalid arguments, key not found, wrong key type, or when the filter is full.
+RESP3: One of the following: Array reply where each element is either a boolean reply, where `true` means that the item has been added successfully, and `false` means there's a probability that the item was already added to the filter. a simple error reply when the item cannot be added because the filter is full. Simple error reply in these cases: invalid arguments, key not found, wrong key type, or when the filter is full.
+
+BF.MEXISTS
+RESP2: One of the following: Array reply of integer replies, where `1` means that, with high probability, `item` was already added to the filter, and `0` means that `key` does not exist or that `item` was definitely not added to the filter. Simple error reply in these cases: in these cases: invalid arguments, wrong key type, or when the key was not found.
+RESP3: One of the following: Array reply of boolean replies, where `true` means that, with high probability, `item` was already added to the filter, and `false` means that `key` does not exist or that `item` was definitely not added to the filter. Simple error reply in these cases: in these cases: invalid arguments, wrong key type, or when the key was not found.
+
+BGREWRITEAOF
+RESP2: Simple string reply: a simple string reply indicating that the rewriting started or is about to start ASAP when the call is executed with success. The command may reply with an error in certain cases, as documented above.
+RESP3: Bulk string reply: a simple string reply indicating that the rewriting started or is about to start ASAP when the call is executed with success. The command may reply with an error in certain cases, as documented above.
+
+CF.ADD
+RESP2: One of the following: Integer reply: `1` for successfully adding an item to the filter. Simple error reply in these cases: invalid arguments, wrong key type, or when the filter is full.
+RESP3: One of the following: Boolean reply: `true` for successfully adding an item to the filter. Simple error reply in these cases: invalid arguments, wrong key type, or when the filter is full.
+
+CF.ADDNX
+RESP2: One of the following: Integer reply: `1` for successfully adding an item to the filter or `0` if the item's fingerprint already exists in the filter. Simple error reply in these cases: invalid arguments, wrong key type, or when the filter is full.
+RESP3: One of the following: Boolean reply: `true` for successfully adding an item to the filter or `false` if the item's fingerprint already exists in the filter. Simple error reply in these cases: invalid arguments, wrong key type, or when the filter is full.
+
+CF.DEL
+RESP2: One of the following: Integer reply `1` for successfully deleting an item, or `0` if no such item was found in the filter. Simple error reply in these cases: invalid arguments or wrong key type.
+RESP3: One of the following: Boolean reply `true` for successfully deleting an item, or `false` if no such item was found in the filter. Simple error reply in these cases: invalid arguments or wrong key type.
+
+CF.EXISTS
+RESP2: One of the following: Integer reply: `1` means that, with high probability, `item` was already added to the filter, and `0` means that either the `key` does not exist or that the `item` had not been added to the filter. Simple error reply if invalid arguments are passed.
+RESP3: One of the following: Boolean reply: `true` means that, with high probability, `item` was already added to the filter, and `false` means that either `key` does not exist or that `item` had not been added to the filter. Simple error reply if invalid arguments are passed or `key` is not of the correct type.
+
+CF.INFO
+RESP2: * Array reply with argument name (Simple string reply) and value (Integer reply) pairs. Simple error reply if invalid arguments are passed, `key` does not exist, or `key` is not of the correct type.
+RESP3: * Map reply with argument name (Simple string reply) and value (Integer reply) pairs. Simple error reply if invalid arguments are passed, `key` does not exist, or `key` is not of the correct type.
+
+CF.INSERT
+RESP2: One of the following: Array reply, where each element is an Integer reply of `1` for successfully adding an item, or `-1` when the item cannot be added because the filter is full. Simple error reply when the number of arguments or key type is incorrect, and also when `NOCREATE` is specified and `key` does not exist.
+RESP3: * Array reply, where each element is a boolean reply of `1` for successfully adding an item, or `-1` when the item cannot be added because the filter is full. Simple error reply when the number of arguments or key type is incorrect, and also when `NOCREATE` is specified and `key` does not exist.
+
+CF.INSERTNX
+RESP2: One of the following: Array reply, where each element is an Integer reply of `0` means that the item's fingerprint already exists in the filter, `1` for successfully adding an item, or `-1` when the item cannot be added because the filter is full. Simple error reply when the number of arguments or key type is incorrect, and also when `NOCREATE` is specified and `key` does not exist.
+RESP3: * Array reply, where each element is a boolean reply of `1` for successfully adding an item, or `-1` when the item cannot be added because the filter is full. Simple error reply when the number of arguments or key type is incorrect, and also when `NOCREATE` is specified and `key` does not exist.
+
+CF.MEXISTS
+RESP2: One of the following: Array reply of integer replies, where `1` means that, with high probability, `item` was already added to the filter, and `0` means that `key` does not exist or that `item` was definitely not added to the filter. See note in `CF.DEL`. Simple error reply in these cases: in these cases: invalid arguments, wrong key type, or when the key was not found.
+RESP3: One of the following: Array reply of boolean replies, where `true` means that, with high probability, `item` was already added to the filter, and `false` means that `key` does not exist or that `item` was definitely not added to the filter. Simple error reply in these cases: in these cases: invalid arguments, wrong key type, or when the key was not found.
+
+CLIENT TRACKINGINFO
+RESP2: Array reply: a list of tracking information sections and their respective values.
+RESP3: Map reply: a list of tracking information sections and their respective values.
+
+CLUSTER FLUSHSLOTS
+RESP2: Simple string reply: `OK`
+RESP3: Simple string reply: `OK`.
+
+CLUSTER INFO
+RESP2: Bulk string reply: A map between named fields and values in the form of `<field>:<value>` lines separated by newlines composed by the two bytes `CRLF`.
+RESP3: Bulk string reply: A map between named fields and values in the form of <field>:<value> lines separated by newlines composed by the two bytes CRLF
+
+CLUSTER LINKS
+RESP2: Array reply: an array of maps where each map contains various attributes and their values of a cluster link.
+RESP3: Array reply: an array of Map reply where each map contains various attributes and their values of a cluster link.
+
+CLUSTER MIGRATION
+RESP2: For the `IMPORT` subcommand: Bulk string reply: task ID on success, or error message on failure. For the `CANCEL` subcommand: Integer reply: number of cancelled tasks. For the `STATUS` subcommand: Array reply: a list of migration task details. Each task is represented as an array containing field-value pairs: - `id`: Task identifier - `slots`: Slot range being imported or migrated - `source`: Source node ID - `dest`: Destination node ID - `operation`: Operation type ("import" or "migrate") - `state`: Current state ("completed", "in_progress", etc.) - `last_error`: Last error message (empty if none) - `retries`: Number of retry attempts - `create_time`: Task creation timestamp - `start_time`: Task start timestamp - `end_time`: Task completion timestamp (if completed) - `write_pause_ms`: Write pause duration in milliseconds
+RESP3: For the `IMPORT` subcommand: Bulk string reply: task ID on success, or error message on failure. For the `CANCEL` subcommand: Integer reply: number of cancelled tasks. For the `STATUS` subcommand: Array reply: a list of migration task details. Each task is represented as an array containing field-value pairs: - `id`: Task identifier - `slots`: Slot range being migrated - `source`: Source node ID - `dest`: Destination node ID - `operation`: Operation type (typically "migrate") - `state`: Current state ("completed", "in_progress", etc.) - `last_error`: Last error message (empty if none) - `retries`: Number of retry attempts - `create_time`: Task creation timestamp - `start_time`: Task start timestamp - `end_time`: Task completion timestamp (if completed) - `write_pause_ms`: Write pause duration in milliseconds
+
+CLUSTER SHARDS
+RESP2: Array reply: a nested list of a map of hash ranges and shard nodes describing individual shards.
+RESP3: Array reply: a nested list of Map reply of hash ranges and shard nodes describing individual shards.
+
+CMS.INFO
+RESP2: One of the following: Array reply of simple string reply and integer reply pairs containing sketch information. Simple error reply in these cases: invalid arguments, missing key, or wrong key type.
+RESP3: One of the following: Map reply of simple string reply and integer reply pairs containing sketch information. Simple error reply in these cases: invalid arguments, missing key, or wrong key type.
+
+COMMAND DOCS
+RESP2: Array reply: a map, as a flattened array, where each key is a command name, and each value is the documentary information.
+RESP3: Map reply: a map where each key is a command name, and each value is the documentary information.
+
+COMMAND GETKEYS
+RESP2: Array reply: list of keys from the given command.
+RESP3: Array reply: a list of keys from the given command.
+
+CONFIG GET
+RESP2: Array reply: a list of configuration parameters matching the provided arguments.
+RESP3: Map reply: a list of configuration parameters matching the provided arguments.
+
+DUMP
+RESP2: One of the following: Bulk string reply: The serialized value of the key. Nil reply: the key does not exist.
+RESP3: One of the following: Bulk string reply: the serialized value of the key. Null reply: the key does not exist.
+
+FT._LIST
+RESP2: Array of index names as simple strings.
+RESP3: Set of index names as simple strings.
+
+FT.AGGREGATE
+RESP2: One of the following: Array reply where each row is an array reply representing a single aggregate result. The integer reply at position `1` does not represent a valid value. Simple error reply in these cases: incorrect number of arguments, non-existent index, invalid query syntax.
+RESP3: One of the following: Map with the following fields: - `attributes`: Array of attribute names. - `format`: Simple string - result format. - `results`: Array of maps containing aggregated data. - `total_results`: Integer - total number of results. - `warning`: Array of warning messages. Simple error reply in these cases: incorrect number of arguments, non-existent index, invalid query syntax.
+
+FT.CONFIG GET
+RESP2: Array of arrays, where each sub-array contains a configuration option name and its value.
+RESP3: Map where keys are configuration option names and values are their corresponding values.
+
+FT.CURSOR READ
+RESP2: One of the following: Array with search results and metadata. Simple error reply in these cases: cursor not found.
+RESP3: One of the following: Map with structured search results and metadata. Simple error reply in these cases: cursor not found.
+
+FT.DICTDUMP
+RESP2: Array of dictionary terms.
+RESP3: Set of dictionary terms.
+
+FT.HYBRID
+RESP2: One of the following: Array with the first element being the total number of results, followed by document IDs and their field-value pairs as arrays. Simple error reply in these cases: no such index, syntax error in query.
+RESP3: One of the following: Map with the following fields: - `total_results`: Integer - total number of results - `execution_time`: double containing hybrid query execution time - `warnings`: Array of warning messages indicating partial results due to index errors or `MAXPREFIXEXPANSIONS`, out-of-memory conditions, and `TIMEOUT` reached - `results`: Array of maps containing document information Simple error reply in these cases: no such index, syntax error in query.
+
+FT.INFO
+RESP2: One of the following: Array of key-value pairs containing index information and statistics. Simple error reply in these cases: no such index.
+RESP3: One of the following: Map containing index information and statistics as key-value pairs. Simple error reply in these cases: no such index.
+
+FT.PROFILE
+RESP2: One of the following: Array with two elements: search results and profiling information. Simple error reply in these cases: no such index, syntax error in query.
+RESP3: One of the following: Map with two keys: `Results` containing search results and `Profile` containing profiling information. Simple error reply in these cases: no such index, syntax error in query.
+
+FT.SEARCH
+RESP2: One of the following: Array with the first element being the total number of results, followed by document IDs and their field-value pairs as arrays. Simple error reply in these cases: no such index, syntax error in query.
+RESP3: One of the following: Map with the following fields: - `total_results`: Integer - total number of results - `results`: Array of maps containing document information - `attributes`: Array of attribute names - `format`: Simple string - result format - `warning`: Array of warning messages Simple error reply in these cases: no such index, syntax error in query.
+
+FT.SPELLCHECK
+RESP2: One of the following: Array of spell check results for each term. Simple error reply in these cases: no such index.
+RESP3: One of the following: Map with a `results` key containing spell check results for each term. Simple error reply in these cases: no such index.
+
+FT.SYNDUMP
+RESP2: One of the following: Array of synonym terms and their associated synonym groups. Simple error reply in these cases: no such index.
+RESP3: One of the following: Map where keys are synonym terms and values are arrays of their associated synonym groups. Simple error reply in these cases: no such index.
+
+FT.TAGVALS
+RESP2: One of the following: Array of distinct tag values as bulk strings. Simple error reply in these cases: no such index, not a tag field.
+RESP3: One of the following: Set of distinct tag values as bulk strings. Simple error reply in these cases: no such index, not a tag field.
+
+FUNCTION HELP
+RESP2: Array reply: a list of sub-commands and their descriptions
+RESP3: Array reply: a list of sub-commands and their descriptions.
+
+FUNCTION STATS
+RESP2: Array reply: information about the function that's currently running and information about the available execution engines.
+RESP3: Map reply: information about the function that's currently running and information about the available execution engines.
+
+GEOHASH
+RESP2: Array reply: an array where each element is the Geohash corresponding to each member name passed as an argument to the command.
+RESP3: Array reply: An array where each element is the Geohash corresponding to each member name passed as an argument to the command.
+
+GET
+RESP2: One of the following: Bulk string reply: the value of the key. Nil reply: if the key does not exist.
+RESP3: One of the following: Bulk string reply: the value of the key. Null reply: key does not exist.
+
+HDEL
+RESP2: Integer reply: the number of fields that were removed from the hash, excluding any specified but non-existing fields.
+RESP3: Integer reply: The number of fields that were removed from the hash, excluding any specified but non-existing fields.
+
+HGETALL
+RESP2: Array reply: a list of fields and their values, or an empty list when key does not exist.
+RESP3: Map reply: a map of fields and their values, or an empty list when key does not exist.
+
+HINCRBYFLOAT
+RESP2: Bulk string reply: the value of the field after the increment operation.
+RESP3: Bulk string reply: The value of the field after the increment operation.
+
+HKEYS
+RESP2: Array reply: a list of fields in the hash, or an empty list when the key does not exist
+RESP3: Array reply: a list of fields in the hash, or an empty list when the key does not exist.
+
+HLEN
+RESP2: Integer reply: the number of fields in the hash, or 0 when the key does not exist.
+RESP3: Integer reply: the number of the fields in the hash, or 0 when the key does not exist.
+
+HOTKEYS GET
+RESP2: One of the following: - Array reply when tracking data is available, containing an array of pairs of field names and values. - Null reply when no tracking has been started or data has been reset.
+RESP3: One of the following: - Array reply when tracking data is available, containing a map of field names and values. - Null reply when no tracking has been started or data has been reset.
+
+HVALS
+RESP2: Array reply: a list of values in the hash, or an empty list when the key does not exist
+RESP3: Array reply: a list of values in the hash, or an empty list when the key does not exist.
+
+INFO
+RESP2: Bulk string reply: a map of info fields, one field per line in the form of `<field>:<value>` where the value can be a comma separated map like `<key>=<val>`. Also contains section header lines starting with `#` and blank lines. Lines can contain a section name (starting with a `#` character) or a property. All the properties are in the form of `field:value` terminated by `\r\n`.
+RESP3: Verbatim string reply: a map of info fields, one field per line in the form of `<field>:<value>` where the value can be a comma separated map like `<key>=<val>`. Also contains section header lines starting with `#` and blank lines. Lines can contain a section name (starting with a `#` character) or a property. All the properties are in the form of `field:value` terminated by `\r\n`.
+
+JSON.GET
+RESP2: Bulk string reply: a JSON-encoded string representing the value(s) at the specified path(s). With a single path, returns the JSON serialization of the value at that path. With multiple paths, returns a JSON object where each key is a path and each value is an array of JSON serializations.
+RESP3: Bulk string reply: a JSON-encoded string with a top-level array containing the value(s) at the specified path(s). With a single path using `$` (default in RESP3), returns a JSON array containing the serialized value. With multiple paths, returns a JSON object where each key is a path and each value is an array of JSON serializations.
+
+JSON.NUMINCRBY
+RESP2: With `$`-based path argument: Bulk string reply containing a JSON-encoded string with the new value(s), or null reply if the matching value is not a number. With `.`-based path argument: Bulk string reply representing the stringified new value, null reply if the matching value is not a number, or simple error reply on error.
+RESP3: With `$`-based path argument (default): Array reply of integer replies or null replies, where each element is the new value, or `null` if the matching value is not a number, or simple error reply on error. With `.`-based path argument: Bulk string reply representing the stringified new value, null reply if the matching value is not a number, or simple error reply on error.
+
+JSON.NUMMULTBY
+RESP2: With `$`-based path argument: Bulk string reply containing a JSON-encoded string with the new value(s), or null reply if the matching value is not a number. With `.`-based path argument: Bulk string reply representing the stringified new value, null reply if the matching value is not a number, or simple error reply on error.
+RESP3: With `$`-based path argument (default): Array reply of integer replies or null replies, where each element is the new value, or `null` if the matching value is not a number, or simple error reply on error. With `.`-based path argument: Bulk string reply representing the stringified new value, null reply if the matching value is not a number, or simple error reply on error.
+
+JSON.TYPE
+RESP2: With `$`-based path argument: Array reply of bulk string replies, where each element is the type of the matching value. With `.`-based path argument: Bulk string reply representing the type of the matching value.
+RESP3: With `$`-based path argument (default): Array reply of array replies of bulk string replies, where each nested array contains the type of the matching value. With `.`-based path argument: Array reply of bulk string replies representing the type of the matching value.
+
+LATENCY DOCTOR
+RESP2: Bulk string reply: a human readable latency analysis report.
+RESP3: Verbatim string reply: a human readable latency analysis report.
+
+LATENCY HISTOGRAM
+RESP2: Array reply: a map where each key is a command name, and each value is a map with the total calls, and an inner map of the histogram time buckets.
+RESP3: Map reply: a map where each key is a command name, and each value is a map with the total calls, and an inner map of the histogram time buckets.
+
+LCS
+RESP2: One of the following: Bulk string reply: the longest common subsequence. Integer reply: the length of the longest common subsequence when _LEN_ is given. Array reply: an array with the LCS length and all the ranges in both the strings when _IDX_ is given.
+RESP3: One of the following: Bulk string reply: the longest common subsequence. Integer reply: the length of the longest common subsequence when _LEN_ is given. Map reply: a map with the LCS length and all the ranges in both the strings when _IDX_ is given.
+
+LOLWUT
+RESP2: Bulk string reply: a string containing generative computer art and the Redis version.
+RESP3: Verbatim string reply: a string containing generative computer art and the Redis version.
+
+MEMORY DOCTOR
+RESP2: Bulk string reply: a memory problems report.
+RESP3: Verbatim string reply: a memory problems report.
+
+MEMORY HELP
+RESP2: Array reply: a list of sub-commands and their descriptions
+RESP3: Array reply: a list of sub-commands and their descriptions.
+
+MEMORY MALLOC STATS
+RESP2: Bulk string reply: a long string of statistics.
+RESP3: Verbatim string reply: a long string of statistics.
+
+MEMORY STATS
+RESP2: Array reply: a nested list of memory usage metrics and their values.
+RESP3: Map reply: memory usage metrics and their values.
+
+MODULE HELP
+RESP2: Array reply: a list of sub-commands and their descriptions.
+RESP3: Array reply: a list of sub-commands and their descriptions
+
+MODULE LIST
+RESP2: Array reply: list of loaded modules. Each element in the list represents a represents a module, and is in itself a list of property names and their values. The following properties is reported for each loaded module: name: the name of the module. ver: the version of the module.
+RESP3: Array reply: list of loaded modules. Each element in the list represents a represents a module, and is a Map reply of property names and their values. The following properties is reported for each loaded module: name: the name of the module. ver: the version of the module.
+
+OBJECT HELP
+RESP2: Array reply: a list of sub-commands and their descriptions
+RESP3: Array reply: a list of sub-commands and their descriptions.
+
+PFCOUNT
+RESP2: Integer reply: the approximated number of unique elements observed via `PFADD`.
+RESP3: Integer reply: the approximated number of unique elements observed via `PFADD`
+
+QUIT
+RESP2: Simple string reply: OK.
+RESP3: Simple string reply: `OK`.
+
+RANDOMKEY
+RESP2: One of the following: Nil reply: when the database is empty. Bulk string reply: a random key in database.
+RESP3: One of the following: Null reply: when the database is empty. Bulk string reply: a random key in the database.
+
+SCARD
+RESP2: Integer reply: the cardinality (number of elements) of the set, or `0` if the key does not exist.
+RESP3: Integer reply: The cardinality (number of elements) of the set, or 0 if the key does not exist.
+
+SDIFF
+RESP2: Array reply: a list with members of the resulting set.
+RESP3: Set reply: a set with the members of the resulting set.
+
+SINTER
+RESP2: Array reply: an array with the members of the resulting set.
+RESP3: Set reply: a set with the members of the resulting set.
+
+SINTERSTORE
+RESP2: Integer reply: the number of elements in the resulting set.
+RESP3: Integer reply: the number of elements in the result set.
+
+SMEMBERS
+RESP2: Array reply: an array with all the members of the set.
+RESP3: Set reply: a set with all the members of the set.
+
+SREM
+RESP2: Integer reply: the number of members that were removed from the set, not including non existing members.
+RESP3: Integer reply: Number of members that were removed from the set, not including non existing members.
+
+SSUBSCRIBE
+RESP2: When successful, this command doesn't return anything. Instead, for each shard channel, one message with the first element being the string `ssubscribe` is pushed as a confirmation that the command succeeded. Note that this command can also return a -MOVED redirect.
+RESP3: When successful, this command doesn't return anything. Instead, for each shard channel, one message with the first element being the string 'ssubscribe' is pushed as a confirmation that the command succeeded. Note that this command can also return a -MOVED redirect.
+
+SUNION
+RESP2: Array reply: a list with members of the resulting set.
+RESP3: Set reply: a set with the members of the resulting set.
+
+SUNIONSTORE
+RESP2: Integer reply: the number of elements in the resulting set.
+RESP3: Integer reply: Number of the elements in the resulting set.
+
+TDIGEST.BYRANK
+RESP2: One of the following: Array of bulk strings as floating-points, populated with value_1, value_2, ..., value_R: an accurate result when `rank` is `0`, the value of the smallest observation. an accurate result when `rank` is _n_-1, the value of the largest observation, where _n_ denotes the number of observations added to the sketch. `inf` when `rank` is equal to _n_ or larger than _n_. `nan` for all ranks when the given sketch is empty. Simple error reply in these cases: the given key does not exist or is of an incorrect type, rank parsing errors, or incorrect number of arguments.
+RESP3: One of the following: Array of doubles as floating-points, populated with value_1, value_2, ..., value_R: an accurate result when `rank` is `0`, the value of the smallest observation. an accurate result when `rank` is _n_-1, the value of the largest observation, where _n_ denotes the number of observations added to the sketch. `inf` when `rank` is equal to _n_ or larger than _n_. `nan` for all ranks when the given sketch is empty. Simple error reply in these cases: the given key does not exist or is of an incorrect type, rank parsing errors, or incorrect number of arguments.
+
+TDIGEST.BYREVRANK
+RESP2: One of the following: Array of bulk strings as floating-points, populated with value_1, value_2, ..., value_R: an accurate result when `rank` is `0`, the value of the largest observation. an accurate result when `rank` is _n_-1, the value of the smallest observation, where _n_ denotes the number of observations added to the sketch. `inf` when `rank` is equal to _n_ or larger than _n_. `nan` for all ranks when the given sketch is empty. Simple error reply in these cases: the given key does not exist or is of an incorrect type, rank parsing errors, or an incorrect number of arguments.
+RESP3: One of the following: Array of doubles as floating-points, populated with value_1, value_2, ..., value_R: an accurate result when `rank` is `0`, the value of the largest observation. an accurate result when `rank` is _n_-1, the value of the smallest observation, where _n_ denotes the number of observations added to the sketch. `inf` when `rank` is equal to _n_ or larger than _n_. `nan` for all ranks when the given sketch is empty. Simple error reply in these cases: the given key does not exist or is of an incorrect type, rank parsing errors, or an incorrect number of arguments.
+
+TDIGEST.CDF
+RESP2: One of the following: Array of bulk string replies as floating-points, populated with fraction_1, fraction_2, ..., fraction_N. All values are `nan` if the given sketch is empty. Simple error reply in these cases: the given key does not exist or is of an incorrect type, value parsing errors, or an incorrect number of arguments.
+RESP3: One of the following: Array of doubles populated with fraction_1, fraction_2, ..., fraction_N. All values are `nan` if the given sketch is empty. Simple error reply in these cases: the given key does not exist or is of an incorrect type, value parsing errors, or an incorrect number of arguments.
+
+TDIGEST.INFO
+RESP2: One of the following: Array reply with information about the given sketch as name-value pairs: | Name<br>Simple string reply | Description | ---------------------------- | - | `Compression` | Integer reply<br> The compression (controllable trade-off between accuracy and memory consumption) of the sketch | `Capacity` | Integer reply<br> Size of the buffer used for storing the centroids and for the incoming unmerged observations | `Merged nodes` | Integer reply<br> Number of merged observations | `Unmerged nodes` | Integer reply<br> Number of buffered nodes (uncompressed observations) | `Merged weight` | Integer reply<br> Weight of values of the merged nodes | `Unmerged weight` | Integer reply<br> Weight of values of the unmerged nodes (uncompressed observations) | `Observations` | Integer reply<br> Number of observations added to the sketch | `Total compressions` | Integer reply<br> Number of times this sketch compressed data together | `Memory usage` | Integer reply<br> Number of bytes allocated for the sketch Simple error reply in these cases: the given key does not exist or is of an incorrect type or an incorrect number of arguments.
+RESP3: One of the following: Map reply with information about the given sketch as name-value pairs: | Name<br>Simple string reply | Description | ---------------------------- | - | `Compression` | Integer reply<br> The compression (controllable trade-off between accuracy and memory consumption) of the sketch | `Capacity` | Integer reply<br> Size of the buffer used for storing the centroids and for the incoming unmerged observations | `Merged nodes` | Integer reply<br> Number of merged observations | `Unmerged nodes` | Integer reply<br> Number of buffered nodes (uncompressed observations) | `Merged weight` | Integer reply<br> Weight of values of the merged nodes | `Unmerged weight` | Integer reply<br> Weight of values of the unmerged nodes (uncompressed observations) | `Observations` | Integer reply<br> Number of observations added to the sketch | `Total compressions` | Integer reply<br> Number of times this sketch compressed data together | `Memory usage` | Integer reply<br> Number of bytes allocated for the sketch Simple error reply in these cases: the given key does not exist or is of an incorrect type or an incorrect number of arguments.
+
+TDIGEST.MAX
+RESP2: One of the following: Bulk string reply as floating-point representing the maximum observation value from the given sketch. The result is always accurate. `nan` is returned if the sketch is empty. Simple string reply in these cases: incorrect number of arguments or incorrect key type.
+RESP3: One of the following: Double reply representing the maximum observation value from the given sketch. The result is always accurate. `nan` is returned if the sketch is empty. Simple string reply in these cases: incorrect number of arguments or incorrect key type.
+
+TDIGEST.MIN
+RESP2: One of the following: Bulk string reply as floating-point representing the minimum observation value from the given sketch. The result is always accurate. `nan` is returned if the sketch is empty. Simple string reply in these cases: incorrect number of arguments or incorrect key type.
+RESP3: One of the following: Double reply representing the minimum observation value from the given sketch. The result is always accurate. `nan` is returned if the sketch is empty. Simple string reply in these cases: incorrect number of arguments or incorrect key type.
+
+TDIGEST.QUANTILE
+RESP2: One of the following: Array of bulk string replies as floating-point estimates, populated with value_1, value_2, ..., value_N. an accurate result when `quantile` is `0`, the value of the smallest observation. an accurate result when `quantile` is `1`, the value of the largest observation. `nan` for all quantiles when the given sketch is empty. Simple error reply in these cases: the given key does not exist or is of an incorrect type, quantile parsing errors, or incorrect number of arguments.
+RESP3: One of the following: Array of double replies as estimates, populated with value_1, value_2, ..., value_N. an accurate result when `quantile` is `0`, the value of the smallest observation. an accurate result when `quantile` is `1`, the value of the largest observation. `nan` for all quantiles when the given sketch is empty. Simple error reply in these cases: the given key does not exist or is of an incorrect type, quantile parsing errors, or incorrect number of arguments.
+
+TDIGEST.TRIMMED_MEAN
+RESP2: One of the following: Bulk string reply as a floating-point estimation of the mean value. `nan` if the sketch is empty. Simple error reply in these cases: the given key does not exist or is of an incorrect type, quantiles out of range [0..1], or incorrect number of arguments.
+RESP3: One of the following: Double reply as an estimation of the mean value. `nan` if the sketch is empty. Simple error reply in these cases: the given key does not exist or is of an incorrect type, quantiles out of range [0..1], or incorrect number of arguments.
+
+TOPK.ADD
+RESP2: One of the following: Array of bulk string replies containing either dropped elements or nil (null bulk string). Simple error reply in these cases: incorrect number of arguments or non-existant key.
+RESP3: One of the following: Array of bulk string replies containing either dropped elements or null. Simple error reply in these cases: incorrect number of arguments, non-existant key, or key of the incorrect type.
+
+TOPK.INCRBY
+RESP2: One of the following: Array of bulk string replies containing either dropped elements or nil (null bulk string). Simple error reply in these cases: incorrect number of arguments, non-existant key, key of the incorrect type, or an incorrect increment (less than 0 or greater than 100,000).
+RESP3: One of the following: Array of bulk string replies containing either dropped elements or null. Simple error reply in these cases: incorrect number of arguments, non-existant key, key of the incorrect type, or an incorrect increment (less than 0 or greater than 100,000).
+
+TOPK.INFO
+RESP2: One of the following: Array reply of simple string and integer pairs. For decay, a simple string reply is used to represent the floating point value. Simple error reply in these cases: incorrect number of arguments, non-existant key, or key of the incorrect type.
+RESP3: One of the following: A map of simple string and integer pairs. For decay, a double reply is used to represent the floating point value. Simple error reply in these cases: incorrect number of arguments, non-existant key, or key of the incorrect type.
+
+TOPK.QUERY
+RESP2: One of the following: Array of integer replies: `1` if an item is in the Top-K or `0` otherwise. Simple error reply in these cases: non-existant key or key of the incorrect type.
+RESP3: * Array of boolean replies: `true` if an item is in the Top-K or `false` otherwise. Simple error reply in these cases: non-existant key or key of the incorrect type.
+
+TS.GET
+RESP2: One of the following: Array reply of a single (Integer reply, Simple string reply) pair representing (timestamp, value) of the sample with the highest timestamp. An empty Array reply when the time series is empty. Simple error reply in these cases: invalid arguments, wrong key type, key does not exist, etc.
+RESP3: One of the following: Array reply of a single (Integer reply, Double reply) pair representing (timestamp, value) of the sample with the highest timestamp. An empty Array reply when the time series is empty. Simple error reply in these cases: invalid arguments, wrong key type, key does not exist, etc.
+
+TS.INFO
+RESP2: Array reply with information about the time series as flattened name-value pairs: | Name<br>Simple string reply | Description | ---------------------------- | - | `totalSamples` | Integer reply<br> Total number of samples in this time series | `memoryUsage` | Integer reply<br> Total number of bytes allocated for this time series, which is the sum of <br> - The memory used for storing the series' configuration parameters (retention period, duplication policy, etc.)<br>- The memory used for storing the series' compaction rules<br>- The memory used for storing the series' labels (key-value pairs)<br>- The memory used for storing the chunks (chunk header + compressed/uncompressed data) | `firstTimestamp` | Integer reply<br> First timestamp present in this time series (Unix timestamp in milliseconds) | `lastTimestamp` | Integer reply<br> Last timestamp present in this time series (Unix timestamp in milliseconds) | `retentionTime` | Integer reply<br> The retention period, in milliseconds, for this time series | `chunkCount` | Integer reply<br> Number of chunks used for this time series | `chunkSize` | Integer reply<br> The initial allocation size, in bytes, for the data part of each new chunk.<br>Actual chunks may consume more memory. Changing the chunk size (using `TS.ALTER`) does not affect existing chunks. | `chunkType` | Simple string reply<br> The chunks type: `compressed` or `uncompressed` | `duplicatePolicy` | Simple string reply or Nil reply<br> The duplicate policy of this time series | `labels` | Array reply or Nil reply<br> Metadata labels of this time series<br> Each element is a 2-elements Array reply of (Bulk string reply, Bulk string reply) representing (label, value) | `sourceKey` | Bulk string reply or Nil reply<br>Key name for source time series in case the current series is a target of a compaction rule | `rules` | Array reply<br> Compaction rules defined in this time series<br> Each rule is an Array reply with 4 elements:<br>- Bulk string reply: The compaction key<br>- Integer reply: The bucket duration<br>- Simple string reply: The aggregator<br>- Integer reply: The alignment (since RedisTimeSeries v1.8) When `DEBUG` is specified, the response also contains: | Name<br>Simple string reply | Description | ---------------------------- | - | `keySelfName` | Bulk string reply<br> Name of the key | `Chunks` | Array reply with information about the chunks<br>Each element is an Array reply of information about a single chunk in a name(Simple string reply)-value pairs:<br>- `startTimestamp` - Integer reply - First timestamp present in the chunk<br>- `endTimestamp` - Integer reply - Last timestamp present in the chunk<br>- `samples` - Integer reply - Total number of samples in the chunk<br>- `size` - Integer reply - the chunk's internal data size (without overheads) in bytes<br>- `bytesPerSample` - Bulk string reply (double) - Ratio of `size` and `samples`
+RESP3: Map reply with information about the time series. The map contains the same fields as described in the RESP2 response, but organized as key-value pairs in a map structure rather than a flattened array. When `DEBUG` is specified, the response also contains the additional `keySelfName` and `Chunks` fields as described above.
+
+TS.MGET
+RESP2: Array reply: for each time series matching the specified filters, the following is reported: - Bulk string reply: The time series key name - Array reply: label-value pairs (Bulk string reply, Bulk string reply) - By default, an empty array is reported - If `WITHLABELS` is specified, all labels associated with this time series are reported - If `SELECTED_LABELS label...` is specified, the selected labels are reported (null value when no such label defined) - Array reply: a single timestamp-value pair (Integer reply, Simple string reply)
+RESP3: Map reply: for each time series matching the specified filters, the following is reported: - Bulk string reply: The time series key name - Map reply or Array reply: label-value pairs - By default, an empty array is reported - If `WITHLABELS` is specified, all labels associated with this time series are reported as a map - If `SELECTED_LABELS label...` is specified, the selected labels are reported as a map (null value when no such label defined) - Array reply: a single timestamp-value pair (Integer reply, Double reply)
+
+TS.MRANGE
+RESP2: If `GROUPBY label REDUCE reducer` is not specified: Array reply: for each time series matching the specified filters, the following is reported: - Bulk string reply: The time series key name - Array reply: label-value pairs (Bulk string reply, Bulk string reply) - By default, an empty array is reported - If `WITHLABELS` is specified, all labels associated with this time series are reported - If `SELECTED_LABELS label...` is specified, the selected labels are reported (null value when no such label defined) - Array reply: timestamp-value pairs (Integer reply, Simple string reply) representing all samples/aggregations matching the range If `GROUPBY label REDUCE reducer` is specified: Array reply: for each group of time series matching the specified filters, the following is reported: - Bulk string reply with the format `label=value` where `label` is the `GROUPBY` label argument - Array reply: label-value pairs (Bulk string reply, Bulk string reply): - By default, an empty array is reported - If `WITHLABELS` is specified, the `GROUPBY` label argument and value are reported - If `SELECTED_LABELS label...` is specified, the selected labels are reported (null value when no such label defined or label does not have the same value for all grouped time series) - Array reply: either a single pair (Bulk string reply, Bulk string reply): the `GROUPBY` label argument and value, or empty array - Array reply: a single pair (Bulk string reply, Bulk string reply): the string `__reducer__` and the reducer argument - Array reply: a single pair (Bulk string reply, Bulk string reply): the string `__source__` and the time series key names separated by "," - Array reply: timestamp-value pairs (Integer reply, Simple string reply) representing all samples/aggregations matching the range
+RESP3: If `GROUPBY label REDUCE reducer` is not specified: Map reply: for each time series matching the specified filters, the following is reported: - Bulk string reply: The time series key name - Map reply or Array reply: label-value pairs - By default, an empty map is reported - If `WITHLABELS` is specified, all labels associated with this time series are reported as a map - If `SELECTED_LABELS label...` is specified, the selected labels are reported as a map (null value when no such label defined) - Additional metadata including aggregators information - Array reply: timestamp-value pairs (Integer reply, Double reply) representing all samples/aggregations matching the range If `GROUPBY label REDUCE reducer` is specified: Similar structure as RESP2 but with map-based organization for labels and metadata, and double values instead of string values.
+
+TS.MREVRANGE
+RESP2: If `GROUPBY label REDUCE reducer` is not specified: Array reply: for each time series matching the specified filters, the following is reported: - Bulk string reply: The time series key name - Array reply: label-value pairs (Bulk string reply, Bulk string reply) - By default, an empty array is reported - If `WITHLABELS` is specified, all labels associated with this time series are reported - If `SELECTED_LABELS label...` is specified, the selected labels are reported - Array reply: timestamp-value pairs (Integer reply, Simple string reply) representing all samples/aggregations matching the range in reverse chronological order If `GROUPBY label REDUCE reducer` is specified: Array reply: for each group of time series matching the specified filters, the following is reported: - Bulk string reply with the format `label=value` where `label` is the `GROUPBY` label argument - Array reply: a single pair (Bulk string reply, Bulk string reply): the `GROUPBY` label argument and value - Array reply: a single pair (Bulk string reply, Bulk string reply): the string `__reducer__` and the reducer argument - Array reply: a single pair (Bulk string reply, Bulk string reply): the string `__source__` and the time series key names separated by "," - Array reply: timestamp-value pairs (Integer reply, Simple string reply) representing all samples/aggregations matching the range in reverse chronological order
+RESP3: If `GROUPBY label REDUCE reducer` is not specified: Map reply: for each time series matching the specified filters, the following is reported: - Bulk string reply: The time series key name - Map reply or Array reply: label-value pairs - By default, an empty map is reported - If `WITHLABELS` is specified, all labels associated with this time series are reported as a map - If `SELECTED_LABELS label...` is specified, the selected labels are reported as a map - Additional metadata including aggregators information - Array reply: timestamp-value pairs (Integer reply, Double reply) representing all samples/aggregations matching the range in reverse chronological order If `GROUPBY label REDUCE reducer` is specified: Similar structure as RESP2 but with map-based organization for labels and metadata, and double values instead of string values.
+
+TS.QUERYINDEX
+RESP2: One of the following: Array reply where each element is a Bulk string reply: a time series key. The array is empty if no time series matches the filter. Simple error reply in these cases: invalid filter expression.
+RESP3: One of the following: Set reply where each element is a Bulk string reply: a time series key. The set is empty if no time series matches the filter. Simple error reply in these cases: invalid filter expression.
+
+TS.RANGE
+RESP2: One of the following: Array reply of (Integer reply, Simple string reply) pairs representing (timestamp, value). Simple error reply in these cases: invalid filter value, wrong key type, key does not exist, etc.
+RESP3: One of the following: Array reply of (Integer reply, Double reply) pairs representing (timestamp, value). Simple error reply in these cases: invalid filter value, wrong key type, key does not exist, etc.
+
+TS.REVRANGE
+RESP2: One of the following: Array reply of (Integer reply, Simple string reply) pairs representing (timestamp, value) in reverse chronological order. Simple error reply in these cases: invalid filter value, wrong key type, key does not exist, etc.
+RESP3: One of the following: Array reply of (Integer reply, Double reply) pairs representing (timestamp, value) in reverse chronological order. Simple error reply in these cases: invalid filter value, wrong key type, key does not exist, etc.
+
+VADD
+RESP2: One of the following: Integer reply: 1 if key was added; 0 if key was not added. Simple error reply: if the command was malformed.
+RESP3: One of the following: Boolean reply: true if key was added; false if key was not added. Simple error reply: if the command was malformed.
+
+VEMB
+RESP2: One of the following: Array reply: of real numbers as bulk strings, representing the vector. Array reply: consisting of the following elements: 1. The quantization type as a simple string: `fp32`, `bin`, or `q8`. 1. A bulk string blob with the following raw data: 4-byte floats for fp32 (little-endian encoding) A bitmap for binary quantization A byte array for q8 1. The L2 norm, as a simple string, of the vector before normalization. 1. (Only for q8): The quantization range as a simple string. Multiply this by integer components to recover normalized values.
+RESP3: One of the following: Array reply: of doubles, representing the vector. Array reply: consisting of the following elements: 1. The quantization type as a simple string: `fp32`, `bin`, or `q8`. 1. A bulk string blob with the following raw data: 4-byte floats for fp32 (little-endian encoding) A bitmap for binary quantization A byte array for q8 1. The double L2 norm of the vector before normalization. 1. (Only for q8): The quantization range as a double. Multiply this by integer components to recover normalized values.
+
+VGETATTR
+RESP2: One of the following: Simple string reply containing the JSON attribute(s). Bulk string reply (null bulk string) for unknown key or element, or when no attributes exist for the given key/element pair.
+RESP3: One of the following: Simple string reply containing the JSON attribute(s). Null reply for unknown key or element, or when no attributes exist for the given key/element pair.
+
+VINFO
+RESP2: One of the following: Array reply containing metadata and internal details about a vector set, including size, dimensions, quantization type, and graph structure. Array reply (null array reply) for unknown key.
+RESP3: One of the following: Array reply containing metadata and internal details about a vector set, including size, dimensions, quantization type, and graph structure. Null reply for unknown key.
+
+VISMEMBER
+RESP2: Integer reply: `0` if the element does not exist in the vector set, or the key does not exist. `1` if the element exists in the vector set.
+RESP3: Boolean reply: `false` if the element does not exist in the vector set, or the key does not exist. `true` if the element exists in the vector set.
+
+VLINKS
+RESP2: One of the following: An array of array replies containing the names of adjacent elements as bulk strings; interleaved with scores as bulk strings when used with the `WITHSCORES` option. Simple error reply for incorrect syntax. Bulk string reply (null bulk string) for unknown keys and/or elements.
+RESP3: One of the following: An array of array replies containing the names of adjacent elements as bulk strings when used without the `WITHSCORES` option. An array of map replies containing the names of adjecent elements as bulk strings, together with their scores as doubles when used with the `WITHSCORES` option. Simple error reply for incorrect syntax. Null reply for unknown keys and/or elements.
+
+VRANDMEMBER
+RESP2: One of the following: Array reply containing the names of count random elements as strings. Bulk string reply (null bulk string) for unknown keys. Array reply (empty array) for unknown keys when a count is specified.
+RESP3: One of the following: Array reply containing the names of *count* random elements as strings. Null reply for unknown keys. Array reply (empty array) for unknown keys when a count is specified.
+
+VREM
+RESP2: Integer reply: 0 if either element or key do not exist; 1 if the element was removed.
+RESP3: Boolean reply: false if either element or key do not exist; true if the element was removed.
+
+VSETATTR
+RESP2: One of the following: Integer reply: 0 if either the key or element does not exist; 1 if the attributes were successfully added to the element. Simple error reply for improperly specified attribute string.
+RESP3: One of the following: Boolean reply: false if either the key or element does not exist; true if the attributes were successfully added to the element. Simple error reply for improperly specified attribute string.
+
+VSIM
+RESP2: One of the following: Simple error reply for an unknown element. Array reply (empty array) for an unknown key. Array reply with matching elements. With the `WITHSCORES` option, an array reply with matching bulk string elements juxtaposed with bulk string as floating-point scores. With the `WITHSCORES` and `WITHATTRIBS` options, an array reply with matching bulk string elements, and two additional elements: (1) a bulk string as floating-point score and (2) a bulk string representing the JSON attribute associated with the element or nil (null bulk string) for the elements missing an attribute.
+RESP3: One of the following: Simple error reply for unknown element. Array reply (empty array) for unknown key. Array reply with matching elements. With the `WITHSCORES` option, a map reply with matching bulk string elements (keys) and double scores (values). With the `WITHSCORES` and `WITHATTRIBS` options, a Map reply with matching bulk string elements (keys), and an additional array (values) with the following elements: (1) a double reply for the score and (2) a bulk string representing the JSON attribute associated with the element or null for the elements missing an attribute.
+
+WAIT
+RESP2: Integer reply: the command returns the number of replicas reached by all the writes performed in the context of the current connection.
+RESP3: Integer reply: the number of replicas reached by all the writes performed in the context of the current connection.
+
+XINFO STREAM
+RESP2: One of the following: Array reply: when the _FULL_ argument is used, a list of information about a stream in summary form. Array reply: when the _FULL_ argument is used, a list of information about a stream in extended form.
+RESP3: One of the following: Map reply: when the _FULL_ argument was not given, a list of information about a stream in summary form. Map reply: when the _FULL_ argument was given, a list of information about a stream in extended form.
+
+XREAD
+RESP2: One of the following: Array reply: an array where each element is an array composed of a two elements containing the key name and the entries reported for that key. The entries reported are full stream entries, having IDs and the list of all the fields and values. Field and values are guaranteed to be reported in the same order they were added by `XADD`. Nil reply: if the _BLOCK_ option is given and a timeout occurs, or if there is no stream that can be served.
+RESP3: One of the following: Map reply: A map of key-value elements where each element is composed of the key name and the entries reported for that key. The entries reported are full stream entries, having IDs and the list of all the fields and values. Field and values are guaranteed to be reported in the same order they were added by `XADD`. Null reply: if the _BLOCK_ option is given and a timeout occurs, or if there is no stream that can be served.
+
+XREADGROUP
+RESP2: One of the following: Array reply: an array where each element is an array composed of a two elements containing the key name and the entries reported for that key. The entries reported are full stream entries, having IDs and the list of all the fields and values. Field and values are guaranteed to be reported in the same order they were added by `XADD`. Nil reply: if the _BLOCK_ option is given and a timeout occurs, or if there is no stream that can be served.
+RESP3: One of the following: Map reply: A map of key-value elements where each element is composed of the key name and the entries reported for that key. The entries reported are full stream entries, having IDs and the list of all the fields and values. Field and values are guaranteed to be reported in the same order they were added by `XADD`. Null reply: if the _BLOCK_ option is given and a timeout occurs, or if there is no stream that can be served.
+
+ZADD
+RESP2: Any of the following: Nil reply: if the operation was aborted because of a conflict with one of the _XX/NX/LT/GT_ options. Integer reply: the number of new members when the _CH_ option is not used. Integer reply: the number of new or updated members when the _CH_ option is used. Bulk string reply: the updated score of the member when the _INCR_ option is used.
+RESP3: Any of the following: Null reply: if the operation was aborted because of a conflict with one of the _XX/NX/LT/GT_ options. Integer reply: the number of new members when the _CH_ option is not used. Integer reply: the number of new or updated members when the _CH_ option is used. Double reply: the updated score of the member when the _INCR_ option is used.
+
+ZINCRBY
+RESP2: Bulk string reply: the new score of _member_ as a double precision floating point number.
+RESP3: Double reply: the new score of _member_.
+
+ZMSCORE
+RESP2: One of the following: Nil reply: if the member does not exist in the sorted set. Array reply: a list of Bulk string reply _member_ scores as double-precision floating point numbers.
+RESP3: One of the following: Null reply: if the member does not exist in the sorted set. Array reply: a list of Double reply _member_ scores as double-precision floating point numbers.
+
+ZREMRANGEBYLEX
+RESP2: Integer reply: the number of members removed.
+RESP3: Integer reply: Number of members removed.
+
+ZREMRANGEBYRANK
+RESP2: Integer reply: the number of members removed.
+RESP3: Integer reply: Number of members removed.
+
+ZREMRANGEBYSCORE
+RESP2: Integer reply: the number of members removed.
+RESP3: Integer reply: Number of members removed.
+
+ZREVRANGEBYLEX
+RESP2: Array reply: a list of members in the specified score range.
+RESP3: Array reply: List of the elements in the specified score range.
+
+ZSCORE
+RESP2: One of the following: Bulk string reply: the score of the member (a double-precision floating point number), represented as a string. Nil reply: if _member_ does not exist in the sorted set, or the key does not exist.
+RESP3: One of the following: Double reply: the score of the member (a double-precision floating point number). Nil reply: if _member_ does not exist in the sorted set, or the key does not exist.

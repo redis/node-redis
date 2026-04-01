@@ -26,18 +26,4 @@ describe('CLUSTER LINKS', () => {
       assert.equal(typeof link['send-buffer-used'], 'number');
     }
   }, GLOBAL.CLUSTERS.OPEN);
-
-  testUtils.testWithCluster('clusterNode.clusterLinks with data', async cluster => {
-    const client = await cluster.nodeClient(cluster.masters[0]),
-      links = await client.clusterLinks();
-    assert.ok(Array.isArray(links));
-    for (const link of links) {
-      assert.equal(typeof link.direction, 'string');
-      assert.equal(typeof link.node, 'string');
-      assert.equal(typeof link['create-time'], 'number');
-      assert.equal(typeof link.events, 'string');
-      assert.equal(typeof link['send-buffer-allocated'], 'number');
-      assert.equal(typeof link['send-buffer-used'], 'number');
-    }
-  }, GLOBAL.CLUSTERS.OPEN);
 });

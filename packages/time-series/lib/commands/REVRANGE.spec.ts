@@ -38,17 +38,4 @@ describe('TS.REVRANGE', () => {
       value: 2
     }]);
   }, GLOBAL.SERVERS.OPEN);
-
-  testUtils.testWithClient('client.ts.revRange with data', async client => {
-    const [, reply] = await Promise.all([
-      client.ts.add('key', 1, 2),
-      client.ts.revRange('key', '-', '+')
-    ]);
-
-    // RESP3 returns Double values instead of RESP2's Simple string values
-    assert.deepStrictEqual(reply, [{
-      timestamp: 1,
-      value: 2
-    }]);
-  }, GLOBAL.SERVERS.OPEN);
 });

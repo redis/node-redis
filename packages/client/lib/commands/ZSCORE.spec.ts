@@ -11,7 +11,7 @@ describe('ZSCORE', () => {
     );
   });
 
-  testUtils.testAll('zScore null', async client => {
+  testUtils.testAll('zScore', async client => {
     assert.equal(
       await client.zScore('key', 'member'),
       null

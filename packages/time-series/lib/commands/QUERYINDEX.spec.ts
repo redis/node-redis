@@ -32,19 +32,4 @@ describe('TS.QUERYINDEX', () => {
 
     assert.deepEqual(reply, ['key']);
   }, GLOBAL.SERVERS.OPEN);
-
-  testUtils.testWithClient('client.ts.queryIndex with data', async client => {
-    const [, reply] = await Promise.all([
-      client.ts.create('key', {
-        LABELS: {
-          label: 'value'
-        }
-      }),
-      client.ts.queryIndex('label=value')
-    ]);
-
-    // RESP3 returns Set reply (decoded as Array with default type mapping)
-    assert.ok(Array.isArray(reply));
-    assert.deepEqual(reply, ['key']);
-  }, GLOBAL.SERVERS.OPEN);
 });

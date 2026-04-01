@@ -22,7 +22,7 @@ describe('ZMSCORE', () => {
     });
   });
 
-  testUtils.testAll('zmScore - non-existent member', async client => {
+  testUtils.testAll('zmScore', async client => {
     assert.deepEqual(
       await client.zmScore('key', 'member'),
       [null]
