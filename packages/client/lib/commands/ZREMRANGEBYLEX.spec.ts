@@ -21,21 +21,20 @@ describe('ZREMRANGEBYLEX', () => {
     cluster: GLOBAL.CLUSTERS.OPEN
   });
 
-  // TODO: re-enable once cluster CI flakiness is resolved
-  // testUtils.testAll('zRemRangeByLex with members', async client => {
-  //   await client.zAdd('key', [
-  //     { score: 0, value: 'a' },
-  //     { score: 0, value: 'b' },
-  //     { score: 0, value: 'c' },
-  //     { score: 0, value: 'd' }
-  //   ]);
-  //
-  //   assert.equal(
-  //     await client.zRemRangeByLex('key', '[b', '[c'),
-  //     2
-  //   );
-  // }, {
-  //   client: GLOBAL.SERVERS.OPEN,
-  //   cluster: GLOBAL.CLUSTERS.OPEN
-  // });
+  testUtils.testAll('zRemRangeByLex with members', async client => {
+    await client.zAdd('key', [
+      { score: 0, value: 'a' },
+      { score: 0, value: 'b' },
+      { score: 0, value: 'c' },
+      { score: 0, value: 'd' }
+    ]);
+
+    assert.equal(
+      await client.zRemRangeByLex('key', '[b', '[c'),
+      2
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

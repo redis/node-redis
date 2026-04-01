@@ -21,23 +21,22 @@ describe('HVALS', () => {
     cluster: GLOBAL.CLUSTERS.OPEN
   });
 
-  // TODO: re-enable once cluster CI flakiness is resolved
-  // testUtils.testAll('hVals with data', async client => {
-  //   await client.hSet('key', {
-  //     field1: 'value1',
-  //     field2: 'value2',
-  //     field3: 'value3'
-  //   });
-  //
-  //   const values = await client.hVals('key');
-  //   assert.ok(Array.isArray(values));
-  //   assert.equal(values.length, 3);
-  //   assert.deepEqual(
-  //     values.sort(),
-  //     ['value1', 'value2', 'value3']
-  //   );
-  // }, {
-  //   client: GLOBAL.SERVERS.OPEN,
-  //   cluster: GLOBAL.CLUSTERS.OPEN
-  // });
+  testUtils.testAll('hVals with data', async client => {
+    await client.hSet('key', {
+      field1: 'value1',
+      field2: 'value2',
+      field3: 'value3'
+    });
+
+    const values = await client.hVals('key');
+    assert.ok(Array.isArray(values));
+    assert.equal(values.length, 3);
+    assert.deepEqual(
+      values.sort(),
+      ['value1', 'value2', 'value3']
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });
