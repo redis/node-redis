@@ -86,7 +86,10 @@ export const MATH_FUNCTION = {
 export const GLOBAL = {
   SERVERS: {
     OPEN: {
-      serverArguments: [...DEBUG_MODE_ARGS]
+      serverArguments: [...DEBUG_MODE_ARGS],
+      clientOptions: {
+        RESP: 3
+      }
     },
     PASSWORD: {
       serverArguments: ['--requirepass', 'password', ...DEBUG_MODE_ARGS],
