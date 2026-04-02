@@ -21,9 +21,11 @@ import { BasicCommandParser, CommandParser } from './parser';
 import SingleEntryCache from '../single-entry-cache';
 import { version } from '../../package.json'
 import EnterpriseMaintenanceManager, { MaintenanceUpdate, MovingEndpointType, SMIGRATED_EVENT, SMigratedEvent } from './enterprise-maintenance-manager';
-import { ClientMetricsHandle, ClientRegistry, OTelMetrics } from '../opentelemetry';
-import { METRIC_ERROR_ORIGIN } from '../opentelemetry/types';
+import { ClientMetricsHandle, ClientRegistry } from '../opentelemetry';
 import { ClientIdentity, ClientRole, generateClientId } from './identity';
+import { trace, sanitizeArgs, publish, CHANNELS, type CommandTraceContext } from './tracing';
+
+const noop = () => {};
 
 export interface RedisClientOptions<
   M extends RedisModules = RedisModules,
@@ -1040,7 +1042,13 @@ export default class RedisClient<
   }
 
   async connect() {
-    await this._self.#socket.connect();
+    await trace(CHANNELS.TRACE_CONNECT,
+      () => this._self.#socket.connect(),
+      () => ({
+        ...this._self.#socketTraceContext(),
+        clientId: this._self._clientId
+      })
+    );
     return this as unknown as RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
   }
 
@@ -1125,11 +1133,7 @@ export default class RedisClient<
 
       const finalReply = transformReply ? transformReply(reply, parser.preserve, commandOptions?.typeMapping) : reply;
 
-      OTelMetrics.instance.recordCommandReplyMetrics(
-        parser.redisArgs,
-        finalReply,
-        this._self._clientId,
-      );
+      publish(CHANNELS.COMMAND_REPLY, () => ({ args: sanitizeArgs(parser.redisArgs), reply: finalReply, clientId: this._self._clientId }));
 
       return finalReply;
     }
@@ -1166,49 +1170,50 @@ export default class RedisClient<
     args: ReadonlyArray<RedisArgument>,
     options?: CommandOptions
   ): Promise<T> {
-    const recordOperation = OTelMetrics.instance.commandMetrics.createRecordOperationDuration(
-      args,
-      this._self._clientId,
+    return trace(CHANNELS.TRACE_COMMAND,
+      () => {
+        if (!this._self.#socket.isOpen) {
+          return Promise.reject(new ClientClosedError());
+        } else if (
+          !this._self.#socket.isReady &&
+          this._self.#options.disableOfflineQueue
+        ) {
+          return Promise.reject(new ClientOfflineError());
+        }
+
+        // Merge global options with provided options
+        const opts = {
+          ...this._self._commandOptions,
+          ...options,
+        };
+
+        const promise = this._self.#queue.addCommand<T>(args, opts);
+        this._self.#scheduleWrite();
+        return promise;
+      },
+      () => this._self.#commandTraceContext(args)
     );
+  }
 
-    if (!this._self.#socket.isOpen) {
-      recordOperation(new ClientClosedError());
-      return Promise.reject(new ClientClosedError());
-    } else if (
-      !this._self.#socket.isReady &&
-      this._self.#options.disableOfflineQueue
-    ) {
-      recordOperation(new ClientOfflineError());
-      return Promise.reject(new ClientOfflineError());
-    }
-
-    // Merge global options with provided options
-    const opts = {
-      ...this._self._commandOptions,
-      ...options,
+  #commandTraceContext(args: ReadonlyArray<RedisArgument>): CommandTraceContext {
+    return {
+      command: String(args[0]).toUpperCase(),
+      args: sanitizeArgs(args),
+      database: this.#selectedDB,
+      clientId: this._clientId,
+      ...this.#socketTraceContext()
     };
+  }
 
-    const promise = this._self.#queue.addCommand<T>(args, opts);
-
-
-    const trackedPromise = promise
-      .then((reply) => {
-        recordOperation();
-        return reply;
-      })
-      .catch((err) => {
-        recordOperation(err);
-        OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
-          error: err,
-          origin: METRIC_ERROR_ORIGIN.CLIENT,
-          internal: false,
-          clientId: this._self._clientId,
-        });
-        throw err;
-      });
-
-    this._self.#scheduleWrite();
-    return trackedPromise;
+  #socketTraceContext(): { serverAddress: string; serverPort: number | undefined } {
+    const socketOptions = this.#options.socket;
+    if (socketOptions && 'path' in socketOptions) {
+      return { serverAddress: socketOptions.path as string, serverPort: undefined };
+    }
+    return {
+      serverAddress: socketOptions?.host ?? 'localhost',
+      serverPort: socketOptions?.port ?? 6379
+    };
   }
 
   async SELECT(db: number): Promise<void> {
@@ -1396,39 +1401,53 @@ export default class RedisClient<
     commands: Array<RedisMultiQueuedCommand>,
     selectedDB?: number
   ) {
-    const recordBatch = OTelMetrics.instance.commandMetrics.createRecordBatchOperationDuration(
-      'PIPELINE',
-      this._self._clientId,
-    );
-
     if (!this._self.#socket.isOpen) {
-      const error = new ClientClosedError();
-      recordBatch(error);
-      return Promise.reject(error);
+      return Promise.reject(new ClientClosedError());
     }
 
-    const chainId = Symbol('Pipeline Chain'),
-      promise = Promise.all(
-        commands.map(({ args }) => this._self.#queue.addCommand(args, {
-          chainId,
-          typeMapping: this._commandOptions?.typeMapping
-        }))
-      );
-    this._self.#scheduleWrite();
+    const batchSize = commands.length;
 
-    try {
-      const result = await promise;
+    return trace(CHANNELS.TRACE_BATCH,
+      async () => {
+        const chainId = Symbol('Pipeline Chain');
+        const promise = Promise.all(
+          commands.map(({ args }) => {
+            const traced = trace(CHANNELS.TRACE_COMMAND,
+              () => this._self.#queue.addCommand(args, {
+                chainId,
+                typeMapping: this._commandOptions?.typeMapping
+              }),
+              () => ({
+                ...this._self.#commandTraceContext(args),
+                batchMode: 'PIPELINE' as const,
+                batchSize
+              })
+            );
+            // Prevent unhandled rejection from tracePromise wrapper; individual
+            // rejections are collected by Promise.all, but the tracePromise wrapper
+            // is a separate branch that nobody awaits.
+            traced.catch(noop);
+            return traced;
+          })
+        );
+        this._self.#scheduleWrite();
 
-      if (selectedDB !== undefined) {
-        this._self.#selectedDB = selectedDB;
-      }
+        const result = await promise;
 
-      recordBatch();
-      return result;
-    } catch (error) {
-      recordBatch(error as Error);
-      throw error;
-    }
+        if (selectedDB !== undefined) {
+          this._self.#selectedDB = selectedDB;
+        }
+
+        return result;
+      },
+      () => ({
+        batchMode: 'PIPELINE' as const,
+        batchSize,
+        database: this._self.#selectedDB,
+        clientId: this._self._clientId,
+        ...this._self.#socketTraceContext()
+      })
+    );
   }
 
   /**
@@ -1438,75 +1457,69 @@ export default class RedisClient<
     commands: Array<RedisMultiQueuedCommand>,
     selectedDB?: number
   ) {
-    const recordBatch = OTelMetrics.instance.commandMetrics.createRecordBatchOperationDuration(
-      'MULTI',
-      this._self._clientId,
-    );
-
     const dirtyWatch = this._self.#dirtyWatch;
     this._self.#dirtyWatch = undefined;
     const watchEpoch = this._self.#watchEpoch;
     this._self.#watchEpoch = undefined;
 
     if (!this._self.#socket.isOpen) {
-      const error = new ClientClosedError();
-      recordBatch(error);
-      throw error;
+      throw new ClientClosedError();
     }
 
     if (dirtyWatch) {
-      const error = new WatchError(dirtyWatch);
-      recordBatch(error);
-      throw error;
+      throw new WatchError(dirtyWatch);
     }
 
     if (watchEpoch && watchEpoch !== this._self.socketEpoch) {
-      const error = new WatchError('Client reconnected after WATCH');
-      recordBatch(error);
-      throw error;
+      throw new WatchError('Client reconnected after WATCH');
     }
 
-    const typeMapping = this._commandOptions?.typeMapping;
-    const chainId = Symbol('MULTI Chain');
-    const promises = [
-      this._self.#queue.addCommand(['MULTI'], { chainId }),
-    ];
+    const batchSize = commands.length;
 
-    for (const { args } of commands) {
-      promises.push(
-        this._self.#queue.addCommand(args, {
-          chainId,
-          typeMapping
-        })
-      );
-    }
+    return trace(CHANNELS.TRACE_BATCH,
+      async () => {
+        const typeMapping = this._commandOptions?.typeMapping;
+        const chainId = Symbol('MULTI Chain');
+        const promises: Array<Promise<unknown>> = [
+          this._self.#queue.addCommand(['MULTI'], { chainId }),
+        ];
 
-    promises.push(
-      this._self.#queue.addCommand(['EXEC'], { chainId })
+        for (const { args } of commands) {
+          promises.push(
+            this._self.#queue.addCommand(args, {
+              chainId,
+              typeMapping
+            })
+          );
+        }
+
+        promises.push(
+          this._self.#queue.addCommand(['EXEC'], { chainId })
+        );
+
+        this._self.#scheduleWrite();
+
+        const results = await Promise.all(promises),
+          execResult = results[results.length - 1];
+
+        if (execResult === null) {
+          throw new WatchError();
+        }
+
+        if (selectedDB !== undefined) {
+          this._self.#selectedDB = selectedDB;
+        }
+
+        return execResult as Array<unknown>;
+      },
+      () => ({
+        batchMode: 'MULTI' as const,
+        batchSize,
+        database: this._self.#selectedDB,
+        clientId: this._self._clientId,
+        ...this._self.#socketTraceContext()
+      })
     );
-
-    this._self.#scheduleWrite();
-
-    try {
-      const results = await Promise.all(promises),
-        execResult = results[results.length - 1];
-
-      if (execResult === null) {
-        const error = new WatchError();
-        recordBatch(error);
-        throw error;
-      }
-
-      if (selectedDB !== undefined) {
-        this._self.#selectedDB = selectedDB;
-      }
-
-      recordBatch();
-      return execResult as Array<unknown>;
-    } catch (error) {
-      recordBatch(error as Error);
-      throw error;
-    }
   }
 
   MULTI<isTyped extends MultiMode = MULTI_MODE['TYPED']>() {

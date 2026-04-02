@@ -13,8 +13,7 @@ import { ClientSideCacheConfig, PooledClientSideCacheProvider } from '../client/
 import { BasicCommandParser } from '../client/parser';
 import { ASKING_CMD } from '../commands/ASKING';
 import SingleEntryCache from '../single-entry-cache'
-import { OTelMetrics } from '../opentelemetry';
-import { METRIC_ERROR_ORIGIN } from '../opentelemetry/types';
+import { publish, CHANNELS } from '../client/tracing';
 import { ClientIdentity, ClientRole, generateClusterClientId } from '../client/identity';
 
 type WithCommands<
@@ -450,32 +449,33 @@ export default class RedisCluster<
         const opts = options ?? {};
         opts.slotNumber = slotNumber;
         return await myFn(client, opts);
-      } catch (err) {
+      } catch (_err) {
+        const err = _err as Error;
         myFn = fn;
 
 
         // TODO: error class
         if (++i > maxCommandRedirections || !(err instanceof Error)) {
           if (err instanceof Error) {
-            OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+            publish(CHANNELS.ERROR, () => ({
               error: err,
-              origin: METRIC_ERROR_ORIGIN.CLUSTER,
+              origin: 'cluster',
               internal: false,
               clientId: client._clientId,
               retryCount: i,
-            });
+            }));
           }
           throw err;
         }
 
         if (err.message.startsWith('ASK')) {
-          OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+          publish(CHANNELS.ERROR, () => ({
             error: err,
-            origin: METRIC_ERROR_ORIGIN.CLUSTER,
+            origin: 'cluster',
             internal: true,
             clientId: client._clientId,
             retryCount: i,
-          });
+          }));
           const address = err.message.substring(err.message.lastIndexOf(' ') + 1);
           let redirectTo = await this._slots.getMasterByAddress(address);
           if (!redirectTo) {
@@ -493,13 +493,13 @@ export default class RedisCluster<
         }
 
         if (err.message.startsWith('MOVED')) {
-          OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+          publish(CHANNELS.ERROR, () => ({
             error: err,
-            origin: METRIC_ERROR_ORIGIN.CLUSTER,
+            origin: 'cluster',
             internal: true,
             clientId: client._clientId,
             retryCount: i,
-          });
+          }));
           await this._slots.rediscover(client);
           const clientAndSlot = await this._slots.getClientAndSlotNumber(firstKey, isReadonly);
           client = clientAndSlot.client;

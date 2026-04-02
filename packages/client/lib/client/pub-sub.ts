@@ -1,7 +1,7 @@
 import { RedisArgument } from '../RESP/types';
 import { CommandToWrite } from './commands-queue';
 import calculateSlot from 'cluster-key-slot';
-import { OTelMetrics } from '../opentelemetry';
+import { publish, CHANNELS } from './tracing';
 
 export const PUBSUB_TYPE = {
   CHANNELS: 'CHANNELS',
@@ -458,13 +458,12 @@ export class PubSub {
 
     if (!listeners) return;
 
-    // Record incoming pub/sub message metric
-    OTelMetrics.instance.pubSubMetrics.recordPubSubMessage(
-      'in',
-      this.#clientId,
+    publish(CHANNELS.PUBSUB, () => ({
+      direction: 'in' as const,
+      clientId: this.#clientId,
       channel,
-      type === PUBSUB_TYPE.SHARDED,
-    );
+      sharded: type === PUBSUB_TYPE.SHARDED,
+    }));
 
     for (const listener of listeners.buffers) {
       listener(message, channel);

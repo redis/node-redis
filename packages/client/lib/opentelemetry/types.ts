@@ -7,7 +7,6 @@ import {
   UpDownCounter,
 } from "@opentelemetry/api";
 import { version } from "../../package.json";
-import { RedisArgument } from "../RESP/types";
 
 export const METRIC_GROUP = {
   COMMAND: "command",
@@ -20,12 +19,6 @@ export const METRIC_GROUP = {
 } as const;
 
 export type MetricGroup = (typeof METRIC_GROUP)[keyof typeof METRIC_GROUP];
-
-export const METRIC_INSTRUMENT_TYPE = {
-  COUNTER: "counter",
-  HISTOGRAM: "histogram",
-  UP_DOWN_COUNTER: "up_down_counter",
-};
 
 export interface MetricConfig {
   enabled?: boolean;
@@ -149,24 +142,16 @@ export const CONNECTION_CLOSE_REASON = {
   HEALTHCHECK_FAILED: "healthcheck_failed",
 } as const;
 
-export type ConnectionCloseReason =
-  (typeof CONNECTION_CLOSE_REASON)[keyof typeof CONNECTION_CLOSE_REASON];
-
 export const CSC_RESULT = {
   HIT: "hit",
   MISS: "miss",
 } as const;
-
-export type CscResult = (typeof CSC_RESULT)[keyof typeof CSC_RESULT];
 
 export const CSC_EVICTION_REASON = {
   FULL: "full",
   INVALIDATION: "invalidation",
   TTL: "ttl",
 } as const;
-
-export type CscEvictionReason =
-  (typeof CSC_EVICTION_REASON)[keyof typeof CSC_EVICTION_REASON];
 
 export const INSTRUMENTATION_SCOPE_NAME = "node-redis";
 
@@ -240,106 +225,11 @@ export const METRIC_ERROR_TYPE = {
   HANDSHAKE_FAILED: "HANDSHAKE_FAILED",
 } as const;
 
-export type MetricErrorType =
-  (typeof METRIC_ERROR_TYPE)[keyof typeof METRIC_ERROR_TYPE];
-
 export const METRIC_ERROR_ORIGIN = {
   CLIENT: "client",
   CLUSTER: "cluster",
 } as const;
 
-export type ClientErrorOrigin =
-  (typeof METRIC_ERROR_ORIGIN)[keyof typeof METRIC_ERROR_ORIGIN];
-
-export interface RecordClientErrorContext {
-  error: Error;
-  origin: ClientErrorOrigin;
-  internal: boolean;
-  clientId?: string;
-  retryCount?: number;
-}
-
-export type CommandReplyMetricHandler = (
-  args: ReadonlyArray<RedisArgument>,
-  reply: unknown,
-  clientId: string,
-) => void;
-
 export interface IOTelCommandMetrics {
-  createRecordOperationDuration(
-    args: ReadonlyArray<RedisArgument>,
-    clientId?: string,
-  ): (error?: Error) => void;
-
-  createRecordBatchOperationDuration(
-    operationName: "MULTI" | "PIPELINE",
-    clientId?: string,
-  ): (error?: Error) => void;
-}
-
-export interface IOTelConnectionBasicMetrics {
-  createRecordConnectionCreateTime(clientId?: string): () => void;
-  recordConnectionCount(value: number, clientId?: string): void;
-  recordConnectionRelaxedTimeout(value: number, clientId?: string): void;
-  recordConnectionHandoff(clientId?: string): void;
-}
-
-export interface IOTelConnectionAdvancedMetrics {
-  recordConnectionClosed(
-    reason: ConnectionCloseReason,
-    clientId?: string,
-  ): void;
-  /**
-   * Creates a closure to record connection wait time.
-   * Call this when a client begins waiting for an available connection from the pool.
-   * The returned function should be called when the connection becomes available.
-   */
-  createRecordConnectionWaitTime(): (clientId?: string) => void;
-}
-
-export interface IOTelResiliencyMetrics {
-  recordClientErrors(context: RecordClientErrorContext): void;
-  recordMaintenanceNotifications(notification: string, clientId?: string): void;
-}
-
-export interface IOTelClientSideCacheMetrics {
-  recordCacheRequest(result: CscResult, clientId?: string): void;
-  recordCacheEviction(
-    reason: CscEvictionReason,
-    count?: number,
-    clientId?: string,
-  ): void;
-  recordNetworkBytesSaved(value: unknown, clientId?: string): void;
-}
-
-export interface IOTelPubSubMetrics {
-  recordPubSubMessage(
-    direction: "in" | "out",
-    clientId: string,
-    channel?: RedisArgument,
-    sharded?: boolean,
-  ): void;
-}
-
-export interface IOTelStreamMetrics {
-  recordStreamLag(
-    args: ReadonlyArray<RedisArgument>,
-    reply: unknown,
-    clientId?: string,
-  ): void;
-}
-
-export interface IOTelMetrics {
-  commandMetrics: IOTelCommandMetrics;
-  connectionBasicMetrics: IOTelConnectionBasicMetrics;
-  connectionAdvancedMetrics: IOTelConnectionAdvancedMetrics;
-  resiliencyMetrics: IOTelResiliencyMetrics;
-  clientSideCacheMetrics: IOTelClientSideCacheMetrics;
-  pubSubMetrics: IOTelPubSubMetrics;
-  streamMetrics: IOTelStreamMetrics;
-  recordCommandReplyMetrics(
-    args: ReadonlyArray<RedisArgument>,
-    reply: unknown,
-    clientId: string,
-  ): void;
+  destroy(): void;
 }

@@ -9,8 +9,6 @@ import {
   MeterProvider,
   PeriodicExportingMetricReader,
 } from "@opentelemetry/sdk-metrics";
-import { spy } from "sinon";
-
 import { createClient } from "@redis/client/index";
 import { OTelMetrics } from "./metrics";
 import {
@@ -23,8 +21,6 @@ import {
   ObservabilityConfig,
   OTEL_ATTRIBUTES,
 } from "./types";
-import { NOOP_COUNTER_METRIC } from "./noop-meter";
-import { noopFunction } from "./utils";
 import testUtils, { GLOBAL } from "../test-utils";
 import { ClientRegistry } from "./client-registry";
 import { ClientRole } from "../client/identity";
@@ -37,196 +33,176 @@ describe("OTel Metrics Unit Tests", () => {
   });
 
   it("should init only once", () => {
-    OTelMetrics.init({
-      api: undefined,
-      config: undefined,
-    });
+    OTelMetrics.init({ api });
 
     assert.throws(() => {
-      OTelMetrics.init({
-        api: undefined,
-        config: undefined,
-      });
+      OTelMetrics.init({ api });
     }, OpenTelemetryError);
   });
 
-  it("should be noop if not initialized", () => {
-    const addSpy = spy(NOOP_COUNTER_METRIC, "add");
+  it("should not record excluded commands via TracingChannel", async () => {
+    const exporter = new InMemoryMetricExporter(AggregationTemporality.CUMULATIVE);
+    const reader = new PeriodicExportingMetricReader({ exporter });
+    const meterProvider = new MeterProvider({ readers: [reader] });
 
-    OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
-      error: new Error("Test error"),
-      origin: METRIC_ERROR_ORIGIN.CLIENT,
-      internal: false,
+    OTelMetrics.init({
+      api,
+      config: {
+        metrics: {
+          enabledMetricGroups: ["command"],
+          enabled: true,
+          excludeCommands: ["GET"],
+          meterProvider,
+        },
+      },
     });
 
-    assert.equal(addSpy.callCount, 1);
+    // Emit TC events for GET (excluded) and SET (included)
+    const dc = require("node:diagnostics_channel");
+    const getCtx = { command: "GET", clientId: "test" };
+    dc.channel("tracing:node-redis:command:start").publish(getCtx);
+    dc.channel("tracing:node-redis:command:asyncEnd").publish(getCtx);
 
-    addSpy.restore();
+    const setCtx = { command: "SET", clientId: "test" };
+    dc.channel("tracing:node-redis:command:start").publish(setCtx);
+    dc.channel("tracing:node-redis:command:asyncEnd").publish(setCtx);
+
+    await meterProvider.forceFlush();
+    const dataPoints = getMetricDataPoints(
+      exporter.getMetrics(),
+      METRIC_NAMES.dbClientOperationDuration,
+    );
+
+    assert.ok(
+      dataPoints.some((dp) => dp.attributes[OTEL_ATTRIBUTES.dbOperationName] === "SET"),
+      "expected SET to be recorded",
+    );
+    assert.ok(
+      !dataPoints.some((dp) => dp.attributes[OTEL_ATTRIBUTES.dbOperationName] === "GET"),
+      "expected GET to be excluded",
+    );
+
+    await meterProvider.shutdown().catch(() => {});
   });
 
-  it("should create instance with noop meter when API is null", () => {
-    const config: ObservabilityConfig = {
-      metrics: {
-        enabled: true,
+  it("should only record included commands via TracingChannel", async () => {
+    const exporter = new InMemoryMetricExporter(AggregationTemporality.CUMULATIVE);
+    const reader = new PeriodicExportingMetricReader({ exporter });
+    const meterProvider = new MeterProvider({ readers: [reader] });
+
+    OTelMetrics.init({
+      api,
+      config: {
+        metrics: {
+          enabledMetricGroups: ["command"],
+          enabled: true,
+          includeCommands: ["SET"],
+          meterProvider,
+        },
       },
-    };
-
-    const addSpy = spy(NOOP_COUNTER_METRIC, "add");
-
-    OTelMetrics.init({ api: undefined, config });
-
-    OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
-      error: new Error("Test error"),
-      origin: METRIC_ERROR_ORIGIN.CLIENT,
-      internal: false,
     });
 
-    assert.equal(addSpy.callCount, 1);
+    const dc = require("node:diagnostics_channel");
+    const getCtx = { command: "GET", clientId: "test" };
+    dc.channel("tracing:node-redis:command:start").publish(getCtx);
+    dc.channel("tracing:node-redis:command:asyncEnd").publish(getCtx);
 
-    addSpy.restore();
+    const setCtx = { command: "SET", clientId: "test" };
+    dc.channel("tracing:node-redis:command:start").publish(setCtx);
+    dc.channel("tracing:node-redis:command:asyncEnd").publish(setCtx);
+
+    await meterProvider.forceFlush();
+    const dataPoints = getMetricDataPoints(
+      exporter.getMetrics(),
+      METRIC_NAMES.dbClientOperationDuration,
+    );
+
+    assert.ok(
+      dataPoints.some((dp) => dp.attributes[OTEL_ATTRIBUTES.dbOperationName] === "SET"),
+      "expected SET to be recorded",
+    );
+    assert.ok(
+      !dataPoints.some((dp) => dp.attributes[OTEL_ATTRIBUTES.dbOperationName] === "GET"),
+      "expected GET to be excluded",
+    );
+
+    await meterProvider.shutdown().catch(() => {});
   });
 
-  it("should create instance with noop meter when metrics are disabled", () => {
-    const config: ObservabilityConfig = {
-      metrics: {
-        enabled: false,
+  it("should treat include/exclude commands case-insensitively via TracingChannel", async () => {
+    const exporter = new InMemoryMetricExporter(AggregationTemporality.CUMULATIVE);
+    const reader = new PeriodicExportingMetricReader({ exporter });
+    const meterProvider = new MeterProvider({ readers: [reader] });
+
+    OTelMetrics.init({
+      api,
+      config: {
+        metrics: {
+          enabledMetricGroups: ["command"],
+          enabled: true,
+          includeCommands: ["set"],
+          meterProvider,
+        },
       },
-    };
-
-    const addSpy = spy(NOOP_COUNTER_METRIC, "add");
-
-    OTelMetrics.init({ api: undefined, config });
-
-    OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
-      error: new Error("Test error"),
-      origin: METRIC_ERROR_ORIGIN.CLIENT,
-      internal: false,
     });
 
-    assert.equal(addSpy.callCount, 1);
+    const dc = require("node:diagnostics_channel");
+    const ctx = { command: "SET", clientId: "test" };
+    dc.channel("tracing:node-redis:command:start").publish(ctx);
+    dc.channel("tracing:node-redis:command:asyncEnd").publish(ctx);
 
-    addSpy.restore();
+    await meterProvider.forceFlush();
+    const dataPoints = getMetricDataPoints(
+      exporter.getMetrics(),
+      METRIC_NAMES.dbClientOperationDuration,
+    );
+
+    assert.ok(
+      dataPoints.some((dp) => dp.attributes[OTEL_ATTRIBUTES.dbOperationName] === "SET"),
+      "expected SET to be included when config uses lowercase includeCommands",
+    );
+
+    await meterProvider.shutdown().catch(() => {});
   });
 
-  it("should not record excluded commands", () => {
-    const config: ObservabilityConfig = {
-      metrics: {
-        enabledMetricGroups: ["command"],
-        enabled: true,
-        excludeCommands: ["GET"],
+  it("should prefer excludeCommands when command exists in both include and exclude via TracingChannel", async () => {
+    const exporter = new InMemoryMetricExporter(AggregationTemporality.CUMULATIVE);
+    const reader = new PeriodicExportingMetricReader({ exporter });
+    const meterProvider = new MeterProvider({ readers: [reader] });
+
+    OTelMetrics.init({
+      api,
+      config: {
+        metrics: {
+          enabledMetricGroups: ["command"],
+          enabled: true,
+          includeCommands: ["set"],
+          excludeCommands: ["SET"],
+          meterProvider,
+        },
       },
-    };
+    });
 
-    OTelMetrics.init({ api: undefined, config });
+    const dc = require("node:diagnostics_channel");
+    const ctx = { command: "SET", clientId: "test" };
+    dc.channel("tracing:node-redis:command:start").publish(ctx);
+    dc.channel("tracing:node-redis:command:asyncEnd").publish(ctx);
 
-    const recordGET =
-      OTelMetrics.instance.commandMetrics.createRecordOperationDuration(
-        ["GET", "key"],
-        "test-client",
-      );
+    await meterProvider.forceFlush();
+    const resourceMetrics = exporter.getMetrics();
+    const metric = resourceMetrics
+      .flatMap((rm) => rm.scopeMetrics)
+      .flatMap((sm) => sm.metrics)
+      .find((m) => m.descriptor.name === METRIC_NAMES.dbClientOperationDuration);
 
-    assert.strictEqual(
-      recordGET,
-      noopFunction,
-      "expect record to be noop function",
+    // No data points should exist — SET is excluded
+    const dataPoints = metric?.dataPoints ?? [];
+    assert.ok(
+      !dataPoints.some((dp: any) => dp.attributes[OTEL_ATTRIBUTES.dbOperationName] === "SET"),
+      "expected excludeCommands to take precedence over includeCommands",
     );
 
-    const recordSET =
-      OTelMetrics.instance.commandMetrics.createRecordOperationDuration(
-        ["SET", "key"],
-        "test-client",
-      );
-
-    assert.notStrictEqual(
-      recordSET,
-      noopFunction,
-      "expect record to not be noop function",
-    );
-  });
-
-  it("should only record included commands", () => {
-    const config: ObservabilityConfig = {
-      metrics: {
-        enabledMetricGroups: ["command"],
-        enabled: true,
-        includeCommands: ["SET"],
-      },
-    };
-
-    OTelMetrics.init({ api: undefined, config });
-
-    const recordGET =
-      OTelMetrics.instance.commandMetrics.createRecordOperationDuration(
-        ["GET", "key"],
-        "test-client",
-      );
-
-    assert.strictEqual(
-      recordGET,
-      noopFunction,
-      "expect record to be noop function",
-    );
-
-    const recordSET =
-      OTelMetrics.instance.commandMetrics.createRecordOperationDuration(
-        ["SET", "key"],
-        "test-client",
-      );
-
-    assert.notStrictEqual(
-      recordSET,
-      noopFunction,
-      "expect record to not be noop function",
-    );
-  });
-
-  it("should treat include/exclude commands case-insensitively", () => {
-    const config: ObservabilityConfig = {
-      metrics: {
-        enabledMetricGroups: ["command"],
-        enabled: true,
-        includeCommands: ["set"],
-      },
-    };
-
-    OTelMetrics.init({ api: undefined, config });
-
-    const recordSET =
-      OTelMetrics.instance.commandMetrics.createRecordOperationDuration(
-        ["SET", "key"],
-        "test-client",
-      );
-
-    assert.notStrictEqual(
-      recordSET,
-      noopFunction,
-      "expect SET to be included when config uses lowercase includeCommands",
-    );
-  });
-
-  it("should prefer excludeCommands when command exists in both include and exclude", () => {
-    const config: ObservabilityConfig = {
-      metrics: {
-        enabledMetricGroups: ["command"],
-        enabled: true,
-        includeCommands: ["set"],
-        excludeCommands: ["SET"],
-      },
-    };
-
-    OTelMetrics.init({ api: undefined, config });
-
-    const recordSET =
-      OTelMetrics.instance.commandMetrics.createRecordOperationDuration(
-        ["SET", "key"],
-        "test-client",
-      );
-
-    assert.strictEqual(
-      recordSET,
-      noopFunction,
-      "expect excludeCommands to take precedence over includeCommands",
-    );
+    await meterProvider.shutdown().catch(() => {});
   });
 
   it("should deduplicate client-origin redirection errors but keep cluster-origin", async () => {
@@ -246,21 +222,26 @@ describe("OTel Metrics Unit Tests", () => {
       },
     });
 
-    OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+    const dc = require("node:diagnostics_channel");
+
+    // Client-origin MOVED — should be deduplicated (not recorded)
+    dc.channel("node-redis:error").publish({
       error: new ErrorReply("MOVED 1234 127.0.0.1:7001"),
-      origin: METRIC_ERROR_ORIGIN.CLIENT,
+      origin: "client",
       internal: false,
     });
 
-    OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+    // Client-origin ASK — should be deduplicated (not recorded)
+    dc.channel("node-redis:error").publish({
       error: new ErrorReply("ASK 1234 127.0.0.1:7002"),
-      origin: METRIC_ERROR_ORIGIN.CLIENT,
+      origin: "client",
       internal: false,
     });
 
-    OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+    // Cluster-origin MOVED — should be recorded
+    dc.channel("node-redis:error").publish({
       error: new ErrorReply("MOVED 1234 127.0.0.1:7001"),
-      origin: METRIC_ERROR_ORIGIN.CLUSTER,
+      origin: "cluster",
       internal: true,
     });
 
@@ -336,19 +317,20 @@ describe("OTel Metrics E2E", function () {
 
     OTelMetrics.init({ api, config });
 
-    OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+    const dc = require("node:diagnostics_channel");
+    dc.channel("node-redis:error").publish({
       error: new Error("Test error 1"),
-      origin: METRIC_ERROR_ORIGIN.CLIENT,
+      origin: "client",
       internal: false,
     });
-    OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+    dc.channel("node-redis:error").publish({
       error: new Error("Test error 2"),
-      origin: METRIC_ERROR_ORIGIN.CLIENT,
+      origin: "client",
       internal: false,
     });
-    OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+    dc.channel("node-redis:error").publish({
       error: new Error("Test error 3"),
-      origin: METRIC_ERROR_ORIGIN.CLIENT,
+      origin: "client",
       internal: false,
     });
 
@@ -377,14 +359,15 @@ describe("OTel Metrics E2E", function () {
 
     OTelMetrics.init({ api, config });
 
-    OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+    const dc = require("node:diagnostics_channel");
+    dc.channel("node-redis:error").publish({
       error: new Error("Test error 1"),
-      origin: METRIC_ERROR_ORIGIN.CLIENT,
+      origin: "client",
       internal: false,
     });
-    OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+    dc.channel("node-redis:error").publish({
       error: new Error("Test error 2"),
-      origin: METRIC_ERROR_ORIGIN.CLIENT,
+      origin: "client",
       internal: false,
     });
 
@@ -424,9 +407,10 @@ describe("OTel Metrics E2E", function () {
       isConnected: () => true,
     });
 
-    OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+    const dc = require("node:diagnostics_channel");
+    dc.channel("node-redis:error").publish({
       error: new Error("Test error"),
-      origin: METRIC_ERROR_ORIGIN.CLIENT,
+      origin: "client",
       internal: false,
       clientId: "client-1",
     });
@@ -464,9 +448,10 @@ describe("OTel Metrics E2E", function () {
       },
     });
 
-    OTelMetrics.instance.resiliencyMetrics.recordClientErrors({
+    const dc = require("node:diagnostics_channel");
+    dc.channel("node-redis:error").publish({
       error: new Error("Test error"),
-      origin: METRIC_ERROR_ORIGIN.CLIENT,
+      origin: "client",
       internal: false,
       clientId: "missing-client",
     });
@@ -558,6 +543,8 @@ describe("OTel Metrics E2E", function () {
         config: {
           metrics: {
             enabled: false,
+            meterProvider,
+            enabledMetricGroups: ["command"],
           },
         },
       });
@@ -1755,26 +1742,32 @@ describe("OTel Metrics E2E", function () {
     );
 
     it("should ignore malformed stream replies without emitting redis.client.stream.lag", async () => {
-      OTelMetrics.instance.streamMetrics.recordStreamLag(
-        ["XREADGROUP", "GROUP", "group-1", "consumer-1"],
-        undefined,
-      );
-      OTelMetrics.instance.streamMetrics.recordStreamLag(
-        ["XREADGROUP", "GROUP", "group-1", "consumer-1"],
-        [],
-      );
-      OTelMetrics.instance.streamMetrics.recordStreamLag(
-        ["XREADGROUP", "GROUP", "group-1", "consumer-1"],
-        [null],
-      );
-      OTelMetrics.instance.streamMetrics.recordStreamLag(
-        ["XREADGROUP", "GROUP", "group-1", "consumer-1"],
-        [{ name: "s", messages: [{ id: "invalid-id", message: {} }] }],
-      );
-      OTelMetrics.instance.streamMetrics.recordStreamLag(
-        ["XREADGROUP", "GROUP", "group-1", "consumer-1"],
-        [{ name: "s", messages: [{ id: "", message: {} }] }],
-      );
+      const dc = require("node:diagnostics_channel");
+      dc.channel("node-redis:command:reply").publish({
+        args: ["XREADGROUP", "GROUP", "group-1", "consumer-1"],
+        reply: undefined,
+        clientId: "test",
+      });
+      dc.channel("node-redis:command:reply").publish({
+        args: ["XREADGROUP", "GROUP", "group-1", "consumer-1"],
+        reply: [],
+        clientId: "test",
+      });
+      dc.channel("node-redis:command:reply").publish({
+        args: ["XREADGROUP", "GROUP", "group-1", "consumer-1"],
+        reply: [null],
+        clientId: "test",
+      });
+      dc.channel("node-redis:command:reply").publish({
+        args: ["XREADGROUP", "GROUP", "group-1", "consumer-1"],
+        reply: [{ name: "s", messages: [{ id: "invalid-id", message: {} }] }],
+        clientId: "test",
+      });
+      dc.channel("node-redis:command:reply").publish({
+        args: ["XREADGROUP", "GROUP", "group-1", "consumer-1"],
+        reply: [{ name: "s", messages: [{ id: "", message: {} }] }],
+        clientId: "test",
+      });
 
       await meterProvider.forceFlush();
 

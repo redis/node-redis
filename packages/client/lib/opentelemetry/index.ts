@@ -20,6 +20,8 @@ export class OpenTelemetry {
    *
    * @param config - Observability configuration.
    *
+   * @remarks Requires Node.js >= 18.19.0.
+   *
    * @throws {OpenTelemetryError} If OpenTelemetry is already initialized.
    * @throws {OpenTelemetryError} If `@opentelemetry/api` is not installed.
    *
@@ -55,13 +57,13 @@ export class OpenTelemetry {
       throw new OpenTelemetryError("OpenTelemetry already initialized");
     }
 
-    let api: typeof import("@opentelemetry/api") | undefined;
-
-    try {
-      api = require("@opentelemetry/api");
-    } catch (err: unknown) {
-      throw new OpenTelemetryError("@opentelemetry/api not found");
-    }
+    const api: typeof import("@opentelemetry/api") = (() => {
+      try {
+        return require("@opentelemetry/api");
+      } catch {
+        throw new OpenTelemetryError("@opentelemetry/api not found");
+      }
+    })();
 
     OpenTelemetry._instance = new OpenTelemetry();
     ClientRegistry.init();
@@ -70,20 +72,11 @@ export class OpenTelemetry {
 }
 
 export {
-  METRIC_ERROR_TYPE,
   OTelClientAttributes,
   OTEL_ATTRIBUTES,
-  ERROR_CATEGORY,
-  ErrorCategory,
   CONNECTION_CLOSE_REASON,
-  ConnectionCloseReason,
   CSC_RESULT,
-  CscResult,
   CSC_EVICTION_REASON,
-  CscEvictionReason,
-  IOTelClientSideCacheMetrics,
-  IOTelPubSubMetrics,
-  IOTelStreamMetrics,
 } from "./types";
 export { OTelMetrics } from "./metrics";
 export {

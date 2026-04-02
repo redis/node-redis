@@ -1,10 +1,7 @@
+import type * as DC from 'node:diagnostics_channel';
 import { Meter, BatchObservableResult } from "@opentelemetry/api";
-import { RedisArgument } from "../RESP/types";
 import { ClientRegistry } from "./client-registry";
 import {
-  ConnectionCloseReason,
-  CscEvictionReason,
-  CscResult,
   DEFAULT_OTEL_ATTRIBUTES,
   MetricInstruments,
   ObservabilityConfig,
@@ -18,37 +15,16 @@ import {
   METRIC_NAMES,
   HistogramInstrumentConfig,
   OTelClientAttributes,
-  IOTelMetrics,
   IOTelCommandMetrics,
-  IOTelConnectionBasicMetrics,
-  IOTelConnectionAdvancedMetrics,
-  IOTelResiliencyMetrics,
-  RecordClientErrorContext,
-  IOTelClientSideCacheMetrics,
-  IOTelPubSubMetrics,
-  IOTelStreamMetrics,
   INSTRUMENTATION_SCOPE_NAME,
-  METRIC_ERROR_ORIGIN,
-  CommandReplyMetricHandler,
 } from "./types";
-import { createNoopMeter } from "./noop-meter";
 import {
   getErrorInfo,
   isRedirectionError,
-  noopFunction,
   parseClientAttributes,
 } from "./utils";
-import {
-  NoopClientSideCacheMetrics,
-  NoopCommandMetrics,
-  NoopConnectionAdvancedMetrics,
-  NoopConnectionBasicMetrics,
-  NoopOTelMetrics,
-  NoopPubSubMetrics,
-  NoopResiliencyMetrics,
-  NoopStreamMetrics,
-} from "./noop-metrics";
 import { OpenTelemetryError } from "../errors";
+import { CHANNELS, getTracingChannel, getChannel } from "../client/tracing";
 
 function resolveClientAttributes(
   clientId?: string,
@@ -58,115 +34,150 @@ function resolveClientAttributes(
     : undefined;
 }
 
+function subscribeTC(
+  tc: DC.TracingChannel<any>,
+  handlers: Partial<DC.TracingChannelSubscribers<any>>,
+): () => void {
+  const h = handlers as DC.TracingChannelSubscribers<any>;
+  tc.subscribe(h);
+  return () => tc.unsubscribe(h);
+}
+
+interface CommandMetricsState {
+  startTime: number;
+  clientAttributes: OTelClientAttributes | undefined;
+  commandName: string;
+}
+
 class OTelCommandMetrics implements IOTelCommandMetrics {
   readonly #instruments: MetricInstruments;
   readonly #options: MetricOptions;
-  public readonly createRecordOperationDuration: (
-    args: ReadonlyArray<RedisArgument>,
-    clientId?: string,
-  ) => (error?: Error) => void;
+  readonly #metricsState = new WeakMap<object, CommandMetricsState>();
+  readonly #unsubscribers: Array<() => void> = [];
 
   constructor(options: MetricOptions, instruments: MetricInstruments) {
     this.#options = options;
     this.#instruments = instruments;
 
-    // Build the appropriate function based on options
-    if (options.hasIncludeCommands || options.hasExcludeCommands) {
-      // Version with filtering
-      this.createRecordOperationDuration = this.#createWithFiltering.bind(this);
-    } else {
-      this.createRecordOperationDuration =
-        this.#createWithoutFiltering.bind(this);
-    }
+    this.#subscribeToTracingChannel();
   }
 
-  #createWithFiltering(
-    args: ReadonlyArray<RedisArgument>,
-    clientId?: string,
-  ): (error?: Error) => void {
-    const commandName = args[0]?.toString() || "UNKNOWN";
+  #subscribeToTracingChannel() {
+    const commandTC = getTracingChannel(CHANNELS.TRACE_COMMAND);
+    const batchTC = getTracingChannel(CHANNELS.TRACE_BATCH);
+    if (!commandTC || !batchTC) return;
 
-    if (this.isCommandExcluded(commandName)) {
-      return noopFunction;
-    }
+    const onStart = (ctx: any) => {
+      const commandName = ctx.command?.toString() || "UNKNOWN";
 
-    return this.#recordOperation(commandName, clientId);
-  }
+      if (this.#isCommandExcluded(commandName)) return;
 
-  #createWithoutFiltering(
-    args: ReadonlyArray<RedisArgument>,
-    clientId?: string,
-  ): (error?: Error) => void {
-    const commandName = args[0]?.toString() || "UNKNOWN";
-    return this.#recordOperation(commandName, clientId);
-  }
-
-  #recordOperation(
-    commandName: string,
-    clientId?: string,
-  ): (error?: Error) => void {
-    const startTime = performance.now();
-    const clientAttributes = resolveClientAttributes(clientId);
-
-    return (error?: Error) => {
-      const durationSeconds = (performance.now() - startTime) / 1000;
-
-      const attrs: Record<string, any> = {
-        ...this.#options.attributes,
-        [OTEL_ATTRIBUTES.dbNamespace]: clientAttributes?.db?.toString(),
-        [OTEL_ATTRIBUTES.serverAddress]: clientAttributes?.host,
-        [OTEL_ATTRIBUTES.serverPort]: clientAttributes?.port?.toString(),
-        [OTEL_ATTRIBUTES.dbOperationName]: commandName,
-      };
-
-      if (error) {
-        const errorInfo = getErrorInfo(error);
-        attrs[OTEL_ATTRIBUTES.errorType] = errorInfo.errorType;
-        attrs[OTEL_ATTRIBUTES.redisClientErrorsCategory] = errorInfo.category;
-        if (errorInfo.statusCode !== undefined) {
-          attrs[OTEL_ATTRIBUTES.dbResponseStatusCode] = errorInfo.statusCode;
-        }
-      }
-
-      this.#instruments.dbClientOperationDuration.record(
-        durationSeconds,
-        attrs,
-      );
+      this.#metricsState.set(ctx, {
+        startTime: performance.now(),
+        clientAttributes: resolveClientAttributes(ctx.clientId),
+        commandName,
+      });
     };
-  }
 
-  createRecordBatchOperationDuration(
-    operationName: "MULTI" | "PIPELINE",
-    clientId?: string,
-  ): (error?: Error) => void {
-    const startTime = performance.now();
-    const clientAttributes = resolveClientAttributes(clientId);
+    const onAsyncEnd = (ctx: any) => {
+      const state = this.#metricsState.get(ctx);
+      if (!state) return;
+      this.#metricsState.delete(ctx);
 
-    return (error?: Error) => {
-      const errorInfo = error ? getErrorInfo(error) : undefined;
       this.#instruments.dbClientOperationDuration.record(
-        (performance.now() - startTime) / 1000,
+        (performance.now() - state.startTime) / 1000,
         {
           ...this.#options.attributes,
-          [OTEL_ATTRIBUTES.dbOperationName]: operationName,
-          [OTEL_ATTRIBUTES.dbNamespace]: clientAttributes?.db?.toString(),
-          [OTEL_ATTRIBUTES.serverAddress]: clientAttributes?.host,
-          [OTEL_ATTRIBUTES.serverPort]: clientAttributes?.port?.toString(),
-          ...(errorInfo
-            ? {
-                [OTEL_ATTRIBUTES.errorType]: errorInfo.errorType,
-                [OTEL_ATTRIBUTES.redisClientErrorsCategory]: errorInfo.category,
-              }
-            : {}),
-          ...(errorInfo?.statusCode
+          [OTEL_ATTRIBUTES.dbNamespace]: state.clientAttributes?.db?.toString(),
+          [OTEL_ATTRIBUTES.serverAddress]: state.clientAttributes?.host,
+          [OTEL_ATTRIBUTES.serverPort]: state.clientAttributes?.port?.toString(),
+          [OTEL_ATTRIBUTES.dbOperationName]: state.commandName,
+        },
+      );
+    };
+
+    const onError = (ctx: any) => {
+      const state = this.#metricsState.get(ctx);
+      if (!state) return;
+      this.#metricsState.delete(ctx);
+
+      const errorInfo = getErrorInfo(ctx.error);
+      this.#instruments.dbClientOperationDuration.record(
+        (performance.now() - state.startTime) / 1000,
+        {
+          ...this.#options.attributes,
+          [OTEL_ATTRIBUTES.dbNamespace]: state.clientAttributes?.db?.toString(),
+          [OTEL_ATTRIBUTES.serverAddress]: state.clientAttributes?.host,
+          [OTEL_ATTRIBUTES.serverPort]: state.clientAttributes?.port?.toString(),
+          [OTEL_ATTRIBUTES.dbOperationName]: state.commandName,
+          [OTEL_ATTRIBUTES.errorType]: errorInfo.errorType,
+          [OTEL_ATTRIBUTES.redisClientErrorsCategory]: errorInfo.category,
+          ...(errorInfo.statusCode !== undefined
             ? { [OTEL_ATTRIBUTES.dbResponseStatusCode]: errorInfo.statusCode }
             : {}),
         },
       );
     };
+
+    const onBatchStart = (ctx: any) => {
+      this.#metricsState.set(ctx, {
+        startTime: performance.now(),
+        clientAttributes: resolveClientAttributes(ctx.clientId),
+        commandName: ctx.batchMode,
+      });
+    };
+
+    const onBatchAsyncEnd = (ctx: any) => {
+      const state = this.#metricsState.get(ctx);
+      if (!state) return;
+      this.#metricsState.delete(ctx);
+
+      this.#instruments.dbClientOperationDuration.record(
+        (performance.now() - state.startTime) / 1000,
+        {
+          ...this.#options.attributes,
+          [OTEL_ATTRIBUTES.dbNamespace]: state.clientAttributes?.db?.toString(),
+          [OTEL_ATTRIBUTES.serverAddress]: state.clientAttributes?.host,
+          [OTEL_ATTRIBUTES.serverPort]: state.clientAttributes?.port?.toString(),
+          [OTEL_ATTRIBUTES.dbOperationName]: state.commandName,
+        },
+      );
+    };
+
+    const onBatchError = (ctx: any) => {
+      const state = this.#metricsState.get(ctx);
+      if (!state) return;
+      this.#metricsState.delete(ctx);
+
+      const errorInfo = getErrorInfo(ctx.error);
+      this.#instruments.dbClientOperationDuration.record(
+        (performance.now() - state.startTime) / 1000,
+        {
+          ...this.#options.attributes,
+          [OTEL_ATTRIBUTES.dbNamespace]: state.clientAttributes?.db?.toString(),
+          [OTEL_ATTRIBUTES.serverAddress]: state.clientAttributes?.host,
+          [OTEL_ATTRIBUTES.serverPort]: state.clientAttributes?.port?.toString(),
+          [OTEL_ATTRIBUTES.dbOperationName]: state.commandName,
+          [OTEL_ATTRIBUTES.errorType]: errorInfo.errorType,
+          [OTEL_ATTRIBUTES.redisClientErrorsCategory]: errorInfo.category,
+          ...(errorInfo.statusCode !== undefined
+            ? { [OTEL_ATTRIBUTES.dbResponseStatusCode]: errorInfo.statusCode }
+            : {}),
+        },
+      );
+    };
+
+    this.#unsubscribers.push(
+      subscribeTC(commandTC, { start: onStart, asyncEnd: onAsyncEnd, error: onError }),
+      subscribeTC(batchTC, { start: onBatchStart, asyncEnd: onBatchAsyncEnd, error: onBatchError }),
+    );
   }
 
-  private isCommandExcluded(commandName: string) {
+  destroy() {
+    this.#unsubscribers.forEach(fn => fn());
+  }
+
+  #isCommandExcluded(commandName: string) {
     return (
       (this.#options.hasIncludeCommands &&
         !this.#options.includeCommands[commandName]) ||
@@ -175,324 +186,334 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
   }
 }
 
-class OTelConnectionBasicMetrics implements IOTelConnectionBasicMetrics {
+// ---------------------------------------------------------------------------
+// Channel subscribers: record OTel metrics from diagnostics_channel events.
+// ---------------------------------------------------------------------------
+
+class OTelChannelSubscribers {
   readonly #instruments: MetricInstruments;
   readonly #options: MetricOptions;
+  readonly #unsubscribers: Array<() => void> = [];
 
-  constructor(options: MetricOptions, instruments: MetricInstruments) {
-    this.#options = options;
-    this.#instruments = instruments;
-  }
-
-  public createRecordConnectionCreateTime(clientId?: string): () => void {
-    const startTime = performance.now();
-    const clientAttributes = resolveClientAttributes(clientId);
-
-    return () => {
-      this.#instruments.dbClientConnectionCreateTime.record(
-        (performance.now() - startTime) / 1000,
-        {
-          ...this.#options.attributes,
-          ...parseClientAttributes(clientAttributes),
-        },
-      );
-    };
-  }
-
-  public recordConnectionCount(value: number, clientId?: string) {
-    const clientAttributes = resolveClientAttributes(clientId);
-    // The DB semconv defines this as a pool metric and requires an UpDownCounter
-    // plus a state attribute. node-redis is not pool-shaped in the general case,
-    // so for now we emit only the active client connection as state="used".
-    // See: https://opentelemetry.io/docs/specs/semconv/db/database-metrics/#connection-pools
-    this.#instruments.dbClientConnectionCount.add(value, {
-      ...this.#options.attributes,
-      ...parseClientAttributes(clientAttributes),
-      [OTEL_ATTRIBUTES.dbClientConnectionState]: "used",
-    });
-  }
-
-  public recordConnectionRelaxedTimeout(value: number, clientId?: string) {
-    const clientAttributes = resolveClientAttributes(clientId);
-    this.#instruments.redisClientConnectionRelaxedTimeout.add(value, {
-      ...this.#options.attributes,
-      ...parseClientAttributes(clientAttributes),
-    });
-  }
-  public recordConnectionHandoff(clientId?: string) {
-    const clientAttributes = resolveClientAttributes(clientId);
-    this.#instruments.redisClientConnectionHandoff.add(1, {
-      ...this.#options.attributes,
-      ...parseClientAttributes(clientAttributes),
-    });
-  }
-}
-
-class OTelConnectionAdvancedMetrics implements IOTelConnectionAdvancedMetrics {
-  readonly #instruments: MetricInstruments;
-  readonly #options: MetricOptions;
-
-  constructor(options: MetricOptions, instruments: MetricInstruments) {
-    this.#options = options;
-    this.#instruments = instruments;
-  }
-
-  public recordConnectionClosed(
-    reason: ConnectionCloseReason,
-    clientId?: string,
+  constructor(
+    options: MetricOptions,
+    instruments: MetricInstruments,
+    enabledGroups: MetricGroup[],
   ) {
-    const clientAttributes = resolveClientAttributes(clientId);
-    this.#instruments.redisClientConnectionClosed.add(1, {
-      ...this.#options.attributes,
-      ...parseClientAttributes(clientAttributes),
-      [OTEL_ATTRIBUTES.redisClientConnectionCloseReason]: reason,
-    });
+    this.#options = options;
+    this.#instruments = instruments;
+
+    const hasBasic = enabledGroups.includes(METRIC_GROUP.CONNECTION_BASIC);
+    const hasAdvanced = enabledGroups.includes(METRIC_GROUP.CONNECTION_ADVANCED);
+    if (hasBasic) {
+      this.#subscribeConnectionBasic();
+    }
+    if (hasAdvanced) {
+      this.#subscribeConnectionAdvanced();
+    }
+    if (hasBasic || hasAdvanced) {
+      this.#subscribeConnectionClosed(hasBasic, hasAdvanced);
+    }
+    if (enabledGroups.includes(METRIC_GROUP.RESILIENCY)) {
+      this.#subscribeResiliency();
+    }
+    if (enabledGroups.includes(METRIC_GROUP.CLIENT_SIDE_CACHING)) {
+      this.#subscribeClientSideCache();
+    }
+    if (enabledGroups.includes(METRIC_GROUP.PUBSUB)) {
+      this.#subscribePubSub();
+    }
+    if (enabledGroups.includes(METRIC_GROUP.PUBSUB) || enabledGroups.includes(METRIC_GROUP.STREAMING)) {
+      this.#subscribeCommandReply(enabledGroups);
+    }
   }
 
-  /**
-   * Creates a closure to record connection wait time.
-   */
-  public createRecordConnectionWaitTime(): (clientId?: string) => void {
-    const startTime = performance.now();
+  #sub(name: string, handler: (ctx: any) => void) {
+    const ch = getChannel(name);
+    if (!ch) return;
+    ch.subscribe(handler);
+    this.#unsubscribers.push(() => ch.unsubscribe(handler));
+  }
 
-    return (clientId?: string) => {
-      const clientAttributes = resolveClientAttributes(clientId);
-      this.#instruments.dbClientConnectionWaitTime.record(
-        (performance.now() - startTime) / 1000,
+  destroy() {
+    this.#unsubscribers.forEach(fn => fn());
+  }
+
+  // -- Connection Basic --
+
+  #subscribeConnectionBasic() {
+    this.#sub(CHANNELS.CONNECTION_READY, (ctx: any) => {
+      const clientAttributes = resolveClientAttributes(ctx.clientId);
+      this.#instruments.dbClientConnectionCreateTime.record(
+        ctx.createTimeMs / 1000,
         {
           ...this.#options.attributes,
           ...parseClientAttributes(clientAttributes),
         },
       );
-    };
+      this.#instruments.dbClientConnectionCount.add(1, {
+        ...this.#options.attributes,
+        ...parseClientAttributes(clientAttributes),
+        [OTEL_ATTRIBUTES.dbClientConnectionState]: "used",
+      });
+    });
+
+    this.#sub(CHANNELS.CONNECTION_RELAXED_TIMEOUT, (ctx: any) => {
+      const clientAttributes = resolveClientAttributes(ctx.clientId);
+      this.#instruments.redisClientConnectionRelaxedTimeout.add(ctx.value, {
+        ...this.#options.attributes,
+        ...parseClientAttributes(clientAttributes),
+      });
+    });
+
+    this.#sub(CHANNELS.CONNECTION_HANDOFF, (ctx: any) => {
+      const clientAttributes = resolveClientAttributes(ctx.clientId);
+      this.#instruments.redisClientConnectionHandoff.add(1, {
+        ...this.#options.attributes,
+        ...parseClientAttributes(clientAttributes),
+      });
+    });
   }
-}
 
-class OTelResiliencyMetrics implements IOTelResiliencyMetrics {
-  readonly #instruments: MetricInstruments;
-  readonly #options: MetricOptions;
+  // -- Connection Closed (shared by basic + advanced) --
 
-  constructor(options: MetricOptions, instruments: MetricInstruments) {
-    this.#options = options;
-    this.#instruments = instruments;
+  #subscribeConnectionClosed(hasBasic: boolean, hasAdvanced: boolean) {
+    this.#sub(CHANNELS.CONNECTION_CLOSED, (ctx: any) => {
+      const clientAttributes = resolveClientAttributes(ctx.clientId);
+      if (hasBasic && ctx.wasConnected) {
+        this.#instruments.dbClientConnectionCount.add(-1, {
+          ...this.#options.attributes,
+          ...parseClientAttributes(clientAttributes),
+          [OTEL_ATTRIBUTES.dbClientConnectionState]: "used",
+        });
+      }
+      if (hasAdvanced) {
+        this.#instruments.redisClientConnectionClosed.add(1, {
+          ...this.#options.attributes,
+          ...parseClientAttributes(clientAttributes),
+          [OTEL_ATTRIBUTES.redisClientConnectionCloseReason]: ctx.reason,
+        });
+      }
+    });
   }
 
-  public recordClientErrors(context: RecordClientErrorContext) {
-    const clientAttributes = resolveClientAttributes(context.clientId);
-    const errorInfo = getErrorInfo(context.error);
+  // -- Connection Advanced --
 
-    // Avoid double-counting ASK/MOVED errors: command-level paths can observe
-    // the same redirection that cluster-level retry logic already records.
-    if (
-      context.origin === METRIC_ERROR_ORIGIN.CLIENT &&
-      isRedirectionError(errorInfo.statusCode)
-    ) {
-      return;
-    }
+  #subscribeConnectionAdvanced() {
+    this.#sub(CHANNELS.POOL_CONNECTION_WAIT, (ctx: any) => {
+      if (!ctx.waitStartTimestamp) return;
+
+      const clientAttributes = resolveClientAttributes(ctx.clientId);
+      this.#instruments.dbClientConnectionWaitTime.record(
+        (performance.now() - ctx.waitStartTimestamp) / 1000,
+        {
+          ...this.#options.attributes,
+          ...parseClientAttributes(clientAttributes),
+        },
+      );
+    });
+  }
+
+  #recordError(error: Error, clientId?: string, extra?: Record<string, any>) {
+    const clientAttributes = resolveClientAttributes(clientId);
+    const errorInfo = getErrorInfo(error);
 
     this.#instruments.redisClientErrors.add(1, {
       ...this.#options.attributes,
       ...parseClientAttributes(clientAttributes),
       [OTEL_ATTRIBUTES.errorType]: errorInfo.errorType,
       [OTEL_ATTRIBUTES.redisClientErrorsCategory]: errorInfo.category,
-      [OTEL_ATTRIBUTES.redisClientErrorsInternal]: context.internal,
-      ...(context.retryCount !== undefined && {
-        [OTEL_ATTRIBUTES.redisClientOperationRetryAttempts]: context.retryCount,
-      }),
       ...(errorInfo.statusCode !== undefined && {
         [OTEL_ATTRIBUTES.dbResponseStatusCode]: errorInfo.statusCode,
       }),
+      ...extra,
     });
   }
 
-  public recordMaintenanceNotifications(
-    notification: string,
-    clientId?: string,
-  ) {
-    const clientAttributes = resolveClientAttributes(clientId);
-    this.#instruments.redisClientMaintenanceNotifications.add(1, {
-      ...this.#options.attributes,
-      ...parseClientAttributes(clientAttributes),
-      [OTEL_ATTRIBUTES.redisClientConnectionNotification]: notification,
+  // -- Resiliency --
+
+  #subscribeResiliency() {
+    // Cluster/internal errors via point-event channel
+    // Skip client-origin redirections (MOVED/ASK) — these are retried
+    // transparently by the cluster client and are not real errors.
+    // Cluster-origin redirections are recorded as they indicate slot migration.
+    this.#sub(CHANNELS.ERROR, (ctx: any) => {
+      if (ctx.origin === 'client' && isRedirectionError(getErrorInfo(ctx.error).statusCode)) return;
+      this.#recordError(ctx.error, ctx.clientId, {
+        [OTEL_ATTRIBUTES.redisClientErrorsInternal]: ctx.internal,
+        ...(ctx.retryCount !== undefined && {
+          [OTEL_ATTRIBUTES.redisClientOperationRetryAttempts]: ctx.retryCount,
+        }),
+      });
     });
-  }
-}
 
-class OTelClientSideCacheMetrics implements IOTelClientSideCacheMetrics {
-  readonly #instruments: MetricInstruments;
-  readonly #options: MetricOptions;
-
-  constructor(options: MetricOptions, instruments: MetricInstruments) {
-    this.#options = options;
-    this.#instruments = instruments;
-  }
-
-  public recordCacheRequest(result: CscResult, clientId?: string) {
-    const clientAttributes = resolveClientAttributes(clientId);
-    this.#instruments.redisClientCscRequests.add(1, {
-      ...this.#options.attributes,
-      [OTEL_ATTRIBUTES.serverAddress]: clientAttributes?.host,
-      [OTEL_ATTRIBUTES.serverPort]: clientAttributes?.port?.toString(),
-      [OTEL_ATTRIBUTES.dbClientConnectionPoolName]: clientAttributes?.clientId,
-      [OTEL_ATTRIBUTES.redisClientCscResult]: result,
-    });
-  }
-
-  public recordCacheEviction(
-    reason: CscEvictionReason,
-    count: number = 1,
-    clientId?: string,
-  ) {
-    const clientAttributes = resolveClientAttributes(clientId);
-    this.#instruments.redisClientCscEvictions.add(count, {
-      ...this.#options.attributes,
-      [OTEL_ATTRIBUTES.serverAddress]: clientAttributes?.host,
-      [OTEL_ATTRIBUTES.serverPort]: clientAttributes?.port?.toString(),
-      [OTEL_ATTRIBUTES.dbClientConnectionPoolName]: clientAttributes?.clientId,
-      [OTEL_ATTRIBUTES.redisClientCscReason]: reason,
-    });
-  }
-
-  public recordNetworkBytesSaved(value: unknown, clientId?: string) {
-    // TODO: `redis.client.csc.network_saved` cannot be computed correctly here
-    // because CSC stores transformed replies and does not retain raw byte size.
-    // Implement this at a lower protocol/parsing layer where response bytes are known.
-  }
-}
-
-class OTelPubSubMetrics implements IOTelPubSubMetrics {
-  readonly #instruments: MetricInstruments;
-  readonly #options: MetricOptions;
-
-  constructor(options: MetricOptions, instruments: MetricInstruments) {
-    this.#options = options;
-    this.#instruments = instruments;
-  }
-
-  public recordPubSubMessage(
-    direction: "in" | "out",
-    clientId: string,
-    channel?: RedisArgument,
-    sharded?: boolean,
-  ) {
-    const clientAttributes = resolveClientAttributes(clientId);
-    this.#instruments.redisClientPubsubMessages.add(1, {
-      ...this.#options.attributes,
-      ...parseClientAttributes(clientAttributes),
-      [OTEL_ATTRIBUTES.redisClientPubSubMessageDirection]: direction,
-      [OTEL_ATTRIBUTES.redisClientPubSubSharded]: sharded ?? false,
-      ...(channel !== undefined && !this.#options.hidePubSubChannelNames
-        ? { [OTEL_ATTRIBUTES.redisClientPubSubChannel]: channel.toString() }
-        : {}),
-    });
-  }
-}
-
-class OTelStreamMetrics implements IOTelStreamMetrics {
-  readonly #instruments: MetricInstruments;
-  readonly #options: MetricOptions;
-
-  constructor(options: MetricOptions, instruments: MetricInstruments) {
-    this.#options = options;
-    this.#instruments = instruments;
-  }
-
-  public recordStreamLag(
-    args: ReadonlyArray<RedisArgument>,
-    reply: unknown,
-    clientId?: string,
-  ) {
-    if (!reply || !Array.isArray(reply) || reply.length === 0) {
-      return;
+    // Command-level errors via TracingChannel
+    const commandTC = getTracingChannel(CHANNELS.TRACE_COMMAND);
+    if (commandTC) {
+      const onError = (ctx: any) => {
+        // Command TC errors are always client-origin — skip redirections
+        if (isRedirectionError(getErrorInfo(ctx.error).statusCode)) return;
+        this.#recordError(ctx.error, ctx.clientId, {
+          [OTEL_ATTRIBUTES.redisClientErrorsInternal]: false,
+        });
+      };
+      this.#unsubscribers.push(subscribeTC(commandTC, { error: onError }));
     }
 
-    const now = Date.now();
-    const clientAttributes = resolveClientAttributes(clientId);
-
-    // Extract consumer group and consumer name from XREADGROUP args
-    // XREADGROUP args format: ['XREADGROUP', 'GROUP', group, consumer, ...]
-    const isXReadGroup =
-      args[0]?.toString().toUpperCase() === "XREADGROUP" &&
-      args[1]?.toString().toUpperCase() === "GROUP";
-    const consumerGroup = isXReadGroup ? args[2]?.toString() : undefined;
-
-    for (const streamData of reply) {
-      if (!streamData || typeof streamData !== "object") {
-        continue;
-      }
-
-      const { name: stream, messages } = streamData as {
-        name: string;
-        messages: Array<{ id: string; message: unknown }>;
-      };
-
-      if (!messages || !Array.isArray(messages) || messages.length === 0) {
-        continue;
-      }
-
-      // Build common attributes for this stream
-      const streamAttributes = {
+    this.#sub(CHANNELS.MAINTENANCE, (ctx: any) => {
+      const clientAttributes = resolveClientAttributes(ctx.clientId);
+      this.#instruments.redisClientMaintenanceNotifications.add(1, {
         ...this.#options.attributes,
         ...parseClientAttributes(clientAttributes),
-        ...(!this.#options.hideStreamNames
-          ? { [OTEL_ATTRIBUTES.redisClientStreamName]: stream }
+        [OTEL_ATTRIBUTES.redisClientConnectionNotification]: ctx.notification,
+      });
+    });
+  }
+
+  // -- Client-Side Cache --
+
+  #subscribeClientSideCache() {
+    this.#sub(CHANNELS.CACHE_REQUEST, (ctx: any) => {
+      const clientAttributes = resolveClientAttributes(ctx.clientId);
+      this.#instruments.redisClientCscRequests.add(1, {
+        ...this.#options.attributes,
+        [OTEL_ATTRIBUTES.serverAddress]: clientAttributes?.host,
+        [OTEL_ATTRIBUTES.serverPort]: clientAttributes?.port?.toString(),
+        [OTEL_ATTRIBUTES.dbClientConnectionPoolName]: clientAttributes?.clientId,
+        [OTEL_ATTRIBUTES.redisClientCscResult]: ctx.result,
+      });
+    });
+
+    this.#sub(CHANNELS.CACHE_EVICTION, (ctx: any) => {
+      const clientAttributes = resolveClientAttributes(ctx.clientId);
+      this.#instruments.redisClientCscEvictions.add(ctx.count ?? 1, {
+        ...this.#options.attributes,
+        [OTEL_ATTRIBUTES.serverAddress]: clientAttributes?.host,
+        [OTEL_ATTRIBUTES.serverPort]: clientAttributes?.port?.toString(),
+        [OTEL_ATTRIBUTES.dbClientConnectionPoolName]: clientAttributes?.clientId,
+        [OTEL_ATTRIBUTES.redisClientCscReason]: ctx.reason,
+      });
+    });
+  }
+
+  // -- PubSub --
+
+  #subscribePubSub() {
+    this.#sub(CHANNELS.PUBSUB, (ctx: any) => {
+      const clientAttributes = resolveClientAttributes(ctx.clientId);
+      this.#instruments.redisClientPubsubMessages.add(1, {
+        ...this.#options.attributes,
+        ...parseClientAttributes(clientAttributes),
+        [OTEL_ATTRIBUTES.redisClientPubSubMessageDirection]: ctx.direction,
+        [OTEL_ATTRIBUTES.redisClientPubSubSharded]: ctx.sharded ?? false,
+        ...(ctx.channel !== undefined && !this.#options.hidePubSubChannelNames
+          ? { [OTEL_ATTRIBUTES.redisClientPubSubChannel]: ctx.channel.toString() }
           : {}),
-        ...(consumerGroup !== undefined
-          ? { [OTEL_ATTRIBUTES.redisClientConsumerGroup]: consumerGroup }
-          : {}),
-      };
+      });
+    });
 
-      // Record lag for each message
-      for (const message of messages) {
-        if (!message?.id) {
-          continue;
-        }
+  }
 
-        const [tsPart] = message.id.split("-");
-        const messageTimestamp = Number.parseInt(tsPart, 10);
+  // -- Command Reply (shared by PubSub out + Streaming) --
 
-        if (!Number.isFinite(messageTimestamp)) {
-          continue;
-        }
+  #subscribeCommandReply(enabledGroups: MetricGroup[]) {
+    const hasPubSub = enabledGroups.includes(METRIC_GROUP.PUBSUB);
+    const hasStreaming = enabledGroups.includes(METRIC_GROUP.STREAMING);
 
-        const lagSec = (now - messageTimestamp) / 1000;
+    this.#sub(CHANNELS.COMMAND_REPLY, (ctx: any) => {
+      const commandName = ctx.args[0]?.toString().toUpperCase();
 
-        this.#instruments.redisClientStreamLag.record(lagSec, streamAttributes);
+      if (hasPubSub && (commandName === 'PUBLISH' || commandName === 'SPUBLISH')) {
+        const clientAttributes = resolveClientAttributes(ctx.clientId);
+        this.#instruments.redisClientPubsubMessages.add(1, {
+          ...this.#options.attributes,
+          ...parseClientAttributes(clientAttributes),
+          [OTEL_ATTRIBUTES.redisClientPubSubMessageDirection]: 'out',
+          [OTEL_ATTRIBUTES.redisClientPubSubSharded]: commandName === 'SPUBLISH',
+          ...(ctx.args[1] !== undefined && !this.#options.hidePubSubChannelNames
+            ? { [OTEL_ATTRIBUTES.redisClientPubSubChannel]: ctx.args[1].toString() }
+            : {}),
+        });
+        return;
       }
-    }
+
+      if (hasStreaming && (commandName === 'XREAD' || commandName === 'XREADGROUP')) {
+        const reply = ctx.reply;
+        if (!reply || !Array.isArray(reply) || reply.length === 0) return;
+
+        const now = Date.now();
+        const clientAttributes = resolveClientAttributes(ctx.clientId);
+
+        const isXReadGroup =
+          commandName === 'XREADGROUP' &&
+          ctx.args[1]?.toString().toUpperCase() === 'GROUP';
+        const consumerGroup = isXReadGroup ? ctx.args[2]?.toString() : undefined;
+
+        for (const streamData of reply) {
+          if (!streamData || typeof streamData !== 'object') continue;
+
+          const { name: stream, messages } = streamData as {
+            name: string;
+            messages: Array<{ id: string; message: unknown }>;
+          };
+
+          if (!messages || !Array.isArray(messages) || messages.length === 0) continue;
+
+          const streamAttributes = {
+            ...this.#options.attributes,
+            ...parseClientAttributes(clientAttributes),
+            ...(!this.#options.hideStreamNames
+              ? { [OTEL_ATTRIBUTES.redisClientStreamName]: stream }
+              : {}),
+            ...(consumerGroup !== undefined
+              ? { [OTEL_ATTRIBUTES.redisClientConsumerGroup]: consumerGroup }
+              : {}),
+          };
+
+          for (const message of messages) {
+            if (!message?.id) continue;
+
+            const [tsPart] = message.id.split('-');
+            const messageTimestamp = Number.parseInt(tsPart, 10);
+            if (!Number.isFinite(messageTimestamp)) continue;
+
+            this.#instruments.redisClientStreamLag.record(
+              (now - messageTimestamp) / 1000,
+              streamAttributes,
+            );
+          }
+        }
+      }
+    });
   }
 }
 
-export class OTelMetrics implements IOTelMetrics {
+export class OTelMetrics {
   // Create a noop instance by default
-  static #instance: IOTelMetrics = new NoopOTelMetrics();
+  static #instance: OTelMetrics;
   static #initialized = false;
 
   readonly commandMetrics: IOTelCommandMetrics;
-  readonly connectionBasicMetrics: IOTelConnectionBasicMetrics;
-  readonly connectionAdvancedMetrics: IOTelConnectionAdvancedMetrics;
-  readonly resiliencyMetrics: IOTelResiliencyMetrics;
-  readonly clientSideCacheMetrics: IOTelClientSideCacheMetrics;
-  readonly pubSubMetrics: IOTelPubSubMetrics;
-  readonly streamMetrics: IOTelStreamMetrics;
-  readonly #commandReplyMetricHandlers: Readonly<
-    Record<string, CommandReplyMetricHandler>
-  >;
-
-  readonly #meter: Meter;
+  readonly #channelSubscribers: OTelChannelSubscribers;
   readonly #instruments: MetricInstruments;
   readonly #options: MetricOptions;
 
-  private constructor({
-    api,
-    config,
-  }: {
-    api?: typeof import("@opentelemetry/api");
-    config?: ObservabilityConfig;
-  }) {
+  private constructor(
+    api: typeof import("@opentelemetry/api"),
+    config?: ObservabilityConfig,
+  ) {
     this.#options = this.parseOptions(config);
-    this.#meter = this.getMeter(api, this.#options);
-    this.#instruments = this.registerInstruments(this.#meter, this.#options);
+
+    if (!this.#options.enabled) {
+      // No-op: don't register any instruments or subscribers
+      this.commandMetrics = { destroy() {} };
+      this.#channelSubscribers = { destroy() {} } as unknown as OTelChannelSubscribers;
+      this.#instruments = undefined as unknown as MetricInstruments;
+      return;
+    }
+
+    const meter = this.#getMeter(api, this.#options);
+    this.#instruments = this.registerInstruments(meter, this.#options);
 
     if (this.#options.enabledMetricGroups.includes(METRIC_GROUP.COMMAND)) {
       this.commandMetrics = new OTelCommandMetrics(
@@ -500,87 +521,27 @@ export class OTelMetrics implements IOTelMetrics {
         this.#instruments,
       );
     } else {
-      this.commandMetrics = new NoopCommandMetrics();
+      this.commandMetrics = { destroy() {} };
     }
 
-    if (
-      this.#options.enabledMetricGroups.includes(METRIC_GROUP.CONNECTION_BASIC)
-    ) {
-      this.connectionBasicMetrics = new OTelConnectionBasicMetrics(
-        this.#options,
-        this.#instruments,
-      );
-    } else {
-      this.connectionBasicMetrics = new NoopConnectionBasicMetrics();
-    }
-
-    if (
-      this.#options.enabledMetricGroups.includes(
-        METRIC_GROUP.CONNECTION_ADVANCED,
-      )
-    ) {
-      this.connectionAdvancedMetrics = new OTelConnectionAdvancedMetrics(
-        this.#options,
-        this.#instruments,
-      );
-    } else {
-      this.connectionAdvancedMetrics = new NoopConnectionAdvancedMetrics();
-    }
-
-    if (this.#options.enabledMetricGroups.includes(METRIC_GROUP.RESILIENCY)) {
-      this.resiliencyMetrics = new OTelResiliencyMetrics(
-        this.#options,
-        this.#instruments,
-      );
-    } else {
-      this.resiliencyMetrics = new NoopResiliencyMetrics();
-    }
-
-    if (
-      this.#options.enabledMetricGroups.includes(
-        METRIC_GROUP.CLIENT_SIDE_CACHING,
-      )
-    ) {
-      this.clientSideCacheMetrics = new OTelClientSideCacheMetrics(
-        this.#options,
-        this.#instruments,
-      );
-    } else {
-      this.clientSideCacheMetrics = new NoopClientSideCacheMetrics();
-    }
-
-    if (this.#options.enabledMetricGroups.includes(METRIC_GROUP.PUBSUB)) {
-      this.pubSubMetrics = new OTelPubSubMetrics(
-        this.#options,
-        this.#instruments,
-      );
-    } else {
-      this.pubSubMetrics = new NoopPubSubMetrics();
-    }
-
-    if (this.#options.enabledMetricGroups.includes(METRIC_GROUP.STREAMING)) {
-      this.streamMetrics = new OTelStreamMetrics(
-        this.#options,
-        this.#instruments,
-      );
-    } else {
-      this.streamMetrics = new NoopStreamMetrics();
-    }
-
-    this.#commandReplyMetricHandlers = this.#createCommandReplyMetricHandlers();
+    this.#channelSubscribers = new OTelChannelSubscribers(
+      this.#options,
+      this.#instruments,
+      this.#options.enabledMetricGroups,
+    );
   }
 
   public static init({
     api,
     config,
   }: {
-    api?: typeof import("@opentelemetry/api");
+    api: typeof import("@opentelemetry/api");
     config?: ObservabilityConfig;
   }) {
     if (OTelMetrics.#initialized) {
       throw new OpenTelemetryError("OTelMetrics already initialized");
     }
-    const instance = new OTelMetrics({ api, config });
+    const instance = new OTelMetrics(api, config);
     OTelMetrics.#instance = instance;
     OTelMetrics.#initialized = true;
   }
@@ -591,10 +552,9 @@ export class OTelMetrics implements IOTelMetrics {
    * @internal
    */
   public static reset() {
-    OTelMetrics.#instance = new OTelMetrics({
-      api: undefined,
-      config: undefined,
-    });
+    if (!OTelMetrics.#initialized) return;
+    OTelMetrics.#instance.commandMetrics.destroy();
+    OTelMetrics.#instance.#channelSubscribers.destroy();
     OTelMetrics.#initialized = false;
   }
 
@@ -606,75 +566,12 @@ export class OTelMetrics implements IOTelMetrics {
     return OTelMetrics.#instance;
   }
 
-  public recordCommandReplyMetrics(
-    args: ReadonlyArray<RedisArgument>,
-    reply: unknown,
-    clientId: string,
-  ) {
-    const commandName = args[0]?.toString().toUpperCase();
-    if (!commandName) {
-      return;
-    }
 
-    const handler = this.#commandReplyMetricHandlers[commandName];
-    if (!handler) {
-      return;
-    }
-
-    handler(args, reply, clientId);
-  }
-
-  #createCommandReplyMetricHandlers(): Readonly<
-    Record<string, CommandReplyMetricHandler>
-  > {
-    const publishHandler: CommandReplyMetricHandler =
-      this.#options.enabledMetricGroups.includes(METRIC_GROUP.PUBSUB)
-        ? (args, _reply, clientId) => {
-            this.pubSubMetrics.recordPubSubMessage(
-              "out",
-              clientId,
-              args[1],
-              false,
-            );
-          }
-        : noopFunction;
-
-    const sPublishHandler: CommandReplyMetricHandler =
-      this.#options.enabledMetricGroups.includes(METRIC_GROUP.PUBSUB)
-        ? (args, _reply, clientId) => {
-            this.pubSubMetrics.recordPubSubMessage(
-              "out",
-              clientId,
-              args[1],
-              true,
-            );
-          }
-        : noopFunction;
-
-    const streamHandler: CommandReplyMetricHandler =
-      this.#options.enabledMetricGroups.includes(METRIC_GROUP.STREAMING)
-        ? (args, reply, clientId) => {
-            this.streamMetrics.recordStreamLag(args, reply, clientId);
-          }
-        : noopFunction;
-
-    return {
-      PUBLISH: publishHandler,
-      SPUBLISH: sPublishHandler,
-      XREAD: streamHandler,
-      XREADGROUP: streamHandler,
-    };
-  }
-
-  private getMeter(
-    api: typeof import("@opentelemetry/api") | undefined,
+  #getMeter(
+    api: typeof import("@opentelemetry/api"),
     options: MetricOptions,
   ): Meter {
-    if (!api || !options.enabled) {
-      return createNoopMeter();
-    }
-
-    if (options?.meterProvider) {
+    if (options.meterProvider) {
       return options.meterProvider.getMeter(INSTRUMENTATION_SCOPE_NAME);
     }
 
@@ -723,17 +620,8 @@ export class OTelMetrics implements IOTelMetrics {
 
   private createHistogram(
     meter: Meter,
-    enabledMetricGroups: MetricGroup[],
     instrumentConfig: HistogramInstrumentConfig,
   ) {
-    const isEnabled = enabledMetricGroups.includes(
-      instrumentConfig.metricGroup,
-    );
-
-    if (!isEnabled) {
-      return createNoopMeter().createHistogram(instrumentConfig.name);
-    }
-
     return meter.createHistogram(instrumentConfig.name, {
       unit: instrumentConfig.unit,
       description: instrumentConfig.description,
@@ -749,17 +637,8 @@ export class OTelMetrics implements IOTelMetrics {
 
   private createCounter(
     meter: Meter,
-    enabledMetricGroups: MetricGroup[],
     instrumentConfig: BaseInstrumentConfig,
   ) {
-    const isEnabled = enabledMetricGroups.includes(
-      instrumentConfig.metricGroup,
-    );
-
-    if (!isEnabled) {
-      return createNoopMeter().createCounter(instrumentConfig.name);
-    }
-
     return meter.createCounter(instrumentConfig.name, {
       unit: instrumentConfig.unit,
       description: instrumentConfig.description,
@@ -768,17 +647,8 @@ export class OTelMetrics implements IOTelMetrics {
 
   private createUpDownCounter(
     meter: Meter,
-    enabledMetricGroups: MetricGroup[],
     instrumentConfig: BaseInstrumentConfig,
   ) {
-    const isEnabled = enabledMetricGroups.includes(
-      instrumentConfig.metricGroup,
-    );
-
-    if (!isEnabled) {
-      return createNoopMeter().createUpDownCounter(instrumentConfig.name);
-    }
-
     return meter.createUpDownCounter(instrumentConfig.name, {
       unit: instrumentConfig.unit,
       description: instrumentConfig.description,
@@ -787,7 +657,6 @@ export class OTelMetrics implements IOTelMetrics {
 
   private createObservableGaugeWithCallback(
     meter: Meter,
-    enabledMetricGroups: MetricGroup[],
     instrumentConfig: BaseInstrumentConfig,
     options: MetricOptions,
     callback: (
@@ -795,23 +664,17 @@ export class OTelMetrics implements IOTelMetrics {
       options: MetricOptions,
     ) => void,
   ) {
-    const isEnabled = enabledMetricGroups.includes(
-      instrumentConfig.metricGroup,
-    );
-
-    if (!isEnabled) {
-      return createNoopMeter().createObservableGauge(instrumentConfig.name);
-    }
-
     const gauge = meter.createObservableGauge(instrumentConfig.name, {
       unit: instrumentConfig.unit,
       description: instrumentConfig.description,
     });
 
-    meter.addBatchObservableCallback(
-      (observableResult) => callback(observableResult, options),
-      [gauge],
-    );
+    if (options.enabledMetricGroups.includes(instrumentConfig.metricGroup)) {
+      meter.addBatchObservableCallback(
+        (observableResult) => callback(observableResult, options),
+        [gauge],
+      );
+    }
 
     return gauge;
   }
@@ -824,7 +687,6 @@ export class OTelMetrics implements IOTelMetrics {
       // Command
       dbClientOperationDuration: this.createHistogram(
         meter,
-        options.enabledMetricGroups,
         {
           name: METRIC_NAMES.dbClientOperationDuration,
           unit: "s",
@@ -837,7 +699,6 @@ export class OTelMetrics implements IOTelMetrics {
       // Basic connection
       dbClientConnectionCount: this.createUpDownCounter(
         meter,
-        options.enabledMetricGroups,
         {
           name: METRIC_NAMES.dbClientConnectionCount,
           unit: "{connection}",
@@ -847,7 +708,6 @@ export class OTelMetrics implements IOTelMetrics {
       ),
       dbClientConnectionCreateTime: this.createHistogram(
         meter,
-        options.enabledMetricGroups,
         {
           name: METRIC_NAMES.dbClientConnectionCreateTime,
           unit: "s",
@@ -859,7 +719,6 @@ export class OTelMetrics implements IOTelMetrics {
       ),
       redisClientConnectionRelaxedTimeout: this.createUpDownCounter(
         meter,
-        options.enabledMetricGroups,
         {
           name: METRIC_NAMES.redisClientConnectionRelaxedTimeout,
           unit: "{relaxation}",
@@ -870,7 +729,6 @@ export class OTelMetrics implements IOTelMetrics {
       ),
       redisClientConnectionHandoff: this.createCounter(
         meter,
-        options.enabledMetricGroups,
         {
           name: METRIC_NAMES.redisClientConnectionHandoff,
           unit: "{handoff}",
@@ -882,7 +740,6 @@ export class OTelMetrics implements IOTelMetrics {
       // Advanced connection
       dbClientConnectionWaitTime: this.createHistogram(
         meter,
-        options.enabledMetricGroups,
         {
           name: METRIC_NAMES.dbClientConnectionWaitTime,
           unit: "s",
@@ -920,12 +777,11 @@ export class OTelMetrics implements IOTelMetrics {
       //     }
       //   },
       // ),
-      dbClientConnectionPendingRequests: createNoopMeter().createObservableGauge(
+      dbClientConnectionPendingRequests: meter.createObservableGauge(
         METRIC_NAMES.dbClientConnectionPendingRequests,
       ),
       redisClientConnectionClosed: this.createCounter(
         meter,
-        options.enabledMetricGroups,
         {
           name: METRIC_NAMES.redisClientConnectionClosed,
           unit: "{connection}",
@@ -936,7 +792,6 @@ export class OTelMetrics implements IOTelMetrics {
       // Resiliency
       redisClientErrors: this.createCounter(
         meter,
-        options.enabledMetricGroups,
         {
           name: METRIC_NAMES.redisClientErrors,
           unit: "{error}",
@@ -947,7 +802,6 @@ export class OTelMetrics implements IOTelMetrics {
       ),
       redisClientMaintenanceNotifications: this.createCounter(
         meter,
-        options.enabledMetricGroups,
         {
           name: METRIC_NAMES.redisClientMaintenanceNotifications,
           unit: "{notification}",
@@ -958,7 +812,6 @@ export class OTelMetrics implements IOTelMetrics {
       // PubSub
       redisClientPubsubMessages: this.createCounter(
         meter,
-        options.enabledMetricGroups,
         {
           name: METRIC_NAMES.redisClientPubsubMessages,
           unit: "{message}",
@@ -969,7 +822,6 @@ export class OTelMetrics implements IOTelMetrics {
       // Streams
       redisClientStreamLag: this.createHistogram(
         meter,
-        options.enabledMetricGroups,
         {
           name: METRIC_NAMES.redisClientStreamLag,
           unit: "s",
@@ -981,7 +833,6 @@ export class OTelMetrics implements IOTelMetrics {
       // Client-Side Caching
       redisClientCscRequests: this.createCounter(
         meter,
-        options.enabledMetricGroups,
         {
           name: METRIC_NAMES.redisClientCscRequests,
           unit: "{request}",
@@ -991,7 +842,6 @@ export class OTelMetrics implements IOTelMetrics {
       ),
       redisClientCscItems: this.createObservableGaugeWithCallback(
         meter,
-        options.enabledMetricGroups,
         {
           name: METRIC_NAMES.redisClientCscItems,
           unit: "{item}",
@@ -1014,7 +864,6 @@ export class OTelMetrics implements IOTelMetrics {
       ),
       redisClientCscEvictions: this.createCounter(
         meter,
-        options.enabledMetricGroups,
         {
           name: METRIC_NAMES.redisClientCscEvictions,
           unit: "{eviction}",
@@ -1024,7 +873,6 @@ export class OTelMetrics implements IOTelMetrics {
       ),
       redisClientCscNetworkSaved: this.createCounter(
         meter,
-        options.enabledMetricGroups,
         {
           name: METRIC_NAMES.redisClientCscNetworkSaved,
           unit: "By",

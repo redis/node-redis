@@ -5,7 +5,7 @@ import { ConnectionTimeoutError, ClientClosedError, SocketClosedUnexpectedlyErro
 import { setTimeout } from 'node:timers/promises';
 import { RedisArgument } from '../RESP/types';
 import { dbgMaintenance } from './enterprise-maintenance-manager';
-import { OTelMetrics, CONNECTION_CLOSE_REASON } from '../opentelemetry';
+import { publish, CHANNELS } from './tracing';
 
 type NetOptions = {
   tls?: false;
@@ -230,10 +230,7 @@ export default class RedisSocket extends EventEmitter {
     let retries = 0;
     do {
       try {
-        const recordConnectionCreateTime =
-          OTelMetrics.instance.connectionBasicMetrics.createRecordConnectionCreateTime(
-            this.#clientId,
-          );
+        const connectStartTime = performance.now();
         this.#socket = await this.#createSocket();
         this.emit('connect');
 
@@ -255,12 +252,13 @@ export default class RedisSocket extends EventEmitter {
         }
         this.#isReady = true;
         this.#socketEpoch++;
-        OTelMetrics.instance.connectionBasicMetrics.recordConnectionCount(
-          1,
-          this.#clientId,
-        );
+        publish(CHANNELS.CONNECTION_READY, () => ({
+          clientId: this.#clientId,
+          serverAddress: this.host,
+          serverPort: this.port,
+          createTimeMs: performance.now() - connectStartTime,
+        }));
         this.emit('ready');
-        recordConnectionCreateTime();
       } catch (err) {
         const retryIn = this.#shouldReconnect(retries++, err as Error);
         if (typeof retryIn !== 'number') {
@@ -285,16 +283,10 @@ export default class RedisSocket extends EventEmitter {
 
     if(ms !== undefined) {
       this.#socket?.setTimeout(ms);
-      OTelMetrics.instance.connectionBasicMetrics.recordConnectionRelaxedTimeout(
-        1,
-        this.#clientId,
-      );
+      publish(CHANNELS.CONNECTION_RELAXED_TIMEOUT, () => ({ clientId: this.#clientId, value: 1 }));
     } else {
       this.#socket?.setTimeout(this.#socketTimeout ?? 0);
-      OTelMetrics.instance.connectionBasicMetrics.recordConnectionRelaxedTimeout(
-        -1,
-        this.#clientId,
-      );
+      publish(CHANNELS.CONNECTION_RELAXED_TIMEOUT, () => ({ clientId: this.#clientId, value: -1 }));
     }
   }
 
@@ -346,14 +338,7 @@ export default class RedisSocket extends EventEmitter {
     this.emit('error', err);
 
     if (wasReady) {
-      OTelMetrics.instance.connectionBasicMetrics.recordConnectionCount(
-        -1,
-        this.#clientId,
-      );
-      OTelMetrics.instance.connectionAdvancedMetrics.recordConnectionClosed(
-        CONNECTION_CLOSE_REASON.ERROR,
-        this.#clientId,
-      );
+      publish(CHANNELS.CONNECTION_CLOSED, () => ({ clientId: this.#clientId, reason: 'error', wasConnected: true }));
     }
 
     if (!wasReady || !this.#isOpen || typeof this.#shouldReconnect(0, err) !== 'number') return;
@@ -416,17 +401,7 @@ export default class RedisSocket extends EventEmitter {
       this.#socket = undefined;
     }
 
-    if (wasReady) {
-      OTelMetrics.instance.connectionBasicMetrics.recordConnectionCount(
-        -1,
-        this.#clientId,
-      );
-    }
-
-    OTelMetrics.instance.connectionAdvancedMetrics.recordConnectionClosed(
-      CONNECTION_CLOSE_REASON.APPLICATION_CLOSE,
-      this.#clientId,
-    );
+    publish(CHANNELS.CONNECTION_CLOSED, () => ({ clientId: this.#clientId, reason: 'application_close', wasConnected: wasReady }));
     this.emit('end');
   }
 

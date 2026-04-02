@@ -37,3 +37,23 @@ export { SetOptions, CLIENT_KILL_FILTERS, FAILOVER_MODES, CLUSTER_SLOT_STATES, C
 
 export { BasicClientSideCache, BasicPooledClientSideCache } from './lib/client/cache';
 export { OpenTelemetry } from './lib/opentelemetry';
+
+export {
+  CHANNELS,
+  type ChannelEvents,
+  type CommandTraceContext,
+  type BatchCommandTraceContext,
+  type BatchOperationContext,
+  type ConnectTraceContext,
+  type ConnectionReadyEvent,
+  type ConnectionClosedEvent,
+  type ConnectionRelaxedTimeoutEvent,
+  type ConnectionHandoffEvent,
+  type ClientErrorEvent,
+  type MaintenanceNotificationEvent,
+  type PubSubMessageEvent,
+  type CacheRequestEvent,
+  type CacheEvictionEvent,
+  type CommandReplyEvent,
+  type PoolConnectionWaitEvent,
+} from './lib/client/tracing';
