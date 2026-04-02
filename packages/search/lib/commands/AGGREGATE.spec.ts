@@ -501,7 +501,7 @@ describe('AGGREGATE', () => {
       {
         total: 1,
         results: [
-          Object.create(null, {
+          Object.create({}, {
             sum: {
               value: '3',
               configurable: true,

@@ -289,7 +289,7 @@ describe('FT.SEARCH', () => {
           total: 1,
           documents: [{
             id: '1',
-            value: Object.create(null, {
+            value: Object.create({}, {
               field: {
                 value: '1',
                 configurable: true,
@@ -318,10 +318,10 @@ describe('FT.SEARCH', () => {
           total: 2,
           documents: [{
             id: '1',
-            value: Object.create(null)
+            value: {}
           }, {
             id: '2',
-            value: Object.create(null)
+            value: {}
           }]
         }
       );

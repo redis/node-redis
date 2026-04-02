@@ -48,7 +48,7 @@ describe('TS.MREVRANGE', () => {
 
     assert.deepStrictEqual(
       reply,
-      Object.create(null, {
+      Object.create({}, {
         key: {
           configurable: true,
           enumerable: true,
@@ -77,7 +77,7 @@ describe('TS.MREVRANGE', () => {
     // RESP2's Array reply with Simple string values
     assert.deepStrictEqual(
       reply,
-      Object.create(null, {
+      Object.create({}, {
         key: {
           configurable: true,
           enumerable: true,

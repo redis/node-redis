@@ -179,7 +179,7 @@
 //     it('transformTuplesReply', () => {
 //         assert.deepEqual(
 //             transformTuplesReply(['key1', 'value1', 'key2', 'value2']),
-//             Object.create(null, {
+//             Object.create({}, {
 //                 key1: {
 //                     value: 'value1',
 //                     configurable: true,
@@ -199,7 +199,7 @@
 //             transformStreamMessagesReply([['0-0', ['0key', '0value']], ['1-0', ['1key', '1value']]]),
 //             [{
 //                 id: '0-0',
-//                 message: Object.create(null, {
+//                 message: Object.create({}, {
 //                     '0key': {
 //                         value: '0value',
 //                         configurable: true,
@@ -208,7 +208,7 @@
 //                 })
 //             }, {
 //                 id: '1-0',
-//                 message: Object.create(null, {
+//                 message: Object.create({}, {
 //                     '1key': {
 //                         value: '1value',
 //                         configurable: true,
@@ -234,7 +234,7 @@
 //                     name: 'stream1',
 //                     messages: [{
 //                         id: '0-1',
-//                         message: Object.create(null, {
+//                         message: Object.create({}, {
 //                             '11key': {
 //                                 value: '11value',
 //                                 configurable: true,
@@ -243,7 +243,7 @@
 //                         })
 //                     }, {
 //                         id: '1-1',
-//                         message: Object.create(null, {
+//                         message: Object.create({}, {
 //                             '12key': {
 //                                 value: '12value',
 //                                 configurable: true,
@@ -255,7 +255,7 @@
 //                     name: 'stream2',
 //                     messages: [{
 //                         id: '0-2',
-//                         message: Object.create(null, {
+//                         message: Object.create({}, {
 //                             '2key1': {
 //                                 value: '2value1',
 //                                 configurable: true,

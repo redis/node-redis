@@ -47,7 +47,7 @@ export function attachConfig<
 
   if (config?.modules) {
     for (const [moduleName, module] of Object.entries(config.modules)) {
-      const fns = Object.create(null);
+      const fns: Record<string, (...args: Array<any>) => any> = {};
       for (const [name, command] of Object.entries(module)) {
         if (config.RESP == 3 && command.unstableResp3 && !config.unstableResp3) {
           fns[name] = throwResp3SearchModuleUnstableError;
@@ -62,7 +62,7 @@ export function attachConfig<
 
   if (config?.functions) {
     for (const [library, commands] of Object.entries(config.functions)) {
-      const fns = Object.create(null);
+      const fns: Record<string, (...args: Array<any>) => any> = {};
       for (const [name, command] of Object.entries(commands)) {
         fns[name] = createFunctionCommand(name, command, RESP);
       }

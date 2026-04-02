@@ -451,7 +451,7 @@ function transformHybridSearchResults(reply: any): HybridSearchResult {
     // Each result is a flat key-value array like FT.AGGREGATE: ['field1', 'value1', 'field2', 'value2', ...]
     const resultMap = parseReplyMap(result);
 
-    const doc = Object.create(null);
+    const doc: Record<string, any> = {};
 
     // Add all other fields from the result
     for (const [key, value] of Object.entries(resultMap)) {

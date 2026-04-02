@@ -44,12 +44,12 @@ describe('TS.MREVRANGE_SELECTED_LABELS', () => {
 
     assert.deepStrictEqual(
       reply,
-      Object.create(null, {
+      Object.create({}, {
         key: {
           configurable: true,
           enumerable: true,
           value: {
-            labels: Object.create(null, {
+            labels: Object.create({}, {
               label: {
                 configurable: true,
                 enumerable: true,
@@ -66,7 +66,7 @@ describe('TS.MREVRANGE_SELECTED_LABELS', () => {
               value: 0
             }]
           }
-          
+
         }
       })
     );

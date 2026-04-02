@@ -13,7 +13,7 @@ export default {
     parser.push('FT.CONFIG', 'GET', option);
   },
   transformReply(reply: UnwrapReply<ArrayReply<TuplesReply<[BlobStringReply, BlobStringReply | NullReply]>>>) {
-    const transformedReply: Record<string, BlobStringReply | NullReply> = Object.create(null);
+    const transformedReply: Record<string, BlobStringReply | NullReply> = {};
     for (const item of reply) {
       const [key, value] = item as unknown as UnwrapReply<typeof item>;
       transformedReply[key.toString()] = value;

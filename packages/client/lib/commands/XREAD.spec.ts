@@ -92,7 +92,7 @@ describe('XREAD', () => {
   });
 
   testUtils.testAll('client.xRead', async client => {
-    const message = { field: 'value' }, 
+    const message = { field: 'value' },
     [id, reply] = await Promise.all([
       client.xAdd('key', '*', message),
       client.xRead({
@@ -102,10 +102,10 @@ describe('XREAD', () => {
     ])
 
     // FUTURE resp3 compatible
-    const obj = Object.assign(Object.create(null), {
+    const obj = Object.assign({}, {
       'key': [{
         id: id,
-        message: Object.create(null, {
+        message: Object.create({}, {
           field: {
             value: 'value',
             configurable: true,
@@ -120,7 +120,7 @@ describe('XREAD', () => {
       name: 'key',
       messages: [{
         id: id,
-        message: Object.assign(Object.create(null), {
+        message: Object.assign({}, {
           field: 'value'
         })
       }]

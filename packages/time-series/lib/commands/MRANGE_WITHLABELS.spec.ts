@@ -45,12 +45,12 @@ describe('TS.MRANGE_WITHLABELS', () => {
 
     assert.deepStrictEqual(
       reply,
-      Object.create(null, {
+      Object.create({}, {
         key: {
           configurable: true,
           enumerable: true,
           value: {
-            labels: Object.create(null, {
+            labels: Object.create({}, {
               label: {
                 configurable: true,
                 enumerable: true,

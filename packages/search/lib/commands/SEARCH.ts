@@ -191,7 +191,7 @@ export default {
       while (i < reply.length) {
         documents.push({
           id: reply[i++],
-          value: withoutDocuments ? Object.create(null) : documentValue(reply[i++])
+          value: withoutDocuments ? {} : documentValue(reply[i++])
         });
       }
 
@@ -220,7 +220,7 @@ export interface SearchReply {
 }
 
 function documentValue(tuples: any) {
-  const message = Object.create(null);
+  const message: Record<string, any> = {};
 
   if(!tuples) {
     return message;

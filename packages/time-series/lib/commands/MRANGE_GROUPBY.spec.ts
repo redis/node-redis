@@ -78,11 +78,11 @@ describe('TS.MRANGE_GROUPBY', () => {
 
     assert.deepStrictEqual(
       reply,
-      Object.create(null, {
+      Object.create({}, {
         'label=value': {
           configurable: true,
           enumerable: true,
-          value: {  
+          value: {
             samples: [{
               timestamp: 0,
               value: 0

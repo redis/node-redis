@@ -52,12 +52,12 @@ describe('TS.MRANGE_SELECTED_LABELS_GROUPBY', () => {
 
     assert.deepStrictEqual(
       reply,
-      Object.create(null, {
+      Object.create({}, {
         'label=value': {
           configurable: true,
           enumerable: true,
           value: {
-            labels: Object.create(null, {
+            labels: Object.create({}, {
               label: {
                 configurable: true,
                 enumerable: true,

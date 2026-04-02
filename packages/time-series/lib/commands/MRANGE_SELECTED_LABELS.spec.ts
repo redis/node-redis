@@ -44,12 +44,12 @@ describe('TS.MRANGE_SELECTED_LABELS', () => {
 
     assert.deepStrictEqual(
       reply,
-      Object.create(null, {
+      Object.create({}, {
         key: {
           configurable: true,
           enumerable: true,
           value: {
-            labels: Object.create(null, {
+            labels: Object.create({}, {
               label: {
                 configurable: true,
                 enumerable: true,
@@ -85,12 +85,12 @@ describe('TS.MRANGE_SELECTED_LABELS', () => {
     // RESP2's Array reply with Simple string values, and labels as Map instead of Array of pairs
     assert.deepStrictEqual(
       reply,
-      Object.create(null, {
+      Object.create({}, {
         key: {
           configurable: true,
           enumerable: true,
           value: {
-            labels: Object.create(null, {
+            labels: Object.create({}, {
               label: {
                 configurable: true,
                 enumerable: true,
