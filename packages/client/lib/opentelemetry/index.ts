@@ -1,6 +1,7 @@
 import { OpenTelemetryError } from "../errors";
 import { ClientRegistry } from "./client-registry";
 import { OTelMetrics } from "./metrics";
+import { OTelTracing } from "./tracing";
 import { ObservabilityConfig } from "./types";
 
 export class OpenTelemetry {
@@ -12,8 +13,8 @@ export class OpenTelemetry {
   /**
    * Initializes node-redis OpenTelemetry observability.
    *
-   * This bootstraps node-redis metrics instrumentation and registers the
-   * internal client registry used by metric collectors.
+   * This bootstraps node-redis metrics and/or tracing instrumentation and
+   * registers the internal client registry used by metric collectors.
    *
    * Call this once during application startup, before creating Redis clients
    * you want to observe.
@@ -27,7 +28,7 @@ export class OpenTelemetry {
    *
    * @example
    * ```ts
-   * import { metrics } from "@opentelemetry/api";
+   * import { metrics, trace } from "@opentelemetry/api";
    * import {
    *   ConsoleMetricExporter,
    *   MeterProvider,
@@ -48,6 +49,10 @@ export class OpenTelemetry {
    *     enabledMetricGroups: ["pubsub", "connection-basic", "resiliency"],
    *     includeCommands: ["GET", "SET"],
    *     hidePubSubChannelNames: true
+   *   },
+   *   tracing: {
+   *     enabled: true,
+   *     enableConnectionSpans: false,
    *   }
    * });
    * ```
@@ -68,6 +73,10 @@ export class OpenTelemetry {
     OpenTelemetry._instance = new OpenTelemetry();
     ClientRegistry.init();
     OTelMetrics.init({ api, config });
+
+    if (config?.tracing?.enabled) {
+      OTelTracing.init({ api, config: config.tracing });
+    }
   }
 }
 
@@ -77,8 +86,10 @@ export {
   CONNECTION_CLOSE_REASON,
   CSC_RESULT,
   CSC_EVICTION_REASON,
+  TracingConfig,
 } from "./types";
 export { OTelMetrics } from "./metrics";
+export { OTelTracing } from "./tracing";
 export {
   ClientRegistry,
   ClientMetricsHandle,

@@ -18,7 +18,9 @@
   "devDependencies": {
     "@node-rs/xxhash": "1.7.6",
     "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/context-async-hooks": "^2.6.1",
     "@opentelemetry/sdk-metrics": "^2.2.0",
+    "@opentelemetry/sdk-trace-base": "^2.6.1",
     "@redis/test-utils": "*",
     "@types/sinon": "^17.0.3",
     "sinon": "^17.0.1"
