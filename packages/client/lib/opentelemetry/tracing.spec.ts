@@ -317,22 +317,6 @@ describe("OTelTracing", () => {
       assert.equal(spans[0].attributes[OTEL_ATTRIBUTES.serverPort], 6379);
     });
 
-    it("should create connection wait spans when enabled", async () => {
-      OTelTracing.init({
-        api,
-        config: { enabled: true, enableConnectionSpans: true },
-      });
-
-      const tc = dc.tracingChannel("node-redis:connection:wait");
-      const ctx = { clientId: "test" };
-
-      await tc.tracePromise(async () => {}, ctx);
-
-      await provider.forceFlush();
-      const spans = exporter.getFinishedSpans();
-      assert.equal(spans.length, 1);
-      assert.equal(spans[0].name, "redis connection:wait");
-    });
   });
 
   describe("lifecycle", () => {

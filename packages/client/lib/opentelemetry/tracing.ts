@@ -34,14 +34,6 @@ interface WithSpan {
 
 /**
  * OTel span creation via TracingChannel subscribers.
- *
- * Context propagation uses `channel.start.bindStore()` on OTel's internal
- * AsyncLocalStorage so that spans created in the `start` handler become
- * the active span for the duration of the traced operation. This is required
- * because OTel's context manager and Node.js TracingChannel do not integrate
- * automatically (yet). All APM consumers must do the same.
- *
- * See: https://github.com/open-telemetry/opentelemetry-js/issues/4986
  */
 export class OTelTracing {
   static #instance: OTelTracing | undefined;
@@ -62,7 +54,12 @@ export class OTelTracing {
       ? config.tracerProvider.getTracer(INSTRUMENTATION_SCOPE_NAME)
       : api.trace.getTracer(INSTRUMENTATION_SCOPE_NAME);
 
-    // Attempt to grab OTel's internal AsyncLocalStorage for context propagation.
+    // Context propagation uses `channel.start.bindStore()` on OTel's internal
+    // AsyncLocalStorage so that spans created in the `start` handler become
+    // the active span for the duration of the traced operation. This is required
+    // because OTel's context manager and Node.js TracingChannel do not integrate
+    // automatically (yet). All APM consumers must do the same.
+    // See: https://github.com/open-telemetry/opentelemetry-js/issues/4986
     const contextManager = (api.context as any)._getContextManager?.();
     this.#otelStorage = contextManager?._asyncLocalStorage;
 
@@ -85,7 +82,6 @@ export class OTelTracing {
 
     if (this.#options.enableConnectionSpans) {
       this.#subscribeConnect();
-      this.#subscribeConnectionWait();
     }
   }
 
@@ -283,27 +279,6 @@ export class OTelTracing {
           ...(ctx.serverPort !== undefined && {
             [OTEL_ATTRIBUTES.serverPort]: ctx.serverPort,
           }),
-        },
-      },
-    }));
-  }
-
-  // ---------------------------------------------------------------------------
-  // Connection wait spans
-  // ---------------------------------------------------------------------------
-
-  #subscribeConnectionWait() {
-    const tc = getTracingChannel(CHANNELS.TRACE_CONNECTION_WAIT);
-    if (!tc) return;
-
-    const { SpanKind } = this.#api;
-
-    this.#traceChannel(tc, () => ({
-      name: 'redis connection:wait',
-      options: {
-        kind: SpanKind.INTERNAL,
-        attributes: {
-          ...DEFAULT_OTEL_ATTRIBUTES,
         },
       },
     }));
