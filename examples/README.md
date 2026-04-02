@@ -19,6 +19,7 @@ This folder contains example scripts showing how to use Node Redis in different 
 | `lua-multi-incr.js`                      | Define a custom lua script that allows you to perform INCRBY on multiple keys.                                                                       |
 | `managing-json.js`                       | Store, retrieve and manipulate JSON data atomically with [RedisJSON](https://redisjson.io/).                                                         |
 | `otel-metrics.js`                        | Enable OpenTelemetry metrics for node-redis, generate command and resiliency signals, and export them via OpenTelemetry SDK metrics.                 |
+| `otel-tracing.js`                        | Enable OpenTelemetry tracing for node-redis, demonstrating command spans, MULTI transactions, nested app spans, and error recording.                |
 | `pubsub-publisher.js`                    | Adds multiple messages on 2 different channels messages to Redis.                                                                                    |
 | `pubsub-subscriber.js`                   | Reads messages from channels using `PSUBSCRIBE` command.                                                                                             |
 | `search-hashes.js`                       | Uses [RediSearch](https://redisearch.io) to index and search data in hashes.                                                                         |

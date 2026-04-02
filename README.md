@@ -328,30 +328,31 @@ Check out the [Clustering Guide](https://github.com/redis/node-redis/blob/master
 
 ### OpenTelemetry
 
-#### OpenTelemetry Metrics Instrumentation
-
 ```typescript
 import { createClient, OpenTelemetry } from "redis";
 
 OpenTelemetry.init({
   metrics: {
-    enabled: true
-  }
+    enabled: true,
+  },
+  tracing: {
+    enabled: true,
+  },
 });
 
-const client = createClient()
+const client = createClient();
 
 await client.connect();
 // ... use the client as usual
 ```
 
-**Important:** Initializing `OpenTelemetry` only enables node-redis metrics instrumentation and requires both `@opentelemetry/api` and an OpenTelemetry SDK configured in your application.
+**Important:** Initializing `OpenTelemetry` only enables node-redis instrumentation and requires both `@opentelemetry/api` and an OpenTelemetry SDK configured in your application.
 
 **Important:** Initialize `OpenTelemetry` before creating Redis clients.
 For SDK/provider/exporter setup, verification, and advanced configuration, see:
 
-- [OpenTelemetry Metrics docs](./docs/otel-metrics.md)
-- [OpenTelemetry Metrics example](./examples/otel-metrics.js)
+- [OpenTelemetry Metrics docs](./docs/otel-metrics.md) · [example](./examples/otel-metrics.js)
+- [OpenTelemetry Tracing docs](./docs/otel-tracing.md) · [example](./examples/otel-tracing.js)
 
 ### Diagnostics Channel
 
