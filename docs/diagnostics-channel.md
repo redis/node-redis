@@ -12,13 +12,19 @@ import { CHANNELS, type CommandTraceContext } from "@redis/client";
 
 ### TracingChannels (async lifecycle)
 
-Requires Node.js >= 18.19.0. These channels wrap an async operation and emit `start`, `asyncEnd`, and `error` sub-events. Subscribe via `tracing:<name>:start`, `tracing:<name>:asyncEnd`, and `tracing:<name>:error`.
+Requires Node.js >= 18.19.0. These channels use Node.js `TracingChannel#tracePromise()` and emit `start`, `end`, `asyncStart`, `asyncEnd`, and `error` sub-events. `start`/`end` wrap the synchronous portion of the traced callback, while `asyncStart`/`asyncEnd` wrap the returned promise. Subscribe via `tracing:<name>:<event>`, for example `tracing:node-redis:command:start` or `tracing:node-redis:command:asyncEnd`.
 
 ```typescript
 import dc from "node:diagnostics_channel";
 
+// Fired when the command starts.
 dc.subscribe("tracing:node-redis:command:start", ({ command, args }) => {
   console.log(`> ${command}`, args);
+});
+
+// Fired when the async Redis operation settles (success or failure).
+dc.subscribe("tracing:node-redis:command:asyncEnd", ({ command }) => {
+  console.log(`${command} settled`);
 });
 
 dc.subscribe("tracing:node-redis:command:error", ({ command, error }) => {
