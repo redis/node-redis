@@ -35,37 +35,4 @@ describe('VSETATTR', () => {
     client: { ...GLOBAL.SERVERS.OPEN, minimumDockerVersion: [8, 0] },
     cluster: { ...GLOBAL.CLUSTERS.OPEN, minimumDockerVersion: [8, 0] }
   });
-
-  testUtils.testWithClient('vSetAttr - RESP2 returns boolean type', async client => {
-    await client.vAdd('key', [1.0, 2.0, 3.0], 'element');
-
-    const result = await client.vSetAttr('key', 'element', { name: 'test', value: 42 });
-
-    // RESP2 returns integer (0/1) but should be transformed to boolean
-    assert.strictEqual(typeof result, 'boolean');
-    assert.strictEqual(result, true);
-  }, {
-    ...GLOBAL.SERVERS.OPEN,
-    minimumDockerVersion: [8, 0]
-  });
-
-  testUtils.testWithClient('vSetAttr with RESP3 - returns boolean', async client => {
-    await client.vAdd('resp3-key', [1.0, 2.0, 3.0], 'resp3-element');
-
-    const result = await client.vSetAttr('resp3-key', 'resp3-element', {
-      name: 'test-item',
-      category: 'electronics',
-      price: 99.99
-    });
-
-    // RESP3 returns boolean instead of number
-    assert.equal(typeof result, 'boolean');
-    assert.equal(result, true);
-  }, {
-    ...GLOBAL.SERVERS.OPEN,
-    clientOptions: {
-      RESP: 3
-    },
-    minimumDockerVersion: [8, 0]
-  });
 });

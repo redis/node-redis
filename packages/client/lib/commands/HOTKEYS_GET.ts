@@ -1,5 +1,5 @@
 import { CommandParser } from '../client/parser';
-import { Command, ReplyUnion, UnwrapReply, ArrayReply, BlobStringReply, NumberReply } from '../RESP/types';
+import { Command, UnwrapReply, ArrayReply, BlobStringReply, NumberReply } from '../RESP/types';
 
 /**
  * Hotkey entry with key name and metric value
@@ -175,7 +175,7 @@ export default {
       if (reply === null) return null;
       return transformHotkeysGetReply(reply);
     },
-    3: undefined as unknown as () => ReplyUnion
+    3: undefined as unknown as () => HotkeysGetReply
   },
   unstableResp3: true
 } as const satisfies Command;

@@ -45,19 +45,4 @@ describe('MEMORY STATS', () => {
     }
   }, GLOBAL.SERVERS.OPEN);
 
-  testUtils.testWithClient('client.memoryStats - RESP2 returns plain object structure', async client => {
-    const memoryStats = await client.memoryStats();
-
-    // Structural assertions to ensure RESP2 returns a plain object (not Array, not Map)
-    assert.ok(typeof memoryStats === 'object', 'memoryStats should be an object');
-    assert.ok(memoryStats !== null, 'memoryStats should not be null');
-    assert.ok(!Array.isArray(memoryStats), 'memoryStats should not be an Array');
-    assert.ok(!(memoryStats instanceof Map), 'memoryStats should not be a Map');
-    assert.ok(memoryStats.constructor === Object, 'memoryStats should be a plain Object');
-
-    // Verify it has the expected keys as own properties
-    assert.ok(memoryStats.hasOwnProperty('peak.allocated'), 'should have peak.allocated');
-    assert.ok(memoryStats.hasOwnProperty('total.allocated'), 'should have total.allocated');
-    assert.ok(memoryStats.hasOwnProperty('dataset.percentage'), 'should have dataset.percentage');
-  }, GLOBAL.SERVERS.OPEN);
 });

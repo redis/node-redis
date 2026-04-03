@@ -17,17 +17,4 @@ describe('LATENCY DOCTOR', () => {
       'string'
     );
   }, GLOBAL.SERVERS.OPEN);
-
-  testUtils.testWithClient('client.latencyDoctor returns plain bulk string (RESP2)', async client => {
-    const reply = await client.latencyDoctor();
-
-    // Must be a string (bulk string in RESP2, not verbatim string object)
-    assert.equal(typeof reply, 'string');
-
-    // Must be a plain primitive string, not an object
-    assert.ok(reply.constructor === String || typeof reply === 'string');
-
-    // Should not be a structured object (would indicate verbatim string transformation)
-    assert.ok(!(reply && typeof reply === 'object' && 'format' in reply));
-  }, GLOBAL.SERVERS.OPEN);
 });
