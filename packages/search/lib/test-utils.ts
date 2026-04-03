@@ -14,6 +14,7 @@ export const GLOBAL = {
     OPEN: {
       serverArguments: [],
       clientOptions: {
+        RESP: 3 as const,
         modules: {
           ft: RediSearch
         }

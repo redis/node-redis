@@ -23,7 +23,7 @@ describe('XRANGE', () => {
   });
 
   testUtils.testAll('xRange', async client => {
-    const message = Object.create(null, {
+    const message = Object.create({}, {
       field: {
         value: 'value',
         enumerable: true
@@ -34,7 +34,7 @@ describe('XRANGE', () => {
       client.xAdd('key', '*', message),
       client.xRange('key', '-', '+')
     ]);
-    
+
     assert.deepEqual(reply, [{
       id,
       message

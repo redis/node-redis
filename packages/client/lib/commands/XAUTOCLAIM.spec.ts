@@ -25,7 +25,7 @@ describe('XAUTOCLAIM', () => {
   });
 
   testUtils.testAll('xAutoClaim', async client => {
-    const message = Object.create(null, {
+    const message = Object.create({}, {
       field: {
         value: 'value',
         enumerable: true

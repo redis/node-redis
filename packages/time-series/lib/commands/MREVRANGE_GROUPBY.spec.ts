@@ -51,11 +51,11 @@ describe('TS.MREVRANGE_GROUPBY', () => {
 
     assert.deepStrictEqual(
       reply,
-      Object.create(null, {
+      Object.create({}, {
         'label=value': {
           configurable: true,
           enumerable: true,
-          value: {  
+          value: {
             samples: [{
               timestamp: 0,
               value: 0
@@ -64,5 +64,24 @@ describe('TS.MREVRANGE_GROUPBY', () => {
         }
       })
     );
+  }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.ts.mRevRangeGroupBy with data', async client => {
+    const [, reply] = await Promise.all([
+      client.ts.add('key', 0, 0, {
+        LABELS: { label: 'value' }
+      }),
+      client.ts.mRevRangeGroupBy('-', '+', 'label=value', {
+        REDUCE: TIME_SERIES_REDUCERS.AVG,
+        label: 'label'
+      })
+    ]);
+
+    // Transformed reply is an object keyed by group
+    assert.ok(reply['label=value'], 'expected group key in reply');
+    assert.deepStrictEqual(reply['label=value'].samples, [{
+      timestamp: 0,
+      value: 0
+    }]);
   }, GLOBAL.SERVERS.OPEN);
 });

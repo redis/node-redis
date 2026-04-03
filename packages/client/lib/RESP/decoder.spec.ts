@@ -75,13 +75,13 @@ describe('RESP Decoder', () => {
     toWrite: Buffer.from('_\r\n'),
     replies: [null]
   });
-  
+
   describe('Boolean', () => {
     test('true', {
       toWrite: Buffer.from('#t\r\n'),
       replies: [true]
     });
-  
+
     test('false', {
       toWrite: Buffer.from('#f\r\n'),
       replies: [false]
@@ -347,7 +347,7 @@ describe('RESP Decoder', () => {
         new BlobError(''),
         [],
         [],
-        Object.create(null)
+        {}
       ]]
     });
 
@@ -380,12 +380,12 @@ describe('RESP Decoder', () => {
   describe('Map', () => {
     test('{}', {
       toWrite: Buffer.from('%0\r\n'),
-      replies: [Object.create(null)]
+      replies: [{}]
     });
 
     test("{ '0'..'9': <key> }", {
       toWrite: Buffer.from(`%10\r\n+0\r\n+0\r\n+1\r\n+1\r\n+2\r\n+2\r\n+3\r\n+3\r\n+4\r\n+4\r\n+5\r\n+5\r\n+6\r\n+6\r\n+7\r\n+7\r\n+8\r\n+8\r\n+9\r\n+9\r\n`),
-      replies: [Object.create(null, {
+      replies: [Object.create({}, {
         0: { value: '0', enumerable: true },
         1: { value: '1', enumerable: true },
         2: { value: '2', enumerable: true },

@@ -1874,5 +1874,36 @@ describe("FT.HYBRID", () => {
       },
       GLOBAL.SERVERS.OPEN,
     );
+
+    testUtils.testWithClientIfVersionWithinRange(
+      [[8, 6], "LATEST"],
+      "hybrid search with structured response",
+      async (client) => {
+        const indexName = "idx_structured_basic";
+        await createHybridSearchIndex(client, indexName);
+        await addDataForHybridSearch(client, 5);
+
+        const result = await client.ft.hybrid(indexName, {
+          SEARCH: { query: "@color:{red}" },
+          VSIM: {
+            field: "@embedding",
+            vector: "$vec",
+          },
+          LOAD: ["@description", "@color", "@price"],
+          LIMIT: { offset: 0, count: 3 },
+          TIMEOUT: 10000,
+          PARAMS: {
+            vec: createVectorBuffer([1, 2, 7, 6]),
+          },
+        });
+
+        // Transformed reply has { results, warnings, executionTime }
+        assert.ok(Array.isArray(result.results), "results should be an array");
+        assert.ok(result.results.length <= 3, "results should respect LIMIT");
+        assert.ok(Array.isArray(result.warnings), "warnings should be an array");
+        assert.ok(typeof result.executionTime === "number", "executionTime should be a number");
+      },
+      GLOBAL.SERVERS.OPEN,
+    );
   });
 });

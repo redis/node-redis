@@ -17,4 +17,13 @@ describe('CF.EXISTS', () => {
       false
     );
   }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.cf.exists with existing item', async client => {
+    await client.cf.reserve('key', 100);
+    await client.cf.add('key', 'item');
+    assert.equal(
+      await client.cf.exists('key', 'item'),
+      true
+    );
+  }, GLOBAL.SERVERS.OPEN);
 });

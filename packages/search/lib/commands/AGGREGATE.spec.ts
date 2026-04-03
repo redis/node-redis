@@ -501,7 +501,7 @@ describe('AGGREGATE', () => {
       {
         total: 1,
         results: [
-          Object.create(null, {
+          Object.create({}, {
             sum: {
               value: '3',
               configurable: true,
@@ -516,5 +516,34 @@ describe('AGGREGATE', () => {
         ]
       }
     );
+  }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.ft.aggregate with data', async client => {
+    await client.ft.create('index', {
+      field: 'NUMERIC'
+    });
+    await client.hSet('1', 'field', '1');
+    await client.hSet('2', 'field', '2');
+
+    const reply = await client.ft.aggregate('index', '*', {
+      STEPS: [{
+        type: 'GROUPBY',
+        REDUCE: [{
+          type: 'SUM',
+          property: '@field',
+          AS: 'sum'
+        }, {
+          type: 'AVG',
+          property: '@field',
+          AS: 'avg'
+        }]
+      }]
+    });
+
+    // RESP3 returns a Map reply with structured fields instead of a flat Array
+    assert.ok(reply !== null && typeof reply === 'object');
+    assert.ok('results' in reply);
+    assert.ok(Array.isArray(reply.results));
+    assert.ok(reply.results.length > 0);
   }, GLOBAL.SERVERS.OPEN);
 });

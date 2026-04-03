@@ -924,7 +924,7 @@ export class Decoder {
 
       default:
         return this.#decodeMapAsObject(
-          Object.create(null),
+          {},
           length,
           typeMapping,
           chunk

@@ -1,0 +1,68 @@
+You are auditing test coverage for a single Redis command in a Node.js Redis client monorepo.
+
+## NORTH STAR
+The Redis client must return identical responses regardless of which RESP version (RESP2 or RESP3) the user selects. We are in **Phase 1**: ensure every command listed in `resp-diff.txt` has a test that structurally asserts the RESP2 response shape so thoroughly that switching the server to RESP3 would immediately break the test if the shape differs.
+
+## YOUR TASK
+**Command**: `{{CMD}}`
+**Package**: `{{PKG}}`
+**Implementation file**: `{{IMPL_PATH}}`
+**Test file**: `{{SPEC_PATH}}`
+
+### Known RESP2 vs RESP3 difference for this command
+```
+{{RESP_DIFF}}
+```
+
+## RULES — read these carefully
+
+1. **All tests run against RESP2.** Use `GLOBAL.SERVERS.OPEN` (or `GLOBAL.CLUSTERS.OPEN` for cluster commands). This is the RESP2 server. Do NOT use any RESP3 server config.
+
+2. **Do NOT duplicate existing tests.** If an existing `testWithClient`, `testAll`, or `testWith*` already exercises the command with data and asserts the response structure, that is sufficient. Do not add another test that does the same thing.
+
+3. **Do NOT rename existing test descriptions.** Leave them exactly as they are.
+
+4. **Do NOT rewrite or remove existing tests.** Only add new test cases alongside existing ones if coverage is missing.
+
+5. **What counts as sufficient structural coverage:**
+   - `assert.deepEqual(reply, { ... })` or `assert.deepStrictEqual(reply, { ... })` — **sufficient**, this pins the exact shape.
+   - `assert.ok(Array.isArray(reply))` followed by assertions on element structure — **sufficient**.
+   - `assert.equal(typeof reply, 'object')` or `assert.ok(reply !== null)` — **NOT sufficient**, this is too weak to catch Array→Map or other shape changes.
+   - No integration test at all (only `transformArguments` unit tests) — **NOT sufficient**.
+
+6. **If coverage is already sufficient, change NOTHING.** Go straight to the summary with STATUS: ALREADY_COVERED.
+
+## STEPS
+
+### Step 1: Read the implementation and test files
+- Read `{{IMPL_PATH}}` to understand the command's response transformation (`transformReply`).
+- Read `{{SPEC_PATH}}` (if it exists) to understand current test coverage.
+
+### Step 2: Evaluate existing coverage
+Ask: does the test file already have at least one integration test (`testWithClient`/`testAll`/`testWith*`) that:
+- Calls the command with real data (not just empty/null results where possible)
+- Asserts the response structure strongly enough to catch the known RESP2→RESP3 shape change listed above
+
+If YES → STATUS: ALREADY_COVERED, change nothing.
+If NO → proceed to Step 3.
+
+### Step 3: Add minimal test coverage (only if Step 2 found a gap)
+- Add ONE test that exercises the command with data and uses `assert.deepEqual` or structural assertions that would break if the response shape changed.
+- Import pattern: `import testUtils, { GLOBAL } from '../test-utils';`
+- Keep the test name descriptive and consistent with existing test naming in the file.
+- Run the test to verify it passes:
+  ```
+  npm run test-single -- '{{SPEC_PATH}}'
+  ```
+  If the test fails, fix it until it passes. Do NOT leave a failing test.
+
+## Summary (always print this at the end)
+
+```
+COMMAND: {{CMD}}
+PACKAGE: {{PKG}}
+RESP_DIFF: {{RESP_DIFF_SUMMARY}}
+STATUS: ALREADY_COVERED | ADDED_TEST | FAIL
+REASON: <one line explanation>
+TESTS_ADDED: <number, 0 if none>
+```

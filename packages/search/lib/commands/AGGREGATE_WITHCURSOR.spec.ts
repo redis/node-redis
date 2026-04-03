@@ -46,4 +46,20 @@ describe('AGGREGATE WITHCURSOR', () => {
       }
     );
   }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.ft.aggregateWithCursor with data', async client => {
+    await client.ft.create('index', {
+      field: 'NUMERIC'
+    });
+
+    const reply = await client.ft.aggregateWithCursor('index', '*');
+
+    // Transformed reply has { total, results, cursor }
+    assert.equal(typeof reply.total, 'number');
+    assert.ok(Array.isArray(reply.results));
+    assert.equal(typeof reply.cursor, 'number');
+    assert.equal(reply.total, 0);
+    assert.deepEqual(reply.results, []);
+    assert.equal(reply.cursor, 0);
+  }, GLOBAL.SERVERS.OPEN);
 });

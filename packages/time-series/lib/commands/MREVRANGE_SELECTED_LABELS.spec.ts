@@ -44,12 +44,12 @@ describe('TS.MREVRANGE_SELECTED_LABELS', () => {
 
     assert.deepStrictEqual(
       reply,
-      Object.create(null, {
+      Object.create({}, {
         key: {
           configurable: true,
           enumerable: true,
           value: {
-            labels: Object.create(null, {
+            labels: Object.create({}, {
               label: {
                 configurable: true,
                 enumerable: true,
@@ -66,9 +66,34 @@ describe('TS.MREVRANGE_SELECTED_LABELS', () => {
               value: 0
             }]
           }
-          
+
         }
       })
     );
+  }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.ts.mRevRangeSelectedLabels with data', async client => {
+    const [, reply] = await Promise.all([
+      client.ts.add('key', 0, 0, {
+        LABELS: { label: 'value' }
+      }),
+      client.ts.mRevRangeSelectedLabels('-', '+', ['label'], 'label=value', {
+        COUNT: 1
+      })
+    ]);
+
+    // RESP3 returns Map instead of Array at top level and for labels
+    assert.ok(typeof reply === 'object' && !Array.isArray(reply));
+    assert.ok('key' in reply);
+
+    const entry = reply['key'];
+    // Labels should be a Map/object, not an array of tuples
+    assert.ok(typeof entry.labels === 'object' && !Array.isArray(entry.labels));
+
+    // Sample values should be numbers (Double in RESP3) not strings
+    assert.equal(entry.samples.length, 1);
+    assert.equal(typeof entry.samples[0].value, 'number');
+    assert.equal(entry.samples[0].value, 0);
+    assert.equal(entry.samples[0].timestamp, 0);
   }, GLOBAL.SERVERS.OPEN);
 });

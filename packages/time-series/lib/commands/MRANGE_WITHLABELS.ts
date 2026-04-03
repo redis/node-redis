@@ -44,9 +44,9 @@ export function createTransformMRangeWithLabelsArguments(command: RedisArgument)
       toTimestamp,
       options
     );
-  
+
     parser.push('WITHLABELS');
-  
+
     parseFilterArgument(parser, filter);
   };
 }
@@ -68,7 +68,7 @@ export default {
       return resp2MapToValue(reply, ([_key, labels, samples]) => {
         const unwrappedLabels = labels as unknown as UnwrapReply<typeof labels>;
         // TODO: use Map type mapping for labels
-        const labelsObject: Record<string, BlobStringReply> = Object.create(null);
+        const labelsObject: Record<string, BlobStringReply> = {};
         for (const tuple of unwrappedLabels) {
           const [key, value] = tuple as unknown as UnwrapReply<typeof tuple>;
           const unwrappedKey = key as unknown as UnwrapReply<typeof key>;

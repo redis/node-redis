@@ -115,7 +115,7 @@ export function transformTuplesToMap<T>(
   reply: UnwrapReply<ArrayReply<any>>,
   func: (elem: any) => T,
 ) {
-  const message = Object.create(null);
+  const message: Record<string, T> = {};
 
   for (let i = 0; i < reply.length; i+= 2) {
     message[reply[i].toString()] = func(reply[i + 1]);
@@ -153,7 +153,7 @@ export function transformTuplesReply<T extends Stringable>(
       return ret as unknown as MapReply<T, T>;;
     }
     default: {
-      const ret: Record<string, BlobStringReply> = Object.create(null);
+      const ret: Record<string, BlobStringReply> = {};
 
       for (let i = 0; i < inferred.length; i += 2) {
         ret[inferred[i].toString()] = inferred[i + 1] as any;
@@ -603,7 +603,7 @@ export function transformStreamsMessagesReplyResp2(
       return ret as unknown as MapReply<string, StreamMessagesReply>;
     }
     default: {
-      const ret: Record<string, StreamMessagesReply> = Object.create(null);
+      const ret: Record<string, StreamMessagesReply> = {};
 
       for (let i=0; i < reply.length; i++) {
         const stream = reply[i] as unknown as UnwrapReply<StreamMessagesRawReply>;
@@ -663,7 +663,7 @@ export function transformStreamsMessagesReplyResp3(reply: UnwrapReply<StreamsMes
 
     return ret as unknown as MapReply<BlobStringReply, StreamMessagesReply>
   } else {
-    const ret = Object.create(null);
+    const ret: Record<string, StreamMessagesReply> = {};
     for (const [name, rawMessages] of Object.entries(reply)) {
       ret[name] = transformStreamMessagesReply(rawMessages);
     }

@@ -52,12 +52,12 @@ describe('TS.MREVRANGE_SELECTED_LABELS_GROUPBY', () => {
 
     assert.deepStrictEqual(
       reply,
-      Object.create(null, {
+      Object.create({}, {
         'label=value': {
           configurable: true,
           enumerable: true,
           value: {
-            labels: Object.create(null, {
+            labels: Object.create({}, {
               label: {
                 configurable: true,
                 enumerable: true,
@@ -77,5 +77,31 @@ describe('TS.MREVRANGE_SELECTED_LABELS_GROUPBY', () => {
         }
       })
     );
+  }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.ts.mRevRangeSelectedLabelsGroupBy with data', async client => {
+    const [, reply] = await Promise.all([
+      client.ts.add('key', 0, 0, {
+        LABELS: { label: 'value' }
+      }),
+      client.ts.mRevRangeSelectedLabelsGroupBy('-', '+', ['label', 'NX'], 'label=value', {
+        REDUCE: TIME_SERIES_REDUCERS.AVG,
+        label: 'label'
+      })
+    ]);
+
+    // Transformed reply is an object keyed by group
+    assert.ok(typeof reply === 'object' && !Array.isArray(reply));
+    assert.ok('label=value' in reply);
+
+    const entry = reply['label=value'];
+    // Labels should be an object
+    assert.ok(typeof entry.labels === 'object');
+
+    // Sample values should be numbers
+    assert.equal(entry.samples.length, 1);
+    assert.equal(typeof entry.samples[0].value, 'number');
+    assert.equal(entry.samples[0].timestamp, 0);
+    assert.equal(entry.samples[0].value, 0);
   }, GLOBAL.SERVERS.OPEN);
 });

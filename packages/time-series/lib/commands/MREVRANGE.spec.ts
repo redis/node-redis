@@ -48,7 +48,36 @@ describe('TS.MREVRANGE', () => {
 
     assert.deepStrictEqual(
       reply,
-      Object.create(null, {
+      Object.create({}, {
+        key: {
+          configurable: true,
+          enumerable: true,
+          value: [{
+            timestamp: 0,
+            value: 0
+          }]
+        }
+      })
+    );
+  }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.ts.mRevRange with data', async client => {
+    const [, reply] = await Promise.all([
+      client.ts.add('key', 0, 0, {
+        LABELS: {
+          label: 'value'
+        }
+      }),
+      client.ts.mRevRange('-', '+', 'label=value', {
+        COUNT: 1
+      })
+    ]);
+
+    // RESP3 returns Map reply (converted to object) with Double values instead of
+    // RESP2's Array reply with Simple string values
+    assert.deepStrictEqual(
+      reply,
+      Object.create({}, {
         key: {
           configurable: true,
           enumerable: true,
