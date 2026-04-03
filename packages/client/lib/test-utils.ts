@@ -10,7 +10,7 @@ const utils = TestUtils.createFromConfig({
   dockerImageName: 'redislabs/client-libs-test',
   dockerImageTagArgument: 'redis-tag',
   dockerImageVersionArgument: 'redis-version',
-  defaultDockerVersion: { tag: 'custom-21860421418-debian-amd64', version: '8.6' }
+  defaultDockerVersion: { tag: 'unstable-23321515778-debian', version: '8.8' }
 });
 
 export default utils;
@@ -97,7 +97,7 @@ export const GLOBAL = {
     OPEN_RESP_3: {
       serverArguments: [...DEBUG_MODE_ARGS],
       clientOptions: {
-        RESP: 3,
+        RESP: 3 as const,
       }
     },
     ASYNC_BASIC_AUTH: {
