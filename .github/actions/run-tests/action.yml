@@ -19,6 +19,10 @@ inputs:
   otel-authorization-token:
     description: 'Authorization token for OTEL metrics reporting'
     required: false
+  run-codecov:
+    description: 'Whether to upload coverage to Codecov'
+    required: false
+    default: 'true'
 runs:
   using: "composite"
   steps:
@@ -45,6 +49,7 @@ runs:
       shell: bash
       run: npm run test -ws --if-present -- --forbid-only --redis-tag=${{ inputs.redis-tag }} --redis-version=${{ inputs.redis-version }}
     - name: Upload to Codecov
+      if: inputs.run-codecov == 'true'
       shell: bash
       run: |
         curl https://keybase.io/codecovsecurity/pgp_keys.asc | gpg --no-default-keyring --keyring trustedkeys.gpg --import
@@ -56,7 +61,7 @@ runs:
         chmod +x codecov
         ./codecov
     - name: Self Report Metrics
-      if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+      if: (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && inputs.otel-authorization-token != ''
       id: self-report-metrics
       uses: redis-developer/cae-otel-ci-visibility@v2
       with:
