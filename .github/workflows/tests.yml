@@ -41,3 +41,4 @@ jobs:
             node-version: ${{ matrix.node-version }}
             redis-tag: ${{ matrix.redis.tag }}
             redis-version: ${{ matrix.redis.version }}
+            otel-authorization-token: ${{ secrets.SELF_CHECK_OTEL_AUTHORIZATION_TOKEN }}

@@ -16,6 +16,9 @@ inputs:
   redis-version:
     description: 'Redis version to test against'
     required: true
+  otel-authorization-token:
+    description: 'Authorization token for OTEL metrics reporting'
+    required: false
 runs:
   using: "composite"
   steps:
@@ -59,7 +62,7 @@ runs:
       with:
         junit-xml-folder: "junit-results"
         otlp-endpoint: "https://otlp-gateway-prod-us-central-0.grafana.net/otlp/v1/metrics"
-        otlp-headers: "Authorization=Basic ${{secrets.SELF_CHECK_OTEL_AUTHORIZATION_TOKEN}}"
+        otlp-headers: "Authorization=Basic ${{inputs.otel-authorization-token}}"
       env:
         OTEL_EXPORTER_OTLP_PROTOCOL: "http/protobuf"
         ACTIONS_STEP_DEBUG: "true"
