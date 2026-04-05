@@ -35,37 +35,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+      - name: Run tests
+        uses: ./.github/actions/run-tests
         with:
-          node-version: ${{ matrix.node-version }}
-      - name: Update npm
-        run: npm i -g npm
-        if: ${{ matrix.node-version <= 14 }}
-      - name: Install Packages
-        run: npm ci
-      - name: Build
-        run: npm run build
-      - name: Run Tests
-        run: npm run test -ws --if-present -- --forbid-only --redis-tag=${{ matrix.redis.tag }} --redis-version=${{ matrix.redis.version }}
-      - name: Upload to Codecov
-        run: |
-          curl https://keybase.io/codecovsecurity/pgp_keys.asc | gpg --no-default-keyring --keyring trustedkeys.gpg --import
-          curl -Os https://uploader.codecov.io/latest/linux/codecov
-          curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
-          curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM.sig
-          gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
-          shasum -a 256 -c codecov.SHA256SUM
-          chmod +x codecov
-          ./codecov
-      - name: Self Report Metrics
-        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-        id: self-report-metrics
-        uses: redis-developer/cae-otel-ci-visibility@v2
-        with:
-          junit-xml-folder: "junit-results"
-          otlp-endpoint: "https://otlp-gateway-prod-us-central-0.grafana.net/otlp/v1/metrics"
-          otlp-headers: "Authorization=Basic ${{secrets.SELF_CHECK_OTEL_AUTHORIZATION_TOKEN}}"
-        env:
-          OTEL_EXPORTER_OTLP_PROTOCOL: "http/protobuf"
-          ACTIONS_STEP_DEBUG: "true"
+            node-version: ${{ matrix.node-version }}
+            redis-tag: ${{ matrix.redis.tag }}
+            redis-version: ${{ matrix.redis.version }}
