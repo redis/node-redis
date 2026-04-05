@@ -15,7 +15,7 @@ inputs:
     required: false
   redis-version:
     description: 'Redis version to test against'
-    required: true
+    required: false
   otel-authorization-token:
     description: 'Authorization token for OTEL metrics reporting'
     required: false
