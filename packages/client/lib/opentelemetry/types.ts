@@ -4,6 +4,7 @@ import {
   Histogram,
   MeterProvider,
   ObservableGauge,
+  TracerProvider,
   UpDownCounter,
 } from "@opentelemetry/api";
 import { version } from "../../package.json";
@@ -43,8 +44,17 @@ export interface OTelClientAttributes {
   isPubSub?: boolean;
 }
 
+export interface TracingConfig {
+  enabled?: boolean;
+  tracerProvider?: TracerProvider;
+  includeCommands?: string[];
+  excludeCommands?: string[];
+  enableConnectionSpans?: boolean;
+}
+
 export interface ObservabilityConfig {
   metrics?: MetricConfig;
+  tracing?: TracingConfig;
 }
 
 export interface MetricOptions extends Required<
@@ -101,6 +111,7 @@ export const OTEL_ATTRIBUTES = {
   serverPort: "server.port",
   networkPeerAddress: "network.peer.address",
   networkPeerPort: "network.peer.port",
+  dbOperationBatchSize: "db.operation.batch.size",
   dbStoredProcedureName: "db.stored_procedure.name",
   dbClientConnectionPoolName: "db.client.connection.pool.name",
   dbClientConnectionState: "db.client.connection.state",
