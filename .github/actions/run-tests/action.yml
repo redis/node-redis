@@ -1,0 +1,73 @@
+name: 'Run node-redis tests'
+description: 'Runs node-redis tests against different Redis versions and configurations'
+inputs:
+  repository:
+    description: 'Repository to checkout'
+    required: false
+  ref:
+    description: 'Branch to checkout'
+    required: false
+  node-version:
+    description: 'Node version to use for running tests'
+    required: true
+  redis-tag:
+    description: 'Redis image tag'
+    required: false
+  redis-version:
+    description: 'Redis version to test against'
+    required: false
+  otel-authorization-token:
+    description: 'Authorization token for OTEL metrics reporting'
+    required: false
+  run-codecov:
+    description: 'Whether to upload coverage to Codecov'
+    required: false
+    default: 'true'
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: ${{ inputs.repository }}
+        ref: ${{ inputs.ref }}
+        fetch-depth: 1
+    - name: Use Node.js ${{ inputs.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+    - name: Update npm
+      shell: bash
+      run: npm i -g npm
+      if: ${{ inputs.node-version <= 14 }}
+    - name: Install Packages
+      shell: bash
+      run: npm ci
+    - name: Build
+      shell: bash
+      run: npm run build
+    - name: Run Tests
+      shell: bash
+      run: npm run test -ws --if-present -- --forbid-only --redis-tag=${{ inputs.redis-tag }} --redis-version=${{ inputs.redis-version }}
+    - name: Upload to Codecov
+      if: inputs.run-codecov == 'true'
+      shell: bash
+      run: |
+        curl https://keybase.io/codecovsecurity/pgp_keys.asc | gpg --no-default-keyring --keyring trustedkeys.gpg --import
+        curl -Os https://uploader.codecov.io/latest/linux/codecov
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM.sig
+        gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
+        shasum -a 256 -c codecov.SHA256SUM
+        chmod +x codecov
+        ./codecov
+    - name: Self Report Metrics
+      if: (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && inputs.otel-authorization-token != ''
+      id: self-report-metrics
+      uses: redis-developer/cae-otel-ci-visibility@v2
+      with:
+        junit-xml-folder: "junit-results"
+        otlp-endpoint: "https://otlp-gateway-prod-us-central-0.grafana.net/otlp/v1/metrics"
+        otlp-headers: "Authorization=Basic ${{inputs.otel-authorization-token}}"
+      env:
+        OTEL_EXPORTER_OTLP_PROTOCOL: "http/protobuf"
+        ACTIONS_STEP_DEBUG: "true"
