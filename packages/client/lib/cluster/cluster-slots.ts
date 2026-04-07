@@ -127,7 +127,7 @@ export default class RedisClusterSlots<
   }
 
   #validateOptions(options?: RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING>) {
-    if (options?.clientSideCache && options?.RESP !== 3) {
+    if (options?.clientSideCache && (options?.RESP ?? 3) !== 3) {
       throw new Error('Client Side Caching is only supported with RESP3');
     }
   }

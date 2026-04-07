@@ -50,5 +50,4 @@ export default {
     },
     3: undefined as unknown as () => ReplyUnion
   },
-  unstableResp3: true
 } as const satisfies Command;
