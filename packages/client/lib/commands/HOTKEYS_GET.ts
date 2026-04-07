@@ -1,5 +1,5 @@
 import { CommandParser } from '../client/parser';
-import { Command, ReplyUnion, UnwrapReply, ArrayReply, BlobStringReply, NumberReply } from '../RESP/types';
+import { Command } from '../RESP/types';
 
 /**
  * Hotkey entry with key name and metric value
@@ -43,20 +43,52 @@ export interface HotkeysGetReply {
   byNetBytes?: Array<HotkeyEntry>;
 }
 
-type HotkeysGetRawReply = ArrayReply<ArrayReply<BlobStringReply | NumberReply | ArrayReply<BlobStringReply | NumberReply>>>;
+function mapLikeEntries(value: any): Array<[string, any]> {
+  if (value instanceof Map) {
+    return Array.from(value.entries(), ([key, entryValue]) => [key.toString(), entryValue]);
+  }
+
+  if (Array.isArray(value)) {
+    if (
+      value.length === 1 &&
+      (Array.isArray(value[0]) || value[0] instanceof Map || (typeof value[0] === 'object' && value[0] !== null))
+    ) {
+      return mapLikeEntries(value[0]);
+    }
+
+    if (value.every(item => Array.isArray(item) && item.length >= 2)) {
+      return value.map(item => [item[0].toString(), item[1]]);
+    }
+
+    const entries: Array<[string, any]> = [];
+    for (let i = 0; i < value.length - 1; i += 2) {
+      entries.push([value[i].toString(), value[i + 1]]);
+    }
+    return entries;
+  }
+
+  if (value !== null && typeof value === 'object') {
+    return Object.entries(value);
+  }
+
+  return [];
+}
+
+function mapLikeValues(value: any): Array<any> {
+  if (Array.isArray(value)) return value;
+  if (value instanceof Map) return [...value.values()];
+  if (value !== null && typeof value === 'object') return Object.values(value);
+  return [];
+}
 
 /**
  * Parse the hotkeys array into HotkeyEntry objects
  */
-function parseHotkeysList(arr: Array<BlobStringReply | NumberReply>): Array<HotkeyEntry> {
-  const result: Array<HotkeyEntry> = [];
-  for (let i = 0; i < arr.length; i += 2) {
-    result.push({
-      key: arr[i].toString(),
-      value: Number(arr[i + 1])
-    });
-  }
-  return result;
+function parseHotkeysList(arr: unknown): Array<HotkeyEntry> {
+  return mapLikeEntries(arr).map(([key, value]) => ({
+    key,
+    value: Number(value)
+  }));
 }
 
 /**
@@ -64,9 +96,24 @@ function parseHotkeysList(arr: Array<BlobStringReply | NumberReply>): Array<Hotk
  * Single slots are represented as arrays with one element: [slot]
  * Slot ranges are represented as arrays with two elements: [start, end]
  */
-function parseSlotRanges(arr: Array<ArrayReply<NumberReply>>): Array<SlotRange> {
-  return arr.map(range => {
-    const unwrapped = range as unknown as Array<number>;
+function parseSlotRanges(arr: unknown): Array<SlotRange> {
+  return mapLikeValues(arr).map(range => {
+    let unwrapped: Array<number>;
+
+    if (Array.isArray(range)) {
+      unwrapped = range as Array<number>;
+    } else if (range instanceof Map) {
+      unwrapped = [...range.values()].map(value => Number(value));
+    } else if (range !== null && typeof range === 'object') {
+      const objectRange = range as Record<string, unknown>;
+      const start = Number(objectRange.start ?? objectRange[0]);
+      const end = Number(objectRange.end ?? objectRange[1] ?? start);
+      unwrapped = [start, end];
+    } else {
+      const slot = Number(range);
+      unwrapped = [slot, slot];
+    }
+
     if (unwrapped.length === 1) {
       // Single slot - start and end are the same
       return {
@@ -85,15 +132,11 @@ function parseSlotRanges(arr: Array<ArrayReply<NumberReply>>): Array<SlotRange> 
 /**
  * Transform the raw reply into a structured object
  */
-function transformHotkeysGetReply(reply: UnwrapReply<HotkeysGetRawReply>): HotkeysGetReply {
+function transformHotkeysGetReply(reply: unknown | null): HotkeysGetReply | null {
+  if (reply === null) return null;
+
   const result: Partial<HotkeysGetReply> = {};
-
-  // The reply is wrapped in an extra array, so we need to access reply[0]
-  const data = reply[0] as unknown as Array<BlobStringReply | NumberReply | ArrayReply<BlobStringReply | NumberReply>>;
-
-  for (let i = 0; i < data.length; i += 2) {
-    const key = data[i].toString();
-    const value = data[i + 1];
+  for (const [key, value] of mapLikeEntries(reply)) {
 
     switch (key) {
       case 'tracking-active':
@@ -103,7 +146,7 @@ function transformHotkeysGetReply(reply: UnwrapReply<HotkeysGetRawReply>): Hotke
         result.sampleRatio = Number(value);
         break;
       case 'selected-slots':
-        result.selectedSlots = parseSlotRanges(value as unknown as Array<ArrayReply<NumberReply>>);
+        result.selectedSlots = parseSlotRanges(value);
         break;
       case 'sampled-commands-selected-slots-us':
         result.sampledCommandsSelectedSlotsUs = Number(value);
@@ -139,10 +182,10 @@ function transformHotkeysGetReply(reply: UnwrapReply<HotkeysGetRawReply>): Hotke
         result.totalNetBytes = Number(value);
         break;
       case 'by-cpu-time-us':
-        result.byCpuTimeUs = parseHotkeysList(value as unknown as Array<BlobStringReply | NumberReply>);
+        result.byCpuTimeUs = parseHotkeysList(value);
         break;
       case 'by-net-bytes':
-        result.byNetBytes = parseHotkeysList(value as unknown as Array<BlobStringReply | NumberReply>);
+        result.byNetBytes = parseHotkeysList(value);
         break;
     }
   }
@@ -170,11 +213,5 @@ export default {
   parseCommand(parser: CommandParser) {
     parser.push('HOTKEYS', 'GET');
   },
-  transformReply: {
-    2: (reply: UnwrapReply<HotkeysGetRawReply> | null): HotkeysGetReply | null => {
-      if (reply === null) return null;
-      return transformHotkeysGetReply(reply);
-    },
-    3: undefined as unknown as () => ReplyUnion
-  }
+  transformReply: transformHotkeysGetReply
 } as const satisfies Command;

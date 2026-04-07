@@ -1,6 +1,6 @@
 import { CommandParser } from '../client/parser';
 import { Command, RedisArgument, ReplyUnion } from '../RESP/types';
-import { transformStreamsMessagesReplyResp2 } from './generic-transformers';
+import { transformStreamsMessagesReplyResp2, transformStreamsMessagesReplyResp3 } from './generic-transformers';
 
 /**
  * Structure representing a stream to read from
@@ -48,6 +48,44 @@ export interface XReadOptions {
   BLOCK?: number;
 }
 
+function transformStreamsMessagesReplyResp3Compat(reply: ReplyUnion) {
+  const transformed = transformStreamsMessagesReplyResp3(reply as any);
+  if (transformed === null) return null;
+
+  const compat = [];
+
+  if (transformed instanceof Map) {
+    for (const [name, messages] of transformed.entries()) {
+      compat.push({
+        name,
+        messages
+      });
+    }
+
+    return compat;
+  }
+
+  if (Array.isArray(transformed)) {
+    for (let i = 0; i < transformed.length; i += 2) {
+      compat.push({
+        name: transformed[i],
+        messages: transformed[i + 1]
+      });
+    }
+
+    return compat;
+  }
+
+  for (const [name, messages] of Object.entries(transformed)) {
+    compat.push({
+      name,
+      messages
+    });
+  }
+
+  return compat;
+}
+
 export default {
   IS_READ_ONLY: true,
   /**
@@ -77,6 +115,6 @@ export default {
    */
   transformReply: {
     2: transformStreamsMessagesReplyResp2,
-    3: undefined as unknown as () => ReplyUnion
+    3: transformStreamsMessagesReplyResp3Compat
   }
 } as const satisfies Command;

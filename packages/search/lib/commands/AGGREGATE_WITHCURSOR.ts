@@ -1,6 +1,7 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument, Command, ReplyUnion, NumberReply } from '@redis/client/dist/lib/RESP/types';
 import AGGREGATE, { AggregateRawReply, AggregateReply, FtAggregateOptions } from './AGGREGATE';
+import { getMapValue, mapLikeToObject } from './reply-transformers';
 
 export interface FtAggregateWithCursorOptions extends FtAggregateOptions {
   COUNT?: number;
@@ -15,6 +16,23 @@ type AggregateWithCursorRawReply = [
 
 export interface AggregateWithCursorReply extends AggregateReply {
   cursor: NumberReply;
+}
+
+function transformAggregateWithCursorReplyResp3(reply: ReplyUnion): AggregateWithCursorReply {
+  if (Array.isArray(reply)) {
+    return {
+      ...(AGGREGATE.transformReply[3](reply[0] as ReplyUnion) as AggregateReply),
+      cursor: reply[1] as NumberReply
+    };
+  }
+
+  const mappedReply = mapLikeToObject(reply);
+  const rawResult = getMapValue(mappedReply, ['results', 'result']) ?? mappedReply;
+
+  return {
+    ...(AGGREGATE.transformReply[3](rawResult as ReplyUnion) as AggregateReply),
+    cursor: (getMapValue(mappedReply, ['cursor']) ?? 0) as NumberReply
+  };
 }
 
 export default {
@@ -48,6 +66,6 @@ export default {
         cursor: reply[1]
       };
     },
-    3: undefined as unknown as () => ReplyUnion
+    3: transformAggregateWithCursorReplyResp3
   },
 } as const satisfies Command;

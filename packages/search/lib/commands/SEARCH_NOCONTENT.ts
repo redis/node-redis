@@ -23,7 +23,19 @@ export default {
         documents: reply.slice(1)
       }
     },
-    3: undefined as unknown as () => ReplyUnion
+    3: (reply: ReplyUnion): SearchNoContentReply => {
+      const transformed = SEARCH.transformReply[3](reply) as {
+        total: number;
+        documents: Array<{
+          id: string;
+        }>;
+      };
+
+      return {
+        total: transformed.total,
+        documents: transformed.documents.map(document => document.id)
+      };
+    }
   },
 } as const satisfies Command;
 

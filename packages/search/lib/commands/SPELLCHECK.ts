@@ -1,6 +1,7 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument, Command, ReplyUnion } from '@redis/client/dist/lib/RESP/types';
 import { DEFAULT_DIALECT } from '../dialect/default';
+import { getMapValue, mapLikeEntries, mapLikeValues } from './reply-transformers';
 
 export interface Terms {
   mode: 'INCLUDE' | 'EXCLUDE';
@@ -11,6 +12,56 @@ export interface FtSpellCheckOptions {
   DISTANCE?: number;
   TERMS?: Terms | Array<Terms>;
   DIALECT?: number;
+}
+
+function transformSpellCheckReplyResp3(rawReply: ReplyUnion): SpellCheckReply {
+  const transformed: SpellCheckReply = [];
+  const results = getMapValue(rawReply, ['results', 'Results']) ?? rawReply;
+
+  for (const [term, rawSuggestions] of mapLikeEntries(results)) {
+    const suggestions: Array<{
+      score: number;
+      suggestion: string;
+    }> = [];
+
+    for (const rawSuggestion of mapLikeValues(rawSuggestions)) {
+      if (Array.isArray(rawSuggestion) && rawSuggestion.length >= 2) {
+        const first = rawSuggestion[0];
+        const second = rawSuggestion[1];
+
+        const numericFirst = Number(first);
+        if (!Number.isNaN(numericFirst)) {
+          suggestions.push({
+            score: numericFirst,
+            suggestion: second.toString()
+          });
+        } else {
+          suggestions.push({
+            score: Number(second),
+            suggestion: first.toString()
+          });
+        }
+
+        continue;
+      }
+
+      const entries = mapLikeEntries(rawSuggestion);
+      if (entries.length === 0) continue;
+
+      const [suggestion, score] = entries[0];
+      suggestions.push({
+        score: Number(score),
+        suggestion
+      });
+    }
+
+    transformed.push({
+      term,
+      suggestions
+    });
+  }
+
+  return transformed;
 }
 
 export default {
@@ -59,7 +110,7 @@ export default {
         }))
       }));
     },
-    3: undefined as unknown as () => ReplyUnion,
+    3: transformSpellCheckReplyResp3,
   },
 } as const satisfies Command;
 
