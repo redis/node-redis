@@ -65,7 +65,7 @@ export default {
       }, typeMapping);
     },
     3(reply: TsMRangeSelectedLabelsRawReply3) {
-      return resp3MapToValue(reply, ([_key, labels, samples]) => {
+      return resp3MapToValue(reply, ([labels, _metadata, samples]) => {
         return {
           labels,
           samples: transformSamplesReply[3](samples)

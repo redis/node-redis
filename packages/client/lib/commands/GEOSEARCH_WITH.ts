@@ -1,6 +1,7 @@
 import { CommandParser } from '../client/parser';
-import { RedisArgument, BlobStringReply, NumberReply, DoubleReply, Command } from '../RESP/types';
+import { RedisArgument, ArrayReply, TuplesReply, BlobStringReply, NumberReply, DoubleReply, UnwrapReply, Command, TypeMapping } from '../RESP/types';
 import GEOSEARCH, { GeoSearchBy, GeoSearchFrom, GeoSearchOptions } from './GEOSEARCH';
+import { transformDoubleReply } from './generic-transformers';
 
 export const GEO_REPLY_WITH = {
   DISTANCE: 'WITHDIST',
@@ -12,7 +13,7 @@ export type GeoReplyWith = typeof GEO_REPLY_WITH[keyof typeof GEO_REPLY_WITH];
 
 export interface GeoReplyWithMember {
   member: BlobStringReply;
-  distance?: BlobStringReply;
+  distance?: DoubleReply;
   hash?: NumberReply;
   coordinates?: {
     longitude: DoubleReply;
@@ -40,33 +41,42 @@ export default {
     parser.preserve = replyWith;
   },
   transformReply(
-    reply: Array<GeoSearchWithRawMember>,
-    replyWith: Array<GeoReplyWith>
+    reply: UnwrapReply<ArrayReply<TuplesReply<[BlobStringReply, ...Array<any>]>>>,
+    replyWith: Array<GeoReplyWith>,
+    typeMapping?: TypeMapping
   ) {
     const replyWithSet = new Set(replyWith);
     let index = 0;
     const distanceIndex = replyWithSet.has(GEO_REPLY_WITH.DISTANCE) && ++index,
       hashIndex = replyWithSet.has(GEO_REPLY_WITH.HASH) && ++index,
       coordinatesIndex = replyWithSet.has(GEO_REPLY_WITH.COORDINATES) && ++index;
-    
+
+    const parseDouble = (value: unknown) => {
+      return (
+        typeof value === 'number' ?
+          value as unknown as DoubleReply :
+          transformDoubleReply[2](value as BlobStringReply, undefined, typeMapping)
+      );
+    };
+
     return reply.map(raw => {
       const item: GeoReplyWithMember = {
         member: raw[0]
       };
 
       if (distanceIndex) {
-        item.distance = raw[distanceIndex] as BlobStringReply;
+        item.distance = parseDouble(raw[distanceIndex]);
       }
-  
+
       if (hashIndex) {
         item.hash = raw[hashIndex] as NumberReply;
       }
-  
+
       if (coordinatesIndex) {
         const [longitude, latitude] = raw[coordinatesIndex] as [DoubleReply, DoubleReply];
         item.coordinates = {
-          longitude,
-          latitude
+          longitude: parseDouble(longitude),
+          latitude: parseDouble(latitude)
         };
       }
 
