@@ -17,7 +17,7 @@ export function transformInfoV2Reply<T>(reply: Array<any>, typeMapping?: TypeMap
       return ret as unknown as T;
     }
     default: {
-      const ret = Object.create(null);
+      const ret: Record<string, any> = {};
 
       for (let i = 0; i < reply.length; i += 2) {
         ret[reply[i].toString()] = reply[i + 1];

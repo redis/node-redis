@@ -12,13 +12,20 @@ export type VInfoReplyMap = TuplesToMapReply<[
 
 export default {
   IS_READ_ONLY: true,
+  /**
+   * Retrieve metadata and internal details about a vector set, including size, dimensions, quantization type, and graph structure
+   *
+   * @param parser - The command parser
+   * @param key - The key of the vector set
+   * @see https://redis.io/commands/vinfo/
+   */
   parseCommand(parser: CommandParser, key: RedisArgument) {
     parser.push('VINFO');
     parser.pushKey(key);
   },
   transformReply: {
     2: (reply: UnwrapReply<Resp2Reply<VInfoReplyMap>>): VInfoReplyMap => {
-      const ret = Object.create(null);
+      const ret: Record<string, any> = {};
 
       for (let i = 0; i < reply.length; i += 2) {
         ret[reply[i].toString()] = reply[i + 1];
