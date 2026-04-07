@@ -235,7 +235,7 @@ export type RedisClientExtensions<
   M extends RedisModules = {},
   F extends RedisFunctions = {},
   S extends RedisScripts = {},
-  RESP extends RespVersions = 2,
+  RESP extends RespVersions = 3,
   TYPE_MAPPING extends TypeMapping = {}
 > = (
     WithCommands<RESP, TYPE_MAPPING> &
@@ -248,7 +248,7 @@ export type RedisClientType<
   M extends RedisModules = {},
   F extends RedisFunctions = {},
   S extends RedisScripts = {},
-  RESP extends RespVersions = 2,
+  RESP extends RespVersions = 3,
   TYPE_MAPPING extends TypeMapping = {}
 > = (
     RedisClient<M, F, S, RESP, TYPE_MAPPING> &
@@ -327,7 +327,7 @@ export default class RedisClient<
     M extends RedisModules = {},
     F extends RedisFunctions = {},
     S extends RedisScripts = {},
-    RESP extends RespVersions = 2
+    RESP extends RespVersions = 3
   >(config?: CommanderConfig<M, F, S, RESP>) {
 
 
@@ -360,7 +360,7 @@ export default class RedisClient<
     M extends RedisModules = {},
     F extends RedisFunctions = {},
     S extends RedisScripts = {},
-    RESP extends RespVersions = 2,
+    RESP extends RespVersions = 3,
     TYPE_MAPPING extends TypeMapping = {}
   >(this: void, options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>) {
     return RedisClient.factory(options)(options);
@@ -693,16 +693,17 @@ export default class RedisClient<
   }
 
   #validateOptions(options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>) {
-    if (options?.clientSideCache && options?.RESP !== 3) {
+    const resp = options?.RESP ?? 3;
+    if (options?.clientSideCache && resp !== 3) {
       throw new Error('Client Side Caching is only supported with RESP3');
     }
-    if (options?.emitInvalidate && options?.RESP !== 3) {
+    if (options?.emitInvalidate && resp !== 3) {
       throw new Error('emitInvalidate is only supported with RESP3');
     }
     if (options?.clientSideCache && options?.emitInvalidate) {
       throw new Error('emitInvalidate is not supported (or necessary) when clientSideCache is enabled');
     }
-    if (options?.maintNotifications && options?.maintNotifications !== 'disabled' && options?.RESP !== 3) {
+    if (options?.maintNotifications && options?.maintNotifications !== 'disabled' && resp !== 3) {
       throw new Error('Graceful Maintenance is only supported with RESP3');
     }
   }
@@ -746,7 +747,7 @@ export default class RedisClient<
 
   #initiateQueue(clientId: string): RedisCommandsQueue {
     return new RedisCommandsQueue(
-      this.#options.RESP ?? 2,
+      this.#options.RESP ?? 3,
       this.#options.commandsQueueMaxLength,
       (channel, listeners) => this.emit('sharded-channel-moved', channel, listeners),
       clientId
@@ -758,7 +759,7 @@ export default class RedisClient<
    */
   private reAuthenticate = async (credentials: BasicAuth) => {
     // Re-authentication is not supported on RESP2 with PubSub active
-    if (!(this.isPubSubActive && !this.#options.RESP)) {
+    if (!(this.isPubSubActive && (this.#options.RESP ?? 3) === 2)) {
       await this.sendCommand(
         parseArgs(COMMANDS.AUTH, {
           username: credentials.username,
@@ -808,8 +809,9 @@ export default class RedisClient<
   > {
     const commands = [];
     const cp = this.#options.credentialsProvider;
+    const resp = this.#options.RESP ?? 3;
 
-    if (this.#options.RESP) {
+    if (resp !== 2) {
       const hello: HelloOptions = {};
 
       if (cp && cp.type === 'async-credentials-provider') {
@@ -839,7 +841,7 @@ export default class RedisClient<
         hello.SETNAME = this.#options.name;
       }
 
-      commands.push({ cmd: parseArgs(HELLO, this.#options.RESP, hello) });
+      commands.push({ cmd: parseArgs(HELLO, resp, hello) });
     } else {
       if (cp && cp.type === 'async-credentials-provider') {
         const credentials = await cp.credentials();

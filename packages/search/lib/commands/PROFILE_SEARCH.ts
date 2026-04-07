@@ -47,5 +47,4 @@ export default {
     },
     3: (reply: ReplyUnion): ReplyUnion => reply
   },
-  unstableResp3: true
 } as const satisfies Command;

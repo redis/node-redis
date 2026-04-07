@@ -81,7 +81,7 @@ export class RedisLegacyClient {
   ) {
     this.#client = client;
 
-    const RESP = client.options?.RESP ?? 2;
+    const RESP = client.options?.RESP ?? 3;
     for (const [name, command] of Object.entries(COMMANDS)) {
       // TODO: as any?
       (this as any)[name] = RedisLegacyClient.#createCommand(

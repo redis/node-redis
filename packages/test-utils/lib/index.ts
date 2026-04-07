@@ -531,6 +531,8 @@ export default class TestUtils {
     it(title, async function () {
       if (!spawnPromise) return this.skip();
       const { apiPort } = await spawnPromise;
+      const RESP = (options.clusterConfiguration?.RESP ?? 3) as RESP;
+      const { RESP: _RESP, ...clusterConfiguration } = options.clusterConfiguration ?? {};
 
 
       const proxyFI = new ProxiedFaultInjectorClientForCluster(
@@ -552,8 +554,9 @@ export default class TestUtils {
             port: n.port,
           },
         })),
-        ...options.clusterConfiguration,
-      });
+        RESP,
+        ...clusterConfiguration,
+      }) as RedisClusterType<M, F, S, RESP, TYPE_MAPPING>;
 
       if (options.disableClusterSetup) {
         return fn(cluster, faultInjectorClient);
@@ -647,11 +650,13 @@ export default class TestUtils {
         host: "127.0.0.1",
         port: promise.port
       }));
+      const { RESP = 3, ...sentinelOptions } = options?.sentinelOptions ?? {};
 
 
       const sentinel = createSentinel({
         name: 'mymaster',
         sentinelRootNodes: rootNodes,
+        RESP,
         nodeClientOptions: {
           commandOptions: options.clientOptions?.commandOptions,
           password: password || undefined,
@@ -665,7 +670,7 @@ export default class TestUtils {
         functions: options?.functions || {},
         masterPoolSize: options?.masterPoolSize || undefined,
         reserveClient: options?.reserveClient || false,
-        ...options?.sentinelOptions
+        ...sentinelOptions
       }) as RedisSentinelType<M, F, S, RESP, TYPE_MAPPING>;
 
       if (options.disableClientSetup) {
@@ -822,6 +827,12 @@ export default class TestUtils {
     it(title, async function () {
       if (options.skipTest) return this.skip();
       if (!dockersPromise) return this.skip();
+      const RESP = (options.clusterConfiguration?.RESP ?? 3) as RESP;
+      const {
+        RESP: _RESP,
+        minimizeConnections = false,
+        ...clusterConfiguration
+      } = options.clusterConfiguration ?? {};
 
       const dockers = await dockersPromise,
         cluster = createCluster({
@@ -830,9 +841,10 @@ export default class TestUtils {
               port
             }
           })),
-          minimizeConnections: options.clusterConfiguration?.minimizeConnections ?? true,
-          ...options.clusterConfiguration
-        });
+          RESP,
+          minimizeConnections,
+          ...clusterConfiguration
+        }) as RedisClusterType<M, F, S, RESP, TYPE_MAPPING>;
 
       if(options.disableClusterSetup) {
         return fn(cluster);
@@ -973,7 +985,8 @@ export default class TestUtils {
           this.timeout(options.testTimeout);
         }
 
-        const { defaults, ...rest } = options.clusterConfiguration ?? {};
+        const RESP = (options.clusterConfiguration?.RESP ?? 3) as RESP;
+        const { defaults, RESP: _RESP, ...rest } = options.clusterConfiguration ?? {};
 
         // Wait for database to be fully ready before connecting
         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -987,13 +1000,14 @@ export default class TestUtils {
               },
             },
           ],
+          RESP,
           defaults: {
             password: dbConfig.password,
             username: dbConfig.username,
             ...defaults,
           },
           ...rest,
-        });
+        }) as RedisClusterType<M, F, S, RESP, TYPE_MAPPING>;
 
         await cluster.connect();
 

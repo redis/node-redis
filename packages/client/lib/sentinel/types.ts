@@ -170,7 +170,7 @@ export type RedisSentinelClientType<
   M extends RedisModules = {},
   F extends RedisFunctions = {},
   S extends RedisScripts = {},
-  RESP extends RespVersions = 2,
+  RESP extends RespVersions = 3,
   TYPE_MAPPING extends TypeMapping = {},
 > = (
   RedisSentinelClient<M, F, S, RESP, TYPE_MAPPING> &
@@ -184,7 +184,7 @@ export type RedisSentinelType<
   M extends RedisModules = {},
   F extends RedisFunctions = {},
   S extends RedisScripts = {},
-  RESP extends RespVersions = 2,
+  RESP extends RespVersions = 3,
   TYPE_MAPPING extends TypeMapping = {},
   // POLICIES extends CommandPolicies = {}
 > = (

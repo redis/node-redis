@@ -81,7 +81,7 @@ export default class EnterpriseMaintenanceManager {
   static setupDefaultMaintOptions(options: RedisClientOptions) {
     if (options.maintNotifications === undefined) {
       options.maintNotifications =
-        options?.RESP === 3 ? "auto" : "disabled";
+        (options?.RESP ?? 3) === 3 ? "auto" : "disabled";
     }
     if (options.maintEndpointType === undefined) {
       options.maintEndpointType = "auto";
@@ -123,14 +123,13 @@ export default class EnterpriseMaintenanceManager {
       errorHandler: (error: Error) => {
         dbgMaintenance("handshake failed:", error);
 
-        publish(CHANNELS.ERROR, () => ({
-          error,
-          origin: 'client',
-          internal: true,
-          clientId,
-        }));
-
         if (options.maintNotifications === "enabled") {
+          publish(CHANNELS.ERROR, () => ({
+            error,
+            origin: 'client',
+            internal: true,
+            clientId,
+          }));
           throw error;
         }
 

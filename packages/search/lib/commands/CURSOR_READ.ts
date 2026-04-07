@@ -17,5 +17,4 @@ export default {
     }
   },
   transformReply: AGGREGATE_WITHCURSOR.transformReply,
-  unstableResp3: true
 } as const satisfies Command;
