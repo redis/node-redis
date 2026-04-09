@@ -24,15 +24,29 @@ type ClusterSlotsReply = Array<{
 class FakeRedisClient extends EventEmitter {
   readonly options;
   readonly #getShards;
+  readonly #readyOnConnect;
+  #isReady = false;
   destroyed = false;
 
   constructor(
     options: unknown,
-    getShards: () => ClusterSlotsReply
+    getShards: () => ClusterSlotsReply,
+    readyOnConnect = true
   ) {
     super();
     this.options = options;
     this.#getShards = getShards;
+    this.#readyOnConnect = readyOnConnect;
+    this
+      .on('ready', () => {
+        this.#isReady = true;
+      })
+      .on('reconnecting', () => {
+        this.#isReady = false;
+      })
+      .on('end', () => {
+        this.#isReady = false;
+      });
   }
 
   _setIdentity() {
@@ -40,12 +54,14 @@ class FakeRedisClient extends EventEmitter {
   }
 
   get isReady() {
-    return true;
+    return this.#isReady;
   }
 
   async connect() {
     this.emit('connect');
-    this.emit('ready');
+    if (this.#readyOnConnect) {
+      this.emit('ready');
+    }
     return this as any;
   }
 
@@ -89,19 +105,31 @@ describe('RedisClusterSlots recovery', () => {
 
   function createHarness(
     initialAddresses = ['127.0.0.1:7001'],
-    options: any = {}
+    {
+      clusterOptions = {},
+      readyOnConnectAddresses = initialAddresses
+    }: {
+      clusterOptions?: any;
+      readyOnConnectAddresses?: Array<string>;
+    } = {}
   ) {
     let currentAddresses = initialAddresses;
     let discoveryCalls = 0;
     const discoveryPorts: number[] = [];
     const clients: FakeRedisClient[] = [];
+    const readyAddresses = new Set(readyOnConnectAddresses);
     const factoryStub = stub(RedisClient, 'factory').callsFake(() => {
       return ((clientOptions?: any) => {
-        const client = new FakeRedisClient(clientOptions, () => {
-          discoveryCalls++;
-          discoveryPorts.push(clientOptions.socket.port);
-          return createShards(currentAddresses);
-        });
+        const address = `${clientOptions.socket.host}:${clientOptions.socket.port}`;
+        const client = new FakeRedisClient(
+          clientOptions,
+          () => {
+            discoveryCalls++;
+            discoveryPorts.push(clientOptions.socket.port);
+            return createShards(currentAddresses);
+          },
+          readyAddresses.has(address)
+        );
 
         clients.push(client);
         return client as any;
@@ -110,7 +138,7 @@ describe('RedisClusterSlots recovery', () => {
 
     const slots = new RedisClusterSlots({
       rootNodes,
-      ...options
+      ...clusterOptions
     }, (() => true) as any, 'cluster-id');
 
     return {
@@ -185,6 +213,41 @@ describe('RedisClusterSlots recovery', () => {
       '127.0.0.1:7001',
       '127.0.0.1:7002'
     ]);
+
+    try {
+      await harness.slots.connect();
+      assert.deepEqual(harness.getDiscoveryPorts(), [7000]);
+
+      const suspectNode = harness.slots.nodeByAddress.get('127.0.0.1:7001')!;
+      const suspectClient = suspectNode.client as unknown as FakeRedisClient;
+
+      suspectClient.emit('reconnecting');
+      suspectClient.emit('reconnecting');
+      suspectClient.emit('reconnecting');
+      await setImmediate();
+
+      assert.deepEqual(harness.getDiscoveryPorts(), [7000, 7002]);
+    } finally {
+      harness.restore();
+      randomStub.restore();
+    }
+  });
+
+  it('should always probe ready known nodes before deferred ones', async () => {
+    const randomStub = stub(Math, 'random').returns(0.99);
+    const harness = createHarness(
+      [
+        '127.0.0.1:7001',
+        '127.0.0.1:7002',
+        '127.0.0.1:7003'
+      ],
+      {
+        readyOnConnectAddresses: [
+          '127.0.0.1:7001',
+          '127.0.0.1:7002'
+        ]
+      }
+    );
 
     try {
       await harness.slots.connect();

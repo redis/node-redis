@@ -120,7 +120,7 @@ export default class RedisClusterSlots<
   pubSubNode?: PubSubNode<M, F, S, RESP, TYPE_MAPPING>;
   clientSideCache?: PooledClientSideCacheProvider;
   smigratedSeqIdsSeen = new Set<number>;
-  #topologyRefreshPromise?: Promise<void>;
+  #topologyRefreshPromise?: Promise<boolean | void>;
 
   #isOpen = false;
 
@@ -662,7 +662,13 @@ export default class RedisClusterSlots<
       pushCandidate(node);
     }
 
-    candidates.push(...deferredCandidates);
+    return (
+      await this.#discoverWithKnownNodeCandidates(candidates) ||
+      await this.#discoverWithKnownNodeCandidates(deferredCandidates)
+    );
+  }
+
+  async #discoverWithKnownNodeCandidates(candidates: Array<ShardNode<M, F, S, RESP, TYPE_MAPPING>>) {
     if (!candidates.length) {
       return false;
     }
