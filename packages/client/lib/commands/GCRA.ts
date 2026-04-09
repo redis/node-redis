@@ -31,33 +31,37 @@ function transformGCRAReply(reply: UnwrapReply<GCRARawReply>): GCRAReply {
 export default {
   IS_READ_ONLY: false,
   /**
-   * Performs rate limiting using the Generic Cell Rate Algorithm.
+   * Rate limit via GCRA (Generic Cell Rate Algorithm).
+   * `tokensPerPeriod` are allowed per `period` at a sustained rate, which implies
+   * a minimum emission interval of `period / tokensPerPeriod` seconds between requests.
+   * `maxBurst` allows occasional spikes by permitting up to `maxBurst` additional
+   * tokens to be consumed at once.
    * @param parser - The Redis command parser
    * @param key - Key associated with the rate limit bucket
-   * @param maxBurst - Maximum burst size in addition to the sustained rate
-   * @param requestsPerPeriod - Number of requests allowed per period
-   * @param period - Period in seconds used to calculate the sustained rate
-   * @param numRequests - Optional request cost (weight). If omitted, defaults to 1
+   * @param maxBurst - Maximum number of extra tokens allowed as burst (min 0)
+   * @param tokensPerPeriod - Number of tokens allowed per period (min 1)
+   * @param period - Period in seconds as a float for sustained rate calculation (min 1.0, max 1e12)
+   * @param tokens - Optional request cost (weight). If omitted, defaults to 1
    * @see https://redis.io/commands/gcra/
    */
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,
     maxBurst: number,
-    requestsPerPeriod: number,
+    tokensPerPeriod: number,
     period: number,
-    numRequests?: number
+    tokens?: number
   ) {
     parser.push('GCRA');
     parser.pushKey(key);
     parser.push(
       maxBurst.toString(),
-      requestsPerPeriod.toString(),
+      tokensPerPeriod.toString(),
       transformDoubleArgument(period)
     );
 
-    if (numRequests !== undefined) {
-      parser.push('NUM_REQUESTS', numRequests.toString());
+    if (tokens !== undefined) {
+      parser.push('TOKENS', tokens.toString());
     }
   },
   transformReply: transformGCRAReply

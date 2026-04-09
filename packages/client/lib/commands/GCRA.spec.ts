@@ -21,10 +21,10 @@ describe('GCRA', () => {
       );
     });
 
-    it('with NUM_REQUESTS', () => {
+    it('with TOKENS', () => {
       assert.deepEqual(
         parseArgs(GCRA, 'key', 15, 30, 60, 3),
-        ['GCRA', 'key', '15', '30', '60', 'NUM_REQUESTS', '3']
+        ['GCRA', 'key', '15', '30', '60', 'TOKENS', '3']
       );
     });
   });
@@ -55,7 +55,7 @@ describe('GCRA', () => {
     assert.ok(first.retryAfter >= 0 || second.retryAfter >= 0);
   }, GLOBAL.SERVERS.OPEN);
 
-  testUtils.testWithClient('gcra supports weighted requests using NUM_REQUESTS', async client => {
+  testUtils.testWithClient('gcra supports weighted requests using TOKENS', async client => {
     const key = 'gcra:weighted';
 
     const first = await client.gcra(key, 10, 10, 1, 10);
