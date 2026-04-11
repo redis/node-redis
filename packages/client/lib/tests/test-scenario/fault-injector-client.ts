@@ -11,7 +11,10 @@ export type ActionType =
   | "execute_rladmin_command"
   | "migrate"
   | "bind"
-  | "update_cluster_config";
+  | "update_cluster_config"
+  | "node_failure"
+  | "proxy_failure"
+  | "shard_failure";
 
 export interface ActionRequest {
   type: ActionType;

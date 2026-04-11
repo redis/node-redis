@@ -1,6 +1,9 @@
 import type { MessageTracker } from "./message-tracker";
-import { Cluster } from "./test.util";
 import { setTimeout } from "timers/promises";
+
+interface ShardedPublisher {
+  sPublish(channel: string, message: string): Promise<unknown>;
+}
 
 /**
  * Options for the `publishMessagesUntilAbortSignal` method
@@ -43,7 +46,7 @@ export class TestCommandRunner {
    * An object containing the abort controller and a promise that resolves when publishing stops.
    */
   static publishMessagesUntilAbortSignal(
-    client: Cluster,
+    client: ShardedPublisher,
     channels: string[],
     messageTracker: MessageTracker,
     options?: Partial<PublishMessagesUntilAbortSignalOptions>,
