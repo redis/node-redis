@@ -1,7 +1,7 @@
 import { OpenTelemetryError } from "../errors";
 import { ClientRegistry } from "./client-registry";
 import { OTelMetrics } from "./metrics";
-import { ObservabilityConfig } from "./types";
+import { ObservabilityConfig, OpenTelemetryApiModule } from "./types";
 
 export class OpenTelemetry {
   private static _instance: OpenTelemetry | null = null;
@@ -57,7 +57,7 @@ export class OpenTelemetry {
       throw new OpenTelemetryError("OpenTelemetry already initialized");
     }
 
-    const api: typeof import("@opentelemetry/api") = (() => {
+    const api: OpenTelemetryApiModule = (() => {
       try {
         return require("@opentelemetry/api");
       } catch {

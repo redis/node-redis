@@ -1,12 +1,79 @@
-import {
-  Attributes,
-  Counter,
-  Histogram,
-  MeterProvider,
-  ObservableGauge,
-  UpDownCounter,
-} from "@opentelemetry/api";
 import { version } from "../../package.json";
+
+type AttributePrimitive = string | number | boolean;
+
+// Keep the public OTel-facing config structurally typed so consumers do not
+// need @opentelemetry/api installed unless they actually initialize it.
+export type AttributeValue =
+  | AttributePrimitive
+  | readonly AttributePrimitive[];
+
+export type Attributes = Record<string, AttributeValue | undefined>;
+
+type InstrumentOptions = {
+  unit?: string;
+  description?: string;
+};
+
+export interface Counter<TAttributes extends Attributes = Attributes> {
+  add(value: number, attributes?: TAttributes, context?: unknown): void;
+}
+
+export interface Histogram<TAttributes extends Attributes = Attributes> {
+  record(value: number, attributes?: TAttributes, context?: unknown): void;
+}
+
+export interface UpDownCounter<TAttributes extends Attributes = Attributes> {
+  add(value: number, attributes?: TAttributes, context?: unknown): void;
+}
+
+export interface ObservableGauge<TAttributes extends Attributes = Attributes> {
+  readonly _attributes?: TAttributes;
+}
+
+export interface BatchObservableResult {
+  observe<TAttributes extends Attributes>(
+    instrument: ObservableGauge<TAttributes>,
+    value: number,
+    attributes?: TAttributes,
+    context?: unknown,
+  ): void;
+}
+
+export interface Meter {
+  createHistogram(
+    name: string,
+    options?: InstrumentOptions & {
+      advice?: {
+        explicitBucketBoundaries?: number[];
+      };
+    },
+  ): Histogram<Attributes>;
+  createCounter(
+    name: string,
+    options?: InstrumentOptions,
+  ): Counter<Attributes>;
+  createUpDownCounter(
+    name: string,
+    options?: InstrumentOptions,
+  ): UpDownCounter<Attributes>;
+  createObservableGauge(
+    name: string,
+    options?: InstrumentOptions,
+  ): ObservableGauge<Attributes>;
+  addBatchObservableCallback(
+    callback: (observableResult: BatchObservableResult) => void,
+    observables: ObservableGauge[],
+  ): void;
+}
+
+export interface MeterProvider {
+  getMeter(name: string, version?: string, options?: unknown): Meter;
+}
+
+export interface OpenTelemetryApiModule {
+  metrics: Pick<MeterProvider, "getMeter">;
+}
 
 export const METRIC_GROUP = {
   COMMAND: "command",
