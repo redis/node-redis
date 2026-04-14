@@ -1,10 +1,12 @@
 import type * as DC from 'node:diagnostics_channel';
-import { Meter, BatchObservableResult } from "@opentelemetry/api";
 import { ClientRegistry } from "./client-registry";
 import {
+  BatchObservableResult,
   DEFAULT_OTEL_ATTRIBUTES,
+  Meter,
   MetricInstruments,
   ObservabilityConfig,
+  OpenTelemetryApiModule,
   OTEL_ATTRIBUTES,
   MetricOptions,
   DEFAULT_METRIC_GROUPS,
@@ -499,7 +501,7 @@ export class OTelMetrics {
   readonly #options: MetricOptions;
 
   private constructor(
-    api: typeof import("@opentelemetry/api"),
+    api: OpenTelemetryApiModule,
     config?: ObservabilityConfig,
   ) {
     this.#options = this.parseOptions(config);
@@ -535,7 +537,7 @@ export class OTelMetrics {
     api,
     config,
   }: {
-    api: typeof import("@opentelemetry/api");
+    api: OpenTelemetryApiModule;
     config?: ObservabilityConfig;
   }) {
     if (OTelMetrics.#initialized) {
@@ -568,7 +570,7 @@ export class OTelMetrics {
 
 
   #getMeter(
-    api: typeof import("@opentelemetry/api"),
+    api: OpenTelemetryApiModule,
     options: MetricOptions,
   ): Meter {
     if (options.meterProvider) {
