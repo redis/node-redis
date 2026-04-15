@@ -107,6 +107,7 @@ export default class RedisClusterSlots<
   TYPE_MAPPING extends TypeMapping
 > {
   static #SLOTS = 16384;
+  static #TOPOLOGY_REFRESH_RECONNECT_THRESHOLD = 3;
 
   readonly #options;
   readonly #clientFactory;
@@ -119,6 +120,7 @@ export default class RedisClusterSlots<
   pubSubNode?: PubSubNode<M, F, S, RESP, TYPE_MAPPING>;
   clientSideCache?: PooledClientSideCacheProvider;
   smigratedSeqIdsSeen = new Set<number>;
+  #topologyRefreshPromise?: Promise<boolean | void>;
 
   #isOpen = false;
 
@@ -241,13 +243,22 @@ export default class RedisClusterSlots<
       for (const [address, node] of this.nodeByAddress.entries()) {
         if (addressesInUse.has(address)) continue;
 
-        if (node.client) {
-          node.client.destroy();
-        }
-
         const { pubSub } = node as MasterNode<M, F, S, RESP, TYPE_MAPPING>;
         if (pubSub) {
+          const listeners = pubSub.client._getQueue().removeAllPubSubListeners();
+          if (listeners.CHANNELS.size || listeners.PATTERNS.size || listeners.SHARDED.size) {
+            this.#emit(RESUBSCRIBE_LISTENERS_EVENT, listeners);
+          }
+        }
+
+        if (node.client) {
+          node.client.destroy();
+          node.client = undefined;
+        }
+
+        if (pubSub) {
           pubSub.client.destroy();
+          (node as MasterNode<M, F, S, RESP, TYPE_MAPPING>).pubSub = undefined;
         }
 
         this.nodeByAddress.delete(address);
@@ -484,6 +495,15 @@ export default class RedisClusterSlots<
     }
   }
 
+  #nodeClientOptions(node: NodeAddress & { address: string }): RedisClusterClientOptions {
+    return {
+      socket: this.#getNodeAddress(node.address) ?? {
+        host: node.host,
+        port: node.port
+      }
+    };
+  }
+
   #clientOptionsDefaults(options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>) {
     if (!this.#options.defaults) return options;
 
@@ -546,7 +566,10 @@ export default class RedisClusterSlots<
       host: socket.host,
       port: socket.port,
     });
+    const address = node.address;
     const emit = this.#emit;
+    let wasReady = false;
+    let reconnectAttemptsSinceReady = 0;
     const client = this.#clientFactory( this.#clientOptionsDefaults({
         clientSideCache: this.clientSideCache,
         RESP: this.#options.RESP,
@@ -556,7 +579,22 @@ export default class RedisClusterSlots<
     client._setIdentity(ClientRole.CLUSTER_NODE, this.#clusterClientId);
     client
       .on('error', error => emit('node-error', error, clientInfo))
-      .on('reconnecting', () => emit('node-reconnecting', clientInfo))
+      .on('reconnecting', () => {
+        emit('node-reconnecting', clientInfo);
+
+        if (!wasReady) return;
+
+        reconnectAttemptsSinceReady++;
+        if (reconnectAttemptsSinceReady < RedisClusterSlots.#TOPOLOGY_REFRESH_RECONNECT_THRESHOLD) {
+          return;
+        }
+
+        this.#scheduleTopologyRefresh(address);
+      })
+      .on('ready', () => {
+        wasReady = true;
+        reconnectAttemptsSinceReady = 0;
+      })
       .once('ready', () => emit('node-ready', clientInfo))
       .once('connect', () => emit('node-connect', clientInfo))
       .once('end', () => emit('node-disconnect', clientInfo))
@@ -588,18 +626,79 @@ export default class RedisClusterSlots<
 
   #runningRediscoverPromise?: Promise<void>;
 
-  async rediscover(startWith: RedisClientType<M, F, S, RESP>): Promise<void> {
-    this.#runningRediscoverPromise ??= this.#rediscover(startWith)
+  async rediscover(startWith?: RedisClientType<M, F, S, RESP>, excludedAddress?: string): Promise<void> {
+    this.#runningRediscoverPromise ??= this.#rediscover(startWith, excludedAddress)
       .finally(() => {
         this.#runningRediscoverPromise = undefined
       });
     return this.#runningRediscoverPromise;
   }
 
-  async #rediscover(startWith: RedisClientType<M, F, S, RESP>): Promise<void> {
-    if (await this.#discover(startWith.options!)) return;
+  async #rediscover(startWith?: RedisClientType<M, F, S, RESP>, excludedAddress?: string): Promise<void> {
+    if (startWith && await this.#discover(startWith.options!)) return;
+
+    if (await this.#discoverWithKnownNodes(excludedAddress)) return;
 
     return this.#discoverWithRootNodes();
+  }
+
+  async #discoverWithKnownNodes(excludedAddress?: string) {
+    const candidates: Array<ShardNode<M, F, S, RESP, TYPE_MAPPING>> = [];
+    const deferredCandidates: Array<ShardNode<M, F, S, RESP, TYPE_MAPPING>> = [];
+    const seen = new Set<string>();
+
+    const pushCandidate = (node: ShardNode<M, F, S, RESP, TYPE_MAPPING>) => {
+      if (node.address === excludedAddress || seen.has(node.address)) return;
+
+      seen.add(node.address);
+      (node.client?.isReady ? candidates : deferredCandidates).push(node);
+    };
+
+    for (const node of this.masters) {
+      pushCandidate(node);
+    }
+
+    for (const node of this.replicas) {
+      pushCandidate(node);
+    }
+
+    return (
+      await this.#discoverWithKnownNodeCandidates(candidates) ||
+      await this.#discoverWithKnownNodeCandidates(deferredCandidates)
+    );
+  }
+
+  async #discoverWithKnownNodeCandidates(candidates: Array<ShardNode<M, F, S, RESP, TYPE_MAPPING>>) {
+    if (!candidates.length) {
+      return false;
+    }
+
+    let start = Math.floor(Math.random() * candidates.length);
+    for (let i = start; i < candidates.length; i++) {
+      if (!this.#isOpen) throw new Error('Cluster closed');
+      if (await this.#discover(this.#nodeClientOptions(candidates[i]))) {
+        return true;
+      }
+    }
+
+    for (let i = 0; i < start; i++) {
+      if (!this.#isOpen) throw new Error('Cluster closed');
+      if (await this.#discover(this.#nodeClientOptions(candidates[i]))) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  #scheduleTopologyRefresh(excludedAddress: string) {
+    if (!this.#isOpen || this.#topologyRefreshPromise) return;
+
+    this.#topologyRefreshPromise = this.rediscover(undefined, excludedAddress)
+      .catch(err => this.#emit('error', err))
+      .finally(() => {
+        this.#topologyRefreshPromise = undefined;
+      });
   }
 
   /**
