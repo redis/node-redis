@@ -19,4 +19,16 @@ describe('TDIGEST.CDF', () => {
 
     assert.deepEqual(reply, [NaN]);
   }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.tDigest.cdf with data', async client => {
+    await client.tDigest.create('key');
+    await client.tDigest.add('key', [1, 2, 3, 4, 5]);
+
+    const reply = await client.tDigest.cdf('key', [2, 4]);
+
+    assert.ok(Array.isArray(reply));
+    assert.equal(reply.length, 2);
+    assert.equal(typeof reply[0], 'number');
+    assert.equal(typeof reply[1], 'number');
+  }, GLOBAL.SERVERS.OPEN);
 });

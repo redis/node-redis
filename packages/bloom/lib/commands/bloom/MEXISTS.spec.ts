@@ -17,4 +17,15 @@ describe('BF.MEXISTS', () => {
       [false, false]
     );
   }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.bf.mExists with existing items', async client => {
+    const key = 'mExistsKey';
+    await client.bf.add(key, 'item1');
+    await client.bf.add(key, 'item2');
+
+    assert.deepEqual(
+      await client.bf.mExists(key, ['item1', 'item2', 'item3']),
+      [true, true, false]
+    );
+  }, GLOBAL.SERVERS.OPEN);
 });

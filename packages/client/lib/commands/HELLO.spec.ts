@@ -60,7 +60,7 @@ describe('HELLO', () => {
     const reply = await client.hello();
     assert.equal(reply.server, 'redis');
     assert.equal(typeof reply.version, 'string');
-    assert.equal(reply.proto, 2);
+    assert.equal(reply.proto, client.options.RESP ?? 3);
     assert.equal(typeof reply.id, 'number');
     assert.equal(reply.mode, 'standalone');
     assert.equal(reply.role, 'master');

@@ -29,4 +29,20 @@ describe('SINTERSTORE', () => {
     client: GLOBAL.SERVERS.OPEN,
     cluster: GLOBAL.CLUSTERS.OPEN
   });
+
+  testUtils.testAll('sInterStore with multiple sets', async client => {
+    await Promise.all([
+      client.sAdd('{tag}key1', ['a', 'b', 'c']),
+      client.sAdd('{tag}key2', ['b', 'c', 'd']),
+      client.sAdd('{tag}key3', ['c', 'd', 'e'])
+    ]);
+
+    const reply = await client.sInterStore('{tag}destination', ['{tag}key1', '{tag}key2', '{tag}key3']);
+
+    assert.equal(typeof reply, 'number');
+    assert.equal(reply, 1);
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

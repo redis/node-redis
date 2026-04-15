@@ -12,9 +12,16 @@ describe('BGREWRITEAOF', () => {
   });
 
   testUtils.testWithClient('client.bgRewriteAof', async client => {
-    assert.equal(
-      typeof await client.bgRewriteAof(),
-      'string'
+    const reply = await client.bgRewriteAof();
+    // Structural assertion to pin RESP2 response shape
+    assert.equal(typeof reply, 'string');
+    assert.ok(reply.length > 0);
+    // Verify response contains expected content patterns
+    assert.ok(
+      reply.includes('rewrite') ||
+      reply.includes('Background') ||
+      reply.includes('started') ||
+      reply.includes('scheduled')
     );
   }, GLOBAL.SERVERS.OPEN);
 });

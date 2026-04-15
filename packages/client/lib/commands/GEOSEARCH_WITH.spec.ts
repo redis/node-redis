@@ -39,10 +39,10 @@ describe('GEOSEARCH WITH', () => {
 
     assert.equal(reply.length, 1);
     assert.equal(reply[0].member, 'member');
-    assert.equal(typeof reply[0].distance, 'string');
+    assert.equal(typeof reply[0].distance, 'number');
     assert.equal(typeof reply[0].hash, 'number');
-    assert.equal(typeof reply[0].coordinates!.longitude, 'string');
-    assert.equal(typeof reply[0].coordinates!.latitude, 'string');
+    assert.equal(typeof reply[0].coordinates!.longitude, 'number');
+    assert.equal(typeof reply[0].coordinates!.latitude, 'number');
   }, {
     client: GLOBAL.SERVERS.OPEN,
     cluster: GLOBAL.CLUSTERS.OPEN

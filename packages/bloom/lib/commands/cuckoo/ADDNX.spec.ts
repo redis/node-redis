@@ -17,4 +17,12 @@ describe('CF.ADDNX', () => {
       true
     );
   }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.cf.addNX returns false when item already exists', async client => {
+    await client.cf.addNX('key', 'item');
+    assert.equal(
+      await client.cf.addNX('key', 'item'),
+      false
+    );
+  }, GLOBAL.SERVERS.OPEN);
 });

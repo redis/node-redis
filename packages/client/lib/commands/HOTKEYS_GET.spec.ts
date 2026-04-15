@@ -179,4 +179,3 @@ describe('HOTKEYS GET', () => {
     minimumDockerVersion: [8, 6]
   });
 });
-

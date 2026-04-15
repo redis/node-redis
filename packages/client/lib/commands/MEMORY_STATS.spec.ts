@@ -38,10 +38,11 @@ describe('MEMORY STATS', () => {
     assert.equal(typeof memoryStats['rss-overhead.bytes'], 'number');
     assert.equal(typeof memoryStats['fragmentation'], 'number', 'fragmentation');
     assert.equal(typeof memoryStats['fragmentation.bytes'], 'number');
-    
+
     if (testUtils.isVersionGreaterThan([7])) {
       assert.equal(typeof memoryStats['cluster.links'], 'number');
       assert.equal(typeof memoryStats['functions.caches'], 'number');
     }
   }, GLOBAL.SERVERS.OPEN);
+
 });

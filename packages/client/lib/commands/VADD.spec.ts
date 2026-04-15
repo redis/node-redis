@@ -67,13 +67,13 @@ describe('VADD', () => {
   });
 
   testUtils.testAll('vAdd', async client => {
-    assert.equal(
+    assert.strictEqual(
       await client.vAdd('key', [1.0, 2.0, 3.0], 'element'),
       true
     );
 
     // same element should not be added again
-    assert.equal(
+    assert.strictEqual(
       await client.vAdd('key', [1, 2 , 3], 'element'),
       false
     );
