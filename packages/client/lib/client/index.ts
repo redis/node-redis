@@ -449,7 +449,7 @@ export default class RedisClient<
   private _commandOptions?: CommandOptions<TYPE_MAPPING>;
   // flag used to annotate that the client
   // was in a watch transaction when
-  // a topology change occured
+  // a topology change occurred
   #dirtyWatch?: string;
   #watchEpoch?: number;
   #clientSideCache?: ClientSideCacheProvider;
