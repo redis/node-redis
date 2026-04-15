@@ -33,12 +33,12 @@ describe('Legacy Mode', () => {
     });
   });
 
-  describe('hGetAll (TRANSFORM_LEGACY_REPLY)', () => {  
+  describe('hGetAll (TRANSFORM_LEGACY_REPLY)', () => {
     testWithLegacyClient('resolve', async client => {
       await promisify(client.hSet).call(client, 'key', 'field', 'value');
       assert.deepEqual(
         await promisify(client.hGetAll).call(client, 'key'),
-        Object.create(null, {
+        Object.defineProperties({}, {
           field: {
             value: 'value',
             configurable: true,
@@ -93,7 +93,7 @@ describe('Legacy Mode', () => {
         ['PONG', 'PONG']
       );
     });
-    
+
     testWithLegacyClient('reject', async client => {
       const multi = client.multi().sendCommand('ERROR');
       await assert.rejects(

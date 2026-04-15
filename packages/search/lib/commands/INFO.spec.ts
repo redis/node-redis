@@ -34,7 +34,7 @@ describe('INFO', () => {
       {
         index_name: 'index',
         index_options: [],
-        index_definition: Object.create(null, {
+        index_definition: Object.defineProperties({}, {
           default_score: {
             value: '1',
             configurable: true,
@@ -51,7 +51,7 @@ describe('INFO', () => {
             enumerable: true
           }
         }),
-        attributes: [Object.create(null, {
+        attributes: [Object.defineProperties({}, {
           identifier: {
             value: 'field',
             configurable: true,
@@ -130,7 +130,7 @@ describe('INFO', () => {
       {
         index_name: 'index',
         index_options: [],
-        index_definition: Object.create(null, {
+        index_definition: Object.defineProperties({}, {
           default_score: {
             value: '1',
             configurable: true,
@@ -147,7 +147,7 @@ describe('INFO', () => {
             enumerable: true
           }
         }),
-        attributes: [Object.create(null, {
+        attributes: [Object.defineProperties({}, {
           identifier: {
             value: 'field',
             configurable: true,

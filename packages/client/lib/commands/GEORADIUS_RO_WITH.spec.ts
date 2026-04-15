@@ -19,6 +19,23 @@ describe('GEORADIUS_RO WITH', () => {
     );
   });
 
+  it('transformReply should parse RESP2 floating-point strings', () => {
+    const reply = GEORADIUS_RO_WITH.transformReply([
+      ['member', '0.5', 1, ['1.23', '4.56']]
+    ] as any, [
+      GEO_REPLY_WITH.DISTANCE,
+      GEO_REPLY_WITH.HASH,
+      GEO_REPLY_WITH.COORDINATES
+    ]);
+
+    assert.equal(reply.length, 1);
+    assert.equal(reply[0].member, 'member');
+    assert.equal(reply[0].distance, 0.5);
+    assert.equal(reply[0].hash, 1);
+    assert.equal(reply[0].coordinates!.longitude, 1.23);
+    assert.equal(reply[0].coordinates!.latitude, 4.56);
+  });
+
   testUtils.testAll('geoRadiusRoWith', async client => {
     const [, reply] = await Promise.all([
       client.geoAdd('key', {
@@ -38,10 +55,10 @@ describe('GEORADIUS_RO WITH', () => {
 
     assert.equal(reply.length, 1);
     assert.equal(reply[0].member, 'member');
-    assert.equal(typeof reply[0].distance, 'string');
+    assert.equal(typeof reply[0].distance, 'number');
     assert.equal(typeof reply[0].hash, 'number');
-    assert.equal(typeof reply[0].coordinates!.longitude, 'string');
-    assert.equal(typeof reply[0].coordinates!.latitude, 'string');
+    assert.equal(typeof reply[0].coordinates!.longitude, 'number');
+    assert.equal(typeof reply[0].coordinates!.latitude, 'number');
   }, {
     client: GLOBAL.SERVERS.OPEN,
     cluster: GLOBAL.CLUSTERS.OPEN

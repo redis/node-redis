@@ -32,7 +32,7 @@ describe('PUBSUB SHARDNUMSUB', () => {
   testUtils.testWithClient('client.pubSubShardNumSub', async client => {
     assert.deepEqual(
       await client.pubSubShardNumSub(['foo', 'bar']),
-      Object.create(null, {
+      Object.defineProperties({}, {
         foo: {
           value: 0,
           configurable: true,

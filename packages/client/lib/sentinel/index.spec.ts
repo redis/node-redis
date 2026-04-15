@@ -51,13 +51,12 @@ describe('RedisSentinel', () => {
         );
       });
 
-      it('should throw error when clientSideCache is enabled with RESP undefined', () => {
-        assert.throws(
-          () => RedisSentinel.create({
+      it('should not throw when clientSideCache is enabled with RESP undefined', () => {
+        assert.doesNotThrow(() =>
+          RedisSentinel.create({
             ...options,
             clientSideCache: clientSideCacheConfig,
-          }),
-          new Error('Client Side Caching is only supported with RESP3')
+          })
         );
       });
 

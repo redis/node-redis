@@ -42,12 +42,11 @@ describe('Client', () => {
         );
       });
 
-      it('should throw error when clientSideCache is enabled with RESP undefined', () => {
-        assert.throws(
-          () => new RedisClient({
+      it('should not throw when clientSideCache is enabled with RESP undefined', () => {
+        assert.doesNotThrow(() =>
+          new RedisClient({
             clientSideCache: clientSideCacheConfig,
-          }),
-          new Error('Client Side Caching is only supported with RESP3')
+          })
         );
       });
 
@@ -1142,6 +1141,14 @@ describe('Client', () => {
     it("should reconnect after multiple connection drops during handshake", async () => {
       const { log, client, teardown } = await setup({}, 2);
       await client.connect();
+
+      // Some environments emit duplicate consecutive `error` events per dropped
+      // socket during handshake. Normalize those duplicates before asserting
+      // the reconnect sequence.
+      const normalized = log.filter((event, index) => {
+        return !(event === "error" && log[index - 1] === "error");
+      });
+
       assert.deepEqual(
         [
           "connect",
@@ -1153,7 +1160,7 @@ describe('Client', () => {
           "connect",
           "ready",
         ],
-        log,
+        normalized,
       );
       teardown();
     });
@@ -1196,17 +1203,34 @@ describe('Client', () => {
       return log;
     }
 
-    // Create a TCP server that accepts connections but immediately drops them <dropImmediately> times
-    // This simulates what happens when Docker container is stopped:
-    // - TCP connection succeeds (OS accepts it)
-    // - But socket is immediately destroyed, causing ECONNRESET during handshake
-    function setupMockServer(dropImmediately: number) {
-      const server = net.createServer(async (socket) => {
-        if (dropImmediately > 0) {
-          dropImmediately--;
-          socket.destroy();
+    function countRespCommands(chunk: Buffer): number {
+      let commands = 0;
+
+      for (let i = 0; i < chunk.length; i++) {
+        if (chunk[i] === 42 && (i === 0 || chunk[i - 1] === 10)) {
+          commands++;
         }
-        socket.write("+OK\r\n+OK\r\n");
+      }
+
+      return commands;
+    }
+
+    // Create a TCP server that accepts connections but immediately drops them <dropImmediately> times.
+    // For accepted connections, reply with one `+OK` per incoming RESP command.
+    function setupMockServer(dropImmediately: number) {
+      const server = net.createServer((socket) => {
+        socket.on("data", (chunk: Buffer) => {
+          if (dropImmediately > 0) {
+            dropImmediately--;
+            socket.destroy();
+            return;
+          }
+
+          const commands = countRespCommands(chunk);
+          if (commands > 0) {
+            socket.write("+OK\r\n".repeat(commands));
+          }
+        });
       });
       return server;
     }

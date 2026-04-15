@@ -92,7 +92,7 @@ describe('XREAD', () => {
   });
 
   testUtils.testAll('client.xRead', async client => {
-    const message = { field: 'value' }, 
+    const message = { field: 'value' },
     [id, reply] = await Promise.all([
       client.xAdd('key', '*', message),
       client.xRead({
@@ -102,10 +102,10 @@ describe('XREAD', () => {
     ])
 
     // FUTURE resp3 compatible
-    const obj = Object.assign(Object.create(null), {
+    const obj = Object.assign({}, {
       'key': [{
         id: id,
-        message: Object.create(null, {
+        message: Object.defineProperties({}, {
           field: {
             value: 'value',
             configurable: true,
@@ -120,7 +120,7 @@ describe('XREAD', () => {
       name: 'key',
       messages: [{
         id: id,
-        message: Object.assign(Object.create(null), {
+        message: Object.assign({}, {
           field: 'value'
         })
       }]
@@ -132,24 +132,7 @@ describe('XREAD', () => {
     cluster: GLOBAL.CLUSTERS.OPEN
   });
 
-  testUtils.testWithClient('client.xRead should throw with resp3 and unstableResp3: false', async client => {
-    assert.throws(
-      () => client.xRead({
-        key: 'key',
-        id: '0-0'
-      }),
-      {
-        message: 'Some RESP3 results for Redis Query Engine responses may change. Refer to the readme for guidance'
-      }
-    );
-  }, {
-    ...GLOBAL.SERVERS.OPEN,
-    clientOptions: {
-      RESP: 3
-    }
-  });
-
-  testUtils.testWithClient('client.xRead should not throw with resp3 and unstableResp3: true', async client => {
+  testUtils.testWithClient('client.xRead should not throw with resp3', async client => {
     assert.doesNotThrow(
       () => client.xRead({
         key: 'key',
@@ -159,8 +142,7 @@ describe('XREAD', () => {
   }, {
     ...GLOBAL.SERVERS.OPEN,
     clientOptions: {
-      RESP: 3,
-      unstableResp3: true
+      RESP: 3
     }
   });
 
