@@ -28,7 +28,7 @@ the function accepts two arguments, the client configuration (see [here](./clien
 | acquireTimeout | 3000    | The maximum time (in ms) a task can wait in the queue. The pool will reject the task with `TimeoutError` in case of a timeout. |
 | cleanupDelay   | 3000    | The time to wait before cleaning up unused clients.                                                                            |
 
-You can also create a pool from a client (reusing it's configuration):
+You can also create a pool from a client (reusing its configuration):
 ```javascript
 const pool = await client.createPool()
   .on('error', err => console.error('Redis Client Pool Error', err));
