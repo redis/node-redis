@@ -1,6 +1,6 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument } from "@redis/client";
-import { ArrayReply, BlobStringReply, Command, DoubleReply, MapReply, NullReply, NumberReply, ReplyUnion, SimpleStringReply, TypeMapping } from "@redis/client/dist/lib/RESP/types";
+import { ArrayReply, BlobStringReply, Command, DoubleReply, MapReply, NullReply, NumberReply, SimpleStringReply, TypeMapping } from "@redis/client/dist/lib/RESP/types";
 import { createTransformTuplesReplyFunc, transformDoubleReply } from "@redis/client/dist/lib/commands/generic-transformers";
 import { TuplesReply } from '@redis/client/dist/lib/RESP/types';
 
@@ -12,7 +12,7 @@ export default {
   },
   transformReply: {
     2: transformV2Reply,
-    3: undefined as unknown as () => ReplyUnion
+    3: undefined as unknown as () => InfoReply
   },
 } as const satisfies Command;
 
@@ -83,7 +83,7 @@ function transformV2Reply(reply: Array<unknown>, preserve?: unknown, typeMapping
       case 'hash_indexing_failures':
       case 'indexing':
       case 'number_of_uses':
-      case 'cleaning':  
+      case 'cleaning':
       case 'stopwords_list':
         ret[key] = reply[i+1] as never;
         break;
@@ -102,8 +102,8 @@ function transformV2Reply(reply: Array<unknown>, preserve?: unknown, typeMapping
       case 'offsets_per_term_avg':
       case 'offset_bits_per_record_avg':
       case 'total_indexing_time':
-      case 'percent_indexed':        
-        ret[key] = transformDoubleReply[2](reply[i+1] as BlobStringReply, undefined, typeMapping) as DoubleReply;
+      case 'percent_indexed':
+        ret[key] = transformDoubleReply[2](reply[i+1], undefined, typeMapping) as DoubleReply;
         break;
       case 'index_definition':
         ret[key] = myTransformFunc(reply[i+1] as ArrayReply<SimpleStringReply>);
@@ -131,7 +131,7 @@ function transformV2Reply(reply: Array<unknown>, preserve?: unknown, typeMapping
               break;
           }
         }
-        
+
         ret[key] = innerRet;
         break;
       }
@@ -156,7 +156,7 @@ function transformV2Reply(reply: Array<unknown>, preserve?: unknown, typeMapping
         ret[key] = innerRet;
         break;
       }
-    }  
+    }
   }
 
   return ret;
