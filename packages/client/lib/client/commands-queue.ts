@@ -635,7 +635,7 @@ export default class RedisCommandsQueue {
   /**
    *
    * Extracts commands for the given slots from the toWrite queue.
-   * Some commands dont have "slotNumber", which means they are not designated to particular slot/node.
+   * Some commands don't have "slotNumber", which means they are not designated to particular slot/node.
    * We ignore those.
    */
   extractCommandsForSlots(slots: Set<number>): CommandToWrite[] {
