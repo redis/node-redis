@@ -560,7 +560,7 @@ export function transformStreamMessagesReply(
 }
 
 type StreamMessagesRawReply = TuplesReply<[name: BlobStringReply, ArrayReply<StreamMessageRawReply>]>;
-type StreamsMessagesRawReply2 = ArrayReply<StreamMessagesRawReply>;
+export type StreamsMessagesRawReply2 = ArrayReply<StreamMessagesRawReply>;
 
 export function transformStreamsMessagesReplyResp2(
   reply: UnwrapReply<StreamsMessagesRawReply2 | NullReply>,
