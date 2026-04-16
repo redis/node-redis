@@ -260,18 +260,10 @@ describe('Generic Transformers', () => {
     it('transformTuplesReply', () => {
         assert.deepEqual(
             transformTuplesReply(['key1', 'value1', 'key2', 'value2'] as unknown as ArrayReply<Stringable>),
-            Object.create({}, {
-                key1: {
-                    value: 'value1',
-                    configurable: true,
-                    enumerable: true
-                },
-                key2: {
-                    value: 'value2',
-                    configurable: true,
-                    enumerable: true
-                }
-            })
+            {
+                key1: 'value1',
+                key2: 'value2'
+            }
         );
     });
 
@@ -280,22 +272,14 @@ describe('Generic Transformers', () => {
             transformStreamMessagesReply([['0-0', ['0key', '0value']], ['1-0', ['1key', '1value']]] as unknown as ArrayReply<StreamMessageRawReply>),
             [{
                 id: '0-0',
-                message: Object.create({}, {
-                    '0key': {
-                        value: '0value',
-                        configurable: true,
-                        enumerable: true
-                    }
-                })
+                message: {
+                    '0key': '0value'
+                }
             }, {
                 id: '1-0',
-                message: Object.create({}, {
-                    '1key': {
-                        value: '1value',
-                        configurable: true,
-                        enumerable: true
-                    }
-                })
+                message: {
+                    '1key': '1value'
+                }
             }]
         );
     });
@@ -315,39 +299,23 @@ describe('Generic Transformers', () => {
                     name: 'stream1',
                     messages: [{
                         id: '0-1',
-                        message: Object.create({}, {
-                            '11key': {
-                                value: '11value',
-                                configurable: true,
-                                enumerable: true
-                            }
-                        })
+                        message: {
+                            '11key': '11value'
+                        }
                     }, {
                         id: '1-1',
-                        message: Object.create({}, {
-                            '12key': {
-                                value: '12value',
-                                configurable: true,
-                                enumerable: true
-                            }
-                        })
+                        message: {
+                            '12key': '12value'
+                        }
                     }]
                 }, {
                     name: 'stream2',
                     messages: [{
                         id: '0-2',
-                        message: Object.create({}, {
-                            '2key1': {
-                                value: '2value1',
-                                configurable: true,
-                                enumerable: true
-                            },
-                            '2key2': {
-                                value: '2value2',
-                                configurable: true,
-                                enumerable: true
-                            }
-                        })
+                        message: {
+                            '2key1': '2value1',
+                            '2key2': '2value2'
+                        }
                     }]
                 }]
             );
