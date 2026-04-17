@@ -97,6 +97,9 @@ describe('XNACK', () => {
     assert.equal(typeof replyWithRetryCount, 'number');
     assert.equal(typeof replyWithForce, 'number');
     assert.equal(typeof replyWithRetryCountAndForce, 'number');
-  }, GLOBAL.SERVERS.OPEN);
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    minimumDockerVersion: [8, 8]
+  });
 
 });
