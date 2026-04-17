@@ -23,13 +23,12 @@ describe('RedisClusterSlots', () => {
         );
       });
 
-      it('should throw error when clientSideCache is enabled with RESP undefined', () => {
-        assert.throws(
-          () => new RedisClusterSlots({
+      it('should not throw when clientSideCache is enabled with RESP undefined', () => {
+        assert.doesNotThrow(() =>
+          new RedisClusterSlots({
             rootNodes,
             clientSideCache: clientSideCacheConfig,
-          }, mockEmit),
-          new Error('Client Side Caching is only supported with RESP3')
+          }, mockEmit)
         );
       });
 

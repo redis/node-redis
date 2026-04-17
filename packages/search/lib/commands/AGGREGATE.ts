@@ -4,6 +4,8 @@ import { RediSearchProperty } from './CREATE';
 import { FtSearchParams, parseParamsArgument } from './SEARCH';
 import { transformTuplesReply } from '@redis/client/dist/lib/commands/generic-transformers';
 import { DEFAULT_DIALECT } from '../dialect/default';
+import { getMapValue, mapLikeToFlatArray, mapLikeToObject, mapLikeValues, parseAggregateResultRow } from './reply-transformers';
+import { RESP_TYPES } from '@redis/client/dist/lib/RESP/decoder';
 
 type LoadField = RediSearchProperty | {
   identifier: RediSearchProperty;
@@ -138,6 +140,67 @@ export interface AggregateReply {
   results: Array<MapReply<BlobStringReply, BlobStringReply>>;
 };
 
+function transformAggregateReplyResp2(
+  rawReply: AggregateRawReply,
+  preserve?: any,
+  typeMapping?: TypeMapping
+): AggregateReply {
+  const results: Array<MapReply<BlobStringReply, BlobStringReply>> = [];
+  for (let i = 1; i < rawReply.length; i++) {
+    results.push(
+      transformTuplesReply(rawReply[i] as ArrayReply<BlobStringReply>, preserve, typeMapping)
+    );
+  }
+
+  return {
+    //  https://redis.io/docs/latest/commands/ft.aggregate/#return
+    //  FT.AGGREGATE returns an array reply where each row is an array reply and represents a single aggregate result.
+    // The integer reply at position 1 does not represent a valid value.
+    total: Number(rawReply[0]),
+    results
+  };
+}
+
+function transformAggregateReplyResp3(
+  rawReply: ReplyUnion,
+  preserve?: any,
+  typeMapping?: TypeMapping
+): AggregateReply {
+  if (Array.isArray(rawReply)) {
+    return transformAggregateReplyResp2(rawReply as unknown as AggregateRawReply, preserve, typeMapping);
+  }
+
+  const reply = mapLikeToObject(rawReply);
+  const total = Number(getMapValue(reply, ['total_results', 'total']) ?? 0);
+  const rawResults = mapLikeValues(getMapValue(reply, ['results']) ?? []);
+
+  const results: Array<MapReply<BlobStringReply, BlobStringReply>> = [];
+  const mapType = typeMapping ? typeMapping[RESP_TYPES.MAP] : undefined;
+
+  for (const rawResult of rawResults) {
+    const normalized = parseAggregateResultRow(rawResult);
+
+    switch (mapType) {
+      case Array: {
+        results.push(mapLikeToFlatArray(normalized) as unknown as MapReply<BlobStringReply, BlobStringReply>);
+        break;
+      }
+      case Map: {
+        results.push(new Map(Object.entries(normalized)) as unknown as MapReply<BlobStringReply, BlobStringReply>);
+        break;
+      }
+      default: {
+        results.push(normalized as unknown as MapReply<BlobStringReply, BlobStringReply>);
+      }
+    }
+  }
+
+  return {
+    total,
+    results
+  };
+}
+
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: false,
@@ -159,25 +222,9 @@ export default {
     return parseAggregateOptions(parser, options);
   },
   transformReply: {
-    2: (rawReply: AggregateRawReply, preserve?: any, typeMapping?: TypeMapping): AggregateReply => {
-      const results: Array<MapReply<BlobStringReply, BlobStringReply>> = [];
-      for (let i = 1; i < rawReply.length; i++) {
-        results.push(
-          transformTuplesReply(rawReply[i] as ArrayReply<BlobStringReply>, preserve, typeMapping)
-        );
-      }
-  
-      return {
-        //  https://redis.io/docs/latest/commands/ft.aggregate/#return
-        //  FT.AGGREGATE returns an array reply where each row is an array reply and represents a single aggregate result.
-        // The integer reply at position 1 does not represent a valid value.
-        total: Number(rawReply[0]),
-        results
-      };
-    },
-    3: undefined as unknown as () => ReplyUnion
+    2: transformAggregateReplyResp2,
+    3: transformAggregateReplyResp3
   },
-  unstableResp3: true
 } as const satisfies Command;
 
 export function parseAggregateOptions(parser: CommandParser , options?: FtAggregateOptions) {

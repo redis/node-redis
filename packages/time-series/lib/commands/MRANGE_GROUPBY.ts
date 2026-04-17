@@ -122,9 +122,8 @@ export default {
       }, typeMapping);
     },
     3(reply: TsMRangeGroupByRawReply3) {
-      return resp3MapToValue(reply, ([_labels, _metadata1, metadata2, samples]) => {
+      return resp3MapToValue(reply, ([_labels, _metadata1, _metadata2, samples]) => {
         return {
-          sources: extractResp3MRangeSources(metadata2),
           samples: transformSamplesReply[3](samples)
         };
       });

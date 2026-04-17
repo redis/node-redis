@@ -60,7 +60,7 @@ function transformEngines(reply: Resp2Reply<Engines>) {
   const engines: Record<string, {
     libraries_count: NumberReply;
     functions_count: NumberReply;
-  }> = Object.create(null);
+  }> = {};
   for (let i = 0; i < unwraped.length; i++) {
     const name = unwraped[i] as BlobStringReply,
       stats = unwraped[++i] as Resp2Reply<Engine>,

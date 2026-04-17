@@ -70,16 +70,6 @@ export interface RedisPoolOptions {
    * ```
    */
   clientSideCache?: PooledClientSideCacheProvider | ClientSideCacheConfig;
-  /**
-   * Enable experimental support for RESP3 module commands.
-   *
-   * When enabled, allows the use of module commands that have been adapted
-   * for the RESP3 protocol. This is an unstable feature and may change in
-   * future versions.
-   *
-   * @default false
-   */
-  unstableResp3Modules?: boolean;
 }
 
 export type PoolTask<
@@ -103,7 +93,7 @@ export type RedisClientPoolType<
   M extends RedisModules = {},
   F extends RedisFunctions = {},
   S extends RedisScripts = {},
-  RESP extends RespVersions = 2,
+  RESP extends RespVersions = 3,
   TYPE_MAPPING extends TypeMapping = {}
 > = (
   RedisClientPool<M, F, S, RESP, TYPE_MAPPING> &
@@ -121,7 +111,7 @@ export class RedisClientPool<
   M extends RedisModules = {},
   F extends RedisFunctions = {},
   S extends RedisScripts = {},
-  RESP extends RespVersions = 2,
+  RESP extends RespVersions = 3,
   TYPE_MAPPING extends TypeMapping = {}
 > extends EventEmitter {
   static #createCommand(command: Command, resp: RespVersions) {

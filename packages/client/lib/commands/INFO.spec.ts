@@ -26,4 +26,23 @@ describe('INFO', () => {
       'string'
     );
   }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.info structural shape', async client => {
+    const reply = await client.info();
+
+    // RESP2 returns a bulk string with specific format
+    assert.equal(typeof reply, 'string');
+
+    // Must contain section headers starting with '#'
+    assert.ok(reply.includes('# Server') || reply.includes('# CPU'),
+      'INFO response should contain section headers starting with #');
+
+    // Must contain field:value pairs
+    assert.ok(/\w+:\w+/.test(reply),
+      'INFO response should contain field:value pairs');
+
+    // Should contain line breaks (fields are line-separated)
+    assert.ok(reply.includes('\r\n') || reply.includes('\n'),
+      'INFO response should contain line breaks');
+  }, GLOBAL.SERVERS.OPEN);
 });

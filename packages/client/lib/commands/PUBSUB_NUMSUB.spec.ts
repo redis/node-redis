@@ -30,7 +30,7 @@ describe('PUBSUB NUMSUB', () => {
   testUtils.testWithClient('client.pubSubNumSub resp2', async client => {
     assert.deepEqual(
       await client.pubSubNumSub(),
-      Object.create(null)
+      {}
     );
 
     const res = await client.PUBSUB_NUMSUB(["test", "test2"]);
@@ -47,7 +47,7 @@ describe('PUBSUB NUMSUB', () => {
   testUtils.testWithClient('client.pubSubNumSub resp3', async client => {
     assert.deepEqual(
       await client.pubSubNumSub(),
-      Object.create(null)
+      {}
     );
 
     const res = await client.PUBSUB_NUMSUB(["test", "test2"]);

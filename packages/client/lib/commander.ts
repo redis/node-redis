@@ -15,11 +15,6 @@ interface AttachConfigOptions<
   config?: CommanderConfig<M, F, S, RESP>;
 }
 
-/* FIXME: better error message / link */
-function throwResp3SearchModuleUnstableError() {
-  throw new Error('Some RESP3 results for Redis Query Engine responses may change. Refer to the readme for guidance');
-}
-
 export function attachConfig<
   M extends RedisModules,
   F extends RedisFunctions,
@@ -34,26 +29,18 @@ export function attachConfig<
   createScriptCommand,
   config
 }: AttachConfigOptions<M, F, S, RESP>) {
-  const RESP = config?.RESP ?? 2,
+  const RESP = config?.RESP ?? 3,
     Class: any = class extends BaseClass {};
 
   for (const [name, command] of Object.entries(commands)) {
-    if (config?.RESP == 3 && command.unstableResp3 && !config.unstableResp3) {
-      Class.prototype[name] = throwResp3SearchModuleUnstableError;
-    } else {
-      Class.prototype[name] = createCommand(command, RESP)
-    }
+    Class.prototype[name] = createCommand(command, RESP);
   }
 
   if (config?.modules) {
     for (const [moduleName, module] of Object.entries(config.modules)) {
-      const fns = Object.create(null);
+      const fns: Record<string, (...args: Array<any>) => any> = {};
       for (const [name, command] of Object.entries(module)) {
-        if (config.RESP == 3 && command.unstableResp3 && !config.unstableResp3) {
-          fns[name] = throwResp3SearchModuleUnstableError;
-        } else {
-          fns[name] = createModuleCommand(command, RESP);
-        }
+        fns[name] = createModuleCommand(command, RESP);
       }
 
       attachNamespace(Class.prototype, moduleName, fns);
@@ -62,7 +49,7 @@ export function attachConfig<
 
   if (config?.functions) {
     for (const [library, commands] of Object.entries(config.functions)) {
-      const fns = Object.create(null);
+      const fns: Record<string, (...args: Array<any>) => any> = {};
       for (const [name, command] of Object.entries(commands)) {
         fns[name] = createFunctionCommand(name, command, RESP);
       }

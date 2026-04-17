@@ -41,7 +41,7 @@ export type RedisClientType<
   M extends RedisModules = RedisDefaultModules,
   F extends RedisFunctions = {},
   S extends RedisScripts = {},
-  RESP extends RespVersions = 2,
+  RESP extends RespVersions = 3,
   TYPE_MAPPING extends TypeMapping = {}
 > = GenericRedisClientType<M, F, S, RESP, TYPE_MAPPING>;
 
@@ -84,7 +84,7 @@ export type RedisClusterType<
   M extends RedisModules = RedisDefaultModules,
   F extends RedisFunctions = {},
   S extends RedisScripts = {},
-  RESP extends RespVersions = 2,
+  RESP extends RespVersions = 3,
   TYPE_MAPPING extends TypeMapping = {}
 > = genericRedisClusterType<M, F, S, RESP, TYPE_MAPPING>;
 
@@ -110,7 +110,7 @@ export type RedisSentinelType<
   M extends RedisModules = RedisDefaultModules,
   F extends RedisFunctions = {},
   S extends RedisScripts = {},
-  RESP extends RespVersions = 2,
+  RESP extends RespVersions = 3,
   TYPE_MAPPING extends TypeMapping = {}
 > = genericRedisSentinelType<M, F, S, RESP, TYPE_MAPPING>;
 

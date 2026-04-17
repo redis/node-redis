@@ -3,7 +3,7 @@ import { Command, ArrayReply, BlobStringReply, MapReply, TuplesReply, RedisArgum
 import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
 import { parseSelectedLabelsArguments, resp3MapToValue, SampleRawReply, Timestamp, transformSamplesReply } from './helpers';
 import { TsRangeOptions, parseRangeArguments } from './RANGE';
-import { extractResp3MRangeSources, parseGroupByArguments, TsMRangeGroupBy, TsMRangeGroupByRawMetadataReply3 } from './MRANGE_GROUPBY';
+import { parseGroupByArguments, TsMRangeGroupBy, TsMRangeGroupByRawMetadataReply3 } from './MRANGE_GROUPBY';
 import { parseFilterArgument } from './MGET';
 import MRANGE_SELECTED_LABELS from './MRANGE_SELECTED_LABELS';
 
@@ -65,10 +65,9 @@ export default {
   transformReply: {
     2: MRANGE_SELECTED_LABELS.transformReply[2],
     3(reply: TsMRangeWithLabelsGroupByRawReply3) {
-      return resp3MapToValue(reply, ([labels, _metadata, metadata2, samples]) => {
+      return resp3MapToValue(reply, ([labels, _metadata, _metadata2, samples]) => {
         return {
           labels,
-          sources: extractResp3MRangeSources(metadata2),
           samples: transformSamplesReply[3](samples)
         };
       });

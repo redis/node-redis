@@ -189,7 +189,10 @@ export default class RedisCommandsQueue {
   }
 
   #getTypeMapping() {
-    return this.#waitingForReply.head!.value.typeMapping ?? {};
+    const head = this.#waitingForReply.head;
+    if (!head) return PUSH_TYPE_MAPPING;
+
+    return head.value.typeMapping ?? {};
   }
 
   #initiateDecoder() {

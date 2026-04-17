@@ -289,7 +289,7 @@ describe('FT.SEARCH', () => {
           total: 1,
           documents: [{
             id: '1',
-            value: Object.create(null, {
+            value: Object.defineProperties({}, {
               field: {
                 value: '1',
                 configurable: true,
@@ -318,13 +318,31 @@ describe('FT.SEARCH', () => {
           total: 2,
           documents: [{
             id: '1',
-            value: Object.create(null)
+            value: {}
           }, {
             id: '2',
-            value: Object.create(null)
+            value: {}
           }]
         }
       );
+    }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('with data', async client => {
+      await Promise.all([
+        client.ft.create('index', {
+          field: 'TEXT'
+        }),
+        client.hSet('1', 'field', '1')
+      ]);
+
+      const reply = await client.ft.search('index', '*');
+
+      // Transformed reply has { total, documents }
+      assert.ok(reply !== null && typeof reply === 'object');
+      assert.equal(typeof reply.total, 'number');
+      assert.equal(reply.total, 1);
+      assert.ok(Array.isArray(reply.documents));
+      assert.equal(reply.documents.length, 1);
     }, GLOBAL.SERVERS.OPEN);
 
     testUtils.testWithClient('properly parse content/nocontent scenarios', async client => {

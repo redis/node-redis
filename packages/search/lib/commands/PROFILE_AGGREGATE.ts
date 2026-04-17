@@ -1,7 +1,13 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { Command, ReplyUnion, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
 import AGGREGATE, { AggregateRawReply, FtAggregateOptions, parseAggregateOptions } from './AGGREGATE';
-import { ProfileOptions, ProfileRawReplyResp2, ProfileReplyResp2, } from './PROFILE_SEARCH';
+import {
+  ProfileOptions,
+  ProfileRawReplyResp2,
+  ProfileReplyResp2,
+  extractProfileResultsReply,
+  transformProfileReply
+} from './PROFILE_SEARCH';
 
 export default {
   NOT_KEYED_COMMAND: true,
@@ -38,7 +44,13 @@ export default {
         profile: reply[1]
       }
     },
-    3: (reply: ReplyUnion): ReplyUnion => reply
+    3: (reply: ReplyUnion): ProfileReplyResp2 => {
+      return {
+        results: AGGREGATE.transformReply[3](
+          extractProfileResultsReply(reply)
+        ),
+        profile: transformProfileReply(reply)
+      };
+    }
   },
-  unstableResp3: true
 } as const satisfies Command;

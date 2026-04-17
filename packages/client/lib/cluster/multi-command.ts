@@ -179,7 +179,7 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
     M extends RedisModules = Record<string, never>,
     F extends RedisFunctions = Record<string, never>,
     S extends RedisScripts = Record<string, never>,
-    RESP extends RespVersions = 2
+    RESP extends RespVersions = 3
   >(config?: CommanderConfig<M, F, S, RESP>) {
     return attachConfig({
       BaseClass: RedisClusterMultiCommand,

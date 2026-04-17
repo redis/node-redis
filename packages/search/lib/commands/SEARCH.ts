@@ -3,6 +3,7 @@ import { RedisArgument, Command, ReplyUnion } from '@redis/client/dist/lib/RESP/
 import { RedisVariadicArgument, parseOptionalVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
 import { RediSearchLanguage } from './CREATE';
 import { DEFAULT_DIALECT } from '../dialect/default';
+import { getMapValue, mapLikeToObject, mapLikeValues, parseDocumentValue, parseSearchResultRow } from './reply-transformers';
 
 export type FtSearchParams = Record<string, RedisArgument | number>;
 
@@ -158,6 +159,51 @@ export function parseSearchOptions(parser: CommandParser, options?: FtSearchOpti
   }
 }
 
+function transformSearchReplyResp2(reply: SearchRawReply): SearchReply {
+  // if reply[2] is array, then we have content/documents. Otherwise, only ids
+  const withoutDocuments = reply.length > 2 && !Array.isArray(reply[2]);
+
+  const documents = [];
+  let i = 1;
+  while (i < reply.length) {
+    documents.push({
+      id: reply[i++],
+      value: withoutDocuments ? {} : documentValue(reply[i++])
+    });
+  }
+
+  return {
+    total: reply[0],
+    documents
+  };
+}
+
+function transformSearchReplyResp3(rawReply: ReplyUnion): SearchReply {
+  if (Array.isArray(rawReply)) {
+    return transformSearchReplyResp2(rawReply as SearchRawReply);
+  }
+
+  const reply = mapLikeToObject(rawReply);
+  const total = Number(getMapValue(reply, ['total_results', 'total']) ?? 0);
+
+  const results = mapLikeValues(
+    getMapValue(reply, ['results', 'documents']) ?? []
+  );
+
+  const documents = results.map(result => {
+    const { id, value } = parseSearchResultRow(result);
+    return {
+      id: id?.toString?.() ?? id,
+      value
+    };
+  });
+
+  return {
+    total,
+    documents
+  };
+}
+
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
@@ -182,27 +228,9 @@ export default {
     parseSearchOptions(parser, options);
   },
   transformReply: {
-    2: (reply: SearchRawReply): SearchReply => {
-      // if reply[2] is array, then we have content/documents. Otherwise, only ids
-      const withoutDocuments = reply.length > 2 && !Array.isArray(reply[2]);
-
-      const documents = [];
-      let i = 1;
-      while (i < reply.length) {
-        documents.push({
-          id: reply[i++],
-          value: withoutDocuments ? Object.create(null) : documentValue(reply[i++])
-        });
-      }
-
-      return {
-        total: reply[0],
-        documents
-      };
-    },
-    3: undefined as unknown as () => ReplyUnion
+    2: transformSearchReplyResp2,
+    3: transformSearchReplyResp3
   },
-  unstableResp3: true
 } as const satisfies Command;
 
 export type SearchRawReply = Array<any>;
@@ -220,27 +248,5 @@ export interface SearchReply {
 }
 
 function documentValue(tuples: any) {
-  const message = Object.create(null);
-
-  if(!tuples) {
-    return message;
-  }
-
-  let i = 0;
-  while (i < tuples.length) {
-      const key = tuples[i++],
-          value = tuples[i++];
-      if (key === '$') { // might be a JSON reply
-          try {
-              Object.assign(message, JSON.parse(value));
-              continue;
-          } catch {
-              // set as a regular property if not a valid JSON
-          }
-      }
-
-      message[key] = value;
-  }
-
-  return message;
+  return parseDocumentValue(tuples);
 }

@@ -32,5 +32,24 @@ describe('FT.SEARCH NOCONTENT', () => {
         }
       );
     }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('returns structured reply', async client => {
+      await Promise.all([
+        client.ft.create('index', {
+          field: 'TEXT'
+        }),
+        client.hSet('1', 'field', 'field1'),
+        client.hSet('2', 'field', 'field2')
+      ]);
+
+      const reply = await client.ft.searchNoContent('index', '*');
+
+      // Transformed reply has { total, documents }
+      assert.ok(reply !== null && typeof reply === 'object');
+      assert.equal(typeof reply.total, 'number');
+      assert.equal(reply.total, 2);
+      assert.ok(Array.isArray(reply.documents));
+      assert.equal(reply.documents.length, 2);
+    }, GLOBAL.SERVERS.OPEN);
   });
 });

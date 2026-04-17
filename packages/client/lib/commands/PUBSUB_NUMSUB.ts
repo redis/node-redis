@@ -26,7 +26,7 @@ export default {
    * @returns Record mapping channel names to their subscriber counts
    */
   transformReply(rawReply: UnwrapReply<ArrayReply<BlobStringReply | NumberReply>>) {
-    const reply = Object.create(null);
+    const reply: Record<string, any> = {};
     let i = 0;
     while (i < rawReply.length) {
       reply[rawReply[i++].toString()] = Number(rawReply[i++]);

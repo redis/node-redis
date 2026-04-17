@@ -4,8 +4,8 @@ import { pushScanArguments } from './SCAN';
 import { parseGeoSearchArguments, parseGeoSearchOptions } from './GEOSEARCH';
 import GEOSEARCH_WITH, { GEO_REPLY_WITH } from './GEOSEARCH_WITH';
 import {
-    transformBooleanReply as transformBooleanReplyTransformer,
-    transformBooleanArrayReply as transformBooleanArrayReplyTransformer,
+    transformBooleanReply,
+    transformBooleanArrayReply,
     transformDoubleReply,
     transformNullableDoubleReply,
     transformDoubleArgument,
@@ -24,17 +24,16 @@ import {
     transformCommandReply,
     CommandFlags,
     CommandCategories,
-    parseSlotRangesArguments
+    parseSlotRangesArguments,
+    Stringable,
+    StreamMessageRawReply,
+    StreamsMessagesRawReply2
 } from './generic-transformers';
+import { ArrayReply, BlobStringReply, DoubleReply, NullReply, NumberReply, TuplesReply, UnwrapReply } from '../RESP/types';
 
-const transformBooleanReply = transformBooleanReplyTransformer[2];
-const transformBooleanArrayReply = transformBooleanArrayReplyTransformer[2];
-const transformNumberInfinityReply = transformDoubleReply[2];
-const transformNumberInfinityNullReply = transformNullableDoubleReply[2];
 const transformNumberInfinityArgument = transformDoubleArgument;
 const transformStringNumberInfinityArgument = transformStringDoubleArgument;
 const transformStreamsMessagesReply = transformStreamsMessagesReplyResp2;
-const transformSortedSetWithScoresReply = transformSortedSetReply[2];
 const GeoReplyWith = GEO_REPLY_WITH;
 const transformGeoMembersWithReply = GEOSEARCH_WITH.transformReply;
 
@@ -107,32 +106,35 @@ function pushSlotRangesArguments(
 
 describe('Generic Transformers', () => {
     describe('transformBooleanReply', () => {
+        assert.equal(transformBooleanReply[3], undefined);
         it('0', () => {
             assert.equal(
-                transformBooleanReply(0),
+                transformBooleanReply[2](0 as unknown as NumberReply<0|1>),
                 false
             );
         });
 
         it('1', () => {
             assert.equal(
-                transformBooleanReply(1),
+                transformBooleanReply[2](1 as unknown as NumberReply<0|1>),
                 true
             );
         });
+
     });
 
     describe('transformBooleanArrayReply', () => {
+        assert.equal(transformBooleanArrayReply[3], undefined);
         it('empty array', () => {
             assert.deepEqual(
-                transformBooleanArrayReply([]),
+                transformBooleanArrayReply[2]([] as unknown as ArrayReply<NumberReply<0|1>>),
                 []
             );
         });
 
         it('0, 1', () => {
             assert.deepEqual(
-                transformBooleanArrayReply([0, 1]),
+                transformBooleanArrayReply[2]([0, 1] as unknown as ArrayReply<NumberReply<0|1>>),
                 [false, true]
             );
         });
@@ -141,14 +143,14 @@ describe('Generic Transformers', () => {
     describe('pushScanArguments', () => {
         it('cusror only', () => {
             assert.deepEqual(
-                pushScanArguments([], 0),
+                pushScanArguments([], '0'),
                 ['0']
             );
         });
 
         it('with MATCH', () => {
             assert.deepEqual(
-                pushScanArguments([], 0, {
+                pushScanArguments([], '0', {
                     MATCH: 'pattern'
                 }),
                 ['0', 'MATCH', 'pattern']
@@ -157,7 +159,7 @@ describe('Generic Transformers', () => {
 
         it('with COUNT', () => {
             assert.deepEqual(
-                pushScanArguments([], 0, {
+                pushScanArguments([], '0', {
                     COUNT: 1
                 }),
                 ['0', 'COUNT', '1']
@@ -166,7 +168,7 @@ describe('Generic Transformers', () => {
 
         it('with MATCH & COUNT', () => {
             assert.deepEqual(
-                pushScanArguments([], 0, {
+                pushScanArguments([], '0', {
                     MATCH: 'pattern',
                     COUNT: 1
                 }),
@@ -175,40 +177,42 @@ describe('Generic Transformers', () => {
         });
     });
 
-    describe('transformNumberInfinityReply', () => {
+    describe('transformDoubleReply', () => {
+        assert.equal(transformDoubleReply[3], undefined);
         it('0.5', () => {
             assert.equal(
-                transformNumberInfinityReply('0.5'),
+                transformDoubleReply[2]('0.5' as unknown as BlobStringReply<string>),
                 0.5
             );
         });
 
         it('+inf', () => {
             assert.equal(
-                transformNumberInfinityReply('+inf'),
+                transformDoubleReply[2]('+inf' as unknown as BlobStringReply<string>),
                 Infinity
             );
         });
 
         it('-inf', () => {
             assert.equal(
-                transformNumberInfinityReply('-inf'),
+                transformDoubleReply[2]('-inf' as unknown as BlobStringReply<string>),
                 -Infinity
             );
         });
     });
 
     describe('transformNumberInfinityNullReply', () => {
+        assert.equal(transformNullableDoubleReply[3], undefined);
         it('null', () => {
             assert.equal(
-                transformNumberInfinityNullReply(null),
+                transformNullableDoubleReply[2](null as unknown as NullReply),
                 null
             );
         });
 
         it('1', () => {
             assert.equal(
-                transformNumberInfinityNullReply('1'),
+                transformNullableDoubleReply[2]('1' as unknown as BlobStringReply<string>),
                 1
             );
         });
@@ -255,43 +259,27 @@ describe('Generic Transformers', () => {
 
     it('transformTuplesReply', () => {
         assert.deepEqual(
-            transformTuplesReply(['key1', 'value1', 'key2', 'value2']),
-            Object.create(null, {
-                key1: {
-                    value: 'value1',
-                    configurable: true,
-                    enumerable: true
-                },
-                key2: {
-                    value: 'value2',
-                    configurable: true,
-                    enumerable: true
-                }
-            })
+            transformTuplesReply(['key1', 'value1', 'key2', 'value2'] as unknown as ArrayReply<Stringable>),
+            {
+                key1: 'value1',
+                key2: 'value2'
+            }
         );
     });
 
     it('transformStreamMessagesReply', () => {
         assert.deepEqual(
-            transformStreamMessagesReply([['0-0', ['0key', '0value']], ['1-0', ['1key', '1value']]]),
+            transformStreamMessagesReply([['0-0', ['0key', '0value']], ['1-0', ['1key', '1value']]] as unknown as ArrayReply<StreamMessageRawReply>),
             [{
                 id: '0-0',
-                message: Object.create(null, {
-                    '0key': {
-                        value: '0value',
-                        configurable: true,
-                        enumerable: true
-                    }
-                })
+                message: {
+                    '0key': '0value'
+                }
             }, {
                 id: '1-0',
-                message: Object.create(null, {
-                    '1key': {
-                        value: '1value',
-                        configurable: true,
-                        enumerable: true
-                    }
-                })
+                message: {
+                    '1key': '1value'
+                }
             }]
         );
     });
@@ -306,53 +294,50 @@ describe('Generic Transformers', () => {
 
         it('with messages', () => {
             assert.deepEqual(
-                transformStreamsMessagesReply([['stream1', [['0-1', ['11key', '11value']], ['1-1', ['12key', '12value']]]], ['stream2', [['0-2', ['2key1', '2value1', '2key2', '2value2']]]]]),
+                transformStreamsMessagesReply([['stream1', [['0-1', ['11key', '11value']], ['1-1', ['12key', '12value']]]], ['stream2', [['0-2', ['2key1', '2value1', '2key2', '2value2']]]]] as unknown as UnwrapReply<StreamsMessagesRawReply2>),
                 [{
                     name: 'stream1',
                     messages: [{
                         id: '0-1',
-                        message: Object.create(null, {
-                            '11key': {
-                                value: '11value',
-                                configurable: true,
-                                enumerable: true
-                            }
-                        })
+                        message: {
+                            '11key': '11value'
+                        }
                     }, {
                         id: '1-1',
-                        message: Object.create(null, {
-                            '12key': {
-                                value: '12value',
-                                configurable: true,
-                                enumerable: true
-                            }
-                        })
+                        message: {
+                            '12key': '12value'
+                        }
                     }]
                 }, {
                     name: 'stream2',
                     messages: [{
                         id: '0-2',
-                        message: Object.create(null, {
-                            '2key1': {
-                                value: '2value1',
-                                configurable: true,
-                                enumerable: true
-                            },
-                            '2key2': {
-                                value: '2value2',
-                                configurable: true,
-                                enumerable: true
-                            }
-                        })
+                        message: {
+                            '2key1': '2value1',
+                            '2key2': '2value2'
+                        }
                     }]
                 }]
             );
         });
     });
 
-    it('transformSortedSetWithScoresReply', () => {
+    it('transformSortedSetReply', () => {
         assert.deepEqual(
-            transformSortedSetWithScoresReply(['member1', '0.5', 'member2', '+inf', 'member3', '-inf']),
+            transformSortedSetReply[2](['member1', '0.5', 'member2', '+inf', 'member3', '-inf'] as unknown as ArrayReply<BlobStringReply>),
+            [{
+                value: 'member1',
+                score: 0.5
+            }, {
+                value: 'member2',
+                score: Infinity
+            }, {
+                value: 'member3',
+                score: -Infinity
+            }]
+        );
+        assert.deepEqual(
+            transformSortedSetReply[3]([['member1', 0.5], ['member2', Infinity], ['member3', -Infinity]] as unknown as ArrayReply<TuplesReply<[BlobStringReply, DoubleReply]>>),
             [{
                 value: 'member1',
                 score: 0.5
@@ -455,18 +440,18 @@ describe('Generic Transformers', () => {
                     [
                         '1',
                         '2'
-                    ],
+                    ] as unknown as TuplesReply<[BlobStringReply, ...Array<any>]>,
                     [
                         '3',
                         '4'
-                    ]
+                    ] as unknown as TuplesReply<[BlobStringReply, ...Array<any>]>
                 ], [GeoReplyWith.DISTANCE]),
                 [{
                     member: '1',
-                    distance: '2'
+                    distance: 2
                 }, {
                     member: '3',
-                    distance: '4'
+                    distance: 4
                 }]
             );
         });
@@ -477,11 +462,11 @@ describe('Generic Transformers', () => {
                     [
                         '1',
                         2
-                    ],
+                    ] as unknown as TuplesReply<[BlobStringReply, ...Array<any>]>,
                     [
                         '3',
                         4
-                    ]
+                    ] as unknown as TuplesReply<[BlobStringReply, ...Array<any>]>
                 ], [GeoReplyWith.HASH]),
                 [{
                     member: '1',
@@ -502,26 +487,26 @@ describe('Generic Transformers', () => {
                             '2',
                             '3'
                         ]
-                    ],
+                    ] as unknown as TuplesReply<[BlobStringReply, ...Array<any>]>,
                     [
                         '4',
                         [
                             '5',
                             '6'
                         ]
-                    ]
+                    ] as unknown as TuplesReply<[BlobStringReply, ...Array<any>]>
                 ], [GeoReplyWith.COORDINATES]),
                 [{
                     member: '1',
                     coordinates: {
-                        longitude: '2',
-                        latitude: '3'
+                        longitude: 2,
+                        latitude: 3
                     }
                 }, {
                     member: '4',
                     coordinates: {
-                        longitude: '5',
-                        latitude: '6'
+                        longitude: 5,
+                        latitude: 6
                     }
                 }]
             );
@@ -538,7 +523,7 @@ describe('Generic Transformers', () => {
                             '4',
                             '5'
                         ]
-                    ],
+                    ] as unknown as TuplesReply<[BlobStringReply, ...Array<any>]>,
                     [
                         '6',
                         '7',
@@ -547,23 +532,23 @@ describe('Generic Transformers', () => {
                             '9',
                             '10'
                         ]
-                    ]
+                    ] as unknown as TuplesReply<[BlobStringReply, ...Array<any>]>
                 ], [GeoReplyWith.DISTANCE, GeoReplyWith.HASH, GeoReplyWith.COORDINATES]),
                 [{
                     member: '1',
-                    distance: '2',
+                    distance: 2,
                     hash: 3,
                     coordinates: {
-                        longitude: '4',
-                        latitude: '5'
+                        longitude: 4,
+                        latitude: 5
                     }
                 }, {
                     member: '6',
-                    distance: '7',
+                    distance: 7,
                     hash: 8,
                     coordinates: {
-                        longitude: '9',
-                        latitude: '10'
+                        longitude: 9,
+                        latitude: 10
                     }
                 }]
             );

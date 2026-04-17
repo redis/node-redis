@@ -147,7 +147,7 @@ export interface SentinelController {
   restartNode(id: string): Promise<void>;
   stopSentinel(id: string): Promise<void>;
   restartSentinel(id: string): Promise<void>;
-  getSentinelClient(opts?: Partial<RedisSentinelOptions<{}, {}, {}, 2, {}>>): RedisSentinelType<{}, {}, {}, 2, {}>;
+  getSentinelClient(opts?: Partial<RedisSentinelOptions<{}, {}, {}, RespVersions, {}>>): RedisSentinelType<{}, {}, {}, RespVersions, {}>;
 }
 
 export class SentinelFramework extends DockerBase {
@@ -193,8 +193,10 @@ export class SentinelFramework extends DockerBase {
       throw new Error("cannot specify sentinel db name here");
     }
 
+    const { RESP = 3, ...sentinelOptions } = opts ?? {};
     const options: RedisSentinelOptions<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping> = {
-      ...opts,
+      ...sentinelOptions,
+      RESP,
       name: this.config.sentinelName,
       sentinelRootNodes: this.#sentinelList.map((sentinel) => { return { host: '127.0.0.1', port: sentinel.port } }),
       passthroughClientErrorEvents: errors

@@ -18,13 +18,13 @@ describe('TS.MGET_SELECTED_LABELS', () => {
       }),
       client.ts.mGetSelectedLabels('label=value', ['label', 'NX'])
     ]);
-    
-    assert.deepStrictEqual(reply, Object.create(null, {
+
+    assert.deepStrictEqual(reply, Object.defineProperties({}, {
       key: {
         configurable: true,
         enumerable: true,
         value: {
-          labels: Object.create(null, {
+          labels: Object.defineProperties({}, {
             label: {
               configurable: true,
               enumerable: true,

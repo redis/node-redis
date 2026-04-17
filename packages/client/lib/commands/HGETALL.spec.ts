@@ -6,7 +6,7 @@ describe('HGETALL', () => {
   testUtils.testAll('hGetAll empty', async client => {
     assert.deepEqual(
       await client.hGetAll('key'),
-      Object.create(null)
+      {}
     );
   }, {
     client: GLOBAL.SERVERS.OPEN,
@@ -20,7 +20,7 @@ describe('HGETALL', () => {
     ]);
     assert.deepEqual(
       reply,
-      Object.create(null, {
+      Object.defineProperties({}, {
         field: {
           value: 'value',
           enumerable: true
