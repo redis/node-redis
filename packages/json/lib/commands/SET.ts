@@ -14,6 +14,7 @@ export interface JsonSetOptions {
   XX?: boolean;
   /**
    * If set, forces Redis to use the specified floating-point type for storing all FP homogeneous arrays.
+   * available since 8.8
    */
   fpha?: 'BF16' | 'FP16' | 'FP32' | 'FP64';
 }
