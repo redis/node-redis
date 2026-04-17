@@ -307,6 +307,7 @@ import XINFO_CONSUMERS from './XINFO_CONSUMERS';
 import XINFO_GROUPS from './XINFO_GROUPS';
 import XINFO_STREAM from './XINFO_STREAM';
 import XLEN from './XLEN';
+import XNACK from './XNACK';
 import XPENDING_RANGE from './XPENDING_RANGE';
 import XPENDING from './XPENDING';
 import XRANGE from './XRANGE';
@@ -1003,6 +1004,8 @@ export default {
   xInfoStream: XINFO_STREAM,
   XLEN,
   xLen: XLEN,
+  XNACK,
+  xNack: XNACK,
   XPENDING_RANGE,
   xPendingRange: XPENDING_RANGE,
   XPENDING,
