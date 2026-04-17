@@ -29,7 +29,7 @@ jobs:
             version: "8.2"
           - tag: "8.4.0"
             version: "8.4"
-          - tag: "unstable-24425681442-debian"
+          - tag: "8.8-m02"
             version: "8.8"
     steps:
       - uses: actions/checkout@v4
