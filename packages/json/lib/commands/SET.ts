@@ -12,6 +12,11 @@ export interface JsonSetOptions {
    * @deprecated Use `{ condition: 'XX' }` instead.
    */
   XX?: boolean;
+  /**
+   * If set, forces Redis to use the specified floating-point type for storing all FP homogeneous arrays.
+   * available since 8.8
+   */
+  fpha?: 'BF16' | 'FP16' | 'FP32' | 'FP64';
 }
 
 export default {
@@ -19,7 +24,7 @@ export default {
   /**
    * Sets a JSON value at a specific path in a JSON document.
    * Returns OK on success, or null if condition (NX/XX) is not met.
-   * 
+   *
    * @param parser - The Redis command parser
    * @param key - The key containing the JSON document
    * @param path - Path in the document to set
@@ -46,6 +51,9 @@ export default {
       parser.push('NX');
     } else if (options?.XX) {
       parser.push('XX');
+    }
+    if (options?.fpha !== undefined) {
+      parser.push('FPHA', options.fpha);
     }
   },
   transformReply: undefined as unknown as () => SimpleStringReply<'OK'> | NullReply
