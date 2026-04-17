@@ -92,6 +92,7 @@ import EVAL_RO from './EVAL_RO';
 import EVAL from './EVAL';
 import EVALSHA_RO from './EVALSHA_RO';
 import EVALSHA from './EVALSHA';
+import GCRA from './GCRA';
 import GEOADD from './GEOADD';
 import GEODIST from './GEODIST';
 import GEOHASH from './GEOHASH';
@@ -603,6 +604,8 @@ export default {
   functionRestore: FUNCTION_RESTORE,
   FUNCTION_STATS,
   functionStats: FUNCTION_STATS,
+  GCRA,
+  gcra: GCRA,
   GEOADD,
   geoAdd: GEOADD,
   GEODIST,
