@@ -1,5 +1,5 @@
 import { CommandParser } from '../client/parser';
-import { Command, NumberReply, RedisArgument, TuplesReply, UnwrapReply } from '../RESP/types';
+import { BooleanReply, Command, NumberReply, RedisArgument, TuplesReply, UnwrapReply } from '../RESP/types';
 import { transformDoubleArgument } from './generic-transformers';
 
 export type GCRARawReply = TuplesReply<[
@@ -11,7 +11,7 @@ export type GCRARawReply = TuplesReply<[
 ]>;
 
 export interface GCRAReply {
-  limited: NumberReply<0 | 1>;
+  limited: BooleanReply;
   maxRequests: NumberReply;
   availableRequests: NumberReply;
   retryAfter: NumberReply;
@@ -20,7 +20,7 @@ export interface GCRAReply {
 
 function transformGCRAReply(reply: UnwrapReply<GCRARawReply>): GCRAReply {
   return {
-    limited: reply[0],
+    limited: (reply[0] as unknown as number === 1) as unknown as BooleanReply,
     maxRequests: reply[1],
     availableRequests: reply[2],
     retryAfter: reply[3],

@@ -30,13 +30,13 @@ describe('GCRA', () => {
   });
 
   function assertReplyShape(reply: {
-    limited: 0 | 1;
+    limited: boolean;
     maxRequests: number;
     availableRequests: number;
     retryAfter: number;
     fullBurstAfter: number;
   }, expectedMaxRequests: number) {
-    assert.ok(reply.limited === 0 || reply.limited === 1);
+    assert.ok(reply.limited === true || reply.limited === false);
     assert.equal(reply.maxRequests, expectedMaxRequests);
     assert.ok(reply.availableRequests >= 0);
     assert.ok(reply.retryAfter >= -1);
