@@ -13,12 +13,12 @@ type LoadField = RediSearchProperty | {
 export const FT_AGGREGATE_STEPS = {
   GROUPBY: 'GROUPBY',
   SORTBY: 'SORTBY',
-  APPLY: 'APPLY', 
+  APPLY: 'APPLY',
   LIMIT: 'LIMIT',
   FILTER: 'FILTER'
 } as const;
 
-type FT_AGGREGATE_STEPS = typeof FT_AGGREGATE_STEPS;  
+type FT_AGGREGATE_STEPS = typeof FT_AGGREGATE_STEPS;
 
 export type FtAggregateStep = FT_AGGREGATE_STEPS[keyof FT_AGGREGATE_STEPS];
 
@@ -121,7 +121,7 @@ interface FilterStep extends AggregateStep<FT_AGGREGATE_STEPS['FILTER']> {
 export interface FtAggregateOptions {
   VERBATIM?: boolean;
   ADDSCORES?: boolean;
-  LOAD?: LoadField | Array<LoadField>;
+  LOAD?: '*' | LoadField | Array<LoadField>;
   TIMEOUT?: number;
   STEPS?: Array<GroupByStep | SortStep | ApplyStep | LimitStep | FilterStep>;
   PARAMS?: FtSearchParams;
@@ -166,7 +166,7 @@ export default {
           transformTuplesReply(rawReply[i] as ArrayReply<BlobStringReply>, preserve, typeMapping)
         );
       }
-  
+
       return {
         //  https://redis.io/docs/latest/commands/ft.aggregate/#return
         //  FT.AGGREGATE returns an array reply where each row is an array reply and represents a single aggregate result.
@@ -180,31 +180,33 @@ export default {
   unstableResp3: true
 } as const satisfies Command;
 
-export function parseAggregateOptions(parser: CommandParser , options?: FtAggregateOptions) {
+export function parseAggregateOptions(parser: CommandParser, options?: FtAggregateOptions) {
   if (options?.VERBATIM) {
     parser.push('VERBATIM');
   }
 
   if (options?.ADDSCORES) {
     parser.push('ADDSCORES');
-  }  
-
-  if (options?.LOAD) {
-    const args: Array<RedisArgument> = [];
-
-    if (Array.isArray(options.LOAD)) {
-      for (const load of options.LOAD) {
-        pushLoadField(args, load);
-      }
-    } else {
-      pushLoadField(args, options.LOAD);
-    }
-
-    parser.push('LOAD');
-    parser.pushVariadicWithLength(args);
   }
 
-  if (options?.TIMEOUT !== undefined) {
+  if (options?.LOAD) {
+    parser.push('LOAD');
+    if (options.LOAD === '*') {
+      parser.push('*');
+    } else {
+      const args: Array<RedisArgument> = [];
+
+      if (Array.isArray(options?.LOAD)) {
+        for (const load of options.LOAD) {
+          pushLoadField(args, load);
+        }
+      } else {
+        pushLoadField(args, options?.LOAD);
+      }
+
+      parser.pushVariadicWithLength(args);
+    }
+  } if (options?.TIMEOUT !== undefined) {
     parser.push('TIMEOUT', options.TIMEOUT.toString());
   }
 
