@@ -30,6 +30,14 @@ describe('AGGREGATE', () => {
     });
 
     describe('with LOAD', () => {
+      it('all attributes (*)', () => {
+        assert.deepEqual(
+          parseArgs(AGGREGATE, 'index', '*', {
+            LOAD: '*'
+          }),
+          ['FT.AGGREGATE', 'index', '*', 'LOAD', '*', 'DIALECT', DEFAULT_DIALECT]
+        );
+      });
       describe('single', () => {
         describe('without alias', () => {
           it('string', () => {
