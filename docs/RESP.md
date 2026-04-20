@@ -1,6 +1,6 @@
 # Mapping RESP types
 
-RESP, which stands for **R**edis **SE**rialization **P**rotocol, is the protocol used by Redis to communicate with clients. This document shows how RESP types can be mapped to JavaScript types. You can learn more about RESP itself in the [offical documentation](https://redis.io/docs/reference/protocol-spec/).
+RESP, which stands for **R**edis **SE**rialization **P**rotocol, is the protocol used by Redis to communicate with clients. This document shows how RESP types can be mapped to JavaScript types. You can learn more about RESP itself in the [official documentation](https://redis.io/docs/reference/protocol-spec/).
 
 By default, each type is mapped to the first option in the lists below. To change this, configure a [`typeMapping`](.).
 
