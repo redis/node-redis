@@ -3,7 +3,8 @@ import { RedisArgument, NumberReply, Command, } from '../RESP/types';
 import { ZKeys, parseZKeysArguments } from './generic-transformers';
 
 export interface ZUnionOptions {
-  AGGREGATE?: 'SUM' | 'MIN' | 'MAX';
+  /** `COUNT` added in 8.8 */
+  AGGREGATE?: 'SUM' | 'MIN' | 'MAX' | 'COUNT';
 }
 
 export default {
