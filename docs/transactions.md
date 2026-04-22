@@ -39,7 +39,7 @@ await client.multi()
   .execAsPipeline();
 ```
 
-the diffrence between the above pipeline and `Promise.all`:
+the difference between the above pipeline and `Promise.all`:
 
 ```javascript
 await Promise.all([
