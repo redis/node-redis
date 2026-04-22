@@ -12,7 +12,8 @@ export type ZInterKeys<T> = T | [T, ...Array<T>];
 export type ZInterKeysType = ZInterKeys<RedisArgument> | ZInterKeys<ZInterKeyAndWeight>;
 
 export interface ZInterOptions {
-  AGGREGATE?: 'SUM' | 'MIN' | 'MAX';
+  /** `COUNT` added in 8.8 */
+  AGGREGATE?: 'SUM' | 'MIN' | 'MAX' | 'COUNT';
 }
 
 export function parseZInterArguments(

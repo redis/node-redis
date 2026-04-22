@@ -1,10 +1,7 @@
 import { CommandParser } from '../client/parser';
 import { RedisArgument, NumberReply, Command, } from '../RESP/types';
 import { ZKeys, parseZKeysArguments } from './generic-transformers';
-
-export interface ZUnionOptions {
-  AGGREGATE?: 'SUM' | 'MIN' | 'MAX';
-}
+import { ZUnionOptions } from './ZUNION';
 
 export default {
   IS_READ_ONLY: false,
