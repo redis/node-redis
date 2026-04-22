@@ -230,7 +230,7 @@ You can override the default options by providing a configuration object:
 ```typescript
 client.scanIterator({
   TYPE: "string", // `SCAN` only
-  MATCH: "patter*",
+  MATCH: "pattern*",
   COUNT: 100,
 });
 ```
