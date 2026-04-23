@@ -13,8 +13,8 @@ const REGISTRY_FILES = [
   'packages/bloom/lib/commands/top-k/index.ts'
 ] as const;
 
-const SHORTHAND_PROPERTY = /^[A-Za-z_$][A-Za-z0-9_$]*,\s*$/;
-const ALIAS_PROPERTY = /^[A-Za-z_$][A-Za-z0-9_$]*\s*:\s*[A-Za-z_$][A-Za-z0-9_$]*,\s*$/;
+const SHORTHAND_PROPERTY = /^[A-Za-z_$][A-Za-z0-9_$]*(?:,\s*)?$/;
+const ALIAS_PROPERTY = /^[A-Za-z_$][A-Za-z0-9_$]*\s*:\s*[A-Za-z_$][A-Za-z0-9_$]*(?:,\s*)?$/;
 const CLOSING_EXPORT_OBJECT = /^}\s*(?:as const\b.*)?;?\s*$/;
 
 type Issue = {
