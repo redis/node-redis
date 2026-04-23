@@ -100,6 +100,31 @@ console.log('RANGE RESPONSE:');
 // ]
 ```
 
+For multiple aggregations in one command, use the dedicated `*MultiAggr` methods:
+
+```javascript
+const multiRangeResponse = await client.ts.rangeMultiAggr('temperature', fromTimestamp, toTimestamp, {
+  AGGREGATION: {
+    types: [
+      TimeSeriesAggregationType.MIN,
+      TimeSeriesAggregationType.MAX,
+      TimeSeriesAggregationType.AVG
+    ],
+    timeBucket: 10000
+  }
+});
+
+// multiRangeResponse looks like:
+// [
+//   { timestamp: 1640995200000, values: [120, 580, 356.8] },
+//   ...
+// ]
+```
+
+Equivalent multi-aggregation helpers are also available for reverse and multi-key variants:
+`revRangeMultiAggr`, `mRangeMultiAggr`, `mRevRangeMultiAggr`, `mRangeWithLabelsMultiAggr`,
+`mRevRangeWithLabelsMultiAggr`, `mRangeSelectedLabelsMultiAggr`, and `mRevRangeSelectedLabelsMultiAggr`.
+
 ### Altering Time Series data Stored in Redis
 
 RedisTimeSeries includes commands that can update values in a time series data structure.
@@ -140,4 +165,3 @@ const tsInfo = await client.ts.info('temperature');
 //   rules: []
 // }
 ```
-

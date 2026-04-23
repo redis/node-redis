@@ -110,6 +110,41 @@ export const transformSamplesReply = {
   }
 };
 
+export type MultiAggregationSampleRawReply = TuplesReply<[
+  timestamp: NumberReply,
+  ...values: Array<DoubleReply>
+]>;
+
+export const transformMultiAggregationSampleReply = {
+  2(reply: Resp2Reply<MultiAggregationSampleRawReply>) {
+    const [ timestamp, ...values ] = reply as unknown as UnwrapReply<typeof reply>;
+    return {
+      timestamp,
+      values: values.map(value => Number(value))
+    };
+  },
+  3(reply: MultiAggregationSampleRawReply) {
+    const [ timestamp, ...values ] = reply as unknown as UnwrapReply<typeof reply>;
+    return {
+      timestamp,
+      values
+    };
+  }
+};
+
+export type MultiAggregationSamplesRawReply = ArrayReply<MultiAggregationSampleRawReply>;
+
+export const transformMultiAggregationSamplesReply = {
+  2(reply: Resp2Reply<MultiAggregationSamplesRawReply>) {
+    return (reply as unknown as UnwrapReply<typeof reply>)
+      .map(sample => transformMultiAggregationSampleReply[2](sample));
+  },
+  3(reply: MultiAggregationSamplesRawReply) {
+    return (reply as unknown as UnwrapReply<typeof reply>)
+      .map(sample => transformMultiAggregationSampleReply[3](sample));
+  }
+};
+
 // TODO: move to @redis/client?
 export function resp2MapToValue<
   RAW_VALUE extends TuplesReply<[key: BlobStringReply, ...rest: Array<ReplyUnion>]>,
