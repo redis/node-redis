@@ -1543,7 +1543,27 @@ export default {
    * Returns information about the function that is currently running and information about the available execution engines
    */
   functionStats: FUNCTION_STATS,
+  /**
+   * Rate limit via GCRA (Generic Cell Rate Algorithm).
+   *
+   * @param key - Key associated with the rate limit bucket
+   * @param maxBurst - Maximum number of extra tokens allowed as burst (min 0)
+   * @param tokensPerPeriod - Number of tokens allowed per period (min 1)
+   * @param period - Period in seconds as a float for sustained rate calculation (min 1.0, max 1e12)
+   * @param tokens - Optional request cost (weight). If omitted, defaults to 1
+   * @see https://redis.io/commands/gcra/
+   */
   GCRA,
+  /**
+   * Rate limit via GCRA (Generic Cell Rate Algorithm).
+   *
+   * @param key - Key associated with the rate limit bucket
+   * @param maxBurst - Maximum number of extra tokens allowed as burst (min 0)
+   * @param tokensPerPeriod - Number of tokens allowed per period (min 1)
+   * @param period - Period in seconds as a float for sustained rate calculation (min 1.0, max 1e12)
+   * @param tokens - Optional request cost (weight). If omitted, defaults to 1
+   * @see https://redis.io/commands/gcra/
+   */
   gcra: GCRA,
   /**
    * Adds geospatial items to the specified key
@@ -4631,7 +4651,31 @@ export default {
    * @see https://redis.io/commands/xlen/
    */
   xLen: XLEN,
+  /**
+   * Constructs the XNACK command to negatively acknowledge one or more pending stream entries.
+   * Added since Redis 8.8.
+   *
+   * @param key - The stream key
+   * @param group - The consumer group name
+   * @param mode - NACK mode: SILENT, FAIL, or FATAL
+   * @param id - One or more message IDs to nack
+   * @param options - Additional options for retry count and force handling
+   * @returns Number of entries acknowledged
+   * @see https://redis.io/commands/xnack/
+   */
   XNACK,
+  /**
+   * Constructs the XNACK command to negatively acknowledge one or more pending stream entries.
+   * Added since Redis 8.8.
+   *
+   * @param key - The stream key
+   * @param group - The consumer group name
+   * @param mode - NACK mode: SILENT, FAIL, or FATAL
+   * @param id - One or more message IDs to nack
+   * @param options - Additional options for retry count and force handling
+   * @returns Number of entries acknowledged
+   * @see https://redis.io/commands/xnack/
+   */
   xNack: XNACK,
   /**
    * Constructs the XPENDING command with range parameters to get detailed information about pending messages
