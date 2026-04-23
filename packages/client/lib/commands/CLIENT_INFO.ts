@@ -67,10 +67,6 @@ const CLIENT_INFO_REGEX = /([^\s=]+)=([^\s]*)/g;
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  /**
-   * Returns information and statistics about the current client connection
-   * @param parser - The Redis command parser
-   */
   parseCommand(parser: CommandParser) {
     parser.push('CLIENT', 'INFO');
   },

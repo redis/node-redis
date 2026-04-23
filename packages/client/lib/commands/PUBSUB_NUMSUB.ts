@@ -5,13 +5,6 @@ import { RedisVariadicArgument } from './generic-transformers';
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  /**
-   * Constructs the PUBSUB NUMSUB command
-   *
-   * @param parser - The command parser
-   * @param channels - Optional channel names to get subscription count for
-   * @see https://redis.io/commands/pubsub-numsub/
-   */
   parseCommand(parser: CommandParser, channels?: RedisVariadicArgument) {
     parser.push('PUBSUB', 'NUMSUB');
 

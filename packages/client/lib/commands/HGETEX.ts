@@ -12,13 +12,6 @@ export interface HGetExOptions {
 }
 
 export default {
-  /**
-   * Gets the values of the specified fields in a hash and optionally sets their expiration
-   * @param parser - The Redis command parser
-   * @param key - Key of the hash
-   * @param fields - Fields to get values from
-   * @param options - Options for setting expiration
-   */
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

@@ -52,14 +52,6 @@ export type XInfoStreamReply = TuplesToMapReply<[
 
 export default {
   IS_READ_ONLY: true,
-  /**
-   * Constructs the XINFO STREAM command to get detailed information about a stream
-   *
-   * @param parser - The command parser
-   * @param key - The stream key
-   * @returns Detailed information about the stream including its length, structure, and entries
-   * @see https://redis.io/commands/xinfo-stream/
-   */
   parseCommand(parser: CommandParser, key: RedisArgument) {
     parser.push('XINFO', 'STREAM');
     parser.pushKey(key);

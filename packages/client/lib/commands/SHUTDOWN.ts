@@ -19,13 +19,6 @@ export interface ShutdownOptions {
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: false,
-  /**
-   * Constructs the SHUTDOWN command
-   * 
-   * @param parser - The command parser
-   * @param options - Options for the shutdown process
-   * @see https://redis.io/commands/shutdown/
-   */
   parseCommand(parser: CommandParser, options?: ShutdownOptions) {
     parser.push('SHUTDOWN');
 
