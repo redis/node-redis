@@ -73,12 +73,7 @@ export interface InfoReply {
 
 export default {
     IS_READ_ONLY: true,
-    /**
-     * Gets information about a time series
-     * @param parser - The command parser
-     * @param key - The key name of the time series
-     */
-    parseCommand(parser: CommandParser, key: string) {
+  parseCommand(parser: CommandParser, key: string) {
       parser.push('TS.INFO');
       parser.pushKey(key);
     },

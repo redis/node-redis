@@ -4,13 +4,6 @@ import { RedisVariadicArgument } from './generic-transformers';
 
 export default {
   IS_READ_ONLY: true,
-  /**
-   * Constructs the PUBSUB SHARDNUMSUB command
-   * 
-   * @param parser - The command parser
-   * @param channels - Optional shard channel names to get subscription count for
-   * @see https://redis.io/commands/pubsub-shardnumsub/
-   */
   parseCommand(parser: CommandParser, channels?: RedisVariadicArgument) {
     parser.push('PUBSUB', 'SHARDNUMSUB');
 

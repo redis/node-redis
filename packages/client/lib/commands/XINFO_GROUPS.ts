@@ -17,14 +17,6 @@ export type XInfoGroupsReply = ArrayReply<TuplesToMapReply<[
 
 export default {
   IS_READ_ONLY: true,
-  /**
-   * Constructs the XINFO GROUPS command to list the consumer groups of a stream
-   *
-   * @param parser - The command parser
-   * @param key - The stream key
-   * @returns Array of consumer group information objects
-   * @see https://redis.io/commands/xinfo-groups/
-   */
   parseCommand(parser: CommandParser, key: RedisArgument) {
     parser.push('XINFO', 'GROUPS');
     parser.pushKey(key);

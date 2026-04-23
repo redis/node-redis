@@ -4,11 +4,6 @@ import { ArrayReply, TuplesReply, BlobStringReply, NullReply, UnwrapReply, Comma
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  /**
-   * Gets a RediSearch configuration option value.
-   * @param parser - The command parser
-   * @param option - The name of the configuration option to retrieve
-   */
   parseCommand(parser: CommandParser, option: string) {
     parser.push('FT.CONFIG', 'GET', option);
   },

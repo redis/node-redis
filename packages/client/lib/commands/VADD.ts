@@ -12,16 +12,6 @@ export interface VAddOptions {
 }
 
 export default {
-  /**
-   * Add a new element into the vector set specified by key
-   * 
-   * @param parser - The command parser
-   * @param key - The name of the key that will hold the vector set data
-   * @param vector - The vector data as array of numbers
-   * @param element - The name of the element being added to the vector set
-   * @param options - Optional parameters for vector addition
-   * @see https://redis.io/commands/vadd/
-   */
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

@@ -98,10 +98,6 @@ export function transformRangeMultiArguments(
 
 export default {
   IS_READ_ONLY: true,
-  /**
-   * Gets multi-aggregation samples from a time series within a time range
-   * @param args - Arguments passed to the {@link transformRangeMultiArguments} function
-   */
   parseCommand(...args: Parameters<typeof transformRangeMultiArguments>) {
     const parser = args[0];
 

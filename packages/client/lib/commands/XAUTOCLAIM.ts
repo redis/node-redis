@@ -26,19 +26,6 @@ export type XAutoClaimRawReply = TuplesReply<[
 
 export default {
   IS_READ_ONLY: false,
-  /**
-   * Constructs the XAUTOCLAIM command to automatically claim pending messages in a consumer group
-   *
-   * @param parser - The command parser
-   * @param key - The stream key
-   * @param group - The consumer group name
-   * @param consumer - The consumer name that will claim the messages
-   * @param minIdleTime - Minimum idle time in milliseconds for a message to be claimed
-   * @param start - Message ID to start scanning from
-   * @param options - Additional options for the claim operation
-   * @returns Object containing nextId, claimed messages, and list of deleted message IDs
-   * @see https://redis.io/commands/xautoclaim/
-   */
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

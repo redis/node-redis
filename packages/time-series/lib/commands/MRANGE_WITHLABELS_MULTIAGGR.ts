@@ -60,14 +60,6 @@ export function createTransformMRangeWithLabelsMultiArguments(command: RedisArgu
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  /**
-   * Gets multi-aggregation samples for time series matching a filter with labels
-   * @param parser - The command parser
-   * @param fromTimestamp - Start timestamp for range
-   * @param toTimestamp - End timestamp for range
-   * @param filter - Filter to match time series keys
-   * @param options - Optional parameters for the command
-   */
   parseCommand: createTransformMRangeWithLabelsMultiArguments('TS.MRANGE'),
   transformReply: {
     2(reply: TsMRangeWithLabelsMultiRawReply2, _?: any, typeMapping?: TypeMapping) {

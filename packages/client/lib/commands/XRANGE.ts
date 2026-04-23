@@ -36,15 +36,6 @@ export function xRangeArguments(
 export default {
   CACHEABLE: true,
   IS_READ_ONLY: true,
-  /**
-   * Constructs the XRANGE command to read stream entries in a specific range
-   *
-   * @param parser - The command parser
-   * @param key - The stream key
-   * @param args - Arguments tuple containing start ID, end ID, and options
-   * @returns Array of messages in the specified range
-   * @see https://redis.io/commands/xrange/
-   */
   parseCommand(parser: CommandParser, key: RedisArgument, ...args: Parameters<typeof xRangeArguments>) {
     parser.push('XRANGE');
     parser.pushKey(key);
