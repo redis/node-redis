@@ -4666,6 +4666,7 @@ export default {
    * @param mode - NACK mode: SILENT, FAIL, or FATAL
    * @param id - One or more message IDs to nack
    * @param options - Additional options for retry count and force handling
+   * @returns Number of entries acknowledged
    * @see https://redis.io/commands/xnack/
    */
   XNACK,
@@ -4678,6 +4679,7 @@ export default {
    * @param mode - NACK mode: SILENT, FAIL, or FATAL
    * @param id - One or more message IDs to nack
    * @param options - Additional options for retry count and force handling
+   * @returns Number of entries acknowledged
    * @see https://redis.io/commands/xnack/
    */
   xNack: XNACK,
