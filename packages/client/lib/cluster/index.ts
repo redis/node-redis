@@ -704,7 +704,7 @@ export default class RedisCluster<
 
   /**
    * Returns a random node from the cluster.
-   * Userful for running "forward" commands (like PUBLISH) on a random node.
+   * Useful for running "forward" commands (like PUBLISH) on a random node.
    */
   getRandomNode() {
     return this._self._slots.getRandomNode();
