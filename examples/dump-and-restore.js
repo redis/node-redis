@@ -15,7 +15,7 @@ const client = await createClient({
 // Make sure the source key exists
 await client.set('source', 'value');
 
-// Make sure destination doesnt exist
+// Make sure destination doesn't exist
 await client.del('destination');
 
 // DUMP a specific key into a local variable
