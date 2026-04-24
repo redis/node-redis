@@ -324,7 +324,7 @@ export default class EnterpriseMaintenanceManager {
   };
 
   #onMigrated = () => {
-    //ensure that #isMaintenance doesnt go under 0
+    //ensure that #isMaintenance doesn't go under 0
     this.#isMaintenance = Math.max(this.#isMaintenance - 1, 0);
     if (this.#isMaintenance > 0) {
       dbgMaintenance(`Not ready to unrelax timeouts yet`);
