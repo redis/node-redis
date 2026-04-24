@@ -24,11 +24,6 @@ function transformVLinksWithScoresReply(reply: any): Array<Record<string, Double
 
 export default {
   IS_READ_ONLY: VLINKS.IS_READ_ONLY,
-  /**
-   * Get the connections for each layer of the HNSW graph with similarity scores
-   * @param args - Same parameters as the VLINKS command
-   * @see https://redis.io/commands/vlinks/
-   */
   parseCommand(...args: Parameters<typeof VLINKS.parseCommand>) {
     const parser = args[0];
 

@@ -7,14 +7,6 @@ import { RedisArgument, NumberReply, Command } from '../RESP/types';
 export default {
   CACHEABLE: true,
   IS_READ_ONLY: true,
-  /**
-   * Constructs the XLEN command to get the number of entries in a stream
-   *
-   * @param parser - The command parser
-   * @param key - The stream key
-   * @returns The number of entries inside the stream
-   * @see https://redis.io/commands/xlen/
-   */
   parseCommand(parser: CommandParser, key: RedisArgument) {
     parser.push('XLEN');
     parser.pushKey(key);

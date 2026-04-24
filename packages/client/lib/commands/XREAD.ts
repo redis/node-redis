@@ -50,15 +50,6 @@ export interface XReadOptions {
 
 export default {
   IS_READ_ONLY: true,
-  /**
-   * Constructs the XREAD command to read messages from one or more streams
-   *
-   * @param parser - The command parser
-   * @param streams - Single stream or array of streams to read from
-   * @param options - Additional options for reading streams
-   * @returns Array of stream entries, each containing the stream name and its messages
-   * @see https://redis.io/commands/xread/
-   */
   parseCommand(parser: CommandParser, streams: XReadStreams, options?: XReadOptions) {
     parser.push('XREAD');
 

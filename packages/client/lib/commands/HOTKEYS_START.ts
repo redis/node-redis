@@ -57,12 +57,6 @@ export interface HotkeysStartOptions {
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: false,
-  /**
-   * Starts hotkeys tracking with specified options.
-   * @param parser - The Redis command parser
-   * @param options - Configuration options for hotkeys tracking
-   * @see https://redis.io/commands/hotkeys-start/
-   */
   parseCommand(parser: CommandParser, options: HotkeysStartOptions) {
     parser.push('HOTKEYS', 'START');
 

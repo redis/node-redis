@@ -3,14 +3,6 @@ import { RedisArgument, BlobStringReply, ArrayReply, Command, NullReply } from '
 
 export default {
   IS_READ_ONLY: true,
-  /**
-   * Retrieve random elements of a vector set
-   * 
-   * @param parser - The command parser
-   * @param key - The key of the vector set
-   * @param count - Optional number of elements to return
-   * @see https://redis.io/commands/vrandmember/
-   */
   parseCommand(parser: CommandParser, key: RedisArgument, count?: number) {
     parser.push('VRANDMEMBER');
     parser.pushKey(key);

@@ -392,23 +392,6 @@ function parseHybridOptions(parser: CommandParser, options: FtHybridOptions) {
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  /**
-   * Performs a hybrid search combining multiple search expressions.
-   * Supports multiple SEARCH and VECTOR expressions with various fusion methods.
-   *
-   * @experimental
-   * NOTE: FT.Hybrid is still in experimental state
-   * It's behaviour and function signature may change
-   *
-   * @param parser - The command parser
-   * @param index - The index name to search
-   * @param options - Hybrid search options including:
-   *   - SEARCH: Text search expression with optional scoring
-   *   - VSIM: Vector similarity expression with KNN/RANGE methods
-   *   - COMBINE: Fusion method (RRF, LINEAR)
-   *   - Post-processing operations: LOAD, GROUPBY, APPLY, SORTBY, FILTER
-   *   - Tunable options: LIMIT, PARAMS, TIMEOUT
-   */
   parseCommand(
     parser: CommandParser,
     index: RedisArgument,

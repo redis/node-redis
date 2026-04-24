@@ -16,13 +16,6 @@ type XAutoClaimJustIdRawReply = TuplesReply<[
 
 export default {
   IS_READ_ONLY: XAUTOCLAIM.IS_READ_ONLY,
-  /**
-   * Constructs the XAUTOCLAIM command with JUSTID option to get only message IDs
-   *
-   * @param args - Same parameters as XAUTOCLAIM command
-   * @returns Object containing nextId and arrays of claimed and deleted message IDs
-   * @see https://redis.io/commands/xautoclaim/
-   */
   parseCommand(...args: Parameters<typeof XAUTOCLAIM.parseCommand>) {
     const parser = args[0];
     XAUTOCLAIM.parseCommand(...args);

@@ -20,17 +20,6 @@ export interface XReadGroupOptions {
 
 export default {
   IS_READ_ONLY: true,
-  /**
-   * Constructs the XREADGROUP command to read messages from streams as a consumer group member
-   *
-   * @param parser - The command parser
-   * @param group - Name of the consumer group
-   * @param consumer - Name of the consumer in the group
-   * @param streams - Single stream or array of streams to read from
-   * @param options - Additional options for reading streams
-   * @returns Array of stream entries, each containing the stream name and its messages
-   * @see https://redis.io/commands/xreadgroup/
-   */
   parseCommand(
     parser: CommandParser,
     group: RedisArgument,
