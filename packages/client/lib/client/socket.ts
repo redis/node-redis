@@ -125,6 +125,12 @@ export default class RedisSocket extends EventEmitter {
           }
           return retryIn;
         } catch (err) {
+          publish(CHANNELS.ERROR, () => ({
+            error: err as Error,
+            origin: 'client',
+            internal: false,
+            clientId: this.#clientId
+          }));
           this.emit('error', err);
           return this.defaultReconnectStrategy(retries, err);
         }
@@ -142,15 +148,15 @@ export default class RedisSocket extends EventEmitter {
         port: options?.port ?? 6379,
         // https://nodejs.org/api/tls.html#tlsconnectoptions-callback "Any socket.connect() option not already listed"
         // @types/node is... incorrect...
-        // @ts-expect-error
+        // @ts-expect-error - @types/node omits socket.connect noDelay.
         noDelay: options?.noDelay ?? true,
         // https://nodejs.org/api/tls.html#tlsconnectoptions-callback "Any socket.connect() option not already listed"
         // @types/node is... incorrect...
-        // @ts-expect-error
+        // @ts-expect-error - @types/node omits socket.connect keepAlive.
         keepAlive: options?.keepAlive ?? true,
         // https://nodejs.org/api/tls.html#tlsconnectoptions-callback "Any socket.connect() option not already listed"
         // @types/node is... incorrect...
-        // @ts-expect-error
+        // @ts-expect-error - @types/node omits socket.connect keepAliveInitialDelay.
         keepAliveInitialDelay: options?.keepAliveInitialDelay ?? 5000,
         timeout: undefined,
         onread: undefined,
@@ -206,10 +212,22 @@ export default class RedisSocket extends EventEmitter {
     const retryIn = this.#reconnectStrategy(retries, cause);
     if (retryIn === false) {
       this.#isOpen = false;
+      publish(CHANNELS.ERROR, () => ({
+        error: cause,
+        origin: 'client',
+        internal: false,
+        clientId: this.#clientId
+      }));
       this.emit('error', cause);
       return cause;
     } else if (retryIn instanceof Error) {
       this.#isOpen = false;
+      publish(CHANNELS.ERROR, () => ({
+        error: cause,
+        origin: 'client',
+        internal: false,
+        clientId: this.#clientId
+      }));
       this.emit('error', cause);
       return new ReconnectStrategyError(retryIn, cause);
     }
@@ -265,6 +283,12 @@ export default class RedisSocket extends EventEmitter {
           throw retryIn;
         }
 
+        publish(CHANNELS.ERROR, () => ({
+          error: err as Error,
+          origin: 'client',
+          internal: false,
+          clientId: this.#clientId
+        }));
         this.emit('error', err);
         await setTimeout(retryIn);
         this.emit('reconnecting');
@@ -335,6 +359,12 @@ export default class RedisSocket extends EventEmitter {
   #onSocketError(err: Error): void {
     const wasReady = this.#isReady;
     this.#isReady = false;
+    publish(CHANNELS.ERROR, () => ({
+      error: err,
+      origin: 'client',
+      internal: false,
+      clientId: this.#clientId
+    }));
     this.emit('error', err);
 
     if (wasReady) {

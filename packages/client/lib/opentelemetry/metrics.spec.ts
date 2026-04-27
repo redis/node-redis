@@ -1,4 +1,5 @@
 import { strict as assert } from "node:assert";
+import dc from "node:diagnostics_channel";
 
 import * as api from "@opentelemetry/api";
 import {
@@ -12,7 +13,6 @@ import {
 import { createClient } from "@redis/client/index";
 import { OTelMetrics } from "./metrics";
 import {
-  METRIC_ERROR_ORIGIN,
   CONNECTION_CLOSE_REASON,
   CSC_EVICTION_REASON,
   CSC_RESULT,
@@ -58,7 +58,6 @@ describe("OTel Metrics Unit Tests", () => {
     });
 
     // Emit TC events for GET (excluded) and SET (included)
-    const dc = require("node:diagnostics_channel");
     const getCtx = { command: "GET", clientId: "test" };
     dc.channel("tracing:node-redis:command:start").publish(getCtx);
     dc.channel("tracing:node-redis:command:asyncEnd").publish(getCtx);
@@ -102,7 +101,6 @@ describe("OTel Metrics Unit Tests", () => {
       },
     });
 
-    const dc = require("node:diagnostics_channel");
     const getCtx = { command: "GET", clientId: "test" };
     dc.channel("tracing:node-redis:command:start").publish(getCtx);
     dc.channel("tracing:node-redis:command:asyncEnd").publish(getCtx);
@@ -146,7 +144,6 @@ describe("OTel Metrics Unit Tests", () => {
       },
     });
 
-    const dc = require("node:diagnostics_channel");
     const ctx = { command: "SET", clientId: "test" };
     dc.channel("tracing:node-redis:command:start").publish(ctx);
     dc.channel("tracing:node-redis:command:asyncEnd").publish(ctx);
@@ -183,7 +180,6 @@ describe("OTel Metrics Unit Tests", () => {
       },
     });
 
-    const dc = require("node:diagnostics_channel");
     const ctx = { command: "SET", clientId: "test" };
     dc.channel("tracing:node-redis:command:start").publish(ctx);
     dc.channel("tracing:node-redis:command:asyncEnd").publish(ctx);
@@ -198,7 +194,7 @@ describe("OTel Metrics Unit Tests", () => {
     // No data points should exist — SET is excluded
     const dataPoints = metric?.dataPoints ?? [];
     assert.ok(
-      !dataPoints.some((dp: any) => dp.attributes[OTEL_ATTRIBUTES.dbOperationName] === "SET"),
+      !dataPoints.some((dp) => dp.attributes[OTEL_ATTRIBUTES.dbOperationName] === "SET"),
       "expected excludeCommands to take precedence over includeCommands",
     );
 
@@ -221,8 +217,6 @@ describe("OTel Metrics Unit Tests", () => {
         },
       },
     });
-
-    const dc = require("node:diagnostics_channel");
 
     // Client-origin MOVED — should be deduplicated (not recorded)
     dc.channel("node-redis:error").publish({
@@ -272,6 +266,62 @@ describe("OTel Metrics Unit Tests", () => {
     await meterProvider.shutdown().catch(() => {});
     api.metrics.disable();
   });
+
+  it("should record Redis client connection errors", async () => {
+    const exporter = new InMemoryMetricExporter(
+      AggregationTemporality.CUMULATIVE,
+    );
+    const reader = new PeriodicExportingMetricReader({ exporter });
+    const meterProvider = new MeterProvider({ readers: [reader] });
+
+    OTelMetrics.init({
+      api,
+      config: {
+        metrics: {
+          enabled: true,
+          enabledMetricGroups: ["resiliency"],
+          meterProvider,
+        },
+      },
+    });
+
+    const client = createClient({
+      socket: {
+        host: "error",
+        connectTimeout: 1,
+        reconnectStrategy: false,
+      },
+    });
+    client.on("error", () => {
+      // ignore expected connection error
+    });
+
+    await assert.rejects(client.connect());
+
+    await meterProvider.forceFlush();
+
+    const dataPoints = getMetricDataPoints<api.Counter>(
+      exporter.getMetrics(),
+      METRIC_NAMES.redisClientErrors,
+    );
+
+    assert.strictEqual(dataPoints[0].value, 1);
+    assert.strictEqual(
+      dataPoints[0].attributes[OTEL_ATTRIBUTES.redisClientErrorsCategory],
+      ERROR_CATEGORY.NETWORK,
+    );
+    assert.strictEqual(
+      dataPoints[0].attributes[OTEL_ATTRIBUTES.redisClientErrorsInternal],
+      false,
+    );
+
+    await reader.collect().catch(() => {});
+    await meterProvider.shutdown().catch(() => {});
+    if (client.isOpen) {
+      client.destroy();
+    }
+    api.metrics.disable();
+  });
 });
 
 describe("OTel Metrics E2E", function () {
@@ -317,7 +367,6 @@ describe("OTel Metrics E2E", function () {
 
     OTelMetrics.init({ api, config });
 
-    const dc = require("node:diagnostics_channel");
     dc.channel("node-redis:error").publish({
       error: new Error("Test error 1"),
       origin: "client",
@@ -359,7 +408,6 @@ describe("OTel Metrics E2E", function () {
 
     OTelMetrics.init({ api, config });
 
-    const dc = require("node:diagnostics_channel");
     dc.channel("node-redis:error").publish({
       error: new Error("Test error 1"),
       origin: "client",
@@ -407,7 +455,6 @@ describe("OTel Metrics E2E", function () {
       isConnected: () => true,
     });
 
-    const dc = require("node:diagnostics_channel");
     dc.channel("node-redis:error").publish({
       error: new Error("Test error"),
       origin: "client",
@@ -448,7 +495,6 @@ describe("OTel Metrics E2E", function () {
       },
     });
 
-    const dc = require("node:diagnostics_channel");
     dc.channel("node-redis:error").publish({
       error: new Error("Test error"),
       origin: "client",
@@ -677,8 +723,6 @@ describe("OTel Metrics E2E", function () {
           assert.ok(attributes[OTEL_ATTRIBUTES.serverPort]);
           assert.ok(attributes[OTEL_ATTRIBUTES.redisClientLibrary]);
           assert.ok(attributes[OTEL_ATTRIBUTES.dbSystemName]);
-        } catch (error) {
-          throw error;
         } finally {
           await client.destroy();
         }
@@ -716,8 +760,6 @@ describe("OTel Metrics E2E", function () {
           assert.ok(attributes[OTEL_ATTRIBUTES.dbClientConnectionPoolName]);
           assert.ok(attributes[OTEL_ATTRIBUTES.redisClientLibrary]);
           assert.ok(attributes[OTEL_ATTRIBUTES.dbSystemName]);
-        } catch (error) {
-          throw error;
         } finally {
           await client.destroy();
         }
@@ -1742,7 +1784,6 @@ describe("OTel Metrics E2E", function () {
     );
 
     it("should ignore malformed stream replies without emitting redis.client.stream.lag", async () => {
-      const dc = require("node:diagnostics_channel");
       dc.channel("node-redis:command:reply").publish({
         args: ["XREADGROUP", "GROUP", "group-1", "consumer-1"],
         reply: undefined,
