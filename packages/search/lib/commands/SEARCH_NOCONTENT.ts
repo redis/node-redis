@@ -11,8 +11,8 @@ export default {
   transformReply: {
     2: (reply: SearchRawReply): SearchNoContentReply => {
       return {
-        total: reply[0],
-        documents: reply.slice(1)
+        total: reply[0] as number,
+        documents: reply.slice(1) as Array<string>
       }
     },
     3: undefined as unknown as () => ReplyUnion

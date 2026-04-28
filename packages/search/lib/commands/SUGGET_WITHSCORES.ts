@@ -14,7 +14,7 @@ export default {
     args[0].push('WITHSCORES');
   },
   transformReply: {
-    2: (reply: NullReply | UnwrapReply<ArrayReply<BlobStringReply>>, preserve?: any, typeMapping?: TypeMapping) => {
+    2: (reply: NullReply | UnwrapReply<ArrayReply<BlobStringReply>>, preserve?: unknown, typeMapping?: TypeMapping) => {
       if (isNullReply(reply)) return null;
 
       const transformedReply: Array<SuggestScore> = new Array(reply.length / 2);

@@ -57,7 +57,7 @@ export default {
   IS_READ_ONLY: true,
   parseCommand: createTransformMRangeMultiArguments('TS.MRANGE'),
   transformReply: {
-    2(reply: TsMRangeMultiRawReply2, _?: any, typeMapping?: TypeMapping) {
+    2(reply: TsMRangeMultiRawReply2, _?: unknown, typeMapping?: TypeMapping) {
       return resp2MapToValue(reply, ([_key, _labels, samples]) => {
         return transformMultiAggregationSamplesReply[2](samples);
       }, typeMapping);

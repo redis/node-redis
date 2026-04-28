@@ -12,7 +12,7 @@ export default {
   transformReply: {
     2(
       reply: UnwrapReply<NullReply | TuplesReply<[BlobStringReply, BlobStringReply, BlobStringReply]>>,
-      preserve?: any,
+      preserve?: unknown,
       typeMapping?: TypeMapping
     ) {
       return reply === null ? null : {
@@ -30,4 +30,3 @@ export default {
     }
   }
 } as const satisfies Command;
-

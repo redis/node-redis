@@ -7,6 +7,7 @@ export interface VAddOptions {
   CAS?: boolean;
   QUANT?: 'NOQUANT' | 'BIN' | 'Q8',
   EF?: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   SETATTR?: Record<string, any>;
   M?: number;
 }
@@ -37,7 +38,9 @@ export default {
       parser.push('CAS');
     }
 
-    options?.QUANT && parser.push(options.QUANT);
+    if (options?.QUANT) {
+      parser.push(options.QUANT);
+    }
 
     if (options?.EF !== undefined) {
       parser.push('EF', options.EF.toString());

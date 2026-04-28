@@ -51,7 +51,7 @@ export default {
   IS_READ_ONLY: true,
   parseCommand: createTransformMRangeArguments('TS.MRANGE'),
   transformReply: {
-    2(reply: TsMRangeRawReply2, _?: any, typeMapping?: TypeMapping) {
+    2(reply: TsMRangeRawReply2, _?: unknown, typeMapping?: TypeMapping) {
       return resp2MapToValue(reply, ([_key, _labels, samples]) => {
         return transformSamplesReply[2](samples);
       }, typeMapping);

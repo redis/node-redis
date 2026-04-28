@@ -44,10 +44,10 @@ export default {
   },
   transformReply: {
     2: (reply: InfoDebugRawReply, _, typeMapping?: TypeMapping): InfoDebugReply => {
-      const ret = INFO.transformReply[2](reply as unknown as InfoRawReply, _, typeMapping) as any;
+      const ret = INFO.transformReply[2](reply as unknown as InfoRawReply, _, typeMapping) as unknown as Record<string, unknown>;
 
       for (let i=0; i < reply.length; i += 2) {
-        const key = (reply[i] as any).toString();
+        const key = (reply[i] as { toString(): string }).toString();
 
         switch (key) {
           case 'keySelfName': {
@@ -69,7 +69,7 @@ export default {
         }
       }
 
-      return ret;
+      return ret as unknown as InfoDebugReply;
     },
     3: undefined as unknown as () => ReplyUnion
   },

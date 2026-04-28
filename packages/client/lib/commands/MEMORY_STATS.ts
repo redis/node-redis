@@ -42,8 +42,8 @@ export default {
     parser.push('MEMORY', 'STATS');
   },
   transformReply: {
-    2: (rawReply: UnwrapReply<ArrayReply<BlobStringReply | NumberReply>>, preserve?: any, typeMapping?: TypeMapping) => {
-      const reply: any = {};
+    2: (rawReply: UnwrapReply<ArrayReply<BlobStringReply | NumberReply>>, preserve?: unknown, typeMapping?: TypeMapping) => {
+      const reply: Record<string, BlobStringReply | NumberReply | DoubleReply> = {};
 
       let i = 0;
       while (i < rawReply.length) {
@@ -54,15 +54,15 @@ export default {
           case 'allocator-rss.ratio':
           case 'rss-overhead.ratio':
           case 'fragmentation':
-            reply[rawReply[i++] as any] = transformDoubleReply[2](rawReply[i++] as unknown as BlobStringReply, preserve, typeMapping);
+            reply[rawReply[i++].toString()] = transformDoubleReply[2](rawReply[i++] as unknown as BlobStringReply, preserve, typeMapping);
             break;
           default:
-            reply[rawReply[i++] as any] = rawReply[i++];
+            reply[rawReply[i++].toString()] = rawReply[i++];
         }
         
       }
 
-      return reply as MemoryStatsReply;
+      return reply as unknown as MemoryStatsReply;
     },
     3: undefined as unknown as () => MemoryStatsReply
   }

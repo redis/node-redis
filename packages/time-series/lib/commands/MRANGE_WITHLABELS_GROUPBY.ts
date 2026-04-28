@@ -56,7 +56,7 @@ export default {
   IS_READ_ONLY: true,
   parseCommand: createMRangeWithLabelsGroupByTransformArguments('TS.MRANGE'),
   transformReply: {
-    2(reply: TsMRangeWithLabelsGroupByRawReply2, _?: any, typeMapping?: TypeMapping) {
+    2(reply: TsMRangeWithLabelsGroupByRawReply2, _?: unknown, typeMapping?: TypeMapping) {
       return resp2MapToValue(reply, ([_key, labels, samples]) => {
         const transformed = transformRESP2LabelsWithSources(labels);
         return {

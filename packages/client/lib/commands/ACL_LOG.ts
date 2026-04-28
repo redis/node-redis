@@ -28,7 +28,7 @@ export default {
     }
   },
   transformReply: {
-    2: (reply: UnwrapReply<Resp2Reply<AclLogReply>>, preserve?: any, typeMapping?: TypeMapping) => {
+    2: (reply: UnwrapReply<Resp2Reply<AclLogReply>>, preserve?: unknown, typeMapping?: TypeMapping) => {
       return reply.map(item => {
         const inferred = item as unknown as UnwrapReply<typeof item>;
         return {

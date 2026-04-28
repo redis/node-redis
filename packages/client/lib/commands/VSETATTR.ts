@@ -7,6 +7,7 @@ export default {
     parser: CommandParser, 
     key: RedisArgument, 
     element: RedisArgument, 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     attributes: RedisArgument | Record<string, any>
   ) {
     parser.push('VSETATTR');

@@ -17,7 +17,7 @@ type RawVembReply = {
 };
 
 const transformRawVembReply = {
-  2: (reply: any[]): RawVembReply => {
+  2: (reply: [SimpleStringReply, BlobStringReply, BlobStringReply, BlobStringReply?]): RawVembReply => {
     return {
       quantization: reply[0],
       raw: reply[1],
@@ -25,7 +25,7 @@ const transformRawVembReply = {
       ...(reply[3] !== undefined && { quantizationRange: transformDoubleReply[2](reply[3]) })
     };
   },
-  3: (reply: any[]): RawVembReply => {
+  3: (reply: [SimpleStringReply, BlobStringReply, DoubleReply, DoubleReply?]): RawVembReply => {
     return {
       quantization: reply[0],
       raw: reply[1],

@@ -56,7 +56,7 @@ export default {
   IS_READ_ONLY: true,
   parseCommand: createTransformMRangeSelectedLabelsArguments('TS.MRANGE'),
   transformReply: {
-    2(reply: TsMRangeSelectedLabelsRawReply2, _?: any, typeMapping?: TypeMapping) {
+    2(reply: TsMRangeSelectedLabelsRawReply2, _?: unknown, typeMapping?: TypeMapping) {
       return resp2MapToValue(reply, ([_key, labels, samples]) => {
         return {
           labels: transformRESP2Labels(labels, typeMapping),

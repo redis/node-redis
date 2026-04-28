@@ -11,7 +11,7 @@ export default {
     parser.pushVariadic(member);
   },
   transformReply: {
-    2: (reply: UnwrapReply<ArrayReply<NullReply | BlobStringReply>>, preserve?: any, typeMapping?: TypeMapping) => {
+    2: (reply: UnwrapReply<ArrayReply<NullReply | BlobStringReply>>, preserve?: unknown, typeMapping?: TypeMapping) => {
       return reply.map(createTransformNullableDoubleReplyResp2Func(preserve, typeMapping));
     },
     3: undefined as unknown as () => ArrayReply<NullReply | DoubleReply>

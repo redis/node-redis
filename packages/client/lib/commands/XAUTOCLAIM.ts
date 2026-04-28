@@ -51,7 +51,7 @@ export default {
    * @param typeMapping - Type mapping for message fields
    * @returns Structured object containing nextId, messages, and deletedMessages
    */
-  transformReply(reply: UnwrapReply<XAutoClaimRawReply>, preserve?: any, typeMapping?: TypeMapping) {
+  transformReply(reply: UnwrapReply<XAutoClaimRawReply>, preserve?: unknown, typeMapping?: TypeMapping) {
     return {
       nextId: reply[0],
       messages: (reply[1] as unknown as UnwrapReply<typeof reply[1]>).map(transformStreamMessageNullReply.bind(undefined, typeMapping)),

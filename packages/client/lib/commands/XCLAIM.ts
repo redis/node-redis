@@ -68,7 +68,7 @@ export default {
    */
   transformReply(
     reply: UnwrapReply<ArrayReply<StreamMessageRawReply | NullReply>>, 
-    preserve?: any,
+    preserve?: unknown,
     typeMapping?: TypeMapping
   ) {
     return reply.map(transformStreamMessageNullReply.bind(undefined, typeMapping));

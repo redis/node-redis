@@ -147,7 +147,7 @@ export default {
     return parseAggregateOptions(parser, options);
   },
   transformReply: {
-    2: (rawReply: AggregateRawReply, preserve?: any, typeMapping?: TypeMapping): AggregateReply => {
+    2: (rawReply: AggregateRawReply, preserve?: unknown, typeMapping?: TypeMapping): AggregateReply => {
       const results: Array<MapReply<BlobStringReply, BlobStringReply>> = [];
       for (let i = 1; i < rawReply.length; i++) {
         results.push(
@@ -219,7 +219,7 @@ export function parseAggregateOptions(parser: CommandParser, options?: FtAggrega
 
           break;
 
-        case FT_AGGREGATE_STEPS.SORTBY:
+        case FT_AGGREGATE_STEPS.SORTBY: {
           const args: Array<RedisArgument> = [];
 
           if (Array.isArray(step.BY)) {
@@ -237,6 +237,7 @@ export function parseAggregateOptions(parser: CommandParser, options?: FtAggrega
           parser.pushVariadicWithLength(args);
 
           break;
+        }
 
         case FT_AGGREGATE_STEPS.APPLY:
           parser.push(step.expression, 'AS', step.AS);

@@ -56,7 +56,7 @@ export default {
   IS_READ_ONLY: true,
   parseCommand: createTransformMRangeWithLabelsArguments('TS.MRANGE'),
   transformReply: {
-    2(reply: TsMRangeWithLabelsRawReply2, _?: any, typeMapping?: TypeMapping) {
+    2(reply: TsMRangeWithLabelsRawReply2, _?: unknown, typeMapping?: TypeMapping) {
       return resp2MapToValue(reply, ([_key, labels, samples]) => {
         const unwrappedLabels = labels as unknown as UnwrapReply<typeof labels>;
         // TODO: use Map type mapping for labels

@@ -65,7 +65,7 @@ export default {
   IS_READ_ONLY: true,
   parseCommand: createTransformMRangeSelectedLabelsMultiArguments('TS.MRANGE'),
   transformReply: {
-    2(reply: TsMRangeSelectedLabelsMultiRawReply2, _?: any, typeMapping?: TypeMapping) {
+    2(reply: TsMRangeSelectedLabelsMultiRawReply2, _?: unknown, typeMapping?: TypeMapping) {
       return resp2MapToValue(reply, ([_key, labels, samples]) => {
         return {
           labels: transformRESP2Labels(labels, typeMapping),

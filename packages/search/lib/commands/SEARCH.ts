@@ -171,17 +171,17 @@ export default {
       // if reply[2] is array, then we have content/documents. Otherwise, only ids
       const withoutDocuments = reply.length > 2 && !Array.isArray(reply[2]);
 
-      const documents = [];
+      const documents: SearchReply['documents'] = [];
       let i = 1;
       while (i < reply.length) {
         documents.push({
-          id: reply[i++],
+          id: reply[i++] as string,
           value: withoutDocuments ? Object.create(null) : documentValue(reply[i++])
         });
       }
 
       return {
-        total: reply[0],
+        total: reply[0] as number,
         documents
       };
     },
@@ -190,7 +190,7 @@ export default {
   unstableResp3: true
 } as const satisfies Command;
 
-export type SearchRawReply = Array<any>;
+export type SearchRawReply = Array<unknown>;
 
 interface SearchDocumentValue {
   [key: string]: string | number | null | Array<SearchDocumentValue> | SearchDocumentValue;
@@ -204,20 +204,21 @@ export interface SearchReply {
   }>;
 }
 
-function documentValue(tuples: any) {
-  const message = Object.create(null);
+function documentValue(tuples: unknown) {
+  const message: SearchDocumentValue = Object.create(null);
 
   if(!tuples) {
     return message;
   }
 
+  const rawTuples = tuples as Array<unknown>;
   let i = 0;
-  while (i < tuples.length) {
-      const key = tuples[i++],
-          value = tuples[i++];
+  while (i < rawTuples.length) {
+      const key = rawTuples[i++] as string,
+          value = rawTuples[i++] as SearchDocumentValue[string];
       if (key === '$') { // might be a JSON reply
           try {
-              Object.assign(message, JSON.parse(value));
+              Object.assign(message, JSON.parse(value as string));
               continue;
           } catch {
               // set as a regular property if not a valid JSON

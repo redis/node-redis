@@ -9,7 +9,7 @@ export default {
     parser.pushKey(key);
   },
   transformReply: {
-    2: (reply: UnwrapReply<TuplesReply<[] | [BlobStringReply, BlobStringReply]>>, preserve?: any, typeMapping?: TypeMapping) => {
+    2: (reply: UnwrapReply<TuplesReply<[] | [BlobStringReply, BlobStringReply]>>, preserve?: unknown, typeMapping?: TypeMapping) => {
       if (reply.length === 0) return null;
 
       return {

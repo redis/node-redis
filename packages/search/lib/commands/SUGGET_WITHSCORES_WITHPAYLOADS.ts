@@ -18,7 +18,7 @@ export default {
     );
   },
   transformReply: {
-    2: (reply: NullReply | UnwrapReply<ArrayReply<BlobStringReply>>, preserve?: any, typeMapping?: TypeMapping) => {
+    2: (reply: NullReply | UnwrapReply<ArrayReply<BlobStringReply>>, preserve?: unknown, typeMapping?: TypeMapping) => {
       if (isNullReply(reply)) return null;
 
       const transformedReply: Array<SuggestScoreWithPayload> = new Array(reply.length / 3);

@@ -43,7 +43,7 @@ export default {
     parseZMPopArguments(parser, keys, side, options)
   },
   transformReply: {
-    2(reply: UnwrapReply<Resp2Reply<ZMPopRawReply>>, preserve?: any, typeMapping?: TypeMapping) {
+    2(reply: UnwrapReply<Resp2Reply<ZMPopRawReply>>, preserve?: unknown, typeMapping?: TypeMapping) {
       return reply === null ? null : {
         key: reply[0],
         members: (reply[1] as unknown as UnwrapReply<typeof reply[1]>).map(member => {

@@ -17,8 +17,8 @@ export default {
     parser.pushKey(key);
   },
   transformReply: {
-    2: (reply: UnwrapReply<Resp2Reply<TopKInfoReplyMap>>, preserve?: any, typeMapping?: TypeMapping): TopKInfoReplyMap => {
-      reply[7] = transformDoubleReply[2](reply[7], preserve, typeMapping) as any;
+    2: (reply: UnwrapReply<Resp2Reply<TopKInfoReplyMap>>, preserve?: unknown, typeMapping?: TypeMapping): TopKInfoReplyMap => {
+      reply[7] = transformDoubleReply[2](reply[7], preserve, typeMapping) as unknown as typeof reply[7];
 
       return transformInfoV2Reply<TopKInfoReplyMap>(reply, typeMapping);
     },

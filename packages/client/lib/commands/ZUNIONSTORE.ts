@@ -10,7 +10,7 @@ export default {
     destination: RedisArgument,
     keys: ZKeys,
     options?: ZUnionOptions
-  ): any {
+  ) {
     parser.push('ZUNIONSTORE');
     parser.pushKey(destination);
     parseZKeysArguments(parser, keys);

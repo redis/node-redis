@@ -41,9 +41,9 @@ interface SchemaTextField extends SchemaCommonField<typeof SCHEMA_FIELD_TYPE['TE
   INDEXEMPTY?: boolean;
 }
 
-interface SchemaNumericField extends SchemaCommonField<typeof SCHEMA_FIELD_TYPE['NUMERIC']> {}
+type SchemaNumericField = SchemaCommonField<typeof SCHEMA_FIELD_TYPE['NUMERIC']>;
 
-interface SchemaGeoField extends SchemaCommonField<typeof SCHEMA_FIELD_TYPE['GEO']> {}
+type SchemaGeoField = SchemaCommonField<typeof SCHEMA_FIELD_TYPE['GEO']>;
 
 interface SchemaTagField extends SchemaCommonField<typeof SCHEMA_FIELD_TYPE['TAG']> {
   SEPARATOR?: RedisArgument;
@@ -257,7 +257,7 @@ export function parseSchema(parser: CommandParser, schema: RediSearchSchema) {
           parseCommonSchemaFieldOptions(parser, fieldOptions)
           break;
 
-        case SCHEMA_FIELD_TYPE.VECTOR:
+        case SCHEMA_FIELD_TYPE.VECTOR: {
           parser.push(fieldOptions.ALGORITHM);
 
           const args: Array<RedisArgument> = [];
@@ -333,6 +333,7 @@ export function parseSchema(parser: CommandParser, schema: RediSearchSchema) {
           }
 
           break;
+        }
 
         case SCHEMA_FIELD_TYPE.GEOSHAPE:
           if (fieldOptions.COORD_SYSTEM !== undefined) {

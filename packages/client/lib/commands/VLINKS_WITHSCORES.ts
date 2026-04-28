@@ -3,7 +3,7 @@ import { transformDoubleReply } from './generic-transformers';
 import VLINKS from './VLINKS';
 
 
-function transformVLinksWithScoresReply(reply: any): Array<Record<string, DoubleReply>> {
+function transformVLinksWithScoresReply(reply: Array<Array<BlobStringReply>>): Array<Record<string, DoubleReply>> {
   const layers: Array<Record<string, DoubleReply>> = [];
 
   for (const layer of reply) {

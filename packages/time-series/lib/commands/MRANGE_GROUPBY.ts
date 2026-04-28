@@ -105,7 +105,7 @@ export default {
   IS_READ_ONLY: true,
   parseCommand: createTransformMRangeGroupByArguments('TS.MRANGE'),
   transformReply: {
-    2(reply: TsMRangeGroupByRawReply2, _?: any, typeMapping?: TypeMapping) {
+    2(reply: TsMRangeGroupByRawReply2, _?: unknown, typeMapping?: TypeMapping) {
       return resp2MapToValue(reply, ([_key, _labels, samples]) => {
         return {
           samples: transformSamplesReply[2](samples)
