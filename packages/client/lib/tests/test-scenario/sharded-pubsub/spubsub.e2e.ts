@@ -116,6 +116,7 @@ async function withBackgroundPublishing<T>(
       await result;
     } catch (error) {
       if (callbackError === undefined) {
+        // eslint-disable-next-line no-unsafe-finally -- intentionally surface publisher failure when callback succeeded
         throw error;
       }
     }

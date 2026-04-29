@@ -183,7 +183,7 @@ export default class RedisClusterSlots<
   }
 
   async #discoverWithRootNodes() {
-    let start = Math.floor(Math.random() * this.#options.rootNodes.length);
+    const start = Math.floor(Math.random() * this.#options.rootNodes.length);
     for (let i = start; i < this.#options.rootNodes.length; i++) {
       if (!this.#isOpen) throw new Error('Cluster closed');
       if (await this.#discover(this.#options.rootNodes[i])) {
@@ -464,7 +464,7 @@ export default class RedisClusterSlots<
             sourceNode.pubSub?.client.destroy();
           }
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         dbgMaintenance(`[CSlots]: Error during SMIGRATED handling for source ${sourceAddress}: ${err}`);
         // Ensure we unpause source on error to prevent deadlock
         sourceNode.client?._unpause();

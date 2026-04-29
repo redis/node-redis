@@ -134,14 +134,12 @@ export type RedisClusterType<
   WithScripts<S, RESP, TYPE_MAPPING>
 );
 
-export interface ClusterCommandOptions<
+export type ClusterCommandOptions<
   TYPE_MAPPING extends TypeMapping = TypeMapping
   // POLICIES extends CommandPolicies = CommandPolicies
-> extends CommandOptions<TYPE_MAPPING> {
-  // policies?: POLICIES;
-}
+> = CommandOptions<TYPE_MAPPING>;
 
-type ProxyCluster = RedisCluster<any, any, any, any, any/*, any*/>;
+type ProxyCluster = RedisCluster<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>;
 
 type NamespaceProxyCluster = { _self: ProxyCluster };
 
@@ -221,6 +219,7 @@ export default class RedisCluster<
     };
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- cache stores dynamically generated cluster subclasses
   static #SingleEntryCache = new SingleEntryCache<any, any>();
 
   static factory<
@@ -540,7 +539,7 @@ export default class RedisCluster<
 
   MULTI(routing?: RedisArgument) {
     type Multi = new (...args: ConstructorParameters<typeof RedisClusterMultiCommand>) => RedisClusterMultiCommandType<[], M, F, S, RESP, TYPE_MAPPING>;
-    return new ((this as any).Multi as Multi)(
+    return new (this as this & { Multi: Multi }).Multi(
       async (firstKey, isReadonly, commands) => {
         const { client } = await this._self._slots.getClientAndSlotNumber(firstKey, isReadonly);
         return client._executeMulti(commands);
