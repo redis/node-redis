@@ -73,8 +73,10 @@ export interface RedisClusterOptions<
    */
   maxCommandRedirections?: number;
   /**
-   * The number of reconnect attempts after a node was ready before triggering
-   * a background cluster topology refresh.
+   * The number of reconnect attempts after a node was ready before starting
+   * background cluster topology refreshes. After this threshold is reached,
+   * subsequent reconnect attempts may trigger additional refreshes while the
+   * node remains unavailable. Concurrent refreshes are de-duplicated.
    */
   topologyRefreshAfterReconnects?: number;
   /**
