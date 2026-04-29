@@ -4,17 +4,12 @@ import { transformDoubleReply } from './generic-transformers';
 
 export default {
   IS_READ_ONLY: false,
-  /**
-   * Removes and returns the member with the highest score in the sorted set.
-   * @param parser - The Redis command parser.
-   * @param key - Key of the sorted set.
-   */
   parseCommand(parser: CommandParser, key: RedisArgument) {
     parser.push('ZPOPMAX');
     parser.pushKey(key);
   },
   transformReply: {
-    2: (reply: UnwrapReply<TuplesReply<[] | [BlobStringReply, BlobStringReply]>>, preserve?: any, typeMapping?: TypeMapping) => {
+    2: (reply: UnwrapReply<TuplesReply<[] | [BlobStringReply, BlobStringReply]>>, preserve?: unknown, typeMapping?: TypeMapping) => {
       if (reply.length === 0) return null;
 
       return {

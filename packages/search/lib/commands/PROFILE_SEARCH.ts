@@ -22,15 +22,6 @@ export interface ProfileOptions {
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  /**
-   * Profiles the execution of a search query for performance analysis.
-   * @param parser - The command parser
-   * @param index - Name of the index to profile query against
-   * @param query - The search query to profile
-   * @param options - Optional parameters:
-   *   - LIMITED: Collect limited timing information only
-   *   - All options supported by FT.SEARCH command
-   */
   parseCommand(
     parser: CommandParser,
     index: RedisArgument,

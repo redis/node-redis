@@ -73,21 +73,16 @@ export interface InfoReply {
 
 export default {
     IS_READ_ONLY: true,
-    /**
-     * Gets information about a time series
-     * @param parser - The command parser
-     * @param key - The key name of the time series
-     */
-    parseCommand(parser: CommandParser, key: string) {
+  parseCommand(parser: CommandParser, key: string) {
       parser.push('TS.INFO');
       parser.pushKey(key);
     },
     transformReply: {
       2: (reply: InfoRawReply, _, typeMapping?: TypeMapping): InfoReply => {
-        const ret = {} as any;
+        const ret: Record<string, unknown> = {};
 
         for (let i=0; i < reply.length; i += 2) {
-          const key = (reply[i] as any).toString();
+          const key = (reply[i] as { toString(): string }).toString();
 
           switch (key) {
             case 'totalSamples':
@@ -126,7 +121,7 @@ export default {
           }
         }
 
-        return ret;
+        return ret as unknown as InfoReply;
       },
       3: undefined as unknown as () => ReplyUnion
     },

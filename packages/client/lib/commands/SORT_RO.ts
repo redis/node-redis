@@ -3,10 +3,6 @@ import SORT, { parseSortArguments } from './SORT';
 
 export default {
   IS_READ_ONLY: true,
-  /**
-   * Read-only variant of SORT that sorts the elements in a list, set or sorted set.
-   * @param args - Same parameters as the SORT command.
-   */
   parseCommand(...args: Parameters<typeof parseSortArguments>) {
     const parser = args[0];
 

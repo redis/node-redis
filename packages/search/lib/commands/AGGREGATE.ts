@@ -141,25 +141,13 @@ export interface AggregateReply {
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: false,
-  /**
-   * Performs an aggregation query on a RediSearch index.
-   * @param parser - The command parser
-   * @param index - The index name to query
-   * @param query - The text query to use as filter, use * to indicate no filtering
-   * @param options - Optional parameters for aggregation:
-   *   - VERBATIM: disable stemming in query evaluation
-   *   - LOAD: specify fields to load from documents
-   *   - STEPS: sequence of aggregation steps (GROUPBY, SORTBY, APPLY, LIMIT, FILTER)
-   *   - PARAMS: bind parameters for query evaluation
-   *   - TIMEOUT: maximum time to run the query
-   */
   parseCommand(parser: CommandParser, index: RedisArgument, query: RedisArgument, options?: FtAggregateOptions) {
     parser.push('FT.AGGREGATE', index, query);
 
     return parseAggregateOptions(parser, options);
   },
   transformReply: {
-    2: (rawReply: AggregateRawReply, preserve?: any, typeMapping?: TypeMapping): AggregateReply => {
+    2: (rawReply: AggregateRawReply, preserve?: unknown, typeMapping?: TypeMapping): AggregateReply => {
       const results: Array<MapReply<BlobStringReply, BlobStringReply>> = [];
       for (let i = 1; i < rawReply.length; i++) {
         results.push(
@@ -231,7 +219,7 @@ export function parseAggregateOptions(parser: CommandParser, options?: FtAggrega
 
           break;
 
-        case FT_AGGREGATE_STEPS.SORTBY:
+        case FT_AGGREGATE_STEPS.SORTBY: {
           const args: Array<RedisArgument> = [];
 
           if (Array.isArray(step.BY)) {
@@ -249,6 +237,7 @@ export function parseAggregateOptions(parser: CommandParser, options?: FtAggrega
           parser.pushVariadicWithLength(args);
 
           break;
+        }
 
         case FT_AGGREGATE_STEPS.APPLY:
           parser.push(step.expression, 'AS', step.AS);

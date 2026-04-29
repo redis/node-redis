@@ -55,17 +55,9 @@ export function createTransformMRangeMultiArguments(command: RedisArgument) {
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  /**
-   * Gets multi-aggregation samples for time series matching a specific filter within a time range
-   * @param parser - The command parser
-   * @param fromTimestamp - Start timestamp for range
-   * @param toTimestamp - End timestamp for range
-   * @param filter - Filter to match time series keys
-   * @param options - Optional parameters for the command
-   */
   parseCommand: createTransformMRangeMultiArguments('TS.MRANGE'),
   transformReply: {
-    2(reply: TsMRangeMultiRawReply2, _?: any, typeMapping?: TypeMapping) {
+    2(reply: TsMRangeMultiRawReply2, _?: unknown, typeMapping?: TypeMapping) {
       return resp2MapToValue(reply, ([_key, _labels, samples]) => {
         return transformMultiAggregationSamplesReply[2](samples);
       }, typeMapping);

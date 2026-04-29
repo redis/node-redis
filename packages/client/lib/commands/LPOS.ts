@@ -9,15 +9,6 @@ export interface LPosOptions {
 export default {
   CACHEABLE: true,
   IS_READ_ONLY: true,
-  /**
-   * Constructs the LPOS command
-   * 
-   * @param parser - The command parser
-   * @param key - The key of the list
-   * @param element - The element to search for
-   * @param options - Optional parameters for RANK and MAXLEN
-   * @see https://redis.io/commands/lpos/
-   */
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

@@ -392,23 +392,6 @@ function parseHybridOptions(parser: CommandParser, options: FtHybridOptions) {
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  /**
-   * Performs a hybrid search combining multiple search expressions.
-   * Supports multiple SEARCH and VECTOR expressions with various fusion methods.
-   *
-   * @experimental
-   * NOTE: FT.Hybrid is still in experimental state
-   * It's behaviour and function signature may change
-   *
-   * @param parser - The command parser
-   * @param index - The index name to search
-   * @param options - Hybrid search options including:
-   *   - SEARCH: Text search expression with optional scoring
-   *   - VSIM: Vector similarity expression with KNN/RANGE methods
-   *   - COMBINE: Fusion method (RRF, LINEAR)
-   *   - Post-processing operations: LOAD, GROUPBY, APPLY, SORTBY, FILTER
-   *   - Tunable options: LIMIT, PARAMS, TIMEOUT
-   */
   parseCommand(
     parser: CommandParser,
     index: RedisArgument,
@@ -419,7 +402,7 @@ export default {
     parseHybridOptions(parser, options);
   },
   transformReply: {
-    2: (reply: any): HybridSearchResult => {
+    2: (reply: unknown): HybridSearchResult => {
       return transformHybridSearchResults(reply);
     },
     3: undefined as unknown as () => ReplyUnion,
@@ -431,27 +414,29 @@ export interface HybridSearchResult {
   totalResults: number;
   executionTime: number;
   warnings: string[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   results: Record<string, any>[];
 }
 
-function transformHybridSearchResults(reply: any): HybridSearchResult {
+function transformHybridSearchResults(reply: unknown): HybridSearchResult {
   // FT.HYBRID returns a map-like structure as flat array:
   // ['total_results', N, 'results', [...], 'warnings', [...], 'execution_time', 'X.XXX']
   const replyMap = parseReplyMap(reply);
 
-  const totalResults = replyMap["total_results"] ?? 0;
-  const rawResults = replyMap["results"] ?? [];
-  const warnings = replyMap["warnings"] ?? [];
-  const executionTime = replyMap["execution_time"]
-    ? Number.parseFloat(replyMap["execution_time"])
+  const totalResults = (replyMap["total_results"] ?? 0) as number;
+  const rawResults = (replyMap["results"] ?? []) as Array<unknown>;
+  const warnings = (replyMap["warnings"] ?? []) as string[];
+  const rawExecutionTime = replyMap["execution_time"];
+  const executionTime = rawExecutionTime
+    ? Number.parseFloat(rawExecutionTime as string)
     : 0;
 
-  const results: Record<string, any>[] = [];
+  const results: HybridSearchResult['results'] = [];
   for (const result of rawResults) {
     // Each result is a flat key-value array like FT.AGGREGATE: ['field1', 'value1', 'field2', 'value2', ...]
     const resultMap = parseReplyMap(result);
 
-    const doc = Object.create(null);
+    const doc: Record<string, unknown> = Object.create(null);
 
     // Add all other fields from the result
     for (const [key, value] of Object.entries(resultMap)) {
@@ -478,8 +463,8 @@ function transformHybridSearchResults(reply: any): HybridSearchResult {
   };
 }
 
-function parseReplyMap(reply: any): Record<string, any> {
-  const map: Record<string, any> = {};
+function parseReplyMap(reply: unknown): Record<string, unknown> {
+  const map: Record<string, unknown> = {};
 
   if (!Array.isArray(reply)) {
     return map;

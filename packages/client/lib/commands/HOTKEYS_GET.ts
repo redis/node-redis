@@ -161,12 +161,6 @@ function transformHotkeysGetReply(reply: UnwrapReply<HotkeysGetRawReply>): Hotke
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  /**
-   * Returns the top K hotkeys by CPU time and network bytes.
-   * Returns null if no tracking has been started or tracking was reset.
-   * @param parser - The Redis command parser
-   * @see https://redis.io/commands/hotkeys-get/
-   */
   parseCommand(parser: CommandParser) {
     parser.push('HOTKEYS', 'GET');
   },

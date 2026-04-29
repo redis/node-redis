@@ -17,7 +17,7 @@ type RawVembReply = {
 };
 
 const transformRawVembReply = {
-  2: (reply: any[]): RawVembReply => {
+  2: (reply: [SimpleStringReply, BlobStringReply, BlobStringReply, BlobStringReply?]): RawVembReply => {
     return {
       quantization: reply[0],
       raw: reply[1],
@@ -25,7 +25,7 @@ const transformRawVembReply = {
       ...(reply[3] !== undefined && { quantizationRange: transformDoubleReply[2](reply[3]) })
     };
   },
-  3: (reply: any[]): RawVembReply => {
+  3: (reply: [SimpleStringReply, BlobStringReply, DoubleReply, DoubleReply?]): RawVembReply => {
     return {
       quantization: reply[0],
       raw: reply[1],
@@ -37,14 +37,6 @@ const transformRawVembReply = {
 
 export default {
   IS_READ_ONLY: true,
-  /**
-   * Retrieve the RAW approximate vector associated with a vector set element
-   *
-   * @param parser - The command parser
-   * @param key - The key of the vector set
-   * @param element - The name of the element to retrieve the vector for
-   * @see https://redis.io/commands/vemb/
-   */
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

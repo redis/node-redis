@@ -1,0 +1,24 @@
+name: JSDoc Check
+
+on:
+  pull_request:
+
+jobs:
+  jsdoc-check:
+    name: JSDoc Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install packages
+        run: npm ci
+
+      - name: Run command registry JSDoc check
+        run: npm run check:command-jsdoc

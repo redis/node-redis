@@ -7,21 +7,12 @@ export interface VAddOptions {
   CAS?: boolean;
   QUANT?: 'NOQUANT' | 'BIN' | 'Q8',
   EF?: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   SETATTR?: Record<string, any>;
   M?: number;
 }
 
 export default {
-  /**
-   * Add a new element into the vector set specified by key
-   * 
-   * @param parser - The command parser
-   * @param key - The name of the key that will hold the vector set data
-   * @param vector - The vector data as array of numbers
-   * @param element - The name of the element being added to the vector set
-   * @param options - Optional parameters for vector addition
-   * @see https://redis.io/commands/vadd/
-   */
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,
@@ -47,7 +38,9 @@ export default {
       parser.push('CAS');
     }
 
-    options?.QUANT && parser.push(options.QUANT);
+    if (options?.QUANT) {
+      parser.push(options.QUANT);
+    }
 
     if (options?.EF !== undefined) {
       parser.push('EF', options.EF.toString());

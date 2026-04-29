@@ -19,6 +19,7 @@
     "lint:changed": "node scripts/lint-changed.mjs",
     "test": "npm run cleanup && npm run test -ws --if-present",
     "build": "tsc --build",
+    "check:command-jsdoc": "tsx scripts/check-command-jsdoc.ts",
     "documentation": "typedoc --entryPointStrategy packages --entryPoints ./packages/client ./packages/bloom ./packages/json ./packages/search ./packages/time-series ./packages/entraid ./packages/redis --out ./documentation",
     "gh-pages": "gh-pages -d ./documentation -e ./documentation -u 'documentation-bot <documentation@bot>'",
     "release": "npm run release --workspaces --if-present --"

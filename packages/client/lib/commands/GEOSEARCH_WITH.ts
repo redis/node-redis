@@ -1,5 +1,5 @@
 import { CommandParser } from '../client/parser';
-import { RedisArgument, ArrayReply, TuplesReply, BlobStringReply, NumberReply, DoubleReply, UnwrapReply, Command } from '../RESP/types';
+import { RedisArgument, BlobStringReply, NumberReply, DoubleReply, Command } from '../RESP/types';
 import GEOSEARCH, { GeoSearchBy, GeoSearchFrom, GeoSearchOptions } from './GEOSEARCH';
 
 export const GEO_REPLY_WITH = {
@@ -20,17 +20,13 @@ export interface GeoReplyWithMember {
   };
 }
 
+type GeoSearchWithRawMember = [
+  BlobStringReply,
+  ...(BlobStringReply | NumberReply | [DoubleReply, DoubleReply])[]
+];
+
 export default {
   IS_READ_ONLY: GEOSEARCH.IS_READ_ONLY,
-  /**
-   * Queries members inside an area of a geospatial index with additional information
-   * @param parser - The Redis command parser
-   * @param key - Key of the geospatial index
-   * @param from - Center point of the search (member name or coordinates)
-   * @param by - Search area specification (radius or box dimensions)
-   * @param replyWith - Information to include with each returned member
-   * @param options - Additional search options
-   */
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,
@@ -44,7 +40,7 @@ export default {
     parser.preserve = replyWith;
   },
   transformReply(
-    reply: UnwrapReply<ArrayReply<TuplesReply<[BlobStringReply, ...Array<any>]>>>,
+    reply: Array<GeoSearchWithRawMember>,
     replyWith: Array<GeoReplyWith>
   ) {
     const replyWithSet = new Set(replyWith);
@@ -54,22 +50,20 @@ export default {
       coordinatesIndex = replyWithSet.has(GEO_REPLY_WITH.COORDINATES) && ++index;
     
     return reply.map(raw => {
-      const unwrapped = raw as unknown as UnwrapReply<typeof raw>;
-
       const item: GeoReplyWithMember = {
-        member: unwrapped[0]
+        member: raw[0]
       };
 
       if (distanceIndex) {
-        item.distance = unwrapped[distanceIndex];
+        item.distance = raw[distanceIndex] as BlobStringReply;
       }
   
       if (hashIndex) {
-        item.hash = unwrapped[hashIndex];
+        item.hash = raw[hashIndex] as NumberReply;
       }
   
       if (coordinatesIndex) {
-        const [longitude, latitude] = unwrapped[coordinatesIndex];
+        const [longitude, latitude] = raw[coordinatesIndex] as [DoubleReply, DoubleReply];
         item.coordinates = {
           longitude,
           latitude

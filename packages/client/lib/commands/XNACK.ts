@@ -10,18 +10,6 @@ export interface XNackOptions {
 
 export default {
   IS_READ_ONLY: false,
-  /**
-   * Constructs the XNACK command to negatively acknowledge one or more pending stream entries.
-   * Added since Redis 8.8.
-   *
-   * @param parser - The command parser
-   * @param key - The stream key
-   * @param group - The consumer group name
-   * @param mode - NACK mode: SILENT, FAIL, or FATAL
-   * @param id - One or more message IDs to nack
-   * @param options - Additional options for retry count and force handling
-   * @see https://redis.io/commands/xnack/
-   */
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

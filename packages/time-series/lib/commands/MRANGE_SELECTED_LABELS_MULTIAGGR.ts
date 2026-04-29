@@ -63,18 +63,9 @@ export function createTransformMRangeSelectedLabelsMultiArguments(command: Redis
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  /**
-   * Gets multi-aggregation samples for time series matching a filter with selected labels
-   * @param parser - The command parser
-   * @param fromTimestamp - Start timestamp for range
-   * @param toTimestamp - End timestamp for range
-   * @param selectedLabels - Labels to include in the output
-   * @param filter - Filter to match time series keys
-   * @param options - Optional parameters for the command
-   */
   parseCommand: createTransformMRangeSelectedLabelsMultiArguments('TS.MRANGE'),
   transformReply: {
-    2(reply: TsMRangeSelectedLabelsMultiRawReply2, _?: any, typeMapping?: TypeMapping) {
+    2(reply: TsMRangeSelectedLabelsMultiRawReply2, _?: unknown, typeMapping?: TypeMapping) {
       return resp2MapToValue(reply, ([_key, labels, samples]) => {
         return {
           labels: transformRESP2Labels(labels, typeMapping),
