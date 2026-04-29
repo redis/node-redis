@@ -647,19 +647,13 @@ export default class RedisClusterSlots<
     const deferredCandidates: Array<ShardNode<M, F, S, RESP, TYPE_MAPPING>> = [];
     const seen = new Set<string>();
 
-    const pushCandidate = (node: ShardNode<M, F, S, RESP, TYPE_MAPPING>) => {
-      if (node.address === excludedAddress || seen.has(node.address)) return;
+    for (const nodes of [this.masters, this.replicas]) {
+      for (const node of nodes) {
+        if (node.address === excludedAddress || seen.has(node.address)) continue;
 
-      seen.add(node.address);
-      (node.client?.isReady ? candidates : deferredCandidates).push(node);
-    };
-
-    for (const node of this.masters) {
-      pushCandidate(node);
-    }
-
-    for (const node of this.replicas) {
-      pushCandidate(node);
+        seen.add(node.address);
+        (node.client?.isReady ? candidates : deferredCandidates).push(node);
+      }
     }
 
     return (
@@ -673,17 +667,11 @@ export default class RedisClusterSlots<
       return false;
     }
 
-    let start = Math.floor(Math.random() * candidates.length);
-    for (let i = start; i < candidates.length; i++) {
+    const start = Math.floor(Math.random() * candidates.length);
+    for (let i = 0; i < candidates.length; i++) {
       if (!this.#isOpen) throw new Error('Cluster closed');
-      if (await this.#discover(this.#nodeClientOptions(candidates[i]))) {
-        return true;
-      }
-    }
-
-    for (let i = 0; i < start; i++) {
-      if (!this.#isOpen) throw new Error('Cluster closed');
-      if (await this.#discover(this.#nodeClientOptions(candidates[i]))) {
+      const candidate = candidates[(start + i) % candidates.length];
+      if (await this.#discover(this.#nodeClientOptions(candidate))) {
         return true;
       }
     }
