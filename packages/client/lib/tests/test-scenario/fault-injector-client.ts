@@ -146,7 +146,7 @@ export class FaultInjectorClient {
   async #request<T>(
     method: string,
     path: string,
-    body?: Object | string
+    body?: object | string
   ): Promise<T> {
     const url = `${this.baseUrl}${path}`;
     const headers: Record<string, string> = {
