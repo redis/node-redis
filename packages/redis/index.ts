@@ -35,99 +35,113 @@ const modules = {
   ts: RedisTimeSeries
 };
 
-export type RedisDefaultModules = typeof modules;
+type RedisStackModules = typeof modules;
+export interface RedisDefaultModules extends RedisStackModules {}
+export type RedisDefaultFunctions = {};
+export type RedisDefaultScripts = {};
+export type RedisDefaultRESP = 2;
+export type RedisDefaultTypeMapping = {};
+export type RedisDefaultClientType = RedisClientType<{}, RedisDefaultFunctions, RedisDefaultScripts, RedisDefaultRESP, RedisDefaultTypeMapping>;
 
 export type RedisClientType<
-  M extends RedisModules = RedisDefaultModules,
+  M extends RedisModules = {},
   F extends RedisFunctions = {},
   S extends RedisScripts = {},
   RESP extends RespVersions = 2,
   TYPE_MAPPING extends TypeMapping = {}
-> = GenericRedisClientType<M, F, S, RESP, TYPE_MAPPING>;
+> = GenericRedisClientType<RedisDefaultModules & M, F, S, RESP, TYPE_MAPPING>;
 
 export function createClient<
-  M extends RedisModules,
-  F extends RedisFunctions,
-  S extends RedisScripts,
-  RESP extends RespVersions,
-  TYPE_MAPPING extends TypeMapping
+  M extends RedisModules = {},
+  F extends RedisFunctions = {},
+  S extends RedisScripts = {},
+  RESP extends RespVersions = 2,
+  TYPE_MAPPING extends TypeMapping = {}
 >(
   options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>
-): GenericRedisClientType<RedisDefaultModules & M, F, S, RESP, TYPE_MAPPING> {
-  return genericCreateClient({
+): RedisClientType<M, F, S, RESP, TYPE_MAPPING> {
+  return (genericCreateClient as any)({
     ...options,
     modules: {
       ...modules,
       ...(options?.modules as M)
     }
-  });
+  }) as RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
 }
 
 export function createClientPool<
-  M extends RedisModules,
-  F extends RedisFunctions,
-  S extends RedisScripts,
-  RESP extends RespVersions,
+  M extends RedisModules = {},
+  F extends RedisFunctions = {},
+  S extends RedisScripts = {},
+  RESP extends RespVersions = 2,
   TYPE_MAPPING extends TypeMapping = {}
 >(clientOptions?: Omit<RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>, "clientSideCache">,
-  options?: Partial<RedisPoolOptions>): GenericRedisClientPoolType<RedisDefaultModules & M, F, S, RESP, TYPE_MAPPING> {
-  return genericCreateClientPool({
+  options?: Partial<RedisPoolOptions>): RedisClientPoolType<M, F, S, RESP, TYPE_MAPPING> {
+  return (genericCreateClientPool as any)({
     ...clientOptions,
     modules: {
       ...modules,
       ...(clientOptions?.modules as M)
     }
-  }, options);
+  }, options) as RedisClientPoolType<M, F, S, RESP, TYPE_MAPPING>;
 }
 
-export type RedisClusterType<
-  M extends RedisModules = RedisDefaultModules,
+export type RedisClientPoolType<
+  M extends RedisModules = {},
   F extends RedisFunctions = {},
   S extends RedisScripts = {},
   RESP extends RespVersions = 2,
   TYPE_MAPPING extends TypeMapping = {}
-> = genericRedisClusterType<M, F, S, RESP, TYPE_MAPPING>;
+> = GenericRedisClientPoolType<RedisDefaultModules & M, F, S, RESP, TYPE_MAPPING>;
+
+export type RedisClusterType<
+  M extends RedisModules = {},
+  F extends RedisFunctions = {},
+  S extends RedisScripts = {},
+  RESP extends RespVersions = 2,
+  TYPE_MAPPING extends TypeMapping = {}
+> = genericRedisClusterType<RedisDefaultModules & M, F, S, RESP, TYPE_MAPPING>;
 
 export function createCluster<
-  M extends RedisModules,
-  F extends RedisFunctions,
-  S extends RedisScripts,
-  RESP extends RespVersions,
-  TYPE_MAPPING extends TypeMapping
+  M extends RedisModules = {},
+  F extends RedisFunctions = {},
+  S extends RedisScripts = {},
+  RESP extends RespVersions = 2,
+  TYPE_MAPPING extends TypeMapping = {}
 >(
   options: RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING>
-): RedisClusterType<RedisDefaultModules & M, F, S, RESP, TYPE_MAPPING> {
-  return genericCreateCluster({
+): RedisClusterType<M, F, S, RESP, TYPE_MAPPING> {
+  return (genericCreateCluster as any)({
     ...options,
     modules: {
       ...modules,
       ...(options?.modules as M)
     }
-  });
+  }) as RedisClusterType<M, F, S, RESP, TYPE_MAPPING>;
 }
 
 export type RedisSentinelType<
-  M extends RedisModules = RedisDefaultModules,
+  M extends RedisModules = {},
   F extends RedisFunctions = {},
   S extends RedisScripts = {},
   RESP extends RespVersions = 2,
   TYPE_MAPPING extends TypeMapping = {}
-> = genericRedisSentinelType<M, F, S, RESP, TYPE_MAPPING>;
+> = genericRedisSentinelType<RedisDefaultModules & M, F, S, RESP, TYPE_MAPPING>;
 
 export function createSentinel<
-  M extends RedisModules,
-  F extends RedisFunctions,
-  S extends RedisScripts,
-  RESP extends RespVersions,
-  TYPE_MAPPING extends TypeMapping
+  M extends RedisModules = {},
+  F extends RedisFunctions = {},
+  S extends RedisScripts = {},
+  RESP extends RespVersions = 2,
+  TYPE_MAPPING extends TypeMapping = {}
 >(
   options: RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>
-): RedisSentinelType<RedisDefaultModules & M, F, S, RESP, TYPE_MAPPING> {
-  return genericCreateSentinel({
+): RedisSentinelType<M, F, S, RESP, TYPE_MAPPING> {
+  return (genericCreateSentinel as any)({
     ...options,
     modules: {
       ...modules,
       ...(options?.modules as M)
     }
-  });
+  }) as RedisSentinelType<M, F, S, RESP, TYPE_MAPPING>;
 }
