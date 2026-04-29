@@ -107,12 +107,13 @@ export default class RedisClusterSlots<
   TYPE_MAPPING extends TypeMapping
 > {
   static #SLOTS = 16384;
-  static #TOPOLOGY_REFRESH_RECONNECT_THRESHOLD = 3;
+  static #DEFAULT_TOPOLOGY_REFRESH_AFTER_RECONNECTS = 3;
 
   readonly #options;
   readonly #clientFactory;
   readonly #emit: EventEmitter['emit'];
   readonly #clusterClientId: string;
+  readonly #topologyRefreshAfterReconnects: number;
   slots = new Array<Shard<M, F, S, RESP, TYPE_MAPPING>>(RedisClusterSlots.#SLOTS);
   masters = new Array<MasterNode<M, F, S, RESP, TYPE_MAPPING>>();
   replicas = new Array<ShardNode<M, F, S, RESP, TYPE_MAPPING>>();
@@ -132,6 +133,14 @@ export default class RedisClusterSlots<
     if (options?.clientSideCache && options?.RESP !== 3) {
       throw new Error('Client Side Caching is only supported with RESP3');
     }
+
+    if (
+      options?.topologyRefreshAfterReconnects !== undefined &&
+      (!Number.isInteger(options.topologyRefreshAfterReconnects) ||
+        options.topologyRefreshAfterReconnects < 1)
+    ) {
+      throw new Error('topologyRefreshAfterReconnects must be a positive integer');
+    }
   }
 
   constructor(
@@ -142,6 +151,9 @@ export default class RedisClusterSlots<
     this.#validateOptions(options);
     this.#options = options;
     this.#clusterClientId = clusterClientId;
+    this.#topologyRefreshAfterReconnects =
+      options.topologyRefreshAfterReconnects ??
+      RedisClusterSlots.#DEFAULT_TOPOLOGY_REFRESH_AFTER_RECONNECTS;
 
     if (options?.clientSideCache) {
       if (options.clientSideCache instanceof PooledClientSideCacheProvider) {
@@ -585,7 +597,7 @@ export default class RedisClusterSlots<
         if (!wasReady) return;
 
         reconnectAttemptsSinceReady++;
-        if (reconnectAttemptsSinceReady < RedisClusterSlots.#TOPOLOGY_REFRESH_RECONNECT_THRESHOLD) {
+        if (reconnectAttemptsSinceReady < this.#topologyRefreshAfterReconnects) {
           return;
         }
 

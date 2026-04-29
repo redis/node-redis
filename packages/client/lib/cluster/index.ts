@@ -73,6 +73,11 @@ export interface RedisClusterOptions<
    */
   maxCommandRedirections?: number;
   /**
+   * The number of reconnect attempts after a node was ready before triggering
+   * a background cluster topology refresh.
+   */
+  topologyRefreshAfterReconnects?: number;
+  /**
    * Mapping between the addresses in the cluster (see `CLUSTER SHARDS`) and the addresses the client should connect to
    * Useful when the cluster is running on another network
    */
