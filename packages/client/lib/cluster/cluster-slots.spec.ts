@@ -43,6 +43,34 @@ describe('RedisClusterSlots', () => {
         );
       });
     });
+
+    describe('topologyRefreshAfterReconnects validation', () => {
+      const mockEmit = ((_event: string | symbol, ..._args: any[]): boolean => true) as EventEmitter['emit'];
+      const rootNodes: Array<RedisClusterClientOptions> = [
+        { socket: { host: 'localhost', port: 30001 } }
+      ];
+
+      for (const topologyRefreshAfterReconnects of [0, -1, 1.5, Number.NaN]) {
+        it(`should throw when topologyRefreshAfterReconnects is ${topologyRefreshAfterReconnects}`, () => {
+          assert.throws(
+            () => new RedisClusterSlots({
+              rootNodes,
+              topologyRefreshAfterReconnects,
+            }, mockEmit),
+            new Error('topologyRefreshAfterReconnects must be a positive integer')
+          );
+        });
+      }
+
+      it('should allow positive integer topologyRefreshAfterReconnects', () => {
+        assert.doesNotThrow(() =>
+          new RedisClusterSlots({
+            rootNodes,
+            topologyRefreshAfterReconnects: 1,
+          }, mockEmit)
+        );
+      });
+    });
   });
 
   describe('getRandomNode', ()=> {
