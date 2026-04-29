@@ -16,6 +16,11 @@ import SingleEntryCache from '../single-entry-cache'
 import { publish, CHANNELS } from '../client/tracing';
 import { ClientIdentity, ClientRole, generateClusterClientId } from '../client/identity';
 
+export type ClusterTopologyRefreshOnReconnectionAttempt =
+  false |
+  number |
+  ((reconnectingAddresses: ReadonlySet<string>, firstReconnectionAt: number) => false | number | undefined);
+
 type WithCommands<
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping
@@ -73,12 +78,14 @@ export interface RedisClusterOptions<
    */
   maxCommandRedirections?: number;
   /**
-   * The number of reconnect attempts after a node was ready before starting
-   * background cluster topology refreshes. After this threshold is reached,
-   * subsequent reconnect attempts may trigger additional refreshes while the
-   * node remains unavailable. Concurrent refreshes are de-duplicated.
+   * The number of milliseconds after the first post-ready node reconnection attempt
+   * before background cluster topology refreshes are triggered. Omitted or `undefined`
+   * uses the default delay of `5000`.
+   * Use `false` or `0` to disable reconnect-triggered topology refreshes. A function can
+   * return the delay dynamically, or `false`/`undefined`/`0` to skip the refresh attempt.
+   * Concurrent refreshes are de-duplicated.
    */
-  topologyRefreshAfterReconnects?: number;
+  topologyRefreshOnReconnectionAttempt?: ClusterTopologyRefreshOnReconnectionAttempt;
   /**
    * Mapping between the addresses in the cluster (see `CLUSTER SHARDS`) and the addresses the client should connect to
    * Useful when the cluster is running on another network
