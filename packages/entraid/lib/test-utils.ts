@@ -16,12 +16,11 @@ const DEBUG_MODE_ARGS = testUtils.isVersionGreaterThan([7]) ?
 
 const idp: IdentityProvider<AuthenticationResult> = {
   requestToken(): Promise<TokenResponse<AuthenticationResult>> {
-    // @ts-ignore
     return Promise.resolve({
       ttlMs: 100000,
       token: {
         accessToken: 'password'
-      }
+      } as AuthenticationResult
     })
   }
 }
