@@ -89,24 +89,6 @@ describe("ClusterReconnectionTracker", () => {
     assert.equal(state.firstReconnectionAt, undefined);
   });
 
-  it("should remove all clients for an address", () => {
-    const state = new ClusterReconnectionTracker(() => undefined);
-
-    state.onReconnectionAttempt("client-1", "127.0.0.1:1", 100);
-    state.onReconnectionAttempt("client-2", "127.0.0.1:1", 150);
-    state.onReconnectionAttempt("client-3", "127.0.0.1:2", 200);
-
-    state.removeAddress("127.0.0.1:1");
-
-    assert.deepEqual([...state.reconnectingAddresses], ["127.0.0.1:2"]);
-    assert.equal(state.firstReconnectionAt, 100);
-
-    state.removeAddress("127.0.0.1:2");
-
-    assert.deepEqual([...state.reconnectingAddresses], []);
-    assert.equal(state.firstReconnectionAt, undefined);
-  });
-
   it("should clear all reconnecting state", () => {
     const state = new ClusterReconnectionTracker(() => undefined);
 
@@ -138,37 +120,6 @@ describe("ClusterReconnectionTracker", () => {
       true,
     );
     assert.equal(state.firstReconnectionAt, 150);
-  });
-
-  it("should call function strategies with all dirty addresses and the first timestamp", () => {
-    const calls: Array<{
-      addresses: Array<string>;
-      firstReconnectionAt: number;
-    }> = [];
-
-    const state = new ClusterReconnectionTracker(
-      (reconnectingAddresses, firstReconnectionAt) => {
-        calls.push({
-          addresses: [...reconnectingAddresses].sort(),
-          firstReconnectionAt,
-        });
-        return 10_000;
-      },
-    );
-
-    state.onReconnectionAttempt("client-1", "127.0.0.1:1", 100);
-    state.onReconnectionAttempt("client-2", "127.0.0.1:2", 200);
-
-    assert.deepEqual(calls, [
-      {
-        addresses: ["127.0.0.1:1"],
-        firstReconnectionAt: 100,
-      },
-      {
-        addresses: ["127.0.0.1:1", "127.0.0.1:2"],
-        firstReconnectionAt: 100,
-      },
-    ]);
   });
 
   it("should skip refresh when the function strategy returns false", () => {

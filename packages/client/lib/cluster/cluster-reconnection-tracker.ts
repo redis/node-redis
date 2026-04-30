@@ -1,4 +1,4 @@
-import type { ClusterTopologyRefreshOnReconnectionAttempt } from './index';
+import type { ClusterTopologyRefreshOnReconnectionAttemptStrategy } from './index';
 
 /**
  * Tracks which cluster node clients are currently reconnecting and decides when
@@ -8,8 +8,8 @@ import type { ClusterTopologyRefreshOnReconnectionAttempt } from './index';
  * - `undefined` - uses the default delay (5 seconds)
  * - `false` or `0` - disables topology refresh on reconnection
  * - a positive integer - delay in ms after the first reconnection attempt before refreshing
- * - a function - custom logic receiving the set of reconnecting addresses and the timestamp
- *   of the first reconnection attempt, returning a delay or `false`/`undefined` to skip
+ * - a function - custom logic receiving the timestamp of the first reconnection attempt,
+ *   returning a delay or `false`/`undefined` to skip
  *
  * After the delay elapses, {@link onReconnectionAttempt} returns `true` once to signal
  * that a refresh should be scheduled, then resets the timer.
@@ -18,7 +18,7 @@ export default class ClusterReconnectionTracker {
   /** Default delay (ms) before triggering a topology refresh after reconnection starts */
   static #DEFAULT_TOPOLOGY_REFRESH_ON_RECONNECTION_ATTEMPT = 5_000;
 
-  readonly #strategy?: ClusterTopologyRefreshOnReconnectionAttempt;
+  readonly #strategy?: ClusterTopologyRefreshOnReconnectionAttemptStrategy;
   /** Maps client ID to its node address for clients currently in a reconnecting state */
   readonly #reconnectingClients = new Map<string, string>();
   /** Timestamp of the first reconnection attempt in the current reconnection cycle */
@@ -28,7 +28,7 @@ export default class ClusterReconnectionTracker {
    * Validates that a strategy value is acceptable before use.
    * @throws If the strategy is not supported
    */
-  static validate(strategy?: ClusterTopologyRefreshOnReconnectionAttempt) {
+  #validate(strategy?: ClusterTopologyRefreshOnReconnectionAttemptStrategy) {
     if (
       strategy === undefined ||
       strategy === false ||
@@ -45,8 +45,8 @@ export default class ClusterReconnectionTracker {
     throw new TypeError('topologyRefreshOnReconnectionAttempt must be undefined, false, a non-negative integer, or a function');
   }
 
-  constructor(strategy?: ClusterTopologyRefreshOnReconnectionAttempt) {
-    ClusterReconnectionTracker.validate(strategy);
+  constructor(strategy?: ClusterTopologyRefreshOnReconnectionAttemptStrategy) {
+    this.#validate(strategy);
     this.#strategy = strategy;
   }
 
@@ -73,7 +73,7 @@ export default class ClusterReconnectionTracker {
     this.#reconnectingClients.set(clientId, address);
     this.#firstReconnectionAt ??= now;
 
-    const delay = this.#getDelay(this.reconnectingAddresses, this.#firstReconnectionAt);
+    const delay = this.#getDelay(this.#firstReconnectionAt);
     if (delay === undefined || now - this.#firstReconnectionAt < delay) {
       return false;
     }
@@ -89,17 +89,6 @@ export default class ClusterReconnectionTracker {
     this.#clearTimestampIfClean();
   }
 
-  /** Removes all clients associated with a node address (e.g. when the node is removed from the topology) */
-  removeAddress(address: string) {
-    for (const [clientId, reconnectingAddress] of this.#reconnectingClients.entries()) {
-      if (reconnectingAddress === address) {
-        this.#reconnectingClients.delete(clientId);
-      }
-    }
-
-    this.#clearTimestampIfClean();
-  }
-
   /** Resets all tracking state (e.g. on cluster disconnect or destroy) */
   clear() {
     this.#reconnectingClients.clear();
@@ -110,7 +99,7 @@ export default class ClusterReconnectionTracker {
    * Evaluates the configured strategy to determine the delay before a topology refresh.
    * @returns The delay in ms, or `undefined` if no refresh should occur
    */
-  #getDelay(reconnectingAddresses: ReadonlySet<string>, firstReconnectionAt: number) {
+  #getDelay(firstReconnectionAt: number) {
     if (this.#strategy === undefined) {
       return ClusterReconnectionTracker.#DEFAULT_TOPOLOGY_REFRESH_ON_RECONNECTION_ATTEMPT;
     }
@@ -123,7 +112,7 @@ export default class ClusterReconnectionTracker {
       return this.#strategy;
     }
 
-    const delay = this.#strategy(reconnectingAddresses, firstReconnectionAt);
+    const delay = this.#strategy(firstReconnectionAt);
     if (delay === false || delay === undefined || delay === 0) return;
 
     if (!Number.isInteger(delay) || delay < 0) {

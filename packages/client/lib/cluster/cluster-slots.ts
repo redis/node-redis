@@ -133,8 +133,6 @@ export default class RedisClusterSlots<
     if (options?.clientSideCache && options?.RESP !== 3) {
       throw new Error('Client Side Caching is only supported with RESP3');
     }
-
-    ClusterReconnectionTracker.validate(options?.topologyRefreshOnReconnectionAttempt);
   }
 
   constructor(
@@ -145,7 +143,7 @@ export default class RedisClusterSlots<
     this.#validateOptions(options);
     this.#options = options;
     this.#clusterClientId = clusterClientId;
-    this.#reconnectionTracker = new ClusterReconnectionTracker(options.topologyRefreshOnReconnectionAttempt);
+    this.#reconnectionTracker = new ClusterReconnectionTracker(options.topologyRefreshOnReconnectionAttemptStrategy);
 
     if (options?.clientSideCache) {
       if (options.clientSideCache instanceof PooledClientSideCacheProvider) {
@@ -231,6 +229,7 @@ export default class RedisClusterSlots<
         const channelsListeners = this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.CHANNELS),
           patternsListeners = this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.PATTERNS);
 
+        this.#reconnectionTracker.removeClient(this.pubSubNode.client._clientId);
         this.pubSubNode.client.destroy();
 
         if (channelsListeners.size || patternsListeners.size) {
@@ -256,16 +255,17 @@ export default class RedisClusterSlots<
         }
 
         if (node.client) {
+          this.#reconnectionTracker.removeClient(node.client._clientId);
           node.client.destroy();
           node.client = undefined;
         }
 
         if (pubSub) {
+          this.#reconnectionTracker.removeClient(pubSub.client._clientId);
           pubSub.client.destroy();
           (node as MasterNode<M, F, S, RESP, TYPE_MAPPING>).pubSub = undefined;
         }
 
-        this.#reconnectionTracker.removeAddress(address);
         this.nodeByAddress.delete(address);
       }
 
@@ -428,7 +428,6 @@ export default class RedisClusterSlots<
           // Remove all local references to the dying shard's clients
           this.masters = this.masters.filter(master => master.address !== sourceAddress);
           this.replicas = this.replicas.filter(replica => replica.address !== sourceAddress);
-          this.#reconnectionTracker.removeAddress(sourceAddress);
           this.nodeByAddress.delete(sourceAddress);
 
           // Handle pubSubNode replacement BEFORE destroying source connections
@@ -448,14 +447,17 @@ export default class RedisClusterSlots<
               this.pubSubNode = undefined;
             }
 
+            this.#reconnectionTracker.removeClient(oldPubSubClient._clientId);
             oldPubSubClient.destroy();
           }
 
           // Destroy source connections (use destroy() instead of close() since the node is being removed
           // and close() can hang if the server is not responding)
-          sourceNode.client?.destroy();
-          if ('pubSub' in sourceNode) {
-            sourceNode.pubSub?.client.destroy();
+          this.#reconnectionTracker.removeClient(sourceNode.client?._clientId);
+          sourceNode.client.destroy();
+          if ('pubSub' in sourceNode && sourceNode.pubSub) {
+            this.#reconnectionTracker.removeClient(sourceNode.pubSub.client._clientId);
+            sourceNode.pubSub.client.destroy();
           }
         }
       } catch (err: unknown) {
@@ -931,6 +933,7 @@ export default class RedisClusterSlots<
     await unsubscribe(client);
 
     if (!client.isPubSubActive) {
+      this.#reconnectionTracker.removeClient(client._clientId);
       client.destroy();
       this.pubSubNode = undefined;
     }
@@ -988,6 +991,7 @@ export default class RedisClusterSlots<
     await unsubscribe(client);
 
     if (!client.isPubSubActive) {
+      this.#reconnectionTracker.removeClient(client._clientId);
       client.destroy();
       master.pubSub = undefined;
     }

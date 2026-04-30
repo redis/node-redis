@@ -16,10 +16,10 @@ import SingleEntryCache from '../single-entry-cache'
 import { publish, CHANNELS } from '../client/tracing';
 import { ClientIdentity, ClientRole, generateClusterClientId } from '../client/identity';
 
-export type ClusterTopologyRefreshOnReconnectionAttempt =
+export type ClusterTopologyRefreshOnReconnectionAttemptStrategy =
   false |
   number |
-  ((reconnectingAddresses: ReadonlySet<string>, firstReconnectionAt: number) => false | number | undefined);
+  ((firstReconnectionAt: number) => false | number | undefined);
 
 type WithCommands<
   RESP extends RespVersions,
@@ -85,7 +85,7 @@ export interface RedisClusterOptions<
    * return the delay dynamically, or `false`/`undefined`/`0` to skip the refresh attempt.
    * Concurrent refreshes are de-duplicated.
    */
-  topologyRefreshOnReconnectionAttempt?: ClusterTopologyRefreshOnReconnectionAttempt;
+  topologyRefreshOnReconnectionAttemptStrategy?: ClusterTopologyRefreshOnReconnectionAttemptStrategy;
   /**
    * Mapping between the addresses in the cluster (see `CLUSTER SHARDS`) and the addresses the client should connect to
    * Useful when the cluster is running on another network
