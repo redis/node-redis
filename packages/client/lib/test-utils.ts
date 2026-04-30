@@ -10,7 +10,7 @@ const utils = TestUtils.createFromConfig({
   dockerImageName: 'redislabs/client-libs-test',
   dockerImageTagArgument: 'redis-tag',
   dockerImageVersionArgument: 'redis-version',
-  defaultDockerVersion: { tag: '8.8-m02', version: '8.8' }
+  defaultDockerVersion: { tag: '8.8-m03', version: '8.8' }
 });
 
 export default utils;
@@ -29,7 +29,7 @@ const streamingCredentialsProvider: CredentialsProvider =
   {
     type: 'streaming-credentials-provider',
 
-    subscribe : (observable) => ( Promise.resolve([
+    subscribe : (_) => ( Promise.resolve([
      { password: 'password' },
       {
        dispose: () => {
@@ -192,7 +192,7 @@ export const BLOCKING_MIN_VALUE = (
   1
 );
 
-export function parseFirstKey(command: Command, ...args: Array<any>) {
+export function parseFirstKey(command: Command, ...args: Array<unknown>) {
   const parser = new BasicCommandParser();
   command.parseCommand!(parser, ...args);
   return parser.firstKey;
