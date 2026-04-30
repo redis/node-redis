@@ -1,4 +1,4 @@
-import { RedisClusterClientOptions, RedisClusterOptions } from '.';
+import type { RedisClusterClientOptions, RedisClusterOptions } from '.';
 import { RootNodesUnavailableError } from '../errors';
 import RedisClient, { RedisClientOptions, RedisClientType } from '../client';
 import { EventEmitter } from 'node:stream';
@@ -9,6 +9,7 @@ import { RedisSocketOptions } from '../client/socket';
 import { BasicPooledClientSideCache, PooledClientSideCacheProvider } from '../client/cache';
 import { SMIGRATED_EVENT, SMigratedEvent, dbgMaintenance } from '../client/enterprise-maintenance-manager';
 import { ClientRole } from '../client/identity';
+import ClusterReconnectionTracker from './cluster-reconnection-tracker';
 
 interface NodeAddress {
   host: string;
@@ -112,6 +113,7 @@ export default class RedisClusterSlots<
   readonly #clientFactory;
   readonly #emit: EventEmitter['emit'];
   readonly #clusterClientId: string;
+  readonly #reconnectionTracker: ClusterReconnectionTracker;
   slots = new Array<Shard<M, F, S, RESP, TYPE_MAPPING>>(RedisClusterSlots.#SLOTS);
   masters = new Array<MasterNode<M, F, S, RESP, TYPE_MAPPING>>();
   replicas = new Array<ShardNode<M, F, S, RESP, TYPE_MAPPING>>();
@@ -119,6 +121,7 @@ export default class RedisClusterSlots<
   pubSubNode?: PubSubNode<M, F, S, RESP, TYPE_MAPPING>;
   clientSideCache?: PooledClientSideCacheProvider;
   smigratedSeqIdsSeen = new Set<number>;
+  #topologyRefreshPromise?: Promise<boolean | void>;
 
   #isOpen = false;
 
@@ -140,6 +143,7 @@ export default class RedisClusterSlots<
     this.#validateOptions(options);
     this.#options = options;
     this.#clusterClientId = clusterClientId;
+    this.#reconnectionTracker = new ClusterReconnectionTracker(options.topologyRefreshOnReconnectionAttemptStrategy);
 
     if (options?.clientSideCache) {
       if (options.clientSideCache instanceof PooledClientSideCacheProvider) {
@@ -169,7 +173,7 @@ export default class RedisClusterSlots<
   }
 
   async #discoverWithRootNodes() {
-    let start = Math.floor(Math.random() * this.#options.rootNodes.length);
+    const start = Math.floor(Math.random() * this.#options.rootNodes.length);
     for (let i = start; i < this.#options.rootNodes.length; i++) {
       if (!this.#isOpen) throw new Error('Cluster closed');
       if (await this.#discover(this.#options.rootNodes[i])) {
@@ -225,6 +229,7 @@ export default class RedisClusterSlots<
         const channelsListeners = this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.CHANNELS),
           patternsListeners = this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.PATTERNS);
 
+        this.#reconnectionTracker.removeClient(this.pubSubNode.client._clientId);
         this.pubSubNode.client.destroy();
 
         if (channelsListeners.size || patternsListeners.size) {
@@ -241,13 +246,24 @@ export default class RedisClusterSlots<
       for (const [address, node] of this.nodeByAddress.entries()) {
         if (addressesInUse.has(address)) continue;
 
-        if (node.client) {
-          node.client.destroy();
-        }
-
         const { pubSub } = node as MasterNode<M, F, S, RESP, TYPE_MAPPING>;
         if (pubSub) {
+          const listeners = pubSub.client._getQueue().removeAllPubSubListeners();
+          if (listeners.CHANNELS.size || listeners.PATTERNS.size || listeners.SHARDED.size) {
+            this.#emit(RESUBSCRIBE_LISTENERS_EVENT, listeners);
+          }
+        }
+
+        if (node.client) {
+          this.#reconnectionTracker.removeClient(node.client._clientId);
+          node.client.destroy();
+          node.client = undefined;
+        }
+
+        if (pubSub) {
+          this.#reconnectionTracker.removeClient(pubSub.client._clientId);
           pubSub.client.destroy();
+          (node as MasterNode<M, F, S, RESP, TYPE_MAPPING>).pubSub = undefined;
         }
 
         this.nodeByAddress.delete(address);
@@ -431,17 +447,20 @@ export default class RedisClusterSlots<
               this.pubSubNode = undefined;
             }
 
+            this.#reconnectionTracker.removeClient(oldPubSubClient._clientId);
             oldPubSubClient.destroy();
           }
 
           // Destroy source connections (use destroy() instead of close() since the node is being removed
           // and close() can hang if the server is not responding)
-          sourceNode.client?.destroy();
-          if ('pubSub' in sourceNode) {
-            sourceNode.pubSub?.client.destroy();
+          this.#reconnectionTracker.removeClient(sourceNode.client?._clientId);
+          sourceNode.client.destroy();
+          if ('pubSub' in sourceNode && sourceNode.pubSub) {
+            this.#reconnectionTracker.removeClient(sourceNode.pubSub.client._clientId);
+            sourceNode.pubSub.client.destroy();
           }
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         dbgMaintenance(`[CSlots]: Error during SMIGRATED handling for source ${sourceAddress}: ${err}`);
         // Ensure we unpause source on error to prevent deadlock
         sourceNode.client?._unpause();
@@ -482,6 +501,15 @@ export default class RedisClusterSlots<
       case 'function':
         return this.#options.nodeAddressMap(address);
     }
+  }
+
+  #nodeClientOptions(node: NodeAddress & { address: string }): RedisClusterClientOptions {
+    return {
+      socket: this.#getNodeAddress(node.address) ?? {
+        host: node.host,
+        port: node.port
+      }
+    };
   }
 
   #clientOptionsDefaults(options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>) {
@@ -546,7 +574,9 @@ export default class RedisClusterSlots<
       host: socket.host,
       port: socket.port,
     });
+    const address = node.address;
     const emit = this.#emit;
+    let wasReady = false;
     const client = this.#clientFactory( this.#clientOptionsDefaults({
         clientSideCache: this.clientSideCache,
         RESP: this.#options.RESP,
@@ -556,10 +586,23 @@ export default class RedisClusterSlots<
     client._setIdentity(ClientRole.CLUSTER_NODE, this.#clusterClientId);
     client
       .on('error', error => emit('node-error', error, clientInfo))
-      .on('reconnecting', () => emit('node-reconnecting', clientInfo))
+      .on('reconnecting', () => {
+        emit('node-reconnecting', clientInfo);
+
+        if (!wasReady) return;
+
+        this.#onNodeReconnectionAttempt(client._clientId, address);
+      })
+      .on('ready', () => {
+        wasReady = true;
+        this.#reconnectionTracker.removeClient(client._clientId);
+      })
       .once('ready', () => emit('node-ready', clientInfo))
       .once('connect', () => emit('node-connect', clientInfo))
-      .once('end', () => emit('node-disconnect', clientInfo))
+      .once('end', () => {
+        this.#reconnectionTracker.removeClient(client._clientId);
+        emit('node-disconnect', clientInfo);
+      })
       .on(SMIGRATED_EVENT, this.#handleSmigrated)
       .on('__MOVED', async (allPubSubListeners: PubSubListeners) => {
         await this.rediscover(client);
@@ -588,18 +631,90 @@ export default class RedisClusterSlots<
 
   #runningRediscoverPromise?: Promise<void>;
 
-  async rediscover(startWith: RedisClientType<M, F, S, RESP>): Promise<void> {
-    this.#runningRediscoverPromise ??= this.#rediscover(startWith)
+  async rediscover(startWith?: RedisClientType<M, F, S, RESP>, excludedAddresses?: ReadonlySet<string>): Promise<void> {
+    this.#runningRediscoverPromise ??= this.#rediscover(startWith, excludedAddresses)
       .finally(() => {
         this.#runningRediscoverPromise = undefined
       });
     return this.#runningRediscoverPromise;
   }
 
-  async #rediscover(startWith: RedisClientType<M, F, S, RESP>): Promise<void> {
-    if (await this.#discover(startWith.options!)) return;
+  async #rediscover(startWith?: RedisClientType<M, F, S, RESP>, excludedAddresses?: ReadonlySet<string>): Promise<void> {
+    if (startWith && await this.#discover(startWith.options!)) return;
+
+    if (await this.#discoverWithKnownNodes(excludedAddresses)) return;
 
     return this.#discoverWithRootNodes();
+  }
+
+  async #discoverWithKnownNodes(excludedAddresses?: ReadonlySet<string>) {
+    const candidates: Array<ShardNode<M, F, S, RESP, TYPE_MAPPING>> = [];
+    const deferredCandidates: Array<ShardNode<M, F, S, RESP, TYPE_MAPPING>> = [];
+    const seen = new Set<string>();
+
+    for (const nodes of [this.masters, this.replicas]) {
+      for (const node of nodes) {
+        if (excludedAddresses?.has(node.address) || seen.has(node.address)) continue;
+
+        seen.add(node.address);
+
+        if (node.client?.isReady) {
+          candidates.push(node);
+        } else {
+          deferredCandidates.push(node);
+        }
+      }
+    }
+
+    return (
+      await this.#discoverWithKnownNodeCandidates(candidates) ||
+      await this.#discoverWithKnownNodeCandidates(deferredCandidates)
+    );
+  }
+
+  async #discoverWithKnownNodeCandidates(candidates: Array<ShardNode<M, F, S, RESP, TYPE_MAPPING>>) {
+    if (!candidates.length) {
+      return false;
+    }
+
+    const start = Math.floor(Math.random() * candidates.length);
+    for (let i = 0; i < candidates.length; i++) {
+
+      if (!this.#isOpen) {
+        continue;
+      }
+
+      const candidate = candidates[(start + i) % candidates.length];
+      if (await this.#discover(this.#nodeClientOptions(candidate))) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  #onNodeReconnectionAttempt(clientId: string, address: string) {
+    let shouldRefresh: boolean;
+    try {
+      shouldRefresh = this.#reconnectionTracker.onReconnectionAttempt(clientId, address);
+    } catch (err) {
+      this.#emit('error', err);
+      return;
+    }
+
+    if (shouldRefresh) {
+      this.#scheduleTopologyRefresh(this.#reconnectionTracker.reconnectingAddresses);
+    }
+  }
+
+  #scheduleTopologyRefresh(excludedAddresses: ReadonlySet<string>) {
+    if (!this.#isOpen || this.#topologyRefreshPromise) return;
+
+    this.#topologyRefreshPromise = this.rediscover(undefined, new Set(excludedAddresses))
+      .catch(err => this.#emit('error', err))
+      .finally(() => {
+        this.#topologyRefreshPromise = undefined;
+      });
   }
 
   /**
@@ -634,6 +749,7 @@ export default class RedisClusterSlots<
 
     this.#resetSlots();
     this.nodeByAddress.clear();
+    this.#reconnectionTracker.clear();
     this.#emit('disconnect');
   }
 
@@ -670,6 +786,7 @@ export default class RedisClusterSlots<
 
     this.#resetSlots();
     this.nodeByAddress.clear();
+    this.#reconnectionTracker.clear();
 
     await Promise.allSettled(promises);
     this.#emit('disconnect');
@@ -816,6 +933,7 @@ export default class RedisClusterSlots<
     await unsubscribe(client);
 
     if (!client.isPubSubActive) {
+      this.#reconnectionTracker.removeClient(client._clientId);
       client.destroy();
       this.pubSubNode = undefined;
     }
@@ -873,6 +991,7 @@ export default class RedisClusterSlots<
     await unsubscribe(client);
 
     if (!client.isPubSubActive) {
+      this.#reconnectionTracker.removeClient(client._clientId);
       client.destroy();
       master.pubSub = undefined;
     }

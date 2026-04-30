@@ -16,6 +16,11 @@ import SingleEntryCache from '../single-entry-cache'
 import { publish, CHANNELS } from '../client/tracing';
 import { ClientIdentity, ClientRole, generateClusterClientId } from '../client/identity';
 
+export type ClusterTopologyRefreshOnReconnectionAttemptStrategy =
+  false |
+  number |
+  ((firstReconnectionAt: number) => false | number | undefined);
+
 type WithCommands<
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping
@@ -73,6 +78,15 @@ export interface RedisClusterOptions<
    */
   maxCommandRedirections?: number;
   /**
+   * The number of milliseconds after the first post-ready node reconnection attempt
+   * before background cluster topology refreshes are triggered. Omitted or `undefined`
+   * uses the default delay of `5000`.
+   * Use `false` or `0` to disable reconnect-triggered topology refreshes. A function can
+   * return the delay dynamically, or `false`/`undefined`/`0` to skip the refresh attempt.
+   * Concurrent refreshes are de-duplicated.
+   */
+  topologyRefreshOnReconnectionAttemptStrategy?: ClusterTopologyRefreshOnReconnectionAttemptStrategy;
+  /**
    * Mapping between the addresses in the cluster (see `CLUSTER SHARDS`) and the addresses the client should connect to
    * Useful when the cluster is running on another network
    */
@@ -129,14 +143,12 @@ export type RedisClusterType<
   WithScripts<S, RESP, TYPE_MAPPING>
 );
 
-export interface ClusterCommandOptions<
+export type ClusterCommandOptions<
   TYPE_MAPPING extends TypeMapping = TypeMapping
   // POLICIES extends CommandPolicies = CommandPolicies
-> extends CommandOptions<TYPE_MAPPING> {
-  // policies?: POLICIES;
-}
+> = CommandOptions<TYPE_MAPPING>;
 
-type ProxyCluster = RedisCluster<any, any, any, any, any/*, any*/>;
+type ProxyCluster = RedisCluster<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>;
 
 type NamespaceProxyCluster = { _self: ProxyCluster };
 
@@ -216,6 +228,7 @@ export default class RedisCluster<
     };
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- cache stores dynamically generated cluster subclasses
   static #SingleEntryCache = new SingleEntryCache<any, any>();
 
   static factory<
@@ -535,7 +548,7 @@ export default class RedisCluster<
 
   MULTI(routing?: RedisArgument) {
     type Multi = new (...args: ConstructorParameters<typeof RedisClusterMultiCommand>) => RedisClusterMultiCommandType<[], M, F, S, RESP, TYPE_MAPPING>;
-    return new ((this as any).Multi as Multi)(
+    return new (this as this & { Multi: Multi }).Multi(
       async (firstKey, isReadonly, commands) => {
         const { client } = await this._self._slots.getClientAndSlotNumber(firstKey, isReadonly);
         return client._executeMulti(commands);
