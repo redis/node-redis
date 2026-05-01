@@ -1359,7 +1359,8 @@ class RedisSentinelInternal<
       }
 
       this.#trace(`transform: adding promise to change #pubSubProxy node`);
-      masterPromises.push(this.#pubSubProxy.changeNode(analyzed.masterToOpen));
+      const mappedPubSubNode = getMappedNode(analyzed.masterToOpen.host, analyzed.masterToOpen.port, this.#nodeAddressMap);
+      masterPromises.push(this.#pubSubProxy.changeNode(mappedPubSubNode));
       promises.push(...masterPromises);
       const event: RedisSentinelEvent = {
         type: "MASTER_CHANGE",
