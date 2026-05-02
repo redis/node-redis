@@ -25,7 +25,7 @@ import { ClientMetricsHandle, ClientRegistry } from '../opentelemetry';
 import { ClientIdentity, ClientRole, generateClientId } from './identity';
 import { trace, sanitizeArgs, publish, CHANNELS, type CommandTraceContext } from './tracing';
 
-const noop = () => {};
+const noop = () => { };
 
 export interface RedisClientOptions<
   M extends RedisModules = RedisModules,
@@ -257,7 +257,10 @@ export type RedisClientType<
 
 type ProxyClient = RedisClient<any, any, any, any, any>;
 
-type NamespaceProxyClient = { _self: ProxyClient };
+type NamespaceProxyClient = {
+  _self: ProxyClient;
+  _commandOptions?: CommandOptions<any>
+};
 
 interface ScanIteratorOptions {
   cursor?: RedisArgument;
@@ -290,7 +293,7 @@ export default class RedisClient<
       const parser = new BasicCommandParser();
       command.parseCommand(parser, ...args);
 
-      return this._self._executeCommand(command, parser, this._self._commandOptions, transformReply);
+      return this._self._executeCommand(command, parser, this._commandOptions, transformReply);
     };
   }
 
@@ -303,7 +306,7 @@ export default class RedisClient<
       parser.push(...prefix);
       fn.parseCommand(parser, ...args);
 
-      return this._self._executeCommand(fn, parser, this._self._commandOptions, transformReply);
+      return this._self._executeCommand(fn, parser, this._commandOptions, transformReply);
     };
   }
 
@@ -587,7 +590,7 @@ export default class RedisClient<
 
     this.#registerForMetrics();
 
-    if(this.#options.maintNotifications !== 'disabled') {
+    if (this.#options.maintNotifications !== 'disabled') {
       new EnterpriseMaintenanceManager(this.#queue, this, this.#options);
     };
 
@@ -664,7 +667,7 @@ export default class RedisClient<
       this._commandOptions = options.commandOptions;
     }
 
-    if(options.maintNotifications !== 'disabled') {
+    if (options.maintNotifications !== 'disabled') {
       EnterpriseMaintenanceManager.setupDefaultMaintOptions(options);
     }
 
@@ -847,16 +850,16 @@ export default class RedisClient<
     }
 
     if (this.#clientSideCache) {
-      commands.push({cmd: this.#clientSideCache.trackingOn()});
+      commands.push({ cmd: this.#clientSideCache.trackingOn() });
     }
 
     if (this.#options?.emitInvalidate) {
-      commands.push({cmd: ['CLIENT', 'TRACKING', 'ON']});
+      commands.push({ cmd: ['CLIENT', 'TRACKING', 'ON'] });
     }
 
     const maintenanceHandshakeCmd = await EnterpriseMaintenanceManager.getHandshakeCommand(this.#options, this._clientId);
 
-    if(maintenanceHandshakeCmd) {
+    if (maintenanceHandshakeCmd) {
       commands.push(maintenanceHandshakeCmd);
     };
 
@@ -872,24 +875,24 @@ export default class RedisClient<
         this.emit('error', err);
       }
     })
-    .on('error', err => {
-      this.emit('error', err);
-      this.#clientSideCache?.onError();
-      if (this.#socket.isOpen && !this.#options.disableOfflineQueue) {
-        this.#queue.flushWaitingForReply(err);
-      } else {
-        this.#queue.flushAll(err);
-      }
-    })
-    .on('connect', () => this.emit('connect'))
-    .on('ready', () => {
-      this.emit('ready');
-      this.#setPingTimer();
-      this.#maybeScheduleWrite();
-    })
-    .on('reconnecting', () => this.emit('reconnecting'))
-    .on('drain', () => this.#maybeScheduleWrite())
-    .on('end', () => this.emit('end'));
+      .on('error', err => {
+        this.emit('error', err);
+        this.#clientSideCache?.onError();
+        if (this.#socket.isOpen && !this.#options.disableOfflineQueue) {
+          this.#queue.flushWaitingForReply(err);
+        } else {
+          this.#queue.flushAll(err);
+        }
+      })
+      .on('connect', () => this.emit('connect'))
+      .on('ready', () => {
+        this.emit('ready');
+        this.#setPingTimer();
+        this.#maybeScheduleWrite();
+      })
+      .on('reconnecting', () => this.emit('reconnecting'))
+      .on('drain', () => this.#maybeScheduleWrite())
+      .on('end', () => this.emit('end'));
   }
 
   #initiateSocket(clientId: string): RedisSocket {
@@ -1055,61 +1058,61 @@ export default class RedisClient<
   /**
    * @internal
    */
-   _ejectSocket(): RedisSocket {
-     const socket = this._self.#socket;
-     // @ts-ignore
-     this._self.#socket = null;
-     socket.removeAllListeners();
-     return socket;
-   }
+  _ejectSocket(): RedisSocket {
+    const socket = this._self.#socket;
+    // @ts-ignore
+    this._self.#socket = null;
+    socket.removeAllListeners();
+    return socket;
+  }
 
-   /**
-    * @internal
-    */
-   _insertSocket(socket: RedisSocket) {
-     if(this._self.#socket) {
+  /**
+   * @internal
+   */
+  _insertSocket(socket: RedisSocket) {
+    if (this._self.#socket) {
       this._self._ejectSocket().destroy();
-     }
-     this._self.#socket = socket;
-     this._self.#attachListeners(this._self.#socket);
-   }
+    }
+    this._self.#socket = socket;
+    this._self.#attachListeners(this._self.#socket);
+  }
 
-   /**
-    * @internal
-    */
-   _maintenanceUpdate(update: MaintenanceUpdate) {
-     this._self.#socket.setMaintenanceTimeout(update.relaxedSocketTimeout);
-     this._self.#queue.setMaintenanceCommandTimeout(update.relaxedCommandTimeout);
-   }
+  /**
+   * @internal
+   */
+  _maintenanceUpdate(update: MaintenanceUpdate) {
+    this._self.#socket.setMaintenanceTimeout(update.relaxedSocketTimeout);
+    this._self.#queue.setMaintenanceCommandTimeout(update.relaxedCommandTimeout);
+  }
 
-   /**
-    * @internal
-    */
-   _pause() {
-     this._self.#paused = true;
-   }
+  /**
+   * @internal
+   */
+  _pause() {
+    this._self.#paused = true;
+  }
 
-   /**
-    * @internal
-    */
-   _unpause() {
-     this._self.#paused = false;
-     this._self.#maybeScheduleWrite();
-   }
+  /**
+   * @internal
+   */
+  _unpause() {
+    this._self.#paused = false;
+    this._self.#maybeScheduleWrite();
+  }
 
-   /**
-    * @internal
-    */
-   _handleSmigrated(smigratedEvent: SMigratedEvent) {
-     this._self.emit(SMIGRATED_EVENT, smigratedEvent);
-   }
+  /**
+   * @internal
+   */
+  _handleSmigrated(smigratedEvent: SMigratedEvent) {
+    this._self.emit(SMIGRATED_EVENT, smigratedEvent);
+  }
 
-   /**
-    * @internal
-    */
-   _getQueue(): RedisCommandsQueue {
-     return this._self.#queue;
-   }
+  /**
+   * @internal
+   */
+  _getQueue(): RedisCommandsQueue {
+    return this._self.#queue;
+  }
 
   /**
    * @internal
@@ -1183,7 +1186,7 @@ export default class RedisClient<
 
         // Merge global options with provided options
         const opts = {
-          ...this._self._commandOptions,
+          ...this._commandOptions,
           ...options,
         };
 
@@ -1371,7 +1374,7 @@ export default class RedisClient<
   }
 
   #write() {
-    if(this.#paused) {
+    if (this.#paused) {
       return
     }
     this.#socket.write(this.#queue.commandsToWrite());
