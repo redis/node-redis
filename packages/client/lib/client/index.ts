@@ -257,9 +257,9 @@ export type RedisClientType<
 
 type ProxyClient = RedisClient<any, any, any, any, any>;
 
-type NamespaceProxyClient = {
+type NamespaceProxyClient<TM extends TypeMapping = {}> = {
   _self: ProxyClient;
-  _commandOptions?: CommandOptions<any>
+  _commandOptions?: CommandOptions<TM>
 };
 
 interface ScanIteratorOptions {
@@ -1185,10 +1185,9 @@ export default class RedisClient<
         }
 
         // Merge global options with provided options
-        const opts = {
-          ...this._commandOptions,
-          ...options,
-        };
+        const opts = options ?
+          Object.assign(Object.create(this._commandOptions ?? null), options) :
+          this._commandOptions;
 
         const promise = this._self.#queue.addCommand<T>(args, opts);
         this._self.#scheduleWrite();

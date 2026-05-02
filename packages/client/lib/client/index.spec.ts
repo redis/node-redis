@@ -689,19 +689,34 @@ describe('Client', () => {
     }
   });
 
-  testUtils.testWithClient('Module TypeMapping Fix', async (client) => {
+
+  testUtils.testWithClient('Module TypeMapping Fix', async client => {
+
+    const TIMEOUT = 1234;
+    (client as any)._commandOptions = { timeout: TIMEOUT };
+
     const bufferProxy = client.withCommandOptions({
       typeMapping: { [RESP_TYPES.BLOB_STRING]: Buffer }
     });
+
     const bufferReply = await bufferProxy.module.echo('hi');
     const stringReply = await client.module.echo('hi');
 
-    assert.ok((bufferReply as unknown) instanceof Buffer, 'Proxy failed to return Buffer');
-    assert.strictEqual(typeof stringReply, 'string', 'Original client was corrupted');
+    assert.ok((bufferReply as unknown) instanceof Buffer, 'Proxy failed to return Buffer.');
+    assert.strictEqual(typeof stringReply, 'string', 'Original client was corrupted.');
     assert.equal(bufferReply.toString(), stringReply);
+
+    const proxyOptions = (bufferProxy.module as any)._commandOptions;
+    assert.equal(proxyOptions.timeout, TIMEOUT, 'Inherited options (timeout) were lost in the proxy chain.')
+
+    assert.ok(!Object.prototype.hasOwnProperty.call(proxyOptions, 'timeout'), 'Timeout should be inherited, not copied.');
   }, {
     ...GLOBAL.SERVERS.OPEN,
-    clientOptions: { modules: { module } }
+    clientOptions: {
+      modules: {
+        module
+      }
+    }
   })
 
   testUtils.testWithClient('duplicate should reuse command options', async client => {
