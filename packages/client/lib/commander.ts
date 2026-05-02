@@ -35,7 +35,7 @@ export function attachConfig<
   config
 }: AttachConfigOptions<M, F, S, RESP>) {
   const RESP = config?.RESP ?? 2,
-    Class: any = class extends BaseClass {};
+    Class: any = class extends BaseClass { };
 
   for (const [name, command] of Object.entries(commands)) {
     if (config?.RESP == 3 && command.unstableResp3 && !config.unstableResp3) {
@@ -85,6 +85,7 @@ function attachNamespace(prototype: any, name: PropertyKey, fns: any) {
     get() {
       const value = Object.create(fns);
       value._self = this;
+      value._commandOptions = (this as any)._commandOptions ?? null;
       Object.defineProperty(this, name, { value });
       return value;
     }
