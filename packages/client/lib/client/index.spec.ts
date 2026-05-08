@@ -85,8 +85,8 @@ describe('Client', () => {
       };
 
       // Compare everything except the credentials function
-      const { credentialsProvider: resultCredProvider, ...resultRest } = result;
-      const { credentialsProvider: expectedCredProvider, ...expectedRest } = expected;
+      const { credentialsProvider: _resultCredProvider, ...resultRest } = result;
+      const { credentialsProvider: _expectedCredProvider, ...expectedRest } = expected;
 
       // Compare non-function properties
       assert.deepEqual(resultRest, expectedRest);
@@ -488,7 +488,8 @@ describe('Client', () => {
 
     testUtils.testWithClient('undefined and null should not break the client', async client => {
       await assert.rejects(
-        client.sendCommand([null as any, undefined as any]),
+        // @ts-expect-error testing invalid inputs
+        client.sendCommand([null, undefined]),
         TypeError
       );
 
@@ -625,7 +626,7 @@ describe('Client', () => {
           assert.equal(err.replies.length, 2);
           assert.deepEqual(err.errorIndexes, [1]);
           assert.ok(err.replies[1] instanceof ErrorReply);
-          // @ts-ignore TS2802
+          // @ts-expect-error its fine
           assert.deepEqual([...err.errors()], [err.replies[1]]);
           return true;
         }
@@ -716,8 +717,8 @@ describe('Client', () => {
   });
 
   async function killClient(
-    client: RedisClientType<any, any, any, any, any>,
-    errorClient: RedisClientType<any, any, any, any, any> = client
+    client: RedisClientType<{}, {}, {}, 2, {}>,
+    errorClient: RedisClientType<{}, {}, {}, 2, {}> = client
   ): Promise<void> {
     const onceErrorPromise = once(errorClient, 'error');
     await client.sendCommand(['QUIT']);
@@ -1005,7 +1006,8 @@ describe('Client', () => {
               [SUBKEYSPACEEVENT_EXPIRED_CHANNEL, new Set([SUBKEYSPACEEVENT_PAYLOAD])]
             ]);
             const received = new Map<string, Set<string>>();
-            const totalExpected = [...expected.values()].reduce((n, s) => n + s.size, 0);
+            let totalExpected = 0;
+            expected.forEach(s => totalExpected += s.size);
             let totalReceived = 0;
 
             let resolveAll!: () => void;
@@ -1308,7 +1310,7 @@ describe('Client', () => {
  * This blocks setImmediate callbacks from executing
  */
 async function blockSetImmediate(fn: () => Promise<unknown>) {
-  let setImmediateStub: any;
+  let setImmediateStub: ReturnType<typeof stub> | undefined;
 
   try {
     setImmediateStub = stub(global, 'setImmediate');
