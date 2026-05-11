@@ -5,11 +5,12 @@ import { fileURLToPath } from 'node:url';
 /**
  * Incremental lint gate for this monorepo.
  *
- * CI runs this on pull requests and lints only files changed against the PR's
- * base commit, so we can enforce linting on new work without fixing the whole
- * repository at once. Local runs lint staged, unstaged, and untracked files.
+ * CI runs this on pull requests and lints only files changed by the PR, so we
+ * can enforce linting on new work without fixing the whole repository at once.
+ * Local runs lint staged, unstaged, and untracked files.
  *
- * Use `--base <sha-or-ref> [--head <sha-or-ref>]` to reproduce a CI-style diff.
+ * Use `--base <sha-or-ref> [--head <sha-or-ref>]` to reproduce a CI-style
+ * merge-base diff.
  */
 const lintableFilePattern = /\.(?:cjs|js|mjs|ts)$/u;
 const ignoredPathPattern = /(^|\/)(coverage|dist|documentation|junit-results|node_modules)\//u;
@@ -86,15 +87,14 @@ function uniqueLines(output) {
 }
 
 function changedFilesBetween(base, head) {
-  // actions/checkout uses a shallow checkout, so the PR base commit often is
-  // not present locally even though GitHub exposes the SHA in the event JSON.
   ensureCommitAvailable(base);
+  ensureCommitAvailable(head);
+
   return uniqueLines(git([
     'diff',
     '--name-only',
     '--diff-filter=ACMR',
-    base,
-    head
+    `${base}...${head}`
   ]));
 }
 
@@ -112,13 +112,15 @@ function getCandidateFiles(options) {
   }
 
   if (process.env.GITHUB_EVENT_NAME === 'pull_request') {
-    const baseSha = getGitHubEvent().pull_request?.base?.sha;
+    const pullRequest = getGitHubEvent().pull_request;
+    const baseSha = pullRequest?.base?.sha;
+    const headSha = pullRequest?.head?.sha;
 
-    if (!baseSha) {
-      throw new Error('Unable to determine pull request base SHA');
+    if (!baseSha || !headSha) {
+      throw new Error('Unable to determine pull request base and head SHAs');
     }
 
-    return changedFilesBetween(baseSha, options.head);
+    return changedFilesBetween(baseSha, headSha);
   }
 
   return changedFilesInWorkingTree();
