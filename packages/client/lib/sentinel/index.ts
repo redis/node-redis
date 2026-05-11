@@ -209,6 +209,7 @@ export class RedisSentinelClient<
   }
 
   MULTI(): RedisSentinelMultiCommandType<[], M, F, S, RESP, TYPE_MAPPING> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return new (this as any).Multi(this);
   }
 
@@ -529,6 +530,7 @@ export default class RedisSentinel<
   }
 
   MULTI(): RedisSentinelMultiCommandType<[], M, F, S, RESP, TYPE_MAPPING> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return new (this as any).Multi(this);
   }
 
@@ -651,7 +653,7 @@ export default class RedisSentinel<
   }
 }
 
-class RedisSentinelInternal<
+export class RedisSentinelInternal<
   M extends RedisModules,
   F extends RedisFunctions,
   S extends RedisScripts,
@@ -681,9 +683,8 @@ class RedisSentinelInternal<
 
   #anotherReset = false;
 
-  #configEpoch: number = 0;
-
   readonly #sentinelSeedNodes: Array<RedisNode>;
+
   #sentinelRootNodes: Array<RedisNode>;
   #sentinelClient?: RedisClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>;
 
@@ -868,13 +869,14 @@ class RedisSentinelInternal<
 
         this.#trace("#connect: returning");
         return;
-      } catch (e: any) {
-        this.#trace(`#connect: exception ${e.message}`);
+      } catch (e) {
+        const err = e as Error;
+        this.#trace(`#connect: exception ${err.message}`);
         if (!this.#isReady && count > this.#maxCommandRediscovers) {
           throw e;
         }
 
-        if (e.message !== 'no valid master node') {
+        if (err.message !== 'no valid master node') {
           console.log(e);
         }
         await setTimeout(1000);
@@ -944,7 +946,7 @@ class RedisSentinelInternal<
     return client;
   }
 
-  async #handlePubSubControlChannel(channel: Buffer, message: Buffer) {
+  async #handlePubSubControlChannel(channel: Buffer, _message: Buffer) {
     this.#trace("pubsub control channel message on " + channel);
     this.#reset();
   }
@@ -1273,7 +1275,7 @@ class RedisSentinelInternal<
   async transform(analyzed: ReturnType<RedisSentinelInternal<M, F, S, RESP, TYPE_MAPPING>["analyze"]>) {
     this.#trace("transform: enter");
 
-    let promises: Array<Promise<any>> = [];
+    const promises: Array<Promise<unknown>> = [];
 
     if (analyzed.sentinelToOpen) {
       this.#trace(`transform: opening a new sentinel`);
@@ -1359,7 +1361,8 @@ class RedisSentinelInternal<
       }
 
       this.#trace(`transform: adding promise to change #pubSubProxy node`);
-      masterPromises.push(this.#pubSubProxy.changeNode(analyzed.masterToOpen));
+      const mappedPubSubNode = getMappedNode(analyzed.masterToOpen.host, analyzed.masterToOpen.port, this.#nodeAddressMap);
+      masterPromises.push(this.#pubSubProxy.changeNode(mappedPubSubNode));
       promises.push(...masterPromises);
       const event: RedisSentinelEvent = {
         type: "MASTER_CHANGE",
@@ -1369,7 +1372,6 @@ class RedisSentinelInternal<
       if (!this.emit('topology-change', event)) {
         this.#trace(`transform: emit for topology-change for master_change returned false`);
       }
-      this.#configEpoch++;
     }
 
     const replicaCloseSet = new Set<string>();
@@ -1578,7 +1580,7 @@ export class RedisSentinelFactory extends EventEmitter {
       try {
         const masterData = await client.sentinel.sentinelMaster(this.options.name);
 
-        let master = parseNode(masterData);
+        const master = parseNode(masterData);
         if (master === undefined) {
           continue;
         }
