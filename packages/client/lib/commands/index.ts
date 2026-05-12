@@ -43,6 +43,7 @@ import CLIENT_PAUSE from './CLIENT_PAUSE';
 import CLIENT_SETNAME from './CLIENT_SETNAME';
 import CLIENT_TRACKING from './CLIENT_TRACKING';
 import CLIENT_TRACKINGINFO from './CLIENT_TRACKINGINFO';
+import CLIENT_UNBLOCK, { CLIENT_UNBLOCK_MODES } from './CLIENT_UNBLOCK';
 import CLIENT_UNPAUSE from './CLIENT_UNPAUSE';
 import CLUSTER_ADDSLOTS from './CLUSTER_ADDSLOTS';
 import CLUSTER_ADDSLOTSRANGE from './CLUSTER_ADDSLOTSRANGE';
@@ -376,6 +377,7 @@ import LATENCY_HISTOGRAM from './LATENCY_HISTOGRAM';
 
 export {
   CLIENT_KILL_FILTERS,
+  CLIENT_UNBLOCK_MODES,
   FAILOVER_MODES,
   CLUSTER_SLOT_STATES,
   COMMAND_LIST_FILTER_BY,
@@ -863,6 +865,18 @@ export default {
    * Returns information about the current connection's key tracking state
    */
   clientTrackingInfo: CLIENT_TRACKINGINFO,
+  /**
+   * Unblocks a client blocked by a blocking command from a different connection
+   * @param clientId - The ID of the client to unblock
+   * @param mode - Optional unblock mode: 'TIMEOUT' or 'ERROR'
+   */
+  CLIENT_UNBLOCK,
+  /**
+   * Unblocks a client blocked by a blocking command from a different connection
+   * @param clientId - The ID of the client to unblock
+   * @param mode - Optional unblock mode: 'TIMEOUT' or 'ERROR'
+   */
+  clientUnblock: CLIENT_UNBLOCK,
   /**
    * Resumes processing of client commands after a CLIENT PAUSE
    */
