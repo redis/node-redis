@@ -6,7 +6,7 @@ import RedisClusterSlots from './cluster-slots';
 describe('RedisClusterSlots', () => {
   describe('initialization', () => {
     describe('clientSideCache validation', () => {
-      const mockEmit = ((_event: string | symbol, ..._args: any[]): boolean => true) as EventEmitter['emit'];
+      const mockEmit: EventEmitter['emit'] = () => true;
       const clientSideCacheConfig = { ttl: 0, maxEntries: 0 };
       const rootNodes: Array<RedisClusterClientOptions> = [
         { socket: { host: 'localhost', port: 30001 } }

@@ -11,7 +11,10 @@ export type ActionType =
   | "execute_rladmin_command"
   | "migrate"
   | "bind"
-  | "update_cluster_config";
+  | "update_cluster_config"
+  | "node_failure"
+  | "proxy_failure"
+  | "shard_failure";
 
 export interface ActionRequest {
   type: ActionType;
@@ -143,7 +146,7 @@ export class FaultInjectorClient {
   async #request<T>(
     method: string,
     path: string,
-    body?: Object | string
+    body?: object | string
   ): Promise<T> {
     const url = `${this.baseUrl}${path}`;
     const headers: Record<string, string> = {
