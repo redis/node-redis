@@ -45,6 +45,14 @@ export type RedisClientType<
   TYPE_MAPPING extends TypeMapping = {}
 > = GenericRedisClientType<M, F, S, RESP, TYPE_MAPPING>;
 
+export type RedisClientPoolType<
+  M extends RedisModules = RedisDefaultModules,
+  F extends RedisFunctions = {},
+  S extends RedisScripts = {},
+  RESP extends RespVersions = 2,
+  TYPE_MAPPING extends TypeMapping = {}
+> = GenericRedisClientPoolType<M, F, S, RESP, TYPE_MAPPING>;
+
 export function createClient<
   M extends RedisModules,
   F extends RedisFunctions,
