@@ -43,7 +43,7 @@ export interface HotkeysGetReply {
   byNetBytes?: Array<HotkeyEntry>;
 }
 
-function mapLikeEntries(value: any): Array<[string, any]> {
+function mapLikeEntries(value: unknown): Array<[string, unknown]> {
   if (value instanceof Map) {
     return Array.from(value.entries(), ([key, entryValue]) => [key.toString(), entryValue]);
   }
@@ -60,7 +60,7 @@ function mapLikeEntries(value: any): Array<[string, any]> {
       return value.map(item => [item[0].toString(), item[1]]);
     }
 
-    const entries: Array<[string, any]> = [];
+    const entries: Array<[string, unknown]> = [];
     for (let i = 0; i < value.length - 1; i += 2) {
       entries.push([value[i].toString(), value[i + 1]]);
     }
@@ -68,16 +68,16 @@ function mapLikeEntries(value: any): Array<[string, any]> {
   }
 
   if (value !== null && typeof value === 'object') {
-    return Object.entries(value);
+    return Object.entries(value as Record<string, unknown>);
   }
 
   return [];
 }
 
-function mapLikeValues(value: any): Array<any> {
+function mapLikeValues(value: unknown): Array<unknown> {
   if (Array.isArray(value)) return value;
   if (value instanceof Map) return [...value.values()];
-  if (value !== null && typeof value === 'object') return Object.values(value);
+  if (value !== null && typeof value === 'object') return Object.values(value as Record<string, unknown>);
   return [];
 }
 

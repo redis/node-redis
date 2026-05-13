@@ -19,12 +19,12 @@ export default {
    * @returns Record mapping channel names to their subscriber counts
    */
   transformReply(rawReply: UnwrapReply<ArrayReply<BlobStringReply | NumberReply>>) {
-    const reply: Record<string, any> = {};
+    const reply: Record<string, number> = {};
     let i = 0;
     while (i < rawReply.length) {
       reply[rawReply[i++].toString()] = Number(rawReply[i++]);
     }
 
-    return reply as Record<string, NumberReply>;
+    return reply as unknown as Record<string, NumberReply>;
   }
 } as const satisfies Command;

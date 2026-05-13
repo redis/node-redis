@@ -440,11 +440,11 @@ describe('Generic Transformers', () => {
                     [
                         '1',
                         '2'
-                    ] as unknown as TuplesReply<[BlobStringReply, ...Array<any>]>,
+                    ] as unknown as TuplesReply<[BlobStringReply, ...Array<unknown>]>,
                     [
                         '3',
                         '4'
-                    ] as unknown as TuplesReply<[BlobStringReply, ...Array<any>]>
+                    ] as unknown as TuplesReply<[BlobStringReply, ...Array<unknown>]>
                 ], [GeoReplyWith.DISTANCE]),
                 [{
                     member: '1',
@@ -462,11 +462,11 @@ describe('Generic Transformers', () => {
                     [
                         '1',
                         2
-                    ] as unknown as TuplesReply<[BlobStringReply, ...Array<any>]>,
+                    ] as unknown as TuplesReply<[BlobStringReply, ...Array<unknown>]>,
                     [
                         '3',
                         4
-                    ] as unknown as TuplesReply<[BlobStringReply, ...Array<any>]>
+                    ] as unknown as TuplesReply<[BlobStringReply, ...Array<unknown>]>
                 ], [GeoReplyWith.HASH]),
                 [{
                     member: '1',
@@ -487,14 +487,14 @@ describe('Generic Transformers', () => {
                             '2',
                             '3'
                         ]
-                    ] as unknown as TuplesReply<[BlobStringReply, ...Array<any>]>,
+                    ] as unknown as TuplesReply<[BlobStringReply, ...Array<unknown>]>,
                     [
                         '4',
                         [
                             '5',
                             '6'
                         ]
-                    ] as unknown as TuplesReply<[BlobStringReply, ...Array<any>]>
+                    ] as unknown as TuplesReply<[BlobStringReply, ...Array<unknown>]>
                 ], [GeoReplyWith.COORDINATES]),
                 [{
                     member: '1',
@@ -523,7 +523,7 @@ describe('Generic Transformers', () => {
                             '4',
                             '5'
                         ]
-                    ] as unknown as TuplesReply<[BlobStringReply, ...Array<any>]>,
+                    ] as unknown as TuplesReply<[BlobStringReply, ...Array<unknown>]>,
                     [
                         '6',
                         '7',
@@ -532,7 +532,7 @@ describe('Generic Transformers', () => {
                             '9',
                             '10'
                         ]
-                    ] as unknown as TuplesReply<[BlobStringReply, ...Array<any>]>
+                    ] as unknown as TuplesReply<[BlobStringReply, ...Array<unknown>]>
                 ], [GeoReplyWith.DISTANCE, GeoReplyWith.HASH, GeoReplyWith.COORDINATES]),
                 [{
                     member: '1',

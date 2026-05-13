@@ -1,11 +1,11 @@
-function isPlainObject(value: unknown): value is Record<string, any> {
+function isPlainObject(value: unknown): value is Record<string, unknown> {
   return value !== null &&
     typeof value === 'object' &&
     !Array.isArray(value) &&
     !(value instanceof Map);
 }
 
-export function mapLikeEntries(value: unknown): Array<[string, any]> {
+export function mapLikeEntries(value: unknown): Array<[string, unknown]> {
   if (value instanceof Map) {
     return Array.from(value.entries(), ([key, entryValue]) => [key.toString(), entryValue]);
   }
@@ -22,7 +22,7 @@ export function mapLikeEntries(value: unknown): Array<[string, any]> {
       return value.map(item => [item[0].toString(), item[1]]);
     }
 
-    const entries: Array<[string, any]> = [];
+    const entries: Array<[string, unknown]> = [];
     for (let i = 0; i < value.length - 1; i += 2) {
       entries.push([value[i].toString(), value[i + 1]]);
     }
@@ -36,7 +36,7 @@ export function mapLikeEntries(value: unknown): Array<[string, any]> {
   return [];
 }
 
-export function toCompatObject(value: Record<string, any>): Record<string, any> {
+export function toCompatObject(value: Record<string, unknown>): Record<string, unknown> {
   const descriptors: PropertyDescriptorMap = {};
 
   for (const [key, entryValue] of Object.entries(value)) {
@@ -50,30 +50,30 @@ export function toCompatObject(value: Record<string, any>): Record<string, any> 
   return Object.defineProperties({}, descriptors);
 }
 
-export function mapLikeToObject(value: unknown): Record<string, any> {
-  const object: Record<string, any> = {};
+export function mapLikeToObject(value: unknown): Record<string, unknown> {
+  const object: Record<string, unknown> = {};
   for (const [key, entryValue] of mapLikeEntries(value)) {
     object[key] = entryValue;
   }
   return object;
 }
 
-export function mapLikeToFlatArray(value: unknown): Array<any> {
-  const flat: Array<any> = [];
+export function mapLikeToFlatArray(value: unknown): Array<unknown> {
+  const flat: Array<unknown> = [];
   for (const [key, entryValue] of mapLikeEntries(value)) {
     flat.push(key, entryValue);
   }
   return flat;
 }
 
-export function mapLikeValues(value: unknown): Array<any> {
+export function mapLikeValues(value: unknown): Array<unknown> {
   if (Array.isArray(value)) return value;
   if (value instanceof Map) return [...value.values()];
   if (isPlainObject(value)) return Object.values(value);
   return [];
 }
 
-export function getMapValue(value: unknown, keys: Array<string>): any {
+export function getMapValue(value: unknown, keys: Array<string>): unknown {
   const object = mapLikeToObject(value);
 
   for (const key of keys) {
@@ -100,9 +100,9 @@ export function getMapValue(value: unknown, keys: Array<string>): any {
   return undefined;
 }
 
-function assignDocumentField(target: Record<string, any>, key: string, value: any): void {
+function assignDocumentField(target: Record<string, unknown>, key: string, value: unknown): void {
   if (key === '$') {
-    const json = value?.toString?.() ?? value;
+    const json = (value as { toString?: () => string })?.toString?.() ?? value;
     if (typeof json === 'string') {
       try {
         Object.assign(target, JSON.parse(json));
@@ -116,8 +116,8 @@ function assignDocumentField(target: Record<string, any>, key: string, value: an
   target[key] = value;
 }
 
-export function parseDocumentValue(value: unknown): Record<string, any> {
-  const document: Record<string, any> = {};
+export function parseDocumentValue(value: unknown): Record<string, unknown> {
+  const document: Record<string, unknown> = {};
 
   for (const [key, entryValue] of mapLikeEntries(value)) {
     assignDocumentField(document, key, entryValue);
@@ -132,7 +132,7 @@ function normalizeProfileValue(value: unknown): unknown {
   }
 
   if (value instanceof Map || isPlainObject(value)) {
-    const normalized: Array<any> = [];
+    const normalized: Array<unknown> = [];
     for (const [key, entryValue] of mapLikeEntries(value)) {
       normalized.push(key, normalizeProfileValue(entryValue));
     }
@@ -147,12 +147,12 @@ export function normalizeProfileReply(profile: unknown): unknown {
 }
 
 export function parseSearchResultRow(rawRow: unknown): {
-  id: any;
-  value: Record<string, any>;
+  id: unknown;
+  value: Record<string, unknown>;
 } {
   const row = mapLikeToObject(rawRow);
 
-  const value: Record<string, any> = {};
+  const value: Record<string, unknown> = {};
   Object.assign(value, parseDocumentValue(getMapValue(row, ['values'])));
   Object.assign(value, parseDocumentValue(getMapValue(row, ['extra_attributes', 'extraAttributes'])));
 
@@ -162,10 +162,10 @@ export function parseSearchResultRow(rawRow: unknown): {
   };
 }
 
-export function parseAggregateResultRow(rawRow: unknown): Record<string, any> {
+export function parseAggregateResultRow(rawRow: unknown): Record<string, unknown> {
   const row = mapLikeToObject(rawRow);
 
-  const result: Record<string, any> = {};
+  const result: Record<string, unknown> = {};
   Object.assign(result, parseDocumentValue(getMapValue(row, ['values'])));
   Object.assign(result, parseDocumentValue(getMapValue(row, ['extra_attributes', 'extraAttributes'])));
 

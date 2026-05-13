@@ -102,7 +102,7 @@ describe('XREAD', () => {
     ])
 
     // FUTURE resp3 compatible
-    const obj = Object.assign({}, {
+    const _obj = Object.assign({}, {
       'key': [{
         id: id,
         message: Object.defineProperties({}, {

@@ -163,17 +163,17 @@ function transformSearchReplyResp2(reply: SearchRawReply): SearchReply {
   // if reply[2] is array, then we have content/documents. Otherwise, only ids
   const withoutDocuments = reply.length > 2 && !Array.isArray(reply[2]);
 
-  const documents = [];
+  const documents: SearchReply['documents'] = [];
   let i = 1;
   while (i < reply.length) {
     documents.push({
-      id: reply[i++],
-      value: withoutDocuments ? {} : documentValue(reply[i++])
+      id: reply[i++] as string,
+      value: (withoutDocuments ? {} : documentValue(reply[i++])) as SearchDocumentValue
     });
   }
 
   return {
-    total: reply[0],
+    total: reply[0] as number,
     documents
   };
 }
@@ -190,11 +190,11 @@ function transformSearchReplyResp3(rawReply: ReplyUnion): SearchReply {
     getMapValue(reply, ['results', 'documents']) ?? []
   );
 
-  const documents = results.map(result => {
+  const documents: SearchReply['documents'] = results.map(result => {
     const { id, value } = parseSearchResultRow(result);
     return {
-      id: id?.toString?.() ?? id,
-      value
+      id: String((id as { toString?(): string })?.toString?.() ?? id ?? ''),
+      value: value as SearchDocumentValue
     };
   });
 
@@ -232,6 +232,6 @@ export interface SearchReply {
   }>;
 }
 
-function documentValue(tuples: any) {
+function documentValue(tuples: unknown) {
   return parseDocumentValue(tuples);
 }

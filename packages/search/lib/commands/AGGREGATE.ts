@@ -142,6 +142,7 @@ export interface AggregateReply {
 
 function transformAggregateReplyResp2(
   rawReply: AggregateRawReply,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
   preserve?: any,
   typeMapping?: TypeMapping
 ): AggregateReply {
@@ -163,6 +164,7 @@ function transformAggregateReplyResp2(
 
 function transformAggregateReplyResp3(
   rawReply: ReplyUnion,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
   preserve?: any,
   typeMapping?: TypeMapping
 ): AggregateReply {

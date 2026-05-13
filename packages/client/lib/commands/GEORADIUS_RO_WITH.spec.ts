@@ -22,7 +22,7 @@ describe('GEORADIUS_RO WITH', () => {
   it('transformReply should parse RESP2 floating-point strings', () => {
     const reply = GEORADIUS_RO_WITH.transformReply([
       ['member', '0.5', 1, ['1.23', '4.56']]
-    ] as any, [
+    ] as never, [
       GEO_REPLY_WITH.DISTANCE,
       GEO_REPLY_WITH.HASH,
       GEO_REPLY_WITH.COORDINATES

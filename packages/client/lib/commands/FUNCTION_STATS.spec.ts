@@ -2,7 +2,7 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import FUNCTION_STATS from './FUNCTION_STATS';
 import { parseArgs } from './generic-transformers';
-import { loadMathFunction, MATH_FUNCTION } from './FUNCTION_LOAD.spec';
+import { loadMathFunction } from './FUNCTION_LOAD.spec';
 
 describe('FUNCTION STATS', () => {
   testUtils.isVersionGreaterThanHook([7]);

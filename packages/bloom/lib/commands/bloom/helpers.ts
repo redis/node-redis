@@ -1,6 +1,7 @@
 import { RESP_TYPES, TypeMapping } from "@redis/client";
 
-export function transformInfoV2Reply<T>(reply: Array<any>, typeMapping?: TypeMapping): T {
+export function transformInfoV2Reply<T>(reply: Array<unknown>, typeMapping?: TypeMapping): T {
+  const entries = reply as Array<{ toString(): string }>;
   const mapType = typeMapping ? typeMapping[RESP_TYPES.MAP] : undefined;
 
   switch (mapType) {
@@ -8,19 +9,19 @@ export function transformInfoV2Reply<T>(reply: Array<any>, typeMapping?: TypeMap
       return reply as unknown as T;
     }
     case Map: {
-      const ret = new Map<string, any>();
+      const ret = new Map<string, unknown>();
 
-      for (let i = 0; i < reply.length; i += 2) {
-        ret.set(reply[i].toString(), reply[i + 1]);
+      for (let i = 0; i < entries.length; i += 2) {
+        ret.set(entries[i].toString(), entries[i + 1]);
       }
 
       return ret as unknown as T;
     }
     default: {
-      const ret: Record<string, any> = {};
+      const ret: Record<string, unknown> = {};
 
-      for (let i = 0; i < reply.length; i += 2) {
-        ret[reply[i].toString()] = reply[i + 1];
+      for (let i = 0; i < entries.length; i += 2) {
+        ret[entries[i].toString()] = entries[i + 1];
       }
 
       return ret as unknown as T;

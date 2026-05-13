@@ -45,6 +45,7 @@ const FT_HYBRID_ITEMS = [
  * Helper to create the index for hybrid search tests
  */
 const createHybridSearchIndex = async (
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test helper accepts loosely-typed clients
   client: any,
   indexName: string,
   dim = 4,
@@ -83,6 +84,7 @@ const createHybridSearchIndex = async (
  * Helper to add data to the index for hybrid search tests
  */
 const addDataForHybridSearch = async (
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test helper accepts loosely-typed clients
   client: any,
   itemsSets = 1,
   options: {
@@ -108,14 +110,14 @@ const addDataForHybridSearch = async (
       : () => generateRandomVector(actualDim);
 
     items = [
-      { vector: generateDataFunc() as any, description: "red shoes" },
+      { vector: generateDataFunc() as never, description: "red shoes" },
       {
-        vector: generateDataFunc() as any,
+        vector: generateDataFunc() as never,
         description: "green shoes with red laces",
       },
-      { vector: generateDataFunc() as any, description: "red dress" },
-      { vector: generateDataFunc() as any, description: "orange dress" },
-      { vector: generateDataFunc() as any, description: "black shoes" },
+      { vector: generateDataFunc() as never, description: "red dress" },
+      { vector: generateDataFunc() as never, description: "orange dress" },
+      { vector: generateDataFunc() as never, description: "black shoes" },
     ];
   } else {
     items = FT_HYBRID_ITEMS;
@@ -127,7 +129,7 @@ const addDataForHybridSearch = async (
     allItems.push(...items);
   }
 
-  const promises: Promise<any>[] = [];
+  const promises: Promise<unknown>[] = [];
   for (let i = 0; i < allItems.length; i++) {
     const { vector, description } = allItems[i];
     const embeddingData =

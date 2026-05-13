@@ -7,7 +7,7 @@ describe('VSETATTR', () => {
   describe('parseCommand', () => {
     it('with object', () => {
       const parser = new BasicCommandParser();
-      VSETATTR.parseCommand(parser, 'key', 'element', { name: 'test', value: 42 }),
+      VSETATTR.parseCommand(parser, 'key', 'element', { name: 'test', value: 42 });
       assert.deepEqual(
         parser.redisArgs,
         ['VSETATTR', 'key', 'element', '{"name":"test","value":42}']
@@ -16,7 +16,7 @@ describe('VSETATTR', () => {
 
     it('with string', () => {
       const parser = new BasicCommandParser();
-      VSETATTR.parseCommand(parser, 'key', 'element', '{"name":"test"}'),
+      VSETATTR.parseCommand(parser, 'key', 'element', '{"name":"test"}');
       assert.deepEqual(
         parser.redisArgs,
         ['VSETATTR', 'key', 'element', '{"name":"test"}']

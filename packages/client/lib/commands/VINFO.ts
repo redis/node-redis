@@ -25,7 +25,7 @@ export default {
   },
   transformReply: {
     2: (reply: UnwrapReply<Resp2Reply<VInfoReplyMap>>): VInfoReplyMap => {
-      const ret: Record<string, any> = {};
+      const ret: Record<string, unknown> = {};
 
       for (let i = 0; i < reply.length; i += 2) {
         ret[reply[i].toString()] = reply[i + 1];

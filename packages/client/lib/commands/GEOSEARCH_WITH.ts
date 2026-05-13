@@ -21,11 +21,6 @@ export interface GeoReplyWithMember {
   };
 }
 
-type GeoSearchWithRawMember = [
-  BlobStringReply,
-  ...(BlobStringReply | NumberReply | [DoubleReply, DoubleReply])[]
-];
-
 export default {
   IS_READ_ONLY: GEOSEARCH.IS_READ_ONLY,
   parseCommand(
@@ -41,6 +36,7 @@ export default {
     parser.preserve = replyWith;
   },
   transformReply(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- heterogeneous tuple variance marker
     reply: UnwrapReply<ArrayReply<TuplesReply<[BlobStringReply, ...Array<any>]>>>,
     replyWith: Array<GeoReplyWith>,
     typeMapping?: TypeMapping
@@ -60,20 +56,22 @@ export default {
     };
 
     return reply.map(raw => {
+      const unwrapped = raw as unknown as UnwrapReply<typeof raw>;
+
       const item: GeoReplyWithMember = {
-        member: raw[0]
+        member: unwrapped[0]
       };
 
       if (distanceIndex) {
-        item.distance = parseDouble(raw[distanceIndex]);
+        item.distance = parseDouble(unwrapped[distanceIndex]);
       }
 
       if (hashIndex) {
-        item.hash = raw[hashIndex] as NumberReply;
+        item.hash = unwrapped[hashIndex] as NumberReply;
       }
 
       if (coordinatesIndex) {
-        const [longitude, latitude] = raw[coordinatesIndex] as [DoubleReply, DoubleReply];
+        const [longitude, latitude] = unwrapped[coordinatesIndex] as [DoubleReply, DoubleReply];
         item.coordinates = {
           longitude: parseDouble(longitude),
           latitude: parseDouble(latitude)

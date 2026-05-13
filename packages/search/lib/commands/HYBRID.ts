@@ -410,7 +410,7 @@ export default {
     2: (reply: unknown): HybridSearchResult => {
       return transformHybridSearchResults(reply);
     },
-    3: (reply: any): HybridSearchResult => {
+    3: (reply: unknown): HybridSearchResult => {
       return transformHybridSearchResults(reply);
     },
   },
@@ -424,7 +424,7 @@ export interface HybridSearchResult {
   results: Record<string, any>[];
 }
 
-function transformHybridSearchResults(reply: any): HybridSearchResult {
+function transformHybridSearchResults(reply: unknown): HybridSearchResult {
   const replyMap = parseReplyMap(reply);
 
   const totalResults = Number(
@@ -446,11 +446,11 @@ function transformHybridSearchResults(reply: any): HybridSearchResult {
   const results: HybridSearchResult['results'] = [];
   for (const result of rawResults) {
     const resultMap = parseReplyMap(result);
-    const doc: Record<string, any> = {};
+    const doc: Record<string, unknown> = {};
     const id = getMapValue(resultMap, ["id"]);
 
-    if (id !== undefined) {
-      doc.id = id.toString();
+    if (id != null) {
+      doc.id = (id as { toString(): string }).toString();
     }
 
     Object.assign(doc, parseDocumentValue(getMapValue(resultMap, ["values"])));
@@ -482,11 +482,11 @@ function transformHybridSearchResults(reply: any): HybridSearchResult {
   return {
     totalResults,
     executionTime,
-    warnings: warnings.map(warning => warning.toString()),
+    warnings: warnings.map(warning => (warning as { toString(): string }).toString()),
     results,
   };
 }
 
-function parseReplyMap(reply: any): Record<string, any> {
+function parseReplyMap(reply: unknown): Record<string, unknown> {
   return mapLikeToObject(reply);
 }

@@ -6,7 +6,7 @@ export type ModuleListReply = ArrayReply<TuplesToMapReply<[
   [BlobStringReply<'ver'>, NumberReply],
 ]>>;
 
-function transformModuleReply(moduleReply: any) {
+function transformModuleReply(moduleReply: unknown) {
   if (Array.isArray(moduleReply)) {
     let name: BlobStringReply | undefined;
     let ver: NumberReply | undefined;
@@ -45,13 +45,14 @@ function transformModuleReply(moduleReply: any) {
     };
   }
 
+  const objectReply = moduleReply as { name: BlobStringReply; ver: NumberReply };
   return {
-    name: moduleReply.name,
-    ver: moduleReply.ver
+    name: objectReply.name,
+    ver: objectReply.ver
   };
 }
 
-function transformModuleListReply(reply: Array<any>) {
+function transformModuleListReply(reply: Array<unknown>) {
   return reply.map(moduleReply => transformModuleReply(moduleReply));
 }
 

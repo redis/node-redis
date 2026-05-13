@@ -71,7 +71,7 @@ export interface InfoReply {
   ignoreMaxValDiff: DoubleReply;
 }
 
-function mapLikeEntries(value: unknown): Array<[string, any]> {
+function mapLikeEntries(value: unknown): Array<[string, unknown]> {
   if (value instanceof Map) {
     return Array.from(value.entries(), ([key, entryValue]) => [key.toString(), entryValue]);
   }
@@ -81,7 +81,7 @@ function mapLikeEntries(value: unknown): Array<[string, any]> {
       return value.map(item => [item[0].toString(), item[1]]);
     }
 
-    const entries: Array<[string, any]> = [];
+    const entries: Array<[string, unknown]> = [];
     for (let i = 0; i < value.length - 1; i += 2) {
       entries.push([value[i].toString(), value[i + 1]]);
     }
@@ -95,22 +95,22 @@ function mapLikeEntries(value: unknown): Array<[string, any]> {
   return [];
 }
 
-function mapLikeValues(value: unknown): Array<any> {
+function mapLikeValues(value: unknown): Array<unknown> {
   if (Array.isArray(value)) return value;
   if (value instanceof Map) return [...value.values()];
   if (value !== null && typeof value === 'object') return Object.values(value);
   return [];
 }
 
-function mapLikeToObject(value: unknown): Record<string, any> {
-  const object: Record<string, any> = {};
+function mapLikeToObject(value: unknown): Record<string, unknown> {
+  const object: Record<string, unknown> = {};
   for (const [key, entryValue] of mapLikeEntries(value)) {
     object[key] = entryValue;
   }
   return object;
 }
 
-function getMapValue(value: unknown, keys: Array<string>): any {
+function getMapValue(value: unknown, keys: Array<string>): unknown {
   const object = mapLikeToObject(value);
 
   for (const key of keys) {
@@ -168,9 +168,9 @@ function normalizeInfoRules(rules: unknown): Array<[key: BlobStringReply, timeBu
     Object.values(TIME_SERIES_AGGREGATION_TYPE).map(type => type.toUpperCase())
   );
 
-  const parseRuleTuple = (rule: Array<any>): [BlobStringReply, NumberReply, TimeSeriesAggregationType] => {
-    const stringCandidates = rule.filter(value => typeof value === 'string' || value instanceof Buffer);
-    const numberCandidates = rule.filter(value => typeof value === 'number');
+  const parseRuleTuple = (rule: Array<unknown>): [BlobStringReply, NumberReply, TimeSeriesAggregationType] => {
+    const stringCandidates = rule.filter((value): value is string | Buffer => typeof value === 'string' || value instanceof Buffer);
+    const numberCandidates = rule.filter((value): value is number => typeof value === 'number');
 
     const aggregationCandidate = stringCandidates.find(value => {
       return aggregationTypes.has(value.toString().toUpperCase());
@@ -180,7 +180,7 @@ function normalizeInfoRules(rules: unknown): Array<[key: BlobStringReply, timeBu
 
     return [
       (keyCandidate ?? rule[0]) as BlobStringReply,
-      (numberCandidates[0] ?? Number(rule[1])) as NumberReply,
+      (numberCandidates[0] ?? Number(rule[1])) as unknown as NumberReply,
       (aggregationCandidate ?? rule[2]) as TimeSeriesAggregationType
     ];
   };
@@ -241,7 +241,7 @@ function normalizeInfoRawReply(reply: ReplyUnion): InfoRawReply {
     return reply as unknown as InfoRawReply;
   }
 
-  const normalized: Array<any> = [];
+  const normalized: Array<unknown> = [];
   for (const [key, value] of mapLikeEntries(reply)) {
     switch (key) {
       case 'labels':
@@ -260,10 +260,10 @@ function normalizeInfoRawReply(reply: ReplyUnion): InfoRawReply {
 }
 
 function transformInfoReplyResp2(reply: InfoRawReply, _: unknown, typeMapping?: TypeMapping): InfoReply {
-  const ret = {} as any;
+  const ret: Record<string, unknown> = {};
 
   for (let i = 0; i < reply.length; i += 2) {
-    const key = (reply[i] as any).toString();
+    const key = (reply[i] as { toString(): string }).toString();
 
     switch (key) {
       case 'totalSamples':
@@ -302,7 +302,7 @@ function transformInfoReplyResp2(reply: InfoRawReply, _: unknown, typeMapping?: 
     }
   }
 
-  return ret;
+  return ret as unknown as InfoReply;
 }
 
 function transformInfoReplyResp3(reply: ReplyUnion, preserve?: unknown, typeMapping?: TypeMapping): InfoReply {

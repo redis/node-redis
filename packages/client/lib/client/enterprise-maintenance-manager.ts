@@ -9,6 +9,7 @@ import diagnostics_channel from "node:diagnostics_channel";
 import { RedisArgument } from "../RESP/types";
 import { publish, CHANNELS } from "./tracing";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- variance markers for RedisClient generics
 type RedisType = RedisClient<any, any, any, any, any>;
 
 export const SMIGRATED_EVENT = "__SMIGRATED";
@@ -52,10 +53,10 @@ const PN = {
 export type DiagnosticsEvent = {
   type: string;
   timestamp: number;
-  data?: Object;
+  data?: object;
 };
 
-export const dbgMaintenance = (...args: any[]) => {
+export const dbgMaintenance = (...args: unknown[]) => {
   if (!process.env.REDIS_DEBUG_MAINTENANCE) return;
   return console.log(new Date().toISOString().slice(11, 23), "[MNT]", ...args);
 };
@@ -149,6 +150,7 @@ export default class EnterpriseMaintenanceManager {
     this.#commandsQueue.addPushHandler(this.#onPush);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- heterogeneous push payload
   #onPush = (push: Array<any>): boolean => {
     dbgMaintenance("ONPUSH:", push.map(String));
 
@@ -338,6 +340,7 @@ export default class EnterpriseMaintenanceManager {
     this.#client._maintenanceUpdate(update);
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- heterogeneous push payload
   #onSMigrated = (push: any[]) => {
     const smigratedEvent = EnterpriseMaintenanceManager.parseSMigratedPush(push);
     dbgMaintenance(`emit smigratedEvent`, smigratedEvent);
@@ -368,6 +371,7 @@ export default class EnterpriseMaintenanceManager {
    * - Each destination contains the complete list of slots that moved from that source to that destination
    * - Note: The same destination address CAN appear under different sources (e.g., node X receives slots from both A and B)
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- heterogeneous push payload
   static parseSMigratedPush(push: any[]): SMigratedEvent {
     const map = new Map<string, Destination[]>();
 

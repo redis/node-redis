@@ -12,7 +12,7 @@ export default {
     const transformedReply: Record<string, BlobStringReply | NullReply> = {};
 
     for (const [key, value] of mapLikeEntries(reply)) {
-      transformedReply[key] = value;
+      transformedReply[key] = value as BlobStringReply | NullReply;
     }
 
     return toCompatObject(transformedReply);

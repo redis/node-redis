@@ -49,7 +49,7 @@ export interface XReadOptions {
 }
 
 function transformStreamsMessagesReplyResp3Compat(reply: ReplyUnion) {
-  const transformed = transformStreamsMessagesReplyResp3(reply as any);
+  const transformed = transformStreamsMessagesReplyResp3(reply as unknown as Parameters<typeof transformStreamsMessagesReplyResp3>[0]);
   if (transformed === null) return null;
 
   const compat = [];

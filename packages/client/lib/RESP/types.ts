@@ -108,6 +108,7 @@ export interface ArrayReply<T> extends RespType<
   RESP_TYPES['ARRAY'],
   Array<T>,
   never,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- TYPE_MAPPING variance marker
   Array<any>
 > { }
 
@@ -115,6 +116,7 @@ export interface TuplesReply<T extends [...Array<unknown>]> extends RespType<
   RESP_TYPES['ARRAY'],
   T,
   never,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- TYPE_MAPPING variance marker
   Array<any>
 > { }
 
@@ -122,6 +124,7 @@ export interface SetReply<T> extends RespType<
   RESP_TYPES['SET'],
   Array<T>,
   Set<T>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- TYPE_MAPPING variance marker
   Array<any> | Set<any>
 > { }
 
@@ -129,6 +132,7 @@ export interface MapReply<K, V> extends RespType<
   RESP_TYPES['MAP'],
   { [key: string]: V },
   Map<K, V> | Array<K | V>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- TYPE_MAPPING variance marker
   Map<any, any> | Array<any>
 > { }
 
@@ -176,11 +180,13 @@ export type ReplyUnion = (
   MapReply<ReplyUnion, ReplyUnion>
 );
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- constructor/function signature variance
 export type MappedType<T> = ((...args: any) => T) | (new (...args: any) => T);
 
 type InferTypeMapping<T> = T extends RespType<RespTypes, unknown, unknown, infer FLAG_TYPES> ? FLAG_TYPES : never;
 
 export type TypeMapping = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RespType generic variance markers
   [P in RespTypes]?: MappedType<InferTypeMapping<Extract<ReplyUnion, RespType<P, any, any, any>>>>;
 };
 
@@ -199,6 +205,7 @@ type UnwrapConstructor<T> =
   T extends BooleanConstructor ? boolean :
   T extends BigIntConstructor ? bigint :
   T;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- RespType variance markers
 export type UnwrapReply<REPLY extends RespType<any, any, any, any>> = REPLY['DEFAULT' | 'TYPES'];
 
 export type ReplyWithTypeMapping<
@@ -218,6 +225,7 @@ export type ReplyWithTypeMapping<
       REPLY extends Map<infer K, infer V> ? Map<MapKey<K, TYPE_MAPPING>, ReplyWithTypeMapping<V, TYPE_MAPPING>> :
       // `Date | Buffer | Error` are supersets of `Record`, so they need to be checked first
       REPLY extends Date | Buffer | Error ? REPLY :
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- structural variance check
       REPLY extends Record<PropertyKey, any> ? {
         [P in keyof REPLY]: ReplyWithTypeMapping<REPLY[P], TYPE_MAPPING>;
       } :
@@ -226,6 +234,7 @@ export type ReplyWithTypeMapping<
     )
   );
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- public transform contract accepts/returns arbitrary shapes
 export type TransformReply = (this: void, reply: any, preserve?: any, typeMapping?: TypeMapping) => any; // TODO;
 
 export type RedisArgument = string | Buffer;
@@ -289,6 +298,7 @@ export type Command = {
   IS_FORWARD_COMMAND?: boolean;
   NOT_KEYED_COMMAND?: true;
   // POLICIES?: CommandPolicies;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- arbitrary arg list per command
   parseCommand(this: void, parser: CommandParser, ...args: Array<any>): void;
   TRANSFORM_LEGACY_REPLY?: boolean;
   transformReply: TransformReply | Record<RespVersions, TransformReply>;
@@ -348,6 +358,7 @@ export type Resp2Reply<RESP3REPLY> = (
   > :
   RESP_TYPE extends RESP_TYPES['MAP'] ? RespType<
     RESP_TYPES['ARRAY'],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Array filter for union extraction
     Resp2Array<Extract<TYPES, Array<any>>>
   > :
   RESP3REPLY :
@@ -361,8 +372,10 @@ export type CommandReply<
   RESP extends RespVersions
 > = (
     // if transformReply is a function, use its return type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- structural function inference
     COMMAND['transformReply'] extends (...args: any) => infer T ? T :
     // if transformReply[RESP] is a function, use its return type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- structural function inference
     COMMAND['transformReply'] extends Record<RESP, (...args: any) => infer T> ? T :
     // otherwise use the generic reply type
     ReplyUnion

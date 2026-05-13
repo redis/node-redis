@@ -153,7 +153,7 @@ describe('XREADGROUP', () => {
 
 
     // FUTURE resp3 compatible
-    const obj = Object.assign({}, {
+    const _obj = Object.assign({}, {
       'key': [{
         id: id,
         message: Object.defineProperties({}, {
@@ -184,7 +184,7 @@ describe('XREADGROUP', () => {
   });
 
   testUtils.testAll('xReadGroup - without CLAIM should not include delivery fields', async client => {
-    const [, id] = await Promise.all([
+    const [, _id] = await Promise.all([
       client.xGroupCreate('key', 'group', '$', {
         MKSTREAM: true
       }),

@@ -6,11 +6,16 @@ interface AttachConfigOptions<
   S extends RedisScripts,
   RESP extends RespVersions
 > {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- factory contract: arbitrary constructor
   BaseClass: new (...args: any) => any;
   commands: RedisCommands;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- factory contract: arbitrary command function
   createCommand(command: Command, resp: RespVersions): (...args: any) => any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- factory contract: arbitrary command function
   createModuleCommand(command: Command, resp: RespVersions): (...args: any) => any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- factory contract: arbitrary command function
   createFunctionCommand(name: string, fn: RedisFunction, resp: RespVersions): (...args: any) => any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- factory contract: arbitrary command function
   createScriptCommand(script: RedisScript, resp: RespVersions): (...args: any) => any;
   config?: CommanderConfig<M, F, S, RESP>;
 }
@@ -30,6 +35,7 @@ export function attachConfig<
   config
 }: AttachConfigOptions<M, F, S, RESP>) {
   const RESP = config?.RESP ?? 3,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic prototype patching
     Class: any = class extends BaseClass {};
 
   for (const [name, command] of Object.entries(commands)) {
@@ -38,6 +44,7 @@ export function attachConfig<
 
   if (config?.modules) {
     for (const [moduleName, module] of Object.entries(config.modules)) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic command namespace
       const fns: Record<string, (...args: Array<any>) => any> = {};
       for (const [name, command] of Object.entries(module)) {
         fns[name] = createModuleCommand(command, RESP);
@@ -49,6 +56,7 @@ export function attachConfig<
 
   if (config?.functions) {
     for (const [library, commands] of Object.entries(config.functions)) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic command namespace
       const fns: Record<string, (...args: Array<any>) => any> = {};
       for (const [name, command] of Object.entries(commands)) {
         fns[name] = createFunctionCommand(name, command, RESP);
@@ -67,6 +75,7 @@ export function attachConfig<
   return Class;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic prototype patching helper
 function attachNamespace(prototype: any, name: PropertyKey, fns: any) {
   Object.defineProperty(prototype, name, {
     get() {

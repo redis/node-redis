@@ -39,7 +39,8 @@ export default [
         varsIgnorePattern: '^_'
       }],
       '@typescript-eslint/no-empty-object-type': ['error', {
-        allowObjectTypes: 'always'
+        allowObjectTypes: 'always',
+        allowInterfaces: 'with-single-extends'
       }]
     }
   },

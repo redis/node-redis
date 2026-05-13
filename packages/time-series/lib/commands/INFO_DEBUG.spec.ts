@@ -26,7 +26,7 @@ describe('TS.INFO_DEBUG', () => {
         ]);
 
         const infoDebug = await client.ts.infoDebug('key');
-        assertInfo(infoDebug as any);
+        assertInfo(infoDebug as never);
         assert.equal(typeof infoDebug.keySelfName, 'string');
         assert.ok(Array.isArray(infoDebug.chunks));
         for (const chunk of infoDebug.chunks) {
@@ -50,7 +50,7 @@ describe('TS.INFO_DEBUG', () => {
             client.ts.add('key', 1, 10)
         ]);
 
-        const infoDebug = await client.ts.infoDebug('key') as any;
+        const infoDebug = await client.ts.infoDebug('key') as never;
         // RESP3 returns a Map, verify key fields exist with correct types
         assert.equal(typeof infoDebug.totalSamples, 'number');
         assert.equal(typeof infoDebug.memoryUsage, 'number');

@@ -103,7 +103,7 @@ function transformV2Reply(reply: Array<unknown>, preserve?: unknown, typeMapping
       case 'offset_bits_per_record_avg':
       case 'total_indexing_time':
       case 'percent_indexed':
-        ret[key] = transformDoubleReply[2](reply[i+1], undefined, typeMapping) as DoubleReply;
+        ret[key] = transformDoubleReply[2](reply[i+1] as BlobStringReply, undefined, typeMapping) as DoubleReply;
         break;
       case 'index_definition':
         ret[key] = myTransformFunc(reply[i+1] as ArrayReply<SimpleStringReply>);

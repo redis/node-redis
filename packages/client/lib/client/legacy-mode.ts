@@ -84,6 +84,7 @@ export class RedisLegacyClient {
     const RESP = client.options?.RESP ?? 3;
     for (const [name, command] of Object.entries(COMMANDS)) {
       // TODO: as any?
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic command attachment
       (this as any)[name] = RedisLegacyClient.#createCommand(
         name,
         command,
@@ -136,6 +137,7 @@ class LegacyMultiCommand {
 
     for (const [name, command] of Object.entries(COMMANDS)) {
       // TODO: as any?
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic command attachment
       (Multi as any).prototype[name] = LegacyMultiCommand.#createCommand(
         name,
         command,

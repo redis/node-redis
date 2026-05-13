@@ -1,4 +1,5 @@
-// @ts-nocheck
+/* eslint-disable @typescript-eslint/ban-ts-comment, @typescript-eslint/no-explicit-any */
+// @ts-nocheck -- decoder uses untyped continuation callbacks; full typing tracked separately
 import { VerbatimString } from './verbatim-string';
 import { SimpleError, BlobError, ErrorReply } from '../errors';
 import { TypeMapping } from './types';
@@ -380,12 +381,13 @@ export class Decoder {
             this.#decodeDoubleDecimal.bind(this, isNegative, 0, integer);
 
         case ASCII.E:
-        case ASCII.e:
+        case ASCII.e: {
           this.#cursor = cursor + 1; // skip E/e
           const i = isNegative ? -integer : integer;
           return this.#cursor < chunk.length ?
             this.#decodeDoubleExponent(i, chunk) :
             this.#decodeDoubleExponent.bind(this, i);
+        }
 
         case ASCII['\r']:
           this.#cursor = cursor + 2; // skip \r\n
@@ -415,12 +417,13 @@ export class Decoder {
       const byte = chunk[cursor];
       switch (byte) {
         case ASCII.E:
-        case ASCII.e:
+        case ASCII.e: {
           this.#cursor = cursor + 1; // skip E/e
           const d = isNegative ? -double : double;
           return this.#cursor === chunk.length ?
             this.#decodeDoubleExponent.bind(this, d) :
             this.#decodeDoubleExponent(d, chunk);
+        }
 
         case ASCII['\r']:
           this.#cursor = cursor + 2; // skip \r\n

@@ -6,7 +6,7 @@ import { WatchError } from "../errors";
 import { RedisSentinelConfig, SentinelFramework } from "./test-util";
 import { RedisSentinelEvent, RedisSentinelType, RedisSentinelClientType, RedisNode } from "./types";
 import RedisSentinel from "./index";
-import { RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping, NumberReply } from '../RESP/types';
+import { RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
 import { promisify } from 'node:util';
 import { exec } from 'node:child_process';
 import { BasicPooledClientSideCache } from '../client/cache'
@@ -20,14 +20,14 @@ describe('RedisSentinel', () => {
       name: 'mymaster',
       sentinelRootNodes: [{ host: 'localhost', port: 26379 }]
     });
-    assert.equal((sentinel as any).hotkeysStart, undefined);
-    assert.equal((sentinel as any).hotkeysStop, undefined);
-    assert.equal((sentinel as any).hotkeysGet, undefined);
-    assert.equal((sentinel as any).hotkeysReset, undefined);
-    assert.equal((sentinel as any).HOTKEYS_START, undefined);
-    assert.equal((sentinel as any).HOTKEYS_STOP, undefined);
-    assert.equal((sentinel as any).HOTKEYS_GET, undefined);
-    assert.equal((sentinel as any).HOTKEYS_RESET, undefined);
+    assert.equal((sentinel as unknown as Record<string, unknown>).hotkeysStart, undefined);
+    assert.equal((sentinel as unknown as Record<string, unknown>).hotkeysStop, undefined);
+    assert.equal((sentinel as unknown as Record<string, unknown>).hotkeysGet, undefined);
+    assert.equal((sentinel as unknown as Record<string, unknown>).hotkeysReset, undefined);
+    assert.equal((sentinel as unknown as Record<string, unknown>).HOTKEYS_START, undefined);
+    assert.equal((sentinel as unknown as Record<string, unknown>).HOTKEYS_STOP, undefined);
+    assert.equal((sentinel as unknown as Record<string, unknown>).HOTKEYS_GET, undefined);
+    assert.equal((sentinel as unknown as Record<string, unknown>).HOTKEYS_RESET, undefined);
   });
 
   describe('initialization', () => {
@@ -179,7 +179,7 @@ describe('RedisSentinel', () => {
 
     testUtils.testWithClientSentinel('use', async sentinel => {
       await sentinel.use(
-        async (client: any ) => {
+        async client => {
           await assert.doesNotReject(client.get('x'));
         }
       );
@@ -250,7 +250,7 @@ describe('RedisSentinel', () => {
       let tester = false;
       await sentinel.sSubscribe('test', () => {
         tester = true;
-        pubSubResolve && pubSubResolve(1);
+        if (pubSubResolve) pubSubResolve(1);
       })
 
       await sentinel.sPublish('test', 'hello world');
@@ -284,8 +284,8 @@ describe(`test with scripts`, () => {
   }, GLOBAL.SENTINEL.WITH_SCRIPT);
 
   testUtils.testWithClientSentinel('use with script', async sentinel => {
-    const reply = await sentinel.use(
-      async (client: any) => {
+    await sentinel.use(
+      async client => {
         assert.equal(await client.set('key', '2'), 'OK');
         assert.equal(await client.get('key'), '2');
         return client.square('key')
@@ -324,7 +324,7 @@ describe(`test with functions`, () => {
     );
 
     const reply = await sentinel.use(
-      async (client: any) => {
+      async client => {
         await client.set('key', '2');
         return client.math.square('key');
       }
@@ -347,7 +347,7 @@ describe(`test with modules`, () => {
 
   testUtils.testWithClientSentinel('use with module', async sentinel => {
     const reply = await sentinel.use(
-      async (client: any) => {
+      async client => {
         return client.bf.add('key', 'item');
       }
     );
@@ -370,7 +370,7 @@ describe(`test with replica pool size 1`, () => {
         assert.equal(await sentinel.get("x"), '456');
         matched = true;
         break;
-      } catch (err) {
+      } catch {
         await setTimeout(1000);
       }
     }
@@ -436,7 +436,7 @@ describe(`test with masterPoolSize 2`, () => {
   }, GLOBAL.SENTINEL.WITH_MASTER_POOL_SIZE_2);
 
   testUtils.testWithClientSentinel('use - watch - clean', async sentinel => {
-    let promise = sentinel.use(async (client) => {
+    const promise = sentinel.use(async (client) => {
       await client.set("x", 1);
       await client.watch("x");
       return client.multi().get("x").exec();
@@ -446,7 +446,7 @@ describe(`test with masterPoolSize 2`, () => {
   }, GLOBAL.SENTINEL.WITH_MASTER_POOL_SIZE_2);
 
   testUtils.testWithClientSentinel('use - watch - dirty', async sentinel => {
-    let promise = sentinel.use(async (client) => {
+    const promise = sentinel.use(async (client) => {
       await client.set('x', 1);
       await client.watch('x');
       await sentinel!.set('x', 2);
@@ -493,10 +493,9 @@ async function steadyState(frame: SentinelFramework) {
       }
     }
   }
-  let nodeResolve, nodeReject;
-  const nodePromise = new Promise((res, rej) => {
+  let nodeResolve;
+  const nodePromise = new Promise(res => {
     nodeResolve = res;
-    nodeReject = rej;
   })
   const seenNodes = new Set<number>();
   let sentinel: RedisSentinelType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping> | undefined;
@@ -510,7 +509,7 @@ async function steadyState(frame: SentinelFramework) {
             nodeResolve();
           }
         }
-      }).on('error', err => { });
+      }).on('error', () => { });
     sentinel.setTracer(tracer);
     await sentinel.connect();
     await nodePromise;
@@ -526,7 +525,7 @@ async function steadyState(frame: SentinelFramework) {
 describe('legacy tests', () => {
   const config: RedisSentinelConfig = { sentinelName: "test", numberOfNodes: 3, password: undefined };
   const frame = new SentinelFramework(config);
-  let tracer = new Array<string>();
+  const tracer = new Array<string>();
   let stopMeasuringBlocking = false;
   let longestDelta = 0;
   let longestTestDelta = 0;
@@ -587,13 +586,13 @@ describe('legacy tests', () => {
         console.log(`sentinel sentinels:\n${JSON.stringify(results[0], undefined, '\t')}`);
         console.log(`sentinel master:\n${JSON.stringify(results[1], undefined, '\t')}`);
         console.log(`sentinel replicas:\n${JSON.stringify(results[2], undefined, '\t')}`);
-        const { stdout, stderr } = await execAsync("docker ps -a");
+        const { stdout } = await execAsync("docker ps -a");
         console.log(`docker stdout:\n${stdout}`);
         const ids = frame.getAllDockerIds();
         console.log("docker logs");
         for (const [id, port] of ids) {
           console.log(`${id}/${port}\n`);
-          const { stdout, stderr } = await execAsync(`docker logs ${id}`, {maxBuffer: 8192 * 8192 * 4});
+          const { stdout } = await execAsync(`docker logs ${id}`, {maxBuffer: 8192 * 8192 * 4});
           console.log(stdout);
         }
       }
@@ -1025,10 +1024,11 @@ describe('legacy tests', () => {
           try {
             await timedGet();
             pollResults.push({ phase, status: 'success' });
-          } catch (err: any) {
+          } catch (err) {
+            const message = (err as { message?: string })?.message;
             pollResults.push({
               phase,
-              status: err?.message === '1s Timeout' ? 'timeout' : 'error'
+              status: message === '1s Timeout' ? 'timeout' : 'error'
             });
           }
           await setTimeout(3000);
@@ -1090,7 +1090,7 @@ describe('legacy tests', () => {
 
       sentinel = frame.getSentinelClient({ replicaPoolSize: 1 });
       sentinel.setTracer(tracer);
-      sentinel.on('error', err => { });
+      sentinel.on('error', () => { });
       await sentinel.connect();
       tracer.push("connected");
 
@@ -1147,7 +1147,7 @@ describe('legacy tests', () => {
       sentinel = frame.getSentinelClient({ scanInterval: 2000, replicaPoolSize: 1 });
       sentinel.setTracer(tracer);
       // need to handle errors, as the spawning a new docker node can cause existing connections to time out
-      sentinel.on('error', err => { });
+      sentinel.on('error', () => { });
       await sentinel.connect();
       tracer.push("connected");
 

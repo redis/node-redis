@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import INFO, { InfoReply } from './INFO';
+import INFO from './INFO';
 import { SCHEMA_FIELD_TYPE } from './CREATE';
 import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 

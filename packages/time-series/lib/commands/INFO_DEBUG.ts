@@ -36,7 +36,7 @@ export interface InfoDebugReply extends InfoReply {
   }>;
 }
 
-function mapLikeToObject(value: unknown): Record<string, any> {
+function mapLikeToObject(value: unknown): Record<string, unknown> {
   if (value instanceof Map) {
     return Object.fromEntries(
       Array.from(value.entries(), ([key, entryValue]) => [key.toString(), entryValue])
@@ -44,7 +44,7 @@ function mapLikeToObject(value: unknown): Record<string, any> {
   }
 
   if (Array.isArray(value)) {
-    const object: Record<string, any> = {};
+    const object: Record<string, unknown> = {};
     for (let i = 0; i < value.length - 1; i += 2) {
       object[value[i].toString()] = value[i + 1];
     }
@@ -52,13 +52,13 @@ function mapLikeToObject(value: unknown): Record<string, any> {
   }
 
   if (value !== null && typeof value === 'object') {
-    return value as Record<string, any>;
+    return value as Record<string, unknown>;
   }
 
   return {};
 }
 
-function mapLikeValues(value: unknown): Array<any> {
+function mapLikeValues(value: unknown): Array<unknown> {
   if (Array.isArray(value)) return value;
   if (value instanceof Map) return [...value.values()];
   if (value !== null && typeof value === 'object') return Object.values(value);
@@ -93,7 +93,7 @@ function normalizeChunks(chunks: unknown): InfoDebugReply['chunks'] {
       endTimestamp: object.endTimestamp ?? object.end_timestamp,
       samples: object.samples,
       size: object.size,
-      bytesPerSample: (object.bytesPerSample ?? object.bytes_per_sample).toString()
+      bytesPerSample: (object.bytesPerSample ?? object.bytes_per_sample as { toString(): string }).toString()
     };
   });
 }
@@ -137,7 +137,7 @@ export default {
       const ret = INFO.transformReply[3](reply, preserve, typeMapping) as InfoDebugReply;
       const mappedReply = mapLikeToObject(reply);
 
-      ret.keySelfName = mappedReply.keySelfName ?? mappedReply.key_self_name;
+      ret.keySelfName = (mappedReply.keySelfName ?? mappedReply.key_self_name) as BlobStringReply;
 
       const chunks = mappedReply.Chunks ?? mappedReply.chunks;
       ret.chunks = normalizeChunks(chunks);

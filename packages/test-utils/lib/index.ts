@@ -201,13 +201,13 @@ export default class TestUtils {
 
 
     // Match complete version number patterns
-    const versionMatch = version.match(/(^|\-)\d+(\.\d+)*($|\-)/);
+    const versionMatch = version.match(/(^|-)\d+(\.\d+)*($|-)/);
     if (!versionMatch) {
       throw new TypeError(`${version} is not a valid redis version`);
     }
 
     // Extract just the numbers and dots between first and last dash (or start/end)
-    const versionNumbers = versionMatch[0].replace(/^\-|\-$/g, '');
+    const versionNumbers = versionMatch[0].replace(/^-|-$/g, '');
 
     return versionNumbers.split('.').map(x => {
       const value = Number(x);
@@ -576,7 +576,9 @@ export default class TestUtils {
 
   testWithProxiedClient(
     title: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- variance markers for client generics
     fn: (proxiedClient: RedisClientType<any, any, any, any, any>, proxy: RedisProxy) => unknown,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- variance markers for client generics
     options: ClientTestOptions<any, any, any, any, any>
   ) {
 
@@ -586,9 +588,9 @@ export default class TestUtils {
       const proxy = new RedisProxy({
         listenHost: '127.0.0.1',
         listenPort: freePort,
-        //@ts-ignore
+        // @ts-expect-error -- proxy tests target TCP-only socket options
         targetPort: socketOptions.port,
-        //@ts-ignore
+        // @ts-expect-error -- proxy tests target TCP-only socket options
         targetHost: socketOptions.host ?? '127.0.0.1',
         enableLogging: true
       });
@@ -912,6 +914,7 @@ export default class TestUtils {
     };
 
     if (clientOptions.clientOptions) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- destructure generic test fixtures across M/F/S
       const { modules, functions, scripts, ...clientDefaults } = clientOptions.clientOptions as any;
 
       if (modules) {

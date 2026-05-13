@@ -73,6 +73,7 @@ type WithScripts<
 };
 
 export type RedisSentinelMultiCommandType<
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- variance marker for reply tuple
   REPLIES extends Array<any>,
   M extends RedisModules,
   F extends RedisFunctions,

@@ -199,15 +199,17 @@ export interface SentinelCommandOptions<
   TYPE_MAPPING extends TypeMapping = TypeMapping
 > extends CommandOptions<TYPE_MAPPING> {}
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- variance markers for sentinel generics
 export type ProxySentinel = RedisSentinel<any, any, any, any, any>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- variance markers for sentinel generics
 export type ProxySentinelClient = RedisSentinelClient<any, any, any, any, any>;
 export type NamespaceProxySentinel = { _self: ProxySentinel };
 export type NamespaceProxySentinelClient = { _self: ProxySentinelClient };
 
 export type NodeInfo = {
-  ip: any,
-  port: any,
-  flags: any,
+  ip: string,
+  port: string,
+  flags: string,
 };
 
 export type RedisSentinelEvent = NodeChangeEvent | SizeChangeEvent;
@@ -219,7 +221,7 @@ export type NodeChangeEvent = {
 
 export type SizeChangeEvent = {
   type: "SENTINE_LIST_CHANGE";
-  size: Number;
+  size: number;
 }
 
 export type ClientErrorEvent = {

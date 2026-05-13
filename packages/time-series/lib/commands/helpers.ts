@@ -185,6 +185,7 @@ export function resp2MapToValue<
 }
 
 export function resp3MapToValue<
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic over arbitrary RespType
   RAW_VALUE extends RespType<any, any, any, any>, // TODO: simplify types
   TRANSFORMED
 >(
@@ -232,7 +233,7 @@ export function transformRESP2Labels<T extends RawLabelValue>(
 ): MapReply<BlobStringReply, T> {
   const unwrappedLabels = labels as unknown as UnwrapReply<typeof labels>;
   switch (typeMapping?.[RESP_TYPES.MAP]) {
-    case Map:
+    case Map: {
       const map = new Map<string, T>();
       for (const tuple of unwrappedLabels) {
         const [key, value] = tuple as unknown as UnwrapReply<typeof tuple>;
@@ -240,12 +241,13 @@ export function transformRESP2Labels<T extends RawLabelValue>(
         map.set(unwrappedKey.toString(), value);
       }
       return map as never;
+    }
 
     case Array:
       return unwrappedLabels.flat() as never;
 
     case Object:
-    default:
+    default: {
       const labelsObject: Record<string, T> = {};
       for (const tuple of unwrappedLabels) {
         const [key, value] = tuple as unknown as UnwrapReply<typeof tuple>;
@@ -253,6 +255,7 @@ export function transformRESP2Labels<T extends RawLabelValue>(
         labelsObject[unwrappedKey.toString()] = value;
       }
       return labelsObject as never;
+    }
   }
 }
 
@@ -264,7 +267,7 @@ export function transformRESP2LabelsWithSources<T extends RawLabelValue>(
   const to = unwrappedLabels.length - 2; // ignore __reducer__ and __source__
   let transformedLabels: MapReply<BlobStringReply, T>;
   switch (typeMapping?.[RESP_TYPES.MAP]) {
-    case Map:
+    case Map: {
       const map = new Map<string, T>();
       for (let i = 0; i < to; i++) {
         const [key, value] = unwrappedLabels[i] as unknown as UnwrapReply<typeof unwrappedLabels[number]>;
@@ -273,13 +276,14 @@ export function transformRESP2LabelsWithSources<T extends RawLabelValue>(
       }
       transformedLabels = map as never;
       break;
+    }
 
     case Array:
       transformedLabels = unwrappedLabels.slice(0, to).flat() as never;
       break;
 
     case Object:
-    default:
+    default: {
       const labelsObject: Record<string, T> = {};
       for (let i = 0; i < to; i++) {
         const [key, value] = unwrappedLabels[i] as unknown as UnwrapReply<typeof unwrappedLabels[number]>;
@@ -288,6 +292,7 @@ export function transformRESP2LabelsWithSources<T extends RawLabelValue>(
       }
       transformedLabels = labelsObject as never;
       break;
+    }
   }
 
   const sourcesTuple = unwrappedLabels[unwrappedLabels.length - 1];
