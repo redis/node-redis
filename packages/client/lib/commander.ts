@@ -1,4 +1,4 @@
-import { Command, CommanderConfig, RedisArgument, RedisCommands, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, RespVersions, TransformReply } from './RESP/types';
+import { Command, CommanderConfig, RedisArgument, RedisCommands, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, RespVersions, TransformReply, DEFAULT_RESP } from './RESP/types';
 
 interface AttachConfigOptions<
   M extends RedisModules,
@@ -34,7 +34,7 @@ export function attachConfig<
   createScriptCommand,
   config
 }: AttachConfigOptions<M, F, S, RESP>) {
-  const RESP = config?.RESP ?? 3,
+  const RESP = config?.RESP ?? DEFAULT_RESP,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic prototype patching
     Class: any = class extends BaseClass {};
 

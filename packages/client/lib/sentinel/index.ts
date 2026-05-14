@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import { CommandArguments, RedisFunctions, RedisModules, RedisScripts, ReplyUnion, RespVersions, TypeMapping } from '../RESP/types';
+import { CommandArguments, RedisFunctions, RedisModules, RedisScripts, ReplyUnion, RespVersions, TypeMapping, DEFAULT_RESP } from '../RESP/types';
 import RedisClient, { RedisClientOptions, RedisClientType } from '../client';
 import { CommandOptions } from '../client/commands-queue';
 import { attachConfig } from '../commander';
@@ -716,7 +716,7 @@ export class RedisSentinelInternal<
   }
 
   #validateOptions(options?: RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>) {
-    if (options?.clientSideCache && (options?.RESP ?? 3) !== 3) {
+    if (options?.clientSideCache && (options?.RESP ?? DEFAULT_RESP) !== 3) {
       throw new Error('Client Side Caching is only supported with RESP3');
     }
   }

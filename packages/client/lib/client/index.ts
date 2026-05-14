@@ -8,7 +8,7 @@ import { ClientClosedError, ClientOfflineError, DisconnectsClientError, WatchErr
 import { URL } from 'node:url';
 import { TcpSocketConnectOpts } from 'node:net';
 import { PUBSUB_TYPE, PubSubType, PubSubListener, PubSubTypeListeners, ChannelListeners } from './pub-sub';
-import { Command, CommandSignature, TypeMapping, CommanderConfig, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions, RedisArgument, ReplyWithTypeMapping, SimpleStringReply, TransformReply, CommandArguments } from '../RESP/types';
+import { Command, CommandSignature, TypeMapping, CommanderConfig, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions, RedisArgument, ReplyWithTypeMapping, SimpleStringReply, TransformReply, CommandArguments, DEFAULT_RESP } from '../RESP/types';
 import RedisClientMultiCommand, { RedisClientMultiCommandType } from './multi-command';
 import { MULTI_MODE, MultiMode, RedisMultiQueuedCommand } from '../multi-command';
 import HELLO, { HelloOptions } from '../commands/HELLO';
@@ -693,7 +693,7 @@ export default class RedisClient<
   }
 
   #validateOptions(options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>) {
-    const resp = options?.RESP ?? 3;
+    const resp = options?.RESP ?? DEFAULT_RESP;
     if (options?.clientSideCache && resp !== 3) {
       throw new Error('Client Side Caching is only supported with RESP3');
     }
@@ -747,7 +747,7 @@ export default class RedisClient<
 
   #initiateQueue(clientId: string): RedisCommandsQueue {
     return new RedisCommandsQueue(
-      this.#options.RESP ?? 3,
+      this.#options.RESP ?? DEFAULT_RESP,
       this.#options.commandsQueueMaxLength,
       (channel, listeners) => this.emit('sharded-channel-moved', channel, listeners),
       clientId
@@ -759,7 +759,7 @@ export default class RedisClient<
    */
   private reAuthenticate = async (credentials: BasicAuth) => {
     // Re-authentication is not supported on RESP2 with PubSub active
-    if (!(this.isPubSubActive && (this.#options.RESP ?? 3) === 2)) {
+    if (!(this.isPubSubActive && (this.#options.RESP ?? DEFAULT_RESP) === 2)) {
       await this.sendCommand(
         parseArgs(COMMANDS.AUTH, {
           username: credentials.username,
@@ -809,7 +809,7 @@ export default class RedisClient<
   > {
     const commands = [];
     const cp = this.#options.credentialsProvider;
-    const resp = this.#options.RESP ?? 3;
+    const resp = this.#options.RESP ?? DEFAULT_RESP;
 
     if (resp !== 2) {
       const hello: HelloOptions = {};

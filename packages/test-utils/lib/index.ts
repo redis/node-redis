@@ -16,7 +16,8 @@ import {
   createClientPool,
   createCluster,
   RedisClusterOptions,
-  RedisClusterType
+  RedisClusterType,
+  DEFAULT_RESP
 } from '@redis/client/index';
 import { RedisNode } from '@redis/client/lib/sentinel/types'
 import { spawnRedisServer, spawnRedisCluster, spawnRedisSentinel, RedisServerDockerOptions, RedisServerDocker, spawnSentinelNode, spawnRedisServerDocker, spawnTlsRedisServer, TlsConfig, spawnProxiedRedisServer } from './dockers';
@@ -531,7 +532,7 @@ export default class TestUtils {
     it(title, async function () {
       if (!spawnPromise) return this.skip();
       const { apiPort } = await spawnPromise;
-      const RESP = (options.clusterConfiguration?.RESP ?? 3) as RESP;
+      const RESP = (options.clusterConfiguration?.RESP ?? DEFAULT_RESP) as RESP;
       const { RESP: _RESP, ...clusterConfiguration } = options.clusterConfiguration ?? {};
 
 
@@ -652,7 +653,7 @@ export default class TestUtils {
         host: "127.0.0.1",
         port: promise.port
       }));
-      const { RESP = 3, ...sentinelOptions } = options?.sentinelOptions ?? {};
+      const { RESP = DEFAULT_RESP, ...sentinelOptions } = options?.sentinelOptions ?? {};
 
 
       const sentinel = createSentinel({
@@ -829,7 +830,7 @@ export default class TestUtils {
     it(title, async function () {
       if (options.skipTest) return this.skip();
       if (!dockersPromise) return this.skip();
-      const RESP = (options.clusterConfiguration?.RESP ?? 3) as RESP;
+      const RESP = (options.clusterConfiguration?.RESP ?? DEFAULT_RESP) as RESP;
       const { RESP: _RESP, ...clusterConfiguration } = options.clusterConfiguration ?? {};
 
       const dockers = await dockersPromise,
@@ -984,7 +985,7 @@ export default class TestUtils {
           this.timeout(options.testTimeout);
         }
 
-        const RESP = (options.clusterConfiguration?.RESP ?? 3) as RESP;
+        const RESP = (options.clusterConfiguration?.RESP ?? DEFAULT_RESP) as RESP;
         const { defaults, RESP: _RESP, ...rest } = options.clusterConfiguration ?? {};
 
         // Wait for database to be fully ready before connecting

@@ -6,7 +6,7 @@ import { exec } from 'node:child_process';
 import { RedisSentinelOptions, RedisSentinelType } from './types';
 import RedisClient from '../client';
 import RedisSentinel from '.';
-import { RedisFunctions, RedisModules, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
+import { RedisFunctions, RedisModules, RedisScripts, RespVersions, TypeMapping, DEFAULT_RESP } from '../RESP/types';
 const execAsync = promisify(exec);
 import RedisSentinelModule from './module'
 import TestUtils from '@redis/test-utils';
@@ -193,7 +193,7 @@ export class SentinelFramework extends DockerBase {
       throw new Error("cannot specify sentinel db name here");
     }
 
-    const { RESP = 3, ...sentinelOptions } = opts ?? {};
+    const { RESP = DEFAULT_RESP, ...sentinelOptions } = opts ?? {};
     const options: RedisSentinelOptions<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping> = {
       ...sentinelOptions,
       RESP,

@@ -6,7 +6,7 @@ import assert from "node:assert";
 import { setTimeout } from "node:timers/promises";
 import { RedisTcpSocketOptions } from "./socket";
 import diagnostics_channel from "node:diagnostics_channel";
-import { RedisArgument } from "../RESP/types";
+import { RedisArgument, DEFAULT_RESP } from "../RESP/types";
 import { publish, CHANNELS } from "./tracing";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- variance markers for RedisClient generics
@@ -82,7 +82,7 @@ export default class EnterpriseMaintenanceManager {
   static setupDefaultMaintOptions(options: RedisClientOptions) {
     if (options.maintNotifications === undefined) {
       options.maintNotifications =
-        (options?.RESP ?? 3) === 3 ? "auto" : "disabled";
+        (options?.RESP ?? DEFAULT_RESP) === 3 ? "auto" : "disabled";
     }
     if (options.maintEndpointType === undefined) {
       options.maintEndpointType = "auto";

@@ -3,7 +3,7 @@ import { RootNodesUnavailableError } from '../errors';
 import RedisClient, { RedisClientOptions, RedisClientType } from '../client';
 import { EventEmitter } from 'node:stream';
 import { ChannelListeners, PUBSUB_TYPE, PubSubListeners, PubSubTypeListeners } from '../client/pub-sub';
-import { RedisArgument, RedisFunctions, RedisModules, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
+import { RedisArgument, RedisFunctions, RedisModules, RedisScripts, RespVersions, TypeMapping, DEFAULT_RESP } from '../RESP/types';
 import calculateSlot from 'cluster-key-slot';
 import { RedisSocketOptions } from '../client/socket';
 import { BasicPooledClientSideCache, PooledClientSideCacheProvider } from '../client/cache';
@@ -130,7 +130,7 @@ export default class RedisClusterSlots<
   }
 
   #validateOptions(options?: RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING>) {
-    if (options?.clientSideCache && (options?.RESP ?? 3) !== 3) {
+    if (options?.clientSideCache && (options?.RESP ?? DEFAULT_RESP) !== 3) {
       throw new Error('Client Side Caching is only supported with RESP3');
     }
   }
