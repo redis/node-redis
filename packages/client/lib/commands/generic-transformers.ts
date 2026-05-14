@@ -638,7 +638,7 @@ export function transformStreamsMessagesReplyResp2(
 
         ret.push({
           name: stream[0],
-          messages: transformStreamMessagesReply(stream[1])
+          messages: transformStreamMessagesReply(stream[1], typeMapping)
         });
       }
 
@@ -649,7 +649,10 @@ export function transformStreamsMessagesReplyResp2(
 
 type StreamsMessagesRawReply3 = MapReply<BlobStringReply, ArrayReply<StreamMessageRawReply>>;
 
-export function transformStreamsMessagesReplyResp3(reply: UnwrapReply<StreamsMessagesRawReply3 | NullReply>): MapReply<BlobStringReply, StreamMessagesReply> | NullReply {
+export function transformStreamsMessagesReplyResp3(
+  reply: UnwrapReply<StreamsMessagesRawReply3 | NullReply>,
+  typeMapping?: TypeMapping
+): MapReply<BlobStringReply, StreamMessagesReply> | NullReply {
   if (reply === null) return null as unknown as NullReply;
 
   if (reply instanceof Map) {
@@ -658,7 +661,7 @@ export function transformStreamsMessagesReplyResp3(reply: UnwrapReply<StreamsMes
     for (const [n, rawMessages] of reply) {
       const name = n as unknown as UnwrapReply<BlobStringReply>;
 
-      ret.set(name.toString(), transformStreamMessagesReply(rawMessages));
+      ret.set(name.toString(), transformStreamMessagesReply(rawMessages, typeMapping));
     }
 
     return ret as unknown as MapReply<BlobStringReply, StreamMessagesReply>
@@ -670,22 +673,30 @@ export function transformStreamsMessagesReplyResp3(reply: UnwrapReply<StreamsMes
       const rawMessages = reply[i+1] as ArrayReply<StreamMessageRawReply>;
 
       ret.push(name);
-      ret.push(transformStreamMessagesReply(rawMessages));
+      ret.push(transformStreamMessagesReply(rawMessages, typeMapping));
     }
 
     return ret as unknown as MapReply<BlobStringReply, StreamMessagesReply>
   } else {
     const ret: Record<string, StreamMessagesReply> = {};
     for (const [name, rawMessages] of Object.entries(reply)) {
-      ret[name] = transformStreamMessagesReply(rawMessages);
+      ret[name] = transformStreamMessagesReply(rawMessages, typeMapping);
     }
 
     return ret as unknown as MapReply<BlobStringReply, StreamMessagesReply>
   }
 }
 
-export function transformStreamsMessagesReplyResp3Compat(reply: ReplyUnion) {
-  const transformed = transformStreamsMessagesReplyResp3(reply as unknown as Parameters<typeof transformStreamsMessagesReplyResp3>[0]);
+export function transformStreamsMessagesReplyResp3Compat(
+  reply: ReplyUnion,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
+  preserve?: any,
+  typeMapping?: TypeMapping
+) {
+  const transformed = transformStreamsMessagesReplyResp3(
+    reply as unknown as Parameters<typeof transformStreamsMessagesReplyResp3>[0],
+    typeMapping
+  );
   if (transformed === null) return null;
 
   const compat = [];
