@@ -20,7 +20,7 @@
     "@redis/time-series": "5.12.1"
   },
   "engines": {
-    "node": ">= 18.19.0"
+    "node": ">= 20.0.0"
   },
   "repository": {
     "type": "git",

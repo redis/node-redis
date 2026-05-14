@@ -37,7 +37,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: ["18", "20", "22"]
+        node-version: ["20", "22"]
         redis:
           - tag: "rs-7.4.0-v1"
             version: "7.4"
