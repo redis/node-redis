@@ -18,8 +18,9 @@
     "release": "release-it"
   },
   "dependencies": {
-    "@azure/identity": "^4.7.0",
-    "@azure/msal-node": "^2.16.1"
+    "@azure/identity": "^4.13.1",
+    "@azure/msal-common": "^16.5.2",
+    "@azure/msal-node": "^5.1.5"
   },
   "peerDependencies": {
     "@redis/client": "^5.12.1"
@@ -34,7 +35,7 @@
     "@redis/test-utils": "*"
   },
   "engines": {
-    "node": ">= 18.19.0"
+    "node": ">= 20.0.0"
   },
   "repository": {
     "type": "git",
