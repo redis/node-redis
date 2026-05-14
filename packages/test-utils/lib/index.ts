@@ -830,11 +830,7 @@ export default class TestUtils {
       if (options.skipTest) return this.skip();
       if (!dockersPromise) return this.skip();
       const RESP = (options.clusterConfiguration?.RESP ?? 3) as RESP;
-      const {
-        RESP: _RESP,
-        minimizeConnections = false,
-        ...clusterConfiguration
-      } = options.clusterConfiguration ?? {};
+      const { RESP: _RESP, ...clusterConfiguration } = options.clusterConfiguration ?? {};
 
       const dockers = await dockersPromise,
         cluster = createCluster({
@@ -844,7 +840,7 @@ export default class TestUtils {
             }
           })),
           RESP,
-          minimizeConnections,
+          minimizeConnections: options.clusterConfiguration?.minimizeConnections ?? true,
           ...clusterConfiguration
         }) as RedisClusterType<M, F, S, RESP, TYPE_MAPPING>;
 

@@ -1,6 +1,6 @@
 import { BasicCommandParser, CommandParser } from '../client/parser';
 import { RESP_TYPES } from '../RESP/decoder';
-import { UnwrapReply, ArrayReply, BlobStringReply, BooleanReply, CommandArguments, DoubleReply, NullReply, NumberReply, RedisArgument, TuplesReply, MapReply, TypeMapping, Command } from '../RESP/types';
+import { UnwrapReply, ArrayReply, BlobStringReply, BooleanReply, CommandArguments, DoubleReply, NullReply, NumberReply, RedisArgument, ReplyUnion, TuplesReply, MapReply, TypeMapping, Command } from '../RESP/types';
 
 export function isNullReply(reply: unknown): reply is NullReply {
   return reply === null;
@@ -682,6 +682,44 @@ export function transformStreamsMessagesReplyResp3(reply: UnwrapReply<StreamsMes
 
     return ret as unknown as MapReply<BlobStringReply, StreamMessagesReply>
   }
+}
+
+export function transformStreamsMessagesReplyResp3Compat(reply: ReplyUnion) {
+  const transformed = transformStreamsMessagesReplyResp3(reply as unknown as Parameters<typeof transformStreamsMessagesReplyResp3>[0]);
+  if (transformed === null) return null;
+
+  const compat = [];
+
+  if (transformed instanceof Map) {
+    for (const [name, messages] of transformed.entries()) {
+      compat.push({
+        name,
+        messages
+      });
+    }
+
+    return compat;
+  }
+
+  if (Array.isArray(transformed)) {
+    for (let i = 0; i < transformed.length; i += 2) {
+      compat.push({
+        name: transformed[i],
+        messages: transformed[i + 1]
+      });
+    }
+
+    return compat;
+  }
+
+  for (const [name, messages] of Object.entries(transformed)) {
+    compat.push({
+      name,
+      messages
+    });
+  }
+
+  return compat;
 }
 
 export type RedisJSON = null | boolean | number | string | Date | Array<RedisJSON> | {

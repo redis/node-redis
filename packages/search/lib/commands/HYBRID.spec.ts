@@ -930,6 +930,120 @@ describe("FT.HYBRID", () => {
     });
   });
 
+  describe("transformReply", () => {
+    const jsonPayload = '{"description":"red shoes","color":"red","price":15}';
+
+    it("RESP2: parses $ inside extra_attributes (JSON-on schema)", () => {
+      const reply = [
+        "total_results", 1,
+        "results", [
+          [
+            "id", "item:0",
+            "extra_attributes", ["$", jsonPayload],
+            "values", []
+          ]
+        ],
+        "warnings", [],
+        "execution_time", "0.5"
+      ];
+
+      const result = HYBRID.transformReply[2](reply);
+
+      assert.strictEqual(result.totalResults, 1);
+      assert.strictEqual(result.executionTime, 0.5);
+      assert.deepStrictEqual(result.warnings, []);
+      assert.strictEqual(result.results.length, 1);
+      assert.deepStrictEqual(result.results[0], {
+        id: "item:0",
+        description: "red shoes",
+        color: "red",
+        price: 15
+      });
+    });
+
+    it("RESP3 (object form): parses $ inside extra_attributes", () => {
+      const reply = {
+        total_results: 1,
+        results: [
+          {
+            id: "item:0",
+            extra_attributes: { $: jsonPayload },
+            values: []
+          }
+        ],
+        warnings: [],
+        execution_time: 0.5
+      };
+
+      const result = HYBRID.transformReply[3](reply);
+
+      assert.strictEqual(result.totalResults, 1);
+      assert.strictEqual(result.executionTime, 0.5);
+      assert.deepStrictEqual(result.warnings, []);
+      assert.strictEqual(result.results.length, 1);
+      assert.deepStrictEqual(result.results[0], {
+        id: "item:0",
+        description: "red shoes",
+        color: "red",
+        price: 15
+      });
+    });
+
+    it("RESP3 (Map form): parses $ inside extra_attributes", () => {
+      const reply = new Map<string, unknown>([
+        ["total_results", 1],
+        [
+          "results",
+          [
+            new Map<string, unknown>([
+              ["id", "item:0"],
+              [
+                "extra_attributes",
+                new Map<string, unknown>([["$", jsonPayload]])
+              ],
+              ["values", []]
+            ])
+          ]
+        ],
+        ["warnings", []],
+        ["execution_time", 0.5]
+      ]);
+
+      const result = HYBRID.transformReply[3](reply);
+
+      assert.strictEqual(result.totalResults, 1);
+      assert.strictEqual(result.executionTime, 0.5);
+      assert.deepStrictEqual(result.warnings, []);
+      assert.strictEqual(result.results.length, 1);
+      assert.deepStrictEqual(result.results[0], {
+        id: "item:0",
+        description: "red shoes",
+        color: "red",
+        price: 15
+      });
+    });
+
+    it("RESP2: malformed $ payload falls back to raw value", () => {
+      const reply = [
+        "total_results", 1,
+        "results", [
+          [
+            "id", "item:0",
+            "extra_attributes", ["$", "not json"]
+          ]
+        ],
+        "warnings", [],
+        "execution_time", "0"
+      ];
+
+      const result = HYBRID.transformReply[2](reply);
+
+      assert.strictEqual(result.results.length, 1);
+      assert.strictEqual(result.results[0].id, "item:0");
+      assert.strictEqual(result.results[0].$, "not json");
+    });
+  });
+
   describe("client.ft.create", () => {
     testUtils.testWithClientIfVersionWithinRange(
       [[8, 6], "LATEST"],

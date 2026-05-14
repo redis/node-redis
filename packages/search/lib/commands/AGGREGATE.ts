@@ -168,10 +168,6 @@ function transformAggregateReplyResp3(
   preserve?: any,
   typeMapping?: TypeMapping
 ): AggregateReply {
-  if (Array.isArray(rawReply)) {
-    return transformAggregateReplyResp2(rawReply as unknown as AggregateRawReply, preserve, typeMapping);
-  }
-
   const reply = mapLikeToObject(rawReply);
   const total = Number(getMapValue(reply, ['total_results', 'total']) ?? 0);
   const rawResults = mapLikeValues(getMapValue(reply, ['results']) ?? []);

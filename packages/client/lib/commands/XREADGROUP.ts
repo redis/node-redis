@@ -1,7 +1,7 @@
 import { CommandParser } from '../client/parser';
-import { Command, RedisArgument, ReplyUnion } from '../RESP/types';
+import { Command, RedisArgument } from '../RESP/types';
 import { XReadStreams, pushXReadStreams } from './XREAD';
-import { transformStreamsMessagesReplyResp2, transformStreamsMessagesReplyResp3 } from './generic-transformers';
+import { transformStreamsMessagesReplyResp2, transformStreamsMessagesReplyResp3Compat } from './generic-transformers';
 
 /**
  * Options for the XREADGROUP command
@@ -16,44 +16,6 @@ export interface XReadGroupOptions {
   BLOCK?: number;
   NOACK?: boolean;
   CLAIM?: number;
-}
-
-function transformStreamsMessagesReplyResp3Compat(reply: ReplyUnion) {
-  const transformed = transformStreamsMessagesReplyResp3(reply as unknown as Parameters<typeof transformStreamsMessagesReplyResp3>[0]);
-  if (transformed === null) return null;
-
-  const compat = [];
-
-  if (transformed instanceof Map) {
-    for (const [name, messages] of transformed.entries()) {
-      compat.push({
-        name,
-        messages
-      });
-    }
-
-    return compat;
-  }
-
-  if (Array.isArray(transformed)) {
-    for (let i = 0; i < transformed.length; i += 2) {
-      compat.push({
-        name: transformed[i],
-        messages: transformed[i + 1]
-      });
-    }
-
-    return compat;
-  }
-
-  for (const [name, messages] of Object.entries(transformed)) {
-    compat.push({
-      name,
-      messages
-    });
-  }
-
-  return compat;
 }
 
 export default {

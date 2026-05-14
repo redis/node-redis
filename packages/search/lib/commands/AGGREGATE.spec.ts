@@ -2,6 +2,7 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import AGGREGATE from './AGGREGATE';
 import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
+import { RESP_TYPES } from '@redis/client';
 import { DEFAULT_DIALECT } from '../dialect/default';
 
 describe('AGGREGATE', () => {
@@ -554,4 +555,51 @@ describe('AGGREGATE', () => {
     assert.ok(Array.isArray(reply.results));
     assert.ok(reply.results.length > 0);
   }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.ft.aggregate with RESP_TYPES.MAP: Array typeMapping', async client => {
+    await client.ft.create('index', {
+      field: 'NUMERIC'
+    });
+    await client.hSet('1', 'field', '1');
+    await client.hSet('2', 'field', '2');
+
+    const reply = await client.ft.aggregate('index', '*', {
+      STEPS: [{
+        type: 'GROUPBY',
+        REDUCE: [{
+          type: 'SUM',
+          property: '@field',
+          AS: 'sum'
+        }, {
+          type: 'AVG',
+          property: '@field',
+          AS: 'avg'
+        }]
+      }]
+    });
+
+    assert.strictEqual(reply.total, 1);
+    assert.ok(Array.isArray(reply.results));
+    assert.strictEqual(reply.results.length, 1);
+
+    const firstResult = reply.results[0] as unknown as Array<unknown>;
+    assert.ok(Array.isArray(firstResult), 'each result row should be a flat [k,v,...] array under MAP=Array');
+
+    const obj: Record<string, unknown> = {};
+    for (let i = 0; i < firstResult.length; i += 2) {
+      obj[String(firstResult[i])] = firstResult[i + 1];
+    }
+    assert.strictEqual(String(obj.sum), '3');
+    assert.strictEqual(String(obj.avg), '1.5');
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    clientOptions: {
+      ...GLOBAL.SERVERS.OPEN.clientOptions,
+      commandOptions: {
+        typeMapping: {
+          [RESP_TYPES.MAP]: Array
+        }
+      }
+    }
+  });
 });
