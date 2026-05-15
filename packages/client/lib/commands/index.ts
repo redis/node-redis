@@ -289,6 +289,7 @@ import TTL from './TTL';
 import TYPE from './TYPE';
 import UNLINK from './UNLINK';
 import WAIT from './WAIT';
+import WAITAOF from './WAITAOF';
 import XACK from './XACK';
 import XACKDEL from './XACKDEL';
 import XADD_NOMKSTREAM from './XADD_NOMKSTREAM';
@@ -4271,6 +4272,16 @@ export default {
    */
   WAIT,
   /**
+   * Constructs the WAITAOF command to synchronize with the Append-Only File on the local Redis instance and replicas
+   *
+   * @param numLocal - Number of local AOF fsyncs to wait for (`0` or `1`)
+   * @param numReplicas - Number of replica AOF fsyncs to wait for
+   * @param timeout - Maximum time to wait in milliseconds (`0` for no timeout)
+   * @returns A two-element array `[numLocalSynced, numReplicasSynced]`
+   * @see https://redis.io/commands/waitaof/
+   */
+  WAITAOF,
+  /**
    * Constructs the WAIT command to synchronize with replicas
    *
    * @param numberOfReplicas - Number of replicas that must acknowledge the write
@@ -4279,6 +4290,16 @@ export default {
    * @see https://redis.io/commands/wait/
    */
   wait: WAIT,
+  /**
+   * Constructs the WAITAOF command to synchronize with the Append-Only File on the local Redis instance and replicas
+   *
+   * @param numLocal - Number of local AOF fsyncs to wait for (`0` or `1`)
+   * @param numReplicas - Number of replica AOF fsyncs to wait for
+   * @param timeout - Maximum time to wait in milliseconds (`0` for no timeout)
+   * @returns A two-element array `[numLocalSynced, numReplicasSynced]`
+   * @see https://redis.io/commands/waitaof/
+   */
+  waitAof: WAITAOF,
   /**
    * Constructs the XACK command to acknowledge the processing of stream messages in a consumer group
    *
