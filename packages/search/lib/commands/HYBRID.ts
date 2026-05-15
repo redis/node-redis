@@ -495,11 +495,24 @@ function transformHybridSearchResults(reply: unknown): HybridSearchResult {
   return {
     totalResults,
     executionTime,
-    warnings: warnings.map(warning => (warning as { toString(): string }).toString()),
+    warnings: warnings.map(toWarningString),
     results,
   };
 }
 
 function parseReplyMap(reply: unknown): Record<string, unknown> {
   return mapLikeToObject(reply);
+}
+
+function toWarningString(warning: unknown): string {
+  if (typeof warning === 'string') return warning;
+  if (warning instanceof Buffer) return warning.toString();
+  if (warning === null || warning === undefined) return '';
+  // Anything else (Map/Array/plain object) would collapse to "[object Object]"
+  // under a naive toString — JSON-serialize instead so the caller can read it.
+  try {
+    return JSON.stringify(warning);
+  } catch {
+    return String(warning);
+  }
 }
