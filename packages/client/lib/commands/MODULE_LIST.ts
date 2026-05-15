@@ -6,50 +6,39 @@ export type ModuleListReply = ArrayReply<TuplesToMapReply<[
   [BlobStringReply<'ver'>, NumberReply],
 ]>>;
 
-function transformModuleReply(moduleReply: unknown) {
+function moduleEntries(moduleReply: unknown): Array<[string, unknown]> {
   if (Array.isArray(moduleReply)) {
-    let name: BlobStringReply | undefined;
-    let ver: NumberReply | undefined;
-
-    for (let i = 0; i < moduleReply.length; i += 2) {
-      const key = moduleReply[i]?.toString();
-      if (key === 'name') {
-        name = moduleReply[i + 1];
-      } else if (key === 'ver') {
-        ver = moduleReply[i + 1];
-      }
+    const entries: Array<[string, unknown]> = [];
+    for (let i = 0; i + 1 < moduleReply.length; i += 2) {
+      const key = moduleReply[i];
+      if (key === null || key === undefined) continue;
+      entries.push([(key as { toString(): string }).toString(), moduleReply[i + 1]]);
     }
-
-    return {
-      name: name as BlobStringReply,
-      ver: ver as NumberReply
-    };
+    return entries;
   }
 
   if (moduleReply instanceof Map) {
-    let name: BlobStringReply | undefined;
-    let ver: NumberReply | undefined;
-
-    for (const [key, value] of moduleReply.entries()) {
-      const normalizedKey = key?.toString();
-      if (normalizedKey === 'name') {
-        name = value;
-      } else if (normalizedKey === 'ver') {
-        ver = value;
-      }
-    }
-
-    return {
-      name: name as BlobStringReply,
-      ver: ver as NumberReply
-    };
+    return Array.from(moduleReply.entries(), ([key, value]) => {
+      const k = key === null || key === undefined
+        ? ''
+        : (key as { toString(): string }).toString();
+      return [k, value];
+    });
   }
 
-  const objectReply = moduleReply as { name: BlobStringReply; ver: NumberReply };
-  return {
-    name: objectReply.name,
-    ver: objectReply.ver
-  };
+  if (moduleReply !== null && typeof moduleReply === 'object') {
+    return Object.entries(moduleReply as Record<string, unknown>);
+  }
+
+  return [];
+}
+
+function transformModuleReply(moduleReply: unknown) {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of moduleEntries(moduleReply)) {
+    result[key] = value;
+  }
+  return result as { name: BlobStringReply; ver: NumberReply } & Record<string, unknown>;
 }
 
 function transformModuleListReply(reply: Array<unknown>) {
