@@ -687,6 +687,16 @@ export function transformStreamsMessagesReplyResp3(
   }
 }
 
+/**
+ * v4/v5-compatible XREAD/XREADGROUP shape: a flat
+ * `Array<{ name, messages }>` regardless of `typeMapping[RESP_TYPES.MAP]`.
+ *
+ * The outer container is intentionally normalized; `typeMapping` is still
+ * forwarded to the inner message-body transform so individual stream messages
+ * honor `RESP_TYPES.MAP` (e.g. `XRANGE`-style body shape). If you want the
+ * outer container itself as a `Map`/`Array`/`Object`, use the non-compat
+ * `transformStreamsMessagesReplyResp3` directly.
+ */
 export function transformStreamsMessagesReplyResp3Compat(
   reply: ReplyUnion,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
@@ -714,8 +724,9 @@ export function transformStreamsMessagesReplyResp3Compat(
 
   if (Array.isArray(transformed)) {
     for (let i = 0; i < transformed.length; i += 2) {
+      const rawName = transformed[i] as unknown as UnwrapReply<BlobStringReply>;
       compat.push({
-        name: transformed[i],
+        name: rawName?.toString?.() ?? rawName,
         messages: transformed[i + 1]
       });
     }
