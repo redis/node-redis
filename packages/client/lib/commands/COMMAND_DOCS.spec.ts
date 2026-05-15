@@ -11,6 +11,6 @@ describe('COMMAND DOCS', () => {
   testUtils.testWithClient('client.commandDocs("GET", "SET")', async client => {
     const result = await client.commandDocs('GET', 'SET');
     assert.equal(typeof result, 'object');
-    assert.ok('GET' in result || 'SET' in result);
+    assert.ok('get' in result || 'set' in result);
   }, GLOBAL.SERVERS.OPEN);
 });

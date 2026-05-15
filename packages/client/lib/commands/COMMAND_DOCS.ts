@@ -33,18 +33,19 @@ export default {
       const details = reply[i + 1] as MapReply<BlobStringReply, BlobStringReply>;
       
       if (details) {
-        result[name] = {};
+        const entry: Record<string, unknown> = {};
         for (let j = 0; j < details.length; j += 2) {
           const key = details[j] as string;
-          const value = details[j + 1] as string;
+          const value = details[j + 1];
           
           if (key === 'arguments') {
-            // Parse arguments if needed
-            result[name].arguments = JSON.parse(value);
+            // value is already a parsed array from RESP protocol, not a JSON string
+            entry.arguments = Array.isArray(value) ? value : [];
           } else {
-            (result[name] as Record<string, unknown>)[key] = value;
+            entry[key] = value;
           }
         }
+        result[name] = entry as CommandDocsReply[string];
       }
     }
     
