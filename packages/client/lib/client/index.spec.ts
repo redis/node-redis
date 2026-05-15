@@ -287,6 +287,100 @@ describe('Client', () => {
         }
       });
     });
+
+    describe('unix socket URLs', () => {
+      it('unix:///tmp/redis.sock', () => {
+        assert.deepEqual(
+          RedisClient.parseURL('unix:///tmp/redis.sock'),
+          {
+            socket: {
+              path: '/tmp/redis.sock',
+              tls: false
+            }
+          }
+        );
+      });
+
+      it('unix:///tmp/redis.sock?db=2', () => {
+        assert.deepEqual(
+          RedisClient.parseURL('unix:///tmp/redis.sock?db=2'),
+          {
+            socket: {
+              path: '/tmp/redis.sock',
+              tls: false
+            },
+            database: 2
+          }
+        );
+      });
+
+      it('unix://user:secret@/tmp/redis.sock?db=2', async () => {
+        const result = RedisClient.parseURL('unix://user:secret@/tmp/redis.sock?db=2');
+        const expected: RedisClientOptions = {
+          socket: {
+            path: '/tmp/redis.sock',
+            tls: false
+          },
+          username: 'user',
+          password: 'secret',
+          database: 2,
+          credentialsProvider: {
+            type: 'async-credentials-provider',
+            credentials: async () => ({
+              username: 'user',
+              password: 'secret'
+            })
+          }
+        };
+
+        const { credentialsProvider: _r, ...resultRest } = result;
+        const { credentialsProvider: _e, ...expectedRest } = expected;
+        assert.deepEqual(resultRest, expectedRest);
+
+        if (result.credentialsProvider?.type === 'async-credentials-provider'
+          && expected.credentialsProvider?.type === 'async-credentials-provider') {
+          assert.deepEqual(
+            await result.credentialsProvider.credentials(),
+            await expected.credentialsProvider.credentials()
+          );
+        } else {
+          assert.fail('Credentials provider type mismatch');
+        }
+      });
+
+      it('percent-encoded path is decoded', () => {
+        assert.deepEqual(
+          RedisClient.parseURL('unix:///var/run/redis%20test.sock'),
+          {
+            socket: {
+              path: '/var/run/redis test.sock',
+              tls: false
+            }
+          }
+        );
+      });
+
+      it('missing path is rejected', () => {
+        assert.throws(
+          () => RedisClient.parseURL('unix://'),
+          TypeError
+        );
+      });
+
+      it('empty path is rejected', () => {
+        assert.throws(
+          () => RedisClient.parseURL('unix:///'),
+          TypeError
+        );
+      });
+
+      it('invalid db query parameter is rejected', () => {
+        assert.throws(
+          () => RedisClient.parseURL('unix:///tmp/redis.sock?db=NaN'),
+          TypeError
+        );
+      });
+    });
   });
 
   describe('parseOptions', () => {

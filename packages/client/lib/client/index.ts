@@ -385,6 +385,12 @@ export default class RedisClient<
       tls: boolean
     }
   } {
+    // unix:// URIs use a non-special scheme; WHATWG URL refuses to parse an
+    // authority (e.g. `user:pass@`) without a host, so handle it separately.
+    if (url.startsWith('unix:')) {
+      return RedisClient.#parseUnixURL(url);
+    }
+
     // https://www.iana.org/assignments/uri-schemes/prov/redis
     const { hostname, port, protocol, username, password, pathname } = new URL(url),
       parsed: RedisClientOptions & {
@@ -435,6 +441,62 @@ export default class RedisClient<
       }
 
       parsed.database = database;
+    }
+
+    return parsed;
+  }
+
+  static #parseUnixURL(url: string): RedisClientOptions & {
+    socket: Exclude<RedisClientOptions['socket'], undefined> & {
+      tls: boolean
+    }
+  } {
+    // unix://[user[:password]@]/path/to/sock[?db=N]
+    const match = /^unix:\/\/(?:([^:@/]*)(?::([^@/]*))?@)?(\/[^?#]*)(?:\?([^#]*))?(?:#.*)?$/.exec(url);
+    if (!match || match[3] === '/') {
+      throw new TypeError('Invalid unix URL');
+    }
+
+    const [, username, password, rawPath, rawQuery] = match,
+      parsed: RedisClientOptions & {
+        socket: Exclude<RedisClientOptions['socket'], undefined> & {
+          tls: boolean
+        }
+      } = {
+        socket: {
+          path: decodeURIComponent(rawPath),
+          tls: false
+        }
+      };
+
+    if (username) {
+      parsed.username = decodeURIComponent(username);
+    }
+
+    if (password) {
+      parsed.password = decodeURIComponent(password);
+    }
+
+    if (username || password) {
+      parsed.credentialsProvider = {
+        type: 'async-credentials-provider',
+        credentials: async () => (
+          {
+            username: username ? decodeURIComponent(username) : undefined,
+            password: password ? decodeURIComponent(password) : undefined
+          })
+      };
+    }
+
+    if (rawQuery) {
+      const db = new URLSearchParams(rawQuery).get('db');
+      if (db !== null) {
+        const database = Number(db);
+        if (isNaN(database)) {
+          throw new TypeError('Invalid db query parameter');
+        }
+        parsed.database = database;
+      }
     }
 
     return parsed;
