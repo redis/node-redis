@@ -13,6 +13,7 @@
     
     "composite": true,
     "sourceMap": true,
+    "inlineSources": true,
     "declaration": true,
     "declarationMap": true,
     "allowJs": true,
