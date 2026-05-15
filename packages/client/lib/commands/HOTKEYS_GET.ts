@@ -43,32 +43,46 @@ export interface HotkeysGetReply {
   byNetBytes?: Array<HotkeyEntry>;
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return value !== null &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    !(value instanceof Map) &&
+    !ArrayBuffer.isView(value) &&
+    Object.prototype.toString.call(value) === '[object Object]';
+}
+
+function keyToString(key: unknown): string {
+  if (key === null || key === undefined) return '';
+  return (key as { toString(): string }).toString();
+}
+
 function mapLikeEntries(value: unknown): Array<[string, unknown]> {
   if (value instanceof Map) {
-    return Array.from(value.entries(), ([key, entryValue]) => [key.toString(), entryValue]);
+    return Array.from(value.entries(), ([key, entryValue]) => [keyToString(key), entryValue]);
   }
 
   if (Array.isArray(value)) {
     if (
       value.length === 1 &&
-      (Array.isArray(value[0]) || value[0] instanceof Map || (typeof value[0] === 'object' && value[0] !== null))
+      (Array.isArray(value[0]) || value[0] instanceof Map || isPlainObject(value[0]))
     ) {
       return mapLikeEntries(value[0]);
     }
 
     if (value.every(item => Array.isArray(item) && item.length >= 2)) {
-      return value.map(item => [item[0].toString(), item[1]]);
+      return value.map(item => [keyToString(item[0]), item[1]]);
     }
 
     const entries: Array<[string, unknown]> = [];
     for (let i = 0; i < value.length - 1; i += 2) {
-      entries.push([value[i].toString(), value[i + 1]]);
+      entries.push([keyToString(value[i]), value[i + 1]]);
     }
     return entries;
   }
 
-  if (value !== null && typeof value === 'object') {
-    return Object.entries(value as Record<string, unknown>);
+  if (isPlainObject(value)) {
+    return Object.entries(value);
   }
 
   return [];
@@ -77,8 +91,18 @@ function mapLikeEntries(value: unknown): Array<[string, unknown]> {
 function mapLikeValues(value: unknown): Array<unknown> {
   if (Array.isArray(value)) return value;
   if (value instanceof Map) return [...value.values()];
-  if (value !== null && typeof value === 'object') return Object.values(value as Record<string, unknown>);
+  if (isPlainObject(value)) return Object.values(value);
   return [];
+}
+
+function toSlotNumber(value: unknown): number {
+  const slot = Number(value);
+  if (!Number.isFinite(slot)) {
+    throw new TypeError(
+      `HOTKEYS GET: expected slot to be a finite number, got ${JSON.stringify(value)}`
+    );
+  }
+  return slot;
 }
 
 /**
@@ -98,33 +122,29 @@ function parseHotkeysList(arr: unknown): Array<HotkeyEntry> {
  */
 function parseSlotRanges(arr: unknown): Array<SlotRange> {
   return mapLikeValues(arr).map(range => {
-    let unwrapped: Array<number>;
+    let unwrapped: Array<unknown>;
 
     if (Array.isArray(range)) {
-      unwrapped = range as Array<number>;
+      unwrapped = range;
     } else if (range instanceof Map) {
-      unwrapped = [...range.values()].map(value => Number(value));
-    } else if (range !== null && typeof range === 'object') {
-      const objectRange = range as Record<string, unknown>;
-      const start = Number(objectRange.start ?? objectRange[0]);
-      const end = Number(objectRange.end ?? objectRange[1] ?? start);
+      unwrapped = [...range.values()];
+    } else if (isPlainObject(range)) {
+      const start = range.start ?? range[0];
+      const end = range.end ?? range[1] ?? start;
       unwrapped = [start, end];
     } else {
-      const slot = Number(range);
-      unwrapped = [slot, slot];
+      const slot = toSlotNumber(range);
+      return { start: slot, end: slot };
     }
 
     if (unwrapped.length === 1) {
-      // Single slot - start and end are the same
-      return {
-        start: Number(unwrapped[0]),
-        end: Number(unwrapped[0])
-      };
+      const slot = toSlotNumber(unwrapped[0]);
+      return { start: slot, end: slot };
     }
-    // Slot range
+
     return {
-      start: Number(unwrapped[0]),
-      end: Number(unwrapped[1])
+      start: toSlotNumber(unwrapped[0]),
+      end: toSlotNumber(unwrapped[1])
     };
   });
 }
@@ -200,6 +220,10 @@ function transformHotkeysGetReply(reply: unknown | null): HotkeysGetReply | null
  * - ACTIVE -> returns data (does not stop)
  * - STOPPED -> returns data
  * - EMPTY -> returns null
+ *
+ * Note: this transform always returns a structured `HotkeysGetReply` DTO and
+ * does not honor `typeMapping` (e.g. `RESP_TYPES.MAP: Map`/`Array`). The
+ * server-side payload is treated as a fixed schema, not a generic map.
  */
 export default {
   NOT_KEYED_COMMAND: true,
