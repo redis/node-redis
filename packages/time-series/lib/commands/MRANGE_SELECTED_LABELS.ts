@@ -20,7 +20,9 @@ export type TsMRangeSelectedLabelsRawReply3 = MapReply<
   BlobStringReply,
   TuplesReply<[
     labels: MapReply<BlobStringReply, BlobStringReply | NullReply>,
-    metadata: never, // ?!
+    // Redis 7.4 leaves this slot empty; Redis 8 may populate it with
+    // aggregation/reducer metadata. We don't consume it, so accept anything.
+    metadata: unknown,
     samples: ArrayReply<SampleRawReply>
   ]>
 >;
