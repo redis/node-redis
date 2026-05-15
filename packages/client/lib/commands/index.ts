@@ -238,6 +238,7 @@ import RANDOMKEY from './RANDOMKEY';
 import READONLY from './READONLY';
 import RENAME from './RENAME';
 import RENAMENX from './RENAMENX';
+import RESET from './RESET';
 import REPLICAOF from './REPLICAOF';
 import RESTORE_ASKING from './RESTORE-ASKING';
 import RESTORE from './RESTORE';
@@ -3487,6 +3488,24 @@ export default {
    * @see https://redis.io/commands/renamenx/
    */
   renameNX: RENAMENX,
+  /**
+   * Performs a full reset of the connection state: discards any pending
+   * transaction (`MULTI`), unsubscribes from every channel/pattern, exits
+   * client tracking and monitor modes, selects database `0`, and resets
+   * `CLIENT TRACKINGINFO` and `CLIENT REPLY` state, among others.
+   *
+   * @see https://redis.io/commands/reset/
+   */
+  RESET,
+  /**
+   * Performs a full reset of the connection state: discards any pending
+   * transaction (`MULTI`), unsubscribes from every channel/pattern, exits
+   * client tracking and monitor modes, selects database `0`, and resets
+   * `CLIENT TRACKINGINFO` and `CLIENT REPLY` state, among others.
+   *
+   * @see https://redis.io/commands/reset/
+   */
+  reset: RESET,
   /**
    * Constructs the REPLICAOF command
    *
