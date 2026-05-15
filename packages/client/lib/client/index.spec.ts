@@ -406,6 +406,17 @@ describe('Client', () => {
       assert.equal(await client.sendCommand(['PING']), 'PONG');
     }, GLOBAL.SERVERS.OPEN);
 
+    testUtils.testWithClient('should respect type mapping proxy', async client => {
+      await client.set('key', 'value');
+
+      const reply = await client.withTypeMapping({
+        [RESP_TYPES.BLOB_STRING]: Buffer
+      }).sendCommand(['GET', 'key']);
+
+      assert.ok(reply instanceof Buffer);
+      assert.equal(reply.toString(), 'value');
+    }, GLOBAL.SERVERS.OPEN);
+
     testUtils.testWithClient('Unactivated AbortController should not abort', async client => {
       await client.sendCommand(['PING'], {
         abortSignal: new AbortController().signal
