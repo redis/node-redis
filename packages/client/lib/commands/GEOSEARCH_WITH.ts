@@ -1,5 +1,6 @@
 import { CommandParser } from '../client/parser';
 import { RedisArgument, ArrayReply, TuplesReply, BlobStringReply, NumberReply, DoubleReply, UnwrapReply, Command, TypeMapping } from '../RESP/types';
+import { RESP_TYPES } from '../RESP/decoder';
 import GEOSEARCH, { GeoSearchBy, GeoSearchFrom, GeoSearchOptions } from './GEOSEARCH';
 import { transformDoubleReply } from './generic-transformers';
 
@@ -47,12 +48,18 @@ export default {
       hashIndex = replyWithSet.has(GEO_REPLY_WITH.HASH) && ++index,
       coordinatesIndex = replyWithSet.has(GEO_REPLY_WITH.COORDINATES) && ++index;
 
+    const doubleMapping = typeMapping ? typeMapping[RESP_TYPES.DOUBLE] : undefined;
+
     const parseDouble = (value: unknown) => {
-      return (
-        typeof value === 'number' ?
-          value as unknown as DoubleReply :
-          transformDoubleReply[2](value as BlobStringReply, undefined, typeMapping)
-      );
+      if (typeof value !== 'number') {
+        return transformDoubleReply[2](value as BlobStringReply, undefined, typeMapping);
+      }
+
+      if (doubleMapping === String) {
+        return value.toString() as unknown as DoubleReply;
+      }
+
+      return value as unknown as DoubleReply;
     };
 
     return reply.map(raw => {
