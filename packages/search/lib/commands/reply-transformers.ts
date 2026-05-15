@@ -43,7 +43,8 @@ export function toCompatObject(value: Record<string, unknown>): Record<string, u
     descriptors[key] = {
       value: entryValue,
       configurable: true,
-      enumerable: true
+      enumerable: true,
+      writable: true
     };
   }
 
