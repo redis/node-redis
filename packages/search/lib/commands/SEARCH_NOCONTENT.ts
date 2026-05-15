@@ -1,11 +1,11 @@
-import { Command, ReplyUnion } from '@redis/client/dist/lib/RESP/types';
+import { Command, ReplyUnion, TypeMapping } from '@redis/client/dist/lib/RESP/types';
 import SEARCH, { SearchRawReply } from './SEARCH';
 
 export default {
   NOT_KEYED_COMMAND: SEARCH.NOT_KEYED_COMMAND,
   IS_READ_ONLY: SEARCH.IS_READ_ONLY,
   parseCommand(...args: Parameters<typeof SEARCH.parseCommand>) {
-    SEARCH.parseCommand(...args);  
+    SEARCH.parseCommand(...args);
     args[0].push('NOCONTENT');
   },
   transformReply: {
@@ -15,8 +15,13 @@ export default {
         documents: reply.slice(1) as Array<string>
       }
     },
-    3: (reply: ReplyUnion): SearchNoContentReply => {
-      const transformed = SEARCH.transformReply[3](reply) as {
+    3: (
+      reply: ReplyUnion,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
+      preserve?: any,
+      typeMapping?: TypeMapping
+    ): SearchNoContentReply => {
+      const transformed = SEARCH.transformReply[3](reply, preserve, typeMapping) as {
         total: number;
         documents: Array<{
           id: string;

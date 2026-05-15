@@ -1,5 +1,5 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
-import { Command, ReplyUnion, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
+import { Command, ReplyUnion, TypeMapping, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
 import AGGREGATE, { AggregateRawReply, FtAggregateOptions, parseAggregateOptions } from './AGGREGATE';
 import {
   ProfileOptions,
@@ -29,16 +29,28 @@ export default {
     parseAggregateOptions(parser, options)
   },
   transformReply: {
-    2: (reply: UnwrapReply<ProfileRawReplyResp2<AggregateRawReply>>): ProfileReplyResp2 => {
+    2: (
+      reply: UnwrapReply<ProfileRawReplyResp2<AggregateRawReply>>,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
+      preserve?: any,
+      typeMapping?: TypeMapping
+    ): ProfileReplyResp2 => {
       return {
-        results: AGGREGATE.transformReply[2](reply[0]),
+        results: AGGREGATE.transformReply[2](reply[0], preserve, typeMapping),
         profile: reply[1]
       }
     },
-    3: (reply: ReplyUnion): ProfileReplyResp2 => {
+    3: (
+      reply: ReplyUnion,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
+      preserve?: any,
+      typeMapping?: TypeMapping
+    ): ProfileReplyResp2 => {
       return {
         results: AGGREGATE.transformReply[3](
-          extractProfileResultsReply(reply)
+          extractProfileResultsReply(reply),
+          preserve,
+          typeMapping
         ),
         profile: transformProfileReply(reply)
       };

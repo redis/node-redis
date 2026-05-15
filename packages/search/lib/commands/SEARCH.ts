@@ -1,5 +1,5 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
-import { RedisArgument, Command, ReplyUnion } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, Command, ReplyUnion, TypeMapping } from '@redis/client/dist/lib/RESP/types';
 import { RedisVariadicArgument, parseOptionalVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
 import { RediSearchLanguage } from './CREATE';
 import { DEFAULT_DIALECT } from '../dialect/default';
@@ -159,7 +159,13 @@ export function parseSearchOptions(parser: CommandParser, options?: FtSearchOpti
   }
 }
 
-function transformSearchReplyResp2(reply: SearchRawReply): SearchReply {
+function transformSearchReplyResp2(
+  reply: SearchRawReply,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
+  _preserve?: any,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- matches TransformReply contract
+  _typeMapping?: TypeMapping
+): SearchReply {
   // if reply[2] is array, then we have content/documents. Otherwise, only ids
   const withoutDocuments = reply.length > 2 && !Array.isArray(reply[2]);
 
@@ -178,9 +184,14 @@ function transformSearchReplyResp2(reply: SearchRawReply): SearchReply {
   };
 }
 
-function transformSearchReplyResp3(rawReply: ReplyUnion): SearchReply {
+function transformSearchReplyResp3(
+  rawReply: ReplyUnion,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
+  preserve?: any,
+  typeMapping?: TypeMapping
+): SearchReply {
   if (Array.isArray(rawReply)) {
-    return transformSearchReplyResp2(rawReply as SearchRawReply);
+    return transformSearchReplyResp2(rawReply as SearchRawReply, preserve, typeMapping);
   }
 
   const reply = mapLikeToObject(rawReply);

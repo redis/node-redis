@@ -2,6 +2,7 @@ import { CommandParser } from "@redis/client/dist/lib/client/parser";
 import {
   RedisArgument,
   Command,
+  TypeMapping,
 } from "@redis/client/dist/lib/RESP/types";
 import {
   RedisVariadicArgument,
@@ -407,10 +408,22 @@ export default {
     parseHybridOptions(parser, options);
   },
   transformReply: {
-    2: (reply: unknown): HybridSearchResult => {
+    2: (
+      reply: unknown,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
+      _preserve?: any,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars -- matches TransformReply contract
+      _typeMapping?: TypeMapping
+    ): HybridSearchResult => {
       return transformHybridSearchResults(reply);
     },
-    3: (reply: unknown): HybridSearchResult => {
+    3: (
+      reply: unknown,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
+      _preserve?: any,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars -- matches TransformReply contract
+      _typeMapping?: TypeMapping
+    ): HybridSearchResult => {
       return transformHybridSearchResults(reply);
     },
   },

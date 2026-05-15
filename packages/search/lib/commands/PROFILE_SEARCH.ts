@@ -1,5 +1,5 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
-import { ArrayReply, Command, RedisArgument, ReplyUnion, TuplesReply, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
+import { ArrayReply, Command, RedisArgument, ReplyUnion, TuplesReply, TypeMapping, UnwrapReply } from '@redis/client/dist/lib/RESP/types';
 import { AggregateReply } from './AGGREGATE';
 import SEARCH, { FtSearchOptions, SearchRawReply, SearchReply, parseSearchOptions } from './SEARCH';
 import { getMapValue, mapLikeEntries, mapLikeToObject, normalizeProfileReply } from './reply-transformers';
@@ -78,10 +78,17 @@ export function transformProfileReply(reply: ReplyUnion): ReplyUnion {
   return normalizeProfileReply(profile) as ReplyUnion;
 }
 
-function transformProfileSearchReplyResp3(reply: ReplyUnion): ProfileReplyResp2 {
+function transformProfileSearchReplyResp3(
+  reply: ReplyUnion,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
+  preserve?: any,
+  typeMapping?: TypeMapping
+): ProfileReplyResp2 {
   return {
     results: SEARCH.transformReply[3](
-      extractProfileResultsReply(reply)
+      extractProfileResultsReply(reply),
+      preserve,
+      typeMapping
     ),
     profile: transformProfileReply(reply)
   };
@@ -107,9 +114,14 @@ export default {
     parseSearchOptions(parser, options);
   },
   transformReply: {
-    2: (reply: UnwrapReply<ProfileSearchResponseResp2>): ProfileReplyResp2 => {
+    2: (
+      reply: UnwrapReply<ProfileSearchResponseResp2>,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
+      preserve?: any,
+      typeMapping?: TypeMapping
+    ): ProfileReplyResp2 => {
       return {
-        results: SEARCH.transformReply[2](reply[0]),
+        results: SEARCH.transformReply[2](reply[0], preserve, typeMapping),
         profile: reply[1]
       };
     },

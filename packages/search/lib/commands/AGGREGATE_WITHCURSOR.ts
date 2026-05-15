@@ -1,5 +1,5 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
-import { RedisArgument, Command, ReplyUnion, NumberReply } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, Command, ReplyUnion, NumberReply, TypeMapping } from '@redis/client/dist/lib/RESP/types';
 import AGGREGATE, { AggregateRawReply, AggregateReply, FtAggregateOptions } from './AGGREGATE';
 import { getMapValue, mapLikeToObject } from './reply-transformers';
 
@@ -18,10 +18,15 @@ export interface AggregateWithCursorReply extends AggregateReply {
   cursor: NumberReply;
 }
 
-function transformAggregateWithCursorReplyResp3(reply: ReplyUnion): AggregateWithCursorReply {
+function transformAggregateWithCursorReplyResp3(
+  reply: ReplyUnion,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
+  preserve?: any,
+  typeMapping?: TypeMapping
+): AggregateWithCursorReply {
   if (Array.isArray(reply)) {
     return {
-      ...(AGGREGATE.transformReply[3](reply[0] as ReplyUnion) as AggregateReply),
+      ...(AGGREGATE.transformReply[3](reply[0] as ReplyUnion, preserve, typeMapping) as AggregateReply),
       cursor: reply[1] as NumberReply
     };
   }
@@ -30,7 +35,7 @@ function transformAggregateWithCursorReplyResp3(reply: ReplyUnion): AggregateWit
   const rawResult = getMapValue(mappedReply, ['results', 'result']) ?? mappedReply;
 
   return {
-    ...(AGGREGATE.transformReply[3](rawResult as ReplyUnion) as AggregateReply),
+    ...(AGGREGATE.transformReply[3](rawResult as ReplyUnion, preserve, typeMapping) as AggregateReply),
     cursor: (getMapValue(mappedReply, ['cursor']) ?? 0) as NumberReply
   };
 }
@@ -50,9 +55,14 @@ export default {
     }
   },
   transformReply: {
-    2: (reply: AggregateWithCursorRawReply): AggregateWithCursorReply => {
+    2: (
+      reply: AggregateWithCursorRawReply,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
+      preserve?: any,
+      typeMapping?: TypeMapping
+    ): AggregateWithCursorReply => {
       return {
-        ...AGGREGATE.transformReply[2](reply[0]),
+        ...AGGREGATE.transformReply[2](reply[0], preserve, typeMapping),
         cursor: reply[1]
       };
     },
