@@ -255,7 +255,7 @@ export type RedisClientType<
     RedisClientExtensions<M, F, S, RESP, TYPE_MAPPING>
   );
 
-type ProxyClient = RedisClient<any, any, any, any, any>;
+type ProxyClient = RedisClient<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>;
 
 type NamespaceProxyClient = { _self: ProxyClient };
 
@@ -320,6 +320,7 @@ export default class RedisClient<
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static #SingleEntryCache = new SingleEntryCache<any, any>()
 
   static factory<
@@ -660,6 +661,7 @@ export default class RedisClient<
         const cscConfig = this.#options.clientSideCache;
         this.#clientSideCache = new BasicClientSideCache(cscConfig);
       }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       this.#queue.addPushHandler((push: Array<any>): boolean => {
         if (push[0].toString() !== 'invalidate') return false;
 
@@ -674,6 +676,7 @@ export default class RedisClient<
         return true
       });
     } else if (options?.emitInvalidate) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       this.#queue.addPushHandler((push: Array<any>): boolean => {
         if (push[0].toString() !== 'invalidate') return false;
 
@@ -1119,7 +1122,7 @@ export default class RedisClient<
    */
    _ejectSocket(): RedisSocket {
      const socket = this._self.#socket;
-     // @ts-ignore
+     // @ts-expect-error null assignment is intentional during eject
      this._self.#socket = null;
      socket.removeAllListeners();
      return socket;
@@ -1586,7 +1589,7 @@ export default class RedisClient<
 
   MULTI<isTyped extends MultiMode = MULTI_MODE['TYPED']>() {
     type Multi = new (...args: ConstructorParameters<typeof RedisClientMultiCommand>) => RedisClientMultiCommandType<isTyped, [], M, F, S, RESP, TYPE_MAPPING>;
-    return new ((this as any).Multi as Multi)(
+    return new ((this as unknown as { Multi: Multi }).Multi)(
       this._executeMulti.bind(this),
       this._executePipeline.bind(this),
       this._commandOptions?.typeMapping
