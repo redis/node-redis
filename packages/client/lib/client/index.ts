@@ -255,9 +255,20 @@ export type RedisClientType<
     RedisClientExtensions<M, F, S, RESP, TYPE_MAPPING>
   );
 
-type ProxyClient = RedisClient<any, any, any, any, any>;
+type ProxyClient = RedisClient<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>;
 
 type NamespaceProxyClient = { _self: ProxyClient };
+
+type RedisClientMultiCommandConstructor = new (
+  ...args: ConstructorParameters<typeof RedisClientMultiCommand>
+) => RedisClientMultiCommand;
+
+type ConfiguredRedisClientClass = {
+  new (options?: RedisClientOptions): ProxyClient;
+  prototype: ProxyClient & {
+    Multi?: RedisClientMultiCommandConstructor;
+  };
+};
 
 interface ScanIteratorOptions {
   cursor?: RedisArgument;
@@ -320,7 +331,10 @@ export default class RedisClient<
     }
   }
 
-  static #SingleEntryCache = new SingleEntryCache<any, any>()
+  static #SingleEntryCache = new SingleEntryCache<
+    CommanderConfig<RedisModules, RedisFunctions, RedisScripts, RespVersions> | undefined,
+    ConfiguredRedisClientClass
+  >()
 
   static factory<
     M extends RedisModules = {},
@@ -340,9 +354,9 @@ export default class RedisClient<
         createFunctionCommand: RedisClient.#createFunctionCommand,
         createScriptCommand: RedisClient.#createScriptCommand,
         config
-      });
+      }) as ConfiguredRedisClientClass;
 
-      Client.prototype.Multi = RedisClientMultiCommand.extend(config);
+      Client.prototype.Multi = RedisClientMultiCommand.extend(config) as RedisClientMultiCommandConstructor;
 
       RedisClient.#SingleEntryCache.set(config, Client);
     }
@@ -350,8 +364,11 @@ export default class RedisClient<
     return <TYPE_MAPPING extends TypeMapping = {}>(
       options?: Omit<RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>, keyof Exclude<typeof config, undefined>>
     ) => {
+      const ClientCtor = Client as unknown as new (
+        options?: Omit<RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>, keyof Exclude<typeof config, undefined>>
+      ) => RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
       // returning a "proxy" to prevent the namespaces._self to leak between "proxies"
-      return Object.create(new Client(options)) as RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
+      return Object.create(new ClientCtor(options)) as RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
     };
   }
 
@@ -598,11 +615,11 @@ export default class RedisClient<
         const cscConfig = this.#options.clientSideCache;
         this.#clientSideCache = new BasicClientSideCache(cscConfig);
       }
-      this.#queue.addPushHandler((push: Array<any>): boolean => {
-        if (push[0].toString() !== 'invalidate') return false;
+      this.#queue.addPushHandler((push: Array<unknown>): boolean => {
+        if (String(push[0]) !== 'invalidate') return false;
 
         if (push[1] !== null) {
-          for (const key of push[1]) {
+          for (const key of push[1] as Array<RedisArgument>) {
             this.#clientSideCache?.invalidate(key)
           }
         } else {
@@ -612,11 +629,11 @@ export default class RedisClient<
         return true
       });
     } else if (options?.emitInvalidate) {
-      this.#queue.addPushHandler((push: Array<any>): boolean => {
-        if (push[0].toString() !== 'invalidate') return false;
+      this.#queue.addPushHandler((push: Array<unknown>): boolean => {
+        if (String(push[0]) !== 'invalidate') return false;
 
         if (push[1] !== null) {
-          for (const key of push[1]) {
+          for (const key of push[1] as Array<RedisArgument>) {
             this.emit('invalidate', key);
           }
         } else {
@@ -1057,7 +1074,7 @@ export default class RedisClient<
    */
    _ejectSocket(): RedisSocket {
      const socket = this._self.#socket;
-     // @ts-ignore
+     // @ts-expect-error temporarily clears the socket before reinserting one
      this._self.#socket = null;
      socket.removeAllListeners();
      return socket;
@@ -1524,7 +1541,7 @@ export default class RedisClient<
 
   MULTI<isTyped extends MultiMode = MULTI_MODE['TYPED']>() {
     type Multi = new (...args: ConstructorParameters<typeof RedisClientMultiCommand>) => RedisClientMultiCommandType<isTyped, [], M, F, S, RESP, TYPE_MAPPING>;
-    return new ((this as any).Multi as Multi)(
+    return new ((this as unknown as { Multi: Multi }).Multi)(
       this._executeMulti.bind(this),
       this._executePipeline.bind(this),
       this._commandOptions?.typeMapping
@@ -1542,7 +1559,7 @@ export default class RedisClient<
       const reply = await this.scan(cursor, options);
       cursor = reply.cursor;
       yield reply.keys;
-    } while (cursor !== '0');
+    } while (cursor.toString() !== '0');
   }
 
   async* hScanIterator(
@@ -1555,7 +1572,7 @@ export default class RedisClient<
       const reply = await this.hScan(key, cursor, options);
       cursor = reply.cursor;
       yield reply.entries;
-    } while (cursor !== '0');
+    } while (cursor.toString() !== '0');
   }
 
   async* hScanValuesIterator(
@@ -1568,7 +1585,7 @@ export default class RedisClient<
       const reply = await this.hScanNoValues(key, cursor, options);
       cursor = reply.cursor;
       yield reply.fields;
-    } while (cursor !== '0');
+    } while (cursor.toString() !== '0');
   }
 
   async* hScanNoValuesIterator(
@@ -1581,7 +1598,7 @@ export default class RedisClient<
       const reply = await this.hScanNoValues(key, cursor, options);
       cursor = reply.cursor;
       yield reply.fields;
-    } while (cursor !== '0');
+    } while (cursor.toString() !== '0');
   }
 
   async* sScanIterator(
@@ -1594,7 +1611,7 @@ export default class RedisClient<
       const reply = await this.sScan(key, cursor, options);
       cursor = reply.cursor;
       yield reply.members;
-    } while (cursor !== '0');
+    } while (cursor.toString() !== '0');
   }
 
   async* zScanIterator(
@@ -1607,7 +1624,7 @@ export default class RedisClient<
       const reply = await this.zScan(key, cursor, options);
       cursor = reply.cursor;
       yield reply.members;
-    } while (cursor !== '0');
+    } while (cursor.toString() !== '0');
   }
 
   async MONITOR(callback: MonitorCallback<TYPE_MAPPING>) {

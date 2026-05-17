@@ -1,5 +1,6 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
+import { RESP_TYPES } from '../RESP/decoder';
 import { parseArgs } from './generic-transformers';
 import ZSCAN from './ZSCAN';
 
@@ -50,4 +51,23 @@ describe('ZSCAN', () => {
       }
     );
   }, GLOBAL.SERVERS.OPEN);
+
+  it('transformReply with type mapping', () => {
+    assert.deepEqual(
+      ZSCAN.transformReply(
+        ['0', ['member', '1.5']],
+        undefined,
+        {
+          [RESP_TYPES.DOUBLE]: String
+        }
+      ),
+      {
+        cursor: '0',
+        members: [{
+          value: 'member',
+          score: '1.5'
+        }]
+      }
+    );
+  });
 });

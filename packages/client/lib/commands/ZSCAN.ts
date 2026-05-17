@@ -1,5 +1,5 @@
 import { CommandParser } from '../client/parser';
-import { RedisArgument, ArrayReply, BlobStringReply, Command } from '../RESP/types';
+import { RedisArgument, ArrayReply, BlobStringReply, Command, TypeMapping } from '../RESP/types';
 import { ScanCommonOptions, parseScanArguments } from './SCAN';
 import { transformSortedSetReply } from './generic-transformers';
 
@@ -20,10 +20,14 @@ export default {
     parser.pushKey(key);
     parseScanArguments(parser, cursor, options);
   },
-  transformReply([cursor, rawMembers]: [BlobStringReply, ArrayReply<BlobStringReply>]) {
+  transformReply(
+    [cursor, rawMembers]: [BlobStringReply, ArrayReply<BlobStringReply>],
+    preserve?: unknown,
+    typeMapping?: TypeMapping
+  ) {
     return {
       cursor,
-      members: transformSortedSetReply[2](rawMembers)
+      members: transformSortedSetReply[2](rawMembers, preserve, typeMapping)
     };
   }
 } as const satisfies Command;
