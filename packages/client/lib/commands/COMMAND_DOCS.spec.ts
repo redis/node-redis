@@ -26,7 +26,7 @@ describe('COMMAND DOCS', () => {
     const result = await client.commandDocs('GET', 'SET');
     assert.equal(typeof result, 'object');
     // Redis returns lowercase command names
-    assert.ok('get' in result || 'set' in result);
+    assert.ok('get' in result && 'set' in result);
     
     // Verify the returned entry has proper structure
     const key = 'get' in result ? 'get' : 'set';
