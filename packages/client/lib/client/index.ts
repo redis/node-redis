@@ -255,9 +255,20 @@ export type RedisClientType<
     RedisClientExtensions<M, F, S, RESP, TYPE_MAPPING>
   );
 
-type ProxyClient = RedisClient<any, any, any, any, any>;
+type ProxyClient = RedisClient<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>;
 
 type NamespaceProxyClient = { _self: ProxyClient };
+
+type RedisClientMultiCommandConstructor = new (
+  ...args: ConstructorParameters<typeof RedisClientMultiCommand>
+) => RedisClientMultiCommand;
+
+type ConfiguredRedisClientClass = {
+  new (options?: RedisClientOptions): ProxyClient;
+  prototype: ProxyClient & {
+    Multi?: RedisClientMultiCommandConstructor;
+  };
+};
 
 interface ScanIteratorOptions {
   cursor?: RedisArgument;
@@ -320,7 +331,10 @@ export default class RedisClient<
     }
   }
 
-  static #SingleEntryCache = new SingleEntryCache<any, any>()
+  static #SingleEntryCache = new SingleEntryCache<
+    CommanderConfig<RedisModules, RedisFunctions, RedisScripts, RespVersions> | undefined,
+    ConfiguredRedisClientClass
+  >()
 
   static factory<
     M extends RedisModules = {},
@@ -340,9 +354,9 @@ export default class RedisClient<
         createFunctionCommand: RedisClient.#createFunctionCommand,
         createScriptCommand: RedisClient.#createScriptCommand,
         config
-      });
+      }) as ConfiguredRedisClientClass;
 
-      Client.prototype.Multi = RedisClientMultiCommand.extend(config);
+      Client.prototype.Multi = RedisClientMultiCommand.extend(config) as RedisClientMultiCommandConstructor;
 
       RedisClient.#SingleEntryCache.set(config, Client);
     }
@@ -350,8 +364,11 @@ export default class RedisClient<
     return <TYPE_MAPPING extends TypeMapping = {}>(
       options?: Omit<RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>, keyof Exclude<typeof config, undefined>>
     ) => {
+      const ClientCtor = Client as unknown as new (
+        options?: Omit<RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>, keyof Exclude<typeof config, undefined>>
+      ) => RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
       // returning a "proxy" to prevent the namespaces._self to leak between "proxies"
-      return Object.create(new Client(options)) as RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
+      return Object.create(new ClientCtor(options)) as RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
     };
   }
 
@@ -385,48 +402,100 @@ export default class RedisClient<
       tls: boolean
     }
   } {
-    // https://www.iana.org/assignments/uri-schemes/prov/redis
-    const { hostname, port, protocol, username, password, pathname } = new URL(url),
-      parsed: RedisClientOptions & {
-        socket: Exclude<RedisClientOptions['socket'], undefined> & {
-          tls: boolean
+    const parsed: RedisClientOptions & {
+      socket: Exclude<RedisClientOptions['socket'], undefined> & {
+        tls: boolean
+      }
+    } = {
+      socket: {
+        tls: false
+      }
+    };
+
+    const setCredentials = (rawUsername: string, rawPassword: string) => {
+      const username = rawUsername ? decodeURIComponent(rawUsername) : undefined,
+        password = rawPassword ? decodeURIComponent(rawPassword) : undefined;
+
+      if (username) {
+        parsed.username = username;
+      }
+
+      if (password) {
+        parsed.password = password;
+      }
+
+      if (username || password) {
+        parsed.credentialsProvider = {
+          type: 'async-credentials-provider',
+          credentials: async () => ({
+            username,
+            password
+          })
+        };
+      }
+    };
+
+    if (url.startsWith('unix://')) {
+      const unixUrl = url.substring('unix://'.length),
+        pathStartIndex = unixUrl.indexOf('/');
+
+      if (pathStartIndex === -1) {
+        throw new TypeError('Invalid pathname');
+      }
+
+      const authority = unixUrl.substring(0, pathStartIndex);
+      if (authority) {
+        if (!authority.endsWith('@')) {
+          throw new TypeError('Invalid authority');
         }
-      } = {
-        socket: {
-          // Use net.SocketAddress.parse() once supported.
-          host: hostname.replace(/^\[([0-9a-f:]+)\]$/, '$1'),
-          tls: false
-        }
+
+        const credentials = authority.substring(0, authority.length - 1),
+          separator = credentials.indexOf(':');
+        setCredentials(
+          separator === -1 ? credentials : credentials.substring(0, separator),
+          separator === -1 ? '' : credentials.substring(separator + 1)
+        );
+      }
+
+      const { pathname, searchParams } = new URL(`unix://${unixUrl.substring(pathStartIndex)}`);
+      if (pathname.length <= 1) {
+        throw new TypeError('Invalid pathname');
+      }
+
+      parsed.socket = {
+        path: decodeURIComponent(pathname),
+        tls: false
       };
 
+      const database = searchParams.get('db');
+      if (database !== null) {
+        const parsedDatabase = Number(database);
+        if (isNaN(parsedDatabase)) {
+          throw new TypeError('Invalid database');
+        }
+
+        parsed.database = parsedDatabase;
+      }
+
+      return parsed;
+    }
+
+    // https://www.iana.org/assignments/uri-schemes/prov/redis
+    const { hostname, port, protocol, username, password, pathname } = new URL(url);
     if (protocol !== 'redis:' && protocol !== 'rediss:') {
       throw new TypeError('Invalid protocol');
     }
 
-    parsed.socket.tls = protocol === 'rediss:';
+    const host = hostname.replace(/^\[([0-9a-f:]+)\]$/, '$1');
+    parsed.socket = protocol === 'rediss:' ?
+      { host, tls: true } :
+      { host, tls: false };
 
     if (port) {
       (parsed.socket as TcpSocketConnectOpts).port = Number(port);
     }
 
-    if (username) {
-      parsed.username = decodeURIComponent(username);
-    }
-
-    if (password) {
-      parsed.password = decodeURIComponent(password);
-    }
-
-    if (username || password) {
-      parsed.credentialsProvider = {
-        type: 'async-credentials-provider',
-        credentials: async () => (
-          {
-            username: username ? decodeURIComponent(username) : undefined,
-            password: password ? decodeURIComponent(password) : undefined
-          })
-      };
-    }
+    setCredentials(username, password);
 
     if (pathname.length > 1) {
       const database = Number(pathname.substring(1));
@@ -598,11 +667,11 @@ export default class RedisClient<
         const cscConfig = this.#options.clientSideCache;
         this.#clientSideCache = new BasicClientSideCache(cscConfig);
       }
-      this.#queue.addPushHandler((push: Array<any>): boolean => {
-        if (push[0].toString() !== 'invalidate') return false;
+      this.#queue.addPushHandler((push: Array<unknown>): boolean => {
+        if (String(push[0]) !== 'invalidate') return false;
 
         if (push[1] !== null) {
-          for (const key of push[1]) {
+          for (const key of push[1] as Array<RedisArgument>) {
             this.#clientSideCache?.invalidate(key)
           }
         } else {
@@ -612,11 +681,11 @@ export default class RedisClient<
         return true
       });
     } else if (options?.emitInvalidate) {
-      this.#queue.addPushHandler((push: Array<any>): boolean => {
-        if (push[0].toString() !== 'invalidate') return false;
+      this.#queue.addPushHandler((push: Array<unknown>): boolean => {
+        if (String(push[0]) !== 'invalidate') return false;
 
         if (push[1] !== null) {
-          for (const key of push[1]) {
+          for (const key of push[1] as Array<RedisArgument>) {
             this.emit('invalidate', key);
           }
         } else {
@@ -1057,7 +1126,7 @@ export default class RedisClient<
    */
    _ejectSocket(): RedisSocket {
      const socket = this._self.#socket;
-     // @ts-ignore
+     // @ts-expect-error temporarily clears the socket before reinserting one
      this._self.#socket = null;
      socket.removeAllListeners();
      return socket;
@@ -1524,7 +1593,7 @@ export default class RedisClient<
 
   MULTI<isTyped extends MultiMode = MULTI_MODE['TYPED']>() {
     type Multi = new (...args: ConstructorParameters<typeof RedisClientMultiCommand>) => RedisClientMultiCommandType<isTyped, [], M, F, S, RESP, TYPE_MAPPING>;
-    return new ((this as any).Multi as Multi)(
+    return new ((this as unknown as { Multi: Multi }).Multi)(
       this._executeMulti.bind(this),
       this._executePipeline.bind(this),
       this._commandOptions?.typeMapping

@@ -173,6 +173,69 @@ describe('Client', () => {
       );
     });
 
+    it('unix:///tmp/redis.sock?db=2', () => {
+      assert.deepEqual(
+        RedisClient.parseURL('unix:///tmp/redis.sock?db=2'),
+        {
+          socket: {
+            path: '/tmp/redis.sock',
+            tls: false
+          },
+          database: 2
+        }
+      );
+    });
+
+    it('unix://user:secret@/tmp/redis.sock?db=3', async () => {
+      const result = RedisClient.parseURL('unix://user:secret@/tmp/redis.sock?db=3');
+      const expected: RedisClientOptions = {
+        socket: {
+          path: '/tmp/redis.sock',
+          tls: false
+        },
+        username: 'user',
+        password: 'secret',
+        database: 3,
+        credentialsProvider: {
+          type: 'async-credentials-provider',
+          credentials: async () => ({
+            username: 'user',
+            password: 'secret'
+          })
+        }
+      };
+
+      const { credentialsProvider: resultCredProvider, ...resultRest } = result;
+      const { credentialsProvider: expectedCredProvider, ...expectedRest } = expected;
+
+      assert.deepEqual(resultRest, expectedRest);
+      assert.equal(resultCredProvider?.type, expectedCredProvider?.type);
+
+      if (resultCredProvider?.type === 'async-credentials-provider' &&
+        expectedCredProvider?.type === 'async-credentials-provider') {
+        assert.deepEqual(
+          await resultCredProvider.credentials(),
+          await expectedCredProvider.credentials()
+        );
+      } else {
+        assert.fail('Credentials provider type mismatch');
+      }
+    });
+
+    it('Invalid unix socket database', () => {
+      assert.throws(
+        () => RedisClient.parseURL('unix:///tmp/redis.sock?db=NaN'),
+        TypeError
+      );
+    });
+
+    it('Invalid unix socket authority', () => {
+      assert.throws(
+        () => RedisClient.parseURL('unix://localhost/tmp/redis.sock'),
+        TypeError
+      );
+    });
+
     it('DB in URL should be parsed', async () => {
       const client = RedisClient.create({
         url: 'redis://user:secret@localhost:6379/5'
