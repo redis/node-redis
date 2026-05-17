@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import { CommandArguments, RedisFunctions, RedisModules, RedisScripts, ReplyUnion, RespVersions, TypeMapping } from '../RESP/types';
+import { CommandArguments, RedisArgument, RedisFunctions, RedisModules, RedisScripts, ReplyUnion, RespVersions, TypeMapping } from '../RESP/types';
 import RedisClient, { RedisClientOptions, RedisClientType } from '../client';
 import { CommandOptions } from '../client/commands-queue';
 import { attachConfig } from '../commander';
@@ -18,9 +18,14 @@ import { TcpNetConnectOpts } from 'node:net';
 import { RedisTcpSocketOptions } from '../client/socket';
 import { BasicPooledClientSideCache, PooledClientSideCacheProvider } from '../client/cache';
 import { ClientIdentity, ClientRole, generateClientId } from '../client/identity';
+import { ScanOptions } from '../commands/SCAN';
 
 interface ClientInfo {
   id: number;
+}
+
+interface ScanIteratorOptions {
+  cursor?: RedisArgument;
 }
 
 export class RedisSentinelClient<
@@ -158,6 +163,18 @@ export class RedisSentinelClient<
    */
   withTypeMapping<TYPE_MAPPING extends TypeMapping>(typeMapping: TYPE_MAPPING) {
     return this._commandOptionsProxy('typeMapping', typeMapping);
+  }
+
+  async* scanIterator(
+    this: RedisSentinelClientType<M, F, S, RESP, TYPE_MAPPING>,
+    options?: ScanOptions & ScanIteratorOptions
+  ) {
+    let cursor = options?.cursor ?? '0';
+    do {
+      const reply = await this.scan(cursor, options);
+      cursor = reply.cursor;
+      yield reply.keys;
+    } while (cursor.toString() !== '0');
   }
 
   async _execute<T>(
@@ -423,6 +440,18 @@ export default class RedisSentinel<
    */
   withTypeMapping<TYPE_MAPPING extends TypeMapping>(typeMapping: TYPE_MAPPING) {
     return this._commandOptionsProxy('typeMapping', typeMapping);
+  }
+
+  async* scanIterator(
+    this: RedisSentinelType<M, F, S, RESP, TYPE_MAPPING>,
+    options?: ScanOptions & ScanIteratorOptions
+  ) {
+    let cursor = options?.cursor ?? '0';
+    do {
+      const reply = await this.use(client => client.scan(cursor, options));
+      cursor = reply.cursor;
+      yield reply.keys;
+    } while (cursor.toString() !== '0');
   }
 
   duplicate<
