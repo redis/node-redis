@@ -29,7 +29,7 @@ function transformArguments(args: unknown[]): CommandDocsArgument[] {
   return args.map((arg: unknown) => {
     if (!Array.isArray(arg)) return { name: '', type: '' };
     
-    const result: Record<string, unknown> = {};
+    const result: CommandDocsArgument = { name: '', type: '' };
     const arr = arg as unknown[];
     
     for (let i = 0; i < arr.length; i += 2) {
@@ -38,14 +38,16 @@ function transformArguments(args: unknown[]): CommandDocsArgument[] {
       
       switch (key) {
         case 'name':
+          result.name = value as string;
+          break;
         case 'type':
-          result[key] = value as string;
+          result.type = value as string;
           break;
         case 'optional':
-          result[key] = true;
+          result.optional = true;
           break;
         case 'multiple':
-          result[key] = true;
+          result.multiple = true;
           break;
         case 'flags':
           if (Array.isArray(value)) {
@@ -56,7 +58,7 @@ function transformArguments(args: unknown[]): CommandDocsArgument[] {
       }
     }
     
-    return result as unknown as CommandDocsArgument;
+    return result;
   });
 }
 
