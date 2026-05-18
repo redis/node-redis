@@ -1,5 +1,6 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { BlobStringReply, Command, NumberReply, SimpleStringReply, TypeMapping, ReplyUnion } from "@redis/client/dist/lib/RESP/types";
+import { mapLikeToObject, mapLikeValues } from '@redis/client/dist/lib/commands/reply-utils';
 import INFO, { InfoRawReply, InfoRawReplyTypes, InfoReply } from "./INFO";
 
 type chunkType = Array<[
@@ -34,35 +35,6 @@ export interface InfoDebugReply extends InfoReply {
     size: NumberReply;
     bytesPerSample: SimpleStringReply;
   }>;
-}
-
-function mapLikeToObject(value: unknown): Record<string, unknown> {
-  if (value instanceof Map) {
-    return Object.fromEntries(
-      Array.from(value.entries(), ([key, entryValue]) => [key.toString(), entryValue])
-    );
-  }
-
-  if (Array.isArray(value)) {
-    const object: Record<string, unknown> = {};
-    for (let i = 0; i < value.length - 1; i += 2) {
-      object[value[i].toString()] = value[i + 1];
-    }
-    return object;
-  }
-
-  if (value !== null && typeof value === 'object') {
-    return value as Record<string, unknown>;
-  }
-
-  return {};
-}
-
-function mapLikeValues(value: unknown): Array<unknown> {
-  if (Array.isArray(value)) return value;
-  if (value instanceof Map) return [...value.values()];
-  if (value !== null && typeof value === 'object') return Object.values(value);
-  return [];
 }
 
 function normalizeChunks(chunks: unknown): InfoDebugReply['chunks'] {

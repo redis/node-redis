@@ -3,6 +3,12 @@ import { ArrayReply, BlobStringReply, Command, DoubleReply, NumberReply, ReplyUn
 import { TimeSeriesDuplicatePolicies } from "./helpers";
 import { TIME_SERIES_AGGREGATION_TYPE, TimeSeriesAggregationType } from "./CREATERULE";
 import { transformDoubleReply } from '@redis/client/dist/lib/commands/generic-transformers';
+import {
+  getMapValue,
+  mapLikeEntries,
+  mapLikeToObject,
+  mapLikeValues
+} from '@redis/client/dist/lib/commands/reply-utils';
 
 export type InfoRawReplyTypes = SimpleStringReply | 
   NumberReply | 
@@ -69,72 +75,6 @@ export interface InfoReply {
   ignoreMaxTimeDiff: NumberReply;
   /** Added in 7.4 */
   ignoreMaxValDiff: DoubleReply;
-}
-
-function mapLikeEntries(value: unknown): Array<[string, unknown]> {
-  if (value instanceof Map) {
-    return Array.from(value.entries(), ([key, entryValue]) => [key.toString(), entryValue]);
-  }
-
-  if (Array.isArray(value)) {
-    if (value.every(item => Array.isArray(item) && item.length >= 2)) {
-      return value.map(item => [item[0].toString(), item[1]]);
-    }
-
-    const entries: Array<[string, unknown]> = [];
-    for (let i = 0; i < value.length - 1; i += 2) {
-      entries.push([value[i].toString(), value[i + 1]]);
-    }
-    return entries;
-  }
-
-  if (value !== null && typeof value === 'object') {
-    return Object.entries(value);
-  }
-
-  return [];
-}
-
-function mapLikeValues(value: unknown): Array<unknown> {
-  if (Array.isArray(value)) return value;
-  if (value instanceof Map) return [...value.values()];
-  if (value !== null && typeof value === 'object') return Object.values(value);
-  return [];
-}
-
-function mapLikeToObject(value: unknown): Record<string, unknown> {
-  const object: Record<string, unknown> = {};
-  for (const [key, entryValue] of mapLikeEntries(value)) {
-    object[key] = entryValue;
-  }
-  return object;
-}
-
-function getMapValue(value: unknown, keys: Array<string>): unknown {
-  const object = mapLikeToObject(value);
-
-  for (const key of keys) {
-    if (Object.hasOwn(object, key)) {
-      return object[key];
-    }
-  }
-
-  const lowerCaseKeyToOriginal = new Map<string, string>();
-  for (const key of Object.keys(object)) {
-    const lowerCaseKey = key.toLowerCase();
-    if (!lowerCaseKeyToOriginal.has(lowerCaseKey)) {
-      lowerCaseKeyToOriginal.set(lowerCaseKey, key);
-    }
-  }
-
-  for (const key of keys) {
-    const original = lowerCaseKeyToOriginal.get(key.toLowerCase());
-    if (original !== undefined) {
-      return object[original];
-    }
-  }
-
-  return undefined;
 }
 
 function normalizeInfoLabels(labels: unknown): Array<[name: BlobStringReply, value: BlobStringReply]> {

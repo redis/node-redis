@@ -1,5 +1,6 @@
 import { CommandParser } from '../client/parser';
 import { Command } from '../RESP/types';
+import { isPlainObject, mapLikeEntries, mapLikeValues } from './reply-utils';
 
 /**
  * Hotkey entry with key name and metric value
@@ -41,58 +42,6 @@ export interface HotkeysGetReply {
   totalNetBytes: number;
   byCpuTimeUs?: Array<HotkeyEntry>;
   byNetBytes?: Array<HotkeyEntry>;
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return value !== null &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    !(value instanceof Map) &&
-    !ArrayBuffer.isView(value) &&
-    Object.prototype.toString.call(value) === '[object Object]';
-}
-
-function keyToString(key: unknown): string {
-  if (key === null || key === undefined) return '';
-  return (key as { toString(): string }).toString();
-}
-
-function mapLikeEntries(value: unknown): Array<[string, unknown]> {
-  if (value instanceof Map) {
-    return Array.from(value.entries(), ([key, entryValue]) => [keyToString(key), entryValue]);
-  }
-
-  if (Array.isArray(value)) {
-    if (
-      value.length === 1 &&
-      (Array.isArray(value[0]) || value[0] instanceof Map || isPlainObject(value[0]))
-    ) {
-      return mapLikeEntries(value[0]);
-    }
-
-    if (value.every(item => Array.isArray(item) && item.length >= 2)) {
-      return value.map(item => [keyToString(item[0]), item[1]]);
-    }
-
-    const entries: Array<[string, unknown]> = [];
-    for (let i = 0; i < value.length - 1; i += 2) {
-      entries.push([keyToString(value[i]), value[i + 1]]);
-    }
-    return entries;
-  }
-
-  if (isPlainObject(value)) {
-    return Object.entries(value);
-  }
-
-  return [];
-}
-
-function mapLikeValues(value: unknown): Array<unknown> {
-  if (Array.isArray(value)) return value;
-  if (value instanceof Map) return [...value.values()];
-  if (isPlainObject(value)) return Object.values(value);
-  return [];
 }
 
 function toSlotNumber(value: unknown): number {
