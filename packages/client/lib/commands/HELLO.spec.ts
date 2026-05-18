@@ -2,6 +2,7 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import HELLO from './HELLO';
 import { parseArgs } from './generic-transformers';
+import { DEFAULT_RESP } from '../RESP/types';
 
 describe('HELLO', () => {
   testUtils.isVersionGreaterThanHook([6]);
@@ -60,7 +61,7 @@ describe('HELLO', () => {
     const reply = await client.hello();
     assert.equal(reply.server, 'redis');
     assert.equal(typeof reply.version, 'string');
-    assert.equal(reply.proto, client.options.RESP ?? 3);
+    assert.equal(reply.proto, client.options.RESP ?? DEFAULT_RESP);
     assert.equal(typeof reply.id, 'number');
     assert.equal(reply.mode, 'standalone');
     assert.equal(reply.role, 'master');
