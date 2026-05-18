@@ -58,6 +58,19 @@ Commands affected:
 Additionally, RESP3 map decoding now creates plain objects by default, so commands that expose raw RESP3 maps as JS objects inherit the same prototype change.
 
 
+## `unstableResp3` and `unstableResp3Modules` are removed
+
+Both options were v5 gates for opt-in access to in-development RESP3 transforms. In v6 those transforms are stable (see the [Stabilized APIs](#stabilized-apis) table above) and the gates have been deleted. If your v5 code passed either option, remove the property — TypeScript will surface it as an unknown-property error on the options literal:
+
+```javascript
+// v5
+const client = createClient({ RESP: 3, unstableResp3: true });
+
+// v6
+const client = createClient({ RESP: 3 });
+```
+
+
 ## Legacy (callback) mode now uses RESP3
 
 `createClient().legacy()` reads the parent client's RESP version. With the v6 default of RESP3, legacy callback consumers will see RESP3-shaped replies for any command whose transforms differ between protocol versions (for example, doubles arriving as `number` instead of `string`, or hash-like replies arriving as `Map`s). To keep the v5 callback reply shapes, pin `RESP: 2` on the parent client:
