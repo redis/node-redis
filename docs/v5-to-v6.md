@@ -71,6 +71,23 @@ const client = createClient({ RESP: 3 });
 ```
 
 
+## `maintNotifications` default is now derived from `RESP`
+
+In v5, `maintNotifications` defaulted to `"disabled"` regardless of protocol. In v6, the default is derived from the negotiated RESP version: `"auto"` when `RESP: 3` (the new default), and `"disabled"` when `RESP: 2`. Because v6 also flips the protocol default to RESP3, clients that don't set `maintNotifications` explicitly now opt into Enterprise maintenance push notifications, the relaxed socket/command timeouts, and endpoint-type negotiation — behavior v5 never enabled by default.
+
+`"auto"` is the functional on-switch for maintenance handling; it is not a no-op. The client subscribes to maintenance push frames (moving/migrating/failing-over) and adjusts socket/command timeouts during maintenance windows. On non-Enterprise servers this is generally harmless, but it does change topology-change behavior versus v5.
+
+To keep the v5 default, set `maintNotifications: "disabled"` explicitly (or pin `RESP: 2`):
+
+```javascript
+// Keep v5 maintenance semantics on RESP3
+const client = createClient({ maintNotifications: "disabled" });
+
+// Or pin RESP2 and inherit the disabled default
+const client = createClient({ RESP: 2 });
+```
+
+
 ## Legacy (callback) mode now uses RESP3
 
 `createClient().legacy()` reads the parent client's RESP version. With the v6 default of RESP3, legacy callback consumers will see RESP3-shaped replies for any command whose transforms differ between protocol versions (for example, doubles arriving as `number` instead of `string`, or hash-like replies arriving as `Map`s). To keep the v5 callback reply shapes, pin `RESP: 2` on the parent client:
