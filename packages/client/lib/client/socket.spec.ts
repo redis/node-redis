@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert';
 import { spy } from 'sinon';
 import { once } from 'node:events';
+import net from 'node:net';
 import RedisSocket, { RedisSocketOptions } from './socket';
 import testUtils, { GLOBAL } from '../test-utils';
 import { setTimeout } from 'timers/promises';
@@ -83,6 +84,90 @@ describe('Socket', () => {
       await assert.rejects(socket.connect());
 
       assert.equal(socket.isOpen, false);
+    });
+  });
+
+  describe('write', () => {
+    function captureUnderlyingSocket() {
+      const original = net.createConnection;
+      const captured: { socket?: net.Socket } = {};
+      (net as any).createConnection = (...args: any[]) => {
+        const s = (original as any).apply(net, args);
+        captured.socket = s;
+        return s;
+      };
+      return {
+        captured,
+        restore() {
+          (net as any).createConnection = original;
+        }
+      };
+    }
+
+    async function withConnectedSocket(
+      fn: (socket: RedisSocket, underlying: net.Socket) => Promise<void>
+    ) {
+      const server = net.createServer();
+      server.on('connection', conn => conn.on('error', () => { /* ignore */ }));
+      await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+      const { port } = server.address() as net.AddressInfo;
+
+      const capture = captureUnderlyingSocket();
+      try {
+        const socket = createSocket({
+          host: '127.0.0.1',
+          port,
+          reconnectStrategy: false
+        });
+
+        await socket.connect();
+        assert.ok(capture.captured.socket, 'captured underlying socket');
+
+        await fn(socket, capture.captured.socket!);
+      } finally {
+        capture.restore();
+        await new Promise<void>(resolve => server.close(() => resolve()));
+      }
+    }
+
+    it('should short-circuit when the underlying socket is no longer writable (#3282)', async () => {
+      await withConnectedSocket(async (socket, underlying) => {
+        Object.defineProperty(underlying, 'writable', {
+          value: false,
+          configurable: true
+        });
+
+        const writeSpy = spy(underlying, 'write');
+        socket.write([[Buffer.from('PING\r\n')]]);
+        assert.equal(writeSpy.callCount, 0, 'must not call write on a non-writable socket');
+      });
+    });
+
+    it('should swallow synchronous EPIPE from net.Socket.write (#3282)', async () => {
+      await withConnectedSocket(async (socket, underlying) => {
+        underlying.write = (() => {
+          const err: NodeJS.ErrnoException = new Error('write EPIPE');
+          err.code = 'EPIPE';
+          throw err;
+        }) as net.Socket['write'];
+
+        assert.doesNotThrow(() =>
+          socket.write([[Buffer.from('PING\r\n')]])
+        );
+      });
+    });
+
+    it('should rethrow non-EPIPE errors from net.Socket.write', async () => {
+      await withConnectedSocket(async (socket, underlying) => {
+        underlying.write = (() => {
+          throw new Error('boom');
+        }) as net.Socket['write'];
+
+        assert.throws(
+          () => socket.write([[Buffer.from('PING\r\n')]]),
+          /boom/
+        );
+      });
     });
   });
 
