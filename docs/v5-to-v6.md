@@ -58,6 +58,14 @@ Commands affected:
 Additionally, RESP3 map decoding now creates plain objects by default, so commands that expose raw RESP3 maps as JS objects inherit the same prototype change.
 
 
+## Legacy (callback) mode now uses RESP3
+
+`createClient().legacy()` reads the parent client's RESP version. With the v6 default of RESP3, legacy callback consumers will see RESP3-shaped replies for any command whose transforms differ between protocol versions (for example, doubles arriving as `number` instead of `string`, or hash-like replies arriving as `Map`s). To keep the v5 callback reply shapes, pin `RESP: 2` on the parent client:
+
+```javascript
+const legacy = createClient({ RESP: 2 }).legacy();
+```
+
 
 ## If you need to preserve v5 default behavior while migrating, pin RESP2 explicitly:
 
