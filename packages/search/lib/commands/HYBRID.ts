@@ -412,7 +412,6 @@ export default {
       reply: unknown,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
       _preserve?: any,
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars -- matches TransformReply contract
       _typeMapping?: TypeMapping
     ): HybridSearchResult => {
       return transformHybridSearchResults(reply);
@@ -421,7 +420,6 @@ export default {
       reply: unknown,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
       _preserve?: any,
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars -- matches TransformReply contract
       _typeMapping?: TypeMapping
     ): HybridSearchResult => {
       return transformHybridSearchResults(reply);

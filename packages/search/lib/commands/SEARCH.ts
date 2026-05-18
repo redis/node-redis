@@ -163,7 +163,6 @@ function transformSearchReplyResp2(
   reply: SearchRawReply,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
   _preserve?: any,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- matches TransformReply contract
   _typeMapping?: TypeMapping
 ): SearchReply {
   // if reply[2] is array, then we have content/documents. Otherwise, only ids
