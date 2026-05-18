@@ -91,15 +91,16 @@ describe('Socket', () => {
     function captureUnderlyingSocket() {
       const original = net.createConnection;
       const captured: { socket?: net.Socket } = {};
-      (net as any).createConnection = (...args: any[]) => {
-        const s = (original as any).apply(net, args);
+      const target = net as unknown as { createConnection: unknown };
+      target.createConnection = (...args: unknown[]) => {
+        const s = (original as unknown as (...a: unknown[]) => net.Socket).apply(net, args);
         captured.socket = s;
         return s;
       };
       return {
         captured,
         restore() {
-          (net as any).createConnection = original;
+          target.createConnection = original;
         }
       };
     }
@@ -217,7 +218,7 @@ describe('Socket', () => {
         assert.equal(client.isReady, true, 'client.isReady');
         assert.equal(client.isOpen, true, 'client.isOpen');
 
-        client.on('error', err => {
+        client.on('error', _err => {
           assert.fail('Should not have timed out or errored in any way');
         });
         await setTimeout(100);
