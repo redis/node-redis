@@ -367,7 +367,7 @@ export type Resp2Reply<RESP3REPLY> = (
 
 export type RespVersions = 2 | 3;
 
-export const DEFAULT_RESP: RespVersions = 3;
+export const DEFAULT_RESP = 3 as const satisfies RespVersions;
 
 export type CommandReply<
   COMMAND extends Command,
