@@ -45,7 +45,7 @@ jobs:
             version: "8.2"
           - tag: "8.4.0"
             version: "8.4"
-          - tag: "8.8-m03"
+          - tag: "8.8-rc1"
             version: "8.8"
     steps:
       - uses: actions/checkout@v4
