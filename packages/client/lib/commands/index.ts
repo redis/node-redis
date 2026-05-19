@@ -13,6 +13,25 @@ import ACL_SETUSER from './ACL_SETUSER';
 import ACL_USERS from './ACL_USERS';
 import ACL_WHOAMI from './ACL_WHOAMI';
 import APPEND from './APPEND';
+import ARCOUNT from './ARCOUNT';
+import ARDEL from './ARDEL';
+import ARDELRANGE from './ARDELRANGE';
+import ARGET from './ARGET';
+import ARGETRANGE from './ARGETRANGE';
+import ARGREP, { AR_PREDICATE_TYPES, AR_PREDICATE_COMBINATORS } from './ARGREP';
+import ARGREP_WITHVALUES from './ARGREP_WITHVALUES';
+import ARINFO from './ARINFO';
+import ARINSERT from './ARINSERT';
+import ARLASTITEMS from './ARLASTITEMS';
+import ARLEN from './ARLEN';
+import ARMGET from './ARMGET';
+import ARMSET from './ARMSET';
+import ARNEXT from './ARNEXT';
+import AROP, { AR_OPERATIONS } from './AROP';
+import ARRING from './ARRING';
+import ARSCAN from './ARSCAN';
+import ARSEEK from './ARSEEK';
+import ARSET from './ARSET';
 import ASKING from './ASKING';
 import AUTH from './AUTH';
 import BGREWRITEAOF from './BGREWRITEAOF';
@@ -375,6 +394,9 @@ import VSIM_WITHSCORES from './VSIM_WITHSCORES';
 import LATENCY_HISTOGRAM from './LATENCY_HISTOGRAM';
 
 export {
+  AR_PREDICATE_TYPES,
+  AR_PREDICATE_COMBINATORS,
+  AR_OPERATIONS,
   CLIENT_KILL_FILTERS,
   CLIENT_UNBLOCK_MODES,
   FAILOVER_MODES,
@@ -520,6 +542,276 @@ export default {
    * @param value - The value to append
    */
   append: APPEND,
+  /**
+   * Returns the number of non-empty elements in the array stored at the given key
+   * @param key - Key of the array
+   * @remarks Returned indices may exceed `Number.MAX_SAFE_INTEGER` (2^53-1). For full precision, use `client.withTypeMapping({ [RESP_TYPES.NUMBER]: String })`.
+   */
+  ARCOUNT,
+  /**
+   * Returns the number of non-empty elements in the array stored at the given key
+   * @param key - Key of the array
+   * @remarks Returned indices may exceed `Number.MAX_SAFE_INTEGER` (2^53-1). For full precision, use `client.withTypeMapping({ [RESP_TYPES.NUMBER]: String })`.
+   */
+  arCount: ARCOUNT,
+  /**
+   * Deletes elements at the specified indices in the array stored at the given key
+   * @param key - Key of the array
+   * @param indices - Index or indices to delete
+   */
+  ARDEL,
+  /**
+   * Deletes elements at the specified indices in the array stored at the given key
+   * @param key - Key of the array
+   * @param indices - Index or indices to delete
+   */
+  arDel: ARDEL,
+  /**
+   * Deletes elements within one or more inclusive index ranges in the array stored at the given key
+   * @param key - Key of the array
+   * @param ranges - A `[start, end]` range or an array of `[start, end]` ranges
+   */
+  ARDELRANGE,
+  /**
+   * Deletes elements within one or more inclusive index ranges in the array stored at the given key
+   * @param key - Key of the array
+   * @param ranges - A `[start, end]` range or an array of `[start, end]` ranges
+   */
+  arDelRange: ARDELRANGE,
+  /**
+   * Returns the value at the given index in the array stored at the given key
+   * @param key - Key of the array
+   * @param index - Index to read
+   */
+  ARGET,
+  /**
+   * Returns the value at the given index in the array stored at the given key
+   * @param key - Key of the array
+   * @param index - Index to read
+   */
+  arGet: ARGET,
+  /**
+   * Returns the values in the inclusive index range [start, end] in the array stored at the given key
+   * @param key - Key of the array
+   * @param start - Start index (inclusive)
+   * @param end - End index (inclusive)
+   */
+  ARGETRANGE,
+  /**
+   * Returns the values in the inclusive index range [start, end] in the array stored at the given key
+   * @param key - Key of the array
+   * @param start - Start index (inclusive)
+   * @param end - End index (inclusive)
+   */
+  arGetRange: ARGETRANGE,
+  /**
+   * Searches elements of the array stored at the given key using one or more textual predicates and returns matching indices
+   * @param key - Key of the array
+   * @param start - Start index (inclusive)
+   * @param end - End index (inclusive)
+   * @param predicates - Array of `[type, value]` predicates
+   * @param options - Optional COMBINATOR, LIMIT and NOCASE modifiers
+   * @remarks Returned indices may exceed `Number.MAX_SAFE_INTEGER` (2^53-1). For full precision, use `client.withTypeMapping({ [RESP_TYPES.NUMBER]: String })`.
+   */
+  ARGREP,
+  /**
+   * Searches elements of the array stored at the given key using one or more textual predicates and returns matching indices
+   * @param key - Key of the array
+   * @param start - Start index (inclusive)
+   * @param end - End index (inclusive)
+   * @param predicates - Array of `[type, value]` predicates
+   * @param options - Optional COMBINATOR, LIMIT and NOCASE modifiers
+   * @remarks Returned indices may exceed `Number.MAX_SAFE_INTEGER` (2^53-1). For full precision, use `client.withTypeMapping({ [RESP_TYPES.NUMBER]: String })`.
+   */
+  arGrep: ARGREP,
+  /**
+   * Searches elements of the array stored at the given key using one or more textual predicates and returns matching `{index, value}` pairs
+   * @param key - Key of the array
+   * @param start - Start index (inclusive)
+   * @param end - End index (inclusive)
+   * @param predicates - Array of `[type, value]` predicates
+   * @param options - Optional COMBINATOR, LIMIT and NOCASE modifiers
+   * @remarks Returned indices may exceed `Number.MAX_SAFE_INTEGER` (2^53-1). For full precision, use `client.withTypeMapping({ [RESP_TYPES.NUMBER]: String })`.
+   */
+  ARGREP_WITHVALUES,
+  /**
+   * Searches elements of the array stored at the given key using one or more textual predicates and returns matching `{index, value}` pairs
+   * @param key - Key of the array
+   * @param start - Start index (inclusive)
+   * @param end - End index (inclusive)
+   * @param predicates - Array of `[type, value]` predicates
+   * @param options - Optional COMBINATOR, LIMIT and NOCASE modifiers
+   * @remarks Returned indices may exceed `Number.MAX_SAFE_INTEGER` (2^53-1). For full precision, use `client.withTypeMapping({ [RESP_TYPES.NUMBER]: String })`.
+   */
+  arGrepWithValues: ARGREP_WITHVALUES,
+  /**
+   * Returns metadata about the array stored at the given key
+   * @param key - Key of the array
+   * @param options - Optional FULL flag for per-slice statistics
+   * @remarks Returned indices may exceed `Number.MAX_SAFE_INTEGER` (2^53-1). For full precision, use `client.withTypeMapping({ [RESP_TYPES.NUMBER]: String })`.
+   */
+  ARINFO,
+  /**
+   * Returns metadata about the array stored at the given key
+   * @param key - Key of the array
+   * @param options - Optional FULL flag for per-slice statistics
+   * @remarks Returned indices may exceed `Number.MAX_SAFE_INTEGER` (2^53-1). For full precision, use `client.withTypeMapping({ [RESP_TYPES.NUMBER]: String })`.
+   */
+  arInfo: ARINFO,
+  /**
+   * Inserts values at consecutive indices in the array stored at the given key, beginning at the current insert cursor position
+   * @param key - Key of the array
+   * @param values - Value or values to insert
+   * @remarks Returned indices may exceed `Number.MAX_SAFE_INTEGER` (2^53-1). For full precision, use `client.withTypeMapping({ [RESP_TYPES.NUMBER]: String })`.
+   */
+  ARINSERT,
+  /**
+   * Inserts values at consecutive indices in the array stored at the given key, beginning at the current insert cursor position
+   * @param key - Key of the array
+   * @param values - Value or values to insert
+   * @remarks Returned indices may exceed `Number.MAX_SAFE_INTEGER` (2^53-1). For full precision, use `client.withTypeMapping({ [RESP_TYPES.NUMBER]: String })`.
+   */
+  arInsert: ARINSERT,
+  /**
+   * Returns up to `count` most recently inserted elements from the array stored at the given key
+   * @param key - Key of the array
+   * @param count - Maximum number of items to return
+   * @param options - Optional REV flag for reverse chronological order
+   */
+  ARLASTITEMS,
+  /**
+   * Returns up to `count` most recently inserted elements from the array stored at the given key
+   * @param key - Key of the array
+   * @param count - Maximum number of items to return
+   * @param options - Optional REV flag for reverse chronological order
+   */
+  arLastItems: ARLASTITEMS,
+  /**
+   * Returns the length of the array stored at the given key (max set index + 1)
+   * @param key - Key of the array
+   * @remarks Returned indices may exceed `Number.MAX_SAFE_INTEGER` (2^53-1). For full precision, use `client.withTypeMapping({ [RESP_TYPES.NUMBER]: String })`.
+   */
+  ARLEN,
+  /**
+   * Returns the length of the array stored at the given key (max set index + 1)
+   * @param key - Key of the array
+   * @remarks Returned indices may exceed `Number.MAX_SAFE_INTEGER` (2^53-1). For full precision, use `client.withTypeMapping({ [RESP_TYPES.NUMBER]: String })`.
+   */
+  arLen: ARLEN,
+  /**
+   * Returns the values at the specified indices in the array stored at the given key
+   * @param key - Key of the array
+   * @param indices - Index or indices to read
+   */
+  ARMGET,
+  /**
+   * Returns the values at the specified indices in the array stored at the given key
+   * @param key - Key of the array
+   * @param indices - Index or indices to read
+   */
+  arMGet: ARMGET,
+  /**
+   * Sets multiple index/value pairs in the array stored at the given key
+   * @param key - Key of the array
+   * @param entries - An object, Map, or array of `[index, value]` tuples
+   */
+  ARMSET,
+  /**
+   * Sets multiple index/value pairs in the array stored at the given key
+   * @param key - Key of the array
+   * @param entries - An object, Map, or array of `[index, value]` tuples
+   */
+  arMSet: ARMSET,
+  /**
+   * Returns the next index ARINSERT would use for the array stored at the given key
+   * @param key - Key of the array
+   * @remarks Returned indices may exceed `Number.MAX_SAFE_INTEGER` (2^53-1). For full precision, use `client.withTypeMapping({ [RESP_TYPES.NUMBER]: String })`.
+   */
+  ARNEXT,
+  /**
+   * Returns the next index ARINSERT would use for the array stored at the given key
+   * @param key - Key of the array
+   * @remarks Returned indices may exceed `Number.MAX_SAFE_INTEGER` (2^53-1). For full precision, use `client.withTypeMapping({ [RESP_TYPES.NUMBER]: String })`.
+   */
+  arNext: ARNEXT,
+  /**
+   * Performs an aggregate operation on elements of the array stored at the given key in an inclusive index range
+   * @param key - Key of the array
+   * @param start - Start index (inclusive)
+   * @param end - End index (inclusive)
+   * @param operation - SUM, MIN, MAX, AND, OR, XOR, MATCH or USED
+   * @param value - Required value when operation is MATCH
+   */
+  AROP,
+  /**
+   * Performs an aggregate operation on elements of the array stored at the given key in an inclusive index range
+   * @param key - Key of the array
+   * @param start - Start index (inclusive)
+   * @param end - End index (inclusive)
+   * @param operation - SUM, MIN, MAX, AND, OR, XOR, MATCH or USED
+   * @param value - Required value when operation is MATCH
+   */
+  arOp: AROP,
+  /**
+   * Inserts values into the array stored at the given key as a fixed-size ring buffer
+   * @param key - Key of the array
+   * @param size - Number of slots in the ring buffer
+   * @param values - Value or values to insert
+   * @remarks Returned indices may exceed `Number.MAX_SAFE_INTEGER` (2^53-1). For full precision, use `client.withTypeMapping({ [RESP_TYPES.NUMBER]: String })`.
+   */
+  ARRING,
+  /**
+   * Inserts values into the array stored at the given key as a fixed-size ring buffer
+   * @param key - Key of the array
+   * @param size - Number of slots in the ring buffer
+   * @param values - Value or values to insert
+   * @remarks Returned indices may exceed `Number.MAX_SAFE_INTEGER` (2^53-1). For full precision, use `client.withTypeMapping({ [RESP_TYPES.NUMBER]: String })`.
+   */
+  arRing: ARRING,
+  /**
+   * Iterates populated elements of the array stored at the given key in the inclusive index range and returns alternating index/value pairs
+   * @param key - Key of the array
+   * @param start - Start index (inclusive)
+   * @param end - End index (inclusive)
+   * @param options - Optional LIMIT modifier
+   * @remarks Returned indices may exceed `Number.MAX_SAFE_INTEGER` (2^53-1). For full precision, use `client.withTypeMapping({ [RESP_TYPES.NUMBER]: String })`.
+   */
+  ARSCAN,
+  /**
+   * Iterates populated elements of the array stored at the given key in the inclusive index range and returns alternating index/value pairs
+   * @param key - Key of the array
+   * @param start - Start index (inclusive)
+   * @param end - End index (inclusive)
+   * @param options - Optional LIMIT modifier
+   * @remarks Returned indices may exceed `Number.MAX_SAFE_INTEGER` (2^53-1). For full precision, use `client.withTypeMapping({ [RESP_TYPES.NUMBER]: String })`.
+   */
+  arScan: ARSCAN,
+  /**
+   * Sets the insert cursor of the array stored at the given key to `index`
+   * @param key - Key of the array
+   * @param index - New cursor position
+   */
+  ARSEEK,
+  /**
+   * Sets the insert cursor of the array stored at the given key to `index`
+   * @param key - Key of the array
+   * @param index - New cursor position
+   */
+  arSeek: ARSEEK,
+  /**
+   * Sets one or more contiguous values in the array stored at the given key starting at `index`
+   * @param key - Key of the array
+   * @param index - Starting index
+   * @param value - A single value or an array of values stored at consecutive indices
+   */
+  ARSET,
+  /**
+   * Sets one or more contiguous values in the array stored at the given key starting at `index`
+   * @param key - Key of the array
+   * @param index - Starting index
+   * @param value - A single value or an array of values stored at consecutive indices
+   */
+  arSet: ARSET,
   /**
    * Tells a Redis cluster node that the client is ok receiving such redirects
    */
