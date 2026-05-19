@@ -93,7 +93,6 @@ import EVAL_RO from './EVAL_RO';
 import EVAL from './EVAL';
 import EVALSHA_RO from './EVALSHA_RO';
 import EVALSHA from './EVALSHA';
-import GCRA from './GCRA';
 import GEOADD from './GEOADD';
 import GEODIST from './GEODIST';
 import GEOHASH from './GEOHASH';
@@ -1557,34 +1556,6 @@ export default {
    * Returns information about the function that is currently running and information about the available execution engines
    */
   functionStats: FUNCTION_STATS,
-  /**
-   * Rate limit via GCRA (Generic Cell Rate Algorithm).
-   * `tokensPerPeriod` are allowed per `period` at a sustained rate, which implies
-   * a minimum emission interval of `period / tokensPerPeriod` seconds between requests.
-   * `maxBurst` allows occasional spikes by permitting up to `maxBurst` additional
-   * tokens to be consumed at once.
-   * @param key - Key associated with the rate limit bucket
-   * @param maxBurst - Maximum number of extra tokens allowed as burst (min 0)
-   * @param tokensPerPeriod - Number of tokens allowed per period (min 1)
-   * @param period - Period in seconds as a float for sustained rate calculation (min 1.0, max 1e12)
-   * @param tokens - Optional request cost (weight). If omitted, defaults to 1
-   * @see https://redis.io/commands/gcra/
-   */
-  GCRA,
-  /**
-   * Rate limit via GCRA (Generic Cell Rate Algorithm).
-   * `tokensPerPeriod` are allowed per `period` at a sustained rate, which implies
-   * a minimum emission interval of `period / tokensPerPeriod` seconds between requests.
-   * `maxBurst` allows occasional spikes by permitting up to `maxBurst` additional
-   * tokens to be consumed at once.
-   * @param key - Key associated with the rate limit bucket
-   * @param maxBurst - Maximum number of extra tokens allowed as burst (min 0)
-   * @param tokensPerPeriod - Number of tokens allowed per period (min 1)
-   * @param period - Period in seconds as a float for sustained rate calculation (min 1.0, max 1e12)
-   * @param tokens - Optional request cost (weight). If omitted, defaults to 1
-   * @see https://redis.io/commands/gcra/
-   */
-  gcra: GCRA,
   /**
    * Adds geospatial items to the specified key
    * @param key - Key to add the geospatial items to
