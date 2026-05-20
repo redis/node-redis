@@ -124,7 +124,12 @@ describe('Socket', () => {
         await socket.connect();
         assert.ok(capture.captured.socket, 'captured underlying socket');
 
-        await fn(socket, capture.captured.socket!);
+        try {
+          await fn(socket, capture.captured.socket!);
+        } finally {
+          // Tear down the connection so server.close() doesn't wait for it.
+          capture.captured.socket?.destroy();
+        }
       } finally {
         capture.restore();
         await new Promise<void>(resolve => server.close(() => resolve()));
