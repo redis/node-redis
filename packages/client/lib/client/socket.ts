@@ -381,17 +381,28 @@ export default class RedisSocket extends EventEmitter {
 
 
   write(iterable: Iterable<ReadonlyArray<RedisArgument>>) {
-    if (!this.#socket) return;
+    if (!this.#socket || !this.#socket.writable) return;
 
     this.#socket.cork();
-    for (const args of iterable) {
-      for (const toWrite of args) {
-        this.#socket.write(toWrite);
-      }
+    try {
+      for (const args of iterable) {
+        for (const toWrite of args) {
+          this.#socket.write(toWrite);
+        }
 
-      if (this.#socket.writableNeedDrain) break;
+        if (this.#socket.writableNeedDrain) break;
+      }
+    } catch (err) {
+      // net.Socket.write can throw synchronously on a half-closed socket
+      // (writeAfterFIN -> EPIPE) before the 'close' event fires. The pending
+      // command has already been moved to #waitingForReply by the queue's
+      // generator, so the close handler will reject it on reconnect.
+      if (!err || (err as NodeJS.ErrnoException).code !== 'EPIPE') {
+        throw err;
+      }
+    } finally {
+      this.#socket.uncork();
     }
-    this.#socket.uncork();
   }
 
   async quit<T>(fn: () => Promise<T>): Promise<T> {
