@@ -853,6 +853,74 @@ describe('Client', () => {
     assert.deepEqual(map, results);
   }, GLOBAL.SERVERS.OPEN);
 
+  testUtils.testWithClient('scan iterators respect type mapping', async client => {
+    await Promise.all([
+      client.mSet(['scan:1', '', 'scan:2', '']),
+      client.hSet('hash', {
+        field: 'value'
+      }),
+      client.sAdd('set', ['member']),
+      client.zAdd('zset', {
+        value: 'member',
+        score: 1.5
+      })
+    ]);
+
+    const mappedClient = client.withTypeMapping({
+      [RESP_TYPES.BLOB_STRING]: Buffer,
+      [RESP_TYPES.DOUBLE]: String
+    });
+
+    const keys = new Set<string>();
+    for await (const page of mappedClient.scanIterator({ MATCH: 'scan:*' })) {
+      for (const key of page) {
+        assert.ok(Buffer.isBuffer(key));
+        keys.add(key.toString());
+      }
+    }
+    assert.deepEqual(keys, new Set(['scan:1', 'scan:2']));
+
+    const entries = new Map<string, string>();
+    for await (const page of mappedClient.hScanIterator('hash')) {
+      for (const { field, value } of page) {
+        assert.ok(Buffer.isBuffer(field));
+        assert.ok(Buffer.isBuffer(value));
+        entries.set(field.toString(), value.toString());
+      }
+    }
+    assert.deepEqual(entries, new Map([['field', 'value']]));
+
+    const fields = new Set<string>();
+    for await (const page of mappedClient.hScanNoValuesIterator('hash')) {
+      for (const field of page) {
+        assert.ok(Buffer.isBuffer(field));
+        fields.add(field.toString());
+      }
+    }
+    assert.deepEqual(fields, new Set(['field']));
+
+    const setMembers = new Set<string>();
+    for await (const page of mappedClient.sScanIterator('set')) {
+      for (const member of page) {
+        assert.ok(Buffer.isBuffer(member));
+        setMembers.add(member.toString());
+      }
+    }
+    assert.deepEqual(setMembers, new Set(['member']));
+
+    const sortedSetMembers = new Map<string, string>();
+    for await (const page of mappedClient.zScanIterator('zset')) {
+      for (const { value, score } of page) {
+        assert.ok(Buffer.isBuffer(value));
+        sortedSetMembers.set(value.toString(), score);
+      }
+    }
+    assert.deepEqual(sortedSetMembers, new Map([['member', '1.5']]));
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    minimumDockerVersion: [7, 4]
+  });
+
   describe('PubSub', () => {
     testUtils.testWithClient('should be able to publish and subscribe to messages', async publisher => {
       function assertStringListener(message: string, channel: string) {
