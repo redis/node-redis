@@ -107,6 +107,38 @@ describe('ARGREP', () => {
     );
   }, GLOBAL.SERVERS.OPEN);
 
+  testUtils.testWithClientIfVersionWithinRange([[8, 8], 'LATEST'], 'arGrep OR is the default combinator', async client => {
+    await client.arMSet('log', [
+      [0, 'boot: ok'],
+      [1, 'warn: disk'],
+      [2, 'ERROR: cpu'],
+      [3, 'info: ready'],
+      [4, 'error: net']
+    ]);
+    assert.deepEqual(
+      await client.arGrep('log', '-', '+', [['GLOB', 'warn:*'], ['GLOB', 'error:*']]),
+      [1, 4]
+    );
+  }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClientIfVersionWithinRange([[8, 8], 'LATEST'], 'arGrep is case-sensitive by default; NOCASE includes mixed-case matches', async client => {
+    await client.arMSet('log', [
+      [0, 'boot: ok'],
+      [1, 'warn: disk'],
+      [2, 'ERROR: cpu'],
+      [3, 'info: ready'],
+      [4, 'error: net']
+    ]);
+    assert.deepEqual(
+      await client.arGrep('log', '-', '+', [['GLOB', 'error:*']]),
+      [4]
+    );
+    assert.deepEqual(
+      await client.arGrep('log', '-', '+', [['GLOB', 'error:*']], { NOCASE: true }),
+      [2, 4]
+    );
+  }, GLOBAL.SERVERS.OPEN);
+
   testUtils.testWithClientIfVersionWithinRange([[8, 8], 'LATEST'], 'arGrep LIMIT stops after N', async client => {
     await client.arMSet('key', [[0, 'hit-1'], [1, 'hit-2'], [2, 'miss'], [3, 'hit-3']]);
     assert.deepEqual(

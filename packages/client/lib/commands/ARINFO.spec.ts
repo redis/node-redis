@@ -32,6 +32,26 @@ describe('ARINFO', () => {
     assert.equal(info['slice-size'], 4096);
   }, GLOBAL.SERVERS.OPEN);
 
+  testUtils.testWithClientIfVersionWithinRange([[8, 8], 'LATEST'], 'arInfo FULL returns base fields plus extra detail', async client => {
+    assert.equal(await client.arMSet('key', [[0, 'a'], [1, 'b'], [100, 'c']]), 3);
+
+    const info = await client.arInfo('key') as Record<string, unknown>;
+    const fullInfo = await client.arInfo('key', { FULL: true }) as Record<string, unknown>;
+
+    // base fields are present and unchanged under FULL
+    for (const field of Object.keys(info)) {
+      assert.deepEqual(fullInfo[field], info[field], `field "${field}" should match base arInfo`);
+    }
+
+    // FULL adds per-slice statistics. With 3 entries spanning index 0..100
+    // the storage uses a single sparse slice.
+    assert.equal(fullInfo['dense-slices'], 0);
+    assert.equal(fullInfo['sparse-slices'], 1);
+    for (const field of ['avg-dense-size', 'avg-dense-fill', 'avg-sparse-size']) {
+      assert.ok(field in fullInfo, `FULL should include "${field}"`);
+    }
+  }, GLOBAL.SERVERS.OPEN);
+
   testUtils.testWithClientIfVersionWithinRange([[8, 8], 'LATEST'], 'array TYPE and OBJECT ENCODING', async client => {
     assert.equal(await client.arSet('key', 0, 'hello'), 1);
     assert.equal(await client.type('key'), 'array');
