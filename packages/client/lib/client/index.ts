@@ -255,7 +255,7 @@ export type RedisClientType<
     RedisClientExtensions<M, F, S, RESP, TYPE_MAPPING>
   );
 
-type ProxyClient = RedisClient<any, any, any, any, any>;
+type ProxyClient = RedisClient<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>;
 
 type NamespaceProxyClient = { _self: ProxyClient };
 
@@ -320,6 +320,7 @@ export default class RedisClient<
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static #SingleEntryCache = new SingleEntryCache<any, any>()
 
   static factory<
@@ -385,6 +386,12 @@ export default class RedisClient<
       tls: boolean
     }
   } {
+    // unix:// URIs use a non-special scheme; WHATWG URL refuses to parse an
+    // authority (e.g. `user:pass@`) without a host, so handle it separately.
+    if (url.startsWith('unix:')) {
+      return RedisClient.#parseUnixURL(url);
+    }
+
     // https://www.iana.org/assignments/uri-schemes/prov/redis
     const { hostname, port, protocol, username, password, pathname } = new URL(url),
       parsed: RedisClientOptions & {
@@ -435,6 +442,62 @@ export default class RedisClient<
       }
 
       parsed.database = database;
+    }
+
+    return parsed;
+  }
+
+  static #parseUnixURL(url: string): RedisClientOptions & {
+    socket: Exclude<RedisClientOptions['socket'], undefined> & {
+      tls: boolean
+    }
+  } {
+    // unix://[user[:password]@]/path/to/sock[?db=N]
+    const match = /^unix:\/\/(?:([^:@/]*)(?::([^@/]*))?@)?(\/[^?#]*)(?:\?([^#]*))?(?:#.*)?$/.exec(url);
+    if (!match || match[3] === '/') {
+      throw new TypeError('Invalid unix URL');
+    }
+
+    const [, username, password, rawPath, rawQuery] = match,
+      parsed: RedisClientOptions & {
+        socket: Exclude<RedisClientOptions['socket'], undefined> & {
+          tls: boolean
+        }
+      } = {
+        socket: {
+          path: decodeURIComponent(rawPath),
+          tls: false
+        }
+      };
+
+    if (username) {
+      parsed.username = decodeURIComponent(username);
+    }
+
+    if (password) {
+      parsed.password = decodeURIComponent(password);
+    }
+
+    if (username || password) {
+      parsed.credentialsProvider = {
+        type: 'async-credentials-provider',
+        credentials: async () => (
+          {
+            username: username ? decodeURIComponent(username) : undefined,
+            password: password ? decodeURIComponent(password) : undefined
+          })
+      };
+    }
+
+    if (rawQuery) {
+      const db = new URLSearchParams(rawQuery).get('db');
+      if (db !== null) {
+        const database = Number(db);
+        if (isNaN(database)) {
+          throw new TypeError('Invalid db query parameter');
+        }
+        parsed.database = database;
+      }
     }
 
     return parsed;
@@ -598,6 +661,7 @@ export default class RedisClient<
         const cscConfig = this.#options.clientSideCache;
         this.#clientSideCache = new BasicClientSideCache(cscConfig);
       }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       this.#queue.addPushHandler((push: Array<any>): boolean => {
         if (push[0].toString() !== 'invalidate') return false;
 
@@ -612,6 +676,7 @@ export default class RedisClient<
         return true
       });
     } else if (options?.emitInvalidate) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       this.#queue.addPushHandler((push: Array<any>): boolean => {
         if (push[0].toString() !== 'invalidate') return false;
 
@@ -1057,7 +1122,7 @@ export default class RedisClient<
    */
    _ejectSocket(): RedisSocket {
      const socket = this._self.#socket;
-     // @ts-ignore
+     // @ts-expect-error null assignment is intentional during eject
      this._self.#socket = null;
      socket.removeAllListeners();
      return socket;
@@ -1524,7 +1589,7 @@ export default class RedisClient<
 
   MULTI<isTyped extends MultiMode = MULTI_MODE['TYPED']>() {
     type Multi = new (...args: ConstructorParameters<typeof RedisClientMultiCommand>) => RedisClientMultiCommandType<isTyped, [], M, F, S, RESP, TYPE_MAPPING>;
-    return new ((this as any).Multi as Multi)(
+    return new ((this as unknown as { Multi: Multi }).Multi)(
       this._executeMulti.bind(this),
       this._executePipeline.bind(this),
       this._commandOptions?.typeMapping
