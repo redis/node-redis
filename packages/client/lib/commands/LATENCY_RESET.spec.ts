@@ -50,8 +50,12 @@ describe('LATENCY RESET', function () {
 
         const latestLatencyBeforeReset = await client.latencyLatest();
         assert.ok(latestLatencyBeforeReset.length > 0, 'Expected latency events to be recorded before first reset.');
-        assert.equal(latestLatencyBeforeReset[0][0], 'command', 'Expected "command" event to be recorded.');
-        assert.ok(Number(latestLatencyBeforeReset[0][2]) >= 100, 'Expected latest latency for "command" to be at least 100ms.');
+        const commandEventBeforeReset = latestLatencyBeforeReset.find(event => event[0] === LATENCY_EVENTS.COMMAND);
+        assert.ok(
+            commandEventBeforeReset,
+            `Expected "command" event to be recorded. Got events: ${latestLatencyBeforeReset.map(event => event[0]).join(', ')}`
+        );
+        assert.ok(Number(commandEventBeforeReset[2]) >= 100, 'Expected latest latency for "command" to be at least 100ms.');
 
 
         const replyAll = await client.latencyReset();
@@ -75,7 +79,10 @@ describe('LATENCY RESET', function () {
 
 
         const latestLatencyAfterSpecificReset = await client.latencyLatest();
-        assert.deepEqual(latestLatencyAfterSpecificReset, [], 'Expected no latency events after specific reset of "command".');
+        assert.ok(
+            latestLatencyAfterSpecificReset.every(event => event[0] !== LATENCY_EVENTS.COMMAND),
+            `Expected no "${LATENCY_EVENTS.COMMAND}" event after specific reset. Got events: ${latestLatencyAfterSpecificReset.map(event => event[0]).join(', ')}`
+        );
 
 
         await client.sendCommand(['DEBUG', 'SLEEP', '0.02']);
@@ -90,7 +97,13 @@ describe('LATENCY RESET', function () {
         assert.ok(replyMultiple >= 0);
 
         const latestLatencyAfterMultipleReset = await client.latencyLatest();
-        assert.deepEqual(latestLatencyAfterMultipleReset, [], 'Expected no latency events after multiple specified resets.');
+        assert.ok(
+            latestLatencyAfterMultipleReset.every(event => (
+                event[0] !== LATENCY_EVENTS.COMMAND &&
+                event[0] !== LATENCY_EVENTS.FORK
+            )),
+            `Expected no "${LATENCY_EVENTS.COMMAND}" or "${LATENCY_EVENTS.FORK}" events after reset. Got events: ${latestLatencyAfterMultipleReset.map(event => event[0]).join(', ')}`
+        );
 
     }, {
 

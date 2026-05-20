@@ -1,6 +1,6 @@
 import { CommandParser } from '../client/parser';
-import { Command, RedisArgument, ReplyUnion } from '../RESP/types';
-import { transformStreamsMessagesReplyResp2 } from './generic-transformers';
+import { Command, RedisArgument } from '../RESP/types';
+import { transformStreamsMessagesReplyResp2, transformStreamsMessagesReplyResp3Compat } from './generic-transformers';
 
 /**
  * Structure representing a stream to read from
@@ -68,7 +68,6 @@ export default {
    */
   transformReply: {
     2: transformStreamsMessagesReplyResp2,
-    3: undefined as unknown as () => ReplyUnion
-  },
-  unstableResp3: true,
+    3: transformStreamsMessagesReplyResp3Compat
+  }
 } as const satisfies Command;

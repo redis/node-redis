@@ -55,12 +55,12 @@ describe('TS.MRANGE_SELECTED_LABELS_MULTIAGGR', () => {
 
     assert.deepStrictEqual(
       reply,
-      Object.create(null, {
+      Object.defineProperties({}, {
         'mrange-selectedlabels-multi': {
           configurable: true,
           enumerable: true,
           value: {
-            labels: Object.create(null, {
+            labels: Object.defineProperties({}, {
               label: {
                 configurable: true,
                 enumerable: true,

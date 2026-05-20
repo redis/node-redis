@@ -173,7 +173,7 @@ export function resp2MapToValue<
       return reply as never;
     }
     default: {
-      const ret: Record<string, TRANSFORMED> = Object.create(null);
+      const ret: Record<string, TRANSFORMED> = {};
       for (const wrappedTuple of reply) {
         const tuple = wrappedTuple as unknown as UnwrapReply<typeof wrappedTuple>;
         const key = tuple[0] as unknown as UnwrapReply<typeof tuple[0]>;
@@ -181,17 +181,18 @@ export function resp2MapToValue<
       }
       return ret as never;
     }
-  } 
+  }
 }
 
 export function resp3MapToValue<
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic over arbitrary RespType
   RAW_VALUE extends RespType<any, any, any, any>, // TODO: simplify types
   TRANSFORMED
 >(
   wrappedReply: MapReply<BlobStringReply, RAW_VALUE>,
   parseFunc: (rawValue: UnwrapReply<RAW_VALUE>) => TRANSFORMED
 ): MapReply<BlobStringReply, TRANSFORMED> {
-  const reply = wrappedReply as unknown as UnwrapReply<typeof wrappedReply>;  
+  const reply = wrappedReply as unknown as UnwrapReply<typeof wrappedReply>;
   if (reply instanceof Array) {
     for (let i = 1; i < reply.length; i += 2) {
       (reply[i] as unknown as TRANSFORMED) = parseFunc(reply[i] as unknown as UnwrapReply<RAW_VALUE>);
@@ -232,7 +233,7 @@ export function transformRESP2Labels<T extends RawLabelValue>(
 ): MapReply<BlobStringReply, T> {
   const unwrappedLabels = labels as unknown as UnwrapReply<typeof labels>;
   switch (typeMapping?.[RESP_TYPES.MAP]) {
-    case Map:
+    case Map: {
       const map = new Map<string, T>();
       for (const tuple of unwrappedLabels) {
         const [key, value] = tuple as unknown as UnwrapReply<typeof tuple>;
@@ -240,19 +241,21 @@ export function transformRESP2Labels<T extends RawLabelValue>(
         map.set(unwrappedKey.toString(), value);
       }
       return map as never;
+    }
 
     case Array:
       return unwrappedLabels.flat() as never;
 
     case Object:
-    default:
-      const labelsObject: Record<string, T> = Object.create(null);
+    default: {
+      const labelsObject: Record<string, T> = {};
       for (const tuple of unwrappedLabels) {
         const [key, value] = tuple as unknown as UnwrapReply<typeof tuple>;
         const unwrappedKey = key as unknown as UnwrapReply<typeof key>;
         labelsObject[unwrappedKey.toString()] = value;
       }
       return labelsObject as never;
+    }
   }
 }
 
@@ -264,7 +267,7 @@ export function transformRESP2LabelsWithSources<T extends RawLabelValue>(
   const to = unwrappedLabels.length - 2; // ignore __reducer__ and __source__
   let transformedLabels: MapReply<BlobStringReply, T>;
   switch (typeMapping?.[RESP_TYPES.MAP]) {
-    case Map:
+    case Map: {
       const map = new Map<string, T>();
       for (let i = 0; i < to; i++) {
         const [key, value] = unwrappedLabels[i] as unknown as UnwrapReply<typeof unwrappedLabels[number]>;
@@ -273,14 +276,15 @@ export function transformRESP2LabelsWithSources<T extends RawLabelValue>(
       }
       transformedLabels = map as never;
       break;
+    }
 
     case Array:
       transformedLabels = unwrappedLabels.slice(0, to).flat() as never;
       break;
 
     case Object:
-    default:
-      const labelsObject: Record<string, T> = Object.create(null);
+    default: {
+      const labelsObject: Record<string, T> = {};
       for (let i = 0; i < to; i++) {
         const [key, value] = unwrappedLabels[i] as unknown as UnwrapReply<typeof unwrappedLabels[number]>;
         const unwrappedKey = key as unknown as UnwrapReply<typeof key>;
@@ -288,6 +292,7 @@ export function transformRESP2LabelsWithSources<T extends RawLabelValue>(
       }
       transformedLabels = labelsObject as never;
       break;
+    }
   }
 
   const sourcesTuple = unwrappedLabels[unwrappedLabels.length - 1];
@@ -304,7 +309,7 @@ export function transformRESP2LabelsWithSources<T extends RawLabelValue>(
 function transformRESP2Sources(sourcesRaw: BlobStringReply) {
   // if a label contains "," this function will produce incorrcet results..
   // there is not much we can do about it, and we assume most users won't be using "," in their labels..
-  
+
   const unwrappedSources = sourcesRaw as unknown as UnwrapReply<typeof sourcesRaw>;
   if (typeof unwrappedSources === 'string') {
     return unwrappedSources.split(',');

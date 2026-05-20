@@ -19,4 +19,12 @@ describe('TDIGEST.MAX', () => {
 
     assert.deepEqual(reply, NaN);
   }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.tDigest.max with data', async client => {
+    await client.tDigest.create('key');
+    await client.tDigest.add('key', [1, 2, 3, 4, 5]);
+    const reply = await client.tDigest.max('key');
+
+    assert.equal(reply, 5);
+  }, GLOBAL.SERVERS.OPEN);
 });

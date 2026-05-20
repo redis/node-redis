@@ -6,6 +6,7 @@ export {
   RedisScripts,
   RespVersions,
   TypeMapping,
+  DEFAULT_RESP,
 } from './lib/RESP/types';
 export { RESP_TYPES } from './lib/RESP/decoder';
 export { VerbatimString } from './lib/RESP/verbatim-string';

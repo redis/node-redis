@@ -1,5 +1,6 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { BlobStringReply, Command, NumberReply, SimpleStringReply, TypeMapping, ReplyUnion } from "@redis/client/dist/lib/RESP/types";
+import { mapLikeToObject, mapLikeValues } from '@redis/client/dist/lib/commands/reply-utils';
 import INFO, { InfoRawReply, InfoRawReplyTypes, InfoReply } from "./INFO";
 
 type chunkType = Array<[
@@ -34,6 +35,39 @@ export interface InfoDebugReply extends InfoReply {
     size: NumberReply;
     bytesPerSample: SimpleStringReply;
   }>;
+}
+
+function normalizeChunks(chunks: unknown): InfoDebugReply['chunks'] {
+  return mapLikeValues(chunks).map(chunk => {
+    if (Array.isArray(chunk)) {
+      if (chunk.length >= 10 && chunk[0] === 'startTimestamp') {
+        return {
+          startTimestamp: chunk[1],
+          endTimestamp: chunk[3],
+          samples: chunk[5],
+          size: chunk[7],
+          bytesPerSample: chunk[9].toString()
+        };
+      }
+
+      return {
+        startTimestamp: chunk[0],
+        endTimestamp: chunk[1],
+        samples: chunk[2],
+        size: chunk[3],
+        bytesPerSample: chunk[4].toString()
+      };
+    }
+
+    const object = mapLikeToObject(chunk);
+    return {
+      startTimestamp: object.startTimestamp ?? object.start_timestamp,
+      endTimestamp: object.endTimestamp ?? object.end_timestamp,
+      samples: object.samples,
+      size: object.size,
+      bytesPerSample: (object.bytesPerSample ?? object.bytes_per_sample as { toString(): string }).toString()
+    };
+  });
 }
 
 export default {
@@ -71,7 +105,16 @@ export default {
 
       return ret as unknown as InfoDebugReply;
     },
-    3: undefined as unknown as () => ReplyUnion
+    3: (reply: ReplyUnion, preserve?: unknown, typeMapping?: TypeMapping): InfoDebugReply => {
+      const ret = INFO.transformReply[3](reply, preserve, typeMapping) as InfoDebugReply;
+      const mappedReply = mapLikeToObject(reply);
+
+      ret.keySelfName = (mappedReply.keySelfName ?? mappedReply.key_self_name) as BlobStringReply;
+
+      const chunks = mappedReply.Chunks ?? mappedReply.chunks;
+      ret.chunks = normalizeChunks(chunks);
+
+      return ret;
+    }
   },
-  unstableResp3: true
 } as const satisfies Command;

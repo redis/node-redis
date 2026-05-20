@@ -6,7 +6,7 @@ import { exec } from 'node:child_process';
 import { RedisSentinelOptions, RedisSentinelType } from './types';
 import RedisClient from '../client';
 import RedisSentinel from '.';
-import { RedisFunctions, RedisModules, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
+import { RedisFunctions, RedisModules, RedisScripts, RespVersions, TypeMapping, DEFAULT_RESP } from '../RESP/types';
 const execAsync = promisify(exec);
 import RedisSentinelModule from './module'
 import TestUtils from '@redis/test-utils';
@@ -147,7 +147,7 @@ export interface SentinelController {
   restartNode(id: string): Promise<void>;
   stopSentinel(id: string): Promise<void>;
   restartSentinel(id: string): Promise<void>;
-  getSentinelClient(opts?: Partial<RedisSentinelOptions<RedisModules, RedisFunctions, RedisScripts, 2, TypeMapping>>): RedisSentinelType<RedisModules, RedisFunctions, RedisScripts, 2, TypeMapping>;
+  getSentinelClient(opts?: Partial<RedisSentinelOptions<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>>): RedisSentinelType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>;
 }
 
 export class SentinelFramework extends DockerBase {
@@ -193,8 +193,10 @@ export class SentinelFramework extends DockerBase {
       throw new Error("cannot specify sentinel db name here");
     }
 
+    const { RESP = DEFAULT_RESP, ...sentinelOptions } = opts ?? {};
     const options: RedisSentinelOptions<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping> = {
-      ...opts,
+      ...sentinelOptions,
+      RESP,
       name: this.config.sentinelName,
       sentinelRootNodes: this.#sentinelList.map((sentinel) => { return { host: '127.0.0.1', port: sentinel.port } }),
       passthroughClientErrorEvents: errors

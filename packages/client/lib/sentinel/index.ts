@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import { CommandArguments, RedisFunctions, RedisModules, RedisScripts, ReplyUnion, RespVersions, TypeMapping } from '../RESP/types';
+import { CommandArguments, RedisFunctions, RedisModules, RedisScripts, ReplyUnion, RespVersions, TypeMapping, DEFAULT_RESP } from '../RESP/types';
 import RedisClient, { RedisClientOptions, RedisClientType } from '../client';
 import { CommandOptions } from '../client/commands-queue';
 import { attachConfig } from '../commander';
@@ -79,7 +79,7 @@ export class RedisSentinelClient<
     M extends RedisModules = {},
     F extends RedisFunctions = {},
     S extends RedisScripts = {},
-    RESP extends RespVersions = 2,
+    RESP extends RespVersions = 3,
     TYPE_MAPPING extends TypeMapping = {}
   >(config?: SentinelCommander<M, F, S, RESP, TYPE_MAPPING>) {
     const SentinelClient = attachConfig({
@@ -108,7 +108,7 @@ export class RedisSentinelClient<
     M extends RedisModules = {},
     F extends RedisFunctions = {},
     S extends RedisScripts = {},
-    RESP extends RespVersions = 2,
+    RESP extends RespVersions = 3,
     TYPE_MAPPING extends TypeMapping = {}
   >(
     options: RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>,
@@ -350,7 +350,7 @@ export default class RedisSentinel<
     M extends RedisModules = {},
     F extends RedisFunctions = {},
     S extends RedisScripts = {},
-    RESP extends RespVersions = 2,
+    RESP extends RespVersions = 3,
     TYPE_MAPPING extends TypeMapping = {}
   >(config?: SentinelCommander<M, F, S, RESP, TYPE_MAPPING>) {
     const Sentinel = attachConfig({
@@ -375,7 +375,7 @@ export default class RedisSentinel<
     M extends RedisModules = {},
     F extends RedisFunctions = {},
     S extends RedisScripts = {},
-    RESP extends RespVersions = 2,
+    RESP extends RespVersions = 3,
     TYPE_MAPPING extends TypeMapping = {}
   >(options: RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>) {
     return RedisSentinel.factory(options)(options);
@@ -716,7 +716,7 @@ export class RedisSentinelInternal<
   }
 
   #validateOptions(options?: RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>) {
-    if (options?.clientSideCache && options?.RESP !== 3) {
+    if (options?.clientSideCache && (options?.RESP ?? DEFAULT_RESP) !== 3) {
       throw new Error('Client Side Caching is only supported with RESP3');
     }
   }

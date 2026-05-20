@@ -27,7 +27,7 @@ export interface CommandOptions<T = TypeMapping> {
 }
 
 export interface CommandToWrite extends CommandWaitingForReply {
-  args: ReadonlyArray<RedisArgument>;
+  args: ReadonlyArray<RedisArgument> | undefined;
   chainId: symbol | undefined;
   abort: {
     signal: AbortSignal;
@@ -63,6 +63,7 @@ const RESP2_PUSH_TYPE_MAPPING = {
 // important in order for the queue to be able to pass the
 // notification to another handler if the current one did not
 // succeed.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- heterogeneous push payload
 type PushHandler = (pushItems: Array<any>) => boolean;
 
 export default class RedisCommandsQueue {
@@ -163,6 +164,7 @@ export default class RedisCommandsQueue {
     this.#waitingForReply.shift()!.reject(err);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- heterogeneous push payload
   #onPush(push: Array<any>) {
     // TODO: type
     if (this.#pubSub.handleMessageReply(push)) return true;
@@ -189,7 +191,10 @@ export default class RedisCommandsQueue {
   }
 
   #getTypeMapping() {
-    return this.#waitingForReply.head!.value.typeMapping ?? {};
+    const head = this.#waitingForReply.head;
+    if (!head) return PUSH_TYPE_MAPPING;
+
+    return head.value.typeMapping ?? {};
   }
 
   #initiateDecoder() {
@@ -262,6 +267,7 @@ export default class RedisCommandsQueue {
     }
 
     return new Promise((resolve, reject) => {
+      // eslint-disable-next-line prefer-const -- assigned after closures that reference it are constructed
       let node: DoublyLinkedNode<CommandToWrite>;
       const value: CommandToWrite = {
         args,
@@ -548,7 +554,7 @@ export default class RedisCommandsQueue {
     while (toSend) {
       let encoded: ReadonlyArray<RedisArgument>;
       try {
-        encoded = encodeCommand(toSend.args);
+        encoded = encodeCommand(toSend.args!);
       } catch (err) {
         toSend.reject(err);
         toSend = this.#toWrite.shift();
@@ -556,7 +562,7 @@ export default class RedisCommandsQueue {
       }
 
       // TODO reuse `toSend` or create new object?
-      (toSend as any).args = undefined;
+      toSend.args = undefined;
       if (toSend.abort) {
         RedisCommandsQueue.#removeAbortListener(toSend);
         toSend.abort = undefined;

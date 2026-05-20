@@ -1,8 +1,9 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
-import { RedisArgument, Command, ReplyUnion } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, Command, ReplyUnion, TypeMapping } from '@redis/client/dist/lib/RESP/types';
 import { RedisVariadicArgument, parseOptionalVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
 import { RediSearchLanguage } from './CREATE';
 import { DEFAULT_DIALECT } from '../dialect/default';
+import { getMapValue, mapLikeToObject, mapLikeValues, parseDocumentValue, parseSearchResultRow } from './reply-transformers';
 
 export type FtSearchParams = Record<string, RedisArgument | number>;
 
@@ -158,6 +159,61 @@ export function parseSearchOptions(parser: CommandParser, options?: FtSearchOpti
   }
 }
 
+function transformSearchReplyResp2(
+  reply: SearchRawReply,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
+  _preserve?: any,
+  _typeMapping?: TypeMapping
+): SearchReply {
+  // if reply[2] is array, then we have content/documents. Otherwise, only ids
+  const withoutDocuments = reply.length > 2 && !Array.isArray(reply[2]);
+
+  const documents: SearchReply['documents'] = [];
+  let i = 1;
+  while (i < reply.length) {
+    documents.push({
+      id: reply[i++] as string,
+      value: (withoutDocuments ? {} : documentValue(reply[i++])) as SearchDocumentValue
+    });
+  }
+
+  return {
+    total: reply[0] as number,
+    documents
+  };
+}
+
+function transformSearchReplyResp3(
+  rawReply: ReplyUnion,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
+  preserve?: any,
+  typeMapping?: TypeMapping
+): SearchReply {
+  if (Array.isArray(rawReply)) {
+    return transformSearchReplyResp2(rawReply as SearchRawReply, preserve, typeMapping);
+  }
+
+  const reply = mapLikeToObject(rawReply);
+  const total = Number(getMapValue(reply, ['total_results', 'total']) ?? 0);
+
+  const results = mapLikeValues(
+    getMapValue(reply, ['results', 'documents']) ?? []
+  );
+
+  const documents: SearchReply['documents'] = results.map(result => {
+    const { id, value } = parseSearchResultRow(result);
+    return {
+      id: String((id as { toString?(): string })?.toString?.() ?? id ?? ''),
+      value: value as SearchDocumentValue
+    };
+  });
+
+  return {
+    total,
+    documents
+  };
+}
+
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
@@ -167,27 +223,9 @@ export default {
     parseSearchOptions(parser, options);
   },
   transformReply: {
-    2: (reply: SearchRawReply): SearchReply => {
-      // if reply[2] is array, then we have content/documents. Otherwise, only ids
-      const withoutDocuments = reply.length > 2 && !Array.isArray(reply[2]);
-
-      const documents: SearchReply['documents'] = [];
-      let i = 1;
-      while (i < reply.length) {
-        documents.push({
-          id: reply[i++] as string,
-          value: withoutDocuments ? Object.create(null) : documentValue(reply[i++])
-        });
-      }
-
-      return {
-        total: reply[0] as number,
-        documents
-      };
-    },
-    3: undefined as unknown as () => ReplyUnion
+    2: transformSearchReplyResp2,
+    3: transformSearchReplyResp3
   },
-  unstableResp3: true
 } as const satisfies Command;
 
 export type SearchRawReply = Array<unknown>;
@@ -205,28 +243,5 @@ export interface SearchReply {
 }
 
 function documentValue(tuples: unknown) {
-  const message: SearchDocumentValue = Object.create(null);
-
-  if(!tuples) {
-    return message;
-  }
-
-  const rawTuples = tuples as Array<unknown>;
-  let i = 0;
-  while (i < rawTuples.length) {
-      const key = rawTuples[i++] as string,
-          value = rawTuples[i++] as SearchDocumentValue[string];
-      if (key === '$') { // might be a JSON reply
-          try {
-              Object.assign(message, JSON.parse(value as string));
-              continue;
-          } catch {
-              // set as a regular property if not a valid JSON
-          }
-      }
-
-      message[key] = value;
-  }
-
-  return message;
+  return parseDocumentValue(tuples);
 }

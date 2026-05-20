@@ -7,7 +7,7 @@ function transformVLinksWithScoresReply(reply: Array<Array<BlobStringReply>>): A
   const layers: Array<Record<string, DoubleReply>> = [];
 
   for (const layer of reply) {
-    const obj: Record<string, DoubleReply> = Object.create(null);
+    const obj: Record<string, DoubleReply> = {};
 
     // Each layer contains alternating element names and scores
     for (let i = 0; i < layer.length; i += 2) {

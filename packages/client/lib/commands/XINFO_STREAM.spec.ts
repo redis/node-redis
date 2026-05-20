@@ -54,7 +54,7 @@ describe('XINFO STREAM', () => {
       client.xInfoStream('key')
     ]);
 
-    const expected = Object.assign(Object.create(null), {
+    const expected = Object.assign({}, {
       length: 0,
       'radix-tree-keys': 0,
       'radix-tree-nodes': 1,

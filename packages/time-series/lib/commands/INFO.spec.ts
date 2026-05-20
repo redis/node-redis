@@ -24,8 +24,9 @@ describe('TS.INFO', () => {
             client.ts.add('key', 1, 10)
         ]);
 
-        assertInfo(await client.ts.info('key') as any);
+        assertInfo(await client.ts.info('key') as never);
     }, GLOBAL.SERVERS.OPEN);
+
 });
 
 export function assertInfo(info: InfoReply): void {

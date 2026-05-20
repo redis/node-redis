@@ -16,7 +16,8 @@ import {
   createClientPool,
   createCluster,
   RedisClusterOptions,
-  RedisClusterType
+  RedisClusterType,
+  DEFAULT_RESP
 } from '@redis/client/index';
 import { RedisNode } from '@redis/client/lib/sentinel/types'
 import { spawnRedisServer, spawnRedisCluster, spawnRedisSentinel, RedisServerDockerOptions, RedisServerDocker, spawnSentinelNode, spawnRedisServerDocker, spawnTlsRedisServer, TlsConfig, spawnProxiedRedisServer } from './dockers';
@@ -201,13 +202,13 @@ export default class TestUtils {
 
 
     // Match complete version number patterns
-    const versionMatch = version.match(/(^|\-)\d+(\.\d+)*($|\-)/);
+    const versionMatch = version.match(/(^|-)\d+(\.\d+)*($|-)/);
     if (!versionMatch) {
       throw new TypeError(`${version} is not a valid redis version`);
     }
 
     // Extract just the numbers and dots between first and last dash (or start/end)
-    const versionNumbers = versionMatch[0].replace(/^\-|\-$/g, '');
+    const versionNumbers = versionMatch[0].replace(/^-|-$/g, '');
 
     return versionNumbers.split('.').map(x => {
       const value = Number(x);
@@ -531,6 +532,8 @@ export default class TestUtils {
     it(title, async function () {
       if (!spawnPromise) return this.skip();
       const { apiPort } = await spawnPromise;
+      const RESP = (options.clusterConfiguration?.RESP ?? DEFAULT_RESP) as RESP;
+      const { RESP: _RESP, ...clusterConfiguration } = options.clusterConfiguration ?? {};
 
 
       const proxyFI = new ProxiedFaultInjectorClientForCluster(
@@ -552,8 +555,9 @@ export default class TestUtils {
             port: n.port,
           },
         })),
-        ...options.clusterConfiguration,
-      });
+        RESP,
+        ...clusterConfiguration,
+      }) as RedisClusterType<M, F, S, RESP, TYPE_MAPPING>;
 
       if (options.disableClusterSetup) {
         return fn(cluster, faultInjectorClient);
@@ -573,7 +577,9 @@ export default class TestUtils {
 
   testWithProxiedClient(
     title: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- variance markers for client generics
     fn: (proxiedClient: RedisClientType<any, any, any, any, any>, proxy: RedisProxy) => unknown,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- variance markers for client generics
     options: ClientTestOptions<any, any, any, any, any>
   ) {
 
@@ -583,9 +589,9 @@ export default class TestUtils {
       const proxy = new RedisProxy({
         listenHost: '127.0.0.1',
         listenPort: freePort,
-        //@ts-ignore
+        // @ts-expect-error -- proxy tests target TCP-only socket options
         targetPort: socketOptions.port,
-        //@ts-ignore
+        // @ts-expect-error -- proxy tests target TCP-only socket options
         targetHost: socketOptions.host ?? '127.0.0.1',
         enableLogging: true
       });
@@ -647,11 +653,13 @@ export default class TestUtils {
         host: "127.0.0.1",
         port: promise.port
       }));
+      const { RESP = DEFAULT_RESP, ...sentinelOptions } = options?.sentinelOptions ?? {};
 
 
       const sentinel = createSentinel({
         name: 'mymaster',
         sentinelRootNodes: rootNodes,
+        RESP,
         nodeClientOptions: {
           commandOptions: options.clientOptions?.commandOptions,
           password: password || undefined,
@@ -665,7 +673,7 @@ export default class TestUtils {
         functions: options?.functions || {},
         masterPoolSize: options?.masterPoolSize || undefined,
         reserveClient: options?.reserveClient || false,
-        ...options?.sentinelOptions
+        ...sentinelOptions
       }) as RedisSentinelType<M, F, S, RESP, TYPE_MAPPING>;
 
       if (options.disableClientSetup) {
@@ -822,6 +830,8 @@ export default class TestUtils {
     it(title, async function () {
       if (options.skipTest) return this.skip();
       if (!dockersPromise) return this.skip();
+      const RESP = (options.clusterConfiguration?.RESP ?? DEFAULT_RESP) as RESP;
+      const { RESP: _RESP, ...clusterConfiguration } = options.clusterConfiguration ?? {};
 
       const dockers = await dockersPromise,
         cluster = createCluster({
@@ -830,9 +840,10 @@ export default class TestUtils {
               port
             }
           })),
+          RESP,
           minimizeConnections: options.clusterConfiguration?.minimizeConnections ?? true,
-          ...options.clusterConfiguration
-        });
+          ...clusterConfiguration
+        }) as RedisClusterType<M, F, S, RESP, TYPE_MAPPING>;
 
       if(options.disableClusterSetup) {
         return fn(cluster);
@@ -900,6 +911,7 @@ export default class TestUtils {
     };
 
     if (clientOptions.clientOptions) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- destructure generic test fixtures across M/F/S
       const { modules, functions, scripts, ...clientDefaults } = clientOptions.clientOptions as any;
 
       if (modules) {
@@ -973,7 +985,8 @@ export default class TestUtils {
           this.timeout(options.testTimeout);
         }
 
-        const { defaults, ...rest } = options.clusterConfiguration ?? {};
+        const RESP = (options.clusterConfiguration?.RESP ?? DEFAULT_RESP) as RESP;
+        const { defaults, RESP: _RESP, ...rest } = options.clusterConfiguration ?? {};
 
         // Wait for database to be fully ready before connecting
         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -987,13 +1000,14 @@ export default class TestUtils {
               },
             },
           ],
+          RESP,
           defaults: {
             password: dbConfig.password,
             username: dbConfig.username,
             ...defaults,
           },
           ...rest,
-        });
+        }) as RedisClusterType<M, F, S, RESP, TYPE_MAPPING>;
 
         await cluster.connect();
 

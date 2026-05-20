@@ -58,7 +58,7 @@ describe('TS.MREVRANGE_MULTIAGGR', () => {
 
     assert.deepStrictEqual(
       reply,
-      Object.create(null, {
+      Object.defineProperties({}, {
         'mrevrange-multiaggr': {
           configurable: true,
           enumerable: true,

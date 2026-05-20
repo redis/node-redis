@@ -1,7 +1,7 @@
 import { CommandParser } from '../client/parser';
-import { Command, RedisArgument, ReplyUnion } from '../RESP/types';
+import { Command, RedisArgument } from '../RESP/types';
 import { XReadStreams, pushXReadStreams } from './XREAD';
-import { transformStreamsMessagesReplyResp2 } from './generic-transformers';
+import { transformStreamsMessagesReplyResp2, transformStreamsMessagesReplyResp3Compat } from './generic-transformers';
 
 /**
  * Options for the XREADGROUP command
@@ -52,6 +52,6 @@ export default {
    */
   transformReply: {
     2: transformStreamsMessagesReplyResp2,
-    3: undefined as unknown as () => ReplyUnion
+    3: transformStreamsMessagesReplyResp3Compat
   },
 } as const satisfies Command;

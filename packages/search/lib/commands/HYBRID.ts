@@ -2,7 +2,7 @@ import { CommandParser } from "@redis/client/dist/lib/client/parser";
 import {
   RedisArgument,
   Command,
-  ReplyUnion,
+  TypeMapping,
 } from "@redis/client/dist/lib/RESP/types";
 import {
   RedisVariadicArgument,
@@ -10,6 +10,12 @@ import {
 } from "@redis/client/dist/lib/commands/generic-transformers";
 import { parseParamsArgument } from "./SEARCH";
 import { GroupByReducers, parseGroupByReducer } from "./AGGREGATE";
+import {
+  getMapValue,
+  mapLikeToObject,
+  mapLikeValues,
+  parseDocumentValue,
+} from "./reply-transformers";
 
 /**
  * Text search expression configuration for hybrid search.
@@ -402,12 +408,23 @@ export default {
     parseHybridOptions(parser, options);
   },
   transformReply: {
-    2: (reply: unknown): HybridSearchResult => {
+    2: (
+      reply: unknown,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
+      _preserve?: any,
+      _typeMapping?: TypeMapping
+    ): HybridSearchResult => {
       return transformHybridSearchResults(reply);
     },
-    3: undefined as unknown as () => ReplyUnion,
+    3: (
+      reply: unknown,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
+      _preserve?: any,
+      _typeMapping?: TypeMapping
+    ): HybridSearchResult => {
+      return transformHybridSearchResults(reply);
+    },
   },
-  unstableResp3: true,
 } as const satisfies Command;
 
 export interface HybridSearchResult {
@@ -419,35 +436,53 @@ export interface HybridSearchResult {
 }
 
 function transformHybridSearchResults(reply: unknown): HybridSearchResult {
-  // FT.HYBRID returns a map-like structure as flat array:
-  // ['total_results', N, 'results', [...], 'warnings', [...], 'execution_time', 'X.XXX']
   const replyMap = parseReplyMap(reply);
 
-  const totalResults = (replyMap["total_results"] ?? 0) as number;
-  const rawResults = (replyMap["results"] ?? []) as Array<unknown>;
-  const warnings = (replyMap["warnings"] ?? []) as string[];
-  const rawExecutionTime = replyMap["execution_time"];
-  const executionTime = rawExecutionTime
-    ? Number.parseFloat(rawExecutionTime as string)
-    : 0;
+  const totalResults = Number(
+    getMapValue(replyMap, ["total_results", "totalResults"]) ?? 0,
+  );
+
+  const rawResults = mapLikeValues(getMapValue(replyMap, ["results"]) ?? []);
+  const warnings = mapLikeValues(
+    getMapValue(replyMap, ["warnings", "warning"]) ?? [],
+  );
+
+  const executionTimeValue = getMapValue(replyMap, [
+    "execution_time",
+    "executionTime",
+  ]);
+  const executionTime =
+    executionTimeValue === undefined ? 0 : Number(executionTimeValue);
 
   const results: HybridSearchResult['results'] = [];
   for (const result of rawResults) {
-    // Each result is a flat key-value array like FT.AGGREGATE: ['field1', 'value1', 'field2', 'value2', ...]
     const resultMap = parseReplyMap(result);
+    const doc: Record<string, unknown> = {};
+    const id = getMapValue(resultMap, ["id"]);
 
-    const doc: Record<string, unknown> = Object.create(null);
+    if (id != null) {
+      doc.id = (id as { toString(): string }).toString();
+    }
 
-    // Add all other fields from the result
+    Object.assign(doc, parseDocumentValue(getMapValue(resultMap, ["values"])));
+    Object.assign(
+      doc,
+      parseDocumentValue(
+        getMapValue(resultMap, ["extra_attributes", "extraAttributes"]),
+      ),
+    );
+
     for (const [key, value] of Object.entries(resultMap)) {
-      if (key === "$") {
-        // JSON document - parse and merge
-        try {
-          Object.assign(doc, JSON.parse(value as string));
-        } catch {
-          doc[key] = value;
-        }
-      } else {
+      if (
+        key === "id" ||
+        key === "values" ||
+        key.toLowerCase() === "extra_attributes" ||
+        key === "extraAttributes"
+      ) {
+        continue;
+      }
+
+      if (!Object.hasOwn(doc, key)) {
         doc[key] = value;
       }
     }
@@ -458,25 +493,24 @@ function transformHybridSearchResults(reply: unknown): HybridSearchResult {
   return {
     totalResults,
     executionTime,
-    warnings,
+    warnings: warnings.map(toWarningString),
     results,
   };
 }
 
 function parseReplyMap(reply: unknown): Record<string, unknown> {
-  const map: Record<string, unknown> = {};
+  return mapLikeToObject(reply);
+}
 
-  if (!Array.isArray(reply)) {
-    return map;
+function toWarningString(warning: unknown): string {
+  if (typeof warning === 'string') return warning;
+  if (warning instanceof Buffer) return warning.toString();
+  if (warning === null || warning === undefined) return '';
+  // Anything else (Map/Array/plain object) would collapse to "[object Object]"
+  // under a naive toString — JSON-serialize instead so the caller can read it.
+  try {
+    return JSON.stringify(warning);
+  } catch {
+    return String(warning);
   }
-
-  for (let i = 0; i < reply.length; i += 2) {
-    const key = reply[i];
-    const value = reply[i + 1];
-    if (typeof key === "string") {
-      map[key] = value;
-    }
-  }
-
-  return map;
 }

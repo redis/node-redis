@@ -71,6 +71,7 @@ type WithScripts<
 };
 
 type InternalRedisClientMultiCommandType<
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- variance marker for reply tuple
   REPLIES extends Array<any>,
   M extends RedisModules,
   F extends RedisFunctions,
@@ -86,10 +87,12 @@ type InternalRedisClientMultiCommandType<
 );
 
 type TypedOrAny<Flag extends MultiMode, T> =
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- non-typed branch falls through to any
   [Flag] extends [MULTI_MODE['TYPED']] ? T : any;
 
 export type RedisClientMultiCommandType<
   isTyped extends MultiMode,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- variance marker for reply tuple
   REPLIES extends Array<any>,
   M extends RedisModules,
   F extends RedisFunctions,
@@ -176,7 +179,7 @@ export default class RedisClientMultiCommand<REPLIES = []> {
     M extends RedisModules = Record<string, never>,
     F extends RedisFunctions = Record<string, never>,
     S extends RedisScripts = Record<string, never>,
-    RESP extends RespVersions = 2
+    RESP extends RespVersions = 3
   >(config?: CommanderConfig<M, F, S, RESP>) {
     return attachConfig({
       BaseClass: RedisClientMultiCommand,

@@ -1,4 +1,4 @@
-import { RedisModules, RedisFunctions, RedisScripts, RespVersions, Command, CommandArguments, ReplyUnion } from '../RESP/types';
+import { RedisModules, RedisFunctions, RedisScripts, RespVersions, Command, CommandArguments, ReplyUnion, DEFAULT_RESP } from '../RESP/types';
 import { RedisClientType } from '.';
 import { getTransformReply } from '../commander';
 import { ErrorReply } from '../errors';
@@ -81,9 +81,10 @@ export class RedisLegacyClient {
   ) {
     this.#client = client;
 
-    const RESP = client.options?.RESP ?? 2;
+    const RESP = client.options?.RESP ?? DEFAULT_RESP;
     for (const [name, command] of Object.entries(COMMANDS)) {
       // TODO: as any?
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic command attachment
       (this as any)[name] = RedisLegacyClient.#createCommand(
         name,
         command,
@@ -136,6 +137,7 @@ class LegacyMultiCommand {
 
     for (const [name, command] of Object.entries(COMMANDS)) {
       // TODO: as any?
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic command attachment
       (Multi as any).prototype[name] = LegacyMultiCommand.#createCommand(
         name,
         command,
