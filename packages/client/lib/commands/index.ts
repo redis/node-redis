@@ -190,6 +190,8 @@ import HOTKEYS_STOP from './HOTKEYS_STOP';
 import INCR from './INCR';
 import INCRBY from './INCRBY';
 import INCRBYFLOAT from './INCRBYFLOAT';
+import INCREX from './INCREX';
+import INCREXBYFLOAT from './INCREXBYFLOAT';
 import INFO from './INFO';
 import KEYS from './KEYS';
 import LASTSAVE from './LASTSAVE';
@@ -2746,6 +2748,42 @@ export default {
    * @see https://redis.io/commands/incrbyfloat/
    */
   incrByFloat: INCRBYFLOAT,
+  /**
+   * Atomic integer increment with optional bounds, overflow policy, and TTL control.
+   * For float increments use `INCREXBYFLOAT`.
+   *
+   * @param key - The key to increment
+   * @param options - Increment, bounds, overflow, and expiration options
+   * @see https://redis.io/commands/increx/
+   */
+  INCREX,
+  /**
+   * Atomic integer increment with optional bounds, overflow policy, and TTL control.
+   * For float increments use `incrExByFloat`.
+   *
+   * @param key - The key to increment
+   * @param options - Increment, bounds, overflow, and expiration options
+   * @see https://redis.io/commands/increx/
+   */
+  increx: INCREX,
+  /**
+   * Atomic float increment with optional bounds, overflow policy, and TTL control.
+   *
+   * @param key - The key to increment
+   * @param value - The float increment to apply (BYFLOAT on the wire)
+   * @param options - Bounds, overflow, and expiration options
+   * @see https://redis.io/commands/increx/
+   */
+  INCREXBYFLOAT,
+  /**
+   * Atomic float increment with optional bounds, overflow policy, and TTL control.
+   *
+   * @param key - The key to increment
+   * @param value - The float increment to apply (BYFLOAT on the wire)
+   * @param options - Bounds, overflow, and expiration options
+   * @see https://redis.io/commands/increx/
+   */
+  incrExByFloat: INCREXBYFLOAT,
   /**
    * Constructs the INFO command
    *
