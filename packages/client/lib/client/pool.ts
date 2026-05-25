@@ -2,6 +2,7 @@ import { NON_STICKY_COMMANDS } from '../commands';
 import { Command, CommandSignature, RedisArgument, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
 import RedisClient, { RedisClientType, RedisClientOptions, WithModules, WithFunctions, WithScripts } from '.';
 import { EventEmitter } from 'node:events';
+import { performance } from 'node:perf_hooks';
 import { DoublyLinkedNode, DoublyLinkedList, SinglyLinkedList } from './linked-list';
 import { ClientClosedError, TimeoutError } from '../errors';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
@@ -11,6 +12,8 @@ import { BasicPooledClientSideCache, ClientSideCacheConfig, PooledClientSideCach
 import { BasicCommandParser } from './parser';
 import SingleEntryCache from '../single-entry-cache';
 import { MULTI_MODE, MultiMode } from '../multi-command';
+import { publish, CHANNELS } from './tracing';
+import { ClientIdentity, ClientRole, generateClientId } from './identity';
 
 export interface RedisPoolOptions {
   /**
@@ -67,16 +70,6 @@ export interface RedisPoolOptions {
    * ```
    */
   clientSideCache?: PooledClientSideCacheProvider | ClientSideCacheConfig;
-  /**
-   * Enable experimental support for RESP3 module commands.
-   *
-   * When enabled, allows the use of module commands that have been adapted
-   * for the RESP3 protocol. This is an unstable feature and may change in
-   * future versions.
-   *
-   * @default false
-   */
-  unstableResp3Modules?: boolean;
 }
 
 export type PoolTask<
@@ -100,7 +93,7 @@ export type RedisClientPoolType<
   M extends RedisModules = {},
   F extends RedisFunctions = {},
   S extends RedisScripts = {},
-  RESP extends RespVersions = 2,
+  RESP extends RespVersions = 3,
   TYPE_MAPPING extends TypeMapping = {}
 > = (
   RedisClientPool<M, F, S, RESP, TYPE_MAPPING> &
@@ -110,6 +103,7 @@ export type RedisClientPoolType<
   WithScripts<S, RESP, TYPE_MAPPING>
 );
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- variance markers for pool generics
 type ProxyPool = RedisClientPoolType<any, any, any, any, any>;
 
 type NamespaceProxyPool = { _self: ProxyPool };
@@ -118,7 +112,7 @@ export class RedisClientPool<
   M extends RedisModules = {},
   F extends RedisFunctions = {},
   S extends RedisScripts = {},
-  RESP extends RespVersions = 2,
+  RESP extends RespVersions = 3,
   TYPE_MAPPING extends TypeMapping = {}
 > extends EventEmitter {
   static #createCommand(command: Command, resp: RespVersions) {
@@ -168,6 +162,7 @@ export class RedisClientPool<
     };
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic cache, keys/values vary per call site
   static #SingleEntryCache = new SingleEntryCache<any, any>();
 
   static create<
@@ -215,6 +210,7 @@ export class RedisClientPool<
 
   readonly #clientFactory: () => RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
   readonly #options: RedisPoolOptions;
+  readonly #identity: ClientIdentity;
 
   readonly #idleClients = new SinglyLinkedList<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>();
 
@@ -246,6 +242,7 @@ export class RedisClientPool<
     resolve: (value: unknown) => unknown;
     reject: (reason?: unknown) => unknown;
     fn: PoolTask<M, F, S, RESP, TYPE_MAPPING>;
+    waitStartTimestamp: number;
   }>();
 
   /**
@@ -285,6 +282,14 @@ export class RedisClientPool<
   }
 
   /**
+   * @internal
+   * Returns the pool identity for tracking in metrics.
+   */
+  get identity(): ClientIdentity {
+    return this._self.#identity;
+  }
+
+  /**
    * You are probably looking for {@link RedisClient.createPool `RedisClient.createPool`},
    * {@link RedisClientPool.fromClient `RedisClientPool.fromClient`},
    * or {@link RedisClientPool.fromOptions `RedisClientPool.fromOptions`}...
@@ -295,6 +300,12 @@ export class RedisClientPool<
   ) {
     super();
 
+    const socketOpts = clientOptions?.socket as { host?: string; port?: number } | undefined;
+    
+    this.#identity = {
+      id: generateClientId(socketOpts?.host, socketOpts?.port, clientOptions?.database),
+      role: ClientRole.POOL,
+    };
     this.#options = {
       ...RedisClientPool.#DEFAULTS,
       ...options
@@ -395,16 +406,15 @@ export class RedisClientPool<
   }
 
   async #create() {
+    const client = this._self.#clientFactory();
+    client._setIdentity(ClientRole.POOL_MEMBER, this._self.#identity.id);
+    client.on('error', (err: Error) => this.emit('error', err));
     // Track the client as "in use" during connect so it counts toward capacity.
     // If we waited to add it until after connect, the pool would think it doesn't
     // exist yet and could spin up extra clients when multiple tasks queue up.
-    const node = this._self.#clientsInUse.push(
-      this._self.#clientFactory()
-        .on('error', (err: Error) => this.emit('error', err))
-    );
+    const node = this._self.#clientsInUse.push(client);
 
     try {
-      const client = node.value;
       await client.connect();
     } catch (err) {
       this._self.#clientsInUse.remove(node);
@@ -420,6 +430,7 @@ export class RedisClientPool<
         return reject(new ClientClosedError());
       }
 
+      const waitStartTimestamp = performance.now();
       const client = this._self.#idleClients.shift(),
         { tail } = this._self.#tasksQueue;
       if (!client) {
@@ -436,10 +447,11 @@ export class RedisClientPool<
 
         const task = this._self.#tasksQueue.push({
           timeout,
-          // @ts-ignore
+          // @ts-expect-error -- resolve generic variance
           resolve,
           reject,
-          fn
+          fn,
+          waitStartTimestamp,
         });
 
         if (this.totalClients < this._self.#options.maximum) {
@@ -450,7 +462,8 @@ export class RedisClientPool<
       }
 
       const node = this._self.#clientsInUse.push(client);
-      // @ts-ignore
+      publish(CHANNELS.POOL_CONNECTION_WAIT, () => ({ clientId: client._clientId, waitStartTimestamp }));
+      // @ts-expect-error -- resolve generic variance
       this._self.#executeTask(node, resolve, reject, fn);
     });
   }
@@ -465,7 +478,9 @@ export class RedisClientPool<
     if (result instanceof Promise) {
       result
       .then(resolve, reject)
-      .finally(() => this.#returnClient(node))
+      .finally(() => {
+        this.#returnClient(node);
+      })
     } else {
       resolve(result);
       this.#returnClient(node);
@@ -476,6 +491,7 @@ export class RedisClientPool<
     const task = this.#tasksQueue.shift();
     if (task) {
       clearTimeout(task.timeout);
+      publish(CHANNELS.POOL_CONNECTION_WAIT, () => ({ clientId: node.value._clientId, waitStartTimestamp: task.waitStartTimestamp }));
       this.#executeTask(node, task.resolve, task.reject, task.fn);
       return;
     }
@@ -520,6 +536,7 @@ export class RedisClientPool<
 
   MULTI<isTyped extends MultiMode = MULTI_MODE['TYPED']>() {
     type Multi = new (...args: ConstructorParameters<typeof RedisClientMultiCommand>) => RedisClientMultiCommandType<isTyped, [], M, F, S, RESP, TYPE_MAPPING>;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- access to dynamic Multi class
     return new ((this as any).Multi as Multi)(
       (commands, selectedDB) => this.execute(client => client._executeMulti(commands, selectedDB)),
       commands => this.execute(client => client._executePipeline(commands)),
@@ -556,7 +573,7 @@ export class RedisClientPool<
 
       this._self.#idleClients.reset();
       this._self.#clientsInUse.reset();
-    } catch (err) {
+    } catch {
 
     } finally {
       this._self.#drainResolve = undefined;

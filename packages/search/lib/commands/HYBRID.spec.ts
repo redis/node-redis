@@ -45,6 +45,7 @@ const FT_HYBRID_ITEMS = [
  * Helper to create the index for hybrid search tests
  */
 const createHybridSearchIndex = async (
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test helper accepts loosely-typed clients
   client: any,
   indexName: string,
   dim = 4,
@@ -83,6 +84,7 @@ const createHybridSearchIndex = async (
  * Helper to add data to the index for hybrid search tests
  */
 const addDataForHybridSearch = async (
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test helper accepts loosely-typed clients
   client: any,
   itemsSets = 1,
   options: {
@@ -108,14 +110,14 @@ const addDataForHybridSearch = async (
       : () => generateRandomVector(actualDim);
 
     items = [
-      { vector: generateDataFunc() as any, description: "red shoes" },
+      { vector: generateDataFunc() as never, description: "red shoes" },
       {
-        vector: generateDataFunc() as any,
+        vector: generateDataFunc() as never,
         description: "green shoes with red laces",
       },
-      { vector: generateDataFunc() as any, description: "red dress" },
-      { vector: generateDataFunc() as any, description: "orange dress" },
-      { vector: generateDataFunc() as any, description: "black shoes" },
+      { vector: generateDataFunc() as never, description: "red dress" },
+      { vector: generateDataFunc() as never, description: "orange dress" },
+      { vector: generateDataFunc() as never, description: "black shoes" },
     ];
   } else {
     items = FT_HYBRID_ITEMS;
@@ -127,7 +129,7 @@ const addDataForHybridSearch = async (
     allItems.push(...items);
   }
 
-  const promises: Promise<any>[] = [];
+  const promises: Promise<unknown>[] = [];
   for (let i = 0; i < allItems.length; i++) {
     const { vector, description } = allItems[i];
     const embeddingData =
@@ -925,6 +927,120 @@ describe("FT.HYBRID", () => {
         "query_vector",
         "BLOB_DATA",
       ]);
+    });
+  });
+
+  describe("transformReply", () => {
+    const jsonPayload = '{"description":"red shoes","color":"red","price":15}';
+
+    it("RESP2: parses $ inside extra_attributes (JSON-on schema)", () => {
+      const reply = [
+        "total_results", 1,
+        "results", [
+          [
+            "id", "item:0",
+            "extra_attributes", ["$", jsonPayload],
+            "values", []
+          ]
+        ],
+        "warnings", [],
+        "execution_time", "0.5"
+      ];
+
+      const result = HYBRID.transformReply[2](reply);
+
+      assert.strictEqual(result.totalResults, 1);
+      assert.strictEqual(result.executionTime, 0.5);
+      assert.deepStrictEqual(result.warnings, []);
+      assert.strictEqual(result.results.length, 1);
+      assert.deepStrictEqual(result.results[0], {
+        id: "item:0",
+        description: "red shoes",
+        color: "red",
+        price: 15
+      });
+    });
+
+    it("RESP3 (object form): parses $ inside extra_attributes", () => {
+      const reply = {
+        total_results: 1,
+        results: [
+          {
+            id: "item:0",
+            extra_attributes: { $: jsonPayload },
+            values: []
+          }
+        ],
+        warnings: [],
+        execution_time: 0.5
+      };
+
+      const result = HYBRID.transformReply[3](reply);
+
+      assert.strictEqual(result.totalResults, 1);
+      assert.strictEqual(result.executionTime, 0.5);
+      assert.deepStrictEqual(result.warnings, []);
+      assert.strictEqual(result.results.length, 1);
+      assert.deepStrictEqual(result.results[0], {
+        id: "item:0",
+        description: "red shoes",
+        color: "red",
+        price: 15
+      });
+    });
+
+    it("RESP3 (Map form): parses $ inside extra_attributes", () => {
+      const reply = new Map<string, unknown>([
+        ["total_results", 1],
+        [
+          "results",
+          [
+            new Map<string, unknown>([
+              ["id", "item:0"],
+              [
+                "extra_attributes",
+                new Map<string, unknown>([["$", jsonPayload]])
+              ],
+              ["values", []]
+            ])
+          ]
+        ],
+        ["warnings", []],
+        ["execution_time", 0.5]
+      ]);
+
+      const result = HYBRID.transformReply[3](reply);
+
+      assert.strictEqual(result.totalResults, 1);
+      assert.strictEqual(result.executionTime, 0.5);
+      assert.deepStrictEqual(result.warnings, []);
+      assert.strictEqual(result.results.length, 1);
+      assert.deepStrictEqual(result.results[0], {
+        id: "item:0",
+        description: "red shoes",
+        color: "red",
+        price: 15
+      });
+    });
+
+    it("RESP2: malformed $ payload falls back to raw value", () => {
+      const reply = [
+        "total_results", 1,
+        "results", [
+          [
+            "id", "item:0",
+            "extra_attributes", ["$", "not json"]
+          ]
+        ],
+        "warnings", [],
+        "execution_time", "0"
+      ];
+
+      const result = HYBRID.transformReply[2](reply);
+
+      assert.strictEqual(result.results.length, 1);
+      assert.strictEqual(result.results[0].id, "item:0");
+      assert.strictEqual(result.results[0].$, "not json");
     });
   });
 
@@ -1871,6 +1987,37 @@ describe("FT.HYBRID", () => {
         // embedding and embeddingHNSW are binary vector fields
         assert.ok(doc.embedding !== undefined, "embedding should be loaded");
         assert.ok(doc.embeddingHNSW !== undefined, "embeddingHNSW should be loaded");
+      },
+      GLOBAL.SERVERS.OPEN,
+    );
+
+    testUtils.testWithClientIfVersionWithinRange(
+      [[8, 6], "LATEST"],
+      "hybrid search with structured response",
+      async (client) => {
+        const indexName = "idx_structured_basic";
+        await createHybridSearchIndex(client, indexName);
+        await addDataForHybridSearch(client, 5);
+
+        const result = await client.ft.hybrid(indexName, {
+          SEARCH: { query: "@color:{red}" },
+          VSIM: {
+            field: "@embedding",
+            vector: "$vec",
+          },
+          LOAD: ["@description", "@color", "@price"],
+          LIMIT: { offset: 0, count: 3 },
+          TIMEOUT: 10000,
+          PARAMS: {
+            vec: createVectorBuffer([1, 2, 7, 6]),
+          },
+        });
+
+        // Transformed reply has { results, warnings, executionTime }
+        assert.ok(Array.isArray(result.results), "results should be an array");
+        assert.ok(result.results.length <= 3, "results should respect LIMIT");
+        assert.ok(Array.isArray(result.warnings), "warnings should be an array");
+        assert.ok(typeof result.executionTime === "number", "executionTime should be a number");
       },
       GLOBAL.SERVERS.OPEN,
     );

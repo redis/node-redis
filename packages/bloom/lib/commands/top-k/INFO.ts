@@ -12,18 +12,13 @@ export type TopKInfoReplyMap = TuplesToMapReply<[
 
 export default {
   IS_READ_ONLY: true,
-  /**
-   * Returns configuration and statistics of a Top-K filter, including k, width, depth, and decay parameters
-   * @param parser - The command parser
-   * @param key - The name of the Top-K filter to get information about
-   */
   parseCommand(parser: CommandParser, key: RedisArgument) {
     parser.push('TOPK.INFO');
     parser.pushKey(key);
   },
   transformReply: {
-    2: (reply: UnwrapReply<Resp2Reply<TopKInfoReplyMap>>, preserve?: any, typeMapping?: TypeMapping): TopKInfoReplyMap => {
-      reply[7] = transformDoubleReply[2](reply[7], preserve, typeMapping) as any;
+    2: (reply: UnwrapReply<Resp2Reply<TopKInfoReplyMap>>, preserve?: unknown, typeMapping?: TypeMapping): TopKInfoReplyMap => {
+      reply[7] = transformDoubleReply[2](reply[7], preserve, typeMapping) as unknown as typeof reply[7];
 
       return transformInfoV2Reply<TopKInfoReplyMap>(reply, typeMapping);
     },

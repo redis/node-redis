@@ -1,6 +1,6 @@
 import { BasicCommandParser, CommandParser } from '../client/parser';
 import { RESP_TYPES } from '../RESP/decoder';
-import { UnwrapReply, ArrayReply, BlobStringReply, BooleanReply, CommandArguments, DoubleReply, NullReply, NumberReply, RedisArgument, TuplesReply, MapReply, TypeMapping, Command } from '../RESP/types';
+import { UnwrapReply, ArrayReply, BlobStringReply, BooleanReply, CommandArguments, DoubleReply, NullReply, NumberReply, RedisArgument, ReplyUnion, TuplesReply, MapReply, TypeMapping, Command } from '../RESP/types';
 
 export function isNullReply(reply: unknown): reply is NullReply {
   return reply === null;
@@ -44,6 +44,7 @@ export function transformStringDoubleArgument(num: RedisArgument | number): Redi
 }
 
 export const transformDoubleReply = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
   2: (reply: BlobStringReply, preserve?: any, typeMapping?: TypeMapping): DoubleReply => {
     const double = typeMapping ? typeMapping[RESP_TYPES.DOUBLE] : undefined;
 
@@ -58,12 +59,15 @@ export const transformDoubleReply = {
           case 'inf':
           case '+inf':
             ret = Infinity;
+            break;
 
           case '-inf':
             ret = -Infinity;
+            break;
 
           case 'nan':
             ret = NaN;
+            break;
 
           default:
             ret = Number(reply);
@@ -76,6 +80,7 @@ export const transformDoubleReply = {
   3: undefined as unknown as () => DoubleReply
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
 export function createTransformDoubleReplyResp2Func(preserve?: any, typeMapping?: TypeMapping) {
   return (reply: BlobStringReply) => {
     return transformDoubleReply[2](reply, preserve, typeMapping);
@@ -83,12 +88,14 @@ export function createTransformDoubleReplyResp2Func(preserve?: any, typeMapping?
 }
 
 export const transformDoubleArrayReply = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
   2: (reply: Array<BlobStringReply>, preserve?: any, typeMapping?: TypeMapping) => {
     return reply.map(createTransformDoubleReplyResp2Func(preserve, typeMapping));
   },
   3: undefined as unknown as () => ArrayReply<DoubleReply>
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
 export function createTransformNullableDoubleReplyResp2Func(preserve?: any, typeMapping?: TypeMapping) {
   return (reply: BlobStringReply | NullReply) => {
     return transformNullableDoubleReply[2](reply, preserve, typeMapping);
@@ -96,6 +103,7 @@ export function createTransformNullableDoubleReplyResp2Func(preserve?: any, type
 }
 
 export const transformNullableDoubleReply = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
   2: (reply: BlobStringReply | NullReply, preserve?: any, typeMapping?: TypeMapping) => {
     if (reply === null) return null;
 
@@ -109,10 +117,12 @@ export interface Stringable {
 }
 
 export function transformTuplesToMap<T>(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic over arbitrary tuple element types
   reply: UnwrapReply<ArrayReply<any>>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic over arbitrary tuple element types
   func: (elem: any) => T,
 ) {
-  const message = Object.create(null);
+  const message: Record<string, T> = {};
 
   for (let i = 0; i < reply.length; i+= 2) {
     message[reply[i].toString()] = func(reply[i + 1]);
@@ -121,6 +131,7 @@ export function transformTuplesToMap<T>(
   return message;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
 export function createTransformTuplesReplyFunc<T extends Stringable>(preserve?: any, typeMapping?: TypeMapping) {
   return (reply: ArrayReply<T>) => {
     return transformTuplesReply<T>(reply, preserve, typeMapping);
@@ -129,6 +140,7 @@ export function createTransformTuplesReplyFunc<T extends Stringable>(preserve?: 
 
 export function transformTuplesReply<T extends Stringable>(
   reply: ArrayReply<T>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
   preserve?: any,
   typeMapping?: TypeMapping
 ): MapReply<T , T> {
@@ -144,16 +156,16 @@ export function transformTuplesReply<T extends Stringable>(
       const ret = new Map<string, BlobStringReply>;
 
       for (let i = 0; i < inferred.length; i += 2) {
-        ret.set(inferred[i].toString(), inferred[i + 1] as any);
+        ret.set(inferred[i].toString(), inferred[i + 1] as unknown as BlobStringReply);
       }
 
       return ret as unknown as MapReply<T, T>;;
     }
     default: {
-      const ret: Record<string, BlobStringReply> = Object.create(null);
+      const ret: Record<string, BlobStringReply> = {};
 
       for (let i = 0; i < inferred.length; i += 2) {
-        ret[inferred[i].toString()] = inferred[i + 1] as any;
+        ret[inferred[i].toString()] = inferred[i + 1] as unknown as BlobStringReply;
       }
 
       return ret as unknown as MapReply<T, T>;;
@@ -169,6 +181,7 @@ export interface SortedSetMember {
 export type SortedSetSide = 'MIN' | 'MAX';
 
 export const transformSortedSetReply = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
   2: (reply: ArrayReply<BlobStringReply>, preserve?: any, typeMapping?: TypeMapping) => {
     const inferred = reply as unknown as UnwrapReply<typeof reply>,
       members = [];
@@ -496,11 +509,12 @@ function isPlainKeys(keys: Array<RedisArgument> | Array<ZKeyAndWeight>): keys is
   return isPlainKey(keys[0]);
 }
 
-export type Tail<T extends unknown[]> = T extends [infer Head, ...infer Tail] ? Tail : never;
+export type Tail<T extends unknown[]> = T extends [unknown, ...infer Tail] ? Tail : never;
 
 /**
  * @deprecated
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- variadic command args of mixed types
 export function parseArgs(command: Command, ...args: Array<any>): CommandArguments {
   const parser = new BasicCommandParser();
   command.parseCommand!(parser, ...args);
@@ -557,10 +571,11 @@ export function transformStreamMessagesReply(
 }
 
 type StreamMessagesRawReply = TuplesReply<[name: BlobStringReply, ArrayReply<StreamMessageRawReply>]>;
-type StreamsMessagesRawReply2 = ArrayReply<StreamMessagesRawReply>;
+export type StreamsMessagesRawReply2 = ArrayReply<StreamMessagesRawReply>;
 
 export function transformStreamsMessagesReplyResp2(
   reply: UnwrapReply<StreamsMessagesRawReply2 | NullReply>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
   preserve?: any,
   typeMapping?: TypeMapping
 ): StreamsMessagesReply | NullReply {
@@ -600,7 +615,7 @@ export function transformStreamsMessagesReplyResp2(
       return ret as unknown as MapReply<string, StreamMessagesReply>;
     }
     default: {
-      const ret: Record<string, StreamMessagesReply> = Object.create(null);
+      const ret: Record<string, StreamMessagesReply> = {};
 
       for (let i=0; i < reply.length; i++) {
         const stream = reply[i] as unknown as UnwrapReply<StreamMessagesRawReply>;
@@ -623,7 +638,7 @@ export function transformStreamsMessagesReplyResp2(
 
         ret.push({
           name: stream[0],
-          messages: transformStreamMessagesReply(stream[1])
+          messages: transformStreamMessagesReply(stream[1], typeMapping)
         });
       }
 
@@ -634,7 +649,10 @@ export function transformStreamsMessagesReplyResp2(
 
 type StreamsMessagesRawReply3 = MapReply<BlobStringReply, ArrayReply<StreamMessageRawReply>>;
 
-export function transformStreamsMessagesReplyResp3(reply: UnwrapReply<StreamsMessagesRawReply3 | NullReply>): MapReply<BlobStringReply, StreamMessagesReply> | NullReply {
+export function transformStreamsMessagesReplyResp3(
+  reply: UnwrapReply<StreamsMessagesRawReply3 | NullReply>,
+  typeMapping?: TypeMapping
+): MapReply<BlobStringReply, StreamMessagesReply> | NullReply {
   if (reply === null) return null as unknown as NullReply;
 
   if (reply instanceof Map) {
@@ -643,7 +661,7 @@ export function transformStreamsMessagesReplyResp3(reply: UnwrapReply<StreamsMes
     for (const [n, rawMessages] of reply) {
       const name = n as unknown as UnwrapReply<BlobStringReply>;
 
-      ret.set(name.toString(), transformStreamMessagesReply(rawMessages));
+      ret.set(name.toString(), transformStreamMessagesReply(rawMessages, typeMapping));
     }
 
     return ret as unknown as MapReply<BlobStringReply, StreamMessagesReply>
@@ -655,18 +673,75 @@ export function transformStreamsMessagesReplyResp3(reply: UnwrapReply<StreamsMes
       const rawMessages = reply[i+1] as ArrayReply<StreamMessageRawReply>;
 
       ret.push(name);
-      ret.push(transformStreamMessagesReply(rawMessages));
+      ret.push(transformStreamMessagesReply(rawMessages, typeMapping));
     }
 
     return ret as unknown as MapReply<BlobStringReply, StreamMessagesReply>
   } else {
-    const ret = Object.create(null);
+    const ret: Record<string, StreamMessagesReply> = {};
     for (const [name, rawMessages] of Object.entries(reply)) {
-      ret[name] = transformStreamMessagesReply(rawMessages);
+      ret[name] = transformStreamMessagesReply(rawMessages, typeMapping);
     }
 
     return ret as unknown as MapReply<BlobStringReply, StreamMessagesReply>
   }
+}
+
+/**
+ * v4/v5-compatible XREAD/XREADGROUP shape: a flat
+ * `Array<{ name, messages }>` regardless of `typeMapping[RESP_TYPES.MAP]`.
+ *
+ * The outer container is intentionally normalized; `typeMapping` is still
+ * forwarded to the inner message-body transform so individual stream messages
+ * honor `RESP_TYPES.MAP` (e.g. `XRANGE`-style body shape). If you want the
+ * outer container itself as a `Map`/`Array`/`Object`, use the non-compat
+ * `transformStreamsMessagesReplyResp3` directly.
+ */
+export function transformStreamsMessagesReplyResp3Compat(
+  reply: ReplyUnion,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
+  preserve?: any,
+  typeMapping?: TypeMapping
+) {
+  const transformed = transformStreamsMessagesReplyResp3(
+    reply as unknown as Parameters<typeof transformStreamsMessagesReplyResp3>[0],
+    typeMapping
+  );
+  if (transformed === null) return null;
+
+  const compat = [];
+
+  if (transformed instanceof Map) {
+    for (const [name, messages] of transformed.entries()) {
+      compat.push({
+        name,
+        messages
+      });
+    }
+
+    return compat;
+  }
+
+  if (Array.isArray(transformed)) {
+    for (let i = 0; i < transformed.length; i += 2) {
+      const rawName = transformed[i] as unknown as UnwrapReply<BlobStringReply>;
+      compat.push({
+        name: rawName?.toString?.() ?? rawName,
+        messages: transformed[i + 1]
+      });
+    }
+
+    return compat;
+  }
+
+  for (const [name, messages] of Object.entries(transformed)) {
+    compat.push({
+      name,
+      messages
+    });
+  }
+
+  return compat;
 }
 
 export type RedisJSON = null | boolean | number | string | Date | Array<RedisJSON> | {

@@ -29,4 +29,16 @@ describe('SINTER', () => {
     client: GLOBAL.SERVERS.OPEN,
     cluster: GLOBAL.CLUSTERS.OPEN
   });
+
+  testUtils.testWithClient('sInter with data', async client => {
+    await client.sAdd('sinter-r3-1', ['a', 'b', 'c']);
+    await client.sAdd('sinter-r3-2', ['b', 'c', 'd']);
+
+    const result = await client.sInter(['sinter-r3-1', 'sinter-r3-2']);
+
+    // RESP3 returns a Set reply; verify it contains the expected members
+    assert.ok(Array.isArray(result));
+    const sorted = [...result].sort();
+    assert.deepEqual(sorted, ['b', 'c']);
+  }, GLOBAL.SERVERS.OPEN);
 });

@@ -52,62 +52,54 @@ export type XInfoStreamReply = TuplesToMapReply<[
 
 export default {
   IS_READ_ONLY: true,
-  /**
-   * Constructs the XINFO STREAM command to get detailed information about a stream
-   *
-   * @param parser - The command parser
-   * @param key - The stream key
-   * @returns Detailed information about the stream including its length, structure, and entries
-   * @see https://redis.io/commands/xinfo-stream/
-   */
   parseCommand(parser: CommandParser, key: RedisArgument) {
     parser.push('XINFO', 'STREAM');
     parser.pushKey(key);
   },
   transformReply: {
     // TODO: is there a "type safe" way to do it?
-    2(reply: any) {
+    2(reply: Array<unknown>) {
       const parsedReply: Partial<XInfoStreamReply['DEFAULT']> = {};
 
       for (let i = 0; i < reply.length; i += 2) {
         switch (reply[i]) {
           case 'first-entry':
           case 'last-entry':
-            parsedReply[reply[i] as ('first-entry' | 'last-entry')] = transformEntry(reply[i + 1]) as any;
+            parsedReply[reply[i] as ('first-entry' | 'last-entry')] = transformEntry(reply[i + 1] as RawEntry);
             break;
 
           default:
-            parsedReply[reply[i] as keyof typeof parsedReply] = reply[i + 1];
+            parsedReply[reply[i] as keyof typeof parsedReply] = reply[i + 1] as never;
             break;
         }
       }
 
       return parsedReply as XInfoStreamReply['DEFAULT'];
     },
-    3(reply: any) {
+    3(reply: Map<string, unknown> | Array<unknown> | Record<string, unknown>) {
       if (reply instanceof Map) {
         reply.set(
           'first-entry',
-          transformEntry(reply.get('first-entry'))
+          transformEntry(reply.get('first-entry') as RawEntry)
         );
         reply.set(
           'last-entry',
-          transformEntry(reply.get('last-entry'))
+          transformEntry(reply.get('last-entry') as RawEntry)
         );
       } else if (reply instanceof Array) {
         // Find entries by key name to handle different Redis versions
         // (8.6+ has additional idempotency fields that shift the indices)
         for (let i = 0; i < reply.length; i += 2) {
           if (reply[i] === 'first-entry' || reply[i] === 'last-entry') {
-            reply[i + 1] = transformEntry(reply[i + 1]);
+            reply[i + 1] = transformEntry(reply[i + 1] as RawEntry);
           }
         }
       } else {
-        reply['first-entry'] = transformEntry(reply['first-entry']);
-        reply['last-entry'] = transformEntry(reply['last-entry']);
+        reply['first-entry'] = transformEntry(reply['first-entry'] as RawEntry);
+        reply['last-entry'] = transformEntry(reply['last-entry'] as RawEntry);
       }
 
-      return reply as XInfoStreamReply;
+      return reply as unknown as XInfoStreamReply;
     }
   }
 } as const satisfies Command;

@@ -17,4 +17,13 @@ describe('BF.EXISTS', () => {
       false
     );
   }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.bf.exists with existing item', async client => {
+    await client.bf.add('key', 'item');
+
+    assert.strictEqual(
+      await client.bf.exists('key', 'item'),
+      true
+    );
+  }, GLOBAL.SERVERS.OPEN);
 });

@@ -99,3 +99,5 @@ export class MultiErrorReply extends ErrorReply {
     }
   }
 }
+
+export class OpenTelemetryError extends Error { }

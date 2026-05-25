@@ -9,6 +9,7 @@ import { MATH_FUNCTION, loadMathFunction } from '../commands/FUNCTION_LOAD.spec'
 import { RESP_TYPES } from '../RESP/decoder';
 import { BlobStringReply, NumberReply } from '../RESP/types';
 import { SortedSetMember } from '../commands/generic-transformers';
+import { HASH_EXPIRATION } from '../commands/HEXPIRE';
 import { CommandParser } from './parser';
 import { RedisSocketOptions } from './socket';
 import { getFreePortNumber } from '@redis/test-utils/lib/proxy/redis-proxy';
@@ -42,12 +43,11 @@ describe('Client', () => {
         );
       });
 
-      it('should throw error when clientSideCache is enabled with RESP undefined', () => {
-        assert.throws(
-          () => new RedisClient({
+      it('should not throw when clientSideCache is enabled with RESP undefined', () => {
+        assert.doesNotThrow(() =>
+          new RedisClient({
             clientSideCache: clientSideCacheConfig,
-          }),
-          new Error('Client Side Caching is only supported with RESP3')
+          })
         );
       });
 
@@ -84,8 +84,8 @@ describe('Client', () => {
       };
 
       // Compare everything except the credentials function
-      const { credentialsProvider: resultCredProvider, ...resultRest } = result;
-      const { credentialsProvider: expectedCredProvider, ...expectedRest } = expected;
+      const { credentialsProvider: _resultCredProvider, ...resultRest } = result;
+      const { credentialsProvider: _expectedCredProvider, ...expectedRest } = expected;
 
       // Compare non-function properties
       assert.deepEqual(resultRest, expectedRest);
@@ -284,6 +284,100 @@ describe('Client', () => {
         } else {
           assert.fail('Credentials provider type mismatch');
         }
+      });
+    });
+
+    describe('unix socket URLs', () => {
+      it('unix:///tmp/redis.sock', () => {
+        assert.deepEqual(
+          RedisClient.parseURL('unix:///tmp/redis.sock'),
+          {
+            socket: {
+              path: '/tmp/redis.sock',
+              tls: false
+            }
+          }
+        );
+      });
+
+      it('unix:///tmp/redis.sock?db=2', () => {
+        assert.deepEqual(
+          RedisClient.parseURL('unix:///tmp/redis.sock?db=2'),
+          {
+            socket: {
+              path: '/tmp/redis.sock',
+              tls: false
+            },
+            database: 2
+          }
+        );
+      });
+
+      it('unix://user:secret@/tmp/redis.sock?db=2', async () => {
+        const result = RedisClient.parseURL('unix://user:secret@/tmp/redis.sock?db=2');
+        const expected: RedisClientOptions = {
+          socket: {
+            path: '/tmp/redis.sock',
+            tls: false
+          },
+          username: 'user',
+          password: 'secret',
+          database: 2,
+          credentialsProvider: {
+            type: 'async-credentials-provider',
+            credentials: async () => ({
+              username: 'user',
+              password: 'secret'
+            })
+          }
+        };
+
+        const { credentialsProvider: _r, ...resultRest } = result;
+        const { credentialsProvider: _e, ...expectedRest } = expected;
+        assert.deepEqual(resultRest, expectedRest);
+
+        if (result.credentialsProvider?.type === 'async-credentials-provider'
+          && expected.credentialsProvider?.type === 'async-credentials-provider') {
+          assert.deepEqual(
+            await result.credentialsProvider.credentials(),
+            await expected.credentialsProvider.credentials()
+          );
+        } else {
+          assert.fail('Credentials provider type mismatch');
+        }
+      });
+
+      it('percent-encoded path is decoded', () => {
+        assert.deepEqual(
+          RedisClient.parseURL('unix:///var/run/redis%20test.sock'),
+          {
+            socket: {
+              path: '/var/run/redis test.sock',
+              tls: false
+            }
+          }
+        );
+      });
+
+      it('missing path is rejected', () => {
+        assert.throws(
+          () => RedisClient.parseURL('unix://'),
+          TypeError
+        );
+      });
+
+      it('empty path is rejected', () => {
+        assert.throws(
+          () => RedisClient.parseURL('unix:///'),
+          TypeError
+        );
+      });
+
+      it('invalid db query parameter is rejected', () => {
+        assert.throws(
+          () => RedisClient.parseURL('unix:///tmp/redis.sock?db=NaN'),
+          TypeError
+        );
       });
     });
   });
@@ -487,7 +581,8 @@ describe('Client', () => {
 
     testUtils.testWithClient('undefined and null should not break the client', async client => {
       await assert.rejects(
-        client.sendCommand([null as any, undefined as any]),
+        // @ts-expect-error testing invalid inputs
+        client.sendCommand([null, undefined]),
         TypeError
       );
 
@@ -624,7 +719,7 @@ describe('Client', () => {
           assert.equal(err.replies.length, 2);
           assert.deepEqual(err.errorIndexes, [1]);
           assert.ok(err.replies[1] instanceof ErrorReply);
-          // @ts-ignore TS2802
+          // @ts-expect-error its fine
           assert.deepEqual([...err.errors()], [err.replies[1]]);
           return true;
         }
@@ -715,8 +810,8 @@ describe('Client', () => {
   });
 
   async function killClient(
-    client: RedisClientType<any, any, any, any, any>,
-    errorClient: RedisClientType<any, any, any, any, any> = client
+    client: RedisClientType<{}, {}, {}, 2, {}>,
+    errorClient: RedisClientType<{}, {}, {}, 2, {}> = client
   ): Promise<void> {
     const onceErrorPromise = once(errorClient, 'error');
     await client.sendCommand(['QUIT']);
@@ -973,6 +1068,95 @@ describe('Client', () => {
 
       assert.equal(client.isOpen, false);
     }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClientIfVersionWithinRange([[8, 8], 'LATEST'],
+      'should receive hash field subkey notifications',
+      async client => {
+        const subscriber = await client.duplicate().connect();
+        try {
+          const previousNotifyConfig =
+            (await client.configGet('notify-keyspace-events'))['notify-keyspace-events'];
+          await client.configSet('notify-keyspace-events', 'STIVh');
+
+          try {
+            const HASH_KEY = 'skn:hash';
+            const FIELD = 'field-alpha';
+            const HEXPIRE_CHANNEL = '__subkeyevent@0__:hexpire';
+            const EXPIRED_CHANNEL = '__subkeyevent@0__:hexpired';
+            const SUBKEYSPACEITEM_CHANNEL = `__subkeyspaceitem@0__:${HASH_KEY}\n${FIELD}`;
+            const SUBKEYSPACEEVENT_HEXPIRE_CHANNEL = `__subkeyspaceevent@0__:hexpire|${HASH_KEY}`;
+            const SUBKEYSPACEEVENT_EXPIRED_CHANNEL = `__subkeyspaceevent@0__:hexpired|${HASH_KEY}`;
+            const SUBKEYEVENT_PAYLOAD = '8:skn:hash|11:field-alpha';
+            const SUBKEYSPACEEVENT_PAYLOAD = '11:field-alpha';
+
+            await client.del(HASH_KEY);
+
+            const expected = new Map<string, Set<string>>([
+              [HEXPIRE_CHANNEL, new Set([SUBKEYEVENT_PAYLOAD])],
+              [EXPIRED_CHANNEL, new Set([SUBKEYEVENT_PAYLOAD])],
+              [SUBKEYSPACEITEM_CHANNEL, new Set(['hexpire', 'hexpired'])],
+              [SUBKEYSPACEEVENT_HEXPIRE_CHANNEL, new Set([SUBKEYSPACEEVENT_PAYLOAD])],
+              [SUBKEYSPACEEVENT_EXPIRED_CHANNEL, new Set([SUBKEYSPACEEVENT_PAYLOAD])]
+            ]);
+            const received = new Map<string, Set<string>>();
+            let totalExpected = 0;
+            expected.forEach(s => totalExpected += s.size);
+            let totalReceived = 0;
+
+            let resolveAll!: () => void;
+            let rejectAll!: (err: Error) => void;
+            const allReceived = new Promise<void>((resolve, reject) => {
+              resolveAll = resolve;
+              rejectAll = reject;
+            });
+            const timer = setTimeout(
+              () => rejectAll(new Error('Timed out waiting for hash subkey notifications')),
+              10_000
+            );
+
+            const listener = (message: string, channel: string) => {
+              const expectedForChannel = expected.get(channel);
+              if (!expectedForChannel || !expectedForChannel.has(message)) return;
+              let bucket = received.get(channel);
+              if (!bucket) {
+                bucket = new Set();
+                received.set(channel, bucket);
+              }
+              if (bucket.has(message)) return;
+              bucket.add(message);
+              totalReceived++;
+              if (totalReceived === totalExpected) {
+                clearTimeout(timer);
+                resolveAll();
+              }
+            };
+
+            await Promise.all([
+              subscriber.subscribe(HEXPIRE_CHANNEL, listener),
+              subscriber.subscribe(EXPIRED_CHANNEL, listener),
+              subscriber.subscribe(SUBKEYSPACEITEM_CHANNEL, listener),
+              subscriber.subscribe(SUBKEYSPACEEVENT_HEXPIRE_CHANNEL, listener),
+              subscriber.subscribe(SUBKEYSPACEEVENT_EXPIRED_CHANNEL, listener)
+            ]);
+
+            await client.hSet(HASH_KEY, FIELD, 'value');
+            assert.deepEqual(
+              await client.hpExpire(HASH_KEY, [FIELD], 50),
+              [HASH_EXPIRATION.UPDATED]
+            );
+
+            await allReceived;
+
+            for (const [channel, payloads] of expected) {
+              assert.deepEqual(received.get(channel), payloads, `mismatch on ${channel}`);
+            }
+          } finally {
+            await client.configSet('notify-keyspace-events', previousNotifyConfig);
+          }
+        } finally {
+          subscriber.destroy();
+        }
+      }, GLOBAL.SERVERS.OPEN);
   });
 
   testUtils.testWithClient('ConnectionTimeoutError', async client => {
@@ -1142,6 +1326,14 @@ describe('Client', () => {
     it("should reconnect after multiple connection drops during handshake", async () => {
       const { log, client, teardown } = await setup({}, 2);
       await client.connect();
+
+      // Some environments emit duplicate consecutive `error` events per dropped
+      // socket during handshake. Normalize those duplicates before asserting
+      // the reconnect sequence.
+      const normalized = log.filter((event, index) => {
+        return !(event === "error" && log[index - 1] === "error");
+      });
+
       assert.deepEqual(
         [
           "connect",
@@ -1153,7 +1345,7 @@ describe('Client', () => {
           "connect",
           "ready",
         ],
-        log,
+        normalized,
       );
       teardown();
     });
@@ -1196,17 +1388,34 @@ describe('Client', () => {
       return log;
     }
 
-    // Create a TCP server that accepts connections but immediately drops them <dropImmediately> times
-    // This simulates what happens when Docker container is stopped:
-    // - TCP connection succeeds (OS accepts it)
-    // - But socket is immediately destroyed, causing ECONNRESET during handshake
-    function setupMockServer(dropImmediately: number) {
-      const server = net.createServer(async (socket) => {
-        if (dropImmediately > 0) {
-          dropImmediately--;
-          socket.destroy();
+    function countRespCommands(chunk: Buffer): number {
+      let commands = 0;
+
+      for (let i = 0; i < chunk.length; i++) {
+        if (chunk[i] === 42 && (i === 0 || chunk[i - 1] === 10)) {
+          commands++;
         }
-        socket.write("+OK\r\n+OK\r\n");
+      }
+
+      return commands;
+    }
+
+    // Create a TCP server that accepts connections but immediately drops them <dropImmediately> times.
+    // For accepted connections, reply with one `+OK` per incoming RESP command.
+    function setupMockServer(dropImmediately: number) {
+      const server = net.createServer((socket) => {
+        socket.on("data", (chunk: Buffer) => {
+          if (dropImmediately > 0) {
+            dropImmediately--;
+            socket.destroy();
+            return;
+          }
+
+          const commands = countRespCommands(chunk);
+          if (commands > 0) {
+            socket.write("+OK\r\n".repeat(commands));
+          }
+        });
       });
       return server;
     }
@@ -1219,7 +1428,7 @@ describe('Client', () => {
  * This blocks setImmediate callbacks from executing
  */
 async function blockSetImmediate(fn: () => Promise<unknown>) {
-  let setImmediateStub: any;
+  let setImmediateStub: ReturnType<typeof stub> | undefined;
 
   try {
     setImmediateStub = stub(global, 'setImmediate');

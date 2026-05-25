@@ -6,7 +6,7 @@ import RedisClusterSlots from './cluster-slots';
 describe('RedisClusterSlots', () => {
   describe('initialization', () => {
     describe('clientSideCache validation', () => {
-      const mockEmit = ((_event: string | symbol, ..._args: any[]): boolean => true) as EventEmitter['emit'];
+      const mockEmit: EventEmitter['emit'] = () => true;
       const clientSideCacheConfig = { ttl: 0, maxEntries: 0 };
       const rootNodes: Array<RedisClusterClientOptions> = [
         { socket: { host: 'localhost', port: 30001 } }
@@ -23,13 +23,12 @@ describe('RedisClusterSlots', () => {
         );
       });
 
-      it('should throw error when clientSideCache is enabled with RESP undefined', () => {
-        assert.throws(
-          () => new RedisClusterSlots({
+      it('should not throw when clientSideCache is enabled with RESP undefined', () => {
+        assert.doesNotThrow(() =>
+          new RedisClusterSlots({
             rootNodes,
             clientSideCache: clientSideCacheConfig,
-          }, mockEmit),
-          new Error('Client Side Caching is only supported with RESP3')
+          }, mockEmit)
         );
       });
 

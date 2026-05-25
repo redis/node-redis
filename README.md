@@ -230,7 +230,7 @@ You can override the default options by providing a configuration object:
 ```typescript
 client.scanIterator({
   TYPE: "string", // `SCAN` only
-  MATCH: "patter*",
+  MATCH: "pattern*",
   COUNT: 100,
 });
 ```
@@ -325,6 +325,37 @@ See the [Programmability overview](https://github.com/redis/node-redis/blob/mast
 ### Clustering
 
 Check out the [Clustering Guide](https://github.com/redis/node-redis/blob/master/docs/clustering.md) when using Node Redis to connect to a Redis Cluster.
+
+### OpenTelemetry
+
+#### OpenTelemetry Metrics Instrumentation
+
+```typescript
+import { createClient, OpenTelemetry } from "redis";
+
+OpenTelemetry.init({
+  metrics: {
+    enabled: true
+  }
+});
+
+const client = createClient()
+
+await client.connect();
+// ... use the client as usual
+```
+
+**Important:** Initializing `OpenTelemetry` only enables node-redis metrics instrumentation and requires both `@opentelemetry/api` and an OpenTelemetry SDK configured in your application.
+
+**Important:** Initialize `OpenTelemetry` before creating Redis clients.
+For SDK/provider/exporter setup, verification, and advanced configuration, see:
+
+- [OpenTelemetry Metrics docs](./docs/otel-metrics.md)
+- [OpenTelemetry Metrics example](./examples/otel-metrics.js)
+
+### Diagnostics Channel
+
+Node Redis publishes telemetry through Node.js [`diagnostics_channel`](https://nodejs.org/api/diagnostics_channel.html), enabling APM tools and custom instrumentation to observe commands, connections, and internal events. See the [Diagnostics Channel guide](./docs/diagnostics-channel.md) for the full channel reference and usage examples.
 
 ### Events
 

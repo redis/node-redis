@@ -1,8 +1,9 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
-import { RedisArgument, Command, ReplyUnion } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, Command, ReplyUnion, TypeMapping } from '@redis/client/dist/lib/RESP/types';
 import { RedisVariadicArgument, parseOptionalVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
 import { RediSearchLanguage } from './CREATE';
 import { DEFAULT_DIALECT } from '../dialect/default';
+import { getMapValue, mapLikeToObject, mapLikeValues, parseDocumentValue, parseSearchResultRow } from './reply-transformers';
 
 export type FtSearchParams = Record<string, RedisArgument | number>;
 
@@ -158,54 +159,76 @@ export function parseSearchOptions(parser: CommandParser, options?: FtSearchOpti
   }
 }
 
+function transformSearchReplyResp2(
+  reply: SearchRawReply,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
+  _preserve?: any,
+  _typeMapping?: TypeMapping
+): SearchReply {
+  // if reply[2] is array, then we have content/documents. Otherwise, only ids
+  const withoutDocuments = reply.length > 2 && !Array.isArray(reply[2]);
+
+  const documents: SearchReply['documents'] = [];
+  let i = 1;
+  while (i < reply.length) {
+    documents.push({
+      id: reply[i++] as string,
+      value: (withoutDocuments ? {} : documentValue(reply[i++])) as SearchDocumentValue
+    });
+  }
+
+  return {
+    total: reply[0] as number,
+    documents
+  };
+}
+
+function transformSearchReplyResp3(
+  rawReply: ReplyUnion,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
+  preserve?: any,
+  typeMapping?: TypeMapping
+): SearchReply {
+  if (Array.isArray(rawReply)) {
+    return transformSearchReplyResp2(rawReply as SearchRawReply, preserve, typeMapping);
+  }
+
+  const reply = mapLikeToObject(rawReply);
+  const total = Number(getMapValue(reply, ['total_results', 'total']) ?? 0);
+
+  const results = mapLikeValues(
+    getMapValue(reply, ['results', 'documents']) ?? []
+  );
+
+  const documents: SearchReply['documents'] = results.map(result => {
+    const { id, value } = parseSearchResultRow(result);
+    return {
+      id: String((id as { toString?(): string })?.toString?.() ?? id ?? ''),
+      value: value as SearchDocumentValue
+    };
+  });
+
+  return {
+    total,
+    documents
+  };
+}
+
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  /**
-   * Searches a RediSearch index with the given query.
-   * @param parser - The command parser
-   * @param index - The index name to search
-   * @param query - The text query to search. For syntax, see https://redis.io/docs/stack/search/reference/query_syntax
-   * @param options - Optional search parameters including:
-   *   - VERBATIM: do not try to use stemming for query expansion
-   *   - NOSTOPWORDS: do not filter stopwords from the query
-   *   - INKEYS/INFIELDS: restrict the search to specific keys/fields
-   *   - RETURN: limit which fields are returned
-   *   - SUMMARIZE/HIGHLIGHT: create search result highlights
-   *   - LIMIT: pagination control
-   *   - SORTBY: sort results by a specific field
-   *   - PARAMS: bind parameters to the query
-   */
   parseCommand(parser: CommandParser, index: RedisArgument, query: RedisArgument, options?: FtSearchOptions) {
     parser.push('FT.SEARCH', index, query);
 
     parseSearchOptions(parser, options);
   },
   transformReply: {
-    2: (reply: SearchRawReply): SearchReply => {
-      // if reply[2] is array, then we have content/documents. Otherwise, only ids
-      const withoutDocuments = reply.length > 2 && !Array.isArray(reply[2]);
-
-      const documents = [];
-      let i = 1;
-      while (i < reply.length) {
-        documents.push({
-          id: reply[i++],
-          value: withoutDocuments ? Object.create(null) : documentValue(reply[i++])
-        });
-      }
-
-      return {
-        total: reply[0],
-        documents
-      };
-    },
-    3: undefined as unknown as () => ReplyUnion
+    2: transformSearchReplyResp2,
+    3: transformSearchReplyResp3
   },
-  unstableResp3: true
 } as const satisfies Command;
 
-export type SearchRawReply = Array<any>;
+export type SearchRawReply = Array<unknown>;
 
 interface SearchDocumentValue {
   [key: string]: string | number | null | Array<SearchDocumentValue> | SearchDocumentValue;
@@ -219,28 +242,6 @@ export interface SearchReply {
   }>;
 }
 
-function documentValue(tuples: any) {
-  const message = Object.create(null);
-
-  if(!tuples) {
-    return message;
-  }
-
-  let i = 0;
-  while (i < tuples.length) {
-      const key = tuples[i++],
-          value = tuples[i++];
-      if (key === '$') { // might be a JSON reply
-          try {
-              Object.assign(message, JSON.parse(value));
-              continue;
-          } catch {
-              // set as a regular property if not a valid JSON
-          }
-      }
-
-      message[key] = value;
-  }
-
-  return message;
+function documentValue(tuples: unknown) {
+  return parseDocumentValue(tuples);
 }

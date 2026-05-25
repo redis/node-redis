@@ -1,6 +1,8 @@
 import { CommandParser } from '../client/parser';
-import { RedisArgument, ArrayReply, TuplesReply, BlobStringReply, NumberReply, DoubleReply, UnwrapReply, Command } from '../RESP/types';
+import { RedisArgument, ArrayReply, TuplesReply, BlobStringReply, NumberReply, DoubleReply, UnwrapReply, Command, TypeMapping } from '../RESP/types';
+import { RESP_TYPES } from '../RESP/decoder';
 import GEOSEARCH, { GeoSearchBy, GeoSearchFrom, GeoSearchOptions } from './GEOSEARCH';
+import { transformDoubleReply } from './generic-transformers';
 
 export const GEO_REPLY_WITH = {
   DISTANCE: 'WITHDIST',
@@ -12,7 +14,7 @@ export type GeoReplyWith = typeof GEO_REPLY_WITH[keyof typeof GEO_REPLY_WITH];
 
 export interface GeoReplyWithMember {
   member: BlobStringReply;
-  distance?: BlobStringReply;
+  distance?: DoubleReply;
   hash?: NumberReply;
   coordinates?: {
     longitude: DoubleReply;
@@ -22,15 +24,6 @@ export interface GeoReplyWithMember {
 
 export default {
   IS_READ_ONLY: GEOSEARCH.IS_READ_ONLY,
-  /**
-   * Queries members inside an area of a geospatial index with additional information
-   * @param parser - The Redis command parser
-   * @param key - Key of the geospatial index
-   * @param from - Center point of the search (member name or coordinates)
-   * @param by - Search area specification (radius or box dimensions)
-   * @param replyWith - Information to include with each returned member
-   * @param options - Additional search options
-   */
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,
@@ -44,15 +37,31 @@ export default {
     parser.preserve = replyWith;
   },
   transformReply(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- heterogeneous tuple variance marker
     reply: UnwrapReply<ArrayReply<TuplesReply<[BlobStringReply, ...Array<any>]>>>,
-    replyWith: Array<GeoReplyWith>
+    replyWith: Array<GeoReplyWith>,
+    typeMapping?: TypeMapping
   ) {
     const replyWithSet = new Set(replyWith);
     let index = 0;
     const distanceIndex = replyWithSet.has(GEO_REPLY_WITH.DISTANCE) && ++index,
       hashIndex = replyWithSet.has(GEO_REPLY_WITH.HASH) && ++index,
       coordinatesIndex = replyWithSet.has(GEO_REPLY_WITH.COORDINATES) && ++index;
-    
+
+    const doubleMapping = typeMapping ? typeMapping[RESP_TYPES.DOUBLE] : undefined;
+
+    const parseDouble = (value: unknown) => {
+      if (typeof value !== 'number') {
+        return transformDoubleReply[2](value as BlobStringReply, undefined, typeMapping);
+      }
+
+      if (doubleMapping === String) {
+        return value.toString() as unknown as DoubleReply;
+      }
+
+      return value as unknown as DoubleReply;
+    };
+
     return reply.map(raw => {
       const unwrapped = raw as unknown as UnwrapReply<typeof raw>;
 
@@ -61,18 +70,18 @@ export default {
       };
 
       if (distanceIndex) {
-        item.distance = unwrapped[distanceIndex];
+        item.distance = parseDouble(unwrapped[distanceIndex]);
       }
-  
+
       if (hashIndex) {
-        item.hash = unwrapped[hashIndex];
+        item.hash = unwrapped[hashIndex] as NumberReply;
       }
-  
+
       if (coordinatesIndex) {
-        const [longitude, latitude] = unwrapped[coordinatesIndex];
+        const [longitude, latitude] = unwrapped[coordinatesIndex] as [DoubleReply, DoubleReply];
         item.coordinates = {
-          longitude,
-          latitude
+          longitude: parseDouble(longitude),
+          latitude: parseDouble(latitude)
         };
       }
 

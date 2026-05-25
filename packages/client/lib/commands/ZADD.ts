@@ -31,16 +31,6 @@ export interface ZAddOptions {
  * Command for adding members to a sorted set
  */
 export default {
-  /**
-   * Constructs the ZADD command to add one or more members to a sorted set
-   *
-   * @param parser - The command parser
-   * @param key - The sorted set key
-   * @param members - One or more members to add with their scores
-   * @param options - Additional options for adding members
-   * @returns Number of new members added (or changed members if CH is set)
-   * @see https://redis.io/commands/zadd/
-   */
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

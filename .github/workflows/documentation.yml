@@ -17,6 +17,8 @@ jobs:
         uses: actions/setup-node@v3
       - name: Install Packages
         run: npm ci
+      - name: Build Packages
+        run: npm run build
       - name: Generate Documentation
         run: npm run documentation
       - name: Upload
@@ -25,4 +27,3 @@ jobs:
           npm run gh-pages
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-

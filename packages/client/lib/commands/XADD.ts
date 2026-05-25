@@ -107,17 +107,6 @@ export function parseXAddArguments(
 
 export default {
   IS_READ_ONLY: false,
-  /**
-   * Constructs the XADD command to append a new entry to a stream
-   *
-   * @param parser - The command parser
-   * @param key - The stream key
-   * @param id - Message ID (* for auto-generation)
-   * @param message - Key-value pairs representing the message fields
-   * @param options - Additional options for stream trimming
-   * @returns The ID of the added entry
-   * @see https://redis.io/commands/xadd/
-   */
   parseCommand(...args: Tail<Parameters<typeof parseXAddArguments>>) {
     return parseXAddArguments(undefined, ...args);
   },

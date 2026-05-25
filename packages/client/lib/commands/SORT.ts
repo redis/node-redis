@@ -68,14 +68,6 @@ export function parseSortArguments(
 
 export default {
   IS_READ_ONLY: true,
-  /**
-   * Constructs the SORT command
-   * 
-   * @param parser - The command parser
-   * @param key - The key to sort (list, set, or sorted set)
-   * @param options - Sort options
-   * @see https://redis.io/commands/sort/
-   */
   parseCommand(parser: CommandParser, key: RedisArgument, options?: SortOptions) {
     parser.push('SORT');
     parseSortArguments(parser, key, options);

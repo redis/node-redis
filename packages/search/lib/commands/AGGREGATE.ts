@@ -4,6 +4,8 @@ import { RediSearchProperty } from './CREATE';
 import { FtSearchParams, parseParamsArgument } from './SEARCH';
 import { transformTuplesReply } from '@redis/client/dist/lib/commands/generic-transformers';
 import { DEFAULT_DIALECT } from '../dialect/default';
+import { getMapValue, mapLikeToFlatArray, mapLikeToObject, mapLikeValues, parseAggregateResultRow } from './reply-transformers';
+import { RESP_TYPES } from '@redis/client/dist/lib/RESP/decoder';
 
 type LoadField = RediSearchProperty | {
   identifier: RediSearchProperty;
@@ -13,12 +15,12 @@ type LoadField = RediSearchProperty | {
 export const FT_AGGREGATE_STEPS = {
   GROUPBY: 'GROUPBY',
   SORTBY: 'SORTBY',
-  APPLY: 'APPLY', 
+  APPLY: 'APPLY',
   LIMIT: 'LIMIT',
   FILTER: 'FILTER'
 } as const;
 
-type FT_AGGREGATE_STEPS = typeof FT_AGGREGATE_STEPS;  
+type FT_AGGREGATE_STEPS = typeof FT_AGGREGATE_STEPS;
 
 export type FtAggregateStep = FT_AGGREGATE_STEPS[keyof FT_AGGREGATE_STEPS];
 
@@ -121,7 +123,7 @@ interface FilterStep extends AggregateStep<FT_AGGREGATE_STEPS['FILTER']> {
 export interface FtAggregateOptions {
   VERBATIM?: boolean;
   ADDSCORES?: boolean;
-  LOAD?: LoadField | Array<LoadField>;
+  LOAD?: '*' | LoadField | Array<LoadField>;
   TIMEOUT?: number;
   STEPS?: Array<GroupByStep | SortStep | ApplyStep | LimitStep | FilterStep>;
   PARAMS?: FtSearchParams;
@@ -138,73 +140,106 @@ export interface AggregateReply {
   results: Array<MapReply<BlobStringReply, BlobStringReply>>;
 };
 
+function transformAggregateReplyResp2(
+  rawReply: AggregateRawReply,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
+  preserve?: any,
+  typeMapping?: TypeMapping
+): AggregateReply {
+  const results: Array<MapReply<BlobStringReply, BlobStringReply>> = [];
+  for (let i = 1; i < rawReply.length; i++) {
+    results.push(
+      transformTuplesReply(rawReply[i] as ArrayReply<BlobStringReply>, preserve, typeMapping)
+    );
+  }
+
+  return {
+    //  https://redis.io/docs/latest/commands/ft.aggregate/#return
+    //  FT.AGGREGATE returns an array reply where each row is an array reply and represents a single aggregate result.
+    // The integer reply at position 1 does not represent a valid value.
+    total: Number(rawReply[0]),
+    results
+  };
+}
+
+function transformAggregateReplyResp3(
+  rawReply: ReplyUnion,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
+  preserve?: any,
+  typeMapping?: TypeMapping
+): AggregateReply {
+  const reply = mapLikeToObject(rawReply);
+  const total = Number(getMapValue(reply, ['total_results', 'total']) ?? 0);
+  const rawResults = mapLikeValues(getMapValue(reply, ['results']) ?? []);
+
+  const results: Array<MapReply<BlobStringReply, BlobStringReply>> = [];
+  const mapType = typeMapping ? typeMapping[RESP_TYPES.MAP] : undefined;
+
+  for (const rawResult of rawResults) {
+    const normalized = parseAggregateResultRow(rawResult);
+
+    switch (mapType) {
+      case Array: {
+        results.push(mapLikeToFlatArray(normalized) as unknown as MapReply<BlobStringReply, BlobStringReply>);
+        break;
+      }
+      case Map: {
+        results.push(new Map(Object.entries(normalized)) as unknown as MapReply<BlobStringReply, BlobStringReply>);
+        break;
+      }
+      default: {
+        results.push(normalized as unknown as MapReply<BlobStringReply, BlobStringReply>);
+      }
+    }
+  }
+
+  return {
+    total,
+    results
+  };
+}
+
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: false,
-  /**
-   * Performs an aggregation query on a RediSearch index.
-   * @param parser - The command parser
-   * @param index - The index name to query
-   * @param query - The text query to use as filter, use * to indicate no filtering
-   * @param options - Optional parameters for aggregation:
-   *   - VERBATIM: disable stemming in query evaluation
-   *   - LOAD: specify fields to load from documents
-   *   - STEPS: sequence of aggregation steps (GROUPBY, SORTBY, APPLY, LIMIT, FILTER)
-   *   - PARAMS: bind parameters for query evaluation
-   *   - TIMEOUT: maximum time to run the query
-   */
   parseCommand(parser: CommandParser, index: RedisArgument, query: RedisArgument, options?: FtAggregateOptions) {
     parser.push('FT.AGGREGATE', index, query);
 
     return parseAggregateOptions(parser, options);
   },
   transformReply: {
-    2: (rawReply: AggregateRawReply, preserve?: any, typeMapping?: TypeMapping): AggregateReply => {
-      const results: Array<MapReply<BlobStringReply, BlobStringReply>> = [];
-      for (let i = 1; i < rawReply.length; i++) {
-        results.push(
-          transformTuplesReply(rawReply[i] as ArrayReply<BlobStringReply>, preserve, typeMapping)
-        );
-      }
-  
-      return {
-        //  https://redis.io/docs/latest/commands/ft.aggregate/#return
-        //  FT.AGGREGATE returns an array reply where each row is an array reply and represents a single aggregate result.
-        // The integer reply at position 1 does not represent a valid value.
-        total: Number(rawReply[0]),
-        results
-      };
-    },
-    3: undefined as unknown as () => ReplyUnion
+    2: transformAggregateReplyResp2,
+    3: transformAggregateReplyResp3
   },
-  unstableResp3: true
 } as const satisfies Command;
 
-export function parseAggregateOptions(parser: CommandParser , options?: FtAggregateOptions) {
+export function parseAggregateOptions(parser: CommandParser, options?: FtAggregateOptions) {
   if (options?.VERBATIM) {
     parser.push('VERBATIM');
   }
 
   if (options?.ADDSCORES) {
     parser.push('ADDSCORES');
-  }  
-
-  if (options?.LOAD) {
-    const args: Array<RedisArgument> = [];
-
-    if (Array.isArray(options.LOAD)) {
-      for (const load of options.LOAD) {
-        pushLoadField(args, load);
-      }
-    } else {
-      pushLoadField(args, options.LOAD);
-    }
-
-    parser.push('LOAD');
-    parser.pushVariadicWithLength(args);
   }
 
-  if (options?.TIMEOUT !== undefined) {
+  if (options?.LOAD) {
+    parser.push('LOAD');
+    if (options.LOAD === '*') {
+      parser.push('*');
+    } else {
+      const args: Array<RedisArgument> = [];
+
+      if (Array.isArray(options?.LOAD)) {
+        for (const load of options.LOAD) {
+          pushLoadField(args, load);
+        }
+      } else {
+        pushLoadField(args, options?.LOAD);
+      }
+
+      parser.pushVariadicWithLength(args);
+    }
+  } if (options?.TIMEOUT !== undefined) {
     parser.push('TIMEOUT', options.TIMEOUT.toString());
   }
 
@@ -229,7 +264,7 @@ export function parseAggregateOptions(parser: CommandParser , options?: FtAggreg
 
           break;
 
-        case FT_AGGREGATE_STEPS.SORTBY:
+        case FT_AGGREGATE_STEPS.SORTBY: {
           const args: Array<RedisArgument> = [];
 
           if (Array.isArray(step.BY)) {
@@ -247,6 +282,7 @@ export function parseAggregateOptions(parser: CommandParser , options?: FtAggreg
           parser.pushVariadicWithLength(args);
 
           break;
+        }
 
         case FT_AGGREGATE_STEPS.APPLY:
           parser.push(step.expression, 'AS', step.AS);

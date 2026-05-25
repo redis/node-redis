@@ -1,4 +1,4 @@
-import { Command } from '@redis/client/dist/lib/RESP/types';
+import { ArrayReply, Command, NumberReply } from '@redis/client/dist/lib/RESP/types';
 import INSERT, { parseCfInsertArguments } from './INSERT';
 
 /**
@@ -16,5 +16,5 @@ export default {
     args[0].push('CF.INSERTNX');
     parseCfInsertArguments(...args);
   },
-  transformReply: INSERT.transformReply
+  transformReply: undefined as unknown as () => ArrayReply<NumberReply<-1 | 0 | 1>>
 } as const satisfies Command;

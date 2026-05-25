@@ -13,6 +13,13 @@ import { ClientSideCacheConfig, PooledClientSideCacheProvider } from '../client/
 import { BasicCommandParser } from '../client/parser';
 import { ASKING_CMD } from '../commands/ASKING';
 import SingleEntryCache from '../single-entry-cache'
+import { publish, CHANNELS } from '../client/tracing';
+import { ClientIdentity, ClientRole, generateClusterClientId } from '../client/identity';
+
+export type ClusterTopologyRefreshOnReconnectionAttemptStrategy =
+  false |
+  number |
+  ((firstReconnectionAt: number) => false | number | undefined);
 
 type WithCommands<
   RESP extends RespVersions,
@@ -20,6 +27,7 @@ type WithCommands<
 > = {
   [P in keyof typeof NON_STICKY_COMMANDS]: CommandSignature<(typeof NON_STICKY_COMMANDS)[P], RESP, TYPE_MAPPING>;
 };
+
 
 interface ClusterCommander<
   M extends RedisModules,
@@ -70,6 +78,15 @@ export interface RedisClusterOptions<
    */
   maxCommandRedirections?: number;
   /**
+   * The number of milliseconds after the first post-ready node reconnection attempt
+   * before background cluster topology refreshes are triggered. Omitted or `undefined`
+   * uses the default delay of `5000`.
+   * Use `false` or `0` to disable reconnect-triggered topology refreshes. A function can
+   * return the delay dynamically, or `false`/`undefined`/`0` to skip the refresh attempt.
+   * Concurrent refreshes are de-duplicated.
+   */
+  topologyRefreshOnReconnectionAttemptStrategy?: ClusterTopologyRefreshOnReconnectionAttemptStrategy;
+  /**
    * Mapping between the addresses in the cluster (see `CLUSTER SHARDS`) and the addresses the client should connect to
    * Useful when the cluster is running on another network
    */
@@ -115,7 +132,7 @@ export type RedisClusterType<
   M extends RedisModules = {},
   F extends RedisFunctions = {},
   S extends RedisScripts = {},
-  RESP extends RespVersions = 2,
+  RESP extends RespVersions = 3,
   TYPE_MAPPING extends TypeMapping = {},
   // POLICIES extends CommandPolicies = {}
 > = (
@@ -126,14 +143,12 @@ export type RedisClusterType<
   WithScripts<S, RESP, TYPE_MAPPING>
 );
 
-export interface ClusterCommandOptions<
+export type ClusterCommandOptions<
   TYPE_MAPPING extends TypeMapping = TypeMapping
   // POLICIES extends CommandPolicies = CommandPolicies
-> extends CommandOptions<TYPE_MAPPING> {
-  // policies?: POLICIES;
-}
+> = CommandOptions<TYPE_MAPPING>;
 
-type ProxyCluster = RedisCluster<any, any, any, any, any/*, any*/>;
+type ProxyCluster = RedisCluster<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>;
 
 type NamespaceProxyCluster = { _self: ProxyCluster };
 
@@ -213,13 +228,14 @@ export default class RedisCluster<
     };
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- cache stores dynamically generated cluster subclasses
   static #SingleEntryCache = new SingleEntryCache<any, any>();
 
   static factory<
     M extends RedisModules = {},
     F extends RedisFunctions = {},
     S extends RedisScripts = {},
-    RESP extends RespVersions = 2,
+    RESP extends RespVersions = 3,
     TYPE_MAPPING extends TypeMapping = {},
     // POLICIES extends CommandPolicies = {}
   >(config?: ClusterCommander<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>) {
@@ -250,7 +266,7 @@ export default class RedisCluster<
     M extends RedisModules = {},
     F extends RedisFunctions = {},
     S extends RedisScripts = {},
-    RESP extends RespVersions = 2,
+    RESP extends RespVersions = 3,
     TYPE_MAPPING extends TypeMapping = {},
     // POLICIES extends CommandPolicies = {}
   >(options?: RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>) {
@@ -260,6 +276,8 @@ export default class RedisCluster<
   readonly _options: RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>;
 
   readonly _slots: RedisClusterSlots<M, F, S, RESP, TYPE_MAPPING>;
+
+  readonly #identity: ClientIdentity;
 
   private _self = this;
   private _commandOptions?: ClusterCommandOptions<TYPE_MAPPING/*, POLICIES*/>;
@@ -311,11 +329,23 @@ export default class RedisCluster<
     return this._self._slots.isOpen;
   }
 
+  /**
+   * @internal
+   * Returns the cluster identity for tracking in metrics.
+   */
+  get identity(): ClientIdentity {
+    return this._self.#identity;
+  }
+
   constructor(options: RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>) {
     super();
 
+    this.#identity = {
+      id: generateClusterClientId(options.rootNodes),
+      role: ClientRole.CLUSTER
+    };
     this._options = options;
-    this._slots = new RedisClusterSlots(options, this.emit.bind(this));
+    this._slots = new RedisClusterSlots(options, this.emit.bind(this), this.#identity.id);
     this.on(RESUBSCRIBE_LISTENERS_EVENT, this.resubscribeAllPubSubListeners.bind(this));
 
     if (options?.commandOptions) {
@@ -432,16 +462,33 @@ export default class RedisCluster<
         const opts = options ?? {};
         opts.slotNumber = slotNumber;
         return await myFn(client, opts);
-      } catch (err) {
+      } catch (_err) {
+        const err = _err as Error;
         myFn = fn;
 
 
         // TODO: error class
         if (++i > maxCommandRedirections || !(err instanceof Error)) {
+          if (err instanceof Error) {
+            publish(CHANNELS.ERROR, () => ({
+              error: err,
+              origin: 'cluster',
+              internal: false,
+              clientId: client._clientId,
+              retryCount: i,
+            }));
+          }
           throw err;
         }
 
         if (err.message.startsWith('ASK')) {
+          publish(CHANNELS.ERROR, () => ({
+            error: err,
+            origin: 'cluster',
+            internal: true,
+            clientId: client._clientId,
+            retryCount: i,
+          }));
           const address = err.message.substring(err.message.lastIndexOf(' ') + 1);
           let redirectTo = await this._slots.getMasterByAddress(address);
           if (!redirectTo) {
@@ -459,6 +506,13 @@ export default class RedisCluster<
         }
 
         if (err.message.startsWith('MOVED')) {
+          publish(CHANNELS.ERROR, () => ({
+            error: err,
+            origin: 'cluster',
+            internal: true,
+            clientId: client._clientId,
+            retryCount: i,
+          }));
           await this._slots.rediscover(client);
           const clientAndSlot = await this._slots.getClientAndSlotNumber(firstKey, isReadonly);
           client = clientAndSlot.client;
@@ -494,7 +548,7 @@ export default class RedisCluster<
 
   MULTI(routing?: RedisArgument) {
     type Multi = new (...args: ConstructorParameters<typeof RedisClusterMultiCommand>) => RedisClusterMultiCommandType<[], M, F, S, RESP, TYPE_MAPPING>;
-    return new ((this as any).Multi as Multi)(
+    return new (this as this & { Multi: Multi }).Multi(
       async (firstKey, isReadonly, commands) => {
         const { client } = await this._self._slots.getClientAndSlotNumber(firstKey, isReadonly);
         return client._executeMulti(commands);

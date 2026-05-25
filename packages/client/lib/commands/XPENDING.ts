@@ -22,15 +22,6 @@ type XPendingRawReply = TuplesReply<[
 export default {
   CACHEABLE: true,
   IS_READ_ONLY: true,
-  /**
-   * Constructs the XPENDING command to inspect pending messages of a consumer group
-   *
-   * @param parser - The command parser
-   * @param key - The stream key
-   * @param group - Name of the consumer group
-   * @returns Summary of pending messages including total count, ID range, and per-consumer stats 
-   * @see https://redis.io/commands/xpending/
-   */
   parseCommand(parser: CommandParser, key: RedisArgument, group: RedisArgument) {
     parser.push('XPENDING');
     parser.pushKey(key);

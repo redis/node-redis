@@ -30,19 +30,6 @@ type XPendingRangeRawReply = ArrayReply<TuplesReply<[
 export default {
   CACHEABLE: true,
   IS_READ_ONLY: true,
-  /**
-   * Constructs the XPENDING command with range parameters to get detailed information about pending messages
-   *
-   * @param parser - The command parser
-   * @param key - The stream key
-   * @param group - Name of the consumer group
-   * @param start - Start of ID range (use '-' for minimum ID)
-   * @param end - End of ID range (use '+' for maximum ID)
-   * @param count - Maximum number of messages to return
-   * @param options - Additional filtering options
-   * @returns Array of pending message details
-   * @see https://redis.io/commands/xpending/
-   */
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

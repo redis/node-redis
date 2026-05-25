@@ -19,15 +19,6 @@ export type XInfoConsumersReply = ArrayReply<TuplesToMapReply<[
 
 export default {
   IS_READ_ONLY: true,
-  /**
-   * Constructs the XINFO CONSUMERS command to list the consumers in a consumer group
-   *
-   * @param parser - The command parser
-   * @param key - The stream key
-   * @param group - Name of the consumer group
-   * @returns Array of consumer information objects
-   * @see https://redis.io/commands/xinfo-consumers/
-   */
   parseCommand(parser: CommandParser, key: RedisArgument, group: RedisArgument) {
     parser.push('XINFO', 'CONSUMERS');
     parser.pushKey(key);

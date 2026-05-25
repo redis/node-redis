@@ -1,6 +1,6 @@
 import { CommandParser } from '../client/parser';
-import { Command, RedisArgument, ReplyUnion } from '../RESP/types';
-import { transformStreamsMessagesReplyResp2 } from './generic-transformers';
+import { Command, RedisArgument } from '../RESP/types';
+import { transformStreamsMessagesReplyResp2, transformStreamsMessagesReplyResp3Compat } from './generic-transformers';
 
 /**
  * Structure representing a stream to read from
@@ -50,15 +50,6 @@ export interface XReadOptions {
 
 export default {
   IS_READ_ONLY: true,
-  /**
-   * Constructs the XREAD command to read messages from one or more streams
-   *
-   * @param parser - The command parser
-   * @param streams - Single stream or array of streams to read from
-   * @param options - Additional options for reading streams
-   * @returns Array of stream entries, each containing the stream name and its messages
-   * @see https://redis.io/commands/xread/
-   */
   parseCommand(parser: CommandParser, streams: XReadStreams, options?: XReadOptions) {
     parser.push('XREAD');
 
@@ -77,7 +68,6 @@ export default {
    */
   transformReply: {
     2: transformStreamsMessagesReplyResp2,
-    3: undefined as unknown as () => ReplyUnion
-  },
-  unstableResp3: true
+    3: transformStreamsMessagesReplyResp3Compat
+  }
 } as const satisfies Command;

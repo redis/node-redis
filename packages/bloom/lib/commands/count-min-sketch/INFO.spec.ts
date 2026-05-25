@@ -19,7 +19,7 @@ describe('CMS.INFO', () => {
         client.cms.info('key')
       ]);
 
-    const expected = Object.create(null);
+    const expected = {};
     expected['width'] = width;
     expected['depth'] = depth;
     expected['count'] = 0;

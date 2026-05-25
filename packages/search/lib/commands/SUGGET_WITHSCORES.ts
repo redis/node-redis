@@ -9,20 +9,12 @@ type SuggestScore = {
 
 export default {
   IS_READ_ONLY: SUGGET.IS_READ_ONLY,
-  /**
-   * Gets completion suggestions with their scores from a suggestion dictionary.
-   * @param args - Same parameters as FT.SUGGET:
-   *   - parser: The command parser
-   *   - key: The suggestion dictionary key
-   *   - prefix: The prefix to get completion suggestions for
-   *   - options: Optional parameters for fuzzy matching and max results
-   */
   parseCommand(...args: Parameters<typeof SUGGET.parseCommand>) {
     SUGGET.parseCommand(...args);
     args[0].push('WITHSCORES');
   },
   transformReply: {
-    2: (reply: NullReply | UnwrapReply<ArrayReply<BlobStringReply>>, preserve?: any, typeMapping?: TypeMapping) => {
+    2: (reply: NullReply | UnwrapReply<ArrayReply<BlobStringReply>>, preserve?: unknown, typeMapping?: TypeMapping) => {
       if (isNullReply(reply)) return null;
 
       const transformedReply: Array<SuggestScore> = new Array(reply.length / 2);

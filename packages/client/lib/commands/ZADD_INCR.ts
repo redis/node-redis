@@ -20,16 +20,6 @@ export interface ZAddOptions {
  * Command for incrementing the score of a member in a sorted set
  */
 export default {
-  /**
-   * Constructs the ZADD command with INCR option to increment the score of a member
-   *
-   * @param parser - The command parser
-   * @param key - The sorted set key
-   * @param members - Member(s) whose score to increment
-   * @param options - Additional options for the increment operation
-   * @returns The new score of the member after increment (null if member does not exist with XX option)
-   * @see https://redis.io/commands/zadd/
-   */
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

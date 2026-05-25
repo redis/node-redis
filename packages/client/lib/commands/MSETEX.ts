@@ -85,16 +85,6 @@ export function parseMSetExArguments(
 }
 
 export default {
-  /**
-   * Constructs the MSETEX command.
-   *
-   * Atomically sets multiple string keys with a shared expiration in a single operation.
-   *
-   * @param parser - The command parser
-   * @param keyValuePairs - Key-value pairs to set (array of tuples, flat array, or object)
-   * @param options - Configuration for expiration and set modes
-   * @see https://redis.io/commands/msetex/
-   */
   parseCommand(
     parser: CommandParser,
     keyValuePairs: MSetArguments,

@@ -21,19 +21,6 @@ export interface XClaimOptions {
 
 export default {
   IS_READ_ONLY: false,
-  /**
-   * Constructs the XCLAIM command to claim pending messages in a consumer group
-   *
-   * @param parser - The command parser
-   * @param key - The stream key
-   * @param group - The consumer group name
-   * @param consumer - The consumer name that will claim the messages
-   * @param minIdleTime - Minimum idle time in milliseconds for a message to be claimed
-   * @param id - One or more message IDs to claim
-   * @param options - Additional options for the claim operation
-   * @returns Array of claimed messages
-   * @see https://redis.io/commands/xclaim/
-   */
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,
@@ -81,7 +68,7 @@ export default {
    */
   transformReply(
     reply: UnwrapReply<ArrayReply<StreamMessageRawReply | NullReply>>, 
-    preserve?: any,
+    preserve?: unknown,
     typeMapping?: TypeMapping
   ) {
     return reply.map(transformStreamMessageNullReply.bind(undefined, typeMapping));

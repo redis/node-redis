@@ -31,4 +31,18 @@ describe('ZMSCORE', () => {
     client: GLOBAL.SERVERS.OPEN,
     cluster: GLOBAL.CLUSTERS.OPEN
   });
+
+  testUtils.testAll('zmScore - existing members', async client => {
+    await client.zAdd('key', [
+      { value: 'a', score: 1.5 },
+      { value: 'b', score: 2.5 }
+    ]);
+    assert.deepEqual(
+      await client.zmScore('key', ['a', 'b', 'c']),
+      [1.5, 2.5, null]
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

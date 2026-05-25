@@ -5,7 +5,7 @@ export default  TestUtils.createFromConfig({
   dockerImageName: 'redislabs/client-libs-test',
   dockerImageTagArgument: 'redis-tag',
   dockerImageVersionArgument: 'redis-version',
-  defaultDockerVersion: { tag: 'custom-21860421418-debian-amd64', version: '8.6' }
+  defaultDockerVersion: { tag: '8.8-rc1', version: '8.8' }
 });
 
 export const GLOBAL = {
@@ -13,6 +13,7 @@ export const GLOBAL = {
     OPEN: {
       serverArguments: [],
       clientOptions: {
+        RESP: 3 as const,
         modules: RedisBloomModules
       }
     }

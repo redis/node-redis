@@ -3,11 +3,11 @@ import { transformDoubleReply } from './generic-transformers';
 import VLINKS from './VLINKS';
 
 
-function transformVLinksWithScoresReply(reply: any): Array<Record<string, DoubleReply>> {
+function transformVLinksWithScoresReply(reply: Array<Array<BlobStringReply>>): Array<Record<string, DoubleReply>> {
   const layers: Array<Record<string, DoubleReply>> = [];
 
   for (const layer of reply) {
-    const obj: Record<string, DoubleReply> = Object.create(null);
+    const obj: Record<string, DoubleReply> = {};
 
     // Each layer contains alternating element names and scores
     for (let i = 0; i < layer.length; i += 2) {
@@ -24,11 +24,6 @@ function transformVLinksWithScoresReply(reply: any): Array<Record<string, Double
 
 export default {
   IS_READ_ONLY: VLINKS.IS_READ_ONLY,
-  /**
-   * Get the connections for each layer of the HNSW graph with similarity scores
-   * @param args - Same parameters as the VLINKS command
-   * @see https://redis.io/commands/vlinks/
-   */
   parseCommand(...args: Parameters<typeof VLINKS.parseCommand>) {
     const parser = args[0];
 

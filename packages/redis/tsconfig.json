@@ -5,5 +5,10 @@
   },
   "include": [
     "./index.ts"
-  ]
+  ],
+  "typedocOptions": {
+    "entryPoints": [
+      "./index.ts"
+    ]
+  }
 }

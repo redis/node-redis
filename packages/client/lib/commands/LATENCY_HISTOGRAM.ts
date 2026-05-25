@@ -14,13 +14,6 @@ const id = (n: number) => n;
 export default {
   CACHEABLE: false,
   IS_READ_ONLY: true,
-  /**
-   * Constructs the LATENCY HISTOGRAM command
-   *
-   * @param parser - The command parser
-   * @param commands - The list of redis commands to get histogram for
-   * @see https://redis.io/docs/latest/commands/latency-histogram/
-   */
   parseCommand(parser: CommandParser, ...commands: string[]) {
     const args = ['LATENCY', 'HISTOGRAM'];
     if (commands.length !== 0) {

@@ -5,6 +5,7 @@ import { ConnectionTimeoutError, ClientClosedError, SocketClosedUnexpectedlyErro
 import { setTimeout } from 'node:timers/promises';
 import { RedisArgument } from '../RESP/types';
 import { dbgMaintenance } from './enterprise-maintenance-manager';
+import { publish, CHANNELS } from './tracing';
 
 type NetOptions = {
   tls?: false;
@@ -60,6 +61,7 @@ export default class RedisSocket extends EventEmitter {
   readonly #reconnectStrategy;
   readonly #socketFactory;
   readonly #socketTimeout;
+  readonly #clientId: string;
 
   #maintenanceTimeout: number | undefined;
 
@@ -85,7 +87,19 @@ export default class RedisSocket extends EventEmitter {
     return this.#socketEpoch;
   }
 
-  constructor(initiator: RedisSocketInitiator, options?: RedisSocketOptions) {
+  get host() {
+    return this.#socket?.remoteAddress;
+  }
+
+  get port() {
+    return this.#socket?.remotePort;
+  }
+
+  constructor(
+    initiator: RedisSocketInitiator,
+    clientId: string,
+    options?: RedisSocketOptions,
+  ) {
     super();
 
     this.#initiator = initiator;
@@ -93,6 +107,7 @@ export default class RedisSocket extends EventEmitter {
     this.#reconnectStrategy = this.#createReconnectStrategy(options);
     this.#socketFactory = this.#createSocketFactory(options);
     this.#socketTimeout = options?.socketTimeout;
+    this.#clientId = clientId;
   }
 
   #createReconnectStrategy(options?: RedisSocketOptions): ReconnectStrategyFunction {
@@ -110,6 +125,12 @@ export default class RedisSocket extends EventEmitter {
           }
           return retryIn;
         } catch (err) {
+          publish(CHANNELS.ERROR, () => ({
+            error: err as Error,
+            origin: 'client',
+            internal: false,
+            clientId: this.#clientId
+          }));
           this.emit('error', err);
           return this.defaultReconnectStrategy(retries, err);
         }
@@ -127,15 +148,15 @@ export default class RedisSocket extends EventEmitter {
         port: options?.port ?? 6379,
         // https://nodejs.org/api/tls.html#tlsconnectoptions-callback "Any socket.connect() option not already listed"
         // @types/node is... incorrect...
-        // @ts-expect-error
+        // @ts-expect-error - @types/node omits socket.connect noDelay.
         noDelay: options?.noDelay ?? true,
         // https://nodejs.org/api/tls.html#tlsconnectoptions-callback "Any socket.connect() option not already listed"
         // @types/node is... incorrect...
-        // @ts-expect-error
+        // @ts-expect-error - @types/node omits socket.connect keepAlive.
         keepAlive: options?.keepAlive ?? true,
         // https://nodejs.org/api/tls.html#tlsconnectoptions-callback "Any socket.connect() option not already listed"
         // @types/node is... incorrect...
-        // @ts-expect-error
+        // @ts-expect-error - @types/node omits socket.connect keepAliveInitialDelay.
         keepAliveInitialDelay: options?.keepAliveInitialDelay ?? 5000,
         timeout: undefined,
         onread: undefined,
@@ -191,10 +212,22 @@ export default class RedisSocket extends EventEmitter {
     const retryIn = this.#reconnectStrategy(retries, cause);
     if (retryIn === false) {
       this.#isOpen = false;
+      publish(CHANNELS.ERROR, () => ({
+        error: cause,
+        origin: 'client',
+        internal: false,
+        clientId: this.#clientId
+      }));
       this.emit('error', cause);
       return cause;
     } else if (retryIn instanceof Error) {
       this.#isOpen = false;
+      publish(CHANNELS.ERROR, () => ({
+        error: cause,
+        origin: 'client',
+        internal: false,
+        clientId: this.#clientId
+      }));
       this.emit('error', cause);
       return new ReconnectStrategyError(retryIn, cause);
     }
@@ -215,6 +248,7 @@ export default class RedisSocket extends EventEmitter {
     let retries = 0;
     do {
       try {
+        const connectStartTime = performance.now();
         this.#socket = await this.#createSocket();
         this.emit('connect');
 
@@ -236,6 +270,12 @@ export default class RedisSocket extends EventEmitter {
         }
         this.#isReady = true;
         this.#socketEpoch++;
+        publish(CHANNELS.CONNECTION_READY, () => ({
+          clientId: this.#clientId,
+          serverAddress: this.host,
+          serverPort: this.port,
+          createTimeMs: performance.now() - connectStartTime,
+        }));
         this.emit('ready');
       } catch (err) {
         const retryIn = this.#shouldReconnect(retries++, err as Error);
@@ -243,6 +283,12 @@ export default class RedisSocket extends EventEmitter {
           throw retryIn;
         }
 
+        publish(CHANNELS.ERROR, () => ({
+          error: err as Error,
+          origin: 'client',
+          internal: false,
+          clientId: this.#clientId
+        }));
         this.emit('error', err);
         await setTimeout(retryIn);
         this.emit('reconnecting');
@@ -261,8 +307,10 @@ export default class RedisSocket extends EventEmitter {
 
     if(ms !== undefined) {
       this.#socket?.setTimeout(ms);
+      publish(CHANNELS.CONNECTION_RELAXED_TIMEOUT, () => ({ clientId: this.#clientId, value: 1 }));
     } else {
       this.#socket?.setTimeout(this.#socketTimeout ?? 0);
+      publish(CHANNELS.CONNECTION_RELAXED_TIMEOUT, () => ({ clientId: this.#clientId, value: -1 }));
     }
   }
 
@@ -311,7 +359,17 @@ export default class RedisSocket extends EventEmitter {
   #onSocketError(err: Error): void {
     const wasReady = this.#isReady;
     this.#isReady = false;
+    publish(CHANNELS.ERROR, () => ({
+      error: err,
+      origin: 'client',
+      internal: false,
+      clientId: this.#clientId
+    }));
     this.emit('error', err);
+
+    if (wasReady) {
+      publish(CHANNELS.CONNECTION_CLOSED, () => ({ clientId: this.#clientId, reason: 'error', wasConnected: true }));
+    }
 
     if (!wasReady || !this.#isOpen || typeof this.#shouldReconnect(0, err) !== 'number') return;
 
@@ -323,17 +381,28 @@ export default class RedisSocket extends EventEmitter {
 
 
   write(iterable: Iterable<ReadonlyArray<RedisArgument>>) {
-    if (!this.#socket) return;
+    if (!this.#socket || !this.#socket.writable) return;
 
     this.#socket.cork();
-    for (const args of iterable) {
-      for (const toWrite of args) {
-        this.#socket.write(toWrite);
-      }
+    try {
+      for (const args of iterable) {
+        for (const toWrite of args) {
+          this.#socket.write(toWrite);
+        }
 
-      if (this.#socket.writableNeedDrain) break;
+        if (this.#socket.writableNeedDrain) break;
+      }
+    } catch (err) {
+      // net.Socket.write can throw synchronously on a half-closed socket
+      // (writeAfterFIN -> EPIPE) before the 'close' event fires. The pending
+      // command has already been moved to #waitingForReply by the queue's
+      // generator, so the close handler will reject it on reconnect.
+      if (!err || (err as NodeJS.ErrnoException).code !== 'EPIPE') {
+        throw err;
+      }
+    } finally {
+      this.#socket.uncork();
     }
-    this.#socket.uncork();
   }
 
   async quit<T>(fn: () => Promise<T>): Promise<T> {
@@ -365,6 +434,7 @@ export default class RedisSocket extends EventEmitter {
   }
 
   destroySocket() {
+    const wasReady = this.#isReady;
     this.#isReady = false;
 
     if (this.#socket) {
@@ -372,6 +442,7 @@ export default class RedisSocket extends EventEmitter {
       this.#socket = undefined;
     }
 
+    publish(CHANNELS.CONNECTION_CLOSED, () => ({ clientId: this.#clientId, reason: 'application_close', wasConnected: wasReady }));
     this.emit('end');
   }
 

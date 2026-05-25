@@ -1,5 +1,6 @@
 export const CreateDatabaseConfigType = {
   CLUSTER: "cluster",
+  STANDALONE: "standalone",
 } as const;
 
 type ConfigType =
@@ -12,7 +13,7 @@ const DB_CONFIGS = {
   [CreateDatabaseConfigType.CLUSTER]: (
     name: string,
     port: number = randomPort(),
-    size: number = 1073741824 // 1GB
+    size: number = 1073741824, // 1GB
   ) => {
     return {
       name: name,
@@ -45,6 +46,33 @@ const DB_CONFIGS = {
       oss_cluster_api_preferred_ip_type: "external",
       proxy_policy: "all-master-shards",
       shards_placement: "sparse",
+      shard_key_regex: [
+        {
+          regex: ".*\\{(?<tag>.*)\\}.*",
+        },
+        {
+          regex: "(?<tag>.*)",
+        },
+      ],
+    };
+  },
+  [CreateDatabaseConfigType.STANDALONE]: (
+    name: string,
+    port: number = randomPort(),
+    size: number = 1073741824, // 1GB
+  ) => {
+    return {
+      name,
+      port,
+      memory_size: size,
+      replication: true,
+      eviction_policy: "noeviction",
+      sharding: true,
+      auto_upgrade: true,
+      shards_count: 2,
+      oss_cluster: false,
+      proxy_policy: "single",
+      shards_placement: "dense",
       shard_key_regex: [
         {
           regex: ".*\\{(?<tag>.*)\\}.*",

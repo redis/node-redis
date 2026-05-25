@@ -4,7 +4,7 @@
 
 ### Keep Alive
 
-To better align with Node.js build-in [`net`](https://nodejs.org/api/net.html) and [`tls`](https://nodejs.org/api/tls.html) modules, the `keepAlive` option has been split into 2 options: `keepAlive` (`boolean`) and `keepAliveInitialDelay` (`number`). The defaults remain `true` and `5000`.
+To better align with Node.js built-in [`net`](https://nodejs.org/api/net.html) and [`tls`](https://nodejs.org/api/tls.html) modules, the `keepAlive` option has been split into 2 options: `keepAlive` (`boolean`) and `keepAliveInitialDelay` (`number`). The defaults remain `true` and `5000`.
 
 ### Legacy Mode
 

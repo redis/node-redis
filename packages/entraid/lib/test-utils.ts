@@ -7,7 +7,7 @@ export const testUtils = TestUtils.createFromConfig({
   dockerImageName: 'redislabs/client-libs-test',
   dockerImageTagArgument: 'redis-tag',
   dockerImageVersionArgument: 'redis-version',
-  defaultDockerVersion: { tag: 'custom-21860421418-debian-amd64', version: '8.6' }
+  defaultDockerVersion: { tag: '8.8-rc1', version: '8.8' }
 });
 
 const DEBUG_MODE_ARGS = testUtils.isVersionGreaterThan([7]) ?
@@ -16,12 +16,11 @@ const DEBUG_MODE_ARGS = testUtils.isVersionGreaterThan([7]) ?
 
 const idp: IdentityProvider<AuthenticationResult> = {
   requestToken(): Promise<TokenResponse<AuthenticationResult>> {
-    // @ts-ignore
     return Promise.resolve({
       ttlMs: 100000,
       token: {
         accessToken: 'password'
-      }
+      } as AuthenticationResult
     })
   }
 }

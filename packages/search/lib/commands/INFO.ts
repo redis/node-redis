@@ -1,25 +1,19 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument } from "@redis/client";
-import { ArrayReply, BlobStringReply, Command, DoubleReply, MapReply, NullReply, NumberReply, ReplyUnion, SimpleStringReply, TypeMapping } from "@redis/client/dist/lib/RESP/types";
+import { ArrayReply, BlobStringReply, Command, DoubleReply, MapReply, NullReply, NumberReply, SimpleStringReply, TypeMapping } from "@redis/client/dist/lib/RESP/types";
 import { createTransformTuplesReplyFunc, transformDoubleReply } from "@redis/client/dist/lib/commands/generic-transformers";
 import { TuplesReply } from '@redis/client/dist/lib/RESP/types';
 
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  /**
-   * Returns information and statistics about an index.
-   * @param parser - The command parser
-   * @param index - Name of the index to get information about
-   */
   parseCommand(parser: CommandParser, index: RedisArgument) {
     parser.push('FT.INFO', index);
   },
   transformReply: {
     2: transformV2Reply,
-    3: undefined as unknown as () => ReplyUnion
+    3: undefined as unknown as () => InfoReply
   },
-  unstableResp3: true
 } as const satisfies Command;
 
 export interface InfoReply {
@@ -70,13 +64,13 @@ export interface InfoReply {
   stopwords_list?: ArrayReply<BlobStringReply> | TuplesReply<[NullReply]>;
 }
 
-function transformV2Reply(reply: Array<any>, preserve?: any, typeMapping?: TypeMapping): InfoReply {
+function transformV2Reply(reply: Array<unknown>, preserve?: unknown, typeMapping?: TypeMapping): InfoReply {
   const myTransformFunc = createTransformTuplesReplyFunc<SimpleStringReply>(preserve, typeMapping);
 
   const ret = {} as unknown as InfoReply;
 
   for (let i=0; i < reply.length; i += 2) {
-    const key = reply[i].toString() as keyof InfoReply;
+    const key = (reply[i] as { toString(): string }).toString() as keyof InfoReply;
 
     switch (key) {
       case 'index_name':
@@ -89,9 +83,9 @@ function transformV2Reply(reply: Array<any>, preserve?: any, typeMapping?: TypeM
       case 'hash_indexing_failures':
       case 'indexing':
       case 'number_of_uses':
-      case 'cleaning':  
+      case 'cleaning':
       case 'stopwords_list':
-        ret[key] = reply[i+1];
+        ret[key] = reply[i+1] as never;
         break;
       case 'inverted_sz_mb':
       case 'vector_index_sz_mb':
@@ -108,11 +102,11 @@ function transformV2Reply(reply: Array<any>, preserve?: any, typeMapping?: TypeM
       case 'offsets_per_term_avg':
       case 'offset_bits_per_record_avg':
       case 'total_indexing_time':
-      case 'percent_indexed':        
-        ret[key] = transformDoubleReply[2](reply[i+1], undefined, typeMapping) as DoubleReply;
+      case 'percent_indexed':
+        ret[key] = transformDoubleReply[2](reply[i+1] as BlobStringReply, undefined, typeMapping) as DoubleReply;
         break;
       case 'index_definition':
-        ret[key] = myTransformFunc(reply[i+1]);
+        ret[key] = myTransformFunc(reply[i+1] as ArrayReply<SimpleStringReply>);
         break;
       case 'attributes':
         ret[key] = (reply[i+1] as Array<ArrayReply<SimpleStringReply>>).map(attribute => myTransformFunc(attribute));
@@ -120,10 +114,10 @@ function transformV2Reply(reply: Array<any>, preserve?: any, typeMapping?: TypeM
       case 'gc_stats': {
         const innerRet = {} as unknown as InfoReply['gc_stats'];
 
-        const array = reply[i+1];
+        const array = reply[i+1] as Array<unknown>;
 
         for (let i=0; i < array.length; i += 2) {
-          const innerKey = array[i].toString() as keyof InfoReply['gc_stats'];
+          const innerKey = (array[i] as { toString(): string }).toString() as keyof InfoReply['gc_stats'];
 
           switch (innerKey) {
             case 'bytes_collected':
@@ -133,28 +127,28 @@ function transformV2Reply(reply: Array<any>, preserve?: any, typeMapping?: TypeM
             case 'last_run_time_ms':
             case 'gc_numeric_trees_missed':
             case 'gc_blocks_denied':
-              innerRet[innerKey] = transformDoubleReply[2](array[i+1], undefined, typeMapping) as DoubleReply;
+              innerRet[innerKey] = transformDoubleReply[2](array[i+1] as BlobStringReply, undefined, typeMapping) as DoubleReply;
               break;
           }
         }
-        
+
         ret[key] = innerRet;
         break;
       }
       case 'cursor_stats': {
         const innerRet = {} as unknown as InfoReply['cursor_stats'];
 
-        const array = reply[i+1];
+        const array = reply[i+1] as Array<unknown>;
 
         for (let i=0; i < array.length; i += 2) {
-          const innerKey = array[i].toString() as keyof InfoReply['cursor_stats'];
+          const innerKey = (array[i] as { toString(): string }).toString() as keyof InfoReply['cursor_stats'];
 
           switch (innerKey) {
             case 'global_idle':
             case 'global_total':
             case 'index_capacity':
             case 'index_total':
-              innerRet[innerKey] = array[i+1];
+              innerRet[innerKey] = array[i+1] as NumberReply;
               break;
           }
         }
@@ -162,7 +156,7 @@ function transformV2Reply(reply: Array<any>, preserve?: any, typeMapping?: TypeM
         ret[key] = innerRet;
         break;
       }
-    }  
+    }
   }
 
   return ret;

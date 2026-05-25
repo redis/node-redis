@@ -29,4 +29,17 @@ describe('SUNIONSTORE', () => {
     client: GLOBAL.SERVERS.OPEN,
     cluster: GLOBAL.CLUSTERS.OPEN
   });
+
+  testUtils.testAll('sUnionStore with data', async client => {
+    await client.sAdd('{tag}set1', ['a', 'b', 'c']);
+    await client.sAdd('{tag}set2', ['c', 'd', 'e']);
+
+    const reply = await client.sUnionStore('{tag}destination', ['{tag}set1', '{tag}set2']);
+
+    assert.strictEqual(typeof reply, 'number');
+    assert.strictEqual(reply, 5);
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

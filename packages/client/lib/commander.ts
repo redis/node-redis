@@ -1,4 +1,4 @@
-import { Command, CommanderConfig, RedisArgument, RedisCommands, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, RespVersions, TransformReply } from './RESP/types';
+import { Command, CommanderConfig, RedisArgument, RedisCommands, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, RespVersions, TransformReply, DEFAULT_RESP } from './RESP/types';
 
 interface AttachConfigOptions<
   M extends RedisModules,
@@ -6,18 +6,18 @@ interface AttachConfigOptions<
   S extends RedisScripts,
   RESP extends RespVersions
 > {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- factory contract: arbitrary constructor
   BaseClass: new (...args: any) => any;
   commands: RedisCommands;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- factory contract: arbitrary command function
   createCommand(command: Command, resp: RespVersions): (...args: any) => any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- factory contract: arbitrary command function
   createModuleCommand(command: Command, resp: RespVersions): (...args: any) => any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- factory contract: arbitrary command function
   createFunctionCommand(name: string, fn: RedisFunction, resp: RespVersions): (...args: any) => any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- factory contract: arbitrary command function
   createScriptCommand(script: RedisScript, resp: RespVersions): (...args: any) => any;
   config?: CommanderConfig<M, F, S, RESP>;
-}
-
-/* FIXME: better error message / link */
-function throwResp3SearchModuleUnstableError() {
-  throw new Error('Some RESP3 results for Redis Query Engine responses may change. Refer to the readme for guidance');
 }
 
 export function attachConfig<
@@ -34,26 +34,20 @@ export function attachConfig<
   createScriptCommand,
   config
 }: AttachConfigOptions<M, F, S, RESP>) {
-  const RESP = config?.RESP ?? 2,
+  const RESP = config?.RESP ?? DEFAULT_RESP,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic prototype patching
     Class: any = class extends BaseClass {};
 
   for (const [name, command] of Object.entries(commands)) {
-    if (config?.RESP == 3 && command.unstableResp3 && !config.unstableResp3) {
-      Class.prototype[name] = throwResp3SearchModuleUnstableError;
-    } else {
-      Class.prototype[name] = createCommand(command, RESP);
-    }
+    Class.prototype[name] = createCommand(command, RESP);
   }
 
   if (config?.modules) {
     for (const [moduleName, module] of Object.entries(config.modules)) {
-      const fns = Object.create(null);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic command namespace
+      const fns: Record<string, (...args: Array<any>) => any> = {};
       for (const [name, command] of Object.entries(module)) {
-        if (config.RESP == 3 && command.unstableResp3 && !config.unstableResp3) {
-          fns[name] = throwResp3SearchModuleUnstableError;
-        } else {
-          fns[name] = createModuleCommand(command, RESP);
-        }
+        fns[name] = createModuleCommand(command, RESP);
       }
 
       attachNamespace(Class.prototype, moduleName, fns);
@@ -62,7 +56,8 @@ export function attachConfig<
 
   if (config?.functions) {
     for (const [library, commands] of Object.entries(config.functions)) {
-      const fns = Object.create(null);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic command namespace
+      const fns: Record<string, (...args: Array<any>) => any> = {};
       for (const [name, command] of Object.entries(commands)) {
         fns[name] = createFunctionCommand(name, command, RESP);
       }
@@ -80,6 +75,7 @@ export function attachConfig<
   return Class;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic prototype patching helper
 function attachNamespace(prototype: any, name: PropertyKey, fns: any) {
   Object.defineProperty(prototype, name, {
     get() {

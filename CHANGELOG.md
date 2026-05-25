@@ -178,7 +178,7 @@ Features
 
 - Updated [redis-parser](https://github.com/NodeRedis/node-redis-parser) dependency ([changelog](https://github.com/NodeRedis/node-redis-parser/releases/tag/v.2.0.0))
 - The JS parser is from now on the new default as it is a lot faster than the hiredis parser
-- This is no BC as there is no changed behavior for the user at all but just a performance improvement. Explicitly requireing the Hiredis parser is still possible.
+- This is no BC as there is no changed behavior for the user at all but just a performance improvement. Explicitly requiring the Hiredis parser is still possible.
 - Added name property to all Redis functions (Node.js >= 4.0)
 - Improved stack traces in development and debug mode
 
@@ -267,7 +267,7 @@ Bugfixes
 - Fixed quit command not ending the connection and resulting in further reconnection if called while reconnecting
 
 The quit command did not end connections earlier if the connection was down at that time and this could have
-lead to strange situations, therefor this was fixed to end the connection right away in those cases.
+lead to strange situations, therefore this was fixed to end the connection right away in those cases.
 
 ## v2.5.3 - 21 Mar, 2016
 
@@ -293,7 +293,7 @@ Same changelog as the pre-release
 
 ## v2.5.0-1 - 07 Mar, 2016
 
-This is a big release with some substantial underlining changes. Therefor this is released as a pre-release and I encourage anyone who's able to, to test this out.
+This is a big release with some substantial underlining changes. therefore this is released as a pre-release and I encourage anyone who's able to, to test this out.
 
 It took way to long to release this one and the next release cycles will be shorter again.
 
@@ -309,7 +309,7 @@ Features
 - Added a `db` option to select the database while connecting (this is [not recommended](https://groups.google.com/forum/#!topic/redis-db/vS5wX8X4Cjg))
 - Added a `password` option as alias for auth_pass
 - The client.server_info is from now on updated while using the info command
-- Gracefuly handle redis protocol errors from now on
+- Gracefully handle redis protocol errors from now on
 - Added a `warning` emitter that receives node_redis warnings like auth not required and deprecation messages
 - Added a `retry_strategy` option that replaces all reconnect options
 - The reconnecting event from now on also receives:
@@ -343,7 +343,7 @@ Deprecations
 - Using SET or SETEX with a undefined or null value will from now on also result in converting the value to "null" / "undefined" to have a consistent behavior. This is not considered as breaking change, as it returned an error earlier.
 - Using .end(flush) without the flush parameter is deprecated and the flush parameter should explicitly be used
 - From v.3.0.0 on using .end without flush will result in an error
-- Using .end without flush means that any command that did not yet return is going to silently fail. Therefor this is considered harmful and you should explicitly silence such errors if you are sure you want this
+- Using .end without flush means that any command that did not yet return is going to silently fail. Therefore this is considered harmful and you should explicitly silence such errors if you are sure you want this
 - Depending on the return value of a command to detect the backpressure is deprecated
 - From version 3.0.0 on node_redis might not return true / false as a return value anymore. Please rely on client.should_buffer instead
 - The `socket_nodelay` option is deprecated and will be removed in v.3.0.0
@@ -469,7 +469,7 @@ Bugfixes
 - I was not able to write a regression test for this, since the error seems to only occur under heavy load with special conditions. So please have a look for timeouts with the js parser, if you use it and report all issues and switch to the hiredis parser in the meanwhile. If you're able to come up with a reproducible test case, this would be even better :)
 - Fixed should_buffer boolean for .exec, .select and .auth commands not being returned and fix a couple special conditions ([@BridgeAR](https://github.com/BridgeAR))
 
-If you do not rely on transactions but want to reduce the RTT you can use .batch from now on. It'll behave just the same as .multi but it does not have any transaction and therefor won't roll back any failed commands.<br>
+If you do not rely on transactions but want to reduce the RTT you can use .batch from now on. It'll behave just the same as .multi but it does not have any transaction and therefore won't roll back any failed commands.<br>
 Both .multi and .batch are from now on going to cache the commands and release them while calling .exec.
 
 Please consider using .batch instead of looping through a lot of commands one by one. This will significantly improve your performance.
@@ -510,8 +510,8 @@ Known issues
 
 Features:
 
-- Addded optional flush parameter to `.end`. If set to true, commands fired after using .end are going to be rejected instead of being ignored. (@crispy1989)
-- Addded: host and port can now be provided in a single options object. E.g. redis.createClient({ host: 'localhost', port: 1337, max_attempts: 5 }); (@BridgeAR)
+- Added optional flush parameter to `.end`. If set to true, commands fired after using .end are going to be rejected instead of being ignored. (@crispy1989)
+- Added: host and port can now be provided in a single options object. E.g. redis.createClient({ host: 'localhost', port: 1337, max_attempts: 5 }); (@BridgeAR)
 - Speedup common cases (@BridgeAR)
 
 Bugfixes:
@@ -596,7 +596,7 @@ This is the biggest release that node_redis had since it was released in 2010. A
 - If an error occurs while queueing the commands an EXECABORT error will be returned including the failed commands as `.errors` property instead of an array with errors.
 - If an error occurs while executing the commands and that command has a callback it'll return the error as first parameter (`err, undefined` instead of `null, undefined`).
 - All the errors occurring while executing the commands will stay in the result value as error instance (if you used the js parser before they would have been strings). Be aware that the transaction won't be aborted if those error occur!
-- If `multi.exec` does not have a callback and an EXECABORT error occurrs, it'll emit that error instead.
+- If `multi.exec` does not have a callback and an EXECABORT error occurs, it'll emit that error instead.
 
 5. If redis can't connect to your redis server it'll give up after a certain point of failures (either max connection attempts or connection timeout exceeded). If that is the case it'll emit an CONNECTION_BROKEN error. You'll have to initiate a new client to try again afterwards.
 6. The offline queue is not flushed anymore on a reconnect. It'll stay until node_redis gives up trying to reach the server or until you close the connection.

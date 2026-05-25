@@ -37,12 +37,6 @@ type Role = TuplesReply<MasterRole | SlaveRole | SentinelRole>;
 export default {
   NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
-  /**
-   * Constructs the ROLE command
-   * 
-   * @param parser - The command parser
-   * @see https://redis.io/commands/role/
-   */
   parseCommand(parser: CommandParser) {
     parser.push('ROLE');
   },

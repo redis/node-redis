@@ -13,14 +13,6 @@ export interface SInterCardOptions {
 
 export default {
   IS_READ_ONLY: true,
-  /**
-   * Constructs the SINTERCARD command
-   * 
-   * @param parser - The command parser
-   * @param keys - One or more set keys to compute the intersection cardinality from
-   * @param options - Options for the SINTERCARD command or a number for LIMIT (backwards compatibility)
-   * @see https://redis.io/commands/sintercard/
-   */
   parseCommand(parser: CommandParser, keys: RedisVariadicArgument, options?: SInterCardOptions | number) {
     parser.push('SINTERCARD');
     parser.pushKeysLength(keys);

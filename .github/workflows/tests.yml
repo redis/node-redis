@@ -16,12 +16,28 @@ on:
     paths-ignore:
       - "**/*.md"
 jobs:
+  lint:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Packages
+        run: npm ci
+      - name: Lint changed files
+        run: npm run lint:changed
+
   tests:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        node-version: ["18", "20", "22"]
+        node-version: ["20", "22"]
         redis:
           - tag: "rs-7.4.0-v1"
             version: "7.4"
@@ -29,43 +45,16 @@ jobs:
             version: "8.2"
           - tag: "8.4.0"
             version: "8.4"
-          - tag: "custom-21860421418-debian-amd64"
-            version: "8.6"
+          - tag: "8.8-rc1"
+            version: "8.8"
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+      - name: Run tests
+        uses: ./.github/actions/run-tests
         with:
-          node-version: ${{ matrix.node-version }}
-      - name: Update npm
-        run: npm i -g npm
-        if: ${{ matrix.node-version <= 14 }}
-      - name: Install Packages
-        run: npm ci
-      - name: Build
-        run: npm run build
-      - name: Run Tests
-        run: npm run test -ws --if-present -- --forbid-only --redis-tag=${{ matrix.redis.tag }} --redis-version=${{ matrix.redis.version }}
-      - name: Upload to Codecov
-        run: |
-          curl https://keybase.io/codecovsecurity/pgp_keys.asc | gpg --no-default-keyring --keyring trustedkeys.gpg --import
-          curl -Os https://uploader.codecov.io/latest/linux/codecov
-          curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
-          curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM.sig
-          gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
-          shasum -a 256 -c codecov.SHA256SUM
-          chmod +x codecov
-          ./codecov
-      - name: Self Report Metrics
-        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-        id: self-report-metrics
-        uses: redis-developer/cae-otel-ci-visibility@v2
-        with:
-          junit-xml-folder: "junit-results"
-          otlp-endpoint: "https://otlp-gateway-prod-us-central-0.grafana.net/otlp/v1/metrics"
-          otlp-headers: "Authorization=Basic ${{secrets.SELF_CHECK_OTEL_AUTHORIZATION_TOKEN}}"
-        env:
-          OTEL_EXPORTER_OTLP_PROTOCOL: "http/protobuf"
-          ACTIONS_STEP_DEBUG: "true"
+            node-version: ${{ matrix.node-version }}
+            redis-tag: ${{ matrix.redis.tag }}
+            redis-version: ${{ matrix.redis.version }}
+            otel-authorization-token: ${{ secrets.SELF_CHECK_OTEL_AUTHORIZATION_TOKEN }}
