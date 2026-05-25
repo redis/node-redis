@@ -120,6 +120,7 @@ export default {
    * @param options - Optional parameters
    * @param options.path - Path to the array in the JSON document
    * @param options.index - Optional index to pop from. Default is -1 (last element)
+   * @param options.reviver - An optional reviver function to call when parsing the reply from Redis
    */
   ARRPOP,
   /**
@@ -130,6 +131,7 @@ export default {
    * @param options - Optional parameters
    * @param options.path - Path to the array in the JSON document
    * @param options.index - Optional index to pop from. Default is -1 (last element)
+   * @param options.reviver - An optional reviver function to call when parsing the reply from Redis
    */
   arrPop: ARRPOP,
   /**
@@ -231,6 +233,7 @@ export default {
    * @param key - The key containing the JSON document
    * @param options - Optional parameters
    * @param options.path - Path(s) to the value(s) to retrieve
+   * @param options.reviver - An optional reviver function to call when parsing the reply from Redis
    */
   GET,
   /**
@@ -240,6 +243,7 @@ export default {
    * @param key - The key containing the JSON document
    * @param options - Optional parameters
    * @param options.path - Path(s) to the value(s) to retrieve
+   * @param options.reviver - An optional reviver function to call when parsing the reply from Redis
    */
   get: GET,
   /**
@@ -266,6 +270,7 @@ export default {
    *
    * @param keys - Array of keys containing JSON documents
    * @param path - Path to retrieve from each document
+   * @param reviver - An optional reviver function to call when parsing the reply from Redis
    */
   MGET,
   /**
@@ -274,6 +279,7 @@ export default {
    *
    * @param keys - Array of keys containing JSON documents
    * @param path - Path to retrieve from each document
+   * @param reviver - An optional reviver function to call when parsing the reply from Redis
    */
   mGet: MGET,
   /**
