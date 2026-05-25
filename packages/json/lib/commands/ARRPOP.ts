@@ -3,7 +3,7 @@ import { RedisArgument, ArrayReply, NullReply, BlobStringReply, Command, UnwrapR
 import { isArrayReply, transformRedisJsonNullReply, JsonReviver } from '@redis/client/dist/lib/commands/generic-transformers';
 
 export interface RedisArrPopOptions {
-  path?: RedisArgument;
+  path: RedisArgument;
   reviver?: JsonReviver;
   index?: number;
 }
@@ -15,13 +15,12 @@ export default {
     parser.pushKey(key);
 
     if (options) {
-      if (options.path !== undefined) {
         parser.push(options.path);
 
         if (options.index !== undefined) {
           parser.push(options.index.toString());
         }
-      }
+      
 
       parser.preserve = options.reviver;
     }
