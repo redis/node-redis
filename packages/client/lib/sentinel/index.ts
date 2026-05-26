@@ -18,6 +18,7 @@ import { TcpNetConnectOpts } from 'node:net';
 import { RedisTcpSocketOptions } from '../client/socket';
 import { BasicPooledClientSideCache, PooledClientSideCacheProvider } from '../client/cache';
 import { ClientIdentity, ClientRole, generateClientId } from '../client/identity';
+import { DEFAULT_COMMAND_TIMEOUT } from '../defaults';
 
 interface ClientInfo {
   id: number;
@@ -337,9 +338,7 @@ export default class RedisSentinel<
     };
     this.#options = options;
 
-    if (options.commandOptions) {
-      this.#commandOptions = options.commandOptions;
-    }
+    this.#commandOptions = { timeout: DEFAULT_COMMAND_TIMEOUT, ...options.commandOptions };
 
     this.#internal = new RedisSentinelInternal<M, F, S, RESP, TYPE_MAPPING>(options, this.#identity.id);
     this.#internal.on('error', err => this.emit('error', err));

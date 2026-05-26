@@ -114,6 +114,30 @@ const sentinel = createSentinel({
 ```
 
 
+## Default socket and command options updated
+
+Two client defaults change in v6:
+
+| Option | v5 default | v6 default |
+|---|---|---|
+| `socket.keepAliveInitialDelay` | `5000` ms | `30000` ms |
+| `commandOptions.timeout` | `undefined` (no timeout) | `5000` ms |
+
+```javascript
+// Still gets timeout: 5000
+const client = createClient({ commandOptions: { asap: true } });
+```
+
+To preserve v5 behavior, opt out explicitly:
+
+```javascript
+const client = createClient({
+  socket: { keepAliveInitialDelay: 5000 },
+  commandOptions: { timeout: undefined }
+});
+```
+
+
 ## Legacy (callback) mode now uses RESP3
 
 `createClient().legacy()` reads the parent client's RESP version. With the v6 default of RESP3, legacy callback consumers will see RESP3-shaped replies for any command whose transforms differ between protocol versions (for example, doubles arriving as `number` instead of `string`, or hash-like replies arriving as `Map`s). To keep the v5 callback reply shapes, pin `RESP: 2` on the parent client:
