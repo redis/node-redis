@@ -1250,7 +1250,7 @@ export default class RedisClient<
 
         // Merge global options with provided options
         const opts = {
-          ...this._self._commandOptions,
+          ...this._commandOptions,
           ...options,
         };
 

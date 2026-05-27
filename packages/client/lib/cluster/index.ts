@@ -535,7 +535,7 @@ export default class RedisCluster<
 
     // Merge global options with local options
     const opts = {
-      ...this._self._commandOptions,
+      ...this._commandOptions,
       ...options
     }
     return this._self._execute(

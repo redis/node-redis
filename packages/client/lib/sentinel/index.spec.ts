@@ -27,6 +27,22 @@ describe('RedisSentinel', () => {
     assert.equal(sentinel.commandOptions, commandOptions);
   });
 
+  it('withCommandOptions proxy overrides reach the commandOptions getter', () => {
+    // Regression: `withCommandOptions(...)` returned a proxy with an own
+    // `_commandOptions` property, but the getter and every dispatch path read
+    // only the constructor-set `#commandOptions`, so the override was a no-op.
+    const baseTypeMapping = {};
+    const overrideTimeout = 12345;
+    const sentinel = RedisSentinel.create({
+      name: 'mymaster',
+      sentinelRootNodes: [{ host: 'localhost', port: 26379 }],
+      commandOptions: { typeMapping: baseTypeMapping }
+    });
+    const proxy = sentinel.withCommandOptions({ timeout: overrideTimeout });
+    assert.equal(proxy.commandOptions?.typeMapping, baseTypeMapping);
+    assert.equal(proxy.commandOptions?.timeout, overrideTimeout);
+  });
+
   it('should not have HOTKEYS commands (requires session affinity)', () => {
     // HOTKEYS commands require session affinity and are only available on standalone clients
     const sentinel = RedisSentinel.create({

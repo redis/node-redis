@@ -54,15 +54,19 @@ export class RedisSentinelClient<
   }
 
   /**
-   * Gets the command options configured for this client
+   * Gets the command options configured for this client. Merges the constructor-set
+   * options with any per-proxy override from `withCommandOptions(...)`.
    *
-   * @returns The command options for this client or `undefined` if none were set
+   * @returns The effective command options or `undefined` if none were set
    */
   get commandOptions() {
-    return this._self.#commandOptions;
+    return this._commandOptions !== undefined
+      ? { ...this._self.#commandOptions, ...this._commandOptions }
+      : this._self.#commandOptions;
   }
 
   #commandOptions?: CommandOptions<TYPE_MAPPING>;
+  private _commandOptions?: CommandOptions<TYPE_MAPPING>;
 
   constructor(
     internal: RedisSentinelInternal<M, F, S, RESP, TYPE_MAPPING>,
@@ -176,9 +180,10 @@ export class RedisSentinelClient<
     args: CommandArguments,
     options?: CommandOptions,
   ): Promise<T> {
+    const mergedOptions = { ...this.commandOptions, ...options };
     return this._execute(
       isReadonly,
-      client => client.sendCommand(args, options)
+      client => client.sendCommand(args, mergedOptions)
     );
   }
 
@@ -294,7 +299,9 @@ export default class RedisSentinel<
   }
 
   get commandOptions() {
-    return this._self.#commandOptions;
+    return this._commandOptions !== undefined
+      ? { ...this._self.#commandOptions, ...this._commandOptions }
+      : this._self.#commandOptions;
   }
 
   /**
@@ -306,6 +313,7 @@ export default class RedisSentinel<
   }
 
   #commandOptions?: CommandOptions<TYPE_MAPPING>;
+  private _commandOptions?: CommandOptions<TYPE_MAPPING>;
 
   #trace: (msg: string) => unknown = () => { };
 
@@ -497,9 +505,10 @@ export default class RedisSentinel<
     args: CommandArguments,
     options?: CommandOptions,
   ): Promise<T> {
+    const mergedOptions = { ...this.commandOptions, ...options };
     return this._execute(
       isReadonly,
-      client => client.sendCommand(args, options)
+      client => client.sendCommand(args, mergedOptions)
     );
   }
 
