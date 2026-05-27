@@ -412,11 +412,8 @@ export default class RedisSentinel<
     value: V
   ) {
     const proxy = Object.create(this);
-    // Create new commandOptions object with the inherited properties
-    proxy._self.#commandOptions = {
-      ...(this._self.#commandOptions || {}),
-      [key]: value
-    };
+    proxy._commandOptions = Object.create(this._self.#commandOptions ?? null);
+    proxy._commandOptions[key] = value;
     return proxy as RedisSentinelType<
       M,
       F,

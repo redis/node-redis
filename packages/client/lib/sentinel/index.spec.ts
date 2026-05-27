@@ -27,6 +27,21 @@ describe('RedisSentinel', () => {
     assert.equal(sentinel.commandOptions, commandOptions);
   });
 
+  it('withTypeMapping does not mutate the source sentinel commandOptions', () => {
+    // Regression: `_commandOptionsProxy` used to assign to `proxy._self.#commandOptions`,
+    // which (because `_self` resolves to the original sentinel) corrupted shared state —
+    // the original instance and every other proxy observed the typeMapping change.
+    const base = { typeMapping: { initial: true } };
+    const sentinel = RedisSentinel.create({
+      name: 'mymaster',
+      sentinelRootNodes: [{ host: 'localhost', port: 26379 }],
+      commandOptions: base
+    });
+    sentinel.withTypeMapping({ override: true });
+    assert.equal(sentinel.commandOptions, base);
+    assert.deepEqual(sentinel.commandOptions, { typeMapping: { initial: true } });
+  });
+
   it('withCommandOptions proxy overrides reach the commandOptions getter', () => {
     // Regression: `withCommandOptions(...)` returned a proxy with an own
     // `_commandOptions` property, but the getter and every dispatch path read
