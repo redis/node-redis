@@ -29,6 +29,32 @@ export const SQUARE_SCRIPT = defineScript({
 });
 
 describe('Client', () => {
+  it('module/function namespaces resolve to the receiver, not the original', () => {
+    // Regression: `attachNamespace` cached the namespace as an own property
+    // on the receiver, leaking via the prototype chain into any
+    // `withCommandOptions(...)` proxy. The proxy then dispatched module/function
+    // commands through the original's `_self`, silently ignoring the override.
+    const fakeModule = {
+      noop: {
+        parseCommand: () => {},
+        transformReply: undefined as unknown as () => unknown
+      }
+    };
+    const client = RedisClient.create({ modules: { fakeModule } });
+    type WithNamespace = { fakeModule: { _self: unknown } };
+    // Force the original to cache its namespace first — pre-fix this is what
+    // poisoned every subsequent proxy access.
+    const originalNamespace = (client as unknown as WithNamespace).fakeModule;
+    assert.equal(originalNamespace._self, client);
+    const proxy = client.withCommandOptions({});
+    const proxyNamespace = (proxy as unknown as WithNamespace).fakeModule;
+    assert.equal(proxyNamespace._self, proxy);
+    assert.notEqual(proxyNamespace._self, client);
+    // Per-receiver cache: subsequent accesses on the same receiver are stable.
+    assert.equal((client as unknown as WithNamespace).fakeModule, originalNamespace);
+    assert.equal((proxy as unknown as WithNamespace).fakeModule, proxyNamespace);
+  });
+
   describe('initialization', () => {
     describe('clientSideCache validation', () => {
       const clientSideCacheConfig = { ttl: 0, maxEntries: 0 };

@@ -75,13 +75,31 @@ export function attachConfig<
   return Class;
 }
 
+// Per-receiver namespace cache. Keyed by the receiver (original instance or any
+// `withCommandOptions(...)` proxy) so each one gets a namespace bound to itself
+// via `_self`. Caching the namespace as an own property on the receiver — which
+// is what an earlier version did — leaks across the prototype chain: a proxy
+// created via `Object.create(original)` would inherit the original's cached
+// namespace and `_self` would point back to the original, silently bypassing
+// the proxy's command-options overrides for every module/function command.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- namespaces are dynamically shaped per module
+const namespaceCache = new WeakMap<object, Map<PropertyKey, any>>();
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic prototype patching helper
 function attachNamespace(prototype: any, name: PropertyKey, fns: any) {
   Object.defineProperty(prototype, name, {
     get() {
-      const value = Object.create(fns);
-      value._self = this;
-      Object.defineProperty(this, name, { value });
+      let perReceiver = namespaceCache.get(this);
+      if (perReceiver === undefined) {
+        perReceiver = new Map();
+        namespaceCache.set(this, perReceiver);
+      }
+      let value = perReceiver.get(name);
+      if (value === undefined) {
+        value = Object.create(fns);
+        value._self = this;
+        perReceiver.set(name, value);
+      }
       return value;
     }
   });
