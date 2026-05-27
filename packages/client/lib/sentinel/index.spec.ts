@@ -14,6 +14,19 @@ import { once } from 'node:events'
 const execAsync = promisify(exec);
 
 describe('RedisSentinel', () => {
+  it('exposes top-level commandOptions via the commandOptions getter', () => {
+    // Regression: commandOptions used to be settable on both top-level and
+    // `nodeClientOptions`/`sentinelClientOptions`; the nested location was
+    // silently ignored at dispatch time. Top-level is now the only place.
+    const commandOptions = { typeMapping: {} };
+    const sentinel = RedisSentinel.create({
+      name: 'mymaster',
+      sentinelRootNodes: [{ host: 'localhost', port: 26379 }],
+      commandOptions
+    });
+    assert.equal(sentinel.commandOptions, commandOptions);
+  });
+
   it('should not have HOTKEYS commands (requires session affinity)', () => {
     // HOTKEYS commands require session affinity and are only available on standalone clients
     const sentinel = RedisSentinel.create({
