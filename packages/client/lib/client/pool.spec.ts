@@ -3,6 +3,16 @@ import testUtils, { GLOBAL } from '../test-utils';
 import { RedisClientPool } from './pool';
 
 describe('RedisClientPool', () => {
+  it('initializes _commandOptions from clientOptions.commandOptions', () => {
+    // Regression: when constructor commandOptions weren't propagated to the pool's own
+    // _commandOptions, the typeMapping equality check in client._executeCommand
+    // failed and silently bypassed client-side cache for pools.
+    const commandOptions = { typeMapping: {} };
+    const pool = RedisClientPool.create({ commandOptions });
+    const internal = Object.getPrototypeOf(pool) as { _commandOptions?: typeof commandOptions };
+    assert.equal(internal._commandOptions, commandOptions);
+  });
+
   it('should not have HOTKEYS commands (requires session affinity)', () => {
     // HOTKEYS commands require session affinity and are only available on standalone clients
     const pool = RedisClientPool.create({});

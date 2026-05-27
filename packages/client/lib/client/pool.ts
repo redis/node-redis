@@ -325,6 +325,7 @@ export class RedisClientPool<
     }
 
     this.#clientFactory = RedisClient.factory(clientOptions).bind(undefined, clientOptions) as () => RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
+    this._commandOptions = clientOptions?.commandOptions as CommandOptions<TYPE_MAPPING> | undefined;
   }
 
   private _self = this;
