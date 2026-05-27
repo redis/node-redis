@@ -1,5 +1,10 @@
 # v5 to v6 migration guide
 
+## Node.js minimum version
+
+v6 requires Node.js `>= 20.0.0` (v5 required `>= 18.19.0`). The bump came in with `@azure/msal-node` 5.x, which the `entraid` package upgraded to in order to drop a vulnerable transitive `uuid` (CVE-2026-41907); msal-node 5.x itself requires Node 20. Node 18 is no longer tested in CI, and `npm install` will reject the install on Node 18.
+
+
 ## RESP3 is now the default protocol
 
 In v5, Node-Redis defaulted to `RESP: 2` unless you explicitly configured `RESP: 3`.
