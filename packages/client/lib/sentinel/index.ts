@@ -146,8 +146,7 @@ export class RedisSentinelClient<
     value: V
   ) {
     const proxy = Object.create(this);
-    proxy._commandOptions = Object.create(this._self.#commandOptions ?? null);
-    proxy._commandOptions[key] = value;
+    proxy._commandOptions = { ...this._self.#commandOptions, [key]: value };
     return proxy as RedisSentinelClientType<
       M,
       F,
@@ -412,8 +411,7 @@ export default class RedisSentinel<
     value: V
   ) {
     const proxy = Object.create(this);
-    proxy._commandOptions = Object.create(this._self.#commandOptions ?? null);
-    proxy._commandOptions[key] = value;
+    proxy._commandOptions = { ...this._self.#commandOptions, [key]: value };
     return proxy as RedisSentinelType<
       M,
       F,
