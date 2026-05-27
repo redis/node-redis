@@ -15,15 +15,15 @@ describe('RedisClientPool', () => {
 
   it('should not have HOTKEYS commands (requires session affinity)', () => {
     // HOTKEYS commands require session affinity and are only available on standalone clients
-    const pool = RedisClientPool.create({});
-    assert.equal((pool as any).hotkeysStart, undefined);
-    assert.equal((pool as any).hotkeysStop, undefined);
-    assert.equal((pool as any).hotkeysGet, undefined);
-    assert.equal((pool as any).hotkeysReset, undefined);
-    assert.equal((pool as any).HOTKEYS_START, undefined);
-    assert.equal((pool as any).HOTKEYS_STOP, undefined);
-    assert.equal((pool as any).HOTKEYS_GET, undefined);
-    assert.equal((pool as any).HOTKEYS_RESET, undefined);
+    const pool = RedisClientPool.create({}) as unknown as Record<string, unknown>;
+    assert.equal(pool.hotkeysStart, undefined);
+    assert.equal(pool.hotkeysStop, undefined);
+    assert.equal(pool.hotkeysGet, undefined);
+    assert.equal(pool.hotkeysReset, undefined);
+    assert.equal(pool.HOTKEYS_START, undefined);
+    assert.equal(pool.HOTKEYS_STOP, undefined);
+    assert.equal(pool.HOTKEYS_GET, undefined);
+    assert.equal(pool.HOTKEYS_RESET, undefined);
   });
 
   testUtils.testWithClientPool('sendCommand', async pool => {
@@ -106,7 +106,7 @@ describe('RedisClientPool', () => {
 
   testUtils.testWithClientPool('execute rejects when pool is closing', async pool => {
     // Start a long-running task to keep the pool busy during close
-    const task1Promise = pool.execute(async client => {
+    const task1Promise = pool.execute(async _client => {
       await new Promise(resolve => setTimeout(resolve, 100));
       return 'task1';
     });
