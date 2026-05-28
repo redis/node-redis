@@ -5,19 +5,33 @@ import { SQUARE_SCRIPT } from '../client/index.spec';
 import { RootNodesUnavailableError } from '../errors';
 import { spy } from 'sinon';
 import RedisClient from '../client';
+import { RESP_TYPES } from '../RESP/decoder';
 
 describe('Cluster', () => {
+  it('chained withCommandOptions(...).withTypeMapping(...) preserves earlier overrides at dispatch', () => {
+    // Regression: cluster's `_commandOptionsProxy` used to layer via `Object.create`,
+    // leaving earlier keys on the prototype where the dispatch-time spread dropped them.
+    const cluster = RedisCluster.create({ rootNodes: [] });
+    const proxy = cluster
+      .withCommandOptions({ asap: true })
+      .withTypeMapping({ [RESP_TYPES.SIMPLE_STRING]: Buffer });
+    type WithOptions = { _commandOptions?: { asap?: boolean; typeMapping?: unknown } };
+    const ownKeys = { ...(proxy as unknown as WithOptions)._commandOptions };
+    assert.equal(ownKeys.asap, true);
+    assert.deepEqual(ownKeys.typeMapping, { [RESP_TYPES.SIMPLE_STRING]: Buffer });
+  });
+
   it('should not have HOTKEYS commands (requires session affinity)', () => {
     // HOTKEYS commands require session affinity and are only available on standalone clients
-    const cluster = RedisCluster.create({ rootNodes: [] });
-    assert.equal((cluster as any).hotkeysStart, undefined);
-    assert.equal((cluster as any).hotkeysStop, undefined);
-    assert.equal((cluster as any).hotkeysGet, undefined);
-    assert.equal((cluster as any).hotkeysReset, undefined);
-    assert.equal((cluster as any).HOTKEYS_START, undefined);
-    assert.equal((cluster as any).HOTKEYS_STOP, undefined);
-    assert.equal((cluster as any).HOTKEYS_GET, undefined);
-    assert.equal((cluster as any).HOTKEYS_RESET, undefined);
+    const cluster = RedisCluster.create({ rootNodes: [] }) as unknown as Record<string, unknown>;
+    assert.equal(cluster.hotkeysStart, undefined);
+    assert.equal(cluster.hotkeysStop, undefined);
+    assert.equal(cluster.hotkeysGet, undefined);
+    assert.equal(cluster.hotkeysReset, undefined);
+    assert.equal(cluster.HOTKEYS_START, undefined);
+    assert.equal(cluster.HOTKEYS_STOP, undefined);
+    assert.equal(cluster.HOTKEYS_GET, undefined);
+    assert.equal(cluster.HOTKEYS_RESET, undefined);
   });
 
   testUtils.testWithCluster('sendCommand', async cluster => {
@@ -25,6 +39,25 @@ describe('Cluster', () => {
       await cluster.sendCommand(undefined, true, ['PING']),
       'PONG'
     );
+  }, GLOBAL.CLUSTERS.OPEN);
+
+  testUtils.testWithCluster('withTypeMapping override reaches raw sendCommand', async cluster => {
+    // Regression for `cluster/index.ts:538` (`this._self._commandOptions` →
+    // `this._commandOptions`): without this fix, `withTypeMapping`/`withCommandOptions`
+    // proxies were silently ignored at cluster dispatch.
+    const typed = cluster.withTypeMapping({
+      [RESP_TYPES.SIMPLE_STRING]: Buffer
+    });
+    const resp = await typed.sendCommand(undefined, true, ['PING']);
+    assert.deepEqual(resp, Buffer.from('PONG'));
+  }, GLOBAL.CLUSTERS.OPEN);
+
+  testUtils.testWithCluster('withTypeMapping override reaches typed commands', async cluster => {
+    const typed = cluster.withTypeMapping({
+      [RESP_TYPES.SIMPLE_STRING]: Buffer
+    });
+    const resp = await typed.ping();
+    assert.deepEqual(resp, Buffer.from('PONG'));
   }, GLOBAL.CLUSTERS.OPEN);
 
   testUtils.testWithCluster('isOpen', async cluster => {

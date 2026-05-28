@@ -29,6 +29,22 @@ export const SQUARE_SCRIPT = defineScript({
 });
 
 describe('Client', () => {
+  it('chained withCommandOptions(...).withTypeMapping(...) preserves earlier overrides at dispatch', () => {
+    // Regression: `_commandOptionsProxy` used to layer `_commandOptions` via
+    // `Object.create(this._commandOptions ?? null)`, which left earlier keys
+    // (e.g. `asap`) on the prototype. At dispatch, `{...this._commandOptions, ...}`
+    // only iterates *own* enumerable properties, so those inherited keys
+    // silently disappeared in the spread.
+    const client = RedisClient.create({});
+    const proxy = client
+      .withCommandOptions({ asap: true })
+      .withTypeMapping({ [RESP_TYPES.SIMPLE_STRING]: Buffer });
+    type WithOptions = { _commandOptions?: { asap?: boolean; typeMapping?: unknown } };
+    const ownKeys = { ...(proxy as unknown as WithOptions)._commandOptions };
+    assert.equal(ownKeys.asap, true);
+    assert.deepEqual(ownKeys.typeMapping, { [RESP_TYPES.SIMPLE_STRING]: Buffer });
+  });
+
   it('module/function namespaces resolve to the receiver, not the original', () => {
     // Regression: `attachNamespace` cached the namespace as an own property
     // on the receiver, leaking via the prototype chain into any
@@ -1337,6 +1353,38 @@ describe('Client', () => {
       } finally {
         duplicate.destroy();
       }
+    }, GLOBAL.SERVERS.OPEN);
+  });
+
+  describe('withCommandOptions / withTypeMapping dispatch', () => {
+    testUtils.testWithClient('withTypeMapping override reaches raw sendCommand', async client => {
+      // Regression for `client/index.ts:1253` (`this._self._commandOptions` →
+      // `this._commandOptions`): without this fix, the proxy's `withTypeMapping`
+      // override was silently ignored at `sendCommand` dispatch.
+      const typed = client.withTypeMapping({
+        [RESP_TYPES.SIMPLE_STRING]: Buffer
+      });
+      const resp = await typed.sendCommand(['PING']);
+      assert.deepEqual(resp, Buffer.from('PONG'));
+    }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('withTypeMapping override reaches typed commands', async client => {
+      const typed = client.withTypeMapping({
+        [RESP_TYPES.SIMPLE_STRING]: Buffer
+      });
+      const resp = await typed.ping();
+      assert.deepEqual(resp, Buffer.from('PONG'));
+    }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('withCommandOptions full override reaches typed commands', async client => {
+      // The `withCommandOptions` (full replace) path went through the same
+      // proxy-dispatch fix; covered separately from `withTypeMapping` because
+      // the two helpers store overrides differently on the proxy.
+      const proxy = client.withCommandOptions({
+        typeMapping: { [RESP_TYPES.SIMPLE_STRING]: Buffer }
+      });
+      const resp = await proxy.ping();
+      assert.deepEqual(resp, Buffer.from('PONG'));
     }, GLOBAL.SERVERS.OPEN);
   });
 

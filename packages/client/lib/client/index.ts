@@ -1043,8 +1043,7 @@ export default class RedisClient<
     value: V
   ) {
     const proxy = Object.create(this._self);
-    proxy._commandOptions = Object.create(this._commandOptions ?? null);
-    proxy._commandOptions[key] = value;
+    proxy._commandOptions = { ...this._commandOptions, [key]: value };
     return proxy as RedisClientType<
       M,
       F,

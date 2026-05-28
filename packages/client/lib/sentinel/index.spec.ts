@@ -58,6 +58,51 @@ describe('RedisSentinel', () => {
     assert.equal(proxy.commandOptions?.timeout, overrideTimeout);
   });
 
+  it('chained withCommandOptions(...).withTypeMapping(...) preserves earlier overrides', () => {
+    // Regression: `_commandOptionsProxy` used to layer over `this._self.#commandOptions`
+    // (the constructor base) instead of `this.commandOptions` (the effective options),
+    // so any prior `withCommandOptions` override was silently dropped on the second call.
+    const sentinel = RedisSentinel.create({
+      name: 'mymaster',
+      sentinelRootNodes: [{ host: 'localhost', port: 26379 }]
+    });
+    const overrideTypeMapping = { [RESP_TYPES.SIMPLE_STRING]: Buffer };
+    const proxy = sentinel
+      .withCommandOptions({ asap: true })
+      .withTypeMapping(overrideTypeMapping);
+    assert.equal(proxy.commandOptions?.asap, true);
+    assert.equal(proxy.commandOptions?.typeMapping, overrideTypeMapping);
+  });
+
+  it('chained withTypeMapping(...).withTypeMapping(...) keeps the latest override', () => {
+    // Sanity: `_commandOptionsProxy` builds from the prior effective options, so a
+    // later `withTypeMapping` should still win for the same key.
+    const initial = { [RESP_TYPES.SIMPLE_STRING]: Buffer };
+    const sentinel = RedisSentinel.create({
+      name: 'mymaster',
+      sentinelRootNodes: [{ host: 'localhost', port: 26379 }],
+      commandOptions: { typeMapping: initial }
+    });
+    const second = { [RESP_TYPES.SIMPLE_STRING]: String };
+    const proxy = sentinel
+      .withTypeMapping({ [RESP_TYPES.SIMPLE_STRING]: Buffer })
+      .withTypeMapping(second);
+    assert.equal(proxy.commandOptions?.typeMapping, second);
+  });
+
+  it('duplicate() on a withCommandOptions proxy carries the override into the new sentinel', () => {
+    // Regression: `duplicate()` used to read `this._self.#commandOptions` directly,
+    // so any proxy override created via `withCommandOptions(...)` was dropped.
+    const overrideTimeout = 99999;
+    const sentinel = RedisSentinel.create({
+      name: 'mymaster',
+      sentinelRootNodes: [{ host: 'localhost', port: 26379 }]
+    });
+    const proxy = sentinel.withCommandOptions({ timeout: overrideTimeout });
+    const duplicated = proxy.duplicate();
+    assert.equal(duplicated.commandOptions?.timeout, overrideTimeout);
+  });
+
   it('should not have HOTKEYS commands (requires session affinity)', () => {
     // HOTKEYS commands require session affinity and are only available on standalone clients
     const sentinel = RedisSentinel.create({
@@ -198,6 +243,62 @@ describe('RedisSentinel', () => {
 
       const resp = await typeMapped.ping();
       assert.deepEqual(resp, Buffer.from('PONG'));
+    }, testOptions);
+
+    testUtils.testWithClientSentinel('withTypeMapping override flows through use() to the leased client', async sentinel => {
+      // Regression: `use()` used to pass `this._self.#commandOptions` (constructor base)
+      // to `RedisSentinelClient.create`, so any `withTypeMapping`/`withCommandOptions`
+      // proxy override was dropped before the leased client ever saw it.
+      const typeMapped = sentinel.withTypeMapping({
+        [RESP_TYPES.SIMPLE_STRING]: Buffer
+      });
+
+      await typeMapped.use(async client => {
+        const resp = await client.ping();
+        assert.deepEqual(resp, Buffer.from('PONG'));
+      });
+    }, testOptions);
+
+    testUtils.testWithClientSentinel('withTypeMapping override flows through acquire() to the leased client', async sentinel => {
+      // Regression: same as above, but for `acquire()` which returns the leased
+      // client to the caller instead of passing it to a callback.
+      const typeMapped = sentinel.withTypeMapping({
+        [RESP_TYPES.SIMPLE_STRING]: Buffer
+      });
+
+      const client = await typeMapped.acquire();
+      try {
+        const resp = await client.ping();
+        assert.deepEqual(resp, Buffer.from('PONG'));
+      } finally {
+        client.release();
+      }
+    }, testOptions);
+
+    testUtils.testWithClientSentinel('RedisSentinelClient.withTypeMapping override reaches dispatch', async sentinel => {
+      // T2 / parity: every other proxy-options regression test hits top-level
+      // `RedisSentinel`. The same getter/merge/dispatch fixes live on
+      // `RedisSentinelClient` and need direct coverage.
+      await sentinel.use(async client => {
+        const typeMapped = client.withTypeMapping({
+          [RESP_TYPES.SIMPLE_STRING]: Buffer
+        });
+        const resp = await typeMapped.ping();
+        assert.deepEqual(resp, Buffer.from('PONG'));
+      });
+    }, testOptions);
+
+    testUtils.testWithClientSentinel('RedisSentinelClient chained withCommandOptions(...).withTypeMapping(...) preserves earlier overrides', async sentinel => {
+      // B2 parity: the leased client's `_commandOptionsProxy` had the same
+      // chained-override bug as the top-level sentinel.
+      await sentinel.use(async client => {
+        const proxy = client
+          .withCommandOptions({ asap: true })
+          .withTypeMapping({ [RESP_TYPES.SIMPLE_STRING]: Buffer });
+        assert.equal(proxy.commandOptions?.asap, true);
+        const resp = await proxy.ping();
+        assert.deepEqual(resp, Buffer.from('PONG'));
+      });
     }, testOptions);
 
     testUtils.testWithClientSentinel('many readers', async sentinel => {
