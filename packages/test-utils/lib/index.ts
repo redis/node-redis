@@ -660,8 +660,8 @@ export default class TestUtils {
         name: 'mymaster',
         sentinelRootNodes: rootNodes,
         RESP,
+        commandOptions: options.clientOptions?.commandOptions,
         nodeClientOptions: {
-          commandOptions: options.clientOptions?.commandOptions,
           password: password || undefined,
         },
         sentinelClientOptions: {

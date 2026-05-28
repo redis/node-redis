@@ -15,6 +15,18 @@ export type NodeAddressMap = {
   [address: string]: RedisNode;
 } | ((address: string) => RedisNode | undefined);
 
+/**
+ * Per-node/per-sentinel client options. Excludes sentinel-level options (e.g. `commandOptions`)
+ * which must be set on the top-level sentinel options instead.
+ */
+export type RedisSentinelNodeClientOptions<
+  RESP extends RespVersions = RespVersions,
+  TYPE_MAPPING extends TypeMapping = TypeMapping
+> = Omit<
+  RedisClientOptions<RedisModules, RedisFunctions, RedisScripts, RESP, TYPE_MAPPING, RedisTcpSocketOptions>,
+  keyof SentinelCommander<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>
+>;
+
 export interface RedisSentinelOptions<
   M extends RedisModules = RedisModules,
   F extends RedisFunctions = RedisFunctions,
@@ -34,16 +46,18 @@ export interface RedisSentinelOptions<
    * The maximum number of times a command will retry due to topology changes.
    */
   maxCommandRediscovers?: number;
-  // TODO: omit properties that users shouldn't be able to specify for sentinel at this level
   /**
-   * The configuration values for every node in the cluster. Use this for example when specifying an ACL user to connect with
+   * The configuration values for every node in the cluster. Use this for example when specifying an ACL user to connect with.
+   *
+   * Sentinel-level options (e.g. `commandOptions`) cannot be set here — set them on the top-level sentinel options instead.
    */
-  nodeClientOptions?: RedisClientOptions<RedisModules, RedisFunctions, RedisScripts, RESP, TYPE_MAPPING, RedisTcpSocketOptions>;
-  // TODO: omit properties that users shouldn't be able to specify for sentinel at this level
+  nodeClientOptions?: RedisSentinelNodeClientOptions<RESP, TYPE_MAPPING>;
   /**
-   * The configuration values for every sentinel in the cluster. Use this for example when specifying an ACL user to connect with
+   * The configuration values for every sentinel in the cluster. Use this for example when specifying an ACL user to connect with.
+   *
+   * Sentinel-level options (e.g. `commandOptions`) cannot be set here — set them on the top-level sentinel options instead.
    */
-  sentinelClientOptions?: RedisClientOptions<RedisModules, RedisFunctions, RedisScripts, RESP, TYPE_MAPPING, RedisTcpSocketOptions>;
+  sentinelClientOptions?: RedisSentinelNodeClientOptions<RESP, TYPE_MAPPING>;
   /**
    * The number of clients connected to the master node
    */

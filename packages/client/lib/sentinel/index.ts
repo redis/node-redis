@@ -54,15 +54,19 @@ export class RedisSentinelClient<
   }
 
   /**
-   * Gets the command options configured for this client
+   * Gets the command options configured for this client. Merges the constructor-set
+   * options with any per-proxy override from `withCommandOptions(...)`.
    *
-   * @returns The command options for this client or `undefined` if none were set
+   * @returns The effective command options or `undefined` if none were set
    */
   get commandOptions() {
-    return this._self.#commandOptions;
+    return this._commandOptions !== undefined
+      ? { ...this._self.#commandOptions, ...this._commandOptions }
+      : this._self.#commandOptions;
   }
 
   #commandOptions?: CommandOptions<TYPE_MAPPING>;
+  private _commandOptions?: CommandOptions<TYPE_MAPPING>;
 
   constructor(
     internal: RedisSentinelInternal<M, F, S, RESP, TYPE_MAPPING>,
@@ -142,8 +146,7 @@ export class RedisSentinelClient<
     value: V
   ) {
     const proxy = Object.create(this);
-    proxy._commandOptions = Object.create(this._self.#commandOptions ?? null);
-    proxy._commandOptions[key] = value;
+    proxy._commandOptions = { ...this.commandOptions, [key]: value };
     return proxy as RedisSentinelClientType<
       M,
       F,
@@ -176,9 +179,10 @@ export class RedisSentinelClient<
     args: CommandArguments,
     options?: CommandOptions,
   ): Promise<T> {
+    const mergedOptions = { ...this.commandOptions, ...options };
     return this._execute(
       isReadonly,
-      client => client.sendCommand(args, options)
+      client => client.sendCommand(args, mergedOptions)
     );
   }
 
@@ -294,7 +298,9 @@ export default class RedisSentinel<
   }
 
   get commandOptions() {
-    return this._self.#commandOptions;
+    return this._commandOptions !== undefined
+      ? { ...this._self.#commandOptions, ...this._commandOptions }
+      : this._self.#commandOptions;
   }
 
   /**
@@ -306,6 +312,7 @@ export default class RedisSentinel<
   }
 
   #commandOptions?: CommandOptions<TYPE_MAPPING>;
+  private _commandOptions?: CommandOptions<TYPE_MAPPING>;
 
   #trace: (msg: string) => unknown = () => { };
 
@@ -404,11 +411,7 @@ export default class RedisSentinel<
     value: V
   ) {
     const proxy = Object.create(this);
-    // Create new commandOptions object with the inherited properties
-    proxy._self.#commandOptions = {
-      ...(this._self.#commandOptions || {}),
-      [key]: value
-    };
+    proxy._commandOptions = { ...this.commandOptions, [key]: value };
     return proxy as RedisSentinelType<
       M,
       F,
@@ -434,7 +437,7 @@ export default class RedisSentinel<
   >(overrides?: Partial<RedisSentinelOptions<_M, _F, _S, _RESP, _TYPE_MAPPING>>) {
     return new (Object.getPrototypeOf(this).constructor)({
       ...this._self.#options,
-      commandOptions: this._self.#commandOptions,
+      commandOptions: this.commandOptions,
       ...overrides
     }) as RedisSentinelType<_M, _F, _S, _RESP, _TYPE_MAPPING>;
   }
@@ -484,7 +487,7 @@ export default class RedisSentinel<
 
     try {
       return await fn(
-        RedisSentinelClient.create(this._self.#options, this._self.#internal, clientInfo, this._self.#commandOptions)
+        RedisSentinelClient.create(this._self.#options, this._self.#internal, clientInfo, this.commandOptions)
       );
     } finally {
       const promise = this._self.#internal.releaseClientLease(clientInfo);
@@ -497,9 +500,10 @@ export default class RedisSentinel<
     args: CommandArguments,
     options?: CommandOptions,
   ): Promise<T> {
+    const mergedOptions = { ...this.commandOptions, ...options };
     return this._execute(
       isReadonly,
-      client => client.sendCommand(args, options)
+      client => client.sendCommand(args, mergedOptions)
     );
   }
 
@@ -627,7 +631,7 @@ export default class RedisSentinel<
    */
   async acquire(): Promise<RedisSentinelClientType<M, F, S, RESP, TYPE_MAPPING>> {
     const clientInfo = await this._self.#internal.getClientLease();
-    return RedisSentinelClient.create(this._self.#options, this._self.#internal, clientInfo, this._self.#commandOptions);
+    return RedisSentinelClient.create(this._self.#options, this._self.#internal, clientInfo, this.commandOptions);
   }
 
   getSentinelNode(): RedisNode | undefined {

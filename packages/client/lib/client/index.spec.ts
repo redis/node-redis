@@ -29,6 +29,48 @@ export const SQUARE_SCRIPT = defineScript({
 });
 
 describe('Client', () => {
+  it('chained withCommandOptions(...).withTypeMapping(...) preserves earlier overrides at dispatch', () => {
+    // Regression: `_commandOptionsProxy` used to layer `_commandOptions` via
+    // `Object.create(this._commandOptions ?? null)`, which left earlier keys
+    // (e.g. `asap`) on the prototype. At dispatch, `{...this._commandOptions, ...}`
+    // only iterates *own* enumerable properties, so those inherited keys
+    // silently disappeared in the spread.
+    const client = RedisClient.create({});
+    const proxy = client
+      .withCommandOptions({ asap: true })
+      .withTypeMapping({ [RESP_TYPES.SIMPLE_STRING]: Buffer });
+    type WithOptions = { _commandOptions?: { asap?: boolean; typeMapping?: unknown } };
+    const ownKeys = { ...(proxy as unknown as WithOptions)._commandOptions };
+    assert.equal(ownKeys.asap, true);
+    assert.deepEqual(ownKeys.typeMapping, { [RESP_TYPES.SIMPLE_STRING]: Buffer });
+  });
+
+  it('module/function namespaces resolve to the receiver, not the original', () => {
+    // Regression: `attachNamespace` cached the namespace as an own property
+    // on the receiver, leaking via the prototype chain into any
+    // `withCommandOptions(...)` proxy. The proxy then dispatched module/function
+    // commands through the original's `_self`, silently ignoring the override.
+    const fakeModule = {
+      noop: {
+        parseCommand: () => {},
+        transformReply: undefined as unknown as () => unknown
+      }
+    };
+    const client = RedisClient.create({ modules: { fakeModule } });
+    type WithNamespace = { fakeModule: { _self: unknown } };
+    // Force the original to cache its namespace first — pre-fix this is what
+    // poisoned every subsequent proxy access.
+    const originalNamespace = (client as unknown as WithNamespace).fakeModule;
+    assert.equal(originalNamespace._self, client);
+    const proxy = client.withCommandOptions({});
+    const proxyNamespace = (proxy as unknown as WithNamespace).fakeModule;
+    assert.equal(proxyNamespace._self, proxy);
+    assert.notEqual(proxyNamespace._self, client);
+    // Per-receiver cache: subsequent accesses on the same receiver are stable.
+    assert.equal((client as unknown as WithNamespace).fakeModule, originalNamespace);
+    assert.equal((proxy as unknown as WithNamespace).fakeModule, proxyNamespace);
+  });
+
   describe('initialization', () => {
     describe('clientSideCache validation', () => {
       const clientSideCacheConfig = { ttl: 0, maxEntries: 0 };
@@ -1311,6 +1353,38 @@ describe('Client', () => {
       } finally {
         duplicate.destroy();
       }
+    }, GLOBAL.SERVERS.OPEN);
+  });
+
+  describe('withCommandOptions / withTypeMapping dispatch', () => {
+    testUtils.testWithClient('withTypeMapping override reaches raw sendCommand', async client => {
+      // Regression for `client/index.ts:1253` (`this._self._commandOptions` →
+      // `this._commandOptions`): without this fix, the proxy's `withTypeMapping`
+      // override was silently ignored at `sendCommand` dispatch.
+      const typed = client.withTypeMapping({
+        [RESP_TYPES.SIMPLE_STRING]: Buffer
+      });
+      const resp = await typed.sendCommand(['PING']);
+      assert.deepEqual(resp, Buffer.from('PONG'));
+    }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('withTypeMapping override reaches typed commands', async client => {
+      const typed = client.withTypeMapping({
+        [RESP_TYPES.SIMPLE_STRING]: Buffer
+      });
+      const resp = await typed.ping();
+      assert.deepEqual(resp, Buffer.from('PONG'));
+    }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('withCommandOptions full override reaches typed commands', async client => {
+      // The `withCommandOptions` (full replace) path went through the same
+      // proxy-dispatch fix; covered separately from `withTypeMapping` because
+      // the two helpers store overrides differently on the proxy.
+      const proxy = client.withCommandOptions({
+        typeMapping: { [RESP_TYPES.SIMPLE_STRING]: Buffer }
+      });
+      const resp = await proxy.ping();
+      assert.deepEqual(resp, Buffer.from('PONG'));
     }, GLOBAL.SERVERS.OPEN);
   });
 

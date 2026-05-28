@@ -93,6 +93,27 @@ const client = createClient({ RESP: 2 });
 ```
 
 
+## Sentinel: `commandOptions` moved off `nodeClientOptions` / `sentinelClientOptions`
+
+In v5, `createSentinel` accepted `commandOptions` on both the top-level options *and* on `nodeClientOptions` / `sentinelClientOptions`. The wrapper-level value silently overrode the per-node value at dispatch time, so the nested location never actually controlled command behavior. In v6, `commandOptions` is removed from `nodeClientOptions` and `sentinelClientOptions` at the type level — set it on the top-level sentinel options instead.
+
+```javascript
+// v5 — silently ignored
+const sentinel = createSentinel({
+  name: 'mymaster',
+  sentinelRootNodes: [...],
+  nodeClientOptions: { commandOptions: { timeout: 1000 } }
+});
+
+// v6
+const sentinel = createSentinel({
+  name: 'mymaster',
+  sentinelRootNodes: [...],
+  commandOptions: { timeout: 1000 }
+});
+```
+
+
 ## Legacy (callback) mode now uses RESP3
 
 `createClient().legacy()` reads the parent client's RESP version. With the v6 default of RESP3, legacy callback consumers will see RESP3-shaped replies for any command whose transforms differ between protocol versions (for example, doubles arriving as `number` instead of `string`, or hash-like replies arriving as `Map`s). To keep the v5 callback reply shapes, pin `RESP: 2` on the parent client:

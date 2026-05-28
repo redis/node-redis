@@ -325,6 +325,7 @@ export class RedisClientPool<
     }
 
     this.#clientFactory = RedisClient.factory(clientOptions).bind(undefined, clientOptions) as () => RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
+    this._commandOptions = clientOptions?.commandOptions as CommandOptions<TYPE_MAPPING> | undefined;
   }
 
   private _self = this;
@@ -345,7 +346,11 @@ export class RedisClientPool<
     >;
   }
 
-  #commandOptionsProxy<
+  // Plain (not `#`) method so it can be invoked on prototype-derived proxies
+  // returned by `withCommandOptions(...)` — JS private (`#`) methods aren't
+  // accessible through the prototype chain, which would force the helper to
+  // be called via `this._self`, discarding any prior proxy overrides.
+  private _commandOptionsProxy<
     K extends keyof CommandOptions,
     V extends CommandOptions[K]
   >(
@@ -353,8 +358,7 @@ export class RedisClientPool<
     value: V
   ) {
     const proxy = Object.create(this._self);
-    proxy._commandOptions = Object.create(this._commandOptions ?? null);
-    proxy._commandOptions[key] = value;
+    proxy._commandOptions = { ...this._commandOptions, [key]: value };
     return proxy as RedisClientPoolType<
       M,
       F,
@@ -368,14 +372,14 @@ export class RedisClientPool<
    * Override the `typeMapping` command option
    */
   withTypeMapping<TYPE_MAPPING extends TypeMapping>(typeMapping: TYPE_MAPPING) {
-    return this._self.#commandOptionsProxy('typeMapping', typeMapping);
+    return this._commandOptionsProxy('typeMapping', typeMapping);
   }
 
   /**
    * Override the `abortSignal` command option
    */
   withAbortSignal(abortSignal: AbortSignal) {
-    return this._self.#commandOptionsProxy('abortSignal', abortSignal);
+    return this._commandOptionsProxy('abortSignal', abortSignal);
   }
 
   /**
@@ -383,7 +387,7 @@ export class RedisClientPool<
    * TODO: remove?
    */
   asap() {
-    return this._self.#commandOptionsProxy('asap', true);
+    return this._commandOptionsProxy('asap', true);
   }
 
   async connect() {
@@ -530,7 +534,8 @@ export class RedisClientPool<
     args: Array<RedisArgument>,
     options?: CommandOptions
   ) {
-    return this.execute(client => client.sendCommand(args, options));
+    const mergedOptions = { ...this._commandOptions, ...options };
+    return this.execute(client => client.sendCommand(args, mergedOptions));
   }
 
 
