@@ -6,6 +6,7 @@ import { setTimeout } from 'node:timers/promises';
 import { RedisArgument } from '../RESP/types';
 import { dbgMaintenance } from './enterprise-maintenance-manager';
 import { publish, CHANNELS } from './tracing';
+import { DEFAULT_KEEPALIVE_INITIAL_DELAY } from '../defaults';
 
 type NetOptions = {
   tls?: false;
@@ -150,14 +151,10 @@ export default class RedisSocket extends EventEmitter {
         // @types/node is... incorrect...
         // @ts-expect-error - @types/node omits socket.connect noDelay.
         noDelay: options?.noDelay ?? true,
-        // https://nodejs.org/api/tls.html#tlsconnectoptions-callback "Any socket.connect() option not already listed"
-        // @types/node is... incorrect...
         // @ts-expect-error - @types/node omits socket.connect keepAlive.
         keepAlive: options?.keepAlive ?? true,
-        // https://nodejs.org/api/tls.html#tlsconnectoptions-callback "Any socket.connect() option not already listed"
-        // @types/node is... incorrect...
         // @ts-expect-error - @types/node omits socket.connect keepAliveInitialDelay.
-        keepAliveInitialDelay: options?.keepAliveInitialDelay ?? 5000,
+        keepAliveInitialDelay: options?.keepAliveInitialDelay ?? DEFAULT_KEEPALIVE_INITIAL_DELAY,
         timeout: undefined,
         onread: undefined,
         readable: true,
@@ -194,7 +191,7 @@ export default class RedisSocket extends EventEmitter {
       port: options?.port ?? 6379,
       noDelay: options?.noDelay ?? true,
       keepAlive: options?.keepAlive ?? true,
-      keepAliveInitialDelay: options?.keepAliveInitialDelay ?? 5000,
+      keepAliveInitialDelay: options?.keepAliveInitialDelay ?? DEFAULT_KEEPALIVE_INITIAL_DELAY,
       timeout: undefined,
       onread: undefined,
       readable: true,

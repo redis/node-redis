@@ -45,6 +45,45 @@ describe('Client', () => {
     assert.deepEqual(ownKeys.typeMapping, { [RESP_TYPES.SIMPLE_STRING]: Buffer });
   });
 
+  describe('default commandOptions', () => {
+    type WithOptions = { _commandOptions?: { timeout?: number; asap?: boolean } };
+
+    it('applies the 5s default timeout when no commandOptions are passed', () => {
+      const client = RedisClient.create({});
+      assert.equal((client as unknown as WithOptions)._commandOptions?.timeout, 5000);
+    });
+
+    it('merges the default timeout with a partial commandOptions override', () => {
+      const client = RedisClient.create({ commandOptions: { asap: true } });
+      const opts = (client as unknown as WithOptions)._commandOptions;
+      assert.equal(opts?.timeout, 5000);
+      assert.equal(opts?.asap, true);
+    });
+
+    it('allows opting out of the default timeout with `timeout: undefined`', () => {
+      const client = RedisClient.create({ commandOptions: { timeout: undefined } });
+      assert.equal((client as unknown as WithOptions)._commandOptions?.timeout, undefined);
+    });
+
+    it('preserves the default timeout through withCommandOptions(...)', () => {
+      // Regression: `proxy._commandOptions = options` set the override as an own
+      // property that shadowed the prototype's merged `_commandOptions`, dropping
+      // the default at dispatch. The proxy must merge over the current effective
+      // options instead.
+      const client = RedisClient.create({});
+      const proxy = client.withCommandOptions({ asap: true });
+      const opts = (proxy as unknown as WithOptions)._commandOptions;
+      assert.equal(opts?.timeout, 5000);
+      assert.equal(opts?.asap, true);
+    });
+
+    it('lets withCommandOptions(...) opt out of the default timeout', () => {
+      const client = RedisClient.create({});
+      const proxy = client.withCommandOptions({ timeout: undefined });
+      assert.equal((proxy as unknown as WithOptions)._commandOptions?.timeout, undefined);
+    });
+  });
+
   it('module/function namespaces resolve to the receiver, not the original', () => {
     // Regression: `attachNamespace` cached the namespace as an own property
     // on the receiver, leaking via the prototype chain into any

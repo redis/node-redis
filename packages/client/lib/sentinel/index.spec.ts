@@ -14,17 +14,46 @@ import { once } from 'node:events'
 const execAsync = promisify(exec);
 
 describe('RedisSentinel', () => {
+  describe('default commandOptions', () => {
+    it('applies the 5s default timeout when no commandOptions are passed', () => {
+      const sentinel = RedisSentinel.create({
+        name: 'mymaster',
+        sentinelRootNodes: [{ host: 'localhost', port: 26379 }]
+      });
+      assert.equal(sentinel.commandOptions?.timeout, 5000);
+    });
+
+    it('merges the default timeout with a partial commandOptions override', () => {
+      const sentinel = RedisSentinel.create({
+        name: 'mymaster',
+        sentinelRootNodes: [{ host: 'localhost', port: 26379 }],
+        commandOptions: { asap: true }
+      });
+      assert.equal(sentinel.commandOptions?.timeout, 5000);
+      assert.equal(sentinel.commandOptions?.asap, true);
+    });
+
+    it('allows opting out of the default timeout with `timeout: undefined`', () => {
+      const sentinel = RedisSentinel.create({
+        name: 'mymaster',
+        sentinelRootNodes: [{ host: 'localhost', port: 26379 }],
+        commandOptions: { timeout: undefined }
+      });
+      assert.equal(sentinel.commandOptions?.timeout, undefined);
+    });
+  });
+
   it('exposes top-level commandOptions via the commandOptions getter', () => {
     // Regression: commandOptions used to be settable on both top-level and
     // `nodeClientOptions`/`sentinelClientOptions`; the nested location was
     // silently ignored at dispatch time. Top-level is now the only place.
-    const commandOptions = { typeMapping: {} };
+    const typeMapping = {};
     const sentinel = RedisSentinel.create({
       name: 'mymaster',
       sentinelRootNodes: [{ host: 'localhost', port: 26379 }],
-      commandOptions
+      commandOptions: { typeMapping }
     });
-    assert.equal(sentinel.commandOptions, commandOptions);
+    assert.equal(sentinel.commandOptions?.typeMapping, typeMapping);
   });
 
   it('withTypeMapping does not mutate the source sentinel commandOptions', () => {
@@ -32,14 +61,12 @@ describe('RedisSentinel', () => {
     // which (because `_self` resolves to the original sentinel) corrupted shared state —
     // the original instance and every other proxy observed the typeMapping change.
     const initialTypeMapping = { [RESP_TYPES.SIMPLE_STRING]: Buffer };
-    const base = { typeMapping: initialTypeMapping };
     const sentinel = RedisSentinel.create({
       name: 'mymaster',
       sentinelRootNodes: [{ host: 'localhost', port: 26379 }],
-      commandOptions: base
+      commandOptions: { typeMapping: initialTypeMapping }
     });
     sentinel.withTypeMapping({ [RESP_TYPES.SIMPLE_STRING]: String });
-    assert.equal(sentinel.commandOptions, base);
     assert.equal(sentinel.commandOptions?.typeMapping, initialTypeMapping);
   });
 

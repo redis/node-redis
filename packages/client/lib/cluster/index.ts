@@ -15,6 +15,7 @@ import { ASKING_CMD } from '../commands/ASKING';
 import SingleEntryCache from '../single-entry-cache'
 import { publish, CHANNELS } from '../client/tracing';
 import { ClientIdentity, ClientRole, generateClusterClientId } from '../client/identity';
+import { DEFAULT_COMMAND_TIMEOUT } from '../defaults';
 
 export type ClusterTopologyRefreshOnReconnectionAttemptStrategy =
   false |
@@ -348,9 +349,7 @@ export default class RedisCluster<
     this._slots = new RedisClusterSlots(options, this.emit.bind(this), this.#identity.id);
     this.on(RESUBSCRIBE_LISTENERS_EVENT, this.resubscribeAllPubSubListeners.bind(this));
 
-    if (options?.commandOptions) {
-      this._commandOptions = options.commandOptions;
-    }
+    this._commandOptions = { timeout: DEFAULT_COMMAND_TIMEOUT, ...options?.commandOptions };
   }
 
   duplicate<
@@ -458,8 +457,7 @@ export default class RedisCluster<
 
     while (true) {
       try {
-        const opts = options ?? {};
-        opts.slotNumber = slotNumber;
+        const opts: ClusterCommandOptions = { ...options, slotNumber };
         return await myFn(client, opts);
       } catch (_err) {
         const err = _err as Error;

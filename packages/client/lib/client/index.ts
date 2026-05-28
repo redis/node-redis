@@ -24,6 +24,7 @@ import EnterpriseMaintenanceManager, { MaintenanceUpdate, MovingEndpointType, SM
 import { ClientMetricsHandle, ClientRegistry } from '../opentelemetry';
 import { ClientIdentity, ClientRole, generateClientId } from './identity';
 import { trace, sanitizeArgs, publish, CHANNELS, type CommandTraceContext } from './tracing';
+import { DEFAULT_COMMAND_TIMEOUT } from '../defaults';
 
 const noop = () => {};
 
@@ -726,9 +727,7 @@ export default class RedisClient<
       this._self.#selectedDB = options.database;
     }
 
-    if (options.commandOptions) {
-      this._commandOptions = options.commandOptions;
-    }
+    this._commandOptions = { timeout: DEFAULT_COMMAND_TIMEOUT, ...options.commandOptions };
 
     if(options.maintNotifications !== 'disabled') {
       EnterpriseMaintenanceManager.setupDefaultMaintOptions(options);
@@ -1025,7 +1024,7 @@ export default class RedisClient<
     TYPE_MAPPING extends TypeMapping
   >(options: OPTIONS) {
     const proxy = Object.create(this._self);
-    proxy._commandOptions = options;
+    proxy._commandOptions = { ...this._commandOptions, ...options };
     return proxy as RedisClientType<
       M,
       F,
