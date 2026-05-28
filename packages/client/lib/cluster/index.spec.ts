@@ -8,6 +8,27 @@ import RedisClient from '../client';
 import { RESP_TYPES } from '../RESP/decoder';
 
 describe('Cluster', () => {
+  describe('default commandOptions', () => {
+    type WithOptions = { _commandOptions?: { timeout?: number; asap?: boolean } };
+
+    it('applies the 5s default timeout when no commandOptions are passed', () => {
+      const cluster = RedisCluster.create({ rootNodes: [] });
+      assert.equal((cluster as unknown as WithOptions)._commandOptions?.timeout, 5000);
+    });
+
+    it('merges the default timeout with a partial commandOptions override', () => {
+      const cluster = RedisCluster.create({ rootNodes: [], commandOptions: { asap: true } });
+      const opts = (cluster as unknown as WithOptions)._commandOptions;
+      assert.equal(opts?.timeout, 5000);
+      assert.equal(opts?.asap, true);
+    });
+
+    it('allows opting out of the default timeout with `timeout: undefined`', () => {
+      const cluster = RedisCluster.create({ rootNodes: [], commandOptions: { timeout: undefined } });
+      assert.equal((cluster as unknown as WithOptions)._commandOptions?.timeout, undefined);
+    });
+  });
+
   it('chained withCommandOptions(...).withTypeMapping(...) preserves earlier overrides at dispatch', () => {
     // Regression: cluster's `_commandOptionsProxy` used to layer via `Object.create`,
     // leaving earlier keys on the prototype where the dispatch-time spread dropped them.

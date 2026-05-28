@@ -177,6 +177,68 @@ describe('Socket', () => {
     });
   });
 
+  describe('keepAliveInitialDelay default', () => {
+    function captureConnectOptions() {
+      const original = net.createConnection;
+      const captured: { options?: net.TcpNetConnectOpts } = {};
+      const target = net as unknown as { createConnection: unknown };
+      target.createConnection = (...args: unknown[]) => {
+        captured.options = args[0] as net.TcpNetConnectOpts;
+        return (original as unknown as (...a: unknown[]) => net.Socket).apply(net, args);
+      };
+      return {
+        captured,
+        restore() {
+          target.createConnection = original;
+        }
+      };
+    }
+
+    async function withCapturedConnect(
+      socketOptions: Partial<RedisSocketOptions>,
+      fn: (options: net.TcpNetConnectOpts) => void
+    ) {
+      const server = net.createServer();
+      server.on('connection', conn => conn.on('error', () => { /* ignore */ }));
+      await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+      const { port } = server.address() as net.AddressInfo;
+
+      const capture = captureConnectOptions();
+      try {
+        const socket = createSocket({
+          host: '127.0.0.1',
+          port,
+          reconnectStrategy: false,
+          ...socketOptions
+        });
+        await socket.connect();
+        try {
+          assert.ok(capture.captured.options, 'captured connect options');
+          fn(capture.captured.options!);
+        } finally {
+          socket.destroy();
+        }
+      } finally {
+        capture.restore();
+        await new Promise<void>(resolve => server.close(() => resolve()));
+      }
+    }
+
+    it('passes keepAliveInitialDelay: 30000 to net.createConnection by default', async () => {
+      await withCapturedConnect({}, options => {
+        // @ts-expect-error - @types/node omits keepAliveInitialDelay
+        assert.equal(options.keepAliveInitialDelay, 30000);
+      });
+    });
+
+    it('forwards a user-supplied keepAliveInitialDelay verbatim', async () => {
+      await withCapturedConnect({ keepAliveInitialDelay: 1234 }, options => {
+        // @ts-expect-error - @types/node omits keepAliveInitialDelay
+        assert.equal(options.keepAliveInitialDelay, 1234);
+      });
+    });
+  });
+
   describe('socketTimeout', () => {
     const timeout = 50;
     testUtils.testWithClient(
