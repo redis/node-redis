@@ -1099,6 +1099,18 @@ describe('Client', () => {
       const subscriber = await publisher.duplicate().connect();
 
       try {
+        // The forced reconnect below can emit `error` more than once
+        // (e.g. SocketClosedUnexpectedlyError followed by a transient
+        // ECONNREFUSED while the server tears the connection down). A
+        // permanent listener swallows the extras so they never surface as
+        // uncaught; a one-shot promise gate lets us still await the first
+        // error deterministically.
+        let resolveFirstError!: () => void;
+        const firstError = new Promise<void>(resolve => {
+          resolveFirstError = resolve;
+        });
+        subscriber.on('error', () => resolveFirstError());
+
         const channelListener = spy();
         await subscriber.subscribe('channel', channelListener);
 
@@ -1106,7 +1118,7 @@ describe('Client', () => {
         await subscriber.pSubscribe('channe*', patternListener);
 
         await Promise.all([
-          once(subscriber, 'error'),
+          firstError,
           publisher.clientKill({
             filter: 'SKIPME',
             skipMe: true
