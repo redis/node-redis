@@ -1244,8 +1244,13 @@ describe('Client', () => {
     const promise = assert.rejects(client.connect(), ConnectionTimeoutError),
       start = process.hrtime.bigint();
 
-    while (process.hrtime.bigint() - start < 1_000_000) {
-      // block the event loop for 1ms, to make sure the connection will timeout
+    // Block the event loop for well over `connectTimeout` so the underlying
+    // socket's idle timer is guaranteed to have expired by the time the
+    // event loop runs again. With a 1ms block and a 1ms timeout the two race
+    // and on a fast host the TCP `connect` event can be processed before the
+    // timeout callback, leaving the test with a successful connection.
+    while (process.hrtime.bigint() - start < 50_000_000) {
+      // block the event loop for 50ms, to make sure the connection will timeout
     }
 
     await promise;
