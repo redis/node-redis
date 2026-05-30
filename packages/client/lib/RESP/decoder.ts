@@ -492,9 +492,7 @@ export class Decoder {
     }
 
     const slice = chunk.subarray(start, crlfIndex);
-    return type === Buffer ?
-      slice :
-      slice.toString();
+    return this.#decodeStringType(type, slice);
   }
 
   #continueDecodeSimpleString(chunks, type, chunk) {
@@ -507,7 +505,7 @@ export class Decoder {
 
     chunks.push(chunk.subarray(start, crlfIndex));
     const buffer = Buffer.concat(chunks);
-    return type === Buffer ? buffer : buffer.toString();
+    return this.#decodeStringType(type, buffer);
   }
 
   #decodeBlobString(type, chunk) {
@@ -555,9 +553,7 @@ export class Decoder {
 
     const slice = chunk.subarray(this.#cursor, end);
     this.#cursor = end + skip;
-    return type === Buffer ?
-      slice :
-      slice.toString();
+    return this.#decodeStringType(type, slice);
   }
 
   #continueDecodeStringWithLength(length, chunks, skip, type, chunk) {
@@ -578,7 +574,19 @@ export class Decoder {
     chunks.push(chunk.subarray(this.#cursor, end));
     this.#cursor = end + skip;
     const buffer = Buffer.concat(chunks);
-    return type === Buffer ? buffer : buffer.toString();
+    return this.#decodeStringType(type, buffer);
+  }
+
+  #decodeStringType(type, chunk) {
+    if (type === Buffer) {
+      return chunk;
+    }
+
+    if (type === Uint8Array) {
+      return new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength);
+    }
+
+    return chunk.toString();
   }
 
   #decodeBlobStringWithLength(length, type, chunk) {

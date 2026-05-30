@@ -257,10 +257,35 @@ describe('RESP Decoder', () => {
       replies: [Buffer.from('OK')]
     });
 
+    test("'OK' as Uint8Array", {
+      typeMapping: {
+        [RESP_TYPES.BLOB_STRING]: Uint8Array
+      },
+      toWrite: Buffer.from('$2\r\nOK\r\n'),
+      replies: [new Uint8Array(Buffer.from('OK'))]
+    });
+
     test("'é'", {
       toWrite: Buffer.from('$2\r\né\r\n'),
       replies: ['é']
     });
+  });
+
+  it('returns Uint8Array for chunked BLOB_STRING', () => {
+    const setup = setupTest({
+      typeMapping: {
+        [RESP_TYPES.BLOB_STRING]: Uint8Array
+      },
+      toWrite: Buffer.from('$10\r\n1234567890\r\n')
+    });
+    setup.decoder.write(Buffer.from('$10\r\n'));
+    setup.decoder.write(Buffer.from('1234567890'));
+    setup.decoder.write(Buffer.from('\r\n'));
+    assert.equal(setup.onReplySpy.callCount, 1);
+    const [reply] = setup.onReplySpy.args[0];
+    assert.equal(reply.constructor, Uint8Array);
+    assert.equal(Buffer.isBuffer(reply), false);
+    assert.deepEqual(reply, new Uint8Array(Buffer.from('1234567890')));
   });
 
   describe('VerbatimString', () => {
