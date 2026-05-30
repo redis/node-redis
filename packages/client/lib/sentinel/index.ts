@@ -19,6 +19,8 @@ import { RedisTcpSocketOptions } from '../client/socket';
 import { BasicPooledClientSideCache, PooledClientSideCacheProvider } from '../client/cache';
 import { ClientIdentity, ClientRole, generateClientId } from '../client/identity';
 
+type BroadSentinelClient = RedisClientType<any, any, any, 2 | 3, any>;
+
 interface ClientInfo {
   id: number;
 }
@@ -162,7 +164,7 @@ export class RedisSentinelClient<
 
   async _execute<T>(
     isReadonly: boolean | undefined,
-    fn: (client: RedisClient<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>) => Promise<T>
+    fn: (client: BroadSentinelClient) => Promise<T>
   ): Promise<T> {
     if (this._self.#clientInfo === undefined) {
       throw new Error("Attempted execution on released RedisSentinelClient lease");
@@ -675,7 +677,7 @@ export class RedisSentinelInternal<
   readonly #name: string;
   readonly #sentinelClientId: string;
   readonly #nodeClientOptions: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING, RedisTcpSocketOptions>;
-  readonly #sentinelClientOptions: RedisClientOptions<typeof RedisSentinelModule, RedisFunctions, RedisScripts, RespVersions, TypeMapping, RedisTcpSocketOptions>;
+  readonly #sentinelClientOptions: RedisClientOptions<typeof RedisSentinelModule, RedisFunctions, RedisScripts, RESP, TYPE_MAPPING, RedisTcpSocketOptions>;
   readonly #nodeAddressMap?: NodeAddressMap;
   readonly #scanInterval: number;
   readonly #passthroughClientErrorEvents: boolean;
@@ -686,13 +688,13 @@ export class RedisSentinelInternal<
   readonly #sentinelSeedNodes: Array<RedisNode>;
 
   #sentinelRootNodes: Array<RedisNode>;
-  #sentinelClient?: RedisClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>;
+  #sentinelClient?: BroadSentinelClient;
 
-  #masterClients: Array<RedisClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>> = [];
+  #masterClients: Array<BroadSentinelClient> = [];
   #masterClientQueue: WaitQueue<number>;
   readonly #masterPoolSize: number;
 
-  #replicaClients: Array<RedisClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>> = [];
+  #replicaClients: Array<BroadSentinelClient> = [];
   #replicaClientsIdx: number = 0;
   readonly #replicaPoolSize: number;
 
@@ -702,7 +704,7 @@ export class RedisSentinelInternal<
 
   #connectPromise?: Promise<void>;
   #maxCommandRediscovers: number;
-  readonly #pubSubProxy: PubSubProxy;
+  readonly #pubSubProxy: PubSubProxy<RESP>;
 
   #scanTimer?: NodeJS.Timeout
 
@@ -767,13 +769,23 @@ export class RedisSentinelInternal<
     }
 
     /* persistent object for life of sentinel object */
-    this.#pubSubProxy = new PubSubProxy(
+    this.#pubSubProxy = new PubSubProxy<RESP>(
       this.#nodeClientOptions,
       err => this.emit('error', err)
     );
   }
 
-  #createClient(node: RedisNode, clientOptions: RedisClientOptions, reconnectStrategy?: false) {
+  #createClient<
+    _M extends RedisModules,
+    _F extends RedisFunctions,
+    _S extends RedisScripts,
+    _RESP extends RespVersions,
+    _TYPE_MAPPING extends TypeMapping
+  >(
+    node: RedisNode,
+    clientOptions: RedisClientOptions<_M, _F, _S, _RESP, _TYPE_MAPPING, RedisTcpSocketOptions>,
+    reconnectStrategy?: false
+  ): RedisClientType<_M, _F, _S, 2 | 3, _TYPE_MAPPING> {
     const socket = getMappedNode(node.host, node.port, this.#nodeAddressMap);
     const client = RedisClient.create({
       //first take the globally set RESP
@@ -887,7 +899,7 @@ export class RedisSentinelInternal<
   }
 
   async execute<T>(
-    fn: (client: RedisClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>) => Promise<T>,
+    fn: (client: BroadSentinelClient) => Promise<T>,
     clientInfo?: ClientInfo
   ): Promise<T> {
     let iter = 0;
@@ -937,7 +949,7 @@ export class RedisSentinelInternal<
     }
   }
 
-  async #createPubSub(client: RedisClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>) {
+  async #createPubSub(client: BroadSentinelClient) {
     /* Whenever sentinels or slaves get added, or when slave configuration changes, reconfigure */
     await client.pSubscribe(['switch-master', '[-+]sdown', '+slave', '+sentinel', '[-+]odown', '+slave-reconf-done'], (message, channel) => {
       this.#handlePubSubControlChannel(channel, message);
@@ -952,7 +964,7 @@ export class RedisSentinelInternal<
   }
 
   // if clientInfo is defined, it corresponds to a master client in the #masterClients array, otherwise loop around replicaClients
-  #getClient(clientInfo?: ClientInfo): RedisClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping> {
+  #getClient(clientInfo?: ClientInfo): BroadSentinelClient {
     if (clientInfo !== undefined) {
       return this.#masterClients[clientInfo.id];
     }
@@ -1380,7 +1392,7 @@ export class RedisSentinelInternal<
       replicaCloseSet.add(str);
     }
 
-    const newClientList: Array<RedisClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>> = [];
+    const newClientList: Array<BroadSentinelClient> = [];
     const removedSet = new Set<string>();
 
     for (const replica of this.#replicaClients) {

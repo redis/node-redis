@@ -4,12 +4,13 @@ import { RedisClientOptions } from '../client';
 import { PUBSUB_TYPE, PubSubListener, PubSubTypeListeners } from '../client/pub-sub';
 import { RedisNode } from './types';
 import RedisClient from '../client';
+import { RedisTcpSocketOptions } from '../client/socket';
 
-type Client = RedisClient<
+type Client<RESP extends RespVersions> = RedisClient<
   RedisModules,
   RedisFunctions,
   RedisScripts,
-  RespVersions,
+  RESP,
   TypeMapping
 >;
 
@@ -18,22 +19,22 @@ type Subscriptions = Record<
   PubSubTypeListeners
 >;
 
-type PubSubState = {
-  client: Client;
-  connectPromise: Promise<Client | undefined> | undefined;
+type PubSubState<RESP extends RespVersions> = {
+  client: Client<RESP>;
+  connectPromise: Promise<Client<RESP> | undefined> | undefined;
 };
 
 type OnError = (err: unknown) => unknown;
 
-export class PubSubProxy extends EventEmitter {
+export class PubSubProxy<RESP extends RespVersions = RespVersions> extends EventEmitter {
   #clientOptions;
   #onError;
 
   #node?: RedisNode;
-  #state?: PubSubState;
+  #state?: PubSubState<RESP>;
   #subscriptions?: Subscriptions;
 
-  constructor(clientOptions: RedisClientOptions, onError: OnError) {
+  constructor(clientOptions: RedisClientOptions<RedisModules, RedisFunctions, RedisScripts, RESP, TypeMapping, RedisTcpSocketOptions>, onError: OnError) {
     super();
 
     this.#clientOptions = clientOptions;
@@ -127,7 +128,7 @@ export class PubSubProxy extends EventEmitter {
     await this.#initiatePubSubClient(true);
   }
 
-  #executeCommand<T>(fn: (client: Client) => T) {
+  #executeCommand<T>(fn: (client: Client<RESP>) => T) {
     const client = this.#getPubSubClient();
     if (client instanceof RedisClient) {
       return fn(client);
@@ -158,7 +159,7 @@ export class PubSubProxy extends EventEmitter {
     );
   }
 
-  #unsubscribe<T>(fn: (client: Client) => Promise<T>) {
+  #unsubscribe<T>(fn: (client: Client<RESP>) => Promise<T>) {
     return this.#executeCommand(async client => {
       const reply = await fn(client);
 

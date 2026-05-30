@@ -6,10 +6,8 @@ import assert from "node:assert";
 import { setTimeout } from "node:timers/promises";
 import { RedisTcpSocketOptions } from "./socket";
 import diagnostics_channel from "node:diagnostics_channel";
-import { RedisArgument } from "../RESP/types";
+import { RedisArgument, RedisFunctions, RedisModules, RedisScripts, RespVersions, TypeMapping } from "../RESP/types";
 import { publish, CHANNELS } from "./tracing";
-
-type RedisType = RedisClient<any, any, any, any, any>;
 
 export const SMIGRATED_EVENT = "__SMIGRATED";
 
@@ -72,13 +70,25 @@ export interface MaintenanceUpdate {
   relaxedSocketTimeout?: number;
 }
 
-export default class EnterpriseMaintenanceManager {
+export default class EnterpriseMaintenanceManager<
+  M extends RedisModules = RedisModules,
+  F extends RedisFunctions = RedisFunctions,
+  S extends RedisScripts = RedisScripts,
+  RESP extends RespVersions = RespVersions,
+  TYPE_MAPPING extends TypeMapping = TypeMapping
+> {
   #commandsQueue: RedisCommandsQueue;
-  #options: RedisClientOptions;
+  #options: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING, RedisTcpSocketOptions>;
   #isMaintenance = 0;
-  #client: RedisType;
+  #client: RedisClient<M, F, S, RESP, TYPE_MAPPING>;
 
-  static setupDefaultMaintOptions(options: RedisClientOptions) {
+  static setupDefaultMaintOptions<
+    M extends RedisModules,
+    F extends RedisFunctions,
+    S extends RedisScripts,
+    RESP extends RespVersions = RespVersions,
+    TYPE_MAPPING extends TypeMapping = TypeMapping
+  >(options: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING, RedisTcpSocketOptions>) {
     if (options.maintNotifications === undefined) {
       options.maintNotifications =
         options?.RESP === 3 ? "auto" : "disabled";
@@ -94,8 +104,14 @@ export default class EnterpriseMaintenanceManager {
     }
   }
 
-  static async getHandshakeCommand(
-    options: RedisClientOptions,
+  static async getHandshakeCommand<
+    M extends RedisModules = RedisModules,
+    F extends RedisFunctions = RedisFunctions,
+    S extends RedisScripts = RedisScripts,
+    RESP extends RespVersions = RespVersions,
+    TYPE_MAPPING extends TypeMapping = TypeMapping
+  >(
+    options: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING, RedisTcpSocketOptions>,
     clientId: string,
   ): Promise<
     | { cmd: Array<RedisArgument>; errorHandler: (error: Error) => void }
@@ -140,8 +156,8 @@ export default class EnterpriseMaintenanceManager {
 
   constructor(
     commandsQueue: RedisCommandsQueue,
-    client: RedisType,
-    options: RedisClientOptions,
+    client: RedisClient<M, F, S, RESP, TYPE_MAPPING>,
+    options: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING, RedisTcpSocketOptions>,
   ) {
     this.#commandsQueue = commandsQueue;
     this.#options = options;
@@ -465,7 +481,7 @@ function isPrivateIP(ip: string): boolean {
 async function determineEndpoint(
   tlsEnabled: boolean,
   host: string,
-  options: RedisClientOptions,
+  options: RedisClientOptions<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping, RedisTcpSocketOptions>,
 ): Promise<MovingEndpointType> {
   assert(options.maintEndpointType !== undefined);
   if (options.maintEndpointType !== "auto") {
