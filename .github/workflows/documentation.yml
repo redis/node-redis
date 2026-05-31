@@ -12,6 +12,8 @@ permissions:
 jobs:
   documentation:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write   # required to push generated docs to gh-pages
     steps:
       - uses: actions/checkout@v4
         with:
