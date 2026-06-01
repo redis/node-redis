@@ -7,9 +7,9 @@ import { setTimeout } from "node:timers/promises";
 import { RedisTcpSocketOptions } from "./socket";
 import diagnostics_channel from "node:diagnostics_channel";
 import { RedisArgument, DEFAULT_RESP, RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping } from "../RESP/types";
+import { publish, CHANNELS } from "./tracing";
 
 type AnyRedisClientOptions = RedisClientOptions<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>;
-import { publish, CHANNELS } from "./tracing";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- variance markers for RedisClient generics
 type RedisType = RedisClient<any, any, any, any, any>;

@@ -265,7 +265,7 @@ export default class TestUtils {
   /**
    * Cleans up non-default ACL users using a temporary client connection
    */
-  static async cleanupAclUsers(port: number, clientOptions?: Partial<RedisClientOptions>): Promise<void> {
+  static async cleanupAclUsers(port: number, clientOptions?: Partial<RedisClientOptions<RedisModules, RedisFunctions, RedisScripts, RespVersions>>): Promise<void> {
     const cleanupClient = createClient({
       ...clientOptions,
       socket: {
