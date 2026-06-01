@@ -1,4 +1,4 @@
-import RedisClient, { RedisClientOptions } from ".";
+import RedisClient, { AnyRedisClientOptions } from ".";
 import RedisCommandsQueue from "./commands-queue";
 import { isIP } from "net";
 import { lookup } from "dns/promises";
@@ -6,10 +6,8 @@ import assert from "node:assert";
 import { setTimeout } from "node:timers/promises";
 import { RedisTcpSocketOptions } from "./socket";
 import diagnostics_channel from "node:diagnostics_channel";
-import { RedisArgument, DEFAULT_RESP, RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping } from "../RESP/types";
+import { RedisArgument, DEFAULT_RESP } from "../RESP/types";
 import { publish, CHANNELS } from "./tracing";
-
-type AnyRedisClientOptions = RedisClientOptions<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- variance markers for RedisClient generics
 type RedisType = RedisClient<any, any, any, any, any>;

@@ -197,7 +197,13 @@ export interface RedisClientOptions<
   maintRelaxedSocketTimeout?: number;
 };
 
-type ParsedRedisClientOptions = RedisClientOptions<
+/**
+ * `RedisClientOptions` widened to accept any RESP version / module / function /
+ * script / type-mapping combination. Use when an internal callsite must accept
+ * any `RedisClientOptions` shape regardless of the public default (e.g. parsed
+ * URLs, sentinel node options, maintenance manager).
+ */
+export type AnyRedisClientOptions = RedisClientOptions<
   RedisModules,
   RedisFunctions,
   RedisScripts,
@@ -375,13 +381,7 @@ export default class RedisClient<
     return RedisClient.factory(options)(options);
   }
 
-  static parseOptions<
-    M extends RedisModules = RedisModules,
-    F extends RedisFunctions = RedisFunctions,
-    S extends RedisScripts = RedisScripts,
-    RESP extends RespVersions = RespVersions,
-    TYPE_MAPPING extends TypeMapping = TypeMapping
-  >(options: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>): RedisClientOptions<M, F, S, RESP, TYPE_MAPPING> {
+  static parseOptions<O extends AnyRedisClientOptions>(options: O): O {
     if (options?.url) {
       const parsed = RedisClient.parseURL(options.url);
       if (options.socket) {
@@ -396,8 +396,8 @@ export default class RedisClient<
     return options;
   }
 
-  static parseURL(url: string): ParsedRedisClientOptions & {
-    socket: Exclude<ParsedRedisClientOptions['socket'], undefined> & {
+  static parseURL(url: string): AnyRedisClientOptions & {
+    socket: Exclude<AnyRedisClientOptions['socket'], undefined> & {
       tls: boolean
     }
   } {
@@ -409,8 +409,8 @@ export default class RedisClient<
 
     // https://www.iana.org/assignments/uri-schemes/prov/redis
     const { hostname, port, protocol, username, password, pathname } = new URL(url),
-      parsed: ParsedRedisClientOptions & {
-        socket: Exclude<ParsedRedisClientOptions['socket'], undefined> & {
+      parsed: AnyRedisClientOptions & {
+        socket: Exclude<AnyRedisClientOptions['socket'], undefined> & {
           tls: boolean
         }
       } = {
@@ -462,8 +462,8 @@ export default class RedisClient<
     return parsed;
   }
 
-  static #parseUnixURL(url: string): ParsedRedisClientOptions & {
-    socket: Exclude<ParsedRedisClientOptions['socket'], undefined> & {
+  static #parseUnixURL(url: string): AnyRedisClientOptions & {
+    socket: Exclude<AnyRedisClientOptions['socket'], undefined> & {
       tls: boolean
     }
   } {
@@ -474,8 +474,8 @@ export default class RedisClient<
     }
 
     const [, username, password, rawPath, rawQuery] = match,
-      parsed: ParsedRedisClientOptions & {
-        socket: Exclude<ParsedRedisClientOptions['socket'], undefined> & {
+      parsed: AnyRedisClientOptions & {
+        socket: Exclude<AnyRedisClientOptions['socket'], undefined> & {
           tls: boolean
         }
       } = {

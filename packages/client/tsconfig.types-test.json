@@ -6,6 +6,6 @@
     "skipLibCheck": true
   },
   "include": [
-    "./lib/client/create-client.types-test.ts"
+    "./types-tests/**/*.ts"
   ]
 }
