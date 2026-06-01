@@ -249,22 +249,17 @@ describe('Socket', () => {
         // handshake nor in the idle window afterwards. `reconnectStrategy:
         // false` makes the run deterministic and causes the client to emit
         // `error` twice, so a permanent listener (not `once`) is required.
-        const errors: Error[] = [];
-        let resolveFirstError!: (err: Error) => void;
-        const firstError = new Promise<Error>(resolve => {
-          resolveFirstError = resolve;
+        client.on('error', () => {
+          // keep a permanent listener for any later error emission
         });
-        client.on('error', err => {
-          errors.push(err);
-          resolveFirstError(err);
-        });
+        const firstError = once(client, 'error') as Promise<[Error]>;
 
         try {
           await client.connect();
           assert.equal(client.isReady, true, 'client.isReady');
           assert.equal(client.isOpen, true, 'client.isOpen');
 
-          const err = await firstError;
+          const [err] = await firstError;
           assert.equal(
             err.message,
             `Socket timeout timeout. Expecting data, but didn't receive any in ${timeout}ms.`
