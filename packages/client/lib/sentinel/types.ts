@@ -20,7 +20,7 @@ export type NodeAddressMap = {
  * which must be set on the top-level sentinel options instead.
  */
 export type RedisSentinelNodeClientOptions<
-  RESP extends RespVersions = RespVersions,
+  RESP extends RespVersions = 3,
   TYPE_MAPPING extends TypeMapping = TypeMapping
 > = Omit<
   RedisClientOptions<RedisModules, RedisFunctions, RedisScripts, RESP, TYPE_MAPPING, RedisTcpSocketOptions>,
@@ -31,7 +31,7 @@ export interface RedisSentinelOptions<
   M extends RedisModules = RedisModules,
   F extends RedisFunctions = RedisFunctions,
   S extends RedisScripts = RedisScripts,
-  RESP extends RespVersions = RespVersions,
+  RESP extends RespVersions = 3,
   TYPE_MAPPING extends TypeMapping = TypeMapping
 > extends SentinelCommander<M, F, S, RESP, TYPE_MAPPING> {
   /**

@@ -212,9 +212,7 @@ class OTelChannelSubscribers {
     }
     if (hasAdvanced) {
       this.#subscribeConnectionAdvanced();
-    }
-    if (hasBasic || hasAdvanced) {
-      this.#subscribeConnectionClosed(hasBasic, hasAdvanced);
+      this.#subscribeConnectionClosed();
     }
     if (enabledGroups.includes(METRIC_GROUP.RESILIENCY)) {
       this.#subscribeResiliency();
@@ -253,11 +251,6 @@ class OTelChannelSubscribers {
           ...parseClientAttributes(clientAttributes),
         },
       );
-      this.#instruments.dbClientConnectionCount.add(1, {
-        ...this.#options.attributes,
-        ...parseClientAttributes(clientAttributes),
-        [OTEL_ATTRIBUTES.dbClientConnectionState]: "used",
-      });
     });
 
     this.#sub(CHANNELS.CONNECTION_RELAXED_TIMEOUT, (ctx: any) => {
@@ -277,25 +270,16 @@ class OTelChannelSubscribers {
     });
   }
 
-  // -- Connection Closed (shared by basic + advanced) --
+  // -- Connection Closed (advanced only) --
 
-  #subscribeConnectionClosed(hasBasic: boolean, hasAdvanced: boolean) {
+  #subscribeConnectionClosed() {
     this.#sub(CHANNELS.CONNECTION_CLOSED, (ctx: any) => {
       const clientAttributes = resolveClientAttributes(ctx.clientId);
-      if (hasBasic && ctx.wasConnected) {
-        this.#instruments.dbClientConnectionCount.add(-1, {
-          ...this.#options.attributes,
-          ...parseClientAttributes(clientAttributes),
-          [OTEL_ATTRIBUTES.dbClientConnectionState]: "used",
-        });
-      }
-      if (hasAdvanced) {
-        this.#instruments.redisClientConnectionClosed.add(1, {
-          ...this.#options.attributes,
-          ...parseClientAttributes(clientAttributes),
-          [OTEL_ATTRIBUTES.redisClientConnectionCloseReason]: ctx.reason,
-        });
-      }
+      this.#instruments.redisClientConnectionClosed.add(1, {
+        ...this.#options.attributes,
+        ...parseClientAttributes(clientAttributes),
+        [OTEL_ATTRIBUTES.redisClientConnectionCloseReason]: ctx.reason,
+      });
     });
   }
 
@@ -699,13 +683,29 @@ export class OTelMetrics {
         },
       ),
       // Basic connection
-      dbClientConnectionCount: this.createUpDownCounter(
+      // Renamed from db.client.connection.count; converted to ObservableGauge because
+      // the previous UpDownCounter always reported state=used which was misleading.
+      redisClientConnectionCount: this.createObservableGaugeWithCallback(
         meter,
         {
-          name: METRIC_NAMES.dbClientConnectionCount,
+          name: METRIC_NAMES.redisClientConnectionCount,
           unit: "{connection}",
-          description: "Current number of active connections",
+          description: "Current number of active (connected) Redis client connections",
           metricGroup: METRIC_GROUP.CONNECTION_BASIC,
+        },
+        options,
+        (observableResult, opts) => {
+          for (const handle of ClientRegistry.instance.getAll()) {
+            if (!handle.isConnected()) continue;
+            observableResult.observe(
+              this.#instruments.redisClientConnectionCount,
+              1,
+              {
+                ...opts.attributes,
+                ...parseClientAttributes(handle.getAttributes()),
+              },
+            );
+          }
         },
       ),
       dbClientConnectionCreateTime: this.createHistogram(
@@ -751,37 +751,9 @@ export class OTelMetrics {
           histogramBoundaries: options.bucketsConnectionWaitTime,
         },
       ),
-      // The DB semconv models pending requests as an UpDownCounter on pooled
-      // connections. That does not map cleanly to node-redis today, so we keep
-      // this disabled for now and may reintroduce it later as an async gauge
-      // with a client-specific name.
-      // See: https://opentelemetry.io/docs/specs/semconv/db/database-metrics/#connection-pools
-      // dbClientConnectionPendingRequests: this.createObservableGaugeWithCallback(
-      //   meter,
-      //   options.enabledMetricGroups,
-      //   {
-      //     name: METRIC_NAMES.dbClientConnectionPendingRequests,
-      //     unit: "{request}",
-      //     description: "Current number of pending requests per connection",
-      //     metricGroup: METRIC_GROUP.CONNECTION_ADVANCED,
-      //   },
-      //   options,
-      //   (observableResult, opts) => {
-      //     for (const handle of ClientRegistry.instance.getAll()) {
-      //       observableResult.observe(
-      //         this.#instruments.dbClientConnectionPendingRequests,
-      //         handle.getPendingRequests(),
-      //         {
-      //           ...opts.attributes,
-      //           ...parseClientAttributes(handle.getAttributes()),
-      //         },
-      //       );
-      //     }
-      //   },
-      // ),
-      dbClientConnectionPendingRequests: meter.createObservableGauge(
-        METRIC_NAMES.dbClientConnectionPendingRequests,
-      ),
+      // db.client.connection.pending_requests: disabled until naming/behavior is settled.
+      // Will be reintroduced as an ObservableGauge with a redis.client.* name.
+      // dbClientConnectionPendingRequests: ...
       redisClientConnectionClosed: this.createCounter(
         meter,
         {
@@ -873,15 +845,7 @@ export class OTelMetrics {
           metricGroup: METRIC_GROUP.CLIENT_SIDE_CACHING,
         },
       ),
-      redisClientCscNetworkSaved: this.createCounter(
-        meter,
-        {
-          name: METRIC_NAMES.redisClientCscNetworkSaved,
-          unit: "By",
-          description: "Estimated bytes saved by client-side cache hits",
-          metricGroup: METRIC_GROUP.CLIENT_SIDE_CACHING,
-        },
-      ),
+      // redis.client.csc.network_saved: disabled until payload size is tracked at the socket layer.
     } as const;
   }
 }

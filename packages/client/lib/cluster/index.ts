@@ -50,7 +50,7 @@ export interface RedisClusterOptions<
   M extends RedisModules = RedisModules,
   F extends RedisFunctions = RedisFunctions,
   S extends RedisScripts = RedisScripts,
-  RESP extends RespVersions = RespVersions,
+  RESP extends RespVersions = 3,
   TYPE_MAPPING extends TypeMapping = TypeMapping,
   // POLICIES extends CommandPolicies = CommandPolicies
 > extends ClusterCommander<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/> {

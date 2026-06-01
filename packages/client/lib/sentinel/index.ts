@@ -776,7 +776,11 @@ export class RedisSentinelInternal<
     );
   }
 
-  #createClient(node: RedisNode, clientOptions: RedisClientOptions, reconnectStrategy?: false) {
+  #createClient(
+    node: RedisNode,
+    clientOptions: RedisClientOptions<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>,
+    reconnectStrategy?: false
+  ) {
     const socket = getMappedNode(node.host, node.port, this.#nodeAddressMap);
     const client = RedisClient.create({
       //first take the globally set RESP
