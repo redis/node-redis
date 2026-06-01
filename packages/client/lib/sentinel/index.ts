@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { CommandArguments, RedisFunctions, RedisModules, RedisScripts, ReplyUnion, RespVersions, TypeMapping, DEFAULT_RESP } from '../RESP/types';
-import RedisClient, { RedisClientOptions, RedisClientType } from '../client';
+import RedisClient, { AnyRedisClientOptions, RedisClientOptions, RedisClientType } from '../client';
 import { CommandOptions } from '../client/commands-queue';
 import { attachConfig } from '../commander';
 import { NON_STICKY_COMMANDS } from '../commands';
@@ -776,7 +776,11 @@ export class RedisSentinelInternal<
     );
   }
 
-  #createClient(node: RedisNode, clientOptions: RedisClientOptions, reconnectStrategy?: false) {
+  #createClient(
+    node: RedisNode,
+    clientOptions: AnyRedisClientOptions,
+    reconnectStrategy?: false
+  ) {
     const socket = getMappedNode(node.host, node.port, this.#nodeAddressMap);
     const client = RedisClient.create({
       //first take the globally set RESP

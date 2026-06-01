@@ -14,8 +14,8 @@ export { defineScript } from './lib/lua-script';
 export { digest } from './lib/utils/digest';
 export * from './lib/errors';
 
-import RedisClient, { RedisClientOptions, RedisClientType } from './lib/client';
-export { RedisClient, RedisClientOptions, RedisClientType };
+import RedisClient, { AnyRedisClientOptions, RedisClientOptions, RedisClientType } from './lib/client';
+export { RedisClient, AnyRedisClientOptions, RedisClientOptions, RedisClientType };
 export const createClient = RedisClient.create;
 export { CommandParser } from './lib/client/parser';
 
