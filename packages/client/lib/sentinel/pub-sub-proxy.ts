@@ -33,7 +33,10 @@ export class PubSubProxy extends EventEmitter {
   #state?: PubSubState;
   #subscriptions?: Subscriptions;
 
-  constructor(clientOptions: RedisClientOptions, onError: OnError) {
+  constructor(
+    clientOptions: RedisClientOptions<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>,
+    onError: OnError
+  ) {
     super();
 
     this.#clientOptions = clientOptions;

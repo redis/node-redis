@@ -6,7 +6,9 @@ import assert from "node:assert";
 import { setTimeout } from "node:timers/promises";
 import { RedisTcpSocketOptions } from "./socket";
 import diagnostics_channel from "node:diagnostics_channel";
-import { RedisArgument, DEFAULT_RESP } from "../RESP/types";
+import { RedisArgument, DEFAULT_RESP, RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping } from "../RESP/types";
+
+type AnyRedisClientOptions = RedisClientOptions<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>;
 import { publish, CHANNELS } from "./tracing";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- variance markers for RedisClient generics
@@ -75,11 +77,11 @@ export interface MaintenanceUpdate {
 
 export default class EnterpriseMaintenanceManager {
   #commandsQueue: RedisCommandsQueue;
-  #options: RedisClientOptions;
+  #options: AnyRedisClientOptions;
   #isMaintenance = 0;
   #client: RedisType;
 
-  static setupDefaultMaintOptions(options: RedisClientOptions) {
+  static setupDefaultMaintOptions(options: AnyRedisClientOptions) {
     if (options.maintNotifications === undefined) {
       options.maintNotifications =
         (options?.RESP ?? DEFAULT_RESP) === 3 ? "auto" : "disabled";
@@ -96,7 +98,7 @@ export default class EnterpriseMaintenanceManager {
   }
 
   static async getHandshakeCommand(
-    options: RedisClientOptions,
+    options: AnyRedisClientOptions,
     clientId: string,
   ): Promise<
     | { cmd: Array<RedisArgument>; errorHandler: (error: Error) => void }
@@ -141,7 +143,7 @@ export default class EnterpriseMaintenanceManager {
   constructor(
     commandsQueue: RedisCommandsQueue,
     client: RedisType,
-    options: RedisClientOptions,
+    options: AnyRedisClientOptions,
   ) {
     this.#commandsQueue = commandsQueue;
     this.#options = options;
@@ -468,7 +470,7 @@ function isPrivateIP(ip: string): boolean {
 async function determineEndpoint(
   tlsEnabled: boolean,
   host: string,
-  options: RedisClientOptions,
+  options: AnyRedisClientOptions,
 ): Promise<MovingEndpointType> {
   assert(options.maintEndpointType !== undefined);
   if (options.maintEndpointType !== "auto") {
