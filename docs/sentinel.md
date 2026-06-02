@@ -171,7 +171,15 @@ for await (const keys of sentinel.scanIterator()) {
 }
 ```
 
-If a failover occurs during the scan, the iterator will automatically restart from the beginning on the new master to ensure all keys are covered. This may result in duplicate keys being yielded. If your application requires processing each key exactly once, you should implement a deduplication mechanism (like a `Set` or Bloom filter).
+### Semantics and differences from standalone `scanIterator`
+
+The standalone `RedisClient.scanIterator()` inherits SCAN's documented guarantees: a full iteration returns every key present from start to end, and may return a key multiple times. See the [SCAN guarantees](https://redis.io/docs/latest/commands/scan/#scan-guarantees) page.
+
+The sentinel iterator adds one extra source of duplicates: **master failover**. If the master changes mid-iteration (detected via the `topology-change` event with `type: "MASTER_CHANGE"`), the cursor is invalidated (SCAN cursors are node-local) and the iterator restarts from cursor `0` on the new master. Keys already yielded before the failover may be yielded again from the new master.
+
+Because Redis replication is asynchronous, the new master may also have a slightly different keyset than the old master at the moment of promotion — writes that had not yet replicated will be missing, and writes accepted on the new master after promotion will be present.
+
+If your processing must be exactly-once, deduplicate with a `Set`:
 
 ```javascript
 const processed = new Set();
@@ -184,3 +192,9 @@ for await (const keys of sentinel.scanIterator()) {
   }
 }
 ```
+
+For very large keyspaces a `Set` may be memory-prohibitive. A Bloom filter is a lower-memory alternative but is **not** suitable for strict exactly-once processing: its false positives will cause some real keys to be skipped. Use it only when occasional skips are acceptable.
+
+### Pool behaviour
+
+The iterator acquires a master client lease only for the duration of each `SCAN` call and releases it before yielding to the consumer. This means commands issued from inside the `for await` loop body (e.g. `sentinel.mGet(keys)`) will not deadlock against the iterator, even with the default `masterPoolSize` of `1`.

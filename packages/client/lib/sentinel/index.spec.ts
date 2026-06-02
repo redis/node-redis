@@ -1427,6 +1427,26 @@ describe('legacy tests', () => {
       const expectedKeys = new Set(['match:1', 'match:2']);
       assert.deepEqual(foundKeys, expectedKeys);
     }, GLOBAL.SENTINEL.OPEN);
+
+    testUtils.testWithClientSentinel('should not deadlock when consumer runs commands inside the loop with masterPoolSize 1', async sentinel => {
+      const entries: Array<string> = [];
+      for (let i = 0; i < 20; i++) {
+        entries.push(`deadlock:${i}`, `value${i}`);
+      }
+      await sentinel.mSet(entries);
+
+      const collected = new Map<string, string | null>();
+      for await (const keyBatch of sentinel.scanIterator({ MATCH: 'deadlock:*', COUNT: 5 })) {
+        if (keyBatch.length === 0) continue;
+        const values = await sentinel.mGet(keyBatch);
+        keyBatch.forEach((key, i) => collected.set(key, values[i]));
+      }
+
+      assert.equal(collected.size, 20);
+      for (let i = 0; i < 20; i++) {
+        assert.equal(collected.get(`deadlock:${i}`), `value${i}`);
+      }
+    }, GLOBAL.SENTINEL.OPEN);
   });
 
   describe('scanIterator with master failover', () => {

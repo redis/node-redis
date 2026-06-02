@@ -664,43 +664,46 @@ export default class RedisSentinel<
     this: RedisSentinelType<M, F, S, RESP, TYPE_MAPPING>,
     options?: ScanOptions & ScanIteratorOptions
   ) {
-    // Acquire a master client lease
-    const masterClient = await this.acquire();
     let cursor = options?.cursor ?? "0";
     let shouldRestart = false;
 
-    // Set up topology change listener
     const handleTopologyChange = (event: RedisSentinelEvent) => {
       if (event.type === "MASTER_CHANGE") {
         shouldRestart = true;
       }
     };
-
-    // Listen for master changes
     this.on("topology-change", handleTopologyChange);
 
     try {
       do {
-        // Check if we need to restart due to master change
         if (shouldRestart) {
           cursor = "0";
           shouldRestart = false;
         }
 
-        const reply = await masterClient.scan(cursor, options);
-        // If a topology change happened during the scan command (which caused a retry),
-        // the reply is from the new master using the old cursor. We should discard it
-        // and let the loop restart the scan from cursor "0".
+        // Acquire the master lease only for the scan command itself, then
+        // release it before yielding so the consumer can run other commands
+        // (e.g. mGet) inside the for-await loop without exhausting the pool.
+        const masterClient = await this.acquire();
+        let reply;
+        try {
+          reply = await masterClient.scan(cursor, options);
+        } finally {
+          const release = masterClient.release();
+          if (release) await release;
+        }
+
+        // If a topology change occurred during the scan command, the reply may
+        // mix keys from old and new masters. Discard and restart from cursor 0.
         if (shouldRestart) {
           continue;
         }
+
         cursor = reply.cursor;
         yield reply.keys;
       } while (cursor !== "0");
     } finally {
-      // Clean up: remove event listener and release the client
       this.removeListener("topology-change", handleTopologyChange);
-      masterClient.release();
     }
   }
 }
