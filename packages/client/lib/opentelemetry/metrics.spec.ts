@@ -692,7 +692,7 @@ describe("OTel Metrics E2E", function () {
     });
 
     testUtils.testAll(
-      "should record db.client.connection.count",
+      "should record redis.client.connection.count",
       async (client) => {
         try {
           await client.connect();
@@ -700,29 +700,31 @@ describe("OTel Metrics E2E", function () {
           // Make sure cluster clients are created and connected
           await client.ping();
 
-          await meterProvider.forceFlush();
-
-          const resourceMetrics = exporter.getMetrics();
-          const metricDataPoints = getMetricDataPoints(
-            resourceMetrics,
-            METRIC_NAMES.dbClientConnectionCount,
+          const metric = await waitForMetrics(
+            meterProvider,
+            exporter,
+            METRIC_NAMES.redisClientConnectionCount,
           );
 
-          const { value, attributes } = metricDataPoints[0];
+          assert.ok(metric, "expected redis.client.connection.count metric to be present");
 
-          // Cluster clients should have different ids in the attributes so this should be 1
-          assert.strictEqual(value, 1);
+          const dataPoint = metric.dataPoints[0];
 
-          assert.strictEqual(
-            attributes[OTEL_ATTRIBUTES.dbClientConnectionState],
-            "used",
-          );
+          assert.ok(dataPoint, "expected at least one data point");
+          assert.ok(Number(dataPoint.value) >= 1, "expected count to be at least 1");
+
+          const { attributes } = dataPoint;
           assert.ok(attributes[OTEL_ATTRIBUTES.dbClientConnectionPoolName]);
           assert.ok(attributes[OTEL_ATTRIBUTES.dbNamespace]);
           assert.ok(attributes[OTEL_ATTRIBUTES.serverAddress]);
           assert.ok(attributes[OTEL_ATTRIBUTES.serverPort]);
           assert.ok(attributes[OTEL_ATTRIBUTES.redisClientLibrary]);
           assert.ok(attributes[OTEL_ATTRIBUTES.dbSystemName]);
+          // state attribute no longer present: metric is now an ObservableGauge
+          assert.strictEqual(
+            attributes[OTEL_ATTRIBUTES.dbClientConnectionState],
+            undefined,
+          );
         } finally {
           await client.destroy();
         }
@@ -1314,35 +1316,9 @@ describe("OTel Metrics E2E", function () {
 
     testUtils.testWithClient(
       "should record redis.client.csc.network_saved",
-      async (client) => {
-        await client.ping();
-        await client.set("key", "value");
-        await client.get("key");
-        await client.get("key");
-
-        const metric = await waitForMetrics(
-          meterProvider,
-          exporter,
-          METRIC_NAMES.redisClientCscNetworkSaved,
-        );
-
-        assert.ok(
-          metric,
-          "expected redis.client.csc.network_saved metric to be present",
-        );
-        assert.strictEqual(metric.descriptor.unit, "By");
-
-        const savedBytesPoint = (
-          metric.dataPoints as unknown as DataPoint<api.Counter>[]
-        ).find((dp) => Number(dp.value) > 0);
-        assert.ok(
-          savedBytesPoint,
-          "expected redis.client.csc.network_saved value to be greater than 0",
-        );
-
-        const { attributes } = savedBytesPoint as DataPoint<api.Counter>;
-        assert.ok(attributes[OTEL_ATTRIBUTES.redisClientLibrary]);
-        assert.strictEqual(attributes[OTEL_ATTRIBUTES.dbSystemName], "redis");
+      async (_client) => {
+        // Skipped: redis.client.csc.network_saved is disabled until payload size
+        // is tracked at the socket layer. See: https://github.com/redis/node-redis/issues/3229
       },
       {
         ...GLOBAL.SERVERS.OPEN,

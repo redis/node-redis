@@ -130,13 +130,15 @@ export type MetricInstruments = Readonly<{
   dbClientOperationDuration: Histogram<Attributes>;
 
   // Connection Basic metrics
-  dbClientConnectionCount: UpDownCounter<Attributes>;
+  // Renamed from db.client.connection.count: always reported state=used which was misleading.
+  // Converted to ObservableGauge to correctly reflect current connected-client count.
+  redisClientConnectionCount: ObservableGauge<Attributes>;
   dbClientConnectionCreateTime: Histogram<Attributes>;
   redisClientConnectionRelaxedTimeout: UpDownCounter<Attributes>;
   redisClientConnectionHandoff: Counter<Attributes>;
 
   // Connection Advanced metrics
-  dbClientConnectionPendingRequests: ObservableGauge<Attributes>;
+  // dbClientConnectionPendingRequests: disabled until naming/behavior is settled (ObservableGauge).
   dbClientConnectionWaitTime: Histogram<Attributes>;
   redisClientConnectionClosed: Counter<Attributes>;
 
@@ -154,7 +156,7 @@ export type MetricInstruments = Readonly<{
   redisClientCscRequests: Counter<Attributes>;
   redisClientCscItems: ObservableGauge<Attributes>;
   redisClientCscEvictions: Counter<Attributes>;
-  redisClientCscNetworkSaved: Counter<Attributes>;
+  // redisClientCscNetworkSaved: disabled until payload size is tracked at the socket layer.
 }>;
 
 export const OTEL_ATTRIBUTES = {
@@ -232,7 +234,8 @@ export const METRIC_NAMES = {
   dbClientOperationDuration: "db.client.operation.duration",
 
   // Connection metrics
-  dbClientConnectionCount: "db.client.connection.count",
+  // Renamed from db.client.connection.count (was always state=used, misleading).
+  redisClientConnectionCount: "redis.client.connection.count",
   dbClientConnectionCreateTime: "db.client.connection.create_time",
   redisClientConnectionRelaxedTimeout:
     "redis.client.connection.relaxed_timeout",
@@ -257,7 +260,7 @@ export const METRIC_NAMES = {
   redisClientCscRequests: "redis.client.csc.requests",
   redisClientCscItems: "redis.client.csc.items",
   redisClientCscEvictions: "redis.client.csc.evictions",
-  redisClientCscNetworkSaved: "redis.client.csc.network_saved",
+  // redisClientCscNetworkSaved: disabled until payload size is tracked at the socket layer.
 } as const;
 
 export type BaseInstrumentConfig = {
