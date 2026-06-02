@@ -1473,7 +1473,7 @@ export class RedisSentinelInternal<
       this.#sentinelRootNodes = mergedSentinelList;
       const event: RedisSentinelEvent = {
         type: "SENTINE_LIST_CHANGE",
-        size: analyzed.sentinelList.length
+        size: mergedSentinelList.length
       }
       this.emit('topology-change', event);
     }
