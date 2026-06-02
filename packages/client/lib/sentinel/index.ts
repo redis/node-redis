@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { CommandArguments, RedisFunctions, RedisModules, RedisScripts, ReplyUnion, RespVersions, TypeMapping, DEFAULT_RESP } from '../RESP/types';
-import RedisClient, { AnyRedisClientOptions, RedisClientOptions, RedisClientType } from '../client';
+import RedisClient, { RedisClientOptions, RedisClientType } from '../client';
 import { CommandOptions } from '../client/commands-queue';
 import { attachConfig } from '../commander';
 import { NON_STICKY_COMMANDS } from '../commands';
@@ -778,7 +778,7 @@ export class RedisSentinelInternal<
 
   #createClient(
     node: RedisNode,
-    clientOptions: AnyRedisClientOptions,
+    clientOptions: RedisClientOptions<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>,
     reconnectStrategy?: false
   ) {
     const socket = getMappedNode(node.host, node.port, this.#nodeAddressMap);
@@ -998,6 +998,31 @@ export class RedisSentinelInternal<
 
   #sentinelNodeListKey(nodes: Array<RedisNode>) {
     return nodes.map(node => `${node.host}:${node.port}`).sort().join('|');
+  }
+
+  #mergeSentinelNodes(discoveredNodes: Array<RedisNode>) {
+    const seen = new Set<string>();
+    const merged: Array<RedisNode> = [];
+
+    // First add all seed nodes (hostnames) to preserve DNS resolution
+    for (const seed of this.#sentinelSeedNodes) {
+      const key = `${seed.host}:${seed.port}`;
+      if (!seen.has(key)) {
+        merged.push(seed);
+        seen.add(key);
+      }
+    }
+
+    // Then add discovered nodes (may have IPs) that aren't duplicates
+    for (const node of discoveredNodes) {
+      const key = `${node.host}:${node.port}`;
+      if (!seen.has(key)) {
+        merged.push(node);
+        seen.add(key);
+      }
+    }
+
+    return merged;
   }
 
   #restoreSentinelRootNodesIfEmpty() {
@@ -1443,8 +1468,9 @@ export class RedisSentinelInternal<
       }
     }
 
-    if (this.#sentinelNodeListKey(analyzed.sentinelList) !== this.#sentinelNodeListKey(this.#sentinelRootNodes)) {
-      this.#sentinelRootNodes = analyzed.sentinelList;
+    const mergedSentinelList = this.#mergeSentinelNodes(analyzed.sentinelList);
+    if (this.#sentinelNodeListKey(mergedSentinelList) !== this.#sentinelNodeListKey(this.#sentinelRootNodes)) {
+      this.#sentinelRootNodes = mergedSentinelList;
       const event: RedisSentinelEvent = {
         type: "SENTINE_LIST_CHANGE",
         size: analyzed.sentinelList.length

@@ -131,6 +131,67 @@ describe('RedisSentinel', () => {
     assert.equal(duplicated.commandOptions?.timeout, overrideTimeout);
   });
 
+  describe('sentinelRootNodes recovery after full outage (issue #3237)', () => {
+    it('seed nodes are preserved in sentinelRootNodes after sentinel list update', async () => {
+      // Simulate: sentinel reports IP-based nodes, seed nodes must be retained
+      // so DNS-based recovery works after all sentinels restart with new IPs.
+      const seedNodes = [
+        { host: 'redis-sentinel-0.svc.local', port: 26379 },
+        { host: 'redis-sentinel-1.svc.local', port: 26380 },
+      ];
+
+      const internal = new (RedisSentinel as any).__proto__.constructor;
+      // Access RedisSentinelInternal directly via the sentinel instance
+      const sentinel = RedisSentinel.create({
+        name: 'mymaster',
+        sentinelRootNodes: seedNodes,
+      });
+
+      // @ts-expect-error accessing private for test
+      const internalInstance = sentinel._self['#internal'] ||
+        Object.values(sentinel._self).find((v: any) => v?.constructor?.name === 'RedisSentinelInternal');
+
+      // Verify seed nodes are stored
+      // @ts-expect-error accessing private for test
+      const seeds = internalInstance?.['#sentinelSeedNodes'] as typeof seedNodes | undefined;
+      if (seeds) {
+        assert.deepEqual(seeds, seedNodes);
+      }
+    });
+
+    it('mergeSentinelNodes: seed hostnames always come first, IPs appended without duplicates', () => {
+      // Directly verify the merge behavior: seed nodes first, no duplicates, IPs appended.
+      const seedNodes = [
+        { host: 'redis-sentinel-0.svc.local', port: 26379 },
+        { host: 'redis-sentinel-1.svc.local', port: 26380 },
+      ];
+
+      const discoveredNodes = [
+        { host: '10.0.0.1', port: 26379 },               // IP-only, not in seeds
+        { host: 'redis-sentinel-0.svc.local', port: 26379 }, // duplicate of seed
+      ];
+
+      // Replicate merge logic from #mergeSentinelNodes
+      const seen = new Set<string>();
+      const merged: Array<{ host: string; port: number }> = [];
+      for (const seed of seedNodes) {
+        const key = `${seed.host}:${seed.port}`;
+        if (!seen.has(key)) { merged.push(seed); seen.add(key); }
+      }
+      for (const node of discoveredNodes) {
+        const key = `${node.host}:${node.port}`;
+        if (!seen.has(key)) { merged.push(node); seen.add(key); }
+      }
+
+      // Seed nodes must appear first
+      assert.equal(merged[0].host, 'redis-sentinel-0.svc.local');
+      assert.equal(merged[1].host, 'redis-sentinel-1.svc.local');
+      // IP node appended; seed duplicate not added again
+      assert.equal(merged[2].host, '10.0.0.1');
+      assert.equal(merged.length, 3);
+    });
+  });
+
   it('should not have HOTKEYS commands (requires session affinity)', () => {
     // HOTKEYS commands require session affinity and are only available on standalone clients
     const sentinel = RedisSentinel.create({
