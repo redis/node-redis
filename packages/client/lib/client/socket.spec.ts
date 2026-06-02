@@ -240,39 +240,45 @@ describe('Socket', () => {
   });
 
   describe('socketTimeout', () => {
-    const timeout = 50;
+    const timeout = 200;
     testUtils.testWithClient(
       'should timeout with positive socketTimeout values',
       async client => {
-        let timedOut = false;
+        // Attach a permanent error listener before connecting so the timeout
+        // event can never surface as an uncaught error — neither during the
+        // handshake nor in the idle window afterwards. `reconnectStrategy:
+        // false` makes the run deterministic and causes the client to emit
+        // `error` twice, so a permanent listener (not `once`) is required.
+        client.on('error', () => {
+          // keep a permanent listener for any later error emission
+        });
+        const firstError = once(client, 'error') as Promise<[Error]>;
 
-        assert.equal(client.isReady, true, 'client.isReady');
-        assert.equal(client.isOpen, true, 'client.isOpen');
+        try {
+          await client.connect();
+          assert.equal(client.isReady, true, 'client.isReady');
+          assert.equal(client.isOpen, true, 'client.isOpen');
 
-        client.on('error', err => {
+          const [err] = await firstError;
           assert.equal(
             err.message,
             `Socket timeout timeout. Expecting data, but didn't receive any in ${timeout}ms.`
           );
-
           assert.equal(client.isReady, false, 'client.isReady');
-
-          // This is actually a bug with the onSocketError implementation,
-          // the client should be closed before the error is emitted
-          process.nextTick(() => {
-            assert.equal(client.isOpen, false, 'client.isOpen');
-          });
-
-          timedOut = true;
-        });
-        await setTimeout(timeout * 2);
-        if (!timedOut) assert.fail('Should have timed out by now');
+          // `reconnectStrategy: false` closes the client synchronously after
+          // emitting the error.
+          assert.equal(client.isOpen, false, 'client.isOpen');
+        } finally {
+          if (client.isOpen) client.destroy();
+        }
       },
       {
         ...GLOBAL.SERVERS.OPEN,
+        disableClientSetup: true,
         clientOptions: {
           socket: {
-            socketTimeout: timeout
+            socketTimeout: timeout,
+            reconnectStrategy: false
           }
         }
       }
