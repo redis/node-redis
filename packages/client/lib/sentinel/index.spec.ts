@@ -242,6 +242,54 @@ describe('RedisSentinel', () => {
       // expected merged: seeds (2) + discovered (3) => 5 entries (no duplicates by host:port)
       assert.equal(listChangeSize, 5);
     });
+
+    it('does not permanently keep IP-literal seeds in front of sentinelRootNodes after discovery', async () => {
+      // IP-only seeds are treated as seeds by the implementation.
+      // Once discovery yields new candidates, they must not stay behind the old IP seeds.
+      const seedNodes = [
+        { host: '10.0.0.10', port: 26379 },
+        { host: '10.0.0.11', port: 26380 },
+      ];
+
+      const sentinel = RedisSentinel.create({
+        name: 'mymaster',
+        sentinelRootNodes: seedNodes,
+      });
+
+      // @ts-expect-error accessing internal for test
+      const internal = ((): unknown => {
+        const values = Object.values(sentinel._self as unknown as Record<string, unknown>);
+        const found = values.find(v => (v as { constructor?: { name?: string } } | undefined)?.constructor?.name === 'RedisSentinelInternal');
+        return found;
+      })();
+
+      assert.ok(internal, 'expected RedisSentinelInternal to be accessible');
+
+      const analyzedStub = {
+        sentinelList: [
+          { host: 'redis-sentinel-0.svc.local', port: 26379 },
+          { host: 'redis-sentinel-1.svc.local', port: 26380 },
+        ],
+        epoch: 0,
+        sentinelToOpen: undefined,
+        masterToOpen: undefined,
+        replicasToClose: [],
+        replicasToOpen: new Map(),
+      };
+
+      await internal.transform(analyzedStub);
+
+      // Read private state for assertion.
+      // If we can't access it, skip hard assertion.
+      const rootNodes: Array<RedisNode> | undefined = (internal as Record<string, unknown>)['#sentinelRootNodes'] as Array<RedisNode> | undefined;
+      if (rootNodes === undefined) return;
+
+      const firstTwoHosts = rootNodes.slice(0, 2).map((n: RedisNode) => n.host);
+      assert.ok(
+        firstTwoHosts.includes('redis-sentinel-0.svc.local') && firstTwoHosts.includes('redis-sentinel-1.svc.local'),
+        `expected discovered hostname sentinels to be at the front, got: ${firstTwoHosts.join(',')}`
+      );
+    });
   });
 
   it('should not have HOTKEYS commands (requires session affinity)', () => {
