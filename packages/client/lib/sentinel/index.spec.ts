@@ -162,18 +162,17 @@ describe('RedisSentinel', () => {
       };
 
       // @ts-expect-error accessing internal for regression test
-      const internal = (sentinel._self as any)[Object.getOwnPropertySymbols((sentinel._self as any))
-        .find((s: symbol) => s.toString().includes('internal')) ?? ''] ??
-        Object.values(sentinel._self as any).find((v: any) => v?.constructor?.name === 'RedisSentinelInternal');
+      const internal = (sentinel._self as unknown as { [k: symbol]: unknown })[
+        Object.getOwnPropertySymbols(sentinel._self).find(s => s.toString().includes('internal')) ?? Symbol('internal')
+      ] as unknown as { transform: (a: unknown) => Promise<void> } | undefined;
+
 
       if (!internal) {
         // If we can't access internals, verify via topology-change event instead
-        let eventSize = -1;
-        sentinel.on('topology-change', (event: RedisSentinelEvent) => {
-          if (event.type === 'SENTINE_LIST_CHANGE') {
-            eventSize = event.size;
-          }
+        sentinel.on('topology-change', () => {
+          // no-op: if internals are inaccessible, we at least ensure the test compiles
         });
+
         // Just verify the sentinel was created with seed nodes
         assert.equal(seedNodes.length, 2);
         return;
@@ -198,33 +197,50 @@ describe('RedisSentinel', () => {
       }
     });
 
-    it('SENTINE_LIST_CHANGE event size reflects merged list (seeds + discovered), not just discovered', () => {
-      // Regression for cursor-bot finding: size field used analyzed.sentinelList.length
-      // but #sentinelRootNodes is set to mergedSentinelList which includes seed nodes too.
+    it('SENTINE_LIST_CHANGE.size reflects merged list length produced by transform()', async () => {
       const seedNodes = [
         { host: 'redis-sentinel-0.svc.local', port: 26379 },
         { host: 'redis-sentinel-1.svc.local', port: 26380 },
       ];
-      const discoveredNodes = [
-        { host: '10.0.0.1', port: 26381 }, // new IP node not in seeds
-      ];
 
-      // Simulate merge: seeds first, then unique discovered nodes
-      const seen = new Set(seedNodes.map(n => `${n.host}:${n.port}`));
-      const merged = [...seedNodes];
-      for (const node of discoveredNodes) {
-        if (!seen.has(`${node.host}:${node.port}`)) merged.push(node);
-      }
+      const sentinel = RedisSentinel.create({
+        name: 'mymaster',
+        sentinelRootNodes: seedNodes,
+      });
 
-      // merged has 3 entries; discovered alone has 1
-      // Event size must equal merged.length (3), not discoveredNodes.length (1)
-      assert.equal(merged.length, 3);
-      assert.notEqual(merged.length, discoveredNodes.length);
+      const analyzedStub = {
+        sentinelList: [
+          { host: '10.0.0.1', port: 26379 },
+          { host: '10.0.0.2', port: 26380 },
+          { host: '10.0.0.3', port: 26381 },
+        ],
+        epoch: 0,
+        sentinelToOpen: undefined,
+        masterToOpen: undefined,
+        replicasToClose: [],
+        replicasToOpen: new Map(),
+      };
 
-      // Verify seeds are first
-      assert.equal(merged[0].host, 'redis-sentinel-0.svc.local');
-      assert.equal(merged[1].host, 'redis-sentinel-1.svc.local');
-      assert.equal(merged[2].host, '10.0.0.1');
+      // @ts-expect-error accessing internal for test
+      const internal = ((): { transform: (a: unknown) => Promise<void> } | undefined => {
+        const values = Object.values(sentinel._self as unknown as Record<string, unknown>);
+        const found = values.find(v => (v as { constructor?: { name?: string } } | undefined)?.constructor?.name === 'RedisSentinelInternal');
+        if (!found || typeof (found as { transform?: unknown }).transform !== 'function') return undefined;
+        return found as { transform: (a: unknown) => Promise<void> };
+      })();
+
+
+      assert.ok(internal, 'expected RedisSentinelInternal to be accessible');
+
+      let listChangeSize = -1;
+      sentinel.on('topology-change', (event: RedisSentinelEvent) => {
+        if (event.type === 'SENTINE_LIST_CHANGE') listChangeSize = event.size;
+      });
+
+      await internal.transform(analyzedStub);
+
+      // expected merged: seeds (2) + discovered (3) => 5 entries (no duplicates by host:port)
+      assert.equal(listChangeSize, 5);
     });
   });
 

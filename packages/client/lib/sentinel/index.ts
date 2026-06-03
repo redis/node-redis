@@ -14,7 +14,7 @@ import { setTimeout } from 'node:timers/promises';
 import RedisSentinelModule from './module'
 import { RedisVariadicArgument } from '../commands/generic-transformers';
 import { WaitQueue } from './wait-queue';
-import { TcpNetConnectOpts } from 'node:net';
+import { TcpNetConnectOpts, isIP } from 'node:net';
 import { RedisTcpSocketOptions } from '../client/socket';
 import { BasicPooledClientSideCache, PooledClientSideCacheProvider } from '../client/cache';
 import { ClientIdentity, ClientRole, generateClientId } from '../client/identity';
@@ -733,8 +733,14 @@ export class RedisSentinelInternal<
     this.#sentinelClientId = sentinelClientId;
 
     this.#RESP = options.RESP;
-    this.#sentinelSeedNodes = Array.from(options.sentinelRootNodes);
-    this.#sentinelRootNodes = Array.from(this.#sentinelSeedNodes);
+    this.#sentinelSeedNodes = Array.from(options.sentinelRootNodes)
+      .filter(n => isIP(n.host) === 0);
+    // If the user provided only IP-literal seeds, keep them for initial connection.
+    // Once topology is discovered, DNS-based seeds will still be preserved by #mergeSentinelNodes.
+    this.#sentinelRootNodes = this.#sentinelSeedNodes.length > 0
+      ? Array.from(this.#sentinelSeedNodes)
+      : Array.from(options.sentinelRootNodes);
+
     this.#maxCommandRediscovers = options.maxCommandRediscovers ?? 16;
     this.#masterPoolSize = options.masterPoolSize ?? 1;
     this.#replicaPoolSize = options.replicaPoolSize ?? 0;
