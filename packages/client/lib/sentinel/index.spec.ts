@@ -6,7 +6,7 @@ import { WatchError } from "../errors";
 import { RedisSentinelConfig, SentinelFramework } from "./test-util";
 import { RedisSentinelEvent, RedisSentinelType, RedisSentinelClientType, RedisNode } from "./types";
 import RedisSentinel from "./index";
-import { RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
+import { RedisArgument, RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
 import { promisify } from 'node:util';
 import { exec } from 'node:child_process';
 import { BasicPooledClientSideCache } from '../client/cache'
@@ -1468,12 +1468,127 @@ describe('legacy tests', () => {
       const firstPage = await firstPagePromise;
 
       assert.equal(firstPage.done, false, 'iterator must not terminate from a MASTER_CHANGE at cursor "0"');
+      assert.ok(Array.isArray(firstPage.value), 'iterator must yield the real scan reply, not the synthetic event payload');
       const collected = new Set<string>(firstPage.value as Array<string>);
       for await (const keys of iter) {
         for (const key of keys) collected.add(key);
       }
       assert.deepEqual(collected, new Set(['restart-on-zero:1', 'restart-on-zero:2']));
     }, GLOBAL.SENTINEL.OPEN);
+
+    testUtils.testWithClientSentinel(
+      'should terminate when Blob String type mapping returns the cursor as a Buffer',
+      async sentinel => {
+        // Regression: comparing the (Buffer) cursor to the literal string '0'
+        // with !== never becomes false, so the iterator looped forever.
+        await sentinel.mSet([
+          'buffer-cursor:1', '1',
+          'buffer-cursor:2', '2'
+        ]);
+
+        const found = new Set<string>();
+        for await (const keyBatch of sentinel.scanIterator({ MATCH: 'buffer-cursor:*' })) {
+          for (const key of keyBatch) {
+            found.add(key.toString());
+          }
+        }
+
+        assert.deepEqual(found, new Set(['buffer-cursor:1', 'buffer-cursor:2']));
+      },
+      {
+        ...GLOBAL.SENTINEL.OPEN,
+        clientOptions: {
+          commandOptions: {
+            typeMapping: { [RESP_TYPES.BLOB_STRING]: Buffer }
+          }
+        }
+      }
+    );
+
+    testUtils.testWithClientSentinel('should forward a user-supplied cursor to SCAN on the first call', async sentinel => {
+      await sentinel.mSet([
+        'cursor-opt:1', '1',
+        'cursor-opt:2', '2'
+      ]);
+
+      const seenCursors: Array<string> = [];
+      const sentinelAny = sentinel as unknown as {
+        _execute: (
+          isReadonly: boolean | undefined,
+          fn: (client: unknown) => Promise<unknown>
+        ) => Promise<unknown>;
+      };
+      const realExecute = sentinelAny._execute.bind(sentinel);
+      sentinelAny._execute = function (isReadonly, fn) {
+        return realExecute(isReadonly, (client: unknown) => {
+          const wrapped = new Proxy(client as object, {
+            get(target, prop, receiver) {
+              if (prop === 'scan') {
+                return (cursor: RedisArgument, opts: unknown) => {
+                  seenCursors.push(cursor.toString());
+                  return (target as { scan: (c: RedisArgument, o: unknown) => unknown }).scan(cursor, opts);
+                };
+              }
+              return Reflect.get(target, prop, receiver);
+            }
+          });
+          return fn(wrapped);
+        });
+      };
+
+      try {
+        const iter = sentinel.scanIterator({ MATCH: 'cursor-opt:*', cursor: '7' });
+        await iter.next();
+        await iter.return?.(undefined);
+      } finally {
+        sentinelAny._execute = realExecute;
+      }
+
+      assert.equal(seenCursors[0], '7', 'first SCAN call must use the user-supplied cursor');
+    }, GLOBAL.SENTINEL.OPEN);
+
+    testUtils.testWithClientSentinel('should remove the topology-change listener when the consumer breaks early', async sentinel => {
+      await sentinel.mSet([
+        'cleanup:1', '1',
+        'cleanup:2', '2'
+      ]);
+
+      const before = sentinel.listenerCount('topology-change');
+      for await (const _ of sentinel.scanIterator({ MATCH: 'cleanup:*' })) {
+        break;
+      }
+      assert.equal(
+        sentinel.listenerCount('topology-change'),
+        before,
+        'scanIterator must detach its topology-change listener on early break'
+      );
+    }, GLOBAL.SENTINEL.OPEN);
+
+    testUtils.testWithClientSentinel(
+      'should iterate without hanging when reserveClient:true and masterPoolSize:1',
+      async sentinel => {
+        // Regression: connect() consumes the only master lease into the
+        // reserved client, so an acquire() inside scanIterator would block
+        // forever on an empty pool. Routing through _execute reuses the
+        // reserved lease instead.
+        await sentinel.mSet([
+          'reserve-scan:1', '1',
+          'reserve-scan:2', '2'
+        ]);
+
+        const found = new Set<string>();
+        for await (const keyBatch of sentinel.scanIterator({ MATCH: 'reserve-scan:*' })) {
+          for (const key of keyBatch) found.add(key);
+        }
+
+        assert.deepEqual(found, new Set(['reserve-scan:1', 'reserve-scan:2']));
+      },
+      {
+        ...GLOBAL.SENTINEL.OPEN,
+        reserveClient: true,
+        masterPoolSize: 1
+      }
+    );
   });
 
   describe('scanIterator with master failover', () => {
@@ -1599,7 +1714,11 @@ describe('legacy tests', () => {
       );
     });
 
-    it('should handle master change at scan start', async function () {
+    // This test waits for MASTER_CHANGE to fire before constructing the
+    // iterator, so the iterator never sees a failover in flight — it only
+    // verifies that a scan started after a completed failover talks to the
+    // new master. The in-flight-failover case is covered by the test above.
+    it('should iterate against the new master when failover completes before scan starts', async function () {
       this.timeout(60000);
 
       sentinel = frame.getSentinelClient({ scanInterval: 1000 });

@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { CommandArguments, RedisArgument, RedisFunctions, RedisModules, RedisScripts, ReplyUnion, RespVersions, TypeMapping, DEFAULT_RESP } from '../RESP/types';
-import RedisClient, { AnyRedisClientOptions, RedisClientOptions, RedisClientType } from '../client';
+import RedisClient, { AnyRedisClientOptions, RedisClientOptions, RedisClientType, ScanIteratorOptions } from '../client';
 import { CommandOptions } from '../client/commands-queue';
 import { attachConfig } from '../commander';
 import { NON_STICKY_COMMANDS } from '../commands';
@@ -23,10 +23,6 @@ import { ScanOptions } from '../commands/SCAN';
 
 interface ClientInfo {
   id: number;
-}
-
-interface ScanIteratorOptions {
-  cursor?: RedisArgument;
 }
 
 export class RedisSentinelClient<
@@ -664,33 +660,40 @@ export default class RedisSentinel<
     this: RedisSentinelType<M, F, S, RESP, TYPE_MAPPING>,
     options?: ScanOptions & ScanIteratorOptions
   ) {
-    let cursor = options?.cursor ?? "0";
+    let cursor: RedisArgument = options?.cursor ?? '0';
     let shouldRestart = false;
 
     const handleTopologyChange = (event: RedisSentinelEvent) => {
-      if (event.type === "MASTER_CHANGE") {
+      if (event.type === 'MASTER_CHANGE') {
         shouldRestart = true;
       }
     };
-    this.on("topology-change", handleTopologyChange);
+    this.on('topology-change', handleTopologyChange);
 
     try {
       do {
         if (shouldRestart) {
-          cursor = "0";
+          cursor = '0';
           shouldRestart = false;
         }
 
-        // Acquire the master lease only for the scan command itself, then
-        // release it before yielding so the consumer can run other commands
-        // (e.g. mGet) inside the for-await loop without exhausting the pool.
-        const masterClient = await this.acquire();
+        // Route through _execute so reserveClient:true reuses the reserved
+        // lease (instead of waiting forever on an empty master pool), and the
+        // lease is released before yielding — consumers can issue other
+        // commands inside the for-await loop without exhausting the pool.
         let reply;
         try {
-          reply = await masterClient.scan(cursor, options);
-        } finally {
-          const release = masterClient.release();
-          if (release) await release;
+          reply = await this._execute(
+            false,
+            client => (client as RedisClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>).scan(cursor, options)
+          );
+        } catch (err) {
+          // A master failover mid-SCAN can surface as a connection error
+          // before the topology-change event is processed. If the iterator
+          // has already been flagged to restart, swallow and retry on the
+          // new master instead of propagating the transient error.
+          if (shouldRestart) continue;
+          throw err;
         }
 
         // If a topology change occurred during the scan command, the reply may
@@ -701,9 +704,11 @@ export default class RedisSentinel<
 
         cursor = reply.cursor;
         yield reply.keys;
-      } while (cursor !== "0" || shouldRestart);
+        // Cursor may be a Buffer when a Blob String type mapping is in use;
+        // compare by string value so iteration actually terminates.
+      } while (cursor.toString() !== '0' || shouldRestart);
     } finally {
-      this.removeListener("topology-change", handleTopologyChange);
+      this.removeListener('topology-change', handleTopologyChange);
     }
   }
 }
