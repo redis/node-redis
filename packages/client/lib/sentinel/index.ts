@@ -701,7 +701,7 @@ export default class RedisSentinel<
 
         cursor = reply.cursor;
         yield reply.keys;
-      } while (cursor !== "0");
+      } while (cursor !== "0" || shouldRestart);
     } finally {
       this.removeListener("topology-change", handleTopologyChange);
     }

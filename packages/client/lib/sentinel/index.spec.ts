@@ -1447,6 +1447,33 @@ describe('legacy tests', () => {
         assert.equal(collected.get(`deadlock:${i}`), `value${i}`);
       }
     }, GLOBAL.SENTINEL.OPEN);
+
+    testUtils.testWithClientSentinel('should restart and not silently terminate when MASTER_CHANGE fires while cursor is "0"', async sentinel => {
+      // Regression: a topology change during the first scan (cursor "0") used
+      // to `continue` past the cursor assignment, then the do/while condition
+      // saw the still-"0" cursor and exited, yielding nothing.
+      await sentinel.mSet([
+        'restart-on-zero:1', '1',
+        'restart-on-zero:2', '2'
+      ]);
+
+      const iter = sentinel.scanIterator({ MATCH: 'restart-on-zero:*' });
+      // Calling .next() runs the generator body up to the first `await`, which
+      // means the `topology-change` listener is attached before this point.
+      const firstPagePromise = iter.next();
+      sentinel.emit('topology-change', {
+        type: 'MASTER_CHANGE',
+        node: { host: 'synthetic', port: 0 }
+      });
+      const firstPage = await firstPagePromise;
+
+      assert.equal(firstPage.done, false, 'iterator must not terminate from a MASTER_CHANGE at cursor "0"');
+      const collected = new Set<string>(firstPage.value as Array<string>);
+      for await (const keys of iter) {
+        for (const key of keys) collected.add(key);
+      }
+      assert.deepEqual(collected, new Set(['restart-on-zero:1', 'restart-on-zero:2']));
+    }, GLOBAL.SENTINEL.OPEN);
   });
 
   describe('scanIterator with master failover', () => {
