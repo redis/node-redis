@@ -733,13 +733,12 @@ export class RedisSentinelInternal<
     this.#sentinelClientId = sentinelClientId;
 
     this.#RESP = options.RESP;
-    this.#sentinelSeedNodes = Array.from(options.sentinelRootNodes)
-      .filter(n => isIP(n.host) === 0);
-    // If the user provided only IP-literal seeds, keep them for initial connection.
-    // Once topology is discovered, DNS-based seeds will still be preserved by #mergeSentinelNodes.
-    this.#sentinelRootNodes = this.#sentinelSeedNodes.length > 0
-      ? Array.from(this.#sentinelSeedNodes)
-      : Array.from(options.sentinelRootNodes);
+ 
+// Keep seeds exactly as provided (NO filtering)
+this.#sentinelSeedNodes = Array.from(options.sentinelRootNodes);
+
+// Initial root nodes = same as seeds
+this.#sentinelRootNodes = Array.from(options.sentinelRootNodes);
 
     this.#maxCommandRediscovers = options.maxCommandRediscovers ?? 16;
     this.#masterPoolSize = options.masterPoolSize ?? 1;
