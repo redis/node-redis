@@ -1474,15 +1474,21 @@ export class RedisSentinelInternal<
       }
     }
 
-    const mergedSentinelList = this.#mergeSentinelNodes(analyzed.sentinelList);
-    if (this.#sentinelNodeListKey(mergedSentinelList) !== this.#sentinelNodeListKey(this.#sentinelRootNodes)) {
-      this.#sentinelRootNodes = mergedSentinelList;
-      const event: RedisSentinelEvent = {
-        type: "SENTINE_LIST_CHANGE",
-        size: mergedSentinelList.length
-      }
-      this.emit('topology-change', event);
-    }
+   const mergedSentinelList = this.#mergeSentinelNodes(analyzed.sentinelList);
+
+if (
+  this.#sentinelNodeListKey(mergedSentinelList) !==
+  this.#sentinelNodeListKey(this.#sentinelRootNodes)
+) {
+  this.#sentinelRootNodes = mergedSentinelList;
+
+  const event: RedisSentinelEvent = {
+    type: "SENTINE_LIST_CHANGE",
+    size: mergedSentinelList.length
+  };
+
+  this.emit("topology-change", event);
+}
 
     await Promise.all(promises);
     this.#trace("transform: exit");
