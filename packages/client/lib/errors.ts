@@ -52,6 +52,12 @@ export class RootNodesUnavailableError extends Error {
   }
 }
 
+export class SentinelMasterChangeError extends Error {
+  constructor(cause?: unknown) {
+    super('Sentinel master changed during operation', cause === undefined ? undefined : { cause });
+  }
+}
+
 export class ReconnectStrategyError extends Error {
   originalError: Error;
   socketError: unknown;

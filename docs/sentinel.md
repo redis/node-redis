@@ -171,31 +171,31 @@ for await (const keys of sentinel.scanIterator()) {
 }
 ```
 
-### Semantics and differences from standalone `scanIterator`
+### Behaviour on master failover
 
-The standalone `RedisClient.scanIterator()` inherits SCAN's documented guarantees: a full iteration returns every key present from start to end, and may return a key multiple times. See the [SCAN guarantees](https://redis.io/docs/latest/commands/scan/#scan-guarantees) page.
+SCAN cursors are node-local — a cursor returned by one Redis instance is meaningless on any other instance. Because of this, the sentinel iterator cannot transparently survive a master failover: the in-flight cursor cannot be resumed on the promoted replica, and silently restarting from cursor `0` on the new master would hide both duplicate keys (already yielded from the old master) and data loss (writes that had not yet replicated before the failover).
 
-The sentinel iterator adds one extra source of duplicates: **master failover**. If the master changes mid-iteration (detected via the `topology-change` event with `type: "MASTER_CHANGE"`), the cursor is invalidated (SCAN cursors are node-local) and the iterator restarts from cursor `0` on the new master. Keys already yielded before the failover may be yielded again from the new master.
-
-A user-supplied `cursor` option (e.g. `sentinel.scanIterator({ cursor: '1234' })`) is honored on the first SCAN call only. If a failover then resets the iterator, it restarts from cursor `0` (not the user-supplied value), because the original cursor was bound to the old master and would be meaningless on the new one.
-
-Because Redis replication is asynchronous, the new master may also have a slightly different keyset than the old master at the moment of promotion — writes that had not yet replicated will be missing, and writes accepted on the new master after promotion will be present.
-
-If your processing must be exactly-once, deduplicate with a `Set`:
+Instead, if the master changes while an iteration is in progress, the iterator throws `SentinelMasterChangeError`. The caller decides whether to retry the iteration from scratch, accept the partial result, or fail the surrounding operation.
 
 ```javascript
-const processed = new Set();
-for await (const keys of sentinel.scanIterator()) {
-  for (const key of keys) {
-    if (processed.has(key)) continue;
-    processed.add(key);
+import { SentinelMasterChangeError } from '@redis/client';
 
-    // process key
+try {
+  for await (const keys of sentinel.scanIterator()) {
+    // ...
+  }
+} catch (err) {
+  if (err instanceof SentinelMasterChangeError) {
+    // master failed over mid-iteration; restart from the beginning if desired
+  } else {
+    throw err;
   }
 }
 ```
 
-For very large keyspaces a `Set` may be memory-prohibitive. A Bloom filter is a lower-memory alternative but is **not** suitable for strict exactly-once processing: its false positives will cause some real keys to be skipped. Use it only when occasional skips are acceptable.
+The iterator listens for the `topology-change` event with `type: "MASTER_CHANGE"`. The listener is attached when the generator body first runs (on the first `.next()` call) and is detached in a `finally` block, so an early `break` out of the `for await` loop will not leak listeners.
+
+The standalone `RedisClient.scanIterator()` still inherits SCAN's documented guarantees, including the possibility of returning the same key multiple times within a single iteration; see the [SCAN guarantees](https://redis.io/docs/latest/commands/scan/#scan-guarantees) page.
 
 ### Pool behaviour
 

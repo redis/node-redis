@@ -2,7 +2,7 @@ import { strict as assert } from 'node:assert';
 import { setTimeout } from 'node:timers/promises';
 import testUtils, { GLOBAL, MATH_FUNCTION } from '../test-utils';
 import { RESP_TYPES } from '../RESP/decoder';
-import { WatchError } from "../errors";
+import { SentinelMasterChangeError, WatchError } from "../errors";
 import { RedisSentinelConfig, SentinelFramework } from "./test-util";
 import { RedisSentinelEvent, RedisSentinelType, RedisSentinelClientType, RedisNode } from "./types";
 import RedisSentinel from "./index";
@@ -1448,16 +1448,13 @@ describe('legacy tests', () => {
       }
     }, GLOBAL.SENTINEL.OPEN);
 
-    testUtils.testWithClientSentinel('should restart and not silently terminate when MASTER_CHANGE fires while cursor is "0"', async sentinel => {
-      // Regression: a topology change during the first scan (cursor "0") used
-      // to `continue` past the cursor assignment, then the do/while condition
-      // saw the still-"0" cursor and exited, yielding nothing.
+    testUtils.testWithClientSentinel('should throw SentinelMasterChangeError when MASTER_CHANGE fires while cursor is "0"', async sentinel => {
       await sentinel.mSet([
-        'restart-on-zero:1', '1',
-        'restart-on-zero:2', '2'
+        'master-change-on-zero:1', '1',
+        'master-change-on-zero:2', '2'
       ]);
 
-      const iter = sentinel.scanIterator({ MATCH: 'restart-on-zero:*' });
+      const iter = sentinel.scanIterator({ MATCH: 'master-change-on-zero:*' });
       // Calling .next() runs the generator body up to the first `await`, which
       // means the `topology-change` listener is attached before this point.
       const firstPagePromise = iter.next();
@@ -1465,15 +1462,8 @@ describe('legacy tests', () => {
         type: 'MASTER_CHANGE',
         node: { host: 'synthetic', port: 0 }
       });
-      const firstPage = await firstPagePromise;
 
-      assert.equal(firstPage.done, false, 'iterator must not terminate from a MASTER_CHANGE at cursor "0"');
-      assert.ok(Array.isArray(firstPage.value), 'iterator must yield the real scan reply, not the synthetic event payload');
-      const collected = new Set<string>(firstPage.value as Array<string>);
-      for await (const keys of iter) {
-        for (const key of keys) collected.add(key);
-      }
-      assert.deepEqual(collected, new Set(['restart-on-zero:1', 'restart-on-zero:2']));
+      await assert.rejects(firstPagePromise, SentinelMasterChangeError);
     }, GLOBAL.SENTINEL.OPEN);
 
     testUtils.testWithClientSentinel(
@@ -1613,7 +1603,7 @@ describe('legacy tests', () => {
       await frame.cleanup();
     });
 
-    it('should restart scan from beginning when master changes during iteration', async function () {
+    it('should throw SentinelMasterChangeError when master changes during iteration', async function () {
       this.timeout(60000);
 
       sentinel = frame.getSentinelClient({ scanInterval: 1000 });
@@ -1621,25 +1611,19 @@ describe('legacy tests', () => {
       sentinel.on("error", () => {});
       await sentinel.connect();
 
-      // Set up test data
-      const testKeys = new Set<string>();
       const entries: Array<string> = [];
-
       for (let i = 0; i < 100; i++) {
-        const key = `failovertest:${i}`;
-        testKeys.add(key);
-        entries.push(key, `value${i}`);
+        entries.push(`failovertest:${i}`, `value${i}`);
       }
 
       await sentinel.mSet(entries);
-      // Wait for addded keys to be replicated
+      // Wait for added keys to be replicated
       await setTimeout(2000);
 
       let masterChangeDetected = false;
       let iterationCount = 0;
       const foundKeys = new Set<string>();
 
-      // Listen for manifest change events
       sentinel.on("topology-change", (event: RedisSentinelEvent) => {
         if (event.type === "MASTER_CHANGE") {
           masterChangeDetected = true;
@@ -1647,17 +1631,15 @@ describe('legacy tests', () => {
         }
       });
 
-      // Get the current master node before starting scan
       const originalMaster = sentinel.getMasterNode();
       tracer.push(`Original master port: ${originalMaster?.port}`);
 
-      // Start scanning with a small COUNT to ensure multiple iterations
       const scanIterator = sentinel.scanIterator({
         MATCH: "failovertest:*",
         COUNT: 10,
       });
 
-      // Consume the scan iterator
+      let caught: unknown;
       try {
         for await (const keyBatch of scanIterator) {
           iterationCount++;
@@ -1677,40 +1659,26 @@ describe('legacy tests', () => {
           }
         }
       } catch (error) {
+        caught = error;
         tracer.push(`Error during scan: ${error}`);
-        throw error;
       }
 
-      // Verify that master change was detected
+      assert.ok(
+        caught instanceof SentinelMasterChangeError,
+        `expected SentinelMasterChangeError, got ${caught}`
+      );
       assert.equal(
         masterChangeDetected,
         true,
         "Master change should have been detected"
       );
 
-      // Verify that we eventually got all keys despite the master change
-      assert.equal(
-        foundKeys.size,
-        testKeys.size,
-        "Should find all keys despite master failover"
-      );
-      assert.deepEqual(
-        foundKeys,
-        testKeys,
-        "Found keys should match test keys"
-      );
-
-      // Verify that the master actually changed
       const newMaster = sentinel.getMasterNode();
       tracer.push(`New master port: ${newMaster?.port}`);
       assert.notEqual(
         originalMaster?.port,
         newMaster?.port,
         "Master should have changed"
-      );
-
-      tracer.push(
-        `Test completed successfully with ${iterationCount} scan iterations`
       );
     });
 

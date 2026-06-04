@@ -1,5 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { CommandArguments, RedisArgument, RedisFunctions, RedisModules, RedisScripts, ReplyUnion, RespVersions, TypeMapping, DEFAULT_RESP } from '../RESP/types';
+import { SentinelMasterChangeError } from '../errors';
 import RedisClient, { AnyRedisClientOptions, RedisClientOptions, RedisClientType, ScanIteratorOptions } from '../client';
 import { CommandOptions } from '../client/commands-queue';
 import { attachConfig } from '../commander';
@@ -661,21 +662,18 @@ export default class RedisSentinel<
     options?: ScanOptions & ScanIteratorOptions
   ) {
     let cursor: RedisArgument = options?.cursor ?? '0';
-    let shouldRestart = false;
+    let masterChanged = false;
 
     const handleTopologyChange = (event: RedisSentinelEvent) => {
       if (event.type === 'MASTER_CHANGE') {
-        shouldRestart = true;
+        masterChanged = true;
       }
     };
     this.on('topology-change', handleTopologyChange);
 
     try {
       do {
-        if (shouldRestart) {
-          cursor = '0';
-          shouldRestart = false;
-        }
+        if (masterChanged) throw new SentinelMasterChangeError();
 
         // Route through _execute so reserveClient:true reuses the reserved
         // lease (instead of waiting forever on an empty master pool), and the
@@ -689,24 +687,18 @@ export default class RedisSentinel<
           );
         } catch (err) {
           // A master failover mid-SCAN can surface as a connection error
-          // before the topology-change event is processed. If the iterator
-          // has already been flagged to restart, swallow and retry on the
-          // new master instead of propagating the transient error.
-          if (shouldRestart) continue;
+          // before the topology-change event is processed. Surface it as a
+          // SentinelMasterChangeError so callers can distinguish failover
+          // from other transient failures.
+          if (masterChanged) throw new SentinelMasterChangeError(err);
           throw err;
-        }
-
-        // If a topology change occurred during the scan command, the reply may
-        // mix keys from old and new masters. Discard and restart from cursor 0.
-        if (shouldRestart) {
-          continue;
         }
 
         cursor = reply.cursor;
         yield reply.keys;
         // Cursor may be a Buffer when a Blob String type mapping is in use;
         // compare by string value so iteration actually terminates.
-      } while (cursor.toString() !== '0' || shouldRestart);
+      } while (cursor.toString() !== '0');
     } finally {
       this.removeListener('topology-change', handleTopologyChange);
     }
