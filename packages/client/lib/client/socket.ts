@@ -40,7 +40,7 @@ type RedisTcpOptions = RedisSocketOptionsCommon & NetOptions & Omit<
 };
 
 type RedisTlsOptions = RedisSocketOptionsCommon & tls.ConnectionOptions & {
-  tls: true;
+  tls: boolean;
 }
 
 type RedisIpcOptions = RedisSocketOptionsCommon & Omit<
@@ -170,8 +170,9 @@ export default class RedisSocket extends EventEmitter {
 
     // IPC
     if (options && 'path' in options) {
+      const ipcOptions = options as RedisIpcOptions;
       const withDefaults: net.IpcNetConnectOpts = {
-        ...options,
+        ...ipcOptions,
         timeout: undefined,
         onread: undefined,
         readable: true,
@@ -186,12 +187,13 @@ export default class RedisSocket extends EventEmitter {
     }
 
     // TCP
+    const tcpOptions = options as RedisTcpOptions | undefined;
     const withDefaults: net.TcpNetConnectOpts = {
-      ...options,
-      port: options?.port ?? 6379,
-      noDelay: options?.noDelay ?? true,
-      keepAlive: options?.keepAlive ?? true,
-      keepAliveInitialDelay: options?.keepAliveInitialDelay ?? DEFAULT_KEEPALIVE_INITIAL_DELAY,
+      ...tcpOptions,
+      port: tcpOptions?.port ?? 6379,
+      noDelay: tcpOptions?.noDelay ?? true,
+      keepAlive: tcpOptions?.keepAlive ?? true,
+      keepAliveInitialDelay: tcpOptions?.keepAliveInitialDelay ?? DEFAULT_KEEPALIVE_INITIAL_DELAY,
       timeout: undefined,
       onread: undefined,
       readable: true,
