@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { CommandArguments, RedisArgument, RedisFunctions, RedisModules, RedisScripts, ReplyUnion, RespVersions, TypeMapping, DEFAULT_RESP } from '../RESP/types';
-import { SentinelMasterChangeError } from '../errors';
+import { ScanIteratorInterruptedError } from '../errors';
 import RedisClient, { AnyRedisClientOptions, RedisClientOptions, RedisClientType, ScanIteratorOptions } from '../client';
 import { CommandOptions } from '../client/commands-queue';
 import { attachConfig } from '../commander';
@@ -673,7 +673,7 @@ export default class RedisSentinel<
 
     try {
       do {
-        if (masterChanged) throw new SentinelMasterChangeError();
+        if (masterChanged) throw new ScanIteratorInterruptedError();
 
         // Route through _execute so reserveClient:true reuses the reserved
         // lease (instead of waiting forever on an empty master pool), and the
@@ -686,11 +686,11 @@ export default class RedisSentinel<
             client => (client as RedisClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>).scan(cursor, options)
           );
         } catch (err) {
-          // A master failover mid-SCAN can surface as a connection error
-          // before the topology-change event is processed. Surface it as a
-          // SentinelMasterChangeError so callers can distinguish failover
-          // from other transient failures.
-          if (masterChanged) throw new SentinelMasterChangeError(err);
+          // Only wrap when MASTER_CHANGE has been observed; otherwise let the
+          // underlying error propagate. A bare socket disconnect alone is not
+          // sufficient evidence of a failover (could be a transient network
+          // blip on the same master, in which case the cursor is still valid).
+          if (masterChanged) throw new ScanIteratorInterruptedError(err);
           throw err;
         }
 

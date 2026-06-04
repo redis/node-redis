@@ -52,9 +52,9 @@ export class RootNodesUnavailableError extends Error {
   }
 }
 
-export class SentinelMasterChangeError extends Error {
+export class ScanIteratorInterruptedError extends Error {
   constructor(cause?: unknown) {
-    super('Sentinel master changed during operation', cause === undefined ? undefined : { cause });
+    super('Scan iteration was interrupted by a Sentinel master change', cause === undefined ? undefined : { cause });
   }
 }
 

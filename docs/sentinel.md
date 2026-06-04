@@ -175,17 +175,21 @@ for await (const keys of sentinel.scanIterator()) {
 
 SCAN cursors are node-local — a cursor returned by one Redis instance is meaningless on any other instance. Because of this, the sentinel iterator cannot transparently survive a master failover: the in-flight cursor cannot be resumed on the promoted replica, and silently restarting from cursor `0` on the new master would hide both duplicate keys (already yielded from the old master) and data loss (writes that had not yet replicated before the failover).
 
-Instead, if the master changes while an iteration is in progress, the iterator throws `SentinelMasterChangeError`. The caller decides whether to retry the iteration from scratch, accept the partial result, or fail the surrounding operation.
+Instead, if the iterator observes a `MASTER_CHANGE` topology event while an iteration is in progress, it throws `ScanIteratorInterruptedError`. The caller decides whether to retry the iteration from scratch, accept the partial result, or fail the surrounding operation.
+
+Connection-level errors raised by the underlying client (e.g. `SocketClosedUnexpectedlyError`, `SocketTimeoutError`, `ReconnectStrategyError`) are **not** wrapped. A dropped socket is not by itself evidence of a failover — it may also be a transient network blip on the same master, in which case the cursor is still valid and a higher-level retry policy is appropriate. The original error is propagated as-is, and the caller can distinguish failover from a blip by checking for `ScanIteratorInterruptedError` versus other error types.
+
+In a real failover the dropped socket often precedes the Sentinel `MASTER_CHANGE` event (gated by `down-after-milliseconds`), so callers that want to treat both signals uniformly should catch both `ScanIteratorInterruptedError` **and** connection-class errors:
 
 ```javascript
-import { SentinelMasterChangeError } from '@redis/client';
+import { ScanIteratorInterruptedError } from '@redis/client';
 
 try {
   for await (const keys of sentinel.scanIterator()) {
     // ...
   }
 } catch (err) {
-  if (err instanceof SentinelMasterChangeError) {
+  if (err instanceof ScanIteratorInterruptedError) {
     // master failed over mid-iteration; restart from the beginning if desired
   } else {
     throw err;
