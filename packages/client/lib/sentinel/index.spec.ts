@@ -1448,22 +1448,25 @@ describe('legacy tests', () => {
       }
     }, GLOBAL.SENTINEL.OPEN);
 
-    testUtils.testWithClientSentinel('should throw ScanIteratorInterruptedError when MASTER_CHANGE fires while cursor is "0"', async sentinel => {
-      await sentinel.mSet([
-        'master-change-on-zero:1', '1',
-        'master-change-on-zero:2', '2'
-      ]);
+    testUtils.testWithClientSentinel('should throw ScanIteratorInterruptedError on the next page after MASTER_CHANGE is observed', async sentinel => {
+      const entries: Array<string> = [];
+      for (let i = 0; i < 200; i++) {
+        entries.push(`master-change-mid:${i}`, String(i));
+      }
+      await sentinel.mSet(entries);
 
-      const iter = sentinel.scanIterator({ MATCH: 'master-change-on-zero:*' });
-      // Calling .next() runs the generator body up to the first `await`, which
-      // means the `topology-change` listener is attached before this point.
-      const firstPagePromise = iter.next();
+      const iter = sentinel.scanIterator({ MATCH: 'master-change-mid:*', COUNT: 10 });
+      // First page: cursor must come back non-zero so the iterator still has
+      // work to do after the synthetic event fires.
+      const firstPage = await iter.next();
+      assert.equal(firstPage.done, false, 'first page must not terminate iteration');
+
       sentinel.emit('topology-change', {
         type: 'MASTER_CHANGE',
         node: { host: 'synthetic', port: 0 }
       });
 
-      await assert.rejects(firstPagePromise, ScanIteratorInterruptedError);
+      await assert.rejects(iter.next(), ScanIteratorInterruptedError);
     }, GLOBAL.SENTINEL.OPEN);
 
     testUtils.testWithClientSentinel(
