@@ -52,6 +52,12 @@ export class RootNodesUnavailableError extends Error {
   }
 }
 
+export class ScanIteratorInterruptedError extends Error {
+  constructor(cause?: unknown) {
+    super('Scan iteration was interrupted by a Sentinel master change', cause === undefined ? undefined : { cause });
+  }
+}
+
 export class ReconnectStrategyError extends Error {
   originalError: Error;
   socketError: unknown;

@@ -2,11 +2,11 @@ import { strict as assert } from 'node:assert';
 import { setTimeout } from 'node:timers/promises';
 import testUtils, { GLOBAL, MATH_FUNCTION } from '../test-utils';
 import { RESP_TYPES } from '../RESP/decoder';
-import { WatchError } from "../errors";
+import { ScanIteratorInterruptedError, WatchError } from "../errors";
 import { RedisSentinelConfig, SentinelFramework } from "./test-util";
 import { RedisSentinelEvent, RedisSentinelType, RedisSentinelClientType, RedisNode } from "./types";
 import RedisSentinel from "./index";
-import { RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
+import { RedisArgument, RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
 import { promisify } from 'node:util';
 import { exec } from 'node:child_process';
 import { BasicPooledClientSideCache } from '../client/cache'
@@ -1378,5 +1378,422 @@ describe('legacy tests', () => {
       assert.equal(csc.stats().missCount, 2);
       assert.equal(csc.stats().hitCount, 6);
     })
+  });
+
+  describe('scanIterator tests', () => {
+    testUtils.testWithClientSentinel('should iterate through all keys in normal operation', async sentinel => {
+      // Set up test data
+      const testKeys = new Set<string>();
+      const entries: Array<string> = [];
+      
+      // Create 50 test keys to ensure we get multiple scan iterations
+      for (let i = 0; i < 50; i++) {
+        const key = `scantest:${i}`;
+        testKeys.add(key);
+        entries.push(key, `value${i}`);
+      }
+
+      // Insert all test data
+      await sentinel.mSet(entries);
+
+      // Collect all keys using scanIterator
+      const foundKeys = new Set<string>();
+      for await (const keyBatch of sentinel.scanIterator({ MATCH: 'scantest:*' })) {
+        for (const key of keyBatch) {
+          foundKeys.add(key);
+        }
+      }
+
+      // Verify all keys were found
+      assert.deepEqual(testKeys, foundKeys);
+    }, GLOBAL.SENTINEL.OPEN);
+
+    testUtils.testWithClientSentinel('should respect MATCH pattern', async sentinel => {
+      // Set up test data with different patterns
+      await sentinel.mSet([
+        'match:1', 'value1',
+        'match:2', 'value2', 
+        'nomatch:1', 'value3',
+        'nomatch:2', 'value4'
+      ]);
+
+      const foundKeys = new Set<string>();
+      for await (const keyBatch of sentinel.scanIterator({ MATCH: 'match:*' })) {
+        for (const key of keyBatch) {
+          foundKeys.add(key);
+        }
+      }
+
+      const expectedKeys = new Set(['match:1', 'match:2']);
+      assert.deepEqual(foundKeys, expectedKeys);
+    }, GLOBAL.SENTINEL.OPEN);
+
+    testUtils.testWithClientSentinel('should not deadlock when consumer runs commands inside the loop with masterPoolSize 1', async sentinel => {
+      const entries: Array<string> = [];
+      for (let i = 0; i < 20; i++) {
+        entries.push(`deadlock:${i}`, `value${i}`);
+      }
+      await sentinel.mSet(entries);
+
+      const collected = new Map<string, string | null>();
+      for await (const keyBatch of sentinel.scanIterator({ MATCH: 'deadlock:*', COUNT: 5 })) {
+        if (keyBatch.length === 0) continue;
+        const values = await sentinel.mGet(keyBatch);
+        keyBatch.forEach((key, i) => collected.set(key, values[i]));
+      }
+
+      assert.equal(collected.size, 20);
+      for (let i = 0; i < 20; i++) {
+        assert.equal(collected.get(`deadlock:${i}`), `value${i}`);
+      }
+    }, GLOBAL.SENTINEL.OPEN);
+
+    testUtils.testWithClientSentinel('should throw ScanIteratorInterruptedError on the next page after MASTER_CHANGE is observed', async sentinel => {
+      const entries: Array<string> = [];
+      for (let i = 0; i < 200; i++) {
+        entries.push(`master-change-mid:${i}`, String(i));
+      }
+      await sentinel.mSet(entries);
+
+      const iter = sentinel.scanIterator({ MATCH: 'master-change-mid:*', COUNT: 10 });
+      // First page: cursor must come back non-zero so the iterator still has
+      // work to do after the synthetic event fires.
+      const firstPage = await iter.next();
+      assert.equal(firstPage.done, false, 'first page must not terminate iteration');
+
+      sentinel.emit('topology-change', {
+        type: 'MASTER_CHANGE',
+        node: { host: 'synthetic', port: 0 }
+      });
+
+      await assert.rejects(iter.next(), ScanIteratorInterruptedError);
+    }, GLOBAL.SENTINEL.OPEN);
+
+    testUtils.testWithClientSentinel('should throw ScanIteratorInterruptedError when MASTER_CHANGE fires during _execute (after pre-check, before scan)', async sentinel => {
+      const entries: Array<string> = [];
+      for (let i = 0; i < 200; i++) {
+        entries.push(`master-change-race:${i}`, String(i));
+      }
+      await sentinel.mSet(entries);
+
+      let executeCalls = 0;
+      const sentinelAny = sentinel as unknown as {
+        _execute: (
+          isReadonly: boolean | undefined,
+          fn: (client: unknown) => Promise<unknown>
+        ) => Promise<unknown>;
+      };
+      const realExecute = sentinelAny._execute.bind(sentinel);
+      sentinelAny._execute = function (isReadonly, fn) {
+        executeCalls++;
+        // On the second SCAN call the iterator already ran its pre-check at the
+        // top of the loop (masterChanged was still false). Fire MASTER_CHANGE
+        // synchronously inside _execute so the listener flips masterChanged
+        // before the lambda passed to _execute is invoked. Without the
+        // in-lambda re-check, scan would proceed against the (now potentially
+        // stale) lease and the failure would be silent.
+        if (executeCalls === 2) {
+          sentinel.emit('topology-change', {
+            type: 'MASTER_CHANGE',
+            node: { host: 'synthetic', port: 0 }
+          });
+        }
+        return realExecute(isReadonly, fn);
+      };
+
+      try {
+        const iter = sentinel.scanIterator({ MATCH: 'master-change-race:*', COUNT: 10 });
+        const firstPage = await iter.next();
+        assert.equal(firstPage.done, false, 'first page must not terminate iteration');
+
+        await assert.rejects(iter.next(), ScanIteratorInterruptedError);
+      } finally {
+        sentinelAny._execute = realExecute;
+      }
+    }, GLOBAL.SENTINEL.OPEN);
+
+    testUtils.testWithClientSentinel(
+      'should terminate when Blob String type mapping returns the cursor as a Buffer',
+      async sentinel => {
+        // Regression: comparing the (Buffer) cursor to the literal string '0'
+        // with !== never becomes false, so the iterator looped forever.
+        await sentinel.mSet([
+          'buffer-cursor:1', '1',
+          'buffer-cursor:2', '2'
+        ]);
+
+        const found = new Set<string>();
+        for await (const keyBatch of sentinel.scanIterator({ MATCH: 'buffer-cursor:*' })) {
+          for (const key of keyBatch) {
+            found.add(key.toString());
+          }
+        }
+
+        assert.deepEqual(found, new Set(['buffer-cursor:1', 'buffer-cursor:2']));
+      },
+      {
+        ...GLOBAL.SENTINEL.OPEN,
+        clientOptions: {
+          commandOptions: {
+            typeMapping: { [RESP_TYPES.BLOB_STRING]: Buffer }
+          }
+        }
+      }
+    );
+
+    testUtils.testWithClientSentinel('should forward a user-supplied cursor to SCAN on the first call', async sentinel => {
+      await sentinel.mSet([
+        'cursor-opt:1', '1',
+        'cursor-opt:2', '2'
+      ]);
+
+      const seenCursors: Array<string> = [];
+      const sentinelAny = sentinel as unknown as {
+        _execute: (
+          isReadonly: boolean | undefined,
+          fn: (client: unknown) => Promise<unknown>
+        ) => Promise<unknown>;
+      };
+      const realExecute = sentinelAny._execute.bind(sentinel);
+      sentinelAny._execute = function (isReadonly, fn) {
+        return realExecute(isReadonly, (client: unknown) => {
+          const wrapped = new Proxy(client as object, {
+            get(target, prop, receiver) {
+              if (prop === 'scan') {
+                return (cursor: RedisArgument, opts: unknown) => {
+                  seenCursors.push(cursor.toString());
+                  return (target as { scan: (c: RedisArgument, o: unknown) => unknown }).scan(cursor, opts);
+                };
+              }
+              return Reflect.get(target, prop, receiver);
+            }
+          });
+          return fn(wrapped);
+        });
+      };
+
+      try {
+        const iter = sentinel.scanIterator({ MATCH: 'cursor-opt:*', cursor: '7' });
+        await iter.next();
+        await iter.return?.(undefined);
+      } finally {
+        sentinelAny._execute = realExecute;
+      }
+
+      assert.equal(seenCursors[0], '7', 'first SCAN call must use the user-supplied cursor');
+    }, GLOBAL.SENTINEL.OPEN);
+
+    testUtils.testWithClientSentinel('should remove the topology-change listener when the consumer breaks early', async sentinel => {
+      await sentinel.mSet([
+        'cleanup:1', '1',
+        'cleanup:2', '2'
+      ]);
+
+      const before = sentinel.listenerCount('topology-change');
+      for await (const _ of sentinel.scanIterator({ MATCH: 'cleanup:*' })) {
+        break;
+      }
+      assert.equal(
+        sentinel.listenerCount('topology-change'),
+        before,
+        'scanIterator must detach its topology-change listener on early break'
+      );
+    }, GLOBAL.SENTINEL.OPEN);
+
+    testUtils.testWithClientSentinel(
+      'should iterate without hanging when reserveClient:true and masterPoolSize:1',
+      async sentinel => {
+        // Regression: connect() consumes the only master lease into the
+        // reserved client, so an acquire() inside scanIterator would block
+        // forever on an empty pool. Routing through _execute reuses the
+        // reserved lease instead.
+        await sentinel.mSet([
+          'reserve-scan:1', '1',
+          'reserve-scan:2', '2'
+        ]);
+
+        const found = new Set<string>();
+        for await (const keyBatch of sentinel.scanIterator({ MATCH: 'reserve-scan:*' })) {
+          for (const key of keyBatch) found.add(key);
+        }
+
+        assert.deepEqual(found, new Set(['reserve-scan:1', 'reserve-scan:2']));
+      },
+      {
+        ...GLOBAL.SENTINEL.OPEN,
+        reserveClient: true,
+        masterPoolSize: 1
+      }
+    );
+  });
+
+  describe('scanIterator with master failover', () => {
+    const config: RedisSentinelConfig = { sentinelName: "test", numberOfNodes: 3, password: undefined };
+    const frame = new SentinelFramework(config);
+    let sentinel: RedisSentinelType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping> | undefined;
+    const tracer: Array<string> = [];
+
+    beforeEach(async function () {
+      this.timeout(60000);
+      await frame.spawnRedisSentinel();
+      await frame.getAllRunning();
+      await steadyState(frame);
+    });
+
+    afterEach(async function () {
+      this.timeout(60000);
+      if (sentinel !== undefined) {
+        sentinel.destroy();
+        sentinel = undefined;
+      }
+      await frame.cleanup();
+    });
+
+    it('should throw when master changes during iteration', async function () {
+      this.timeout(60000);
+
+      sentinel = frame.getSentinelClient({ scanInterval: 1000 });
+      sentinel.setTracer(tracer);
+      sentinel.on("error", () => {});
+      await sentinel.connect();
+
+      const entries: Array<string> = [];
+      for (let i = 0; i < 100; i++) {
+        entries.push(`failovertest:${i}`, `value${i}`);
+      }
+
+      await sentinel.mSet(entries);
+      // Wait for added keys to be replicated
+      await setTimeout(2000);
+
+      let masterChangeDetected = false;
+      let iterationCount = 0;
+      const foundKeys = new Set<string>();
+
+      sentinel.on("topology-change", (event: RedisSentinelEvent) => {
+        if (event.type === "MASTER_CHANGE") {
+          masterChangeDetected = true;
+          tracer.push(`Master change detected during scan: ${event.node.port}`);
+        }
+      });
+
+      const originalMaster = sentinel.getMasterNode();
+      tracer.push(`Original master port: ${originalMaster?.port}`);
+
+      const scanIterator = sentinel.scanIterator({
+        MATCH: "failovertest:*",
+        COUNT: 10,
+      });
+
+      let caught: unknown;
+      try {
+        for await (const keyBatch of scanIterator) {
+          iterationCount++;
+          if (iterationCount === 1) {
+            tracer.push(
+              `Triggering master failover by stopping node ${originalMaster?.port}`
+            );
+            await frame.stopNode(originalMaster!.port.toString());
+            tracer.push(`Master node stopped`);
+          }
+          tracer.push(
+            `Scan iteration ${iterationCount}, got ${keyBatch.length} keys`
+          );
+
+          for (const key of keyBatch) {
+            foundKeys.add(key);
+          }
+        }
+      } catch (error) {
+        caught = error;
+        tracer.push(`Error during scan: ${error}`);
+      }
+
+      // The error may be either ScanIteratorInterruptedError (if the
+      // topology-change event was observed before the next scan call) or a
+      // raw connection-class error (if the dropped socket raced ahead of the
+      // Sentinel down detection — usually gated by down-after-milliseconds).
+      // Both outcomes are valid; what matters is that the iteration does not
+      // silently continue across the failover.
+      assert.ok(
+        caught instanceof Error,
+        `iteration must throw on master failover, got ${caught}`
+      );
+      assert.equal(
+        masterChangeDetected,
+        true,
+        "Master change should have been detected"
+      );
+
+      const newMaster = sentinel.getMasterNode();
+      tracer.push(`New master port: ${newMaster?.port}`);
+      assert.notEqual(
+        originalMaster?.port,
+        newMaster?.port,
+        "Master should have changed"
+      );
+    });
+
+    // This test waits for MASTER_CHANGE to fire before constructing the
+    // iterator, so the iterator never sees a failover in flight — it only
+    // verifies that a scan started after a completed failover talks to the
+    // new master. The in-flight-failover case is covered by the test above.
+    it('should iterate against the new master when failover completes before scan starts', async function () {
+      this.timeout(60000);
+
+      sentinel = frame.getSentinelClient({ scanInterval: 1000 });
+      sentinel.setTracer(tracer);
+      sentinel.on("error", () => { });
+      await sentinel.connect();
+
+      // Set up test data
+      const entries: Array<string> = [];
+      for (let i = 0; i < 30; i++) {
+        entries.push(`startfailover:${i}`, `value${i}`);
+      }
+      await sentinel.mSet(entries);
+
+      // Wait for addded keys to be replicated
+      await setTimeout(2000);
+
+      // Get original master and trigger immediate failover
+      const originalMaster = sentinel.getMasterNode();
+      
+      // Stop master immediately before starting scan
+      await frame.stopNode(originalMaster!.port.toString());
+      
+      let masterChangeDetected = false;
+      let masterChangeResolve: () => void;
+      const masterChangePromise = new Promise<void>((resolve) => {
+        masterChangeResolve = resolve;
+      });
+
+      // Listen for manifest change events
+      sentinel.on('topology-change', (event: RedisSentinelEvent) => {
+        if (event.type === "MASTER_CHANGE") {
+          masterChangeDetected = true;
+          tracer.push(`Master change detected during scan: ${event.node.port}`);
+          if (masterChangeResolve) masterChangeResolve();
+        }
+      });
+
+      await masterChangePromise;
+
+      // Now start scan - should work with new master
+      const foundKeys = new Set<string>();
+      for await (const keyBatch of sentinel.scanIterator({ MATCH: 'startfailover:*' })) {
+        for (const key of keyBatch) {
+          foundKeys.add(key);
+        }
+      }
+
+      assert.equal(masterChangeDetected, true, 'Master change should have been detected');
+      // Should find all keys even though master changed before scan started
+      assert.equal(foundKeys.size, 30);
+      
+      // Verify master actually changed
+      const newMaster = sentinel.getMasterNode();
+      assert.notEqual(originalMaster?.port, newMaster?.port);
+    });
   });
 });

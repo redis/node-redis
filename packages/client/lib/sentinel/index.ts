@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events';
-import { CommandArguments, RedisFunctions, RedisModules, RedisScripts, ReplyUnion, RespVersions, TypeMapping, DEFAULT_RESP } from '../RESP/types';
-import RedisClient, { AnyRedisClientOptions, RedisClientOptions, RedisClientType } from '../client';
+import { CommandArguments, RedisArgument, RedisFunctions, RedisModules, RedisScripts, ReplyUnion, RespVersions, TypeMapping, DEFAULT_RESP } from '../RESP/types';
+import { ScanIteratorInterruptedError } from '../errors';
+import RedisClient, { AnyRedisClientOptions, RedisClientOptions, RedisClientType, ScanIteratorOptions } from '../client';
 import { CommandOptions } from '../client/commands-queue';
 import { attachConfig } from '../commander';
 import { NON_STICKY_COMMANDS } from '../commands';
@@ -19,6 +20,7 @@ import { RedisTcpSocketOptions } from '../client/socket';
 import { BasicPooledClientSideCache, PooledClientSideCacheProvider } from '../client/cache';
 import { ClientIdentity, ClientRole, generateClientId } from '../client/identity';
 import { DEFAULT_COMMAND_TIMEOUT } from '../defaults';
+import { ScanOptions } from '../commands/SCAN';
 
 interface ClientInfo {
   id: number;
@@ -653,6 +655,80 @@ export default class RedisSentinel<
     }
 
     this._self.#internal.setTracer(tracer);
+  }
+
+  /**
+   * Async generator that iterates over keys on the Sentinel master by issuing
+   * paged `SCAN` calls. Yields one array of keys per page until the SCAN cursor
+   * returns to `0`.
+   *
+   * The master client lease is acquired for the duration of each `SCAN` call
+   * and released before yielding, so consumers can issue other commands from
+   * inside the `for await` loop body without deadlocking against the iterator
+   * — even with `masterPoolSize: 1`.
+   *
+   * Throws `ScanIteratorInterruptedError` on observed `MASTER_CHANGE`.
+   * Throws the underlying error on any other failure.
+   *
+   * @param options - SCAN options and an optional starting `cursor`. The
+   *   starting cursor is honored only on the first call.
+   * @yields Arrays of keys returned by each `SCAN` page. Pages may be empty.
+   * @throws {ScanIteratorInterruptedError} On observed `MASTER_CHANGE`.
+   */
+  async *scanIterator(
+    this: RedisSentinelType<M, F, S, RESP, TYPE_MAPPING>,
+    options?: ScanOptions & ScanIteratorOptions
+  ) {
+    let cursor: RedisArgument = options?.cursor ?? '0';
+    let masterChanged = false;
+
+    const handleTopologyChange = (event: RedisSentinelEvent) => {
+      if (event.type === 'MASTER_CHANGE') {
+        masterChanged = true;
+      }
+    };
+    this.on('topology-change', handleTopologyChange);
+
+    try {
+      do {
+        if (masterChanged) throw new ScanIteratorInterruptedError();
+
+        // Route through _execute so reserveClient:true reuses the reserved
+        // lease (instead of waiting forever on an empty master pool), and the
+        // lease is released before yielding — consumers can issue other
+        // commands inside the for-await loop without exhausting the pool.
+        let reply;
+        try {
+          reply = await this._execute(
+            false,
+            client => {
+              // Re-check after the lease resolves: a failover may have landed
+              // while waiting on an empty master pool, in which case the lease
+              // now points to a fresh client on the new master and SCAN would
+              // resume with a cursor from the old master.
+              if (masterChanged) throw new ScanIteratorInterruptedError();
+              return (client as RedisClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>).scan(cursor, options);
+            }
+          );
+        } catch (err) {
+          // Pass through if already wrapped (from the in-lambda re-check).
+          if (err instanceof ScanIteratorInterruptedError) throw err;
+          // Only wrap when MASTER_CHANGE has been observed; otherwise let the
+          // underlying error propagate. A bare socket disconnect alone is not
+          // sufficient evidence of a failover (could be a transient network
+          // blip on the same master, in which case the cursor is still valid).
+          if (masterChanged) throw new ScanIteratorInterruptedError(err);
+          throw err;
+        }
+
+        cursor = reply.cursor;
+        yield reply.keys;
+        // Cursor may be a Buffer when a Blob String type mapping is in use;
+        // compare by string value so iteration actually terminates.
+      } while (cursor.toString() !== '0');
+    } finally {
+      this.removeListener('topology-change', handleTopologyChange);
+    }
   }
 }
 

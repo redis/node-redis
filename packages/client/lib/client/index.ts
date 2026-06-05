@@ -274,7 +274,7 @@ type ProxyClient = RedisClient<RedisModules, RedisFunctions, RedisScripts, RespV
 
 type NamespaceProxyClient = { _self: ProxyClient };
 
-interface ScanIteratorOptions {
+export interface ScanIteratorOptions {
   cursor?: RedisArgument;
 }
 
