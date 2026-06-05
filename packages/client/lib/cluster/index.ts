@@ -510,10 +510,38 @@ export default class RedisCluster<
             clientId: client._clientId,
             retryCount: i,
           }));
+          
+          // Extract the target node address from the MOVED error
+          const address = err.message.substring(err.message.lastIndexOf(' ') + 1);
+          const slot = parseInt(err.message.split(' ')[1], 10);
+          
+          // If the MOVED error is from the current client, it may have a corrupted connection.
+          // To avoid infinite loops where rediscover reuses the same corrupted connection,
+          // we force a reconnection by invalidating the client.
+          // This ensures that on the next rediscover, a fresh connection will be created.
+          try {
+            client.disconnect();
+          } catch (disconnectErr) {
+            // Ignore errors during disconnect attempt
+          }
+          
+          // Rediscover with the corrupted client excluded, forcing fresh connections
           await this._slots.rediscover(client);
-          const clientAndSlot = await this._slots.getClientAndSlotNumber(firstKey, isReadonly);
-          client = clientAndSlot.client;
-          slotNumber = clientAndSlot.slotNumber;
+          
+          // Try to connect directly to the node specified in the MOVED error
+          let redirectTo = await this._slots.getMasterByAddress(address);
+          
+          // If still not found after rediscover, recalculate from the key
+          if (!redirectTo) {
+            const clientAndSlot = await this._slots.getClientAndSlotNumber(firstKey, isReadonly);
+            client = clientAndSlot.client;
+            slotNumber = clientAndSlot.slotNumber;
+          } else {
+            // Use the client from the MOVED error's specified node
+            client = redirectTo;
+            slotNumber = slot;
+          }
+          
           continue;
         }
 

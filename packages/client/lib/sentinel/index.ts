@@ -1009,8 +1009,18 @@ this.#sentinelRootNodes = Array.from(options.sentinelRootNodes);
     const seen = new Set<string>();
     const merged: Array<RedisNode> = [];
 
-    // First add all seed nodes (hostnames) to preserve DNS resolution
-    for (const seed of this.#sentinelSeedNodes) {
+    // Seed preservation is only meant to help early bootstrap.
+    // If we already have discovered candidates, unconditionally keeping
+    // IP-literal seeds at the front can block recovery because observe()
+    // keeps trying those dead IPs before newer sentinels.
+    const haveNonSeedCandidates = this.#sentinelRootNodes.some(
+      root => !this.#sentinelSeedNodes.some(seed => seed.host === root.host && seed.port === root.port)
+    );
+
+    const primarySeeds = haveNonSeedCandidates ? [] : this.#sentinelSeedNodes;
+
+    // First add primary seeds (if we're still bootstrapping)
+    for (const seed of primarySeeds) {
       const key = `${seed.host}:${seed.port}`;
       if (!seen.has(key)) {
         merged.push(seed);
@@ -1024,6 +1034,18 @@ this.#sentinelRootNodes = Array.from(options.sentinelRootNodes);
       if (!seen.has(key)) {
         merged.push(node);
         seen.add(key);
+      }
+    }
+
+    // Finally, if we skipped seeds because we already have candidates,
+    // still append any missing seed nodes so they can be tried after.
+    if (haveNonSeedCandidates) {
+      for (const seed of this.#sentinelSeedNodes) {
+        const key = `${seed.host}:${seed.port}`;
+        if (!seen.has(key)) {
+          merged.push(seed);
+          seen.add(key);
+        }
       }
     }
 

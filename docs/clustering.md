@@ -119,6 +119,8 @@ createCluster({
 ```
 
 > This is a common problem when using ElastiCache. See [Accessing ElastiCache from outside AWS](https://docs.aws.amazon.com/AmazonElastiCache/latest/red-ug/accessing-elasticache.html) for more information on that.
+>
+> **Azure Managed Redis Note**: If using Azure Managed Redis with private endpoints, you may need to configure `nodeAddressMap` to map internal IP addresses to accessible hostnames. See [Azure Managed Redis Clustering](https://learn.microsoft.com/en-us/azure/redis/architecture#clustering) for configuration details.
 
 ### Events
 
@@ -151,4 +153,53 @@ Admin commands such as `MEMORY STATS`, `FLUSHALL`, etc. are not attached to the 
 ### "Forwarded Commands"
 
 Certain commands (e.g. `PUBLISH`) are forwarded to other cluster nodes by the Redis server. The client sends these commands to a random node in order to spread the load across the cluster.
+
+## Troubleshooting
+
+### MOVED Errors
+
+If your application receives persistent `MOVED` errors, this typically indicates:
+
+1. **Topology Changes**: The cluster topology has changed (slots migrated between nodes). The client should automatically handle this with `rediscover()`.
+
+2. **Connection Issues**: Corrupted or stale connections may cause repeated MOVED errors. The client now automatically:
+   - Disconnects problematic connections when MOVED is detected
+   - Forces creation of fresh connections during rediscover
+   - Tries the node specified in the MOVED error directly
+
+If MOVED errors persist, consider:
+- Monitoring `node-error` events to track connection issues
+- Increasing `maxCommandRedirections` if retries are being exhausted
+- Using `nodeAddressMap` if nodes aren't discoverable (common with private endpoints)
+
+### Azure Managed Redis with Private Endpoints
+
+When using Azure Managed Redis with private endpoints, configure `nodeAddressMap` to map internal IP addresses:
+
+```javascript
+const cluster = createCluster({
+  rootNodes: [{ url: `rediss://${hostname}:10000` }],
+  nodeAddressMap: (address) => {
+    // Map internal IPs to the accessible hostname
+    return { host: hostname, port: parseInt(address.split(':')[1]) };
+  },
+  defaults: {
+    password,
+    socket: {
+      tls: true,
+      servername: hostname
+    }
+  }
+});
+
+cluster.on('error', (error) => {
+  console.error('Cluster error:', error.message);
+});
+
+cluster.on('node-error', (error, node) => {
+  console.warn(`Node ${node.host}:${node.port} error:`, error.message);
+});
+```
+
+---
 
