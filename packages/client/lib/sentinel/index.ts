@@ -701,9 +701,18 @@ export default class RedisSentinel<
         try {
           reply = await this._execute(
             false,
-            client => (client as RedisClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>).scan(cursor, options)
+            client => {
+              // Re-check after the lease resolves: a failover may have landed
+              // while waiting on an empty master pool, in which case the lease
+              // now points to a fresh client on the new master and SCAN would
+              // resume with a cursor from the old master.
+              if (masterChanged) throw new ScanIteratorInterruptedError();
+              return (client as RedisClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>).scan(cursor, options);
+            }
           );
         } catch (err) {
+          // Pass through if already wrapped (from the in-lambda re-check).
+          if (err instanceof ScanIteratorInterruptedError) throw err;
           // Only wrap when MASTER_CHANGE has been observed; otherwise let the
           // underlying error propagate. A bare socket disconnect alone is not
           // sufficient evidence of a failover (could be a transient network

@@ -1469,6 +1469,49 @@ describe('legacy tests', () => {
       await assert.rejects(iter.next(), ScanIteratorInterruptedError);
     }, GLOBAL.SENTINEL.OPEN);
 
+    testUtils.testWithClientSentinel('should throw ScanIteratorInterruptedError when MASTER_CHANGE fires during _execute (after pre-check, before scan)', async sentinel => {
+      const entries: Array<string> = [];
+      for (let i = 0; i < 200; i++) {
+        entries.push(`master-change-race:${i}`, String(i));
+      }
+      await sentinel.mSet(entries);
+
+      let executeCalls = 0;
+      const sentinelAny = sentinel as unknown as {
+        _execute: (
+          isReadonly: boolean | undefined,
+          fn: (client: unknown) => Promise<unknown>
+        ) => Promise<unknown>;
+      };
+      const realExecute = sentinelAny._execute.bind(sentinel);
+      sentinelAny._execute = function (isReadonly, fn) {
+        executeCalls++;
+        // On the second SCAN call the iterator already ran its pre-check at the
+        // top of the loop (masterChanged was still false). Fire MASTER_CHANGE
+        // synchronously inside _execute so the listener flips masterChanged
+        // before the lambda passed to _execute is invoked. Without the
+        // in-lambda re-check, scan would proceed against the (now potentially
+        // stale) lease and the failure would be silent.
+        if (executeCalls === 2) {
+          sentinel.emit('topology-change', {
+            type: 'MASTER_CHANGE',
+            node: { host: 'synthetic', port: 0 }
+          });
+        }
+        return realExecute(isReadonly, fn);
+      };
+
+      try {
+        const iter = sentinel.scanIterator({ MATCH: 'master-change-race:*', COUNT: 10 });
+        const firstPage = await iter.next();
+        assert.equal(firstPage.done, false, 'first page must not terminate iteration');
+
+        await assert.rejects(iter.next(), ScanIteratorInterruptedError);
+      } finally {
+        sentinelAny._execute = realExecute;
+      }
+    }, GLOBAL.SENTINEL.OPEN);
+
     testUtils.testWithClientSentinel(
       'should terminate when Blob String type mapping returns the cursor as a Buffer',
       async sentinel => {
