@@ -1099,6 +1099,18 @@ describe('Client', () => {
       const subscriber = await publisher.duplicate().connect();
 
       try {
+        // The forced reconnect below can emit `error` more than once
+        // (e.g. SocketClosedUnexpectedlyError followed by a transient
+        // ECONNREFUSED while the server tears the connection down). A
+        // permanent listener swallows the extras so they never surface as
+        // uncaught; a one-shot promise gate lets us still await the first
+        // error deterministically.
+        let resolveFirstError!: () => void;
+        const firstError = new Promise<void>(resolve => {
+          resolveFirstError = resolve;
+        });
+        subscriber.on('error', () => resolveFirstError());
+
         const channelListener = spy();
         await subscriber.subscribe('channel', channelListener);
 
@@ -1106,7 +1118,7 @@ describe('Client', () => {
         await subscriber.pSubscribe('channe*', patternListener);
 
         await Promise.all([
-          once(subscriber, 'error'),
+          firstError,
           publisher.clientKill({
             filter: 'SKIPME',
             skipMe: true
@@ -1244,8 +1256,13 @@ describe('Client', () => {
     const promise = assert.rejects(client.connect(), ConnectionTimeoutError),
       start = process.hrtime.bigint();
 
-    while (process.hrtime.bigint() - start < 1_000_000) {
-      // block the event loop for 1ms, to make sure the connection will timeout
+    // Block the event loop for well over `connectTimeout` so the underlying
+    // socket's idle timer is guaranteed to have expired by the time the
+    // event loop runs again. With a 1ms block and a 1ms timeout the two race
+    // and on a fast host the TCP `connect` event can be processed before the
+    // timeout callback, leaving the test with a successful connection.
+    while (process.hrtime.bigint() - start < 50_000_000) {
+      // block the event loop for 50ms, to make sure the connection will timeout
     }
 
     await promise;
