@@ -657,6 +657,24 @@ export default class RedisSentinel<
     this._self.#internal.setTracer(tracer);
   }
 
+  /**
+   * Async generator that iterates over keys on the Sentinel master by issuing
+   * paged `SCAN` calls. Yields one array of keys per page until the SCAN cursor
+   * returns to `0`.
+   *
+   * The master client lease is acquired for the duration of each `SCAN` call
+   * and released before yielding, so consumers can issue other commands from
+   * inside the `for await` loop body without deadlocking against the iterator
+   * — even with `masterPoolSize: 1`.
+   *
+   * Throws `ScanIteratorInterruptedError` on observed `MASTER_CHANGE`.
+   * Throws the underlying error on any other failure.
+   *
+   * @param options - SCAN options and an optional starting `cursor`. The
+   *   starting cursor is honored only on the first call.
+   * @yields Arrays of keys returned by each `SCAN` page. Pages may be empty.
+   * @throws {ScanIteratorInterruptedError} On observed `MASTER_CHANGE`.
+   */
   async *scanIterator(
     this: RedisSentinelType<M, F, S, RESP, TYPE_MAPPING>,
     options?: ScanOptions & ScanIteratorOptions

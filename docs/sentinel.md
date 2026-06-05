@@ -175,7 +175,9 @@ for await (const keys of sentinel.scanIterator()) {
 
 SCAN cursors are node-local — a cursor returned by one Redis instance is meaningless on any other instance. Because of this, the sentinel iterator cannot transparently survive a master failover: the in-flight cursor cannot be resumed on the promoted replica, and silently restarting from cursor `0` on the new master would hide both duplicate keys (already yielded from the old master) and data loss (writes that had not yet replicated before the failover).
 
-Instead, if the iterator observes a `MASTER_CHANGE` topology event while an iteration is in progress, it throws `ScanIteratorInterruptedError`. The caller decides whether to retry the iteration from scratch, accept the partial result, or fail the surrounding operation.
+If a `MASTER_CHANGE` topology event is observed while an iteration is in progress **and** the iterator still needs to issue another `SCAN` (i.e. the cursor has not yet returned to `0`), it throws `ScanIteratorInterruptedError` rather than send a stale, node-local cursor to a different master. The caller decides whether to retry the iteration from scratch, accept the partial result, or fail the surrounding operation.
+
+If the responding master returns `cursor=0` on the same call during which `MASTER_CHANGE` fires, no error is thrown — that node honored SCAN's contract ("every key present at iteration start was returned") and no further calls are needed. SCAN never claims to reflect "the current dataset" at the moment iteration ends, with or without a failover, so this case is not treated as an interruption.
 
 Connection-level errors raised by the underlying client (e.g. `SocketClosedUnexpectedlyError`, `SocketTimeoutError`, `ReconnectStrategyError`) are **not** wrapped. A dropped socket is not by itself evidence of a failover — it may also be a transient network blip on the same master, in which case the cursor is still valid and a higher-level retry policy is appropriate. The original error is propagated as-is, and the caller can distinguish failover from a blip by checking for `ScanIteratorInterruptedError` versus other error types.
 
