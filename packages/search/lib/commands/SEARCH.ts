@@ -8,23 +8,36 @@ import { getMapValue, mapLikeToObject, mapLikeValues, parseDocumentValue, parseS
 export type FtSearchParams = Record<string, RedisArgument | number>;
 
 export function parseParamsArgument(parser: CommandParser, params?: FtSearchParams) {
-  if (params) {
-    parser.push('PARAMS');
+  if (!params) return;
 
-    const args: Array<RedisArgument> = [];
-    for (const key in params) {
-      if (!Object.hasOwn(params, key)) continue;
+  parser.push('PARAMS');
 
-      const value = params[key];
-      args.push(
-        key,
-        typeof value === 'number' ? value.toString() : value
-      );
-    }
+  // FT.SEARCH expects: PARAMS <num-args> <k1> <v1> <k2> <v2> ...
+  // Where <num-args> is the *number of pairs*.
+  //
+  // The previous implementation incorrectly used `pushVariadicWithLength(args)`
+  // which sets the length to the number of *arguments*, not the required
+  // number of pairs. This causes exact-match queries like `@field:"$x"`
+  // to bind parameters incorrectly on some Redis Stack/FT versions.
+  const pairArgs: Array<RedisArgument> = [];
+  let pairs = 0;
 
-    parser.pushVariadicWithLength(args);
+  for (const key in params) {
+    if (!Object.hasOwn(params, key)) continue;
+
+    const value = params[key];
+    pairArgs.push(
+      key,
+      typeof value === 'number' ? value.toString() : value
+    );
+    pairs++;
   }
+
+  // <num-args> is the number of pairs, so it must be `pairs`.
+  parser.push(pairs.toString());
+  parser.pushVariadic(pairArgs);
 }
+
 
 export interface FtSearchOptions {
   VERBATIM?: boolean;
