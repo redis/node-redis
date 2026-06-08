@@ -17,7 +17,24 @@ import { publish, CHANNELS } from '../client/tracing';
 import { ClientIdentity, ClientRole, generateClusterClientId } from '../client/identity';
 import { DEFAULT_COMMAND_TIMEOUT } from '../defaults';
 import { POLICIES, PolicyResolver, REQUEST_POLICIES_WITH_DEFAULTS, RESPONSE_POLICIES_WITH_DEFAULTS, StaticPolicyResolver } from './request-response-policies';
-import { aggregateLogicalAnd, aggregateLogicalOr, aggregateMax, aggregateMerge, aggregateMin, aggregateSum } from './request-response-policies/generic-aggregators';
+import {
+  routeAllNodes,
+  routeAllShards,
+  routeMultiShard,
+  routeDefaultKeyless,
+  routeDefaultKeyed,
+  routeSpecial,
+  reduceOneSucceeded,
+  reduceAllSucceeded,
+  reduceLogicalAnd,
+  reduceLogicalOr,
+  reduceMin,
+  reduceMax,
+  reduceSum,
+  reduceSpecial,
+  reduceDefaultKeyless,
+  reduceDefaultKeyed
+} from './request-response-policies/dispatch';
 
 export type ClusterTopologyRefreshOnReconnectionAttemptStrategy =
   false |
@@ -519,29 +536,27 @@ export default class RedisCluster<
     switch (requestPolicy) {
 
       case REQUEST_POLICIES_WITH_DEFAULTS.ALL_NODES:
-        clients = this._slots.getAllClients()
+        clients = await routeAllNodes(this._slots, parser, isReadonly);
         break;
 
       case REQUEST_POLICIES_WITH_DEFAULTS.ALL_SHARDS:
-        clients = this._slots.getAllMasterClients()
+        clients = await routeAllShards(this._slots, parser, isReadonly);
         break;
 
       case REQUEST_POLICIES_WITH_DEFAULTS.MULTI_SHARD:
-        clients = await Promise.all(
-          parser.keys.map(async (key) => (await this._slots.getClientAndSlotNumber(key, isReadonly)).client)
-        );
+        clients = await routeMultiShard(this._slots, parser, isReadonly);
         break;
 
       case REQUEST_POLICIES_WITH_DEFAULTS.SPECIAL:
-        throw new Error(`Special request policy not implemented for ${parser.commandIdentifier}`);
+        clients = await routeSpecial(this._slots, parser, isReadonly);
+        break;
 
       case REQUEST_POLICIES_WITH_DEFAULTS.DEFAULT_KEYLESS:
-        //TODO handle undefined case?
-        clients = [this._slots.getRandomNode().client!]
+        clients = await routeDefaultKeyless(this._slots, parser, isReadonly);
         break;
 
       case REQUEST_POLICIES_WITH_DEFAULTS.DEFAULT_KEYED:
-        clients = [(await this._slots.getClientAndSlotNumber(parser.firstKey, isReadonly)).client]
+        clients = await routeDefaultKeyed(this._slots, parser, isReadonly);
         break;
 
       default:
@@ -619,53 +634,35 @@ export default class RedisCluster<
     })
     
     switch (responsePolicy) {
-      case RESPONSE_POLICIES_WITH_DEFAULTS.ONE_SUCCEEDED: {
-        return Promise.any(responsePromises);
-      }
+      case RESPONSE_POLICIES_WITH_DEFAULTS.ONE_SUCCEEDED:
+        return reduceOneSucceeded(responsePromises);
 
-      case RESPONSE_POLICIES_WITH_DEFAULTS.ALL_SUCCEEDED: {
-        const responses = await Promise.all(responsePromises);
-        return responses[0]
-      }
+      case RESPONSE_POLICIES_WITH_DEFAULTS.ALL_SUCCEEDED:
+        return reduceAllSucceeded(responsePromises);
 
-      case RESPONSE_POLICIES_WITH_DEFAULTS.AGG_LOGICAL_AND: {
-        const responses = await Promise.all(responsePromises)
-        return aggregateLogicalAnd(responses);
-      }
+      case RESPONSE_POLICIES_WITH_DEFAULTS.AGG_LOGICAL_AND:
+        return reduceLogicalAnd(responsePromises);
 
-      case RESPONSE_POLICIES_WITH_DEFAULTS.AGG_LOGICAL_OR: {
-        const responses = await Promise.all(responsePromises)
-        return aggregateLogicalOr(responses);
-      }
+      case RESPONSE_POLICIES_WITH_DEFAULTS.AGG_LOGICAL_OR:
+        return reduceLogicalOr(responsePromises);
 
-      case RESPONSE_POLICIES_WITH_DEFAULTS.AGG_MIN: {
-        const responses = await Promise.all(responsePromises);
-        return aggregateMin(responses);
-      }
-      
-      case RESPONSE_POLICIES_WITH_DEFAULTS.AGG_MAX: {
-        const responses = await Promise.all(responsePromises);
-        return aggregateMax(responses);
-      }
+      case RESPONSE_POLICIES_WITH_DEFAULTS.AGG_MIN:
+        return reduceMin(responsePromises);
 
-      case RESPONSE_POLICIES_WITH_DEFAULTS.AGG_SUM: {
-        const responses = await Promise.all(responsePromises);
-        return aggregateSum(responses);
-      }
+      case RESPONSE_POLICIES_WITH_DEFAULTS.AGG_MAX:
+        return reduceMax(responsePromises);
 
-      case RESPONSE_POLICIES_WITH_DEFAULTS.SPECIAL: {
-        throw new Error(`Special response policy not implemented for ${parser.commandIdentifier}`);
-      }
+      case RESPONSE_POLICIES_WITH_DEFAULTS.AGG_SUM:
+        return reduceSum(responsePromises);
 
-      case RESPONSE_POLICIES_WITH_DEFAULTS.DEFAULT_KEYLESS: {
-        const responses = await Promise.all(responsePromises);
-        return aggregateMerge(responses);
-      }
+      case RESPONSE_POLICIES_WITH_DEFAULTS.SPECIAL:
+        return reduceSpecial(responsePromises, parser);
 
-      case RESPONSE_POLICIES_WITH_DEFAULTS.DEFAULT_KEYED: {
-        const responses = await Promise.all(responsePromises);
-        return responses as T;
-      }
+      case RESPONSE_POLICIES_WITH_DEFAULTS.DEFAULT_KEYLESS:
+        return reduceDefaultKeyless(responsePromises);
+
+      case RESPONSE_POLICIES_WITH_DEFAULTS.DEFAULT_KEYED:
+        return reduceDefaultKeyed(responsePromises);
 
       default:
         throw new Error(`Unknown response policy ${responsePolicy}`);
