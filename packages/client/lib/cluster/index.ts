@@ -479,7 +479,9 @@ export default class RedisCluster<
     const policyResult = this._policyResolver.resolvePolicy(parser.commandIdentifier);
 
     if(!policyResult.ok) {
-      throw new Error(`Policy resolution error for ${parser.commandIdentifier}: ${policyResult.error}`);
+      const { command, subcommand } = parser.commandIdentifier;
+      const label = subcommand ? `${command} ${subcommand}` : command;
+      throw new Error(`Policy resolution error for ${label}: ${policyResult.error}`);
     }
 
     const requestPolicy =  policyResult.value.request

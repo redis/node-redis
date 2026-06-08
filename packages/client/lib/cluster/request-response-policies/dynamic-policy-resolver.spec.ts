@@ -30,7 +30,7 @@ describe('DynamicPolicyResolverFactory', () => {
       const resolver = await DynamicPolicyResolverFactory.create(mockCommandFetcher, fallbackResolver);
       assert.ok(resolver instanceof StaticPolicyResolver);
 
-      const result = resolver.resolvePolicy('ping');
+      const result = resolver.resolvePolicy({ command: 'ping', subcommand: undefined });
       assert.equal(result.ok, true);
       if (result.ok) {
         assert.equal(result.value.request, REQUEST_POLICIES_WITH_DEFAULTS.DEFAULT_KEYLESS);
@@ -59,7 +59,7 @@ describe('DynamicPolicyResolverFactory', () => {
       const mockCommandFetcher = createMockCommandFetcher(mockCommands);
       const resolver = await DynamicPolicyResolverFactory.create(mockCommandFetcher);
 
-      const result = resolver.resolvePolicy('ping');
+      const result = resolver.resolvePolicy({ command: 'ping', subcommand: undefined });
       assert.equal(result.ok, true);
       if (result.ok) {
         assert.equal(result.value.request, REQUEST_POLICIES_WITH_DEFAULTS.DEFAULT_KEYLESS);
@@ -86,7 +86,7 @@ describe('DynamicPolicyResolverFactory', () => {
       const mockCommandFetcher = createMockCommandFetcher(mockCommands);
       const resolver = await DynamicPolicyResolverFactory.create(mockCommandFetcher);
 
-      const result = resolver.resolvePolicy('get');
+      const result = resolver.resolvePolicy({ command: 'get', subcommand: undefined });
       assert.equal(result.ok, true);
       if (result.ok) {
         assert.equal(result.value.request, REQUEST_POLICIES_WITH_DEFAULTS.DEFAULT_KEYED);
@@ -113,7 +113,7 @@ describe('DynamicPolicyResolverFactory', () => {
       const mockCommandFetcher = createMockCommandFetcher(mockCommands);
       const resolver = await DynamicPolicyResolverFactory.create(mockCommandFetcher);
 
-      const result = resolver.resolvePolicy('dbsize');
+      const result = resolver.resolvePolicy({ command: 'dbsize', subcommand: undefined });
       assert.equal(result.ok, true);
       if (result.ok) {
         assert.equal(result.value.request, 'all_shards');
@@ -140,7 +140,7 @@ describe('DynamicPolicyResolverFactory', () => {
       const mockCommandFetcher = createMockCommandFetcher(mockCommands);
       const resolver = await DynamicPolicyResolverFactory.create(mockCommandFetcher);
 
-      const result = resolver.resolvePolicy('ft.search');
+      const result = resolver.resolvePolicy({ command: 'ft.search', subcommand: undefined });
       assert.equal(result.ok, true);
       if (result.ok) {
         assert.equal(result.value.request, 'all_shards');
@@ -167,7 +167,7 @@ describe('DynamicPolicyResolverFactory', () => {
       const mockCommandFetcher = createMockCommandFetcher(mockCommands);
       const resolver = await DynamicPolicyResolverFactory.create(mockCommandFetcher);
 
-      const result = resolver.resolvePolicy('json.get');
+      const result = resolver.resolvePolicy({ command: 'json.get', subcommand: undefined });
       assert.equal(result.ok, true);
       if (result.ok) {
         assert.equal(result.value.request, REQUEST_POLICIES_WITH_DEFAULTS.DEFAULT_KEYLESS);
@@ -196,7 +196,7 @@ describe('DynamicPolicyResolverFactory', () => {
       const mockCommandFetcher = createMockCommandFetcher(mockCommands);
       const resolver = await DynamicPolicyResolverFactory.create(mockCommandFetcher);
 
-      const result = resolver.resolvePolicy('test');
+      const result = resolver.resolvePolicy({ command: 'test', subcommand: undefined });
       assert.equal(result.ok, true);
     });
 
@@ -204,7 +204,7 @@ describe('DynamicPolicyResolverFactory', () => {
       const mockCommandFetcher = createMockCommandFetcher([]);
       const resolver = await DynamicPolicyResolverFactory.create(mockCommandFetcher);
 
-      const result = resolver.resolvePolicy('unknown');
+      const result = resolver.resolvePolicy({ command: 'unknown', subcommand: undefined });
       assert.equal(result.ok, false);
       assert.equal(result.error, 'unknown-command');
     });
@@ -213,7 +213,7 @@ describe('DynamicPolicyResolverFactory', () => {
       const mockCommandFetcher = createMockCommandFetcher([]);
       const resolver = await DynamicPolicyResolverFactory.create(mockCommandFetcher);
 
-      const result = resolver.resolvePolicy('unknown.command');
+      const result = resolver.resolvePolicy({ command: 'unknown.command', subcommand: undefined });
       assert.equal(result.ok, false);
       assert.equal(result.error, 'unknown-module');
     });
@@ -222,7 +222,7 @@ describe('DynamicPolicyResolverFactory', () => {
       const mockCommandFetcher = createMockCommandFetcher([]);
       const resolver = await DynamicPolicyResolverFactory.create(mockCommandFetcher);
 
-      const result = resolver.resolvePolicy('too.many.dots.here');
+      const result = resolver.resolvePolicy({ command: 'too.many.dots.here', subcommand: undefined });
       assert.equal(result.ok, false);
       assert.equal(result.error, 'wrong-command-or-module-name');
     });
@@ -261,7 +261,7 @@ describe('DynamicPolicyResolverFactory', () => {
       const resolver = await DynamicPolicyResolverFactory.create(mockCommandFetcher);
 
       // Command with only request policy should fall back to defaults
-      let result = resolver.resolvePolicy('partial-request');
+      let result = resolver.resolvePolicy({ command: 'partial-request', subcommand: undefined });
       assert.equal(result.ok, true);
       if (result.ok) {
         assert.equal(result.value.request, REQUEST_POLICIES_WITH_DEFAULTS.ALL_NODES);
@@ -269,7 +269,7 @@ describe('DynamicPolicyResolverFactory', () => {
       }
 
       // Command with only response policy should fall back to defaults
-      result = resolver.resolvePolicy('partial-response');
+      result = resolver.resolvePolicy({ command: 'partial-response', subcommand: undefined });
       assert.equal(result.ok, true);
       if (result.ok) {
         assert.equal(result.value.request, REQUEST_POLICIES_WITH_DEFAULTS.DEFAULT_KEYLESS);
@@ -282,7 +282,7 @@ describe('DynamicPolicyResolverFactory', () => {
       const resolver = await DynamicPolicyResolverFactory.create(mockCommandFetcher);
       assert.ok(resolver instanceof StaticPolicyResolver);
 
-      const result = resolver.resolvePolicy('any-command');
+      const result = resolver.resolvePolicy({ command: 'any-command', subcommand: undefined });
       assert.equal(result.ok, false);
       assert.equal(result.error, 'unknown-command');
     });
@@ -294,7 +294,7 @@ describe('DynamicPolicyResolverFactory', () => {
       assert.ok(resolver instanceof StaticPolicyResolver);
 
       // Test that ping command is classified as keyless
-      const pingResult = resolver.resolvePolicy('ping');
+      const pingResult = resolver.resolvePolicy({ command: 'ping', subcommand: undefined });
       if (pingResult.ok) {
         assert.equal(pingResult.value.request, REQUEST_POLICIES_WITH_DEFAULTS.ALL_SHARDS);
         assert.equal(pingResult.value.response, RESPONSE_POLICIES_WITH_DEFAULTS.ALL_SUCCEEDED);
@@ -303,7 +303,7 @@ describe('DynamicPolicyResolverFactory', () => {
       }
 
       // Test that get command is classified as keyed
-      const getResult = resolver.resolvePolicy('get');
+      const getResult = resolver.resolvePolicy({ command: 'get', subcommand: undefined });
       if (getResult.ok) {
         assert.equal(getResult.value.request, REQUEST_POLICIES_WITH_DEFAULTS.DEFAULT_KEYED);
         assert.equal(getResult.value.response, RESPONSE_POLICIES_WITH_DEFAULTS.DEFAULT_KEYED);
@@ -312,7 +312,7 @@ describe('DynamicPolicyResolverFactory', () => {
       }
 
       // Test that dbsize command uses explicit policies if available
-      const dbsizeResult = resolver.resolvePolicy('dbsize');
+      const dbsizeResult = resolver.resolvePolicy({ command: 'dbsize', subcommand: undefined });
 
       if (dbsizeResult.ok) {
         assert.ok(

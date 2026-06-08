@@ -1,14 +1,38 @@
-import type { PolicyResult, PolicyResolver } from './types';
+import type { PolicyResult, PolicyResolver, ModulePolicyRecords, CommandPolicyRecords } from './types';
 import { POLICIES } from './static-policies-data';
 import { CommandIdentifier } from '../../client/parser';
+import type { CommandPolicies } from './policies-constants';
+
+const lowercaseCommandPolicies = (policies: CommandPolicies): CommandPolicies => {
+  if (!policies.subcommands) return policies;
+  const subcommands: Record<string, CommandPolicies> = {};
+  for (const [name, sub] of Object.entries(policies.subcommands)) {
+    subcommands[name.toLowerCase()] = lowercaseCommandPolicies(sub);
+  }
+  return { ...policies, subcommands };
+};
+
+const lowercaseModulePolicies = (policies: ModulePolicyRecords): ModulePolicyRecords => {
+  const out: ModulePolicyRecords = {};
+  for (const [moduleName, commands] of Object.entries(policies)) {
+    const normalized: CommandPolicyRecords = {};
+    for (const [commandName, policy] of Object.entries(commands)) {
+      normalized[commandName.toLowerCase()] = lowercaseCommandPolicies(policy);
+    }
+    out[moduleName.toLowerCase()] = normalized;
+  }
+  return out;
+};
 
 export class StaticPolicyResolver implements PolicyResolver {
   private readonly fallbackResolver: PolicyResolver | null = null;
+  private readonly policies: ModulePolicyRecords;
 
   constructor(
-    private readonly policies = POLICIES,
+    policies: ModulePolicyRecords = POLICIES,
     fallbackResolver?: PolicyResolver
   ) {
+    this.policies = lowercaseModulePolicies(policies);
     this.fallbackResolver = fallbackResolver || null;
   }
 
@@ -25,7 +49,6 @@ export class StaticPolicyResolver implements PolicyResolver {
   resolvePolicy(commandIdentifier: CommandIdentifier): PolicyResult {
     const parts = commandIdentifier.command.toLowerCase().split('.');
 
-
     if (parts.length > 2) {
       return { ok: false, error: 'wrong-command-or-module-name' };
     }
@@ -33,8 +56,6 @@ export class StaticPolicyResolver implements PolicyResolver {
     const [moduleName, commandName] = parts.length === 1
       ? ['std', parts[0]]
       : parts;
-
-    console.log(`module name `, moduleName, `command name `, commandName);
 
     if (!this.policies[moduleName]) {
       if (this.fallbackResolver) {
@@ -50,7 +71,6 @@ export class StaticPolicyResolver implements PolicyResolver {
     }
 
     if (!this.policies[moduleName][commandName]) {
-      // Try fallback resolver if available
       if (this.fallbackResolver) {
         return this.fallbackResolver.resolvePolicy(commandIdentifier);
       }
@@ -59,19 +79,19 @@ export class StaticPolicyResolver implements PolicyResolver {
 
     const policy = this.policies[moduleName][commandName];
 
-    if(policy.subcommands) {
-      const subcommandPolicy = policy.subcommands[commandIdentifier.subcommand];
-      if(subcommandPolicy) {
+    if (policy.subcommands && commandIdentifier.subcommand !== undefined) {
+      const subcommandPolicy = policy.subcommands[commandIdentifier.subcommand.toLowerCase()];
+      if (subcommandPolicy) {
         return {
           ok: true,
           value: subcommandPolicy
-        }
+        };
       }
     }
 
     return {
       ok: true,
       value: policy
-    }
+    };
   }
 }

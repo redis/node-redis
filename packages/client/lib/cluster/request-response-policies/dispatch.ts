@@ -75,7 +75,9 @@ export const routeDefaultKeyed: RequestRouter<any, any, any, any, any> =
 
 export const routeSpecial: RequestRouter<any, any, any, any, any> =
   async (_slots, parser) => {
-    throw new Error(`Special request policy not implemented for ${parser.commandIdentifier}`);
+    const { command, subcommand } = parser.commandIdentifier;
+    const label = subcommand ? `${command} ${subcommand}` : command;
+    throw new Error(`Special request policy not implemented for ${label}`);
   };
 
 // --- response reducers ---
@@ -114,7 +116,9 @@ export const reduceSum = async <T>(promises: Promise<T>[]): Promise<T> => {
 };
 
 export const reduceSpecial = async <T>(_promises: Promise<T>[], parser: CommandParser): Promise<T> => {
-  throw new Error(`Special response policy not implemented for ${parser.commandIdentifier}`);
+  const { command, subcommand } = parser.commandIdentifier;
+  const label = subcommand ? `${command} ${subcommand}` : command;
+  throw new Error(`Special response policy not implemented for ${label}`);
 };
 
 export const reduceDefaultKeyless = async <T>(promises: Promise<T>[]): Promise<T> => {
