@@ -1943,188 +1943,128 @@ export const POLICIES: ModulePolicyRecords = {
       "isKeyless": false
     }
   },
-  "FT": {
-    "ALIASADD": {
+  "ft": {
+    "create": {
       "request": "default-keyless",
       "response": "default-keyless",
       "isKeyless": true
     },
-    "ALIASUPDATE": {
+    "search": {
       "request": "default-keyless",
       "response": "default-keyless",
       "isKeyless": true
     },
-    "SPELLCHECK": {
+    "aggregate": {
       "request": "default-keyless",
       "response": "default-keyless",
       "isKeyless": true
     },
-    "DICTADD": {
+    "dictadd": {
       "request": "default-keyless",
       "response": "default-keyless",
       "isKeyless": true
     },
-    "_DROPIFX": {
+    "dictdel": {
       "request": "default-keyless",
       "response": "default-keyless",
       "isKeyless": true
     },
-    "DROP": {
+    "dictdump": {
       "request": "default-keyless",
       "response": "default-keyless",
       "isKeyless": true
     },
-    "EXPLAINCLI": {
-      "request": "default-keyless",
-      "response": "default-keyless",
-      "isKeyless": true
-    },
-    "SUGGET": {
+    "suglen": {
       "request": "default-keyed",
       "response": "default-keyed",
       "isKeyless": false
     },
-    "SYNADD": {
+    "cursor": {
       "request": "default-keyless",
       "response": "default-keyless",
       "isKeyless": true
     },
-    "TAGVALS": {
-      "request": "default-keyless",
-      "response": "default-keyless",
-      "isKeyless": true
-    },
-    "EXPLAIN": {
-      "request": "default-keyless",
-      "response": "default-keyless",
-      "isKeyless": true
-    },
-    "ALTER": {
-      "request": "default-keyless",
-      "response": "default-keyless",
-      "isKeyless": true
-    },
-    "CURSOR": {
-      "request": "default-keyless",
-      "response": "default-keyless",
-      "isKeyless": true
-    },
-    "_LIST": {
-      "request": "default-keyless",
-      "response": "default-keyless",
-      "isKeyless": true
-    },
-    "_CREATEIFNX": {
-      "request": "default-keyless",
-      "response": "default-keyless",
-      "isKeyless": true
-    },
-    "DICTDEL": {
-      "request": "default-keyless",
-      "response": "default-keyless",
-      "isKeyless": true
-    },
-    "ADD": {
-      "request": "default-keyless",
-      "response": "default-keyless",
-      "isKeyless": true
-    },
-    "ALIASDEL": {
-      "request": "default-keyless",
-      "response": "default-keyless",
-      "isKeyless": true
-    },
-    "SEARCH": {
-      "request": "default-keyless",
-      "response": "default-keyless",
-      "isKeyless": true
-    },
-    "SYNDUMP": {
-      "request": "default-keyless",
-      "response": "default-keyless",
-      "isKeyless": true
-    },
-    "SUGDEL": {
+    "sugadd": {
       "request": "default-keyed",
       "response": "default-keyed",
       "isKeyless": false
     },
-    "SUGADD": {
+    "sugget": {
       "request": "default-keyed",
       "response": "default-keyed",
       "isKeyless": false
     },
-    "_DROPINDEXIFX": {
-      "request": "default-keyless",
-      "response": "default-keyless",
-      "isKeyless": true
-    },
-    "SYNUPDATE": {
-      "request": "default-keyless",
-      "response": "default-keyless",
-      "isKeyless": true
-    },
-    "MGET": {
-      "request": "default-keyless",
-      "response": "default-keyless",
-      "isKeyless": true
-    },
-    "GET": {
-      "request": "default-keyless",
-      "response": "default-keyless",
-      "isKeyless": true
-    },
-    "AGGREGATE": {
-      "request": "default-keyless",
-      "response": "default-keyless",
-      "isKeyless": true
-    },
-    "SUGLEN": {
+    "sugdel": {
       "request": "default-keyed",
       "response": "default-keyed",
       "isKeyless": false
     },
-    "DEL": {
+    "spellcheck": {
       "request": "default-keyless",
       "response": "default-keyless",
       "isKeyless": true
     },
-    "_ALIASDELIFX": {
+    "explain": {
       "request": "default-keyless",
       "response": "default-keyless",
       "isKeyless": true
     },
-    "_ALIASADDIFNX": {
+    "explaincli": {
       "request": "default-keyless",
       "response": "default-keyless",
       "isKeyless": true
     },
-    "DROPINDEX": {
+    "aliasadd": {
       "request": "default-keyless",
       "response": "default-keyless",
       "isKeyless": true
     },
-    "_ALTERIFNX": {
+    "aliasupdate": {
       "request": "default-keyless",
       "response": "default-keyless",
       "isKeyless": true
     },
-    "PROFILE": {
+    "aliasdel": {
       "request": "default-keyless",
       "response": "default-keyless",
       "isKeyless": true
     },
-    "CREATE": {
+    "info": {
       "request": "default-keyless",
       "response": "default-keyless",
       "isKeyless": true
     },
-    "INFO": {
+    "tagvals": {
       "request": "default-keyless",
       "response": "default-keyless",
       "isKeyless": true
     },
-    "DICTDUMP": {
+    "syndump": {
+      "request": "default-keyless",
+      "response": "default-keyless",
+      "isKeyless": true
+    },
+    "synupdate": {
+      "request": "default-keyless",
+      "response": "default-keyless",
+      "isKeyless": true
+    },
+    "profile": {
+      "request": "default-keyless",
+      "response": "default-keyless",
+      "isKeyless": true
+    },
+    "alter": {
+      "request": "default-keyless",
+      "response": "default-keyless",
+      "isKeyless": true
+    },
+    "dropindex": {
+      "request": "default-keyless",
+      "response": "default-keyless",
+      "isKeyless": true
+    },
+    "drop": {
       "request": "default-keyless",
       "response": "default-keyless",
       "isKeyless": true
@@ -2612,247 +2552,6 @@ export const POLICIES: ModulePolicyRecords = {
       "request": "default-keyed",
       "response": "default-keyed",
       "isKeyless": false
-    }
-  },
-  "search": {
-    "CLUSTERSET": {
-      "request": "default-keyless",
-      "response": "default-keyless",
-      "isKeyless": true
-    },
-    "CLUSTERINFO": {
-      "request": "default-keyless",
-      "response": "default-keyless",
-      "isKeyless": true
-    },
-    "CLUSTERREFRESH": {
-      "request": "default-keyless",
-      "response": "default-keyless",
-      "isKeyless": true
-    }
-  },
-  "_FT": {
-    "CONFIG": {
-      "request": "default-keyless",
-      "response": "default-keyless",
-      "isKeyless": true
-    },
-    "SAFEADD": {
-      "request": "default-keyed",
-      "response": "default-keyed",
-      "isKeyless": false
-    },
-    "DEBUG": {
-      "request": "default-keyless",
-      "response": "default-keyless",
-      "isKeyless": true,
-      "subcommands": {
-        "INFO_TAGIDX": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
-        "VECSIM_INFO": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
-        "SPEC_INVIDXES_INFO": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
-        "DUMP_HNSW": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
-        "TTL_PAUSE": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
-        "GC_FORCEBGINVOKE": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
-        "SHARD_CONNECTION_STATES": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
-        "GC_STOP_SCHEDULE": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
-        "DUMP_TAGIDX": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
-        "SET_MONITOR_EXPIRATION": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
-        "DUMP_TERMS": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
-        "GC_CONTINUE_SCHEDULE": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
-        "DUMP_NUMIDX": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
-        "GC_CLEAN_NUMERIC": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
-        "HELP": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
-        "FT.AGGREGATE": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
-        "TTL": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
-        "DUMP_SUFFIX_TRIE": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
-        "DOCINFO": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
-        "_FT.AGGREGATE": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
-        "WORKERS": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
-        "RESUME_TOPOLOGY_UPDATER": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
-        "DUMP_NUMIDXTREE": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
-        "DUMP_INVIDX": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
-        "CLEAR_PENDING_TOPOLOGY": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
-        "_FT.SEARCH": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
-        "BG_SCAN_CONTROLLER": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
-        "PAUSE_TOPOLOGY_UPDATER": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
-        "GIT_SHA": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
-        "IDTODOCID": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
-        "INVIDX_SUMMARY": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
-        "DUMP_GEOMIDX": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
-        "GC_FORCEINVOKE": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
-        "TTL_EXPIRE": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
-        "FT.SEARCH": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
-        "DUMP_PHONETIC_HASH": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
-        "DOCIDTOID": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
-        "DUMP_PREFIX_TRIE": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
-        "DELETE_LOCAL_CURSORS": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
-        "GC_WAIT_FOR_JOBS": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
-        "NUMIDX_SUMMARY": {
-          "request": "default-keyless",
-          "response": "default-keyless",
-          "isKeyless": true
-        }
-      }
     }
   },
   "timeseries": {
