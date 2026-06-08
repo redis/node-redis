@@ -12,6 +12,12 @@ import {
   aggregateMin,
   aggregateSum
 } from './generic-aggregators';
+import {
+  REQUEST_POLICIES_WITH_DEFAULTS,
+  RESPONSE_POLICIES_WITH_DEFAULTS,
+  type RequestPolicyWithDefaults,
+  type ResponsePolicyWithDefaults
+} from './policies-constants';
 
 type Client<
   M extends RedisModules,
@@ -120,3 +126,27 @@ export const reduceDefaultKeyed = async <T>(promises: Promise<T>[]): Promise<T> 
   const responses = await Promise.all(promises);
   return responses as T;
 };
+
+// --- registries ---
+
+export const REQUEST_ROUTERS = {
+  [REQUEST_POLICIES_WITH_DEFAULTS.ALL_NODES]: routeAllNodes,
+  [REQUEST_POLICIES_WITH_DEFAULTS.ALL_SHARDS]: routeAllShards,
+  [REQUEST_POLICIES_WITH_DEFAULTS.MULTI_SHARD]: routeMultiShard,
+  [REQUEST_POLICIES_WITH_DEFAULTS.SPECIAL]: routeSpecial,
+  [REQUEST_POLICIES_WITH_DEFAULTS.DEFAULT_KEYLESS]: routeDefaultKeyless,
+  [REQUEST_POLICIES_WITH_DEFAULTS.DEFAULT_KEYED]: routeDefaultKeyed
+} as const satisfies Record<RequestPolicyWithDefaults, RequestRouter<any, any, any, any, any>>;
+
+export const RESPONSE_REDUCERS = {
+  [RESPONSE_POLICIES_WITH_DEFAULTS.ONE_SUCCEEDED]: reduceOneSucceeded,
+  [RESPONSE_POLICIES_WITH_DEFAULTS.ALL_SUCCEEDED]: reduceAllSucceeded,
+  [RESPONSE_POLICIES_WITH_DEFAULTS.AGG_LOGICAL_AND]: reduceLogicalAnd,
+  [RESPONSE_POLICIES_WITH_DEFAULTS.AGG_LOGICAL_OR]: reduceLogicalOr,
+  [RESPONSE_POLICIES_WITH_DEFAULTS.AGG_MIN]: reduceMin,
+  [RESPONSE_POLICIES_WITH_DEFAULTS.AGG_MAX]: reduceMax,
+  [RESPONSE_POLICIES_WITH_DEFAULTS.AGG_SUM]: reduceSum,
+  [RESPONSE_POLICIES_WITH_DEFAULTS.SPECIAL]: reduceSpecial,
+  [RESPONSE_POLICIES_WITH_DEFAULTS.DEFAULT_KEYLESS]: reduceDefaultKeyless,
+  [RESPONSE_POLICIES_WITH_DEFAULTS.DEFAULT_KEYED]: reduceDefaultKeyed
+} as const satisfies Record<ResponsePolicyWithDefaults, ResponseReducer<any>>;
