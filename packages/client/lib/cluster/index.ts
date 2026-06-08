@@ -16,25 +16,8 @@ import SingleEntryCache from '../single-entry-cache'
 import { publish, CHANNELS } from '../client/tracing';
 import { ClientIdentity, ClientRole, generateClusterClientId } from '../client/identity';
 import { DEFAULT_COMMAND_TIMEOUT } from '../defaults';
-import { POLICIES, PolicyResolver, REQUEST_POLICIES_WITH_DEFAULTS, RESPONSE_POLICIES_WITH_DEFAULTS, StaticPolicyResolver } from './request-response-policies';
-import {
-  routeAllNodes,
-  routeAllShards,
-  routeMultiShard,
-  routeDefaultKeyless,
-  routeDefaultKeyed,
-  routeSpecial,
-  reduceOneSucceeded,
-  reduceAllSucceeded,
-  reduceLogicalAnd,
-  reduceLogicalOr,
-  reduceMin,
-  reduceMax,
-  reduceSum,
-  reduceSpecial,
-  reduceDefaultKeyless,
-  reduceDefaultKeyed
-} from './request-response-policies/dispatch';
+import { POLICIES, PolicyResolver, StaticPolicyResolver } from './request-response-policies';
+import { REQUEST_ROUTERS, RESPONSE_REDUCERS } from './request-response-policies/dispatch';
 
 export type ClusterTopologyRefreshOnReconnectionAttemptStrategy =
   false |
@@ -502,37 +485,13 @@ export default class RedisCluster<
     const requestPolicy =  policyResult.value.request
     const responsePolicy =  policyResult.value.response
 
-    let clients: Array<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>;
     // https://redis.io/docs/latest/develop/reference/command-tips
-    switch (requestPolicy) {
-
-      case REQUEST_POLICIES_WITH_DEFAULTS.ALL_NODES:
-        clients = await routeAllNodes(this._slots, parser, isReadonly);
-        break;
-
-      case REQUEST_POLICIES_WITH_DEFAULTS.ALL_SHARDS:
-        clients = await routeAllShards(this._slots, parser, isReadonly);
-        break;
-
-      case REQUEST_POLICIES_WITH_DEFAULTS.MULTI_SHARD:
-        clients = await routeMultiShard(this._slots, parser, isReadonly);
-        break;
-
-      case REQUEST_POLICIES_WITH_DEFAULTS.SPECIAL:
-        clients = await routeSpecial(this._slots, parser, isReadonly);
-        break;
-
-      case REQUEST_POLICIES_WITH_DEFAULTS.DEFAULT_KEYLESS:
-        clients = await routeDefaultKeyless(this._slots, parser, isReadonly);
-        break;
-
-      case REQUEST_POLICIES_WITH_DEFAULTS.DEFAULT_KEYED:
-        clients = await routeDefaultKeyed(this._slots, parser, isReadonly);
-        break;
-
-      default:
-        throw new Error(`Unknown request policy ${requestPolicy}`);
+    const router = REQUEST_ROUTERS[requestPolicy];
+    if (!router) {
+      throw new Error(`Unknown request policy ${requestPolicy}`);
     }
+    const clients: Array<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> =
+      await router(this._slots, parser, isReadonly);
 
     const responsePromises = clients.map(async client => {
 
@@ -604,40 +563,11 @@ export default class RedisCluster<
 
     })
     
-    switch (responsePolicy) {
-      case RESPONSE_POLICIES_WITH_DEFAULTS.ONE_SUCCEEDED:
-        return reduceOneSucceeded(responsePromises);
-
-      case RESPONSE_POLICIES_WITH_DEFAULTS.ALL_SUCCEEDED:
-        return reduceAllSucceeded(responsePromises);
-
-      case RESPONSE_POLICIES_WITH_DEFAULTS.AGG_LOGICAL_AND:
-        return reduceLogicalAnd(responsePromises);
-
-      case RESPONSE_POLICIES_WITH_DEFAULTS.AGG_LOGICAL_OR:
-        return reduceLogicalOr(responsePromises);
-
-      case RESPONSE_POLICIES_WITH_DEFAULTS.AGG_MIN:
-        return reduceMin(responsePromises);
-
-      case RESPONSE_POLICIES_WITH_DEFAULTS.AGG_MAX:
-        return reduceMax(responsePromises);
-
-      case RESPONSE_POLICIES_WITH_DEFAULTS.AGG_SUM:
-        return reduceSum(responsePromises);
-
-      case RESPONSE_POLICIES_WITH_DEFAULTS.SPECIAL:
-        return reduceSpecial(responsePromises, parser);
-
-      case RESPONSE_POLICIES_WITH_DEFAULTS.DEFAULT_KEYLESS:
-        return reduceDefaultKeyless(responsePromises);
-
-      case RESPONSE_POLICIES_WITH_DEFAULTS.DEFAULT_KEYED:
-        return reduceDefaultKeyed(responsePromises);
-
-      default:
-        throw new Error(`Unknown response policy ${responsePolicy}`);
+    const reducer = RESPONSE_REDUCERS[responsePolicy];
+    if (!reducer) {
+      throw new Error(`Unknown response policy ${responsePolicy}`);
     }
+    return reducer(responsePromises, parser) as Promise<T>;
 
   }
 
