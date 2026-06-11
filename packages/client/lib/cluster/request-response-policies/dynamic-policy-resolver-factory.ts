@@ -29,6 +29,19 @@ export class DynamicPolicyResolverFactory {
     fallbackResolver?: PolicyResolver
   ): Promise<PolicyResolver> {
     const commands = await commandFetcher();
+    const policies = DynamicPolicyResolverFactory.buildModulePolicyRecords(commands);
+
+    return new StaticPolicyResolver(policies, fallbackResolver);
+  }
+
+  /**
+   * Builds module->command policy records from COMMAND replies.
+   *
+   * Also used by `scripts/generate-static-policies-data.ts` to regenerate
+   * `static-policies-data.ts`, so the static data is guaranteed to match what
+   * this factory would derive at runtime.
+   */
+  static buildModulePolicyRecords(commands: Array<CommandReply>): ModulePolicyRecords {
     const policies: ModulePolicyRecords = {};
 
     for (const command of commands) {
@@ -51,7 +64,7 @@ export class DynamicPolicyResolverFactory {
       policies[moduleName][commandName] = commandPolicies;
     }
 
-    return new StaticPolicyResolver(policies, fallbackResolver);
+    return policies;
   }
 
   /**
