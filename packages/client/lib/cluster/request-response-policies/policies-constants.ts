@@ -1,3 +1,5 @@
+import type { KeySpec } from '../../commands/generic-transformers';
+
 export const REQUEST_POLICIES_WITH_DEFAULTS = {
   /**
    * The client should execute the command on all nodes - masters and replicas alike.
@@ -113,4 +115,10 @@ export interface CommandPolicies {
   readonly response: ResponsePolicyWithDefaults;
   readonly subcommands?: Record<string, CommandPolicies>;
   readonly isKeyless: boolean;
+  /**
+   * COMMAND key specifications — the reconstruction recipe for splitting the
+   * command per slot. Only populated for `multi_shard` commands; other
+   * commands never split, so their entries stay lean.
+   */
+  readonly keySpecs?: ReadonlyArray<KeySpec>;
 }

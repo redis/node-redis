@@ -127,10 +127,19 @@ export class DynamicPolicyResolverFactory {
       }
     }
 
+    const request = command.policies.request ?? defaultRequest;
+
     return {
-      request: command.policies.request ?? defaultRequest,
+      request,
       response: command.policies.response ?? defaultResponse,
       isKeyless,
+      // Only the multi_shard splitter consumes key specs. This builder also
+      // produces static-policies-data.ts, so copying them unconditionally
+      // would pollute the generated data with specs nothing reads
+      // (~tripling the file).
+      keySpecs: request === REQUEST_POLICIES_WITH_DEFAULTS.MULTI_SHARD
+        ? command.keySpecs
+        : undefined,
       subcommands
     };
   }
