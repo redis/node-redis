@@ -52,6 +52,7 @@ describe('DynamicPolicyResolverFactory', () => {
           categories: new Set(),
           policies: { request: undefined, response: undefined },
           isKeyless: true,
+          keySpecs: [],
           subcommands: []
         }
       ];
@@ -79,6 +80,7 @@ describe('DynamicPolicyResolverFactory', () => {
           categories: new Set(),
           policies: { request: undefined, response: undefined },
           isKeyless: false,
+          keySpecs: [],
           subcommands: []
         }
       ];
@@ -106,6 +108,7 @@ describe('DynamicPolicyResolverFactory', () => {
           categories: new Set(),
           policies: { request: 'all_shards', response: 'agg_sum' },
           isKeyless: true,
+          keySpecs: [],
           subcommands: []
         }
       ];
@@ -121,6 +124,60 @@ describe('DynamicPolicyResolverFactory', () => {
       }
     });
 
+    it('should carry keySpecs through for multi_shard commands only', async () => {
+      const msetKeySpecs = [{
+        beginSearch: { type: 'index', index: 1 },
+        findKeys: { type: 'range', lastKey: -1, keyStep: 2, limit: 0 }
+      }] as const;
+      const mockCommands: Array<CommandReply> = [
+        {
+          name: 'mset',
+          arity: -3,
+          flags: new Set(),
+          firstKeyIndex: 1,
+          lastKeyIndex: -1,
+          step: 2,
+          categories: new Set(),
+          policies: { request: 'multi_shard', response: 'all_succeeded' },
+          isKeyless: false,
+          keySpecs: [...msetKeySpecs],
+          subcommands: []
+        },
+        {
+          name: 'get',
+          arity: 2,
+          flags: new Set(),
+          firstKeyIndex: 1,
+          lastKeyIndex: 1,
+          step: 1,
+          categories: new Set(),
+          policies: { request: undefined, response: undefined },
+          isKeyless: false,
+          keySpecs: [{
+            beginSearch: { type: 'index', index: 1 },
+            findKeys: { type: 'range', lastKey: 0, keyStep: 1, limit: 0 }
+          }],
+          subcommands: []
+        }
+      ];
+
+      const mockCommandFetcher = createMockCommandFetcher(mockCommands);
+      const resolver = await DynamicPolicyResolverFactory.create(mockCommandFetcher);
+
+      const msetResult = resolver.resolvePolicy({ command: 'mset', subcommand: undefined });
+      assert.equal(msetResult.ok, true);
+      if (msetResult.ok) {
+        assert.deepEqual(msetResult.value.keySpecs, msetKeySpecs);
+      }
+
+      // non-multi_shard commands never split — no keySpecs on their entries
+      const getResult = resolver.resolvePolicy({ command: 'get', subcommand: undefined });
+      assert.equal(getResult.ok, true);
+      if (getResult.ok) {
+        assert.equal(getResult.value.keySpecs, undefined);
+      }
+    });
+
     it('should handle module commands correctly', async () => {
       const mockCommands: Array<CommandReply> = [
         {
@@ -133,6 +190,7 @@ describe('DynamicPolicyResolverFactory', () => {
           categories: new Set(),
           policies: { request: 'all_shards', response: 'special' },
           isKeyless: false,
+          keySpecs: [],
           subcommands: []
         }
       ];
@@ -160,6 +218,7 @@ describe('DynamicPolicyResolverFactory', () => {
           categories: new Set(),
           policies: { request: undefined, response: undefined },
           isKeyless: true,
+          keySpecs: [],
           subcommands: []
         }
       ];
@@ -189,6 +248,7 @@ describe('DynamicPolicyResolverFactory', () => {
           categories: new Set(),
           policies: { request: undefined, response: undefined },
           isKeyless: true,
+          keySpecs: [],
           subcommands: []
         }
       ];
@@ -241,6 +301,7 @@ describe('DynamicPolicyResolverFactory', () => {
           categories: new Set(),
           policies: { request: 'all_nodes', response: undefined },
           isKeyless: false,
+          keySpecs: [],
           subcommands: []
         },
         {
@@ -253,6 +314,7 @@ describe('DynamicPolicyResolverFactory', () => {
           categories: new Set(),
           policies: { request: undefined, response: 'agg_sum' },
           isKeyless: true,
+          keySpecs: [],
           subcommands: []
         }
       ];

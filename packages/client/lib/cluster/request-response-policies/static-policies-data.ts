@@ -1097,7 +1097,21 @@ export const POLICIES: ModulePolicyRecords = {
     "del": {
       "request": "multi_shard",
       "response": "agg_sum",
-      "isKeyless": false
+      "isKeyless": false,
+      "keySpecs": [
+        {
+          "beginSearch": {
+            "type": "index",
+            "index": 1
+          },
+          "findKeys": {
+            "type": "range",
+            "lastKey": -1,
+            "keyStep": 1,
+            "limit": 0
+          }
+        }
+      ]
     },
     "delex": {
       "request": "default-keyed",
@@ -1152,7 +1166,21 @@ export const POLICIES: ModulePolicyRecords = {
     "exists": {
       "request": "multi_shard",
       "response": "agg_sum",
-      "isKeyless": false
+      "isKeyless": false,
+      "keySpecs": [
+        {
+          "beginSearch": {
+            "type": "index",
+            "index": 1
+          },
+          "findKeys": {
+            "type": "range",
+            "lastKey": -1,
+            "keyStep": 1,
+            "limit": 0
+          }
+        }
+      ]
     },
     "expire": {
       "request": "default-keyed",
@@ -1695,7 +1723,21 @@ export const POLICIES: ModulePolicyRecords = {
     "mget": {
       "request": "multi_shard",
       "response": "default-keyed",
-      "isKeyless": false
+      "isKeyless": false,
+      "keySpecs": [
+        {
+          "beginSearch": {
+            "type": "index",
+            "index": 1
+          },
+          "findKeys": {
+            "type": "range",
+            "lastKey": -1,
+            "keyStep": 1,
+            "limit": 0
+          }
+        }
+      ]
     },
     "migrate": {
       "request": "default-keyed",
@@ -1747,12 +1789,40 @@ export const POLICIES: ModulePolicyRecords = {
     "mset": {
       "request": "multi_shard",
       "response": "all_succeeded",
-      "isKeyless": false
+      "isKeyless": false,
+      "keySpecs": [
+        {
+          "beginSearch": {
+            "type": "index",
+            "index": 1
+          },
+          "findKeys": {
+            "type": "range",
+            "lastKey": -1,
+            "keyStep": 2,
+            "limit": 0
+          }
+        }
+      ]
     },
     "msetex": {
       "request": "multi_shard",
       "response": "all_succeeded",
-      "isKeyless": false
+      "isKeyless": false,
+      "keySpecs": [
+        {
+          "beginSearch": {
+            "type": "index",
+            "index": 1
+          },
+          "findKeys": {
+            "type": "keynum",
+            "keyNumIdx": 0,
+            "firstKey": 1,
+            "keyStep": 2
+          }
+        }
+      ]
     },
     "msetnx": {
       "request": "default-keyed",
@@ -2250,7 +2320,21 @@ export const POLICIES: ModulePolicyRecords = {
     "touch": {
       "request": "multi_shard",
       "response": "agg_sum",
-      "isKeyless": false
+      "isKeyless": false,
+      "keySpecs": [
+        {
+          "beginSearch": {
+            "type": "index",
+            "index": 1
+          },
+          "findKeys": {
+            "type": "range",
+            "lastKey": -1,
+            "keyStep": 1,
+            "limit": 0
+          }
+        }
+      ]
     },
     "trimslots": {
       "request": "default-keyless",
@@ -2270,7 +2354,21 @@ export const POLICIES: ModulePolicyRecords = {
     "unlink": {
       "request": "multi_shard",
       "response": "agg_sum",
-      "isKeyless": false
+      "isKeyless": false,
+      "keySpecs": [
+        {
+          "beginSearch": {
+            "type": "index",
+            "index": 1
+          },
+          "findKeys": {
+            "type": "range",
+            "lastKey": -1,
+            "keyStep": 1,
+            "limit": 0
+          }
+        }
+      ]
     },
     "unsubscribe": {
       "request": "default-keyless",
