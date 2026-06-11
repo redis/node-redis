@@ -979,7 +979,7 @@ export const POLICIES: ModulePolicyRecords = {
           "isKeyless": true
         },
         "slot-stats": {
-          "request": "default-keyless",
+          "request": "all_shards",
           "response": "default-keyless",
           "isKeyless": true
         },
@@ -1240,8 +1240,8 @@ export const POLICIES: ModulePolicyRecords = {
           "isKeyless": true
         },
         "stats": {
-          "request": "default-keyless",
-          "response": "default-keyless",
+          "request": "all_shards",
+          "response": "special",
           "isKeyless": true
         }
       }
@@ -1412,8 +1412,8 @@ export const POLICIES: ModulePolicyRecords = {
       "isKeyless": true,
       "subcommands": {
         "get": {
-          "request": "default-keyless",
-          "response": "default-keyless",
+          "request": "special",
+          "response": "special",
           "isKeyless": true
         },
         "help": {
@@ -1524,8 +1524,8 @@ export const POLICIES: ModulePolicyRecords = {
       "isKeyless": false
     },
     "info": {
-      "request": "default-keyless",
-      "response": "default-keyless",
+      "request": "all_shards",
+      "response": "special",
       "isKeyless": true
     },
     "keys": {
@@ -1544,13 +1544,13 @@ export const POLICIES: ModulePolicyRecords = {
       "isKeyless": true,
       "subcommands": {
         "doctor": {
-          "request": "default-keyless",
-          "response": "default-keyless",
+          "request": "all_nodes",
+          "response": "special",
           "isKeyless": true
         },
         "graph": {
-          "request": "default-keyless",
-          "response": "default-keyless",
+          "request": "all_nodes",
+          "response": "special",
           "isKeyless": true
         },
         "help": {
@@ -1559,18 +1559,18 @@ export const POLICIES: ModulePolicyRecords = {
           "isKeyless": true
         },
         "histogram": {
-          "request": "default-keyless",
-          "response": "default-keyless",
+          "request": "all_nodes",
+          "response": "special",
           "isKeyless": true
         },
         "history": {
-          "request": "default-keyless",
-          "response": "default-keyless",
+          "request": "all_nodes",
+          "response": "special",
           "isKeyless": true
         },
         "latest": {
-          "request": "default-keyless",
-          "response": "default-keyless",
+          "request": "all_nodes",
+          "response": "special",
           "isKeyless": true
         },
         "reset": {
@@ -1661,8 +1661,8 @@ export const POLICIES: ModulePolicyRecords = {
       "isKeyless": true,
       "subcommands": {
         "doctor": {
-          "request": "default-keyless",
-          "response": "default-keyless",
+          "request": "all_shards",
+          "response": "special",
           "isKeyless": true
         },
         "help": {
@@ -1671,8 +1671,8 @@ export const POLICIES: ModulePolicyRecords = {
           "isKeyless": true
         },
         "malloc-stats": {
-          "request": "default-keyless",
-          "response": "default-keyless",
+          "request": "all_shards",
+          "response": "special",
           "isKeyless": true
         },
         "purge": {
@@ -1681,8 +1681,8 @@ export const POLICIES: ModulePolicyRecords = {
           "isKeyless": true
         },
         "stats": {
-          "request": "default-keyless",
-          "response": "default-keyless",
+          "request": "all_shards",
+          "response": "special",
           "isKeyless": true
         },
         "usage": {
@@ -2004,8 +2004,8 @@ export const POLICIES: ModulePolicyRecords = {
       "isKeyless": true
     },
     "scan": {
-      "request": "default-keyless",
-      "response": "default-keyless",
+      "request": "special",
+      "response": "special",
       "isKeyless": true
     },
     "scard": {

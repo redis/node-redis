@@ -369,15 +369,25 @@ export function transformCommandReply(
 ): CommandReply {
 
 
-  const requestPolicyRaw = tips[0]?.replace('request_policy:', '');
-  const requestPolicy = requestPolicyRaw && Object.values(REQUEST_POLICIES_WITH_DEFAULTS).includes(requestPolicyRaw as RequestPolicyWithDefaults)
-    ? requestPolicyRaw as RequestPolicyWithDefaults
-    : undefined;
+  // Tips are free-form hints with no ordering guarantee — commands like INFO
+  // declare 'nondeterministic_output' before their policy tips, so scan the
+  // whole array instead of relying on positions.
+  let requestPolicy: RequestPolicyWithDefaults | undefined;
+  let responsePolicy: ResponsePolicyWithDefaults | undefined;
 
-  const responsePolicyRaw = tips[1]?.replace('response_policy:', '');
-  const responsePolicy = responsePolicyRaw && Object.values(RESPONSE_POLICIES_WITH_DEFAULTS).includes(responsePolicyRaw as ResponsePolicyWithDefaults)
-    ? responsePolicyRaw as ResponsePolicyWithDefaults
-    : undefined;
+  for (const tip of tips) {
+    if (tip.startsWith('request_policy:')) {
+      const raw = tip.slice('request_policy:'.length);
+      if ((Object.values(REQUEST_POLICIES_WITH_DEFAULTS) as string[]).includes(raw)) {
+        requestPolicy = raw as RequestPolicyWithDefaults;
+      }
+    } else if (tip.startsWith('response_policy:')) {
+      const raw = tip.slice('response_policy:'.length);
+      if ((Object.values(RESPONSE_POLICIES_WITH_DEFAULTS) as string[]).includes(raw)) {
+        responsePolicy = raw as ResponsePolicyWithDefaults;
+      }
+    }
+  }
 
   const subcommands = subcommandsReply.map(transformCommandReply);
 
