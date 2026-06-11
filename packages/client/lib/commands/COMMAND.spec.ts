@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import { parseArgs, transformCommandReply, CommandFlags, CommandCategories, CommandRawReply } from './generic-transformers';
+import { parseArgs, transformCommandReply, transformKeySpec, CommandFlags, CommandCategories, CommandRawReply } from './generic-transformers';
 import COMMAND from './COMMAND';
 
 describe('COMMAND', () => {
@@ -26,6 +26,7 @@ describe('COMMAND', () => {
           categories: new Set([CommandCategories.FAST]),
           policies: { request: undefined, response: undefined },
           isKeyless: true,
+          keySpecs: [],
           subcommands: []
         }
       },
@@ -42,6 +43,7 @@ describe('COMMAND', () => {
           categories: new Set([]),
           policies: { request: 'all_shards', response: 'agg_sum' },
           isKeyless: true,
+          keySpecs: [],
           subcommands: []
         }
       },
@@ -58,6 +60,7 @@ describe('COMMAND', () => {
           categories: new Set([]),
           policies: { request: undefined, response: undefined },
           isKeyless: false,
+          keySpecs: [{ beginSearch: { type: 'unknown' }, findKeys: { type: 'unknown' } }],
           subcommands: []
         }
       },
@@ -74,6 +77,7 @@ describe('COMMAND', () => {
           categories: new Set([]),
           policies: { request: 'all_nodes', response: undefined },
           isKeyless: false,
+          keySpecs: [{ beginSearch: { type: 'unknown' }, findKeys: { type: 'unknown' } }],
           subcommands: []
         }
       },
@@ -90,6 +94,7 @@ describe('COMMAND', () => {
           categories: new Set([]),
           policies: { request: undefined, response: 'agg_max' },
           isKeyless: true,
+          keySpecs: [],
           subcommands: []
         }
       },
@@ -106,6 +111,7 @@ describe('COMMAND', () => {
           categories: new Set([]),
           policies: { request: undefined, response: 'agg_max' },
           isKeyless: true,
+          keySpecs: [],
           subcommands: []
         }
       },
@@ -124,6 +130,7 @@ describe('COMMAND', () => {
           categories: new Set([]),
           policies: { request: 'all_shards', response: 'special' },
           isKeyless: true,
+          keySpecs: [],
           subcommands: []
         }
       },
@@ -141,6 +148,7 @@ describe('COMMAND', () => {
           categories: new Set([]),
           policies: { request: 'all_shards', response: undefined },
           isKeyless: true,
+          keySpecs: [],
           subcommands: []
         }
       },
@@ -159,6 +167,7 @@ describe('COMMAND', () => {
           categories: new Set([]),
           policies: { request: 'all_shards', response: undefined },
           isKeyless: true,
+          keySpecs: [],
           subcommands: []
         }
       },
@@ -175,6 +184,7 @@ describe('COMMAND', () => {
           categories: new Set([]),
           policies: { request: undefined, response: undefined },
           isKeyless: true,
+          keySpecs: [],
           subcommands: []
         }
       }
@@ -187,6 +197,101 @@ describe('COMMAND', () => {
           testCase.expected
         );
       });
+    });
+  });
+
+  describe('transformKeySpec', () => {
+    // Shapes captured from a live Redis 8.8.0 COMMAND INFO reply: RESP3
+    // delivers nested objects, RESP2 the same data as flat field-value pair
+    // arrays. Both must parse to the same (RESP3-like) result.
+    const testCases = [
+      {
+        name: 'range (MSET)',
+        resp3: {
+          flags: ['OW', 'update'],
+          begin_search: { type: 'index', spec: { index: 1 } },
+          find_keys: { type: 'range', spec: { lastkey: -1, keystep: 2, limit: 0 } }
+        },
+        resp2: [
+          'flags', ['OW', 'update'],
+          'begin_search', ['type', 'index', 'spec', ['index', 1]],
+          'find_keys', ['type', 'range', 'spec', ['lastkey', -1, 'keystep', 2, 'limit', 0]]
+        ],
+        expected: {
+          beginSearch: { type: 'index', index: 1 },
+          findKeys: { type: 'range', lastKey: -1, keyStep: 2, limit: 0 }
+        }
+      },
+      {
+        name: 'keynum (MSETEX)',
+        resp3: {
+          flags: ['OW', 'update'],
+          begin_search: { type: 'index', spec: { index: 1 } },
+          find_keys: { type: 'keynum', spec: { keynumidx: 0, firstkey: 1, keystep: 2 } }
+        },
+        resp2: [
+          'flags', ['OW', 'update'],
+          'begin_search', ['type', 'index', 'spec', ['index', 1]],
+          'find_keys', ['type', 'keynum', 'spec', ['keynumidx', 0, 'firstkey', 1, 'keystep', 2]]
+        ],
+        expected: {
+          beginSearch: { type: 'index', index: 1 },
+          findKeys: { type: 'keynum', keyNumIdx: 0, firstKey: 1, keyStep: 2 }
+        }
+      },
+      {
+        name: 'keyword (GEORADIUS STORE)',
+        resp3: {
+          flags: ['OW', 'update'],
+          begin_search: { type: 'keyword', spec: { keyword: 'STORE', startfrom: 6 } },
+          find_keys: { type: 'range', spec: { lastkey: 0, keystep: 1, limit: 0 } }
+        },
+        resp2: [
+          'flags', ['OW', 'update'],
+          'begin_search', ['type', 'keyword', 'spec', ['keyword', 'STORE', 'startfrom', 6]],
+          'find_keys', ['type', 'range', 'spec', ['lastkey', 0, 'keystep', 1, 'limit', 0]]
+        ],
+        expected: {
+          beginSearch: { type: 'keyword', keyword: 'STORE', startFrom: 6 },
+          findKeys: { type: 'range', lastKey: 0, keyStep: 1, limit: 0 }
+        }
+      },
+      {
+        name: 'unrecognized types',
+        resp3: {
+          begin_search: { type: 'future-type', spec: { whatever: 1 } },
+          find_keys: { type: 'future-type', spec: { whatever: 1 } }
+        },
+        resp2: [
+          'begin_search', ['type', 'future-type', 'spec', ['whatever', 1]],
+          'find_keys', ['type', 'future-type', 'spec', ['whatever', 1]]
+        ],
+        expected: {
+          beginSearch: { type: 'unknown' },
+          findKeys: { type: 'unknown' }
+        }
+      }
+    ];
+
+    testCases.forEach(testCase => {
+      it(`${testCase.name} - RESP3 shape`, () => {
+        assert.deepEqual(transformKeySpec(testCase.resp3), testCase.expected);
+      });
+
+      it(`${testCase.name} - RESP2 shape`, () => {
+        assert.deepEqual(transformKeySpec(testCase.resp2), testCase.expected);
+      });
+    });
+
+    it('malformed entries parse to unknown instead of throwing', () => {
+      const unknown = { beginSearch: { type: 'unknown' }, findKeys: { type: 'unknown' } };
+      assert.deepEqual(transformKeySpec('some key specification'), unknown);
+      assert.deepEqual(transformKeySpec(null), unknown);
+      assert.deepEqual(transformKeySpec(['odd', 'pair', 'array']), unknown);
+      assert.deepEqual(transformKeySpec({
+        begin_search: { type: 'index', spec: { index: 'not-a-number' } },
+        find_keys: { type: 'range', spec: { lastkey: -1 } }
+      }), unknown);
     });
   });
 
@@ -204,5 +309,11 @@ describe('COMMAND', () => {
     const info = commands.find(command => command.name === 'info');
     assert.equal(info?.policies?.request, 'all_shards');
     assert.equal(info?.policies?.response, 'special');
+
+    const mset = commands.find(command => command.name === 'mset');
+    assert.deepEqual(mset?.keySpecs, [{
+      beginSearch: { type: 'index', index: 1 },
+      findKeys: { type: 'range', lastKey: -1, keyStep: 2, limit: 0 }
+    }]);
   }, GLOBAL.SERVERS.OPEN);
 });

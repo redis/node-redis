@@ -345,10 +345,20 @@ export type CommandRawReply = [
   step: number,
   categories: Array<CommandCategories>,
   tips: Array<string>,
-  keySpecifications: Array<string>,
+  keySpecifications: Array<unknown>,
   subcommands: Array<CommandRawReply>
 ];
 
+export type KeySpec = {
+  beginSearch:
+    | { type: 'index'; index: number }
+    | { type: 'keyword'; keyword: string; startFrom: number }
+    | { type: 'unknown' };
+  findKeys:
+    | { type: 'range'; lastKey: number; keyStep: number; limit: number }
+    | { type: 'keynum'; keyNumIdx: number; firstKey: number; keyStep: number }
+    | { type: 'unknown' };
+};
 
 export type CommandReply = {
   name: string,
@@ -360,8 +370,100 @@ export type CommandReply = {
   categories: Set<CommandCategories>,
   policies: { request: RequestPolicyWithDefaults | undefined, response: ResponsePolicyWithDefaults | undefined }
   isKeyless: boolean,
+  keySpecs: Array<KeySpec>,
   subcommands: Array<CommandReply>
 };
+
+/**
+ * Normalizes one map-shaped level of a key specification to the RESP3 object
+ * shape. RESP3 already delivers objects; RESP2 delivers the same data as flat
+ * `[field, value, ...]` pair arrays.
+ */
+function normalizeKeySpecMap(raw: unknown): Record<string, unknown> | undefined {
+  if (raw === null || typeof raw !== 'object') return undefined;
+
+  if (!Array.isArray(raw)) return raw as Record<string, unknown>;
+
+  if (raw.length % 2 !== 0) return undefined;
+
+  const normalized: Record<string, unknown> = {};
+  for (let i = 0; i < raw.length; i += 2) {
+    const field = raw[i];
+    if (typeof field !== 'string') return undefined;
+    normalized[field] = raw[i + 1];
+  }
+  return normalized;
+}
+
+function transformNumber(raw: unknown): number | undefined {
+  const value = Number(raw);
+  return Number.isInteger(value) ? value : undefined;
+}
+
+const UNKNOWN_KEY_SPEC_PART = { type: 'unknown' } as const;
+
+function transformBeginSearch(raw: unknown): KeySpec['beginSearch'] {
+  const beginSearch = normalizeKeySpecMap(raw);
+  const spec = normalizeKeySpecMap(beginSearch?.spec);
+  if (!beginSearch || !spec) return UNKNOWN_KEY_SPEC_PART;
+
+  switch (beginSearch.type) {
+    case 'index': {
+      const index = transformNumber(spec.index);
+      if (index !== undefined) return { type: 'index', index };
+      break;
+    }
+    case 'keyword': {
+      const startFrom = transformNumber(spec.startfrom);
+      if (typeof spec.keyword === 'string' && startFrom !== undefined) {
+        return { type: 'keyword', keyword: spec.keyword, startFrom };
+      }
+      break;
+    }
+  }
+  return UNKNOWN_KEY_SPEC_PART;
+}
+
+function transformFindKeys(raw: unknown): KeySpec['findKeys'] {
+  const findKeys = normalizeKeySpecMap(raw);
+  const spec = normalizeKeySpecMap(findKeys?.spec);
+  if (!findKeys || !spec) return UNKNOWN_KEY_SPEC_PART;
+
+  switch (findKeys.type) {
+    case 'range': {
+      const lastKey = transformNumber(spec.lastkey),
+        keyStep = transformNumber(spec.keystep),
+        limit = transformNumber(spec.limit);
+      if (lastKey !== undefined && keyStep !== undefined && limit !== undefined) {
+        return { type: 'range', lastKey, keyStep, limit };
+      }
+      break;
+    }
+    case 'keynum': {
+      const keyNumIdx = transformNumber(spec.keynumidx),
+        firstKey = transformNumber(spec.firstkey),
+        keyStep = transformNumber(spec.keystep);
+      if (keyNumIdx !== undefined && firstKey !== undefined && keyStep !== undefined) {
+        return { type: 'keynum', keyNumIdx, firstKey, keyStep };
+      }
+      break;
+    }
+  }
+  return UNKNOWN_KEY_SPEC_PART;
+}
+
+/**
+ * Parses one COMMAND key-specification entry. Unrecognized or malformed
+ * shapes parse to `{ type: 'unknown' }` parts instead of throwing — consumers
+ * (e.g. the multi_shard splitter) decide whether unknown is acceptable.
+ */
+export function transformKeySpec(raw: unknown): KeySpec {
+  const entry = normalizeKeySpecMap(raw);
+  return {
+    beginSearch: transformBeginSearch(entry?.begin_search),
+    findKeys: transformFindKeys(entry?.find_keys)
+  };
+}
 
 export function transformCommandReply(
   this: void,
@@ -404,6 +506,7 @@ export function transformCommandReply(
       response: responsePolicy
     },
     isKeyless: keySpecifications.length === 0,
+    keySpecs: keySpecifications.map(transformKeySpec),
     subcommands
   };
 }
