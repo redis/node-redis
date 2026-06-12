@@ -123,12 +123,15 @@ export const reduceSpecial = async <T>(_promises: Promise<T>[], parser: CommandP
 
 export const reduceDefaultKeyless = async <T>(promises: Promise<T>[]): Promise<T> => {
   const responses = await Promise.all(promises);
+  // Merging is only meaningful for fan-out replies (e.g. KEYS under
+  // all_shards); the single-target case must pass scalar replies through.
+  if (responses.length === 1) return responses[0];
   return aggregateMerge(responses) as T;
 };
 
 export const reduceDefaultKeyed = async <T>(promises: Promise<T>[]): Promise<T> => {
   const responses = await Promise.all(promises);
-  return responses as T;
+  return responses[0];
 };
 
 // --- registries ---
