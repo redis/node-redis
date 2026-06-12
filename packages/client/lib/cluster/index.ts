@@ -555,6 +555,10 @@ export default class RedisCluster<
     const clients: Array<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> =
       await router(this._slots, parser, isReadonly);
 
+    if (clients.length === 0) {
+      throw new Error(`Request policy ${requestPolicy} produced no target nodes`);
+    }
+
     const responsePromises = clients.map(
       client => this._execute(parser, isReadonly, options, makeFn(parser), client)
     );
