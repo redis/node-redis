@@ -6,5 +6,6 @@ export { DynamicPolicyResolverFactory, type CommandFetcher } from './dynamic-pol
 export * from './policies-constants';
 export { POLICIES } from './static-policies-data';
 export * from './dispatch';
+export { splitMultiShardCommand, type SubCommand } from './multi-shard-splitter';
 
 // export { type CommandRouter } from './command-router';
