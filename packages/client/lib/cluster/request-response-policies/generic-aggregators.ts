@@ -119,8 +119,6 @@ export const aggregateMerge = <T>(replies: Array<unknown>): T => {
 		return map as T;
 	}
 
-	//TODO remove 
-	console.log('firstReply', firstReply, typeof firstReply);
 	throw new Error('Unsupported reply type for merge aggregation');
 
 };
