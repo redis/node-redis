@@ -666,17 +666,23 @@ export default class RedisCluster<
       ...options
     }
 
+    // `args` is the full command as sent on the wire (name at index 0), so it
+    // becomes `redisArgs` verbatim — policy resolution reads the command name
+    // and the multi_shard splitter's key-spec offsets line up. The caller's
+    // `firstKey` is marked for routing without re-appending it.
     const parser = new BasicCommandParser();
-    if (firstKey) parser.push(firstKey);
     args.forEach(arg => parser.push(arg));
+    if (firstKey !== undefined) parser.markRoutingKey(firstKey);
 
     // Raw path: no command object, so readonly-ness stays an explicit caller
-    // argument and the reply is returned untransformed.
+    // argument and the reply is returned untransformed. The closure sends the
+    // per-entry parser's args, so split multi_shard sub-commands each carry
+    // their own slot's arguments (and the unsplit case sends `args` unchanged).
     return this._self._executeWithPolicies(
       parser,
       isReadonly,
       opts,
-      () => (client, opts) => client.sendCommand(args, opts)
+      p => (client, opts) => client.sendCommand(p.redisArgs as CommandArguments, opts)
     );
   }
 
