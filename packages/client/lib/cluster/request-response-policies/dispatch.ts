@@ -1,9 +1,11 @@
-import type { CommandParser } from '../../client/parser';
+import { BasicCommandParser, type CommandParser } from '../../client/parser';
 import type { RedisClientType } from '../../client';
 import type {
-  RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping
+  RedisArgument, RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping
 } from '../../RESP/types';
+import type { KeySpec } from '../../commands/generic-transformers';
 import type RedisClusterSlots from '../cluster-slots';
+import { splitMultiShardCommand, type SubCommand } from './multi-shard-splitter';
 import {
   aggregateLogicalAnd,
   aggregateLogicalOr,
@@ -19,61 +21,95 @@ import {
   type ResponsePolicyWithDefaults
 } from './policies-constants';
 
-type Client<
-  M extends RedisModules,
-  F extends RedisFunctions,
-  S extends RedisScripts,
-  RESP extends RespVersions,
-  TM extends TypeMapping
-> = RedisClientType<M, F, S, RESP, TM>;
+// Routing runs *below* the typed command surface: routers never inspect the
+// command's M/F/S/RESP/TM parameters, they just shuffle opaque clients from
+// `slots` into the plan and on to `_execute`. So these types are deliberately
+// not generic — they use the base constraint types. The engine re-narrows the
+// client to its own instantiation at the `_execute` boundary.
+type ClusterClient = RedisClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>;
+type ClusterSlots = RedisClusterSlots<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>;
 
-type Slots<
-  M extends RedisModules,
-  F extends RedisFunctions,
-  S extends RedisScripts,
-  RESP extends RespVersions,
-  TM extends TypeMapping
-> = RedisClusterSlots<M, F, S, RESP, TM>;
+/**
+ * One unit of work a request policy schedules. Pass-through policies set only
+ * `client` (run the original command on that node). `multi_shard` sets `parser`
+ * (a per-slot sub-command, routed by its own `firstKey`) and `groupIndices`
+ * (where its replies belong in the reassembled result).
+ */
+export type RoutedCommand = {
+  client?: ClusterClient;
+  parser?: CommandParser;
+  groupIndices?: Array<number>;
+};
 
-export type RequestRouter<
-  M extends RedisModules,
-  F extends RedisFunctions,
-  S extends RedisScripts,
-  RESP extends RespVersions,
-  TM extends TypeMapping
-> = (
-  slots: Slots<M, F, S, RESP, TM>,
+export type RequestRouter = (
+  slots: ClusterSlots,
   parser: CommandParser,
-  isReadonly: boolean | undefined
-) => Promise<Array<Client<M, F, S, RESP, TM>>>;
+  isReadonly: boolean | undefined,
+  keySpecs: ReadonlyArray<KeySpec> | undefined
+) => Promise<Array<RoutedCommand>>;
 
 export type ResponseReducer<T> = (
   responsePromises: Promise<T>[],
-  parser: CommandParser
+  parser: CommandParser,
+  /**
+   * For `multi_shard` commands, `positionHints[p]` is the original 0-based
+   * group ordinals carried by the p-th sub-command (plan order == promise
+   * order). Reducers that preserve order (e.g. default-keyed MGET) use it to
+   * scatter each sub-reply back into the caller's key order. `undefined`
+   * entries mean "not split"; the whole array is absent for non-split commands.
+   */
+  positionHints?: Array<Array<number> | undefined>
 ) => Promise<T>;
 
 // --- request routers ---
 
-export const routeAllNodes: RequestRouter<any, any, any, any, any> =
-  async (slots) => slots.getAllClients();
+export const routeAllNodes: RequestRouter =
+  async (slots) => (await slots.getAllClients()).map(client => ({ client }));
 
-export const routeAllShards: RequestRouter<any, any, any, any, any> =
-  async (slots) => slots.getAllMasterClients();
+export const routeAllShards: RequestRouter =
+  async (slots) => (await slots.getAllMasterClients()).map(client => ({ client }));
 
-export const routeMultiShard: RequestRouter<any, any, any, any, any> =
+/**
+ * Splits the command into one sub-command per hash slot (using the COMMAND key
+ * specs as the reconstruction recipe) and returns a plan entry per slot. Each
+ * entry carries its own sub-parser, so core `_execute` routes it by that
+ * slot's `firstKey` and handles MOVED/ASK with the sub-command's own key.
+ */
+export const routeMultiShard: RequestRouter =
+  async (_slots, parser, _isReadonly, keySpecs) => {
+    const subCommands = splitMultiShardCommand(parser.redisArgs, keySpecs);
+    return Array.from(subCommands.values(), sub => ({
+      parser: buildSubParser(sub),
+      groupIndices: sub.groupIndices
+    }));
+  };
+
+/**
+ * Rebuilds a `CommandParser` from a split sub-command, marking the keys at
+ * their known positions so `firstKey` resolves to this slot's first key.
+ */
+function buildSubParser(sub: SubCommand): CommandParser {
+  const parser = new BasicCommandParser();
+  const keyPositions = new Set(sub.keyPositions);
+  for (let i = 0; i < sub.args.length; i++) {
+    const arg = sub.args[i] as RedisArgument;
+    if (keyPositions.has(i)) {
+      parser.pushKey(arg);
+    } else {
+      parser.push(arg);
+    }
+  }
+  return parser;
+}
+
+export const routeDefaultKeyless: RequestRouter =
+  async (slots) => [{ client: slots.getRandomNode().client! }];
+
+export const routeDefaultKeyed: RequestRouter =
   async (slots, parser, isReadonly) =>
-    Promise.all(
-      parser.keys.map(async (key) => (await slots.getClientAndSlotNumber(key, isReadonly)).client)
-    );
+    [{ client: (await slots.getClientAndSlotNumber(parser.firstKey, isReadonly)).client }];
 
-export const routeDefaultKeyless: RequestRouter<any, any, any, any, any> =
-  async (slots) => [slots.getRandomNode().client!];
-
-export const routeDefaultKeyed: RequestRouter<any, any, any, any, any> =
-  async (slots, parser, isReadonly) =>
-    [(await slots.getClientAndSlotNumber(parser.firstKey, isReadonly)).client];
-
-export const routeSpecial: RequestRouter<any, any, any, any, any> =
+export const routeSpecial: RequestRouter =
   async (_slots, parser) => {
     const { command, subcommand } = parser.commandIdentifier;
     const label = subcommand ? `${command} ${subcommand}` : command;
@@ -129,9 +165,34 @@ export const reduceDefaultKeyless = async <T>(promises: Promise<T>[]): Promise<T
   return aggregateMerge(responses) as T;
 };
 
-export const reduceDefaultKeyed = async <T>(promises: Promise<T>[]): Promise<T> => {
+export const reduceDefaultKeyed = async <T>(
+  promises: Promise<T>[],
+  _parser: CommandParser,
+  positionHints?: Array<Array<number> | undefined>
+): Promise<T> => {
   const responses = await Promise.all(promises);
-  return responses[0];
+
+  // Unsplit (single-target read, or a multi_shard command that landed on one
+  // slot): pass the sole reply through unchanged.
+  if (!positionHints?.some(hint => hint !== undefined)) {
+    return responses[0];
+  }
+
+  // Split multi_shard (e.g. MGET across slots): each sub-reply is an array in
+  // its own group order; scatter element i back to its original group ordinal
+  // so the result matches the caller's key order regardless of slot/arrival.
+  const result: Array<unknown> = [];
+  responses.forEach((reply, p) => {
+    const indices = positionHints[p];
+    if (!indices) {
+      throw new Error('default-keyed reducer: split reply missing position hints');
+    }
+    const elements = reply as Array<unknown>;
+    indices.forEach((groupIndex, i) => {
+      result[groupIndex] = elements[i];
+    });
+  });
+  return result as T;
 };
 
 // --- registries ---
@@ -143,7 +204,7 @@ export const REQUEST_ROUTERS = {
   [REQUEST_POLICIES_WITH_DEFAULTS.SPECIAL]: routeSpecial,
   [REQUEST_POLICIES_WITH_DEFAULTS.DEFAULT_KEYLESS]: routeDefaultKeyless,
   [REQUEST_POLICIES_WITH_DEFAULTS.DEFAULT_KEYED]: routeDefaultKeyed
-} as const satisfies Record<RequestPolicyWithDefaults, RequestRouter<any, any, any, any, any>>;
+} as const satisfies Record<RequestPolicyWithDefaults, RequestRouter>;
 
 export const RESPONSE_REDUCERS = {
   [RESPONSE_POLICIES_WITH_DEFAULTS.ONE_SUCCEEDED]: reduceOneSucceeded,
@@ -156,4 +217,4 @@ export const RESPONSE_REDUCERS = {
   [RESPONSE_POLICIES_WITH_DEFAULTS.SPECIAL]: reduceSpecial,
   [RESPONSE_POLICIES_WITH_DEFAULTS.DEFAULT_KEYLESS]: reduceDefaultKeyless,
   [RESPONSE_POLICIES_WITH_DEFAULTS.DEFAULT_KEYED]: reduceDefaultKeyed
-} as const satisfies Record<ResponsePolicyWithDefaults, ResponseReducer<any>>;
+} as const satisfies Record<ResponsePolicyWithDefaults, ResponseReducer<unknown>>;

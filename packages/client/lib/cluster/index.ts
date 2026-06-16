@@ -1,6 +1,6 @@
 import { RedisClientOptions, RedisClientType, WithFunctions, WithModules, WithScripts } from '../client';
 import { CommandOptions } from '../client/commands-queue';
-import { Command, CommandArguments, CommanderConfig, CommandSignature, TypeMapping, RedisArgument, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions, TransformReply } from '../RESP/types';
+import { Command, CommandArguments, CommanderConfig, CommandSignature, TypeMapping, RedisArgument, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions } from '../RESP/types';
 import { NON_STICKY_COMMANDS } from '../commands';
 import { EventEmitter } from 'node:events';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
@@ -190,9 +190,9 @@ export default class RedisCluster<
 
       return this._self._executeWithPolicies(
         parser,
+        command.IS_READ_ONLY,
         this._commandOptions,
-        command,
-        transformReply
+        p => (client, opts) => client._executeCommand(command, p, opts, transformReply)
       );
     };
   }
@@ -206,9 +206,9 @@ export default class RedisCluster<
 
       return this._self._executeWithPolicies(
         parser,
+        command.IS_READ_ONLY,
         this._self._commandOptions,
-        command,
-        transformReply
+        p => (client, opts) => client._executeCommand(command, p, opts, transformReply)
       );
     };
   }
@@ -224,9 +224,9 @@ export default class RedisCluster<
 
       return this._self._executeWithPolicies(
         parser,
+        fn.IS_READ_ONLY,
         this._self._commandOptions,
-        fn,
-        transformReply
+        p => (client, opts) => client._executeCommand(fn, p, opts, transformReply)
       );
     };
   }
@@ -240,11 +240,11 @@ export default class RedisCluster<
       parser.push(...prefix);
       script.parseCommand(parser, ...args);
 
-      return this._self._executeScriptWithPolicies(
+      return this._self._executeWithPolicies(
         parser,
+        script.IS_READ_ONLY,
         this._commandOptions,
-        script,
-        transformReply
+        p => (client, opts) => client._executeScript(script, p, opts, transformReply)
       );
     };
   }
@@ -500,37 +500,10 @@ export default class RedisCluster<
    * Resolves the command's policies and executes it accordingly: the request
    * policy picks the target clients, each target runs through the core
    * `_execute` transport primitive, and the response policy aggregates the
-   * replies. Call sites pass data — fn closures are created here.
+   * replies. Call sites pass a `makeFn` factory that builds the per-client
+   * execution closure (command, script, or raw `sendCommand`).
    */
   async _executeWithPolicies<T>(
-    parser: CommandParser,
-    options: ClusterCommandOptions | undefined,
-    command: Command | RedisFunction,
-    transformReply: TransformReply | undefined
-  ): Promise<T> {
-    return this._executePolicyPlan(
-      parser,
-      command.IS_READ_ONLY,
-      options,
-      p => (client, opts) => client._executeCommand(command, p, opts as CommandOptions<TYPE_MAPPING> | undefined, transformReply)
-    );
-  }
-
-  async _executeScriptWithPolicies<T>(
-    parser: CommandParser,
-    options: ClusterCommandOptions | undefined,
-    script: RedisScript,
-    transformReply: TransformReply | undefined
-  ): Promise<T> {
-    return this._executePolicyPlan(
-      parser,
-      script.IS_READ_ONLY,
-      options,
-      p => (client, opts) => client._executeScript(script, p, opts as CommandOptions<TYPE_MAPPING> | undefined, transformReply)
-    );
-  }
-
-  async _executePolicyPlan<T>(
     parser: CommandParser,
     isReadonly: boolean | undefined,
     options: ClusterCommandOptions | undefined,
@@ -552,29 +525,39 @@ export default class RedisCluster<
     if (!router) {
       throw new Error(`Unknown request policy ${requestPolicy}`);
     }
-    const clients: Array<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> =
-      await router(this._slots, parser, isReadonly);
+    // Routers are typed against the erased base cluster types (routing is
+    // below the typed command surface); bridge this instantiation's slots in.
+    const plan = await router(
+      this._slots as unknown as Parameters<typeof router>[0],
+      parser,
+      isReadonly,
+      policyResult.value.keySpecs
+    );
 
-    if (clients.length === 0) {
+    if (plan.length === 0) {
       throw new Error(`Request policy ${requestPolicy} produced no target nodes`);
     }
 
-    const responsePromises = clients.map(
-      client => this._execute(parser, isReadonly, options, makeFn(parser), client)
-    );
+    const responsePromises = plan.map(entry => {
+      const entryParser = entry.parser ?? parser;
+      // Re-narrow the opaque routed client to this cluster's instantiation.
+      const client = entry.client as RedisClientType<M, F, S, RESP, TYPE_MAPPING> | undefined;
+      return this._execute(entryParser, isReadonly, options, makeFn(entryParser), client);
+    });
 
     const reducer = RESPONSE_REDUCERS[responsePolicy];
     if (!reducer) {
       throw new Error(`Unknown response policy ${responsePolicy}`);
     }
-    return reducer(responsePromises, parser) as Promise<T>;
+    const positionHints = plan.map(entry => entry.groupIndices);
+    return reducer(responsePromises, parser, positionHints) as Promise<T>;
   }
 
   /**
    * Core transport primitive: sends one command to one client — resolved by
    * the parser's first key unless `pinnedClient` is given — with MOVED/ASK
    * redirect handling. Policy-free; fan-out and aggregation live in
-   * `_executePolicyPlan`.
+   * `_executeWithPolicies`.
    */
   async _execute<T>(
     parser: CommandParser,
@@ -670,12 +653,12 @@ export default class RedisCluster<
     }
 
     const parser = new BasicCommandParser();
-    firstKey && parser.push(firstKey)
+    if (firstKey) parser.push(firstKey);
     args.forEach(arg => parser.push(arg));
 
     // Raw path: no command object, so readonly-ness stays an explicit caller
     // argument and the reply is returned untransformed.
-    return this._self._executePolicyPlan(
+    return this._self._executeWithPolicies(
       parser,
       isReadonly,
       opts,
