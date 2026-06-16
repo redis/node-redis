@@ -16,7 +16,7 @@ import SingleEntryCache from '../single-entry-cache'
 import { publish, CHANNELS } from '../client/tracing';
 import { ClientIdentity, ClientRole, generateClusterClientId } from '../client/identity';
 import { DEFAULT_COMMAND_TIMEOUT } from '../defaults';
-import { POLICIES, PolicyResolver, StaticPolicyResolver } from './request-response-policies';
+import { POLICIES, PolicyResolver, StaticPolicyResolver, REQUEST_POLICIES_WITH_DEFAULTS, RESPONSE_POLICIES_WITH_DEFAULTS, type CommandPolicies } from './request-response-policies';
 import { REQUEST_ROUTERS, RESPONSE_REDUCERS } from './request-response-policies/dispatch';
 
 export type ClusterTopologyRefreshOnReconnectionAttemptStrategy =
@@ -511,14 +511,28 @@ export default class RedisCluster<
   ): Promise<T> {
     const policyResult = this._policyResolver.resolvePolicy(parser.commandIdentifier);
 
-    if(!policyResult.ok) {
-      const { command, subcommand } = parser.commandIdentifier;
-      const label = subcommand ? `${command} ${subcommand}` : command;
-      throw new Error(`Policy resolution error for ${label}: ${policyResult.error}`);
-    }
+    // Commands the resolver doesn't know — user-defined custom commands,
+    // scripts/functions, modules absent from the policy table — have no
+    // request/response policy and nothing to split or aggregate. Fall back to
+    // the default key-routed path (single client by `firstKey`, sole reply
+    // passed through) rather than failing. Scripts/functions are single-slot
+    // by contract, so default-keyed is always correct for them. Known
+    // multi_shard commands that can't be split still throw from the splitter.
+    const hasKeys = parser.keys.length > 0;
+    const policy: CommandPolicies = policyResult.ok
+      ? policyResult.value
+      : {
+          request: hasKeys
+            ? REQUEST_POLICIES_WITH_DEFAULTS.DEFAULT_KEYED
+            : REQUEST_POLICIES_WITH_DEFAULTS.DEFAULT_KEYLESS,
+          response: hasKeys
+            ? RESPONSE_POLICIES_WITH_DEFAULTS.DEFAULT_KEYED
+            : RESPONSE_POLICIES_WITH_DEFAULTS.DEFAULT_KEYLESS,
+          isKeyless: !hasKeys
+        };
 
-    const requestPolicy =  policyResult.value.request
-    const responsePolicy =  policyResult.value.response
+    const requestPolicy = policy.request
+    const responsePolicy = policy.response
 
     // https://redis.io/docs/latest/develop/reference/command-tips
     const router = REQUEST_ROUTERS[requestPolicy];
@@ -531,7 +545,7 @@ export default class RedisCluster<
       this._slots as unknown as Parameters<typeof router>[0],
       parser,
       isReadonly,
-      policyResult.value.keySpecs
+      policy.keySpecs
     );
 
     if (plan.length === 0) {
