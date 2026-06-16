@@ -150,6 +150,17 @@ export class BasicCommandParser implements CommandParser {
     this.#addKey(key, applyPrefix);
   }
 
+  /**
+   * Records a routing key whose value is already present in the pushed args,
+   * without appending it again. Used by the raw cluster `sendCommand` path,
+   * where the caller supplies the routing key separately from the full,
+   * already-assembled argument list — so `firstKey` resolves for routing while
+   * `redisArgs` stays an exact copy of the command sent on the wire.
+   */
+  markRoutingKey(key: RedisArgument) {
+    this.#keys.push(key);
+  }
+
   pushKeysLength(keys: RedisVariadicArgument) {
     if (Array.isArray(keys)) {
       this.#redisArgs.push(keys.length.toString());
