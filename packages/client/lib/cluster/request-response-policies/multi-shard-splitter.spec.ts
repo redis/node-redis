@@ -32,7 +32,8 @@ describe('splitMultiShardCommand', () => {
     assert.equal(result.size, 1);
     assert.deepEqual(result.get(SLOT_A), {
       args: ['DEL', '{a}1', '{a}2', '{a}3'],
-      groupIndices: [0, 1, 2]
+      groupIndices: [0, 1, 2],
+      keyPositions: [1, 2, 3]
     });
   });
 
@@ -42,11 +43,13 @@ describe('splitMultiShardCommand', () => {
     assert.equal(result.size, 2);
     assert.deepEqual(result.get(SLOT_A), {
       args: ['DEL', '{a}1', '{a}2'],
-      groupIndices: [0, 2]
+      groupIndices: [0, 2],
+      keyPositions: [1, 2]
     });
     assert.deepEqual(result.get(SLOT_B), {
       args: ['DEL', '{b}1'],
-      groupIndices: [1]
+      groupIndices: [1],
+      keyPositions: [1]
     });
   });
 
@@ -59,11 +62,13 @@ describe('splitMultiShardCommand', () => {
     assert.equal(result.size, 2);
     assert.deepEqual(result.get(SLOT_A), {
       args: ['MSET', '{a}1', 'v1', '{a}2', 'v3'],
-      groupIndices: [0, 2]
+      groupIndices: [0, 2],
+      keyPositions: [1, 3]
     });
     assert.deepEqual(result.get(SLOT_B), {
       args: ['MSET', '{b}1', 'v2'],
-      groupIndices: [1]
+      groupIndices: [1],
+      keyPositions: [1]
     });
   });
 
@@ -76,11 +81,13 @@ describe('splitMultiShardCommand', () => {
     assert.equal(result.size, 2);
     assert.deepEqual(result.get(SLOT_A), {
       args: ['MSETEX', '2', '{a}1', 'v1', '{a}2', 'v3', 'NX', 'EX', '10'],
-      groupIndices: [0, 2]
+      groupIndices: [0, 2],
+      keyPositions: [2, 4]
     });
     assert.deepEqual(result.get(SLOT_B), {
       args: ['MSETEX', '1', '{b}1', 'v2', 'NX', 'EX', '10'],
-      groupIndices: [1]
+      groupIndices: [1],
+      keyPositions: [2]
     });
   });
 

@@ -9,6 +9,12 @@ export type SubCommand = {
    * command, for order-preserving reply reassembly (e.g. MGET).
    */
   groupIndices: Array<number>;
+  /**
+   * Absolute indices into `args` of this sub-command's keys (the first arg of
+   * each group). Lets the caller build a sub-parser that marks keys, so core
+   * `_execute` routes by the sub-command's own `firstKey`.
+   */
+  keyPositions: Array<number>;
 };
 
 /**
@@ -115,10 +121,12 @@ export function splitMultiShardCommand(
   const subCommands = new Map<number, SubCommand>();
 
   // Single-slot fast path: nothing to split — pass the original command
-  // through untouched (also preserves single-slot atomicity).
+  // through untouched (also preserves single-slot atomicity). Keys keep their
+  // original absolute positions.
   if (slotGroups.size === 1) {
     const [[slot, groupIndices]] = slotGroups;
-    subCommands.set(slot, { args: [...args], groupIndices });
+    const keyPositions = groupIndices.map(group => keyRegionStart + group * keyStep);
+    subCommands.set(slot, { args: [...args], groupIndices, keyPositions });
     return subCommands;
   }
 
@@ -128,14 +136,18 @@ export function splitMultiShardCommand(
     if (keyNumIdx !== undefined) {
       subArgs[keyNumIdx] = groupIndices.length.toString();
     }
-    for (const group of groupIndices) {
+    // Groups are appended in order, each keyStep wide with the key first, so
+    // the j-th group's key lands at keyRegionStart + j * keyStep in subArgs.
+    const keyPositions: Array<number> = [];
+    groupIndices.forEach((group, j) => {
+      keyPositions.push(keyRegionStart + j * keyStep);
       const groupStart = keyRegionStart + group * keyStep;
       for (let i = 0; i < keyStep; i++) {
         subArgs.push(args[groupStart + i]);
       }
-    }
+    });
     subArgs.push(...suffix);
-    subCommands.set(slot, { args: subArgs, groupIndices });
+    subCommands.set(slot, { args: subArgs, groupIndices, keyPositions });
   }
 
   return subCommands;
