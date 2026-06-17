@@ -377,6 +377,162 @@ describe('AGGREGATE', () => {
             ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'RANDOM_SAMPLE', '2', '@property', '1', 'DIALECT', DEFAULT_DIALECT]
           );
         });
+
+        describe('COLLECT', () => {
+          it('FIELDS *', () => {
+            assert.deepEqual(
+              parseArgs(AGGREGATE, 'index', '*', {
+                STEPS: [{
+                  type: 'GROUPBY',
+                  REDUCE: {
+                    type: 'COLLECT',
+                    FIELDS: '*'
+                  }
+                }]
+              }),
+              ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'COLLECT', '2', 'FIELDS', '*', 'DIALECT', DEFAULT_DIALECT]
+            );
+          });
+
+          it('FIELDS single field', () => {
+            assert.deepEqual(
+              parseArgs(AGGREGATE, 'index', '*', {
+                STEPS: [{
+                  type: 'GROUPBY',
+                  REDUCE: {
+                    type: 'COLLECT',
+                    FIELDS: '@field'
+                  }
+                }]
+              }),
+              ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'COLLECT', '3', 'FIELDS', '1', '@field', 'DIALECT', DEFAULT_DIALECT]
+            );
+          });
+
+          it('FIELDS array', () => {
+            assert.deepEqual(
+              parseArgs(AGGREGATE, 'index', '*', {
+                STEPS: [{
+                  type: 'GROUPBY',
+                  REDUCE: {
+                    type: 'COLLECT',
+                    FIELDS: ['@a', '@b']
+                  }
+                }]
+              }),
+              ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'COLLECT', '4', 'FIELDS', '2', '@a', '@b', 'DIALECT', DEFAULT_DIALECT]
+            );
+          });
+
+          it('with DISTINCT', () => {
+            assert.deepEqual(
+              parseArgs(AGGREGATE, 'index', '*', {
+                STEPS: [{
+                  type: 'GROUPBY',
+                  REDUCE: {
+                    type: 'COLLECT',
+                    FIELDS: '*',
+                    DISTINCT: true
+                  }
+                }]
+              }),
+              ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'COLLECT', '3', 'FIELDS', '*', 'DISTINCT', 'DIALECT', DEFAULT_DIALECT]
+            );
+          });
+
+          it('with SORTBY string', () => {
+            assert.deepEqual(
+              parseArgs(AGGREGATE, 'index', '*', {
+                STEPS: [{
+                  type: 'GROUPBY',
+                  REDUCE: {
+                    type: 'COLLECT',
+                    FIELDS: '*',
+                    SORTBY: '@field'
+                  }
+                }]
+              }),
+              ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'COLLECT', '5', 'FIELDS', '*', 'SORTBY', '1', '@field', 'DIALECT', DEFAULT_DIALECT]
+            );
+          });
+
+          it('with SORTBY array and directions', () => {
+            assert.deepEqual(
+              parseArgs(AGGREGATE, 'index', '*', {
+                STEPS: [{
+                  type: 'GROUPBY',
+                  REDUCE: {
+                    type: 'COLLECT',
+                    FIELDS: '*',
+                    SORTBY: [
+                      { BY: '@target', DIRECTION: 'DESC' },
+                      { BY: '@bestByDate', DIRECTION: 'ASC' }
+                    ]
+                  }
+                }]
+              }),
+              ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'COLLECT', '8', 'FIELDS', '*', 'SORTBY', '4', '@target', 'DESC', '@bestByDate', 'ASC', 'DIALECT', DEFAULT_DIALECT]
+            );
+          });
+
+          it('with LIMIT', () => {
+            assert.deepEqual(
+              parseArgs(AGGREGATE, 'index', '*', {
+                STEPS: [{
+                  type: 'GROUPBY',
+                  REDUCE: {
+                    type: 'COLLECT',
+                    FIELDS: '*',
+                    LIMIT: { from: 0, size: 5 }
+                  }
+                }]
+              }),
+              ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '0', 'REDUCE', 'COLLECT', '5', 'FIELDS', '*', 'LIMIT', '0', '5', 'DIALECT', DEFAULT_DIALECT]
+            );
+          });
+
+          it('movies-by-genre example (narg 9)', () => {
+            assert.deepEqual(
+              parseArgs(AGGREGATE, 'index', '*', {
+                STEPS: [{
+                  type: 'GROUPBY',
+                  properties: '@genre',
+                  REDUCE: {
+                    type: 'COLLECT',
+                    FIELDS: '*',
+                    SORTBY: { BY: '@rating', DIRECTION: 'DESC' },
+                    LIMIT: { from: 0, size: 5 },
+                    AS: 'top_movies'
+                  }
+                }]
+              }),
+              ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '1', '@genre', 'REDUCE', 'COLLECT', '9', 'FIELDS', '*', 'SORTBY', '2', '@rating', 'DESC', 'LIMIT', '0', '5', 'AS', 'top_movies', 'DIALECT', DEFAULT_DIALECT]
+            );
+          });
+
+          it('relationships example (narg 12, DISTINCT)', () => {
+            assert.deepEqual(
+              parseArgs(AGGREGATE, 'index', '*', {
+                STEPS: [{
+                  type: 'GROUPBY',
+                  properties: '@relationshipName',
+                  REDUCE: {
+                    type: 'COLLECT',
+                    FIELDS: '*',
+                    DISTINCT: true,
+                    SORTBY: [
+                      { BY: '@target', DIRECTION: 'DESC' },
+                      { BY: '@bestByDate', DIRECTION: 'ASC' }
+                    ],
+                    LIMIT: { from: 0, size: 3 },
+                    AS: 'all_distinct_docs'
+                  }
+                }]
+              }),
+              ['FT.AGGREGATE', 'index', '*', 'GROUPBY', '1', '@relationshipName', 'REDUCE', 'COLLECT', '12', 'FIELDS', '*', 'DISTINCT', 'SORTBY', '4', '@target', 'DESC', '@bestByDate', 'ASC', 'LIMIT', '0', '3', 'AS', 'all_distinct_docs', 'DIALECT', DEFAULT_DIALECT]
+            );
+          });
+        });
       });
 
       describe('SORTBY', () => {
@@ -602,4 +758,38 @@ describe('AGGREGATE', () => {
       }
     }
   });
+
+  testUtils.testWithClient('client.ft.aggregate with COLLECT reducer', async client => {
+    await client.ft.create('index', {
+      genre: 'TAG',
+      rating: 'NUMERIC'
+    });
+    await client.hSet('movie:1', { genre: 'action', rating: '8' });
+    await client.hSet('movie:2', { genre: 'action', rating: '9' });
+    await client.hSet('movie:3', { genre: 'drama', rating: '7' });
+
+    const reply = await client.ft.aggregate('index', '*', {
+      LOAD: '*',
+      STEPS: [{
+        type: 'GROUPBY',
+        properties: '@genre',
+        REDUCE: {
+          type: 'COLLECT',
+          FIELDS: '*',
+          SORTBY: { BY: '@rating', DIRECTION: 'DESC' },
+          LIMIT: { from: 0, size: 5 },
+          AS: 'top_movies'
+        }
+      }]
+    });
+
+    assert.ok(reply !== null && typeof reply === 'object');
+    assert.ok(Array.isArray(reply.results));
+    assert.ok(reply.results.length > 0);
+    // Each group exposes the COLLECT alias holding an array of per-document maps
+    for (const group of reply.results) {
+      assert.ok('top_movies' in group);
+      assert.ok(Array.isArray((group as Record<string, unknown>).top_movies));
+    }
+  }, GLOBAL.SERVERS.OPEN_UNSTABLE);
 });
