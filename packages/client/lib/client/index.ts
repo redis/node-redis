@@ -69,6 +69,24 @@ export interface RedisClientOptions<
    */
   database?: number;
   /**
+   * Prefix prepended to every key sent to Redis (ioredis-compatible `keyPrefix`).
+   *
+   * Useful for isolating keyspaces — for example per-test isolation in CI, or
+   * separating an application's components (web app vs. background workers) within a
+   * single Redis instance.
+   *
+   * Matches ioredis semantics: only keys *sent* to Redis are prefixed. Keys *returned*
+   * by Redis (e.g. `KEYS`, `SCAN`, `RANDOMKEY`) are NOT un-prefixed, `SCAN`/`KEYS`
+   * `MATCH` patterns are NOT auto-prefixed, and Pub/Sub channels are NOT prefixed.
+   *
+   * @example
+   * ```
+   * const client = createClient({ keyPrefix: 'app:' });
+   * await client.set('key', 'value'); // stored as 'app:key'
+   * ```
+   */
+  keyPrefix?: RedisArgument;
+  /**
    * Maximum length of the client's internal command queue
    */
   commandsQueueMaxLength?: number;
@@ -291,7 +309,7 @@ export default class RedisClient<
     const transformReply = getTransformReply(command, resp);
 
     return async function (this: ProxyClient, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this._self._keyPrefix);
       command.parseCommand(parser, ...args);
 
       return this._self._executeCommand(command, parser, this._commandOptions, transformReply);
@@ -302,7 +320,7 @@ export default class RedisClient<
     const transformReply = getTransformReply(command, resp);
 
     return async function (this: NamespaceProxyClient, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this._self._keyPrefix);
       command.parseCommand(parser, ...args);
 
       return this._self._executeCommand(command, parser, this._self._commandOptions, transformReply);
@@ -314,7 +332,7 @@ export default class RedisClient<
     const transformReply = getTransformReply(fn, resp);
 
     return async function (this: NamespaceProxyClient, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this._self._keyPrefix);
       parser.push(...prefix);
       fn.parseCommand(parser, ...args);
 
@@ -327,7 +345,7 @@ export default class RedisClient<
     const transformReply = getTransformReply(script, resp);
 
     return async function (this: ProxyClient, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this._self._keyPrefix);
       parser.push(...prefix);
       script.parseCommand(parser, ...args)
 
@@ -546,6 +564,14 @@ export default class RedisClient<
 
   get options(): RedisClientOptions<M, F, S, RESP> {
     return this._self.#options;
+  }
+
+  /**
+   * The configured key prefix (see {@link RedisClientOptions.keyPrefix}), if any.
+   * @internal
+   */
+  get _keyPrefix(): RedisArgument | undefined {
+    return this._self.#options.keyPrefix;
   }
 
   /**
@@ -1606,7 +1632,8 @@ export default class RedisClient<
     return new ((this as unknown as { Multi: Multi }).Multi)(
       this._executeMulti.bind(this),
       this._executePipeline.bind(this),
-      this._commandOptions?.typeMapping
+      this._commandOptions?.typeMapping,
+      this._self._keyPrefix
     );
   }
 

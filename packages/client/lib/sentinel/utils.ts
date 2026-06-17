@@ -15,7 +15,7 @@ export function parseNode(node: Record<string, string>): RedisNode | undefined{
 }
 
 export function createNodeList(nodes: UnwrapReply<ArrayReply<Record<string, string>>>) {
-  var nodeList: Array<RedisNode> = [];
+  const nodeList: Array<RedisNode> = [];
 
   for (const nodeData of nodes) {
     const node = parseNode(nodeData)
@@ -41,7 +41,7 @@ export function createCommand<T extends ProxySentinel | ProxySentinelClient>(com
   const transformReply = getTransformReply(command, resp);
 
   return async function (this: T, ...args: Array<unknown>) {
-    const parser = new BasicCommandParser();
+    const parser = new BasicCommandParser(this._self._keyPrefix);
     command.parseCommand(parser, ...args);
 
     return this._self._execute(
@@ -56,7 +56,7 @@ export function createFunctionCommand<T extends NamespaceProxySentinel | Namespa
   const transformReply = getTransformReply(fn, resp);
 
   return async function (this: T, ...args: Array<unknown>) {
-    const parser = new BasicCommandParser();
+    const parser = new BasicCommandParser(this._self._keyPrefix);
     parser.push(...prefix);
     fn.parseCommand(parser, ...args);
 
@@ -71,7 +71,7 @@ export function createModuleCommand<T extends NamespaceProxySentinel | Namespace
   const transformReply = getTransformReply(command, resp);
 
   return async function (this: T, ...args: Array<unknown>) {
-    const parser = new BasicCommandParser();
+    const parser = new BasicCommandParser(this._self._keyPrefix);
     command.parseCommand(parser, ...args);
 
     return this._self._execute(
@@ -86,7 +86,7 @@ export function createScriptCommand<T extends ProxySentinel | ProxySentinelClien
   const transformReply = getTransformReply(script, resp);
 
   return async function (this: T, ...args: Array<unknown>) {
-    const parser = new BasicCommandParser();
+    const parser = new BasicCommandParser(this._self._keyPrefix);
     parser.push(...prefix);
     script.parseCommand(parser, ...args);
 

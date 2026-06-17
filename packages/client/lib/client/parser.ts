@@ -1,6 +1,26 @@
 import { RedisArgument } from '../RESP/types';
 import { RedisVariadicArgument } from '../commands/generic-transformers';
 
+/**
+ * Prepends `keyPrefix` to `key`.
+ *
+ * Returns `key` unchanged when `keyPrefix` is `undefined` (the no-prefix hot path).
+ * Uses a plain string concatenation when both sides are strings, and falls back to
+ * `Buffer.concat` when either side is a `Buffer`.
+ */
+export function prefixKey(keyPrefix: RedisArgument | undefined, key: RedisArgument): RedisArgument {
+  if (keyPrefix === undefined) return key;
+
+  if (typeof keyPrefix === 'string' && typeof key === 'string') {
+    return keyPrefix + key;
+  }
+
+  return Buffer.concat([
+    typeof keyPrefix === 'string' ? Buffer.from(keyPrefix) : keyPrefix,
+    typeof key === 'string' ? Buffer.from(key) : key
+  ]);
+}
+
 export interface CommandParser {
   redisArgs: ReadonlyArray<RedisArgument>;
   keys: ReadonlyArray<RedisArgument>;
@@ -11,7 +31,12 @@ export interface CommandParser {
   pushVariadic: (vals: RedisVariadicArgument) => unknown;
   pushVariadicWithLength: (vals: RedisVariadicArgument) => unknown;
   pushVariadicNumber: (vals: number | Array<number>) => unknown;
-  pushKey: (key: RedisArgument) => unknown; // normal push of keys
+  /**
+   * Push a key, applying the configured `keyPrefix` (if any).
+   * Pass `applyPrefix = false` to push a routing key that must NOT be prefixed
+   * (e.g. a sharded Pub/Sub channel in `SPUBLISH`).
+   */
+  pushKey: (key: RedisArgument, applyPrefix?: boolean) => unknown; // normal push of keys
   pushKeys: (keys: RedisVariadicArgument) => unknown; // push multiple keys at a time
   pushKeysLength: (keys: RedisVariadicArgument) => unknown; // push multiple keys at a time
 }
@@ -19,7 +44,16 @@ export interface CommandParser {
 export class BasicCommandParser implements CommandParser {
   #redisArgs: Array<RedisArgument> = [];
   #keys: Array<RedisArgument> = [];
+  readonly #keyPrefix: RedisArgument | undefined;
   preserve: unknown;
+
+  /**
+   * @param keyPrefix Optional prefix prepended to every key pushed via
+   * `pushKey`/`pushKeys`/`pushKeysLength`. Empty values are treated as "no prefix".
+   */
+  constructor(keyPrefix?: RedisArgument) {
+    this.#keyPrefix = keyPrefix === undefined || keyPrefix.length === 0 ? undefined : keyPrefix;
+  }
 
   get redisArgs() {
     return this.#redisArgs;
@@ -77,9 +111,18 @@ export class BasicCommandParser implements CommandParser {
     }
   }
 
-  pushKey(key: RedisArgument) {
-    this.#keys.push(key);
-    this.#redisArgs.push(key);
+  /**
+   * Registers a key as both a routing key (`keys`) and a wire argument (`redisArgs`),
+   * prepending `keyPrefix` when `applyPrefix` is true.
+   */
+  #addKey(key: RedisArgument, applyPrefix: boolean) {
+    const finalKey = applyPrefix ? prefixKey(this.#keyPrefix, key) : key;
+    this.#keys.push(finalKey);
+    this.#redisArgs.push(finalKey);
+  }
+
+  pushKey(key: RedisArgument, applyPrefix = true) {
+    this.#addKey(key, applyPrefix);
   }
 
   pushKeysLength(keys: RedisVariadicArgument) {
@@ -93,11 +136,11 @@ export class BasicCommandParser implements CommandParser {
 
   pushKeys(keys: RedisVariadicArgument) {
     if (Array.isArray(keys)) {
-      this.#keys.push(...keys);
-      this.#redisArgs.push(...keys);
+      for (const key of keys) {
+        this.#addKey(key, true);
+      }
     } else {
-      this.#keys.push(keys);
-      this.#redisArgs.push(keys);
+      this.#addKey(keys, true);
     }
   }
 }

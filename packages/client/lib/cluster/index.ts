@@ -39,6 +39,18 @@ interface ClusterCommander<
   // POLICIES extends CommandPolicies
 > extends CommanderConfig<M, F, S, RESP> {
   commandOptions?: ClusterCommandOptions<TYPE_MAPPING/*, POLICIES*/>;
+  /**
+   * Prefix prepended to every key sent to Redis (ioredis-compatible `keyPrefix`).
+   *
+   * Applied by the cluster client itself; the slot of each command is computed from the
+   * prefixed key, so routing stays correct. It is intentionally a cluster-level option
+   * (not a per-node `rootNodes`/`defaults` option) so it is applied exactly once.
+   *
+   * Matches ioredis semantics: only keys *sent* to Redis are prefixed. Keys *returned*
+   * by Redis are NOT un-prefixed, `MATCH` patterns are NOT auto-prefixed, and Pub/Sub
+   * channels are NOT prefixed.
+   */
+  keyPrefix?: RedisArgument;
 }
 
 export type RedisClusterClientOptions = Omit<
@@ -165,7 +177,7 @@ export default class RedisCluster<
     const transformReply = getTransformReply(command, resp);
 
     return async function (this: ProxyCluster, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this._self._keyPrefix);
       command.parseCommand(parser, ...args);
 
       return this._self._execute(
@@ -181,7 +193,7 @@ export default class RedisCluster<
     const transformReply = getTransformReply(command, resp);
 
     return async function (this: NamespaceProxyCluster, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this._self._keyPrefix);
       command.parseCommand(parser, ...args);
 
       return this._self._execute(
@@ -198,7 +210,7 @@ export default class RedisCluster<
     const transformReply = getTransformReply(fn, resp);
 
     return async function (this: NamespaceProxyCluster, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this._self._keyPrefix);
       parser.push(...prefix);
       fn.parseCommand(parser, ...args);
 
@@ -216,7 +228,7 @@ export default class RedisCluster<
     const transformReply = getTransformReply(script, resp);
 
     return async function (this: ProxyCluster, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this._self._keyPrefix);
       parser.push(...prefix);
       script.parseCommand(parser, ...args);
 
@@ -293,6 +305,14 @@ export default class RedisCluster<
 
   get clientSideCache() {
     return this._self._slots.clientSideCache;
+  }
+
+  /**
+   * The configured key prefix (see {@link RedisClusterOptions.keyPrefix}), if any.
+   * @internal
+   */
+  get _keyPrefix(): RedisArgument | undefined {
+    return this._self._options.keyPrefix;
   }
 
   /**
@@ -555,7 +575,8 @@ export default class RedisCluster<
         return client._executePipeline(commands);
       },
       routing,
-      this._commandOptions?.typeMapping
+      this._commandOptions?.typeMapping,
+      this._self._keyPrefix
     );
   }
 

@@ -68,6 +68,14 @@ export class RedisSentinelClient<
       : this._self.#commandOptions;
   }
 
+  /**
+   * The configured key prefix (see {@link RedisSentinelOptions.keyPrefix}), if any.
+   * @internal
+   */
+  get _keyPrefix(): RedisArgument | undefined {
+    return this._self.#internal.keyPrefix;
+  }
+
   #commandOptions?: CommandOptions<TYPE_MAPPING>;
   private _commandOptions?: CommandOptions<TYPE_MAPPING>;
 
@@ -325,6 +333,14 @@ export default class RedisSentinel<
 
   get clientSideCache() {
     return this._self.#internal.clientSideCache;
+  }
+
+  /**
+   * The configured key prefix (see {@link RedisSentinelOptions.keyPrefix}), if any.
+   * @internal
+   */
+  get _keyPrefix(): RedisArgument | undefined {
+    return this._self.#options.keyPrefix;
   }
 
   constructor(options: RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>) {
@@ -759,6 +775,15 @@ export class RedisSentinelInternal<
   readonly #scanInterval: number;
   readonly #passthroughClientErrorEvents: boolean;
   readonly #RESP?: RespVersions;
+  readonly #keyPrefix?: RedisArgument;
+
+  /**
+   * The configured key prefix (see {@link RedisSentinelOptions.keyPrefix}), if any.
+   * @internal
+   */
+  get keyPrefix(): RedisArgument | undefined {
+    return this.#keyPrefix;
+  }
 
   #anotherReset = false;
 
@@ -809,6 +834,7 @@ export class RedisSentinelInternal<
     this.#sentinelClientId = sentinelClientId;
 
     this.#RESP = options.RESP;
+    this.#keyPrefix = options.keyPrefix;
     this.#sentinelSeedNodes = Array.from(options.sentinelRootNodes);
     this.#sentinelRootNodes = Array.from(this.#sentinelSeedNodes);
     this.#maxCommandRediscovers = options.maxCommandRediscovers ?? 16;

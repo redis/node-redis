@@ -20,6 +20,7 @@
 | password                     |                                          | ACL password or the old "--requirepass" password                                                                                                                                                                                                    |
 | name                         |                                          | Client name ([see `CLIENT SETNAME`](https://redis.io/commands/client-setname))                                                                                                                                                                      |
 | database                     |                                          | Redis database number (see [`SELECT`](https://redis.io/commands/select) command)                                                                                                                                                                    |
+| keyPrefix                    |                                          | Prefix prepended to every key sent to Redis (ioredis-compatible). See [Key Prefixing](#key-prefixing).                                                                                                                                              |
 | modules                      |                                          | Included [Redis Modules](../README.md#packages)                                                                                                                                                                                                     |
 | scripts                      |                                          | Script definitions (see [Lua Scripts](../README.md#lua-scripts))                                                                                                                                                                                    |
 | functions                    |                                          | Function definitions (see [Functions](../README.md#functions))                                                                                                                                                                                      |
@@ -90,6 +91,36 @@ createClient({
   }
 });
 ```
+## Key Prefixing
+
+The `keyPrefix` option prepends a prefix to **every key** sent to Redis. It is an ioredis-compatible
+way to isolate keyspaces — for example to isolate tests in CI, or to separate the keys of different
+parts of an application (web app, background workers, …) that share a single Redis instance.
+
+```javascript
+const client = createClient({ keyPrefix: 'app:' });
+await client.connect();
+
+await client.set('key', 'value'); // actually stores 'app:key'
+await client.get('key');          // reads 'app:key' -> 'value'
+```
+
+The prefix is applied uniformly across the standard client, [cluster](./clustering.md),
+[sentinel](./sentinel.md), [pool](./pool.md), and inside [transactions and pipelines](./transactions.md).
+In cluster mode the slot is computed from the prefixed key, so routing remains correct.
+
+### Semantics (matching ioredis)
+
+- Only keys **sent** to Redis are prefixed. Keys **returned** by Redis are **not** un-prefixed — e.g.
+  `KEYS *`, `SCAN`, and `RANDOMKEY` return keys that still include the prefix.
+- `SCAN`/`KEYS`/`HSCAN`/… `MATCH` patterns are **not** auto-prefixed. Include the prefix in the
+  pattern yourself if required (e.g. `client.scan('0', { MATCH: 'app:user:*' })`).
+- Pub/Sub channels are **not** prefixed (this includes sharded `SPUBLISH`/`SSUBSCRIBE`), since
+  channels are a separate namespace from keys.
+- The deprecated `parseArgs`/`transformArguments` helper does not apply `keyPrefix`.
+
+`keyPrefix` may be a `string` or a `Buffer`.
+
 ## Connection Pooling
 
 In most cases, a single Redis connection is sufficient, as the node-redis client efficiently handles commands using an underlying socket. Unlike traditional databases, Redis does not require connection pooling for optimal performance.

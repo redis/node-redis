@@ -6,7 +6,8 @@ export default {
   IS_READ_ONLY: false,
   parseCommand(parser: CommandParser, source: RedisArgument, destination: RedisArgument, options?: SortOptions) {
     SORT.parseCommand(parser, source, options);
-    parser.push('STORE', destination);
+    parser.push('STORE');
+    parser.pushKey(destination);
   },
   transformReply: undefined as unknown as () => NumberReply
 } as const satisfies Command;
