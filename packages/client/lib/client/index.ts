@@ -748,6 +748,10 @@ export default class RedisClient<
     return new RedisCommandsQueue(
       this.#options.RESP ?? DEFAULT_RESP,
       this.#options.commandsQueueMaxLength,
+      (channel, listeners) => {
+        this.emit('sharded-channel-moved', channel, listeners);
+        this.emit('server-sunsubscribe', channel, listeners);
+      },
       (channel, listeners) => this.emit('sharded-channel-moved', channel, listeners),
       clientId
     );
