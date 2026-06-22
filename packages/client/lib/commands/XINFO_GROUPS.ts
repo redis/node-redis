@@ -1,5 +1,6 @@
 import { CommandParser } from '../client/parser';
-import { RedisArgument, ArrayReply, TuplesToMapReply, BlobStringReply, NumberReply, NullReply, UnwrapReply, Resp2Reply, Command } from '../RESP/types';
+import { RedisArgument, ArrayReply, TuplesToMapReply, BlobStringReply, NumberReply, NullReply, Command } from '../RESP/types';
+import { transformTuplesReply } from './generic-transformers';
 
 /**
  * Reply structure for XINFO GROUPS command containing information about consumer groups
@@ -8,11 +9,11 @@ export type XInfoGroupsReply = ArrayReply<TuplesToMapReply<[
   [BlobStringReply<'name'>, BlobStringReply],
   [BlobStringReply<'consumers'>, NumberReply],
   [BlobStringReply<'pending'>, NumberReply],
-  [BlobStringReply<'last-delivered-id'>, NumberReply],
+  [BlobStringReply<'last-delivered-id'>, BlobStringReply],
   /** added in 7.0 */
   [BlobStringReply<'entries-read'>, NumberReply | NullReply],
   /** added in 7.0 */
-  [BlobStringReply<'lag'>, NumberReply],
+  [BlobStringReply<'lag'>, NumberReply | NullReply],
 ]>>;
 
 export default {
@@ -34,19 +35,8 @@ export default {
      *          entries-read - Number of entries read in the group (Redis 7.0+)
      *          lag - Number of entries not read by the group (Redis 7.0+)
      */
-    2: (reply: UnwrapReply<Resp2Reply<XInfoGroupsReply>>) => {
-      return reply.map(group => {
-        const unwrapped = group as unknown as UnwrapReply<typeof group>;
-        return {
-          name: unwrapped[1],
-          consumers: unwrapped[3],
-          pending: unwrapped[5],
-          'last-delivered-id': unwrapped[7],
-          'entries-read': unwrapped[9],
-          lag: unwrapped[11]
-        };
-      });
-    },
+    2: (reply: Array<Array<BlobStringReply | NumberReply | NullReply>>) =>
+      reply.map(group => transformTuplesReply(group as unknown as ArrayReply<BlobStringReply>)) as unknown as XInfoGroupsReply['DEFAULT'],
     3: undefined as unknown as () => XInfoGroupsReply
   }
 } as const satisfies Command;
