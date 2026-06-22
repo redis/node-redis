@@ -791,5 +791,5 @@ describe('AGGREGATE', () => {
       assert.ok('top_movies' in group);
       assert.ok(Array.isArray((group as Record<string, unknown>).top_movies));
     }
-  }, GLOBAL.SERVERS.OPEN_UNSTABLE);
+  }, { ...GLOBAL.SERVERS.OPEN_UNSTABLE, minimumDockerVersion: [8, 8] });
 });
