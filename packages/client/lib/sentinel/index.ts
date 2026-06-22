@@ -450,6 +450,9 @@ export default class RedisSentinel<
       this._self.#reservedClientInfo = await this._self.#internal.getClientLease();
     }
 
+    this.emit('connect');
+    this.emit('ready');
+
     return this as unknown as RedisSentinelType<M, F, S, RESP, TYPE_MAPPING>;
   }
 
@@ -542,11 +545,19 @@ export default class RedisSentinel<
   multi = this.MULTI;
 
   async close() {
-    return this._self.#internal.close();
+    const wasOpen = this._self.isOpen;
+    await this._self.#internal.close();
+    if (wasOpen) {
+      this.emit('end');
+    }
   }
 
-  destroy() {
-    return this._self.#internal.destroy();
+  async destroy() {
+    const wasOpen = this._self.isOpen;
+    await this._self.#internal.destroy();
+    if (wasOpen) {
+      this.emit('end');
+    }
   }
 
   async SUBSCRIBE<T extends boolean = false>(
