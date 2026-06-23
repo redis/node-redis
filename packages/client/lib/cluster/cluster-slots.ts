@@ -948,7 +948,7 @@ export default class RedisClusterSlots<
   async #initiateShardedPubSubClient(master: MasterNode<M, F, S, RESP, TYPE_MAPPING>) {
     const client = this.#createClient(master, false);
 
-    client.on('server-sunsubscribe', async (channel, listeners) => {
+    client.on('sharded-channel-moved', async (channel, listeners) => {
       try {
         await this.rediscover(client);
         const redirectTo = await this.getShardedPubSubClient(channel);
@@ -961,6 +961,7 @@ export default class RedisClusterSlots<
         this.#emit('sharded-channel-moved-error', err, channel, listeners);
       }
     });
+
 
     master.pubSub = {
       client,
