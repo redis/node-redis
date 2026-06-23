@@ -1,5 +1,4 @@
 import { strict as assert } from 'node:assert';
-
 import testUtils, { GLOBAL } from '../test-utils';
 import SEARCH from './SEARCH';
 import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
@@ -261,9 +260,7 @@ describe('FT.SEARCH', () => {
             number: 1
           }
         }),
-
-        ['FT.SEARCH', 'index', 'query', 'PARAMS', '3', 'string', 'string', 'buffer', Buffer.from('buffer'), 'number', '1', 'DIALECT', DEFAULT_DIALECT]
-
+        ['FT.SEARCH', 'index', 'query', 'PARAMS', '6', 'string', 'string', 'buffer', Buffer.from('buffer'), 'number', '1', 'DIALECT', DEFAULT_DIALECT]
       );
     });
 
