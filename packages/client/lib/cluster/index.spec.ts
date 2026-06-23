@@ -1,4 +1,5 @@
 import { strict as assert } from 'node:assert';
+import { setTimeout } from 'node:timers/promises';
 import testUtils, { GLOBAL, waitTillBeenCalled } from '../test-utils';
 import RedisCluster from '.';
 import { SQUARE_SCRIPT } from '../client/index.spec';
@@ -418,6 +419,49 @@ describe('Cluster', () => {
       ]);
 
       assert.ok(listener.calledOnceWithExactly('message', 'channel'));
+    }, {
+      serverArguments: [],
+      minimumDockerVersion: [7]
+    });
+
+    // Regression for #3311: subscribe FIRST, then migrate the slot in place.
+    // The server pushes SUNSUBSCRIBE to the already-subscribed client, which
+    // must drive the cluster to rediscover and reattach the listener on the
+    // new owner. The dead `server-sunsubscribe` listener meant this never
+    // happened and the subscription was silently lost after migration.
+    testUtils.testWithCluster('should resubscribe a sharded channel after in-place slot migration (#3311)', async cluster => {
+      const SLOT = 10328, // slot of `channel`
+        migrating = cluster.slots[SLOT].master,
+        importing = cluster.masters.find(master => master !== migrating)!,
+        [migratingClient, importingClient] = await Promise.all([
+          cluster.nodeClient(migrating),
+          cluster.nodeClient(importing)
+        ]);
+
+      const listener = spy();
+
+      // subscribe BEFORE migration -> the sharded PubSub client attaches to `migrating`
+      await cluster.sSubscribe('channel', listener);
+
+      // move the slot in-place to `importing`; `migrating` loses the slot and
+      // pushes SUNSUBSCRIBE to the subscribed client
+      await Promise.all([
+        migratingClient.clusterDelSlots(SLOT),
+        importingClient.clusterDelSlots(SLOT),
+        importingClient.clusterAddSlots(SLOT),
+        migratingClient.clusterSetSlot(SLOT, 'NODE', importing.id),
+        importingClient.clusterSetSlot(SLOT, 'NODE', importing.id)
+      ]);
+
+      // the reattach is async and sharded PubSub does not buffer, so
+      // publish until the resubscribed listener receives the message.
+      // With the bug this never reattaches and the loop exhausts -> assertion fails.
+      for (let i = 0; i < 50 && !listener.called; i++) {
+        await cluster.sPublish('channel', 'message');
+        await setTimeout(100);
+      }
+
+      assert.ok(listener.calledWithExactly('message', 'channel'));
     }, {
       serverArguments: [],
       minimumDockerVersion: [7]

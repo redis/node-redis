@@ -150,7 +150,7 @@ export default class RedisClusterSlots<
         this.clientSideCache = options.clientSideCache;
       } else {
         this.clientSideCache = new BasicPooledClientSideCache(options.clientSideCache)
-      }
+      } 
     }
 
     this.#clientFactory = RedisClient.factory(this.#options);
