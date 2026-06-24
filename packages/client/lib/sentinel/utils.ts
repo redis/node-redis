@@ -28,6 +28,30 @@ export function createNodeList(nodes: UnwrapReply<ArrayReply<Record<string, stri
   return nodeList;
 }
 
+/**
+ * Merges configured seed nodes with nodes discovered from a sentinel, deduping
+ * by `host:port`. Seeds are kept first so DNS-based hostnames remain available
+ * for reconnection even after a full outage where sentinels return new IPs
+ * (see issue #3237).
+ */
+export function mergeSentinelNodes(
+  seedNodes: Array<RedisNode>,
+  discoveredNodes: Array<RedisNode>
+): Array<RedisNode> {
+  const seen = new Set<string>();
+  const merged: Array<RedisNode> = [];
+
+  for (const node of [...seedNodes, ...discoveredNodes]) {
+    const key = `${node.host}:${node.port}`;
+    if (!seen.has(key)) {
+      merged.push(node);
+      seen.add(key);
+    }
+  }
+
+  return merged;
+}
+
 export function clientSocketToNode(socket: RedisSocketOptions): RedisNode {
   const s = socket as RedisTcpSocketOptions;
 

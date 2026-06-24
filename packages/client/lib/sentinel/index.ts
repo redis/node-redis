@@ -1,17 +1,12 @@
 import { EventEmitter } from 'node:events';
-
-import { CommandArguments, RedisFunctions, RedisModules, RedisScripts, ReplyUnion, RespVersions, TypeMapping, DEFAULT_RESP } from '../RESP/types';
-import RedisClient, { RedisClientOptions, RedisClientType } from '../client';
-
 import { CommandArguments, RedisArgument, RedisFunctions, RedisModules, RedisScripts, ReplyUnion, RespVersions, TypeMapping, DEFAULT_RESP } from '../RESP/types';
 import { ScanIteratorInterruptedError } from '../errors';
 import RedisClient, { AnyRedisClientOptions, RedisClientOptions, RedisClientType, ScanIteratorOptions } from '../client';
-
 import { CommandOptions } from '../client/commands-queue';
 import { attachConfig } from '../commander';
 import { NON_STICKY_COMMANDS } from '../commands';
 import { ClientErrorEvent, NamespaceProxySentinel, NamespaceProxySentinelClient, NodeAddressMap, ProxySentinel, ProxySentinelClient, RedisNode, RedisSentinelClientType, RedisSentinelEvent, RedisSentinelOptions, RedisSentinelType, SentinelCommander } from './types';
-import { clientSocketToNode, createCommand, createFunctionCommand, createModuleCommand, createNodeList, createScriptCommand, getMappedNode, parseNode } from './utils';
+import { clientSocketToNode, createCommand, createFunctionCommand, createModuleCommand, createNodeList, createScriptCommand, getMappedNode, mergeSentinelNodes, parseNode } from './utils';
 import { RedisMultiQueuedCommand } from '../multi-command';
 import RedisSentinelMultiCommand, { RedisSentinelMultiCommandType } from './multi-commands';
 import { PubSubListener } from '../client/pub-sub';
@@ -20,7 +15,7 @@ import { setTimeout } from 'node:timers/promises';
 import RedisSentinelModule from './module'
 import { RedisVariadicArgument } from '../commands/generic-transformers';
 import { WaitQueue } from './wait-queue';
-import { TcpNetConnectOpts, isIP } from 'node:net';
+import { TcpNetConnectOpts } from 'node:net';
 import { RedisTcpSocketOptions } from '../client/socket';
 import { BasicPooledClientSideCache, PooledClientSideCacheProvider } from '../client/cache';
 import { ClientIdentity, ClientRole, generateClientId } from '../client/identity';
@@ -814,13 +809,10 @@ export class RedisSentinelInternal<
     this.#sentinelClientId = sentinelClientId;
 
     this.#RESP = options.RESP;
- 
-// Keep seeds exactly as provided (NO filtering)
-this.#sentinelSeedNodes = Array.from(options.sentinelRootNodes);
-
-// Initial root nodes = same as seeds
-this.#sentinelRootNodes = Array.from(options.sentinelRootNodes);
-
+    this.#sentinelSeedNodes = Array.from(options.sentinelRootNodes);
+    // Initial root nodes start as a copy of the seed nodes; transform() later
+    // merges discovered nodes on top while preserving these seeds.
+    this.#sentinelRootNodes = Array.from(this.#sentinelSeedNodes);
     this.#maxCommandRediscovers = options.maxCommandRediscovers ?? 16;
     this.#masterPoolSize = options.masterPoolSize ?? 1;
     this.#replicaPoolSize = options.replicaPoolSize ?? 0;
@@ -864,7 +856,7 @@ this.#sentinelRootNodes = Array.from(options.sentinelRootNodes);
 
   #createClient(
     node: RedisNode,
-    clientOptions: RedisClientOptions<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>,
+    clientOptions: AnyRedisClientOptions,
     reconnectStrategy?: false
   ) {
     const socket = getMappedNode(node.host, node.port, this.#nodeAddressMap);
@@ -1084,31 +1076,6 @@ this.#sentinelRootNodes = Array.from(options.sentinelRootNodes);
 
   #sentinelNodeListKey(nodes: Array<RedisNode>) {
     return nodes.map(node => `${node.host}:${node.port}`).sort().join('|');
-  }
-
-  #mergeSentinelNodes(discoveredNodes: Array<RedisNode>) {
-    const seen = new Set<string>();
-    const merged: Array<RedisNode> = [];
-
-    // First add all seed nodes (hostnames) to preserve DNS resolution
-    for (const seed of this.#sentinelSeedNodes) {
-      const key = `${seed.host}:${seed.port}`;
-      if (!seen.has(key)) {
-        merged.push(seed);
-        seen.add(key);
-      }
-    }
-
-    // Then add discovered nodes (may have IPs) that aren't duplicates
-    for (const node of discoveredNodes) {
-      const key = `${node.host}:${node.port}`;
-      if (!seen.has(key)) {
-        merged.push(node);
-        seen.add(key);
-      }
-    }
-
-    return merged;
   }
 
   #restoreSentinelRootNodesIfEmpty() {
@@ -1554,21 +1521,16 @@ this.#sentinelRootNodes = Array.from(options.sentinelRootNodes);
       }
     }
 
-   const mergedSentinelList = this.#mergeSentinelNodes(analyzed.sentinelList);
+    const mergedSentinelList = mergeSentinelNodes(this.#sentinelSeedNodes, analyzed.sentinelList);
 
-if (
-  this.#sentinelNodeListKey(mergedSentinelList) !==
-  this.#sentinelNodeListKey(this.#sentinelRootNodes)
-) {
-  this.#sentinelRootNodes = mergedSentinelList;
-
-  const event: RedisSentinelEvent = {
-    type: "SENTINE_LIST_CHANGE",
-    size: mergedSentinelList.length
-  };
-
-  this.emit("topology-change", event);
-}
+    if (this.#sentinelNodeListKey(mergedSentinelList) !== this.#sentinelNodeListKey(this.#sentinelRootNodes)) {
+      this.#sentinelRootNodes = mergedSentinelList;
+      const event: RedisSentinelEvent = {
+        type: "SENTINE_LIST_CHANGE",
+        size: mergedSentinelList.length
+      }
+      this.emit('topology-change', event);
+    }
 
     await Promise.all(promises);
     this.#trace("transform: exit");

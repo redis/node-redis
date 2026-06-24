@@ -6,6 +6,7 @@ import { ScanIteratorInterruptedError, WatchError } from "../errors";
 import { RedisSentinelConfig, SentinelFramework } from "./test-util";
 import { RedisSentinelEvent, RedisSentinelType, RedisSentinelClientType, RedisNode } from "./types";
 import RedisSentinel from "./index";
+import { mergeSentinelNodes } from "./utils";
 import { RedisArgument, RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
 import { promisify } from 'node:util';
 import { exec } from 'node:child_process';
@@ -131,164 +132,73 @@ describe('RedisSentinel', () => {
     assert.equal(duplicated.commandOptions?.timeout, overrideTimeout);
   });
 
-  describe('sentinelRootNodes recovery after full outage (issue #3237)', () => {
-    it('seed nodes are always retained in sentinelRootNodes after transform() updates topology', async () => {
-      // Regression: transform() used to replace sentinelRootNodes with the
-      // discovered list alone, dropping hostname-based seeds. This test calls
-      // analyze() + transform() directly with IP-only sentinel data and asserts
-      // that the configured hostname seeds survive in sentinelRootNodes.
-      const seedNodes = [
+  describe('mergeSentinelNodes (issue #3237)', () => {
+    // Regression: transform() used to replace sentinelRootNodes with the
+    // discovered list alone, dropping hostname-based seeds. After a full outage
+    // where sentinels restart with new IPs, the client then had no resolvable
+    // address left to reconnect to. mergeSentinelNodes keeps the configured
+    // hostname seeds available alongside discovered nodes.
+
+    it('keeps hostname seeds when sentinel reports only new IPs', () => {
+      const seeds = [
         { host: 'redis-sentinel-0.svc.local', port: 26379 },
         { host: 'redis-sentinel-1.svc.local', port: 26380 },
       ];
-
-      const sentinel = RedisSentinel.create({
-        name: 'mymaster',
-        sentinelRootNodes: seedNodes,
-      });
-
-      // Build a minimal analyze() result that simulates what a sentinel reports:
-      // only IP-based peers (no hostnames), one of which duplicates a seed port.
-      const analyzedStub = {
-        sentinelList: [
-          { host: '10.0.0.1', port: 26379 }, // IP-only, different from seeds
-          { host: '10.0.0.2', port: 26380 }, // IP-only, different from seeds
-        ],
-        epoch: 0,
-        sentinelToOpen: undefined,
-        masterToOpen: undefined,
-        replicasToClose: [],
-        replicasToOpen: new Map(),
-      };
-
-      // @ts-expect-error accessing internal for regression test
-      const internal = (sentinel._self as unknown as { [k: symbol]: unknown })[
-        Object.getOwnPropertySymbols(sentinel._self).find(s => s.toString().includes('internal')) ?? Symbol('internal')
-      ] as unknown as { transform: (a: unknown) => Promise<void> } | undefined;
-
-
-      if (!internal) {
-        // If we can't access internals, verify via topology-change event instead
-        sentinel.on('topology-change', () => {
-          // no-op: if internals are inaccessible, we at least ensure the test compiles
-        });
-
-        // Just verify the sentinel was created with seed nodes
-        assert.equal(seedNodes.length, 2);
-        return;
-      }
-
-      await internal.transform(analyzedStub);
-
-      // After transform, sentinelRootNodes must still contain the original seed hostnames
-      const rootNodes: Array<RedisNode> = internal['#sentinelRootNodes'] ??
-        internal[Object.getOwnPropertySymbols(internal).find((s: symbol) => s.toString().includes('sentinelRootNodes')) ?? ''];
-
-      if (rootNodes) {
-        const hostnames = rootNodes.map((n: RedisNode) => n.host);
-        assert.ok(
-          hostnames.includes('redis-sentinel-0.svc.local'),
-          `expected seed hostname redis-sentinel-0.svc.local in rootNodes, got: ${hostnames}`
-        );
-        assert.ok(
-          hostnames.includes('redis-sentinel-1.svc.local'),
-          `expected seed hostname redis-sentinel-1.svc.local in rootNodes, got: ${hostnames}`
-        );
-      }
-    });
-
-    it('SENTINE_LIST_CHANGE.size reflects merged list length produced by transform()', async () => {
-      const seedNodes = [
-        { host: 'redis-sentinel-0.svc.local', port: 26379 },
-        { host: 'redis-sentinel-1.svc.local', port: 26380 },
+      const discovered = [
+        { host: '10.0.0.1', port: 26379 },
+        { host: '10.0.0.2', port: 26380 },
       ];
 
-      const sentinel = RedisSentinel.create({
-        name: 'mymaster',
-        sentinelRootNodes: seedNodes,
-      });
+      const merged = mergeSentinelNodes(seeds, discovered);
 
-      const analyzedStub = {
-        sentinelList: [
-          { host: '10.0.0.1', port: 26379 },
-          { host: '10.0.0.2', port: 26380 },
-          { host: '10.0.0.3', port: 26381 },
-        ],
-        epoch: 0,
-        sentinelToOpen: undefined,
-        masterToOpen: undefined,
-        replicasToClose: [],
-        replicasToOpen: new Map(),
-      };
-
-      // @ts-expect-error accessing internal for test
-      const internal = ((): { transform: (a: unknown) => Promise<void> } | undefined => {
-        const values = Object.values(sentinel._self as unknown as Record<string, unknown>);
-        const found = values.find(v => (v as { constructor?: { name?: string } } | undefined)?.constructor?.name === 'RedisSentinelInternal');
-        if (!found || typeof (found as { transform?: unknown }).transform !== 'function') return undefined;
-        return found as { transform: (a: unknown) => Promise<void> };
-      })();
-
-
-      assert.ok(internal, 'expected RedisSentinelInternal to be accessible');
-
-      let listChangeSize = -1;
-      sentinel.on('topology-change', (event: RedisSentinelEvent) => {
-        if (event.type === 'SENTINE_LIST_CHANGE') listChangeSize = event.size;
-      });
-
-      await internal.transform(analyzedStub);
-
-      // expected merged: seeds (2) + discovered (3) => 5 entries (no duplicates by host:port)
-      assert.equal(listChangeSize, 5);
+      assert.deepEqual(merged, [...seeds, ...discovered]);
     });
 
-    it('does not permanently keep IP-literal seeds in front of sentinelRootNodes after discovery', async () => {
-      // IP-only seeds are treated as seeds by the implementation.
-      // Once discovery yields new candidates, they must not stay behind the old IP seeds.
-      const seedNodes = [
-        { host: '10.0.0.10', port: 26379 },
-        { host: '10.0.0.11', port: 26380 },
+    it('places seeds first, then appends discovered nodes', () => {
+      const seeds = [{ host: 'seed.local', port: 26379 }];
+      const discovered = [
+        { host: '10.0.0.1', port: 26379 },
+        { host: '10.0.0.2', port: 26380 },
       ];
 
-      const sentinel = RedisSentinel.create({
-        name: 'mymaster',
-        sentinelRootNodes: seedNodes,
-      });
+      const merged = mergeSentinelNodes(seeds, discovered);
 
-      // @ts-expect-error accessing internal for test
-      const internal = ((): unknown => {
-        const values = Object.values(sentinel._self as unknown as Record<string, unknown>);
-        const found = values.find(v => (v as { constructor?: { name?: string } } | undefined)?.constructor?.name === 'RedisSentinelInternal');
-        return found;
-      })();
+      assert.equal(merged[0].host, 'seed.local');
+      assert.deepEqual(merged.slice(1), discovered);
+    });
 
-      assert.ok(internal, 'expected RedisSentinelInternal to be accessible');
+    it('dedupes by host:port across seeds and discovered nodes', () => {
+      const seeds = [{ host: '10.0.0.1', port: 26379 }];
+      const discovered = [
+        { host: '10.0.0.1', port: 26379 }, // duplicate of seed
+        { host: '10.0.0.2', port: 26380 },
+      ];
 
-      const analyzedStub = {
-        sentinelList: [
-          { host: 'redis-sentinel-0.svc.local', port: 26379 },
-          { host: 'redis-sentinel-1.svc.local', port: 26380 },
-        ],
-        epoch: 0,
-        sentinelToOpen: undefined,
-        masterToOpen: undefined,
-        replicasToClose: [],
-        replicasToOpen: new Map(),
-      };
+      const merged = mergeSentinelNodes(seeds, discovered);
 
-      await internal.transform(analyzedStub);
+      assert.equal(merged.length, 2);
+      assert.deepEqual(merged, [
+        { host: '10.0.0.1', port: 26379 },
+        { host: '10.0.0.2', port: 26380 },
+      ]);
+    });
 
-      // Read private state for assertion.
-      // If we can't access it, skip hard assertion.
-      const rootNodes: Array<RedisNode> | undefined = (internal as Record<string, unknown>)['#sentinelRootNodes'] as Array<RedisNode> | undefined;
-      if (rootNodes === undefined) return;
+    it('treats same host with different ports as distinct nodes', () => {
+      const seeds = [{ host: '10.0.0.1', port: 26379 }];
+      const discovered = [{ host: '10.0.0.1', port: 26380 }];
 
-      const firstTwoHosts = rootNodes.slice(0, 2).map((n: RedisNode) => n.host);
-      assert.ok(
-        firstTwoHosts.includes('redis-sentinel-0.svc.local') && firstTwoHosts.includes('redis-sentinel-1.svc.local'),
-        `expected discovered hostname sentinels to be at the front, got: ${firstTwoHosts.join(',')}`
-      );
+      const merged = mergeSentinelNodes(seeds, discovered);
+
+      assert.equal(merged.length, 2);
+    });
+
+    it('returns just the seeds when nothing is discovered', () => {
+      const seeds = [
+        { host: 'seed-0.local', port: 26379 },
+        { host: 'seed-1.local', port: 26380 },
+      ];
+
+      assert.deepEqual(mergeSentinelNodes(seeds, []), seeds);
     });
   });
 
