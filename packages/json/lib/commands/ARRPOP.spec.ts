@@ -63,5 +63,17 @@ describe('JSON.ARRPOP', () => {
 
       assert.deepEqual(reply, ['value']);
     }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('$ path with reviver', async client => {
+      const [, res] = await Promise.all([
+        client.json.set('key', '$', [{ name: 'Alice', birthday: new Date('1998-02-12') }]),
+        client.json.arrPop('key', {
+          path: '$',
+          reviver: (key, value) => { if (key === 'birthday') return new Date(value); else return value; }
+        })
+      ]);
+
+      assert(typeof res === 'object' && res !== null && 'birthday' in res && res.birthday instanceof Date && res.birthday.getTime() === new Date('1998-02-12').getTime());
+    }, GLOBAL.SERVERS.OPEN);
   });
 });
