@@ -44,7 +44,9 @@ export function mergeSentinelNodes(
   for (const node of [...seedNodes, ...discoveredNodes]) {
     const key = `${node.host}:${node.port}`;
     if (!seen.has(key)) {
-      merged.push(node);
+      // Clone so the working root-nodes list never aliases the frozen seed
+      // node objects (or the discovered ones).
+      merged.push({ host: node.host, port: node.port });
       seen.add(key);
     }
   }
