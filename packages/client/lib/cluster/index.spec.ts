@@ -427,8 +427,7 @@ describe('Cluster', () => {
     // Regression for #3311: subscribe FIRST, then migrate the slot in place.
     // The server pushes SUNSUBSCRIBE to the already-subscribed client, which
     // must drive the cluster to rediscover and reattach the listener on the
-    // new owner. The dead `server-sunsubscribe` listener meant this never
-    // happened and the subscription was silently lost after migration.
+    // new owner.
     testUtils.testWithCluster('should resubscribe a sharded channel after in-place slot migration (#3311)', async cluster => {
       const SLOT = 10328, // slot of `channel`
         migrating = cluster.slots[SLOT].master,
