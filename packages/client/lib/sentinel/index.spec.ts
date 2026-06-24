@@ -6,6 +6,7 @@ import { ScanIteratorInterruptedError, WatchError } from "../errors";
 import { RedisSentinelConfig, SentinelFramework } from "./test-util";
 import { RedisSentinelEvent, RedisSentinelType, RedisSentinelClientType, RedisNode } from "./types";
 import RedisSentinel from "./index";
+import { mergeSentinelNodes } from "./utils";
 import { RedisArgument, RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
 import { promisify } from 'node:util';
 import { exec } from 'node:child_process';
@@ -129,6 +130,76 @@ describe('RedisSentinel', () => {
     const proxy = sentinel.withCommandOptions({ timeout: overrideTimeout });
     const duplicated = proxy.duplicate();
     assert.equal(duplicated.commandOptions?.timeout, overrideTimeout);
+  });
+
+  describe('mergeSentinelNodes (issue #3237)', () => {
+    // Regression: transform() used to replace sentinelRootNodes with the
+    // discovered list alone, dropping hostname-based seeds. After a full outage
+    // where sentinels restart with new IPs, the client then had no resolvable
+    // address left to reconnect to. mergeSentinelNodes keeps the configured
+    // hostname seeds available alongside discovered nodes.
+
+    it('keeps hostname seeds when sentinel reports only new IPs', () => {
+      const seeds = [
+        { host: 'redis-sentinel-0.svc.local', port: 26379 },
+        { host: 'redis-sentinel-1.svc.local', port: 26380 },
+      ];
+      const discovered = [
+        { host: '10.0.0.1', port: 26379 },
+        { host: '10.0.0.2', port: 26380 },
+      ];
+
+      const merged = mergeSentinelNodes(seeds, discovered);
+
+      assert.deepEqual(merged, [...seeds, ...discovered]);
+    });
+
+    it('places seeds first, then appends discovered nodes', () => {
+      const seeds = [{ host: 'seed.local', port: 26379 }];
+      const discovered = [
+        { host: '10.0.0.1', port: 26379 },
+        { host: '10.0.0.2', port: 26380 },
+      ];
+
+      const merged = mergeSentinelNodes(seeds, discovered);
+
+      assert.equal(merged[0].host, 'seed.local');
+      assert.deepEqual(merged.slice(1), discovered);
+    });
+
+    it('dedupes by host:port across seeds and discovered nodes', () => {
+      const seeds = [{ host: '10.0.0.1', port: 26379 }];
+      const discovered = [
+        { host: '10.0.0.1', port: 26379 }, // duplicate of seed
+        { host: '10.0.0.2', port: 26380 },
+      ];
+
+      const merged = mergeSentinelNodes(seeds, discovered);
+
+      assert.equal(merged.length, 2);
+      assert.deepEqual(merged, [
+        { host: '10.0.0.1', port: 26379 },
+        { host: '10.0.0.2', port: 26380 },
+      ]);
+    });
+
+    it('treats same host with different ports as distinct nodes', () => {
+      const seeds = [{ host: '10.0.0.1', port: 26379 }];
+      const discovered = [{ host: '10.0.0.1', port: 26380 }];
+
+      const merged = mergeSentinelNodes(seeds, discovered);
+
+      assert.equal(merged.length, 2);
+    });
+
+    it('returns just the seeds when nothing is discovered', () => {
+      const seeds = [
+        { host: 'seed-0.local', port: 26379 },
+        { host: 'seed-1.local', port: 26380 },
+      ];
+
+      assert.deepEqual(mergeSentinelNodes(seeds, []), seeds);
+    });
   });
 
   it('should not have HOTKEYS commands (requires session affinity)', () => {

@@ -6,7 +6,7 @@ import { CommandOptions } from '../client/commands-queue';
 import { attachConfig } from '../commander';
 import { NON_STICKY_COMMANDS } from '../commands';
 import { ClientErrorEvent, NamespaceProxySentinel, NamespaceProxySentinelClient, NodeAddressMap, ProxySentinel, ProxySentinelClient, RedisNode, RedisSentinelClientType, RedisSentinelEvent, RedisSentinelOptions, RedisSentinelType, SentinelCommander } from './types';
-import { clientSocketToNode, createCommand, createFunctionCommand, createModuleCommand, createNodeList, createScriptCommand, getMappedNode, parseNode } from './utils';
+import { clientSocketToNode, createCommand, createFunctionCommand, createModuleCommand, createNodeList, createScriptCommand, getMappedNode, mergeSentinelNodes, parseNode } from './utils';
 import { RedisMultiQueuedCommand } from '../multi-command';
 import RedisSentinelMultiCommand, { RedisSentinelMultiCommandType } from './multi-commands';
 import { PubSubListener } from '../client/pub-sub';
@@ -810,6 +810,8 @@ export class RedisSentinelInternal<
 
     this.#RESP = options.RESP;
     this.#sentinelSeedNodes = Array.from(options.sentinelRootNodes);
+    // Initial root nodes start as a copy of the seed nodes; transform() later
+    // merges discovered nodes on top while preserving these seeds.
     this.#sentinelRootNodes = Array.from(this.#sentinelSeedNodes);
     this.#maxCommandRediscovers = options.maxCommandRediscovers ?? 16;
     this.#masterPoolSize = options.masterPoolSize ?? 1;
@@ -1519,11 +1521,13 @@ export class RedisSentinelInternal<
       }
     }
 
-    if (this.#sentinelNodeListKey(analyzed.sentinelList) !== this.#sentinelNodeListKey(this.#sentinelRootNodes)) {
-      this.#sentinelRootNodes = analyzed.sentinelList;
+    const mergedSentinelList = mergeSentinelNodes(this.#sentinelSeedNodes, analyzed.sentinelList);
+
+    if (this.#sentinelNodeListKey(mergedSentinelList) !== this.#sentinelNodeListKey(this.#sentinelRootNodes)) {
+      this.#sentinelRootNodes = mergedSentinelList;
       const event: RedisSentinelEvent = {
         type: "SENTINE_LIST_CHANGE",
-        size: analyzed.sentinelList.length
+        size: mergedSentinelList.length
       }
       this.emit('topology-change', event);
     }
