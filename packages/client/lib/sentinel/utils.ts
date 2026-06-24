@@ -15,7 +15,7 @@ export function parseNode(node: Record<string, string>): RedisNode | undefined{
 }
 
 export function createNodeList(nodes: UnwrapReply<ArrayReply<Record<string, string>>>) {
-  var nodeList: Array<RedisNode> = [];
+  const nodeList: Array<RedisNode> = [];
 
   for (const nodeData of nodes) {
     const node = parseNode(nodeData)
