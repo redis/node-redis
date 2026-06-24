@@ -150,7 +150,7 @@ export default class RedisClusterSlots<
         this.clientSideCache = options.clientSideCache;
       } else {
         this.clientSideCache = new BasicPooledClientSideCache(options.clientSideCache)
-      }
+      } 
     }
 
     this.#clientFactory = RedisClient.factory(this.#options);
@@ -946,20 +946,22 @@ export default class RedisClusterSlots<
   }
 
   async #initiateShardedPubSubClient(master: MasterNode<M, F, S, RESP, TYPE_MAPPING>) {
-    const client = this.#createClient(master, false)
-      .on('server-sunsubscribe', async (channel, listeners) => {
-        try {
-          await this.rediscover(client);
-          const redirectTo = await this.getShardedPubSubClient(channel);
-          await redirectTo.extendPubSubChannelListeners(
-            PUBSUB_TYPE.SHARDED,
-            channel,
-            listeners
-          );
-        } catch (err) {
-          this.#emit('sharded-shannel-moved-error', err, channel, listeners);
-        }
-      });
+    const client = this.#createClient(master, false);
+
+    client.on('sharded-channel-moved', async (channel, listeners) => {
+      try {
+        await this.rediscover(client);
+        const redirectTo = await this.getShardedPubSubClient(channel);
+        await redirectTo.extendPubSubChannelListeners(
+          PUBSUB_TYPE.SHARDED,
+          channel,
+          listeners
+        );
+      } catch (err) {
+        this.#emit('sharded-channel-moved-error', err, channel, listeners);
+      }
+    });
+
 
     master.pubSub = {
       client,
@@ -976,6 +978,8 @@ export default class RedisClusterSlots<
 
     return master.pubSub.connectPromise!;
   }
+
+
 
   async executeShardedUnsubscribeCommand(
     channel: string,
