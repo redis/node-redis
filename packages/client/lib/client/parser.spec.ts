@@ -1,5 +1,5 @@
 import { strict as assert } from 'node:assert';
-import { BasicCommandParser, prefixKey } from './parser';
+import { BasicCommandParser, prefixKey, prefixKeys } from './parser';
 
 describe('prefixKey', () => {
   it('returns the key unchanged when prefix is undefined', () => {
@@ -30,6 +30,21 @@ describe('prefixKey', () => {
     const result = prefixKey(Buffer.from('app:'), Buffer.from('key'));
     assert.ok(Buffer.isBuffer(result));
     assert.equal((result as Buffer).toString(), 'app:key');
+  });
+});
+
+describe('prefixKeys', () => {
+  it('prefixes a single key into a one-element array', () => {
+    assert.deepEqual(prefixKeys('app:', 'key'), ['app:key']);
+  });
+
+  it('prefixes every key of an array', () => {
+    assert.deepEqual(prefixKeys('app:', ['a', 'b']), ['app:a', 'app:b']);
+  });
+
+  it('returns the keys unchanged (as an array) when there is no prefix', () => {
+    assert.deepEqual(prefixKeys(undefined, 'key'), ['key']);
+    assert.deepEqual(prefixKeys(undefined, ['a', 'b']), ['a', 'b']);
   });
 });
 

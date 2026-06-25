@@ -15,9 +15,9 @@ import HELLO, { HelloOptions } from '../commands/HELLO';
 import { ScanOptions, ScanCommonOptions } from '../commands/SCAN';
 import { RedisLegacyClient, RedisLegacyClientType } from './legacy-mode';
 import { RedisPoolOptions, RedisClientPool } from './pool';
-import { RedisVariadicArgument, parseArgs, pushVariadicArguments } from '../commands/generic-transformers';
+import { RedisVariadicArgument, parseArgs } from '../commands/generic-transformers';
 import { BasicClientSideCache, ClientSideCacheConfig, ClientSideCacheProvider } from './cache';
-import { BasicCommandParser, CommandParser } from './parser';
+import { BasicCommandParser, CommandParser, prefixKeys } from './parser';
 import SingleEntryCache from '../single-entry-cache';
 import { version } from '../../package.json'
 import EnterpriseMaintenanceManager, { MaintenanceUpdate, MovingEndpointType, SMIGRATED_EVENT, SMigratedEvent } from './enterprise-maintenance-manager';
@@ -1438,8 +1438,12 @@ export default class RedisClient<
   sUnsubscribe = this.SUNSUBSCRIBE;
 
   async WATCH(key: RedisVariadicArgument) {
+    // WATCH builds its arguments outside of the command parser, so the configured
+    // `keyPrefix` must be applied here too — otherwise WATCH would guard the unprefixed
+    // key while the transaction operates on the prefixed one, silently breaking the
+    // optimistic lock.
     const reply = await this._self.sendCommand(
-      pushVariadicArguments(['WATCH'], key)
+      ['WATCH', ...prefixKeys(this._self._keyPrefix, key)]
     );
     this._self.#watchEpoch ??= this._self.socketEpoch;
     return reply as unknown as ReplyWithTypeMapping<SimpleStringReply<'OK'>, TYPE_MAPPING>;

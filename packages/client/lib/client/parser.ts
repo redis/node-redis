@@ -21,6 +21,18 @@ export function prefixKey(keyPrefix: RedisArgument | undefined, key: RedisArgume
   ]);
 }
 
+/**
+ * Applies {@link prefixKey} to every key in a variadic argument, returning a new array.
+ *
+ * Used by the few commands that build their wire arguments outside of `parseCommand`
+ * (e.g. `WATCH`), so they still honor the configured `keyPrefix`.
+ */
+export function prefixKeys(keyPrefix: RedisArgument | undefined, keys: RedisVariadicArgument): Array<RedisArgument> {
+  return Array.isArray(keys)
+    ? keys.map(key => prefixKey(keyPrefix, key))
+    : [prefixKey(keyPrefix, keys)];
+}
+
 export interface CommandParser {
   redisArgs: ReadonlyArray<RedisArgument>;
   keys: ReadonlyArray<RedisArgument>;

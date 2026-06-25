@@ -2,7 +2,7 @@ import { NON_STICKY_COMMANDS } from '../commands';
 import RedisMultiCommand, { MULTI_REPLY, MultiReply, MultiReplyType, RedisMultiQueuedCommand } from '../multi-command';
 import { ReplyWithTypeMapping, CommandReply, Command, CommandArguments, CommanderConfig, RedisFunctions, RedisModules, RedisScripts, RespVersions, TransformReply, RedisScript, RedisFunction, TypeMapping, RedisArgument } from '../RESP/types';
 import { attachConfig, functionArgumentsPrefix, getTransformReply } from '../commander';
-import { BasicCommandParser } from '../client/parser';
+import { BasicCommandParser, prefixKey } from '../client/parser';
 import { Tail } from '../commands/generic-transformers';
 
 type CommandSignature<
@@ -211,7 +211,9 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
     this.#multi = new RedisMultiCommand(typeMapping);
     this.#executeMulti = executeMulti;
     this.#executePipeline = executePipeline;
-    this.#firstKey = routing;
+    // An explicit routing key must be prefixed too, so it hashes to the same slot as the
+    // (prefixed) keys the commands inside the transaction operate on.
+    this.#firstKey = routing === undefined ? undefined : prefixKey(keyPrefix, routing);
     this.#keyPrefix = keyPrefix;
   }
 

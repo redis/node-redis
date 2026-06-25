@@ -14,6 +14,7 @@ import { PubSubProxy } from './pub-sub-proxy';
 import { setTimeout } from 'node:timers/promises';
 import RedisSentinelModule from './module'
 import { RedisVariadicArgument } from '../commands/generic-transformers';
+import { prefixKeys } from '../client/parser';
 import { WaitQueue } from './wait-queue';
 import { TcpNetConnectOpts } from 'node:net';
 import { RedisTcpSocketOptions } from '../client/socket';
@@ -235,9 +236,13 @@ export class RedisSentinelClient<
       throw new Error("Attempted execution on released RedisSentinelClient lease");
     }
 
+    // Apply the sentinel's `keyPrefix` here: the underlying node client carries no
+    // prefix (it receives already-prefixed args for normal commands), so WATCH must be
+    // prefixed at this level to guard the same key the transaction operates on.
+    const watchKeys = prefixKeys(this._self._keyPrefix, key);
     return this._execute(
       false,
-      client => client.watch(key)
+      client => client.watch(watchKeys)
     )
   }
 
