@@ -112,6 +112,18 @@ export function createRedisClientPool(
   return createClientPool(clientOptions, poolOptions);
 }
 
+// Regression for #3113/#3023: common Heroku-style rediss configuration uses a
+// runtime boolean to decide whether TLS is enabled.
+export function createHerokuRedisClient(redisUrl = 'redis://127.0.0.1:6379'): RedisClientType {
+  return createClient({
+    url: redisUrl,
+    socket: {
+      tls: redisUrl.match(/rediss:/) != null,
+      rejectUnauthorized: false
+    }
+  });
+}
+
 // Cluster and sentinel function-signature patterns are intentionally omitted:
 // the `*Options` interfaces default `M`/`F`/`S` to `RedisModules`/etc. (wide)
 // while the `*Type` aliases default them to `{}` (narrow). That mismatch is
