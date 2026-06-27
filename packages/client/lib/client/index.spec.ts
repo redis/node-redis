@@ -886,6 +886,22 @@ describe('Client', () => {
     assert.equal(proxyOptions.timeout, TIMEOUT, 'Inherited options (timeout) were lost in the proxy chain.')
 
     assert.ok(!Object.prototype.hasOwnProperty.call(proxyOptions, 'timeout'), 'Timeout should be inherited, not copied.');
+
+    const duplicate = bufferProxy.duplicate();
+
+    const duplicateOptions = (duplicate as any)._commandOptions;
+      
+    assert.equal(
+      duplicateOptions.timeout,
+      TIMEOUT,
+      'duplicate() lost inherited timeout.'
+    );
+    
+    assert.deepEqual(
+  duplicateOptions.typeMapping,
+  { [RESP_TYPES.BLOB_STRING]: Buffer },
+  'duplicate() lost typeMapping.'
+);
   }, {
     ...GLOBAL.SERVERS.OPEN,
     clientOptions: {

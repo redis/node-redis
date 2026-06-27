@@ -337,6 +337,19 @@ export default class RedisClient<
     }
   }
 
+  static  #flattenCommandOptions(options?: CommandOptions) {
+  if (!options) return options;
+
+  const flattened = {};
+  const chain = [];
+
+  for (let current = options; current; current = Object.getPrototypeOf(current)) {
+    chain.unshift(current);
+  }
+
+  return Object.assign(flattened, ...chain);
+}
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static #SingleEntryCache = new SingleEntryCache<any, any>()
 
@@ -1120,7 +1133,7 @@ export default class RedisClient<
   >(overrides?: Partial<RedisClientOptions<_M, _F, _S, _RESP, _TYPE_MAPPING>>) {
     return new (Object.getPrototypeOf(this).constructor)({
       ...this._self.#options,
-      commandOptions: this._commandOptions,
+      commandOptions: RedisClient.#flattenCommandOptions(this._commandOptions),
       ...overrides
     }) as RedisClientType<_M, _F, _S, _RESP, _TYPE_MAPPING>;
   }

@@ -240,6 +240,36 @@ describe('RedisClientPool', () => {
     );
   }, GLOBAL.SERVERS.OPEN);
 
+  testUtils.testWithClientPool('nested proxy inheritance',async pool=>{
+     const TIMEOUT = 1234;
+
+    const timeoutProxy = pool.withCommandOptions({
+  timeout: TIMEOUT
+  });
+  
+  const chainedProxy = timeoutProxy.withTypeMapping({
+    [RESP_TYPES.BLOB_STRING]: Buffer
+  });
+  
+  const chainedReply = await chainedProxy.sendCommand(['ECHO', 'hello']);
+  
+  assert.ok(chainedReply instanceof Buffer);
+  assert.equal(chainedReply.toString(), 'hello');
+  
+  const chainedOptions = (chainedProxy as any)._commandOptions;
+  
+  assert.equal(chainedOptions.timeout, TIMEOUT);
+  assert.equal(
+  Object.prototype.hasOwnProperty.call(chainedOptions, 'timeout'),
+  false
+);
+
+assert.equal(
+  Object.prototype.hasOwnProperty.call(chainedOptions, 'typeMapping'),
+  true
+);
+  },GLOBAL.SERVERS.OPEN)
+
   testUtils.testWithClientPool('execute rejects when pool is closed', async pool => {
     await pool.close();
 
