@@ -285,42 +285,82 @@ describe('Cluster', () => {
       }
     });
 
-    testUtils.testWithCluster('proxy inheritance completes',async cluster => {
-    const CUSTOM_MAPPING = {
-      [RESP_TYPES.BLOB_STRING]: Buffer
-    };
-
-    (cluster as any)._commandOptions = {
-      timeout: 5000
-    };
-
-    const proxy = cluster.withTypeMapping(CUSTOM_MAPPING);
-    const proxyOptions = (proxy as any)._commandOptions;
-
-    assert.equal(proxyOptions.timeout, 5000);
-
-    assert.deepEqual(
-      proxyOptions.typeMapping,
-      CUSTOM_MAPPING
-    );
-
-    assert.equal(
-      Object.prototype.hasOwnProperty.call(proxyOptions, 'timeout'),
-      false
-    );
-
-    assert.equal(
-      Object.prototype.hasOwnProperty.call(proxyOptions, 'typeMapping'),
-      true
-    );
-
-    const reply = await proxy.echo('hello');
-
-    assert.ok(reply instanceof Buffer);
-    assert.deepEqual(reply, Buffer.from('hello'));
-  },
-  GLOBAL.CLUSTERS.OPEN
-);
+    testUtils.testWithCluster('proxy inheritance completes cluster routing chains', async cluster => {
+      const CUSTOM_MAPPING = {
+        [RESP_TYPES.BLOB_STRING]: Buffer
+      };
+    
+      // 1. Set global base option
+      (cluster as any)._commandOptions = {
+        timeout: 5000,
+        asap: false
+      };
+    
+      // 2. Chain Proxy Layer 1: Add type mapping
+      const proxy1 = cluster.withTypeMapping(CUSTOM_MAPPING);
+    
+      // 3. Chain Proxy Layer 2: Override an intermediate property
+      // AND add a localized abort signal or different option.
+      // This creates a 3-tier deep prototype chain.
+      const controller = new AbortController();
+      const proxy2 = proxy1.withCommandOptions({
+        asap: true,
+        signal: controller.signal
+      });
+    
+      const proxyOptions = (proxy2 as any)._commandOptions;
+    
+      // --- Structural Assertions ---
+      assert.equal(proxyOptions.timeout, 5000, 'Root level options (timeout) were lost in the chain');
+      assert.equal(proxyOptions.asap, true, 'Intermediate overrides (asap) failed to apply');
+      assert.deepEqual(proxyOptions.typeMapping, CUSTOM_MAPPING, 'Nested object mappings were lost');
+    
+      assert.equal(Object.prototype.hasOwnProperty.call(proxyOptions, 'signal'), true, 'Signal should belong to layer 2');
+      assert.equal(Object.prototype.hasOwnProperty.call(proxyOptions, 'asap'), true, 'Asap override should belong to layer 2');
+      assert.equal(Object.prototype.hasOwnProperty.call(proxyOptions, 'typeMapping'), false, 'TypeMapping should be inherited from layer 1');
+      assert.equal(Object.prototype.hasOwnProperty.call(proxyOptions, 'timeout'), false, 'Timeout should be inherited from the base cluster root');
+    
+      // ------------------------------------------------------------------
+      // Execution diagnostics
+      // ------------------------------------------------------------------
+    
+      // Base cluster should NOT use the custom type mapping.
+      const baseReply = await cluster.echo('hello');
+      assert.equal(
+        typeof baseReply,
+        'string',
+        'Base cluster unexpectedly inherited custom typeMapping'
+      );
+    
+      // Layer 1 owns the typeMapping.
+      
+      const proxy1Reply = await proxy1.echo('hello');
+      assert.ok(
+        proxy1Reply instanceof Buffer,
+        'Layer 1 execution stripped typeMapping'
+      );
+      assert.deepEqual(
+        proxy1Reply,
+        Buffer.from('hello'),
+        'Layer 1 payload was mutated'
+      );
+    
+      // Layer 2 inherits typeMapping through the prototype chain.
+      const proxy2Reply = await proxy2.echo('hello');
+      assert.ok(
+        (proxy2Reply as any) instanceof Buffer,
+        'Cluster execution stripped typeMapping from deep proxy chain'
+      );
+      assert.deepEqual(
+        proxy2Reply,
+        Buffer.from('hello'),
+        'Data payload was mutated during cluster execution proxying'
+      );
+    
+      controller.abort();
+      },
+      GLOBAL.CLUSTERS.OPEN
+      );
   });
 
   describe('PubSub', () => {
