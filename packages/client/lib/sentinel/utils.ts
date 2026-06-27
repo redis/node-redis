@@ -70,9 +70,9 @@ export function createCommand<T extends ProxySentinel | ProxySentinelClient>(com
     const parser = new BasicCommandParser();
     command.parseCommand(parser, ...args);
 
-    return this._self._execute(
+    return (this as any)._execute(
       command.IS_READ_ONLY,
-      client => client._executeCommand(command, parser, this.commandOptions, transformReply)
+      (client:any) => client._executeCommand(command, parser, (this as any)._commandOptions, transformReply)
     );
   };
 }
@@ -86,9 +86,9 @@ export function createFunctionCommand<T extends NamespaceProxySentinel | Namespa
     parser.push(...prefix);
     fn.parseCommand(parser, ...args);
 
-    return this._self._execute(
+    return (this._self as any)._execute(
       fn.IS_READ_ONLY,
-      client => client._executeCommand(fn, parser, this._self.commandOptions, transformReply)
+      (client:any) => client._executeCommand(fn, parser, this._commandOptions, transformReply)
     );
   }
 };
@@ -100,9 +100,9 @@ export function createModuleCommand<T extends NamespaceProxySentinel | Namespace
     const parser = new BasicCommandParser();
     command.parseCommand(parser, ...args);
 
-    return this._self._execute(
+    return (this._self as any)._execute(
       command.IS_READ_ONLY,
-      client => client._executeCommand(command, parser, this._self.commandOptions, transformReply)
+      (client:any) => client._executeCommand(command, parser, this._commandOptions, transformReply)
     );
   }
 };
@@ -116,9 +116,9 @@ export function createScriptCommand<T extends ProxySentinel | ProxySentinelClien
     parser.push(...prefix);
     script.parseCommand(parser, ...args);
 
-    return this._self._execute(
+    return (this as any)._execute(
       script.IS_READ_ONLY,
-      client => client._executeScript(script, parser, this.commandOptions, transformReply)
+      (client:any) => client._executeScript(script, parser, (this as any)._commandOptions, transformReply)
     );
   };
 }

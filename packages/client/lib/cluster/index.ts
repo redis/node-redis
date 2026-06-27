@@ -151,7 +151,9 @@ export type ClusterCommandOptions<
 
 type ProxyCluster = RedisCluster<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>;
 
-type NamespaceProxyCluster = { _self: ProxyCluster };
+type NamespaceProxyCluster = {
+   _self: ProxyCluster
+   _commandOptions?:ClusterCommandOptions };
 
 export default class RedisCluster<
   M extends RedisModules,
@@ -187,7 +189,7 @@ export default class RedisCluster<
       return this._self._execute(
         parser.firstKey,
         command.IS_READ_ONLY,
-        this._self._commandOptions,
+        this._commandOptions,
         (client, opts) => client._executeCommand(command, parser, opts, transformReply)
       );
     };
@@ -205,7 +207,7 @@ export default class RedisCluster<
       return this._self._execute(
         parser.firstKey,
         fn.IS_READ_ONLY,
-        this._self._commandOptions,
+        this._commandOptions,
         (client, opts) => client._executeCommand(fn, parser, opts, transformReply)
       );
     };
@@ -377,7 +379,11 @@ export default class RedisCluster<
     // POLICIES extends CommandPolicies
   >(options: OPTIONS) {
     const proxy = Object.create(this);
-    proxy._commandOptions = options;
+    proxy._commandOptions = Object.assign(
+      Object.create(this._commandOptions ?? null),
+      options
+    );
+    
     return proxy as RedisClusterType<
       M,
       F,
@@ -396,7 +402,8 @@ export default class RedisCluster<
     value: V
   ) {
     const proxy = Object.create(this);
-    proxy._commandOptions = { ...this._commandOptions, [key]: value };
+    proxy._commandOptions = Object.assign( Object.create(
+        this._commandOptions ?? null),{ [key]: value });
     return proxy as RedisClusterType<
       M,
       F,
@@ -531,10 +538,10 @@ export default class RedisCluster<
   ): Promise<T> {
 
     // Merge global options with local options
-    const opts = {
-      ...this._commandOptions,
-      ...options
-    }
+    const opts = options ?
+      Object.assign(Object.create(this._commandOptions ?? null),
+    options):(this._commandOptions ?? {});
+
     return this._self._execute(
       firstKey,
       isReadonly,

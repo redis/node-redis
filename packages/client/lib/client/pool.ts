@@ -106,7 +106,9 @@ export type RedisClientPoolType<
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- variance markers for pool generics
 type ProxyPool = RedisClientPoolType<any, any, any, any, any>;
 
-type NamespaceProxyPool = { _self: ProxyPool };
+type NamespaceProxyPool = { 
+  _self: ProxyPool
+  _commandOptions?: CommandOptions };
 
 export class RedisClientPool<
   M extends RedisModules = {},
@@ -122,7 +124,7 @@ export class RedisClientPool<
       const parser = new BasicCommandParser();
       command.parseCommand(parser, ...args);
 
-      return this.execute(client => client._executeCommand(command, parser, this._commandOptions, transformReply))
+      return this._self.execute(client => client._executeCommand(command, parser, this._commandOptions, transformReply))
     };
   }
 
@@ -133,7 +135,7 @@ export class RedisClientPool<
       const parser = new BasicCommandParser();
       command.parseCommand(parser, ...args);
 
-      return this._self.execute(client => client._executeCommand(command, parser, this._self._commandOptions, transformReply))
+      return this._self.execute(client => client._executeCommand(command, parser, this._commandOptions, transformReply))
     };
   }
 
@@ -146,7 +148,7 @@ export class RedisClientPool<
       parser.push(...prefix);
       fn.parseCommand(parser, ...args);
 
-      return this._self.execute(client => client._executeCommand(fn, parser, this._self._commandOptions, transformReply))    };
+      return this._self.execute(client => client._executeCommand(fn, parser, this._commandOptions, transformReply))    };
   }
 
   static #createScriptCommand(script: RedisScript, resp: RespVersions) {
@@ -158,7 +160,7 @@ export class RedisClientPool<
       parser.pushVariadic(prefix);
       script.parseCommand(parser, ...args);
 
-      return this.execute(client => client._executeScript(script, parser, this._commandOptions, transformReply))
+      return this._self.execute(client => client._executeScript(script, parser, this._commandOptions, transformReply))
     };
   }
 
@@ -336,7 +338,10 @@ export class RedisClientPool<
     TYPE_MAPPING extends TypeMapping
   >(options: OPTIONS) {
     const proxy = Object.create(this._self);
-    proxy._commandOptions = options;
+    proxy._commandOptions = Object.assign(
+      Object.create(this._commandOptions ?? null),
+      options
+    );
     return proxy as RedisClientPoolType<
       M,
       F,
@@ -358,7 +363,8 @@ export class RedisClientPool<
     value: V
   ) {
     const proxy = Object.create(this._self);
-    proxy._commandOptions = { ...this._commandOptions, [key]: value };
+    proxy._commandOptions = Object.assign( Object.create(
+        this._commandOptions ?? null), {[key]: value });
     return proxy as RedisClientPoolType<
       M,
       F,

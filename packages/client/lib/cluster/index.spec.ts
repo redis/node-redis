@@ -284,6 +284,43 @@ describe('Cluster', () => {
         minimizeConnections: true
       }
     });
+
+    testUtils.testWithCluster('proxy inheritance completes',async cluster => {
+    const CUSTOM_MAPPING = {
+      [RESP_TYPES.BLOB_STRING]: Buffer
+    };
+
+    (cluster as any)._commandOptions = {
+      timeout: 5000
+    };
+
+    const proxy = cluster.withTypeMapping(CUSTOM_MAPPING);
+    const proxyOptions = (proxy as any)._commandOptions;
+
+    assert.equal(proxyOptions.timeout, 5000);
+
+    assert.deepEqual(
+      proxyOptions.typeMapping,
+      CUSTOM_MAPPING
+    );
+
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(proxyOptions, 'timeout'),
+      false
+    );
+
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(proxyOptions, 'typeMapping'),
+      true
+    );
+
+    const reply = await proxy.echo('hello');
+
+    assert.ok(reply instanceof Buffer);
+    assert.deepEqual(reply, Buffer.from('hello'));
+  },
+  GLOBAL.CLUSTERS.OPEN
+);
   });
 
   describe('PubSub', () => {

@@ -201,6 +201,45 @@ describe('RedisClientPool', () => {
     await task1Promise;
   }, GLOBAL.SERVERS.OPEN);
 
+  testUtils.testWithClientPool(' proxy inheritance completes', async pool => {
+    const TIMEOUT = 1234;
+
+    (pool as any)._commandOptions = { timeout: TIMEOUT };
+
+    const bufferProxy = pool.withCommandOptions({
+      typeMapping: {
+        [RESP_TYPES.BLOB_STRING]: Buffer
+      }
+    });
+
+    const stringReply = await pool.sendCommand(['ECHO', 'hello']);
+    assert.equal(typeof stringReply, 'string', 'Base pool should return a string');
+
+    const bufferReply = await bufferProxy.sendCommand(['ECHO', 'hello']);
+    assert.ok(bufferReply instanceof Buffer, 'Proxy should return a Buffer');
+    assert.equal(bufferReply.toString(), 'hello');
+
+    const proxyOptions = (bufferProxy as any)._commandOptions;
+
+    assert.equal(
+      proxyOptions.timeout,
+      TIMEOUT,
+      'Proxy should inherit timeout from base pool'
+    );
+
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(proxyOptions, 'timeout'),
+      false,
+      'Timeout should be inherited via prototype chain, not copied'
+    );
+
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(proxyOptions, 'typeMapping'),
+      true,
+      'TypeMapping should be a direct property of the proxy options'
+    );
+  }, GLOBAL.SERVERS.OPEN);
+
   testUtils.testWithClientPool('execute rejects when pool is closed', async pool => {
     await pool.close();
 

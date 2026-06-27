@@ -272,7 +272,9 @@ export type RedisClientType<
 
 type ProxyClient = RedisClient<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>;
 
-type NamespaceProxyClient = { _self: ProxyClient };
+type NamespaceProxyClient = { 
+  _self: ProxyClient
+  _commandOptions?:CommandOptions };
 
 export interface ScanIteratorOptions {
   cursor?: RedisArgument;
@@ -305,7 +307,7 @@ export default class RedisClient<
       const parser = new BasicCommandParser();
       command.parseCommand(parser, ...args);
 
-      return this._self._executeCommand(command, parser, this._self._commandOptions, transformReply);
+      return this._self._executeCommand(command, parser, this._commandOptions, transformReply);
     };
   }
 
@@ -318,7 +320,7 @@ export default class RedisClient<
       parser.push(...prefix);
       fn.parseCommand(parser, ...args);
 
-      return this._self._executeCommand(fn, parser, this._self._commandOptions, transformReply);
+      return this._self._executeCommand(fn, parser, this._commandOptions, transformReply);
     };
   }
 
@@ -1038,7 +1040,9 @@ export default class RedisClient<
     TYPE_MAPPING extends TypeMapping
   >(options: OPTIONS) {
     const proxy = Object.create(this._self);
-    proxy._commandOptions = { ...this._commandOptions, ...options };
+    proxy._commandOptions = Object.assign(
+        Object.create(this._commandOptions ?? null),options
+    );
     return proxy as RedisClientType<
       M,
       F,
@@ -1056,7 +1060,8 @@ export default class RedisClient<
     value: V
   ) {
     const proxy = Object.create(this._self);
-    proxy._commandOptions = { ...this._commandOptions, [key]: value };
+    proxy._commandOptions = Object.assign(Object.create(
+        this._commandOptions ?? null),{ [key]: value });
     return proxy as RedisClientType<
       M,
       F,
@@ -1261,10 +1266,9 @@ export default class RedisClient<
         }
 
         // Merge global options with provided options
-        const opts = {
-          ...this._commandOptions,
-          ...options,
-        };
+        const opts = options?
+          Object.assign(Object.create(this._commandOptions ?? null),
+          options): this._commandOptions;
 
         const promise = this._self.#queue.addCommand<T>(args, opts);
         this._self.#scheduleWrite();
