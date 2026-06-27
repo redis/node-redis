@@ -683,6 +683,13 @@ export default class RedisSentinel<
    * paged `SCAN` calls. Yields one array of keys per page until the SCAN cursor
    * returns to `0`.
    *
+   * @remarks
+   * With a configured `keyPrefix`, the yielded keys are the **already-prefixed** keys
+   * as stored on the server — replies are never un-prefixed. Passing them straight back
+   * into a key-prefixed command prefixes them a second time (e.g. with `keyPrefix: 'app:'`,
+   * a yielded `'app:foo'` becomes `'app:app:foo'`). Strip the prefix before reusing the
+   * keys, or read them with a client that has no `keyPrefix`.
+   *
    * The master client lease is acquired for the duration of each `SCAN` call
    * and released before yielding, so consumers can issue other commands from
    * inside the `for await` loop body without deadlocking against the iterator

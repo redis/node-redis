@@ -1643,6 +1643,25 @@ export default class RedisClient<
 
   multi = this.MULTI;
 
+  /**
+   * Async iterator over the keyspace, issuing paged `SCAN` calls and yielding one array
+   * of keys per page until the cursor returns to `0`.
+   *
+   * @remarks
+   * With a configured {@link RedisClientOptions.keyPrefix}, the yielded keys are the
+   * **already-prefixed** keys as stored on the server — replies are never un-prefixed.
+   * Passing them straight back into a key-prefixed command prefixes them a second time
+   * (e.g. with `keyPrefix: 'app:'`, a yielded `'app:foo'` becomes `'app:app:foo'`):
+   *
+   * ```js
+   * for await (const keys of client.scanIterator()) {
+   *   await client.mGet(keys); // ⚠️ double-prefixes -> reads 'app:app:foo'
+   * }
+   * ```
+   *
+   * Strip the prefix before reusing the keys, or read them with a client that has no
+   * `keyPrefix`.
+   */
   async* scanIterator(
     this: RedisClientType<M, F, S, RESP, TYPE_MAPPING>,
     options?: ScanOptions & ScanIteratorOptions

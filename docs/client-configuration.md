@@ -113,6 +113,10 @@ In cluster mode the slot is computed from the prefixed key, so routing remains c
 
 - Only keys **sent** to Redis are prefixed. Keys **returned** by Redis are **not** un-prefixed — e.g.
   `KEYS *`, `SCAN`, and `RANDOMKEY` return keys that still include the prefix.
+- Because returned keys keep the prefix, **`scanIterator` yields already-prefixed keys**. Feeding
+  them straight back into a key-prefixing command double-prefixes them — e.g. with `keyPrefix: 'app:'`,
+  a yielded `'app:foo'` passed to `client.mGet(...)` becomes `'app:app:foo'`. Strip the prefix first,
+  or use a client without a `keyPrefix`. See [Scan Iterators](./scan-iterators.md).
 - `SCAN`/`KEYS`/`HSCAN`/… `MATCH` patterns are **not** auto-prefixed. Include the prefix in the
   pattern yourself if required (e.g. `client.scan('0', { MATCH: 'app:user:*' })`).
 - Pub/Sub channels are **not** prefixed (this includes sharded `SPUBLISH`/`SSUBSCRIBE`), since
