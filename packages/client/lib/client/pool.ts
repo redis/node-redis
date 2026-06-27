@@ -540,7 +540,9 @@ export class RedisClientPool<
     args: Array<RedisArgument>,
     options?: CommandOptions
   ) {
-    const mergedOptions = { ...this._commandOptions, ...options };
+    const mergedOptions = options
+     ? Object.assign(Object.create(this._commandOptions ?? null), options)
+      : this._commandOptions;
     return this.execute(client => client.sendCommand(args, mergedOptions));
   }
 
