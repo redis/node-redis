@@ -39,6 +39,71 @@ source of truth for repo conventions.
 own file (`HRANDFIELD_COUNT_WITHVALUES`). Module commands drop the dotted
 prefix from the file name (`ARRAPPEND.ts` → wire `JSON.ARRAPPEND`).
 
+## Step 0 — Gather inputs (ask the user first)
+
+New commands are often implemented **before they are publicly released**, so
+redis.io may not document them yet and a default `redis:latest` may not have
+them. Before writing any code, ask the user for two things:
+
+1. **The command spec.** Ask for the redis/redis JSON spec file — one per
+   command under
+   [`src/commands/<name>.json`](https://github.com/redis/redis/tree/unstable/src/commands)
+   (subcommands use `-`, e.g. `client-info.json`, `acl-cat.json`). If the
+   command is unreleased, ask the user to paste the spec from their branch.
+   As a fallback on a live server: `redis-cli --json COMMAND DOCS <name>` and
+   `COMMAND INFO <name>`.
+2. **A running Redis instance that has the command.** Ask for connection
+   details (host/port, TLS, auth, module loaded). Use it to explore real
+   behavior and confirm the implementation matches the spec — do not rely on
+   the spec alone. A quick `redis-cli` session or a throwaway probe script
+   (`packages/client` is already wired for `tsx`) is enough; never commit the
+   probe.
+
+If the user cannot provide a spec, derive arguments/reply from
+[redis.io/commands](https://redis.io/commands) but flag that it is unverified.
+If they cannot provide a live instance, implement from the spec but state that
+runtime behavior was not confirmed.
+
+### Reading the spec JSON → mapping to a Command
+
+The redis/redis spec drives every part of the `Command` object. Example
+(`getex.json`, trimmed):
+
+```json
+{
+  "GETEX": {
+    "since": "6.2.0", "arity": -2,
+    "command_flags": ["WRITE", "FAST"],
+    "key_specs": [{ "begin_search": { "index": { "pos": 1 } }, "flags": ["RW", "UPDATE"] }],
+    "arguments": [
+      { "name": "key", "type": "key", "key_spec_index": 0 },
+      { "name": "expiration", "type": "oneof", "optional": true, "arguments": [
+        { "name": "seconds", "type": "integer", "token": "EX" },
+        { "name": "persist", "type": "pure-token", "token": "PERSIST" }
+      ]}
+    ],
+    "reply_schema": { "oneOf": [ { "type": "string" }, { "type": "null" } ] }
+  }
+}
+```
+
+| Spec field | Drives |
+| --- | --- |
+| `command_flags` contains `READONLY` (and **not** `WRITE`) | `IS_READ_ONLY: true`. `WRITE` → omit it. Pure read with no side effects → also `CACHEABLE: true`. |
+| `key_specs` empty / no `key`-type args | `NOT_KEYED_COMMAND: true`. |
+| `arguments[].type: "key"` | `parser.pushKey(...)` (one per key, in spec order). |
+| `type: "pure-token"` + `token` | a literal flag pushed only when its option is set (`parser.push('PERSIST')`). |
+| `token` + value type (`integer`/`string`/...) | push the token then the stringified value (`parser.push('EX', seconds.toString())`). |
+| `type: "oneof"` | mutually exclusive branch → `if/else if` in `parseCommand`; model as a union/`options` field. |
+| `optional: true` | goes in the `options` object (exported `interface`); guard with `if (options?.x)`. |
+| `multiple: true` | variadic → `parser.pushVariadic*`. |
+| `arity` | sanity-check arg count in `parseArgs` tests. |
+| `reply_schema` (JSON Schema) | the `transformReply` return type. `oneOf [string, null]` → `BlobStringReply \| NullReply`; `integer` → `NumberReply`; `array` → `ArrayReply<...>`; a map differing by RESP version → keyed `transformReply: { 2, 3 }`. |
+| `since` | mention the version in JSDoc / `@remarks` when relevant. |
+
+After implementing, run the command against the live instance and diff the real
+reply against `reply_schema` and your `transformReply` output.
+
 ## Step 1 — Write `<NAME>.ts`
 
 Minimal pass-through command (`packages/client/lib/commands/GET.ts`):
