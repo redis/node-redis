@@ -98,7 +98,13 @@ function attachNamespace(prototype: any, name: PropertyKey, fns: any) {
       if (value === undefined) {
         value = Object.create(fns);
         value._self = this;
-        perReceiver.set(name, value);
+        
+        Object.defineProperty(value,'_commandOptions',{
+          get(){return this._self._commandOptions ?? null},
+          enumerable:true,
+          configurable:false
+        })
+        perReceiver.set(name,value);
       }
       return value;
     }

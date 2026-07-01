@@ -163,7 +163,9 @@ export type ClusterCommandOptions<
 
 type ProxyCluster = RedisCluster<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>;
 
-type NamespaceProxyCluster = { _self: ProxyCluster };
+type NamespaceProxyCluster = {
+   _self: ProxyCluster
+   _commandOptions?:ClusterCommandOptions };
 
 export default class RedisCluster<
   M extends RedisModules,
@@ -199,7 +201,7 @@ export default class RedisCluster<
       return this._self._execute(
         parser.firstKey,
         command.IS_READ_ONLY,
-        this._self._commandOptions,
+        this._commandOptions,
         (client, opts) => client._executeCommand(command, parser, opts, transformReply)
       );
     };
@@ -217,7 +219,7 @@ export default class RedisCluster<
       return this._self._execute(
         parser.firstKey,
         fn.IS_READ_ONLY,
-        this._self._commandOptions,
+        this._commandOptions,
         (client, opts) => client._executeCommand(fn, parser, opts, transformReply)
       );
     };
@@ -240,6 +242,18 @@ export default class RedisCluster<
       );
     };
   }
+    static  #flattenCommandOptions(options?: CommandOptions) {
+  if (!options) return options;
+
+  const flattened = {};
+  const chain = [];
+
+  for (let current = options; current; current = Object.getPrototypeOf(current)) {
+    chain.unshift(current);
+  }
+
+  return Object.assign(flattened, ...chain);
+}
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- cache stores dynamically generated cluster subclasses
   static #SingleEntryCache = new SingleEntryCache<any, any>();
@@ -381,7 +395,7 @@ export default class RedisCluster<
   >(overrides?: Partial<RedisClusterOptions<_M, _F, _S, _RESP, _TYPE_MAPPING>>) {
     return new (Object.getPrototypeOf(this).constructor)({
       ...this._self._options,
-      commandOptions: this._commandOptions,
+      commandOptions: RedisCluster.#flattenCommandOptions(this._commandOptions),
       ...overrides
     }) as RedisClusterType<_M, _F, _S, _RESP, _TYPE_MAPPING>;
   }
@@ -397,7 +411,11 @@ export default class RedisCluster<
     // POLICIES extends CommandPolicies
   >(options: OPTIONS) {
     const proxy = Object.create(this);
-    proxy._commandOptions = options;
+    proxy._commandOptions = Object.assign(
+      Object.create(this._commandOptions ?? null),
+      options
+    );
+    
     return proxy as RedisClusterType<
       M,
       F,
@@ -416,7 +434,8 @@ export default class RedisCluster<
     value: V
   ) {
     const proxy = Object.create(this);
-    proxy._commandOptions = { ...this._commandOptions, [key]: value };
+    proxy._commandOptions = Object.assign( Object.create(
+        this._commandOptions ?? null),{ [key]: value });
     return proxy as RedisClusterType<
       M,
       F,
@@ -447,7 +466,9 @@ export default class RedisCluster<
   ) {
     return async (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>, options?: ClusterCommandOptions) => {
       const chainId = Symbol("asking chain");
-      const opts = options ? {...options} : {};
+      const opts = Object.assign(
+      Object.create(options ?? null),
+      {});
       opts.chainId = chainId;
 
 
@@ -477,8 +498,13 @@ export default class RedisCluster<
 
     while (true) {
       try {
-        const opts: ClusterCommandOptions = { ...options, slotNumber };
-        return await myFn(client, opts);
+        const opts: ClusterCommandOptions =  Object.assign(
+         Object.create(options ?? null),
+          { slotNumber }
+        );
+        const executionClient = Object.create(client);
+        executionClient._commandOptions = opts;
+        return await myFn(executionClient, opts);
       } catch (_err) {
         const err = _err as Error;
         myFn = fn;
@@ -551,10 +577,10 @@ export default class RedisCluster<
   ): Promise<T> {
 
     // Merge global options with local options
-    const opts = {
-      ...this._commandOptions,
-      ...options
-    }
+    const opts = options ?
+      Object.assign(Object.create(this._commandOptions ?? null),
+    options):(this._commandOptions ?? {});
+
     return this._self._execute(
       firstKey,
       isReadonly,

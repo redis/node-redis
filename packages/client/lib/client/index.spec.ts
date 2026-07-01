@@ -864,6 +864,52 @@ describe('Client', () => {
       }
     }
   });
+  
+  testUtils.testWithClient('proxies respect RedisClient command options', async client => {
+
+    const TIMEOUT = 1234;
+    (client as any)._commandOptions = { timeout: TIMEOUT };
+
+    const bufferProxy = client.withCommandOptions({
+      typeMapping: { [RESP_TYPES.BLOB_STRING]: Buffer }
+    });
+
+    const stringReply = await client.module.echo('hi');
+    const bufferReply = await bufferProxy.module.echo('hi');
+
+
+    assert.ok((bufferReply as unknown) instanceof Buffer, 'Proxy failed to return Buffer.');
+    assert.strictEqual(typeof stringReply, 'string', 'Original client was corrupted.');
+    assert.equal(bufferReply.toString(), stringReply);
+
+    const proxyOptions = (bufferProxy.module as any)._commandOptions;
+    assert.equal(proxyOptions.timeout, TIMEOUT, 'Inherited options (timeout) were lost in the proxy chain.')
+
+    assert.ok(!Object.prototype.hasOwnProperty.call(proxyOptions, 'timeout'), 'Timeout should be inherited, not copied.');
+
+    const duplicate = bufferProxy.duplicate();
+
+    const duplicateOptions = (duplicate as any)._commandOptions;
+      
+    assert.equal(
+      duplicateOptions.timeout,
+      TIMEOUT,
+      'duplicate() lost inherited timeout.'
+    );
+    
+    assert.deepEqual(
+  duplicateOptions.typeMapping,
+  { [RESP_TYPES.BLOB_STRING]: Buffer },
+  'duplicate() lost typeMapping.'
+);
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    clientOptions: {
+      modules: {
+        module
+      }
+    }
+  })
 
   testUtils.testWithClient('duplicate should reuse command options', async client => {
     const duplicate = client.duplicate();
