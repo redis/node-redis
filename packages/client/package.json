@@ -11,6 +11,7 @@
   "scripts": {
     "test": "npm run test:types && nyc -r text-summary -r lcov mocha -r tsx --reporter mocha-multi-reporters --reporter-options configFile=mocha-multi-reporter-config.json --exit './lib/**/*.spec.ts'",
     "test:types": "tsc -p tsconfig.types-test.json",
+    "generate:policies": "tsx ./scripts/generate-static-policies-data.ts",
     "release": "release-it"
   },
   "dependencies": {

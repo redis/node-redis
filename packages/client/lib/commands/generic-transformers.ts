@@ -1,4 +1,5 @@
 import { BasicCommandParser, CommandParser } from '../client/parser';
+import { REQUEST_POLICIES_WITH_DEFAULTS, RequestPolicyWithDefaults, RESPONSE_POLICIES_WITH_DEFAULTS, ResponsePolicyWithDefaults } from '../cluster/request-response-policies';
 import { RESP_TYPES } from '../RESP/decoder';
 import { UnwrapReply, ArrayReply, BlobStringReply, BooleanReply, CommandArguments, DoubleReply, NullReply, NumberReply, RedisArgument, ReplyUnion, TuplesReply, MapReply, TypeMapping, Command } from '../RESP/types';
 
@@ -342,8 +343,22 @@ export type CommandRawReply = [
   firstKeyIndex: number,
   lastKeyIndex: number,
   step: number,
-  categories: Array<CommandCategories>
+  categories: Array<CommandCategories>,
+  tips: Array<string>,
+  keySpecifications: Array<unknown>,
+  subcommands: Array<CommandRawReply>
 ];
+
+export type KeySpec = {
+  beginSearch:
+    | { type: 'index'; index: number }
+    | { type: 'keyword'; keyword: string; startFrom: number }
+    | { type: 'unknown' };
+  findKeys:
+    | { type: 'range'; lastKey: number; keyStep: number; limit: number }
+    | { type: 'keynum'; keyNumIdx: number; firstKey: number; keyStep: number }
+    | { type: 'unknown' };
+};
 
 export type CommandReply = {
   name: string,
@@ -352,13 +367,132 @@ export type CommandReply = {
   firstKeyIndex: number,
   lastKeyIndex: number,
   step: number,
-  categories: Set<CommandCategories>
+  categories: Set<CommandCategories>,
+  policies: { request: RequestPolicyWithDefaults | undefined, response: ResponsePolicyWithDefaults | undefined }
+  isKeyless: boolean,
+  keySpecs: Array<KeySpec>,
+  subcommands: Array<CommandReply>
 };
+
+/**
+ * Normalizes one map-shaped level of a key specification to the RESP3 object
+ * shape. RESP3 already delivers objects; RESP2 delivers the same data as flat
+ * `[field, value, ...]` pair arrays.
+ */
+function normalizeKeySpecMap(raw: unknown): Record<string, unknown> | undefined {
+  if (raw === null || typeof raw !== 'object') return undefined;
+
+  if (!Array.isArray(raw)) return raw as Record<string, unknown>;
+
+  if (raw.length % 2 !== 0) return undefined;
+
+  const normalized: Record<string, unknown> = {};
+  for (let i = 0; i < raw.length; i += 2) {
+    const field = raw[i];
+    if (typeof field !== 'string') return undefined;
+    normalized[field] = raw[i + 1];
+  }
+  return normalized;
+}
+
+function transformNumber(raw: unknown): number | undefined {
+  const value = Number(raw);
+  return Number.isInteger(value) ? value : undefined;
+}
+
+const UNKNOWN_KEY_SPEC_PART = { type: 'unknown' } as const;
+
+function transformBeginSearch(raw: unknown): KeySpec['beginSearch'] {
+  const beginSearch = normalizeKeySpecMap(raw);
+  const spec = normalizeKeySpecMap(beginSearch?.spec);
+  if (!beginSearch || !spec) return UNKNOWN_KEY_SPEC_PART;
+
+  switch (beginSearch.type) {
+    case 'index': {
+      const index = transformNumber(spec.index);
+      if (index !== undefined) return { type: 'index', index };
+      break;
+    }
+    case 'keyword': {
+      const startFrom = transformNumber(spec.startfrom);
+      if (typeof spec.keyword === 'string' && startFrom !== undefined) {
+        return { type: 'keyword', keyword: spec.keyword, startFrom };
+      }
+      break;
+    }
+  }
+  return UNKNOWN_KEY_SPEC_PART;
+}
+
+function transformFindKeys(raw: unknown): KeySpec['findKeys'] {
+  const findKeys = normalizeKeySpecMap(raw);
+  const spec = normalizeKeySpecMap(findKeys?.spec);
+  if (!findKeys || !spec) return UNKNOWN_KEY_SPEC_PART;
+
+  switch (findKeys.type) {
+    case 'range': {
+      const lastKey = transformNumber(spec.lastkey),
+        keyStep = transformNumber(spec.keystep),
+        limit = transformNumber(spec.limit);
+      if (lastKey !== undefined && keyStep !== undefined && limit !== undefined) {
+        return { type: 'range', lastKey, keyStep, limit };
+      }
+      break;
+    }
+    case 'keynum': {
+      const keyNumIdx = transformNumber(spec.keynumidx),
+        firstKey = transformNumber(spec.firstkey),
+        keyStep = transformNumber(spec.keystep);
+      if (keyNumIdx !== undefined && firstKey !== undefined && keyStep !== undefined) {
+        return { type: 'keynum', keyNumIdx, firstKey, keyStep };
+      }
+      break;
+    }
+  }
+  return UNKNOWN_KEY_SPEC_PART;
+}
+
+/**
+ * Parses one COMMAND key-specification entry. Unrecognized or malformed
+ * shapes parse to `{ type: 'unknown' }` parts instead of throwing — consumers
+ * (e.g. the multi_shard splitter) decide whether unknown is acceptable.
+ */
+export function transformKeySpec(raw: unknown): KeySpec {
+  const entry = normalizeKeySpecMap(raw);
+  return {
+    beginSearch: transformBeginSearch(entry?.begin_search),
+    findKeys: transformFindKeys(entry?.find_keys)
+  };
+}
 
 export function transformCommandReply(
   this: void,
-  [name, arity, flags, firstKeyIndex, lastKeyIndex, step, categories]: CommandRawReply
+  [name, arity, flags, firstKeyIndex, lastKeyIndex, step, categories, tips, keySpecifications, subcommandsReply]: CommandRawReply
 ): CommandReply {
+
+
+  // Tips are free-form hints with no ordering guarantee — commands like INFO
+  // declare 'nondeterministic_output' before their policy tips, so scan the
+  // whole array instead of relying on positions.
+  let requestPolicy: RequestPolicyWithDefaults | undefined;
+  let responsePolicy: ResponsePolicyWithDefaults | undefined;
+
+  for (const tip of tips) {
+    if (tip.startsWith('request_policy:')) {
+      const raw = tip.slice('request_policy:'.length);
+      if ((Object.values(REQUEST_POLICIES_WITH_DEFAULTS) as string[]).includes(raw)) {
+        requestPolicy = raw as RequestPolicyWithDefaults;
+      }
+    } else if (tip.startsWith('response_policy:')) {
+      const raw = tip.slice('response_policy:'.length);
+      if ((Object.values(RESPONSE_POLICIES_WITH_DEFAULTS) as string[]).includes(raw)) {
+        responsePolicy = raw as ResponsePolicyWithDefaults;
+      }
+    }
+  }
+
+  const subcommands = subcommandsReply.map(transformCommandReply);
+
   return {
     name,
     arity,
@@ -366,7 +500,14 @@ export function transformCommandReply(
     firstKeyIndex,
     lastKeyIndex,
     step,
-    categories: new Set(categories)
+    categories: new Set(categories),
+    policies: {
+      request: requestPolicy,
+      response: responsePolicy
+    },
+    isKeyless: keySpecifications.length === 0,
+    keySpecs: keySpecifications.map(transformKeySpec),
+    subcommands
   };
 }
 

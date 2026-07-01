@@ -33,11 +33,14 @@ export function prefixKeys(keyPrefix: RedisArgument | undefined, keys: RedisVari
     : [prefixKey(keyPrefix, keys)];
 }
 
+export type CommandIdentifier = { command: string, subcommand: string | undefined };
+
 export interface CommandParser {
   redisArgs: ReadonlyArray<RedisArgument>;
   keys: ReadonlyArray<RedisArgument>;
   firstKey: RedisArgument | undefined;
   preserve: unknown;
+  commandIdentifier: CommandIdentifier;
 
   push: (...arg: Array<RedisArgument>) => unknown;
   pushVariadic: (vals: RedisVariadicArgument) => unknown;
@@ -90,6 +93,16 @@ export class BasicCommandParser implements CommandParser {
     return tmp.join('_');
   }
 
+  get commandIdentifier(): CommandIdentifier {
+    const rawCommand = this.#redisArgs[0];
+    const rawSubcommand = this.#redisArgs[1];
+    const command = rawCommand instanceof Buffer ? rawCommand.toString() : rawCommand;
+    const subcommand = rawSubcommand === undefined
+      ? undefined
+      : rawSubcommand instanceof Buffer ? rawSubcommand.toString() : rawSubcommand;
+    return { command, subcommand };
+  }
+
   push(...arg: Array<RedisArgument>) {
     this.#redisArgs.push(...arg);
   };
@@ -135,6 +148,17 @@ export class BasicCommandParser implements CommandParser {
 
   pushKey(key: RedisArgument, applyPrefix = true) {
     this.#addKey(key, applyPrefix);
+  }
+
+  /**
+   * Records a routing key whose value is already present in the pushed args,
+   * without appending it again. Used by the raw cluster `sendCommand` path,
+   * where the caller supplies the routing key separately from the full,
+   * already-assembled argument list — so `firstKey` resolves for routing while
+   * `redisArgs` stays an exact copy of the command sent on the wire.
+   */
+  markRoutingKey(key: RedisArgument) {
+    this.#keys.push(key);
   }
 
   pushKeysLength(keys: RedisVariadicArgument) {

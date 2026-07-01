@@ -792,6 +792,23 @@ export default class RedisClusterSlots<
     this.#emit('disconnect');
   }
 
+  /**
+   * All node clients (masters and replicas), connecting lazily — with
+   * `minimizeConnections` nodes have no client until first use, and skipping
+   * them would silently fan commands out to a subset of the cluster.
+   * Excludes dedicated PubSub connections: they cannot run regular commands.
+   */
+  getAllClients(): Promise<Array<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>> {
+    return Promise.all([
+      ...this.masters.map(master => this.nodeClient(master)),
+      ...this.replicas.map(replica => this.nodeClient(replica))
+    ]);
+  }
+
+  getAllMasterClients(): Promise<Array<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>> {
+    return Promise.all(this.masters.map(master => this.nodeClient(master)));
+  }
+
   async getClientAndSlotNumber(
     firstKey: RedisArgument | undefined,
     isReadonly: boolean | undefined
