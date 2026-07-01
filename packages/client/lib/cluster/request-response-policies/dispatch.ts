@@ -109,11 +109,32 @@ export const routeDefaultKeyed: RequestRouter =
   async (slots, parser, isReadonly) =>
     [{ client: (await slots.getClientAndSlotNumber(parser.firstKey, isReadonly)).client }];
 
+/**
+ * Uppercased command key ("RANDOMKEY", "MEMORY STATS") used both to look up a
+ * per-command special handler and to label warnings. `commandIdentifier`
+ * preserves the caller's casing, so normalize before matching.
+ */
+function specialKey(parser: CommandParser): string {
+  const { command, subcommand } = parser.commandIdentifier;
+  const c = command.toUpperCase();
+  return subcommand ? `${c} ${subcommand.toUpperCase()}` : c;
+}
+
+/**
+ * Fallback router for `special` request commands without a dedicated handler.
+ * A `special` request policy means non-trivial routing that no generic rule
+ * captures; we don't know the correct target, so route to a single (random)
+ * node like a keyless command. This keeps the command working instead of
+ * throwing, but the reply reflects only that one node — warn so the gap is
+ * visible. Commands with a real handler never reach this.
+ */
 export const routeSpecial: RequestRouter =
-  async (_slots, parser) => {
-    const { command, subcommand } = parser.commandIdentifier;
-    const label = subcommand ? `${command} ${subcommand}` : command;
-    throw new Error(`Special request policy not implemented for ${label}`);
+  async (slots, parser) => {
+    console.warn(
+      `node-redis: no cluster routing implemented for the "special" request policy of ` +
+      `"${specialKey(parser)}"; routing to a single node. The reply may be incomplete.`
+    );
+    return [{ client: slots.getRandomNode().client! }];
   };
 
 // --- response reducers ---
@@ -151,10 +172,71 @@ export const reduceSum = async <T>(promises: Promise<T>[]): Promise<T> => {
   return aggregateSum(responses) as T;
 };
 
-export const reduceSpecial = async <T>(_promises: Promise<T>[], parser: CommandParser): Promise<T> => {
-  const { command, subcommand } = parser.commandIdentifier;
-  const label = subcommand ? `${command} ${subcommand}` : command;
-  throw new Error(`Special response policy not implemented for ${label}`);
+/**
+ * RANDOMKEY under `all_shards`: each master returns a random key from its own
+ * keyspace (or nil when empty). Return one of the non-nil replies at random so
+ * the result is a valid random key across the whole cluster and never a
+ * false-nil when some shard is empty but others hold keys. All shards empty →
+ * nil.
+ */
+export const reduceRandomKey = async <T>(promises: Promise<T>[]): Promise<T> => {
+  const responses = await Promise.all(promises);
+  const keys = responses.filter(reply => reply != null);
+  if (keys.length === 0) return responses[0];
+  return keys[Math.floor(Math.random() * keys.length)];
+};
+
+/**
+ * Reducer for fan-out diagnostic commands (INFO, ...) whose per-node replies
+ * can't be merged into one meaningful value and whose reply type is a single
+ * node's shape. We still fan out per the `all_shards`/`all_nodes` request tip,
+ * wait for every node to succeed, then return one node's reply. This keeps the
+ * reply type honest (it matches the single-node command type) at the cost of
+ * discarding the other nodes' replies.
+ */
+export const reduceFirstReply = async <T>(promises: Promise<T>[]): Promise<T> => {
+  const responses = await Promise.all(promises);
+  return responses[0];
+};
+
+/**
+ * Per-command reducers for the `special` response policy, keyed by uppercased
+ * command identifier. A `special` response needs command-specific merging that
+ * no generic rule captures. Commands absent here hit `reduceSpecial`'s generic
+ * fallback.
+ */
+export const SPECIAL_RESPONSE_REDUCERS: Record<string, ResponseReducer<unknown>> = {
+  RANDOMKEY: reduceRandomKey,
+  INFO: reduceFirstReply,
+  'MEMORY DOCTOR': reduceFirstReply,
+  'MEMORY MALLOC-STATS': reduceFirstReply,
+  'MEMORY STATS': reduceFirstReply,
+  'FUNCTION STATS': reduceFirstReply,
+  'LATENCY DOCTOR': reduceFirstReply,
+  'LATENCY GRAPH': reduceFirstReply,
+  'LATENCY HISTOGRAM': reduceFirstReply,
+  'LATENCY HISTORY': reduceFirstReply,
+  'LATENCY LATEST': reduceFirstReply
+};
+
+/**
+ * Entry point for the `special` response policy: dispatch to a per-command
+ * reducer if one exists, else fall back to the default-keyless reduction (sole
+ * reply as is, or a merge of a fan-out) so the command works instead of
+ * throwing. Warn on the fallback because the merged shape is unlikely to be
+ * what the command really wants.
+ */
+export const reduceSpecial = async <T>(promises: Promise<T>[], parser: CommandParser): Promise<T> => {
+  const reducer = SPECIAL_RESPONSE_REDUCERS[specialKey(parser)];
+  if (reducer) return reducer(promises, parser) as Promise<T>;
+
+  if (promises.length > 1) {
+    console.warn(
+      `node-redis: no cluster aggregation implemented for the "special" response policy of ` +
+      `"${specialKey(parser)}"; merging replies from ${promises.length} nodes. The result shape may be wrong.`
+    );
+  }
+  return reduceDefaultKeyless(promises);
 };
 
 export const reduceDefaultKeyless = async <T>(promises: Promise<T>[]): Promise<T> => {
