@@ -28,6 +28,15 @@ export const GLOBAL = {
           ft: RediSearch
         }
       }
+    },
+    OPEN_UNSTABLE: {
+      serverArguments: ['--search-enable-unstable-features', 'yes'],
+      clientOptions: {
+        RESP: 3 as const,
+        modules: {
+          ft: RediSearch
+        }
+      }
     }
   }
 };
