@@ -108,7 +108,7 @@ export default class RedisClientMultiCommand<REPLIES = []> {
     const transformReply = getTransformReply(command, resp);
 
     return function (this: RedisClientMultiCommand, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this.#keyPrefix);
       command.parseCommand(parser, ...args);
 
       const redisArgs: CommandArguments = parser.redisArgs;
@@ -125,7 +125,7 @@ export default class RedisClientMultiCommand<REPLIES = []> {
     const transformReply = getTransformReply(command, resp);
 
     return function (this: { _self: RedisClientMultiCommand }, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this._self.#keyPrefix);
       command.parseCommand(parser, ...args);
 
       const redisArgs: CommandArguments = parser.redisArgs;
@@ -143,7 +143,7 @@ export default class RedisClientMultiCommand<REPLIES = []> {
     const transformReply = getTransformReply(fn, resp);
 
     return function (this: { _self: RedisClientMultiCommand }, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this._self.#keyPrefix);
       parser.push(...prefix);
       fn.parseCommand(parser, ...args);
 
@@ -161,7 +161,7 @@ export default class RedisClientMultiCommand<REPLIES = []> {
     const transformReply = getTransformReply(script, resp);
 
     return function (this: RedisClientMultiCommand, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this.#keyPrefix);
       script.parseCommand(parser, ...args);
 
       const redisArgs: CommandArguments = parser.redisArgs;
@@ -195,13 +195,15 @@ export default class RedisClientMultiCommand<REPLIES = []> {
   readonly #multi: RedisMultiCommand
   readonly #executeMulti: ExecuteMulti;
   readonly #executePipeline: ExecuteMulti;
+  readonly #keyPrefix?: RedisArgument;
 
   #selectedDB?: number;
 
-  constructor(executeMulti: ExecuteMulti, executePipeline: ExecuteMulti, typeMapping?: TypeMapping) {
+  constructor(executeMulti: ExecuteMulti, executePipeline: ExecuteMulti, typeMapping?: TypeMapping, keyPrefix?: RedisArgument) {
     this.#multi = new RedisMultiCommand(typeMapping);
     this.#executeMulti = executeMulti;
     this.#executePipeline = executePipeline;
+    this.#keyPrefix = keyPrefix;
   }
 
   SELECT(db: number, transformReply?: TransformReply): this {
