@@ -7,6 +7,7 @@ import { RootNodesUnavailableError } from '../errors';
 import { spy } from 'sinon';
 import RedisClient from '../client';
 import { RESP_TYPES } from '../RESP/decoder';
+import calculateSlot from 'cluster-key-slot';
 
 describe('Cluster', () => {
   describe('default commandOptions', () => {
@@ -257,6 +258,25 @@ describe('Cluster', () => {
       minimizeConnections: undefined // reset to default
     }
   });
+
+  testUtils.testWithCluster('getNodeClientForKey returns the slot master and supports WATCH/MULTI/EXEC', async cluster => {
+    const key = 'key';
+    const nodeClient = await cluster.getNodeClientForKey(key);
+    assert.ok(nodeClient instanceof RedisClient);
+    assert.equal(nodeClient, cluster.slots[calculateSlot(key)].master.client);
+
+    await nodeClient.watch(key);
+    const reply = await nodeClient.multi()
+      .set(key, 'value')
+      .exec();
+    assert.deepEqual(reply, ['OK']);
+  }, GLOBAL.CLUSTERS.OPEN);
+
+  testUtils.testWithCluster('getNodeClientForKey with isReadonly returns a node from the slot', async cluster => {
+    const key = 'key';
+    const nodeClient = await cluster.getNodeClientForKey(key, true);
+    assert.ok(nodeClient instanceof RedisClient);
+  }, GLOBAL.CLUSTERS.WITH_REPLICAS);
 
   testUtils.testWithCluster('should throw CROSSSLOT error', async cluster => {
     await assert.rejects(cluster.mGet(['a', 'b']));

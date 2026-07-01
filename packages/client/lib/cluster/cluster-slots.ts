@@ -819,6 +819,18 @@ export default class RedisClusterSlots<
     };
   }
 
+  getClientForKey(
+    key: RedisArgument,
+    isReadonly: boolean | undefined
+  ): Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {
+    const slotNumber = calculateSlot(key);
+    if (isReadonly) {
+      return this.nodeClient(this.getSlotRandomNode(slotNumber));
+    }
+
+    return this.nodeClient(this.slots[slotNumber].master);
+  }
+
   *#iterateAllNodes() {
     if(this.masters.length + this.replicas.length === 0) return
     let i = Math.floor(Math.random() * (this.masters.length + this.replicas.length));

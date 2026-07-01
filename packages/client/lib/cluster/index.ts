@@ -750,6 +750,27 @@ export default class RedisCluster<
   }
 
   /**
+   * Returns the connected node client responsible for the given key's slot.
+   * Useful for connection-level operations that the cluster client does not expose
+   * directly, such as `WATCH` followed by `MULTI`/`EXEC`:
+   *
+   * ```javascript
+   * const nodeClient = await cluster.getNodeClientForKey(key);
+   * await nodeClient.WATCH(key);
+   * const value = await nodeClient.GET(key);
+   * const reply = await nodeClient.MULTI()
+   *   .SET(key, calculateNewValue(value))
+   *   .EXEC(); // `null` if `key` changed, retry
+   * ```
+   *
+   * @param key - The key whose slot determines the node.
+   * @param isReadonly - If `true`, may return a replica client; otherwise returns the slot master.
+   */
+  getNodeClientForKey(key: RedisArgument, isReadonly?: boolean) {
+    return this._self._slots.getClientForKey(key, isReadonly);
+  }
+
+  /**
    * @deprecated use `.masters` instead
    * TODO
    */
