@@ -22,6 +22,26 @@ export type NodeAddressMap = {
 
 export const RESUBSCRIBE_LISTENERS_EVENT = '__resubscribeListeners'
 
+/**
+ * Sticky-cursor binding: which node served a RediSearch cursor. FT.CURSOR
+ * READ/DEL carry no key, so hash-slot routing can't reach the coordinator that
+ * minted the cursor — we pin by `address` ("host:port"), the durable handle
+ * (clients are recreated on reconnect/topology refresh, addresses aren't).
+ */
+export interface CursorBinding {
+  address: string;
+  createdAt: number;
+  maxIdleMs?: number;
+}
+
+/**
+ * Fallback idle TTL for the opportunistic cursor-binding sweep when the
+ * FT.AGGREGATE didn't declare MAXIDLE. Mirrors the RediSearch default (300s)
+ * so abandoned cursors don't leak the binding map (timer-free, like
+ * `smigratedSeqIdsSeen`).
+ */
+const DEFAULT_CURSOR_MAX_IDLE_MS = 300_000;
+
 export interface Node<
   M extends RedisModules,
   F extends RedisFunctions,
@@ -121,6 +141,8 @@ export default class RedisClusterSlots<
   pubSubNode?: PubSubNode<M, F, S, RESP, TYPE_MAPPING>;
   clientSideCache?: PooledClientSideCacheProvider;
   smigratedSeqIdsSeen = new Set<number>;
+  /** Per-instance sticky-cursor bindings, keyed `${index}:${cursorId}`. */
+  readonly cursorBindings = new Map<string, CursorBinding>();
   #topologyRefreshPromise?: Promise<boolean | void>;
 
   #isOpen = false;
@@ -946,6 +968,50 @@ export default class RedisClusterSlots<
     if (!master) return;
 
     return this.nodeClient(master);
+  }
+
+  /**
+   * Reverse-resolve a routed client to its node address. FT.AGGREGATE is
+   * keyless, so the plan carries only the client; we need its address to bind
+   * the cursor. Clients are few per cluster, so the linear scan is negligible.
+   */
+  nodeAddressByClient(client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>): string | undefined {
+    for (const [address, node] of this.nodeByAddress) {
+      if (node.client === client) return address;
+    }
+    return undefined;
+  }
+
+  #cursorKey(index: string, cursorId: number) {
+    return `${index}:${cursorId}`;
+  }
+
+  /**
+   * Drop bindings idle past their MAXIDLE (or the default TTL). Opportunistic —
+   * runs on each `bindCursor` so there's no timer to manage (see
+   * `smigratedSeqIdsSeen`). Cheap: the map holds only live cursors.
+   */
+  #sweepStaleCursors(now: number) {
+    for (const [key, binding] of this.cursorBindings) {
+      const ttl = binding.maxIdleMs ?? DEFAULT_CURSOR_MAX_IDLE_MS;
+      if (now - binding.createdAt > ttl) {
+        this.cursorBindings.delete(key);
+      }
+    }
+  }
+
+  bindCursor(index: string, cursorId: number, address: string, maxIdleMs?: number) {
+    const now = Date.now();
+    this.#sweepStaleCursors(now);
+    this.cursorBindings.set(this.#cursorKey(index, cursorId), { address, createdAt: now, maxIdleMs });
+  }
+
+  lookupCursor(index: string, cursorId: number): CursorBinding | undefined {
+    return this.cursorBindings.get(this.#cursorKey(index, cursorId));
+  }
+
+  evictCursor(index: string, cursorId: number) {
+    this.cursorBindings.delete(this.#cursorKey(index, cursorId));
   }
 
   getPubSubClient(): Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {

@@ -20,6 +20,7 @@ import {
   type RequestPolicyWithDefaults,
   type ResponsePolicyWithDefaults
 } from './policies-constants';
+import { SPECIAL_REQUEST_ROUTERS } from './ft-cursor';
 
 // Routing runs *below* the typed command surface: routers never inspect the
 // command's M/F/S/RESP/TM parameters, they just shuffle opaque clients from
@@ -121,15 +122,17 @@ function specialKey(parser: CommandParser): string {
 }
 
 /**
- * Fallback router for `special` request commands without a dedicated handler.
- * A `special` request policy means non-trivial routing that no generic rule
- * captures; we don't know the correct target, so route to a single (random)
- * node like a keyless command. This keeps the command working instead of
- * throwing, but the reply reflects only that one node — warn so the gap is
- * visible. Commands with a real handler never reach this.
+ * Router for the `special` request policy. Commands with a dedicated handler
+ * (e.g. FT.CURSOR sticky routing) short-circuit into `SPECIAL_REQUEST_ROUTERS`
+ * first. Everything else has non-trivial routing no generic rule captures and
+ * no handler yet: route to a single (random) node like a keyless command so it
+ * still works, but warn — the reply reflects only that one node.
  */
 export const routeSpecial: RequestRouter =
-  async (slots, parser) => {
+  async (slots, parser, isReadonly, keySpecs) => {
+    const handler = SPECIAL_REQUEST_ROUTERS[specialKey(parser)];
+    if (handler) return handler(slots, parser, isReadonly, keySpecs);
+
     console.warn(
       `node-redis: no cluster routing implemented for the "special" request policy of ` +
       `"${specialKey(parser)}"; routing to a single node. The reply may be incomplete.`

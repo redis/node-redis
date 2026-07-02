@@ -38,5 +38,17 @@ export const GLOBAL = {
         }
       }
     }
+  },
+  CLUSTERS: {
+    OPEN: {
+      numberOfMasters: 3,
+      serverArguments: [],
+      clusterConfiguration: {
+        RESP: 3 as const,
+        modules: {
+          ft: RediSearch
+        }
+      }
+    }
   }
 };

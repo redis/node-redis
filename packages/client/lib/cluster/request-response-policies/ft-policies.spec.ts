@@ -12,11 +12,10 @@ import {
  * declared"; the client routes by the default rules. They are stored here as
  * `default-keyless` / `default-keyed` to match the resolver vocabulary.
  *
- * `ft.cursor` is mis-labeled `default-keyless` in this table on purpose.
- * The HLD specifies `special` request_policy (sticky cursor), which requires
- * the special-handler registry and cursor binding state. That work is tracked
- * in its own story — once those land, the entry below flips to `special` and
- * an extra cursor-routing test goes with it.
+ * `ft.cursor` carries the HLD `special` request_policy (sticky cursor): READ/DEL
+ * are routed to the node that served the FT.AGGREGATE that minted the cursor
+ * (see `ft-cursor.ts`). Its response stays `default(keyless)` — single-node
+ * pass-through.
  */
 const KEYLESS = {
   request: REQUEST_POLICIES_WITH_DEFAULTS.DEFAULT_KEYLESS,
@@ -30,7 +29,13 @@ const KEYED = {
   isKeyless: false
 } as const;
 
-const HLD_FT_TABLE: Record<string, typeof KEYLESS | typeof KEYED> = {
+const SPECIAL_CURSOR = {
+  request: REQUEST_POLICIES_WITH_DEFAULTS.SPECIAL,
+  response: RESPONSE_POLICIES_WITH_DEFAULTS.DEFAULT_KEYLESS,
+  isKeyless: true
+} as const;
+
+const HLD_FT_TABLE: Record<string, typeof KEYLESS | typeof KEYED | typeof SPECIAL_CURSOR> = {
   'FT.CREATE':       KEYLESS,
   'FT.SEARCH':       KEYLESS,
   'FT.AGGREGATE':    KEYLESS,
@@ -38,7 +43,7 @@ const HLD_FT_TABLE: Record<string, typeof KEYLESS | typeof KEYED> = {
   'FT.DICTDEL':      KEYLESS,
   'FT.DICTDUMP':     KEYLESS,
   'FT.SUGLEN':       KEYED,
-  'FT.CURSOR':       KEYLESS,
+  'FT.CURSOR':       SPECIAL_CURSOR,
   'FT.SUGADD':       KEYED,
   'FT.SUGGET':       KEYED,
   'FT.SUGDEL':       KEYED,
@@ -72,6 +77,17 @@ describe('FT.* policy table matches the HLD', () => {
       }
     });
   }
+
+  it('resolves FT.CURSOR READ/DEL subcommands to the special request policy', () => {
+    for (const subcommand of ['READ', 'DEL']) {
+      const result = resolver.resolvePolicy({ command: 'FT.CURSOR', subcommand });
+      assert.equal(result.ok, true, `expected FT.CURSOR ${subcommand} to resolve`);
+      if (result.ok) {
+        assert.equal(result.value.request, REQUEST_POLICIES_WITH_DEFAULTS.SPECIAL, `FT.CURSOR ${subcommand} request`);
+        assert.equal(result.value.response, RESPONSE_POLICIES_WITH_DEFAULTS.DEFAULT_KEYLESS, `FT.CURSOR ${subcommand} response`);
+      }
+    }
+  });
 
   it('does not expose dropped debug commands (e.g. FT._LIST)', () => {
     const result = resolver.resolvePolicy({ command: 'FT._LIST', subcommand: undefined });

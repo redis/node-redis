@@ -41,14 +41,23 @@ export const EXCLUDED_COMMANDS: ReadonlySet<string> = new Set([
 /**
  * Full-entry replacements, keyed by `module.command`.
  *
- * `ft.cursor` is pinned to plain default-keyless (its `special` request-policy
- * subcommands stripped) until the special-handler registry and cursor binding
- * state land — see the note in ft-policies.spec.ts.
+ * `ft.cursor` is pinned to the HLD `special` request policy (sticky cursor):
+ * FT.CURSOR READ/DEL must reach the node that served the FT.AGGREGATE that
+ * minted the cursor. The client-side sticky machinery lives in
+ * `lib/cluster/request-response-policies/ft-cursor.ts` (router + capture) and
+ * the cursor binding map on `cluster-slots.ts`. The response stays
+ * `default-keyless` (single-node pass-through). Pinned as an override so the
+ * static table is deterministic regardless of what a given server reports for
+ * the container command's subcommands.
  */
 export const COMMAND_OVERRIDES: Readonly<Record<string, CommandPolicies>> = {
   'ft.cursor': {
-    request: 'default-keyless',
+    request: 'special',
     response: 'default-keyless',
-    isKeyless: true
+    isKeyless: true,
+    subcommands: {
+      read: { request: 'special', response: 'default-keyless', isKeyless: true },
+      del: { request: 'special', response: 'default-keyless', isKeyless: true }
+    }
   }
 };

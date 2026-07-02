@@ -35,9 +35,21 @@ export const POLICIES: ModulePolicyRecords = {
       "isKeyless": true
     },
     "cursor": {
-      "request": "default-keyless",
+      "request": "special",
       "response": "default-keyless",
-      "isKeyless": true
+      "isKeyless": true,
+      "subcommands": {
+        "read": {
+          "request": "special",
+          "response": "default-keyless",
+          "isKeyless": true
+        },
+        "del": {
+          "request": "special",
+          "response": "default-keyless",
+          "isKeyless": true
+        }
+      }
     },
     "dictadd": {
       "request": "default-keyless",
