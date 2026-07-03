@@ -12,7 +12,7 @@ export default {
     parser.push('COPY');
     parser.pushKeys([source, destination]);
 
-    if (options?.DB) {
+    if (options?.DB !== undefined) {
       parser.push('DB', options.DB.toString());
     }
 
