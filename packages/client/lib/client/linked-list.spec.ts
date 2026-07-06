@@ -128,6 +128,28 @@ describe("DoublyLinkedList", () => {
     equal(list.length, 3);
     deepEqual(Array.from(list), [1, 3, 5]);
   });
+
+  it("should clear the previous pointer of the new head when removing the head", () => {
+    list.reset();
+    const first = list.push(1);
+    list.push(2);
+    list.remove(first);
+    equal(list.head!.previous, undefined);
+  });
+
+  it("should stay consistent after removing the head and then the tail", () => {
+    list.reset();
+    const first = list.push(1);
+    const second = list.push(2);
+    list.remove(first);
+    list.remove(second);
+    equal(list.length, 0);
+    equal(list.head, undefined);
+    equal(list.tail, undefined);
+    list.push(3);
+    equal(list.length, 1);
+    deepEqual(Array.from(list), [3]);
+  });
 });
 
 describe("SinglyLinkedList", () => {
