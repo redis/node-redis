@@ -40,7 +40,8 @@ export const FT_AGGREGATE_GROUP_BY_REDUCERS = {
   QUANTILE: 'QUANTILE',
   TOLIST: 'TOLIST',
   FIRST_VALUE: 'FIRST_VALUE',
-  RANDOM_SAMPLE: 'RANDOM_SAMPLE'
+  RANDOM_SAMPLE: 'RANDOM_SAMPLE',
+  COLLECT: 'COLLECT'
 } as const;
 
 type FT_AGGREGATE_GROUP_BY_REDUCERS = typeof FT_AGGREGATE_GROUP_BY_REDUCERS;
@@ -89,7 +90,17 @@ interface RandomSampleReducer extends GroupByReducerWithProperty<FT_AGGREGATE_GR
   sampleSize: number;
 }
 
-export type GroupByReducers = CountReducer | CountDistinctReducer | CountDistinctishReducer | SumReducer | MinReducer | MaxReducer | AvgReducer | StdDevReducer | QuantileReducer | ToListReducer | FirstValueReducer | RandomSampleReducer;
+interface CollectReducer extends GroupByReducer<FT_AGGREGATE_GROUP_BY_REDUCERS['COLLECT']> {
+  FIELDS: '*' | RediSearchProperty | Array<RediSearchProperty>;
+  DISTINCT?: boolean;
+  SORTBY?: SortByProperty | Array<SortByProperty>;
+  LIMIT?: {
+    from: number;
+    size: number;
+  };
+}
+
+export type GroupByReducers = CountReducer | CountDistinctReducer | CountDistinctishReducer | SumReducer | MinReducer | MaxReducer | AvgReducer | StdDevReducer | QuantileReducer | ToListReducer | FirstValueReducer | RandomSampleReducer | CollectReducer;
 
 interface GroupByStep extends AggregateStep<FT_AGGREGATE_STEPS['GROUPBY']> {
   properties?: RediSearchProperty | Array<RediSearchProperty>;
@@ -365,6 +376,39 @@ export function parseGroupByReducer(parser: CommandParser, reducer: GroupByReduc
     case FT_AGGREGATE_GROUP_BY_REDUCERS.RANDOM_SAMPLE:
       parser.push('2', reducer.property, reducer.sampleSize.toString());
       break;
+
+    case FT_AGGREGATE_GROUP_BY_REDUCERS.COLLECT: {
+      const args: Array<RedisArgument> = ['FIELDS'];
+
+      // Wildcard is a bare token (`FIELDS *`); an explicit list is count-prefixed
+      // (`FIELDS <num> field ...`).
+      if (reducer.FIELDS === '*') {
+        args.push('*');
+      } else {
+        const fields = Array.isArray(reducer.FIELDS) ? reducer.FIELDS : [reducer.FIELDS];
+        args.push(fields.length.toString(), ...fields);
+      }
+
+      if (reducer.DISTINCT) {
+        args.push('DISTINCT');
+      }
+
+      if (reducer.SORTBY) {
+        const sortBys = Array.isArray(reducer.SORTBY) ? reducer.SORTBY : [reducer.SORTBY];
+        const sortArgs: Array<RedisArgument> = [];
+        for (const sortBy of sortBys) {
+          pushSortByProperty(sortArgs, sortBy);
+        }
+        args.push('SORTBY', sortArgs.length.toString(), ...sortArgs);
+      }
+
+      if (reducer.LIMIT) {
+        args.push('LIMIT', reducer.LIMIT.from.toString(), reducer.LIMIT.size.toString());
+      }
+
+      parser.pushVariadicWithLength(args);
+      break;
+    }
   }
 
   if (reducer.AS) {
