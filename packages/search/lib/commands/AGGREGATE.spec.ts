@@ -791,5 +791,38 @@ describe('AGGREGATE', () => {
       assert.ok('top_movies' in group);
       assert.ok(Array.isArray((group as Record<string, unknown>).top_movies));
     }
-  }, { ...GLOBAL.SERVERS.OPEN_UNSTABLE, minimumDockerVersion: [8, 8] });
+  }, { ...GLOBAL.SERVERS.OPEN_UNSTABLE, minimumDockerVersion: [8, 10] });
+
+  testUtils.testWithClient('client.ft.aggregate with COLLECT DISTINCT reducer', async client => {
+    await client.ft.create('index', {
+      genre: 'TAG',
+      rating: 'NUMERIC'
+    });
+    // Two action movies share rating 8 - DISTINCT collapses the duplicate.
+    await client.hSet('movie:1', { genre: 'action', rating: '8' });
+    await client.hSet('movie:2', { genre: 'action', rating: '8' });
+    await client.hSet('movie:3', { genre: 'action', rating: '9' });
+
+    const reply = await client.ft.aggregate('index', '@genre:{action}', {
+      LOAD: '*',
+      STEPS: [{
+        type: 'GROUPBY',
+        properties: '@genre',
+        REDUCE: {
+          type: 'COLLECT',
+          FIELDS: '@rating',
+          DISTINCT: true,
+          AS: 'ratings'
+        }
+      }]
+    });
+
+    assert.ok(reply !== null && typeof reply === 'object');
+    assert.ok(Array.isArray(reply.results));
+    assert.strictEqual(reply.results.length, 1);
+    const collected = (reply.results[0] as Record<string, unknown>).ratings;
+    assert.ok(Array.isArray(collected));
+    // Three docs, two duplicate ratings - DISTINCT yields two entries.
+    assert.strictEqual(collected.length, 2);
+  }, { ...GLOBAL.SERVERS.OPEN_UNSTABLE, minimumDockerVersion: [8, 10] });
 });
