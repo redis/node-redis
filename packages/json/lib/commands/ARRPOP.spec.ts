@@ -73,7 +73,8 @@ describe('JSON.ARRPOP', () => {
         })
       ]);
 
-      assert(typeof res === 'object' && res !== null && 'birthday' in res && res.birthday instanceof Date && res.birthday.getTime() === new Date('1998-02-12').getTime());
+      const [item] = (res as any[]);
+      assert(typeof item === 'object' && item !== null && 'birthday' in item && item.birthday instanceof Date && item.birthday.getTime() === new Date('1998-02-12').getTime());
     }, GLOBAL.SERVERS.OPEN);
   });
 });
