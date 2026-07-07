@@ -6,15 +6,20 @@ on:
       - master
       - v4.0
 
+permissions:
+  contents: read
+
 jobs:
   documentation:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write   # required to push generated docs to gh-pages
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 1
       - name: Use Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v6
       - name: Install Packages
         run: npm ci
       - name: Build Packages

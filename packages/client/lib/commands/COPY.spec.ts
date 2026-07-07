@@ -23,6 +23,15 @@ describe('COPY', () => {
       );
     });
 
+    it('with destination DB flag set to 0', () => {
+      assert.deepEqual(
+        parseArgs(COPY, 'source', 'destination', {
+          DB: 0
+        }),
+        ['COPY', 'source', 'destination', 'DB', '0']
+      );
+    });
+
     it('with replace flag', () => {
       assert.deepEqual(
         parseArgs(COPY, 'source', 'destination', {

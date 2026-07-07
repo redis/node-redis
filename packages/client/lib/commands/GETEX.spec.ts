@@ -55,6 +55,17 @@ describe('GETEX', () => {
           ['GETEX', 'key', 'EXAT', Math.floor(d.getTime() / 1000).toString()]
         );
       });
+
+      it('PXAT date', () => {
+        const d = new Date();
+        assert.deepEqual(
+          parseArgs(GETEX, 'key', {
+            type: 'PXAT',
+            value: d
+          }),
+          ['GETEX', 'key', 'PXAT', d.getTime().toString()]
+        );
+      });
     });
 
     describe('EXAT (backwards compatibility)', () => {

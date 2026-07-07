@@ -1,5 +1,10 @@
 # v5 to v6 migration guide
 
+## Node.js minimum version
+
+v6 requires Node.js `>= 20.0.0` (v5 required `>= 18.19.0`). The bump came in with `@azure/msal-node` 5.x, which the `entraid` package upgraded to in order to drop a vulnerable transitive `uuid` (CVE-2026-41907); msal-node 5.x itself requires Node 20. Node 18 is no longer tested in CI, and `npm install` will reject the install on Node 18.
+
+
 ## RESP3 is now the default protocol
 
 In v5, Node-Redis defaulted to `RESP: 2` unless you explicitly configured `RESP: 3`.
@@ -85,6 +90,51 @@ const client = createClient({ maintNotifications: "disabled" });
 
 // Or pin RESP2 and inherit the disabled default
 const client = createClient({ RESP: 2 });
+```
+
+
+## Sentinel: `commandOptions` moved off `nodeClientOptions` / `sentinelClientOptions`
+
+In v5, `createSentinel` accepted `commandOptions` on both the top-level options *and* on `nodeClientOptions` / `sentinelClientOptions`. The wrapper-level value silently overrode the per-node value at dispatch time, so the nested location never actually controlled command behavior. In v6, `commandOptions` is removed from `nodeClientOptions` and `sentinelClientOptions` at the type level — set it on the top-level sentinel options instead.
+
+```javascript
+// v5 — silently ignored
+const sentinel = createSentinel({
+  name: 'mymaster',
+  sentinelRootNodes: [...],
+  nodeClientOptions: { commandOptions: { timeout: 1000 } }
+});
+
+// v6
+const sentinel = createSentinel({
+  name: 'mymaster',
+  sentinelRootNodes: [...],
+  commandOptions: { timeout: 1000 }
+});
+```
+
+
+## Default socket and command options updated
+
+Two client defaults change in v6:
+
+| Option | v5 default | v6 default |
+|---|---|---|
+| `socket.keepAliveInitialDelay` | `5000` ms | `30000` ms |
+| `commandOptions.timeout` | `undefined` (no timeout) | `5000` ms |
+
+```javascript
+// Still gets timeout: 5000
+const client = createClient({ commandOptions: { asap: true } });
+```
+
+To preserve v5 behavior, opt out explicitly:
+
+```javascript
+const client = createClient({
+  socket: { keepAliveInitialDelay: 5000 },
+  commandOptions: { timeout: undefined }
+});
 ```
 
 

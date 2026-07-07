@@ -2,7 +2,7 @@ import { NON_STICKY_COMMANDS } from '../commands';
 import RedisMultiCommand, { MULTI_REPLY, MultiReply, MultiReplyType, RedisMultiQueuedCommand } from '../multi-command';
 import { ReplyWithTypeMapping, CommandReply, Command, CommandArguments, CommanderConfig, RedisFunctions, RedisModules, RedisScripts, RespVersions, TransformReply, RedisScript, RedisFunction, TypeMapping, RedisArgument } from '../RESP/types';
 import { attachConfig, functionArgumentsPrefix, getTransformReply } from '../commander';
-import { BasicCommandParser } from '../client/parser';
+import { BasicCommandParser, prefixKey } from '../client/parser';
 import { Tail } from '../commands/generic-transformers';
 
 type CommandSignature<
@@ -97,7 +97,7 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
     const transformReply = getTransformReply(command, resp);
 
     return function (this: RedisClusterMultiCommand, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this.#keyPrefix);
       command.parseCommand(parser, ...args);
 
       const redisArgs: CommandArguments = parser.redisArgs;
@@ -117,7 +117,7 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
     const transformReply = getTransformReply(command, resp);
 
     return function (this: { _self: RedisClusterMultiCommand }, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this._self.#keyPrefix);
       command.parseCommand(parser, ...args);
 
       const redisArgs: CommandArguments = parser.redisArgs;
@@ -138,7 +138,7 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
     const transformReply = getTransformReply(fn, resp);
 
     return function (this: { _self: RedisClusterMultiCommand }, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this._self.#keyPrefix);
       parser.push(...prefix);
       fn.parseCommand(parser, ...args);
 
@@ -159,7 +159,7 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
     const transformReply = getTransformReply(script, resp);
 
     return function (this: RedisClusterMultiCommand, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this.#keyPrefix);
       script.parseCommand(parser, ...args);
 
       const scriptArgs: CommandArguments = parser.redisArgs;
@@ -199,17 +199,22 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
   readonly #executePipeline: ClusterMultiExecute;
   #firstKey: RedisArgument | undefined;
   #isReadonly: boolean | undefined = true;
+  readonly #keyPrefix?: RedisArgument;
 
   constructor(
     executeMulti: ClusterMultiExecute,
     executePipeline: ClusterMultiExecute,
     routing: RedisArgument | undefined,
-    typeMapping?: TypeMapping
+    typeMapping?: TypeMapping,
+    keyPrefix?: RedisArgument
   ) {
     this.#multi = new RedisMultiCommand(typeMapping);
     this.#executeMulti = executeMulti;
     this.#executePipeline = executePipeline;
-    this.#firstKey = routing;
+    // An explicit routing key must be prefixed too, so it hashes to the same slot as the
+    // (prefixed) keys the commands inside the transaction operate on.
+    this.#firstKey = routing === undefined ? undefined : prefixKey(keyPrefix, routing);
+    this.#keyPrefix = keyPrefix;
   }
 
   #setState(

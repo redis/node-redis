@@ -15,15 +15,16 @@ import HELLO, { HelloOptions } from '../commands/HELLO';
 import { ScanOptions, ScanCommonOptions } from '../commands/SCAN';
 import { RedisLegacyClient, RedisLegacyClientType } from './legacy-mode';
 import { RedisPoolOptions, RedisClientPool } from './pool';
-import { RedisVariadicArgument, parseArgs, pushVariadicArguments } from '../commands/generic-transformers';
+import { RedisVariadicArgument, parseArgs } from '../commands/generic-transformers';
 import { BasicClientSideCache, ClientSideCacheConfig, ClientSideCacheProvider } from './cache';
-import { BasicCommandParser, CommandParser } from './parser';
+import { BasicCommandParser, CommandParser, prefixKeys } from './parser';
 import SingleEntryCache from '../single-entry-cache';
 import { version } from '../../package.json'
 import EnterpriseMaintenanceManager, { MaintenanceUpdate, MovingEndpointType, SMIGRATED_EVENT, SMigratedEvent } from './enterprise-maintenance-manager';
 import { ClientMetricsHandle, ClientRegistry } from '../opentelemetry';
 import { ClientIdentity, ClientRole, generateClientId } from './identity';
 import { trace, sanitizeArgs, publish, CHANNELS, type CommandTraceContext } from './tracing';
+import { DEFAULT_COMMAND_TIMEOUT } from '../defaults';
 
 const noop = () => {};
 
@@ -31,7 +32,7 @@ export interface RedisClientOptions<
   M extends RedisModules = RedisModules,
   F extends RedisFunctions = RedisFunctions,
   S extends RedisScripts = RedisScripts,
-  RESP extends RespVersions = RespVersions,
+  RESP extends RespVersions = 3,
   TYPE_MAPPING extends TypeMapping = TypeMapping,
   SocketOptions extends RedisSocketOptions = RedisSocketOptions
 > extends CommanderConfig<M, F, S, RESP> {
@@ -67,6 +68,24 @@ export interface RedisClientOptions<
    * Redis database number (see [`SELECT`](https://redis.io/commands/select) command)
    */
   database?: number;
+  /**
+   * Prefix prepended to every key sent to Redis (ioredis-compatible `keyPrefix`).
+   *
+   * Useful for isolating keyspaces — for example per-test isolation in CI, or
+   * separating an application's components (web app vs. background workers) within a
+   * single Redis instance.
+   *
+   * Matches ioredis semantics: only keys *sent* to Redis are prefixed. Keys *returned*
+   * by Redis (e.g. `KEYS`, `SCAN`, `RANDOMKEY`) are NOT un-prefixed, `SCAN`/`KEYS`
+   * `MATCH` patterns are NOT auto-prefixed, and Pub/Sub channels are NOT prefixed.
+   *
+   * @example
+   * ```
+   * const client = createClient({ keyPrefix: 'app:' });
+   * await client.set('key', 'value'); // stored as 'app:key'
+   * ```
+   */
+  keyPrefix?: RedisArgument;
   /**
    * Maximum length of the client's internal command queue
    */
@@ -196,6 +215,20 @@ export interface RedisClientOptions<
   maintRelaxedSocketTimeout?: number;
 };
 
+/**
+ * `RedisClientOptions` widened to accept any RESP version / module / function /
+ * script / type-mapping combination. Use when an internal callsite must accept
+ * any `RedisClientOptions` shape regardless of the public default (e.g. parsed
+ * URLs, sentinel node options, maintenance manager).
+ */
+export type AnyRedisClientOptions = RedisClientOptions<
+  RedisModules,
+  RedisFunctions,
+  RedisScripts,
+  RespVersions,
+  TypeMapping
+>;
+
 export type WithCommands<
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping
@@ -259,7 +292,7 @@ type ProxyClient = RedisClient<RedisModules, RedisFunctions, RedisScripts, RespV
 
 type NamespaceProxyClient = { _self: ProxyClient };
 
-interface ScanIteratorOptions {
+export interface ScanIteratorOptions {
   cursor?: RedisArgument;
 }
 
@@ -276,7 +309,7 @@ export default class RedisClient<
     const transformReply = getTransformReply(command, resp);
 
     return async function (this: ProxyClient, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this._self._keyPrefix);
       command.parseCommand(parser, ...args);
 
       return this._self._executeCommand(command, parser, this._commandOptions, transformReply);
@@ -287,7 +320,7 @@ export default class RedisClient<
     const transformReply = getTransformReply(command, resp);
 
     return async function (this: NamespaceProxyClient, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this._self._keyPrefix);
       command.parseCommand(parser, ...args);
 
       return this._self._executeCommand(command, parser, this._self._commandOptions, transformReply);
@@ -299,7 +332,7 @@ export default class RedisClient<
     const transformReply = getTransformReply(fn, resp);
 
     return async function (this: NamespaceProxyClient, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this._self._keyPrefix);
       parser.push(...prefix);
       fn.parseCommand(parser, ...args);
 
@@ -312,7 +345,7 @@ export default class RedisClient<
     const transformReply = getTransformReply(script, resp);
 
     return async function (this: ProxyClient, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this._self._keyPrefix);
       parser.push(...prefix);
       script.parseCommand(parser, ...args)
 
@@ -366,7 +399,7 @@ export default class RedisClient<
     return RedisClient.factory(options)(options);
   }
 
-  static parseOptions<O extends RedisClientOptions>(options: O): O {
+  static parseOptions<O extends AnyRedisClientOptions>(options: O): O {
     if (options?.url) {
       const parsed = RedisClient.parseURL(options.url);
       if (options.socket) {
@@ -381,8 +414,8 @@ export default class RedisClient<
     return options;
   }
 
-  static parseURL(url: string): RedisClientOptions & {
-    socket: Exclude<RedisClientOptions['socket'], undefined> & {
+  static parseURL(url: string): AnyRedisClientOptions & {
+    socket: Exclude<AnyRedisClientOptions['socket'], undefined> & {
       tls: boolean
     }
   } {
@@ -394,8 +427,8 @@ export default class RedisClient<
 
     // https://www.iana.org/assignments/uri-schemes/prov/redis
     const { hostname, port, protocol, username, password, pathname } = new URL(url),
-      parsed: RedisClientOptions & {
-        socket: Exclude<RedisClientOptions['socket'], undefined> & {
+      parsed: AnyRedisClientOptions & {
+        socket: Exclude<AnyRedisClientOptions['socket'], undefined> & {
           tls: boolean
         }
       } = {
@@ -447,8 +480,8 @@ export default class RedisClient<
     return parsed;
   }
 
-  static #parseUnixURL(url: string): RedisClientOptions & {
-    socket: Exclude<RedisClientOptions['socket'], undefined> & {
+  static #parseUnixURL(url: string): AnyRedisClientOptions & {
+    socket: Exclude<AnyRedisClientOptions['socket'], undefined> & {
       tls: boolean
     }
   } {
@@ -459,8 +492,8 @@ export default class RedisClient<
     }
 
     const [, username, password, rawPath, rawQuery] = match,
-      parsed: RedisClientOptions & {
-        socket: Exclude<RedisClientOptions['socket'], undefined> & {
+      parsed: AnyRedisClientOptions & {
+        socket: Exclude<AnyRedisClientOptions['socket'], undefined> & {
           tls: boolean
         }
       } = {
@@ -531,6 +564,14 @@ export default class RedisClient<
 
   get options(): RedisClientOptions<M, F, S, RESP> {
     return this._self.#options;
+  }
+
+  /**
+   * The configured key prefix (see {@link RedisClientOptions.keyPrefix}), if any.
+   * @internal
+   */
+  get _keyPrefix(): RedisArgument | undefined {
+    return this._self.#options.keyPrefix;
   }
 
   /**
@@ -726,9 +767,7 @@ export default class RedisClient<
       this._self.#selectedDB = options.database;
     }
 
-    if (options.commandOptions) {
-      this._commandOptions = options.commandOptions;
-    }
+    this._commandOptions = { timeout: DEFAULT_COMMAND_TIMEOUT, ...options.commandOptions };
 
     if(options.maintNotifications !== 'disabled') {
       EnterpriseMaintenanceManager.setupDefaultMaintOptions(options);
@@ -1025,7 +1064,7 @@ export default class RedisClient<
     TYPE_MAPPING extends TypeMapping
   >(options: OPTIONS) {
     const proxy = Object.create(this._self);
-    proxy._commandOptions = options;
+    proxy._commandOptions = { ...this._commandOptions, ...options };
     return proxy as RedisClientType<
       M,
       F,
@@ -1043,8 +1082,7 @@ export default class RedisClient<
     value: V
   ) {
     const proxy = Object.create(this._self);
-    proxy._commandOptions = Object.create(this._commandOptions ?? null);
-    proxy._commandOptions[key] = value;
+    proxy._commandOptions = { ...this._commandOptions, [key]: value };
     return proxy as RedisClientType<
       M,
       F,
@@ -1250,7 +1288,7 @@ export default class RedisClient<
 
         // Merge global options with provided options
         const opts = {
-          ...this._self._commandOptions,
+          ...this._commandOptions,
           ...options,
         };
 
@@ -1400,8 +1438,12 @@ export default class RedisClient<
   sUnsubscribe = this.SUNSUBSCRIBE;
 
   async WATCH(key: RedisVariadicArgument) {
+    // WATCH builds its arguments outside of the command parser, so the configured
+    // `keyPrefix` must be applied here too — otherwise WATCH would guard the unprefixed
+    // key while the transaction operates on the prefixed one, silently breaking the
+    // optimistic lock.
     const reply = await this._self.sendCommand(
-      pushVariadicArguments(['WATCH'], key)
+      ['WATCH', ...prefixKeys(this._self._keyPrefix, key)]
     );
     this._self.#watchEpoch ??= this._self.socketEpoch;
     return reply as unknown as ReplyWithTypeMapping<SimpleStringReply<'OK'>, TYPE_MAPPING>;
@@ -1594,12 +1636,32 @@ export default class RedisClient<
     return new ((this as unknown as { Multi: Multi }).Multi)(
       this._executeMulti.bind(this),
       this._executePipeline.bind(this),
-      this._commandOptions?.typeMapping
+      this._commandOptions?.typeMapping,
+      this._self._keyPrefix
     );
   }
 
   multi = this.MULTI;
 
+  /**
+   * Async iterator over the keyspace, issuing paged `SCAN` calls and yielding one array
+   * of keys per page until the cursor returns to `0`.
+   *
+   * @remarks
+   * With a configured {@link RedisClientOptions.keyPrefix}, the yielded keys are the
+   * **already-prefixed** keys as stored on the server — replies are never un-prefixed.
+   * Passing them straight back into a key-prefixed command prefixes them a second time
+   * (e.g. with `keyPrefix: 'app:'`, a yielded `'app:foo'` becomes `'app:app:foo'`):
+   *
+   * ```js
+   * for await (const keys of client.scanIterator()) {
+   *   await client.mGet(keys); // ⚠️ double-prefixes -> reads 'app:app:foo'
+   * }
+   * ```
+   *
+   * Strip the prefix before reusing the keys, or read them with a client that has no
+   * `keyPrefix`.
+   */
   async* scanIterator(
     this: RedisClientType<M, F, S, RESP, TYPE_MAPPING>,
     options?: ScanOptions & ScanIteratorOptions

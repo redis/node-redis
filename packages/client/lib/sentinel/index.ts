@@ -1,11 +1,12 @@
 import { EventEmitter } from 'node:events';
-import { CommandArguments, RedisFunctions, RedisModules, RedisScripts, ReplyUnion, RespVersions, TypeMapping, DEFAULT_RESP } from '../RESP/types';
-import RedisClient, { RedisClientOptions, RedisClientType } from '../client';
+import { CommandArguments, RedisArgument, RedisFunctions, RedisModules, RedisScripts, ReplyUnion, RespVersions, TypeMapping, DEFAULT_RESP } from '../RESP/types';
+import { ScanIteratorInterruptedError } from '../errors';
+import RedisClient, { AnyRedisClientOptions, RedisClientOptions, RedisClientType, ScanIteratorOptions } from '../client';
 import { CommandOptions } from '../client/commands-queue';
 import { attachConfig } from '../commander';
 import { NON_STICKY_COMMANDS } from '../commands';
 import { ClientErrorEvent, NamespaceProxySentinel, NamespaceProxySentinelClient, NodeAddressMap, ProxySentinel, ProxySentinelClient, RedisNode, RedisSentinelClientType, RedisSentinelEvent, RedisSentinelOptions, RedisSentinelType, SentinelCommander } from './types';
-import { clientSocketToNode, createCommand, createFunctionCommand, createModuleCommand, createNodeList, createScriptCommand, getMappedNode, parseNode } from './utils';
+import { clientSocketToNode, createCommand, createFunctionCommand, createModuleCommand, createNodeList, createScriptCommand, getMappedNode, mergeSentinelNodes, parseNode } from './utils';
 import { RedisMultiQueuedCommand } from '../multi-command';
 import RedisSentinelMultiCommand, { RedisSentinelMultiCommandType } from './multi-commands';
 import { PubSubListener } from '../client/pub-sub';
@@ -13,11 +14,14 @@ import { PubSubProxy } from './pub-sub-proxy';
 import { setTimeout } from 'node:timers/promises';
 import RedisSentinelModule from './module'
 import { RedisVariadicArgument } from '../commands/generic-transformers';
+import { prefixKeys } from '../client/parser';
 import { WaitQueue } from './wait-queue';
 import { TcpNetConnectOpts } from 'node:net';
 import { RedisTcpSocketOptions } from '../client/socket';
 import { BasicPooledClientSideCache, PooledClientSideCacheProvider } from '../client/cache';
 import { ClientIdentity, ClientRole, generateClientId } from '../client/identity';
+import { DEFAULT_COMMAND_TIMEOUT } from '../defaults';
+import { ScanOptions } from '../commands/SCAN';
 
 interface ClientInfo {
   id: number;
@@ -54,15 +58,27 @@ export class RedisSentinelClient<
   }
 
   /**
-   * Gets the command options configured for this client
+   * Gets the command options configured for this client. Merges the constructor-set
+   * options with any per-proxy override from `withCommandOptions(...)`.
    *
-   * @returns The command options for this client or `undefined` if none were set
+   * @returns The effective command options or `undefined` if none were set
    */
   get commandOptions() {
-    return this._self.#commandOptions;
+    return this._commandOptions !== undefined
+      ? { ...this._self.#commandOptions, ...this._commandOptions }
+      : this._self.#commandOptions;
+  }
+
+  /**
+   * The configured key prefix (see {@link RedisSentinelOptions.keyPrefix}), if any.
+   * @internal
+   */
+  get _keyPrefix(): RedisArgument | undefined {
+    return this._self.#internal.keyPrefix;
   }
 
   #commandOptions?: CommandOptions<TYPE_MAPPING>;
+  private _commandOptions?: CommandOptions<TYPE_MAPPING>;
 
   constructor(
     internal: RedisSentinelInternal<M, F, S, RESP, TYPE_MAPPING>,
@@ -142,8 +158,7 @@ export class RedisSentinelClient<
     value: V
   ) {
     const proxy = Object.create(this);
-    proxy._commandOptions = Object.create(this._self.#commandOptions ?? null);
-    proxy._commandOptions[key] = value;
+    proxy._commandOptions = { ...this.commandOptions, [key]: value };
     return proxy as RedisSentinelClientType<
       M,
       F,
@@ -176,9 +191,10 @@ export class RedisSentinelClient<
     args: CommandArguments,
     options?: CommandOptions,
   ): Promise<T> {
+    const mergedOptions = { ...this.commandOptions, ...options };
     return this._execute(
       isReadonly,
-      client => client.sendCommand(args, options)
+      client => client.sendCommand(args, mergedOptions)
     );
   }
 
@@ -220,9 +236,13 @@ export class RedisSentinelClient<
       throw new Error("Attempted execution on released RedisSentinelClient lease");
     }
 
+    // Apply the sentinel's `keyPrefix` here: the underlying node client carries no
+    // prefix (it receives already-prefixed args for normal commands), so WATCH must be
+    // prefixed at this level to guard the same key the transaction operates on.
+    const watchKeys = prefixKeys(this._self._keyPrefix, key);
     return this._execute(
       false,
-      client => client.watch(key)
+      client => client.watch(watchKeys)
     )
   }
 
@@ -294,7 +314,9 @@ export default class RedisSentinel<
   }
 
   get commandOptions() {
-    return this._self.#commandOptions;
+    return this._commandOptions !== undefined
+      ? { ...this._self.#commandOptions, ...this._commandOptions }
+      : this._self.#commandOptions;
   }
 
   /**
@@ -306,6 +328,7 @@ export default class RedisSentinel<
   }
 
   #commandOptions?: CommandOptions<TYPE_MAPPING>;
+  private _commandOptions?: CommandOptions<TYPE_MAPPING>;
 
   #trace: (msg: string) => unknown = () => { };
 
@@ -315,6 +338,14 @@ export default class RedisSentinel<
 
   get clientSideCache() {
     return this._self.#internal.clientSideCache;
+  }
+
+  /**
+   * The configured key prefix (see {@link RedisSentinelOptions.keyPrefix}), if any.
+   * @internal
+   */
+  get _keyPrefix(): RedisArgument | undefined {
+    return this._self.#options.keyPrefix;
   }
 
   constructor(options: RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>) {
@@ -330,9 +361,7 @@ export default class RedisSentinel<
     };
     this.#options = options;
 
-    if (options.commandOptions) {
-      this.#commandOptions = options.commandOptions;
-    }
+    this.#commandOptions = { timeout: DEFAULT_COMMAND_TIMEOUT, ...options.commandOptions };
 
     this.#internal = new RedisSentinelInternal<M, F, S, RESP, TYPE_MAPPING>(options, this.#identity.id);
     this.#internal.on('error', err => this.emit('error', err));
@@ -404,11 +433,7 @@ export default class RedisSentinel<
     value: V
   ) {
     const proxy = Object.create(this);
-    // Create new commandOptions object with the inherited properties
-    proxy._self.#commandOptions = {
-      ...(this._self.#commandOptions || {}),
-      [key]: value
-    };
+    proxy._commandOptions = { ...this.commandOptions, [key]: value };
     return proxy as RedisSentinelType<
       M,
       F,
@@ -434,7 +459,7 @@ export default class RedisSentinel<
   >(overrides?: Partial<RedisSentinelOptions<_M, _F, _S, _RESP, _TYPE_MAPPING>>) {
     return new (Object.getPrototypeOf(this).constructor)({
       ...this._self.#options,
-      commandOptions: this._self.#commandOptions,
+      commandOptions: this.commandOptions,
       ...overrides
     }) as RedisSentinelType<_M, _F, _S, _RESP, _TYPE_MAPPING>;
   }
@@ -484,7 +509,7 @@ export default class RedisSentinel<
 
     try {
       return await fn(
-        RedisSentinelClient.create(this._self.#options, this._self.#internal, clientInfo, this._self.#commandOptions)
+        RedisSentinelClient.create(this._self.#options, this._self.#internal, clientInfo, this.commandOptions)
       );
     } finally {
       const promise = this._self.#internal.releaseClientLease(clientInfo);
@@ -497,9 +522,10 @@ export default class RedisSentinel<
     args: CommandArguments,
     options?: CommandOptions,
   ): Promise<T> {
+    const mergedOptions = { ...this.commandOptions, ...options };
     return this._execute(
       isReadonly,
-      client => client.sendCommand(args, options)
+      client => client.sendCommand(args, mergedOptions)
     );
   }
 
@@ -627,7 +653,7 @@ export default class RedisSentinel<
    */
   async acquire(): Promise<RedisSentinelClientType<M, F, S, RESP, TYPE_MAPPING>> {
     const clientInfo = await this._self.#internal.getClientLease();
-    return RedisSentinelClient.create(this._self.#options, this._self.#internal, clientInfo, this._self.#commandOptions);
+    return RedisSentinelClient.create(this._self.#options, this._self.#internal, clientInfo, this.commandOptions);
   }
 
   getSentinelNode(): RedisNode | undefined {
@@ -650,6 +676,87 @@ export default class RedisSentinel<
     }
 
     this._self.#internal.setTracer(tracer);
+  }
+
+  /**
+   * Async generator that iterates over keys on the Sentinel master by issuing
+   * paged `SCAN` calls. Yields one array of keys per page until the SCAN cursor
+   * returns to `0`.
+   *
+   * @remarks
+   * With a configured `keyPrefix`, the yielded keys are the **already-prefixed** keys
+   * as stored on the server — replies are never un-prefixed. Passing them straight back
+   * into a key-prefixed command prefixes them a second time (e.g. with `keyPrefix: 'app:'`,
+   * a yielded `'app:foo'` becomes `'app:app:foo'`). Strip the prefix before reusing the
+   * keys, or read them with a client that has no `keyPrefix`.
+   *
+   * The master client lease is acquired for the duration of each `SCAN` call
+   * and released before yielding, so consumers can issue other commands from
+   * inside the `for await` loop body without deadlocking against the iterator
+   * — even with `masterPoolSize: 1`.
+   *
+   * Throws `ScanIteratorInterruptedError` on observed `MASTER_CHANGE`.
+   * Throws the underlying error on any other failure.
+   *
+   * @param options - SCAN options and an optional starting `cursor`. The
+   *   starting cursor is honored only on the first call.
+   * @yields Arrays of keys returned by each `SCAN` page. Pages may be empty.
+   * @throws {ScanIteratorInterruptedError} On observed `MASTER_CHANGE`.
+   */
+  async *scanIterator(
+    this: RedisSentinelType<M, F, S, RESP, TYPE_MAPPING>,
+    options?: ScanOptions & ScanIteratorOptions
+  ) {
+    let cursor: RedisArgument = options?.cursor ?? '0';
+    let masterChanged = false;
+
+    const handleTopologyChange = (event: RedisSentinelEvent) => {
+      if (event.type === 'MASTER_CHANGE') {
+        masterChanged = true;
+      }
+    };
+    this.on('topology-change', handleTopologyChange);
+
+    try {
+      do {
+        if (masterChanged) throw new ScanIteratorInterruptedError();
+
+        // Route through _execute so reserveClient:true reuses the reserved
+        // lease (instead of waiting forever on an empty master pool), and the
+        // lease is released before yielding — consumers can issue other
+        // commands inside the for-await loop without exhausting the pool.
+        let reply;
+        try {
+          reply = await this._execute(
+            false,
+            client => {
+              // Re-check after the lease resolves: a failover may have landed
+              // while waiting on an empty master pool, in which case the lease
+              // now points to a fresh client on the new master and SCAN would
+              // resume with a cursor from the old master.
+              if (masterChanged) throw new ScanIteratorInterruptedError();
+              return (client as RedisClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>).scan(cursor, options);
+            }
+          );
+        } catch (err) {
+          // Pass through if already wrapped (from the in-lambda re-check).
+          if (err instanceof ScanIteratorInterruptedError) throw err;
+          // Only wrap when MASTER_CHANGE has been observed; otherwise let the
+          // underlying error propagate. A bare socket disconnect alone is not
+          // sufficient evidence of a failover (could be a transient network
+          // blip on the same master, in which case the cursor is still valid).
+          if (masterChanged) throw new ScanIteratorInterruptedError(err);
+          throw err;
+        }
+
+        cursor = reply.cursor;
+        yield reply.keys;
+        // Cursor may be a Buffer when a Blob String type mapping is in use;
+        // compare by string value so iteration actually terminates.
+      } while (cursor.toString() !== '0');
+    } finally {
+      this.removeListener('topology-change', handleTopologyChange);
+    }
   }
 }
 
@@ -680,6 +787,15 @@ export class RedisSentinelInternal<
   readonly #scanInterval: number;
   readonly #passthroughClientErrorEvents: boolean;
   readonly #RESP?: RespVersions;
+  readonly #keyPrefix?: RedisArgument;
+
+  /**
+   * The configured key prefix (see {@link RedisSentinelOptions.keyPrefix}), if any.
+   * @internal
+   */
+  get keyPrefix(): RedisArgument | undefined {
+    return this.#keyPrefix;
+  }
 
   #anotherReset = false;
 
@@ -730,7 +846,10 @@ export class RedisSentinelInternal<
     this.#sentinelClientId = sentinelClientId;
 
     this.#RESP = options.RESP;
+    this.#keyPrefix = options.keyPrefix;
     this.#sentinelSeedNodes = Array.from(options.sentinelRootNodes);
+    // Initial root nodes start as a copy of the seed nodes; transform() later
+    // merges discovered nodes on top while preserving these seeds.
     this.#sentinelRootNodes = Array.from(this.#sentinelSeedNodes);
     this.#maxCommandRediscovers = options.maxCommandRediscovers ?? 16;
     this.#masterPoolSize = options.masterPoolSize ?? 1;
@@ -773,7 +892,11 @@ export class RedisSentinelInternal<
     );
   }
 
-  #createClient(node: RedisNode, clientOptions: RedisClientOptions, reconnectStrategy?: false) {
+  #createClient(
+    node: RedisNode,
+    clientOptions: AnyRedisClientOptions,
+    reconnectStrategy?: false
+  ) {
     const socket = getMappedNode(node.host, node.port, this.#nodeAddressMap);
     const client = RedisClient.create({
       //first take the globally set RESP
@@ -1436,11 +1559,13 @@ export class RedisSentinelInternal<
       }
     }
 
-    if (this.#sentinelNodeListKey(analyzed.sentinelList) !== this.#sentinelNodeListKey(this.#sentinelRootNodes)) {
-      this.#sentinelRootNodes = analyzed.sentinelList;
+    const mergedSentinelList = mergeSentinelNodes(this.#sentinelSeedNodes, analyzed.sentinelList);
+
+    if (this.#sentinelNodeListKey(mergedSentinelList) !== this.#sentinelNodeListKey(this.#sentinelRootNodes)) {
+      this.#sentinelRootNodes = mergedSentinelList;
       const event: RedisSentinelEvent = {
         type: "SENTINE_LIST_CHANGE",
-        size: analyzed.sentinelList.length
+        size: mergedSentinelList.length
       }
       this.emit('topology-change', event);
     }

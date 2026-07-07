@@ -119,7 +119,7 @@ export class RedisClientPool<
     const transformReply = getTransformReply(command, resp);
 
     return async function (this: ProxyPool, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this._self._keyPrefix);
       command.parseCommand(parser, ...args);
 
       return this.execute(client => client._executeCommand(command, parser, this._commandOptions, transformReply))
@@ -130,7 +130,7 @@ export class RedisClientPool<
     const transformReply = getTransformReply(command, resp);
 
     return async function (this: NamespaceProxyPool, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this._self._keyPrefix);
       command.parseCommand(parser, ...args);
 
       return this._self.execute(client => client._executeCommand(command, parser, this._self._commandOptions, transformReply))
@@ -142,7 +142,7 @@ export class RedisClientPool<
     const transformReply = getTransformReply(fn, resp);
 
     return async function (this: NamespaceProxyPool, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this._self._keyPrefix);
       parser.push(...prefix);
       fn.parseCommand(parser, ...args);
 
@@ -154,7 +154,7 @@ export class RedisClientPool<
     const transformReply = getTransformReply(script, resp);
 
     return async function (this: ProxyPool, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this._self._keyPrefix);
       parser.pushVariadic(prefix);
       script.parseCommand(parser, ...args);
 
@@ -324,11 +324,27 @@ export class RedisClientPool<
       }
     }
 
+    // Capture the key prefix for the pool's own parser construction, then strip it from
+    // the pooled clients' options: the pool builds the (already prefixed) parser and hands
+    // it to a pooled client, which never re-parses — so inner clients must not re-prefix.
+    this._keyPrefix = clientOptions?.keyPrefix;
+    if (clientOptions?.keyPrefix !== undefined) {
+      clientOptions = { ...clientOptions, keyPrefix: undefined };
+    }
+
     this.#clientFactory = RedisClient.factory(clientOptions).bind(undefined, clientOptions) as () => RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
+    this._commandOptions = clientOptions?.commandOptions as CommandOptions<TYPE_MAPPING> | undefined;
   }
 
   private _self = this;
   private _commandOptions?: CommandOptions<TYPE_MAPPING>;
+  /**
+   * The configured key prefix (see {@link RedisClientOptions.keyPrefix}), if any.
+   * The pool builds the (prefixed) parser itself, so it is stripped from the options
+   * handed to pooled clients to avoid double-prefixing.
+   * @internal
+   */
+  _keyPrefix?: RedisArgument;
 
   withCommandOptions<
     OPTIONS extends CommandOptions<TYPE_MAPPING>,
@@ -345,7 +361,11 @@ export class RedisClientPool<
     >;
   }
 
-  #commandOptionsProxy<
+  // Plain (not `#`) method so it can be invoked on prototype-derived proxies
+  // returned by `withCommandOptions(...)` — JS private (`#`) methods aren't
+  // accessible through the prototype chain, which would force the helper to
+  // be called via `this._self`, discarding any prior proxy overrides.
+  private _commandOptionsProxy<
     K extends keyof CommandOptions,
     V extends CommandOptions[K]
   >(
@@ -353,8 +373,7 @@ export class RedisClientPool<
     value: V
   ) {
     const proxy = Object.create(this._self);
-    proxy._commandOptions = Object.create(this._commandOptions ?? null);
-    proxy._commandOptions[key] = value;
+    proxy._commandOptions = { ...this._commandOptions, [key]: value };
     return proxy as RedisClientPoolType<
       M,
       F,
@@ -368,14 +387,14 @@ export class RedisClientPool<
    * Override the `typeMapping` command option
    */
   withTypeMapping<TYPE_MAPPING extends TypeMapping>(typeMapping: TYPE_MAPPING) {
-    return this._self.#commandOptionsProxy('typeMapping', typeMapping);
+    return this._commandOptionsProxy('typeMapping', typeMapping);
   }
 
   /**
    * Override the `abortSignal` command option
    */
   withAbortSignal(abortSignal: AbortSignal) {
-    return this._self.#commandOptionsProxy('abortSignal', abortSignal);
+    return this._commandOptionsProxy('abortSignal', abortSignal);
   }
 
   /**
@@ -383,7 +402,7 @@ export class RedisClientPool<
    * TODO: remove?
    */
   asap() {
-    return this._self.#commandOptionsProxy('asap', true);
+    return this._commandOptionsProxy('asap', true);
   }
 
   async connect() {
@@ -530,7 +549,8 @@ export class RedisClientPool<
     args: Array<RedisArgument>,
     options?: CommandOptions
   ) {
-    return this.execute(client => client.sendCommand(args, options));
+    const mergedOptions = { ...this._commandOptions, ...options };
+    return this.execute(client => client.sendCommand(args, mergedOptions));
   }
 
 
@@ -540,7 +560,8 @@ export class RedisClientPool<
     return new ((this as any).Multi as Multi)(
       (commands, selectedDB) => this.execute(client => client._executeMulti(commands, selectedDB)),
       commands => this.execute(client => client._executePipeline(commands)),
-      this._commandOptions?.typeMapping
+      this._commandOptions?.typeMapping,
+      this._self._keyPrefix
     );
   }
 

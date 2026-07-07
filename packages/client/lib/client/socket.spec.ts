@@ -177,40 +177,108 @@ describe('Socket', () => {
     });
   });
 
+  describe('keepAliveInitialDelay default', () => {
+    function captureConnectOptions() {
+      const original = net.createConnection;
+      const captured: { options?: net.TcpNetConnectOpts } = {};
+      const target = net as unknown as { createConnection: unknown };
+      target.createConnection = (...args: unknown[]) => {
+        captured.options = args[0] as net.TcpNetConnectOpts;
+        return (original as unknown as (...a: unknown[]) => net.Socket).apply(net, args);
+      };
+      return {
+        captured,
+        restore() {
+          target.createConnection = original;
+        }
+      };
+    }
+
+    async function withCapturedConnect(
+      socketOptions: Partial<RedisSocketOptions>,
+      fn: (options: net.TcpNetConnectOpts) => void
+    ) {
+      const server = net.createServer();
+      server.on('connection', conn => conn.on('error', () => { /* ignore */ }));
+      await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+      const { port } = server.address() as net.AddressInfo;
+
+      const capture = captureConnectOptions();
+      try {
+        const socket = createSocket({
+          host: '127.0.0.1',
+          port,
+          reconnectStrategy: false,
+          ...socketOptions
+        });
+        await socket.connect();
+        try {
+          assert.ok(capture.captured.options, 'captured connect options');
+          fn(capture.captured.options!);
+        } finally {
+          socket.destroy();
+        }
+      } finally {
+        capture.restore();
+        await new Promise<void>(resolve => server.close(() => resolve()));
+      }
+    }
+
+    it('passes keepAliveInitialDelay: 30000 to net.createConnection by default', async () => {
+      await withCapturedConnect({}, options => {
+        // @ts-expect-error - @types/node omits keepAliveInitialDelay
+        assert.equal(options.keepAliveInitialDelay, 30000);
+      });
+    });
+
+    it('forwards a user-supplied keepAliveInitialDelay verbatim', async () => {
+      await withCapturedConnect({ keepAliveInitialDelay: 1234 }, options => {
+        // @ts-expect-error - @types/node omits keepAliveInitialDelay
+        assert.equal(options.keepAliveInitialDelay, 1234);
+      });
+    });
+  });
+
   describe('socketTimeout', () => {
-    const timeout = 50;
+    const timeout = 200;
     testUtils.testWithClient(
       'should timeout with positive socketTimeout values',
       async client => {
-        let timedOut = false;
+        // Attach a permanent error listener before connecting so the timeout
+        // event can never surface as an uncaught error — neither during the
+        // handshake nor in the idle window afterwards. `reconnectStrategy:
+        // false` makes the run deterministic and causes the client to emit
+        // `error` twice, so a permanent listener (not `once`) is required.
+        client.on('error', () => {
+          // keep a permanent listener for any later error emission
+        });
+        const firstError = once(client, 'error') as Promise<[Error]>;
 
-        assert.equal(client.isReady, true, 'client.isReady');
-        assert.equal(client.isOpen, true, 'client.isOpen');
+        try {
+          await client.connect();
+          assert.equal(client.isReady, true, 'client.isReady');
+          assert.equal(client.isOpen, true, 'client.isOpen');
 
-        client.on('error', err => {
+          const [err] = await firstError;
           assert.equal(
             err.message,
             `Socket timeout timeout. Expecting data, but didn't receive any in ${timeout}ms.`
           );
-
           assert.equal(client.isReady, false, 'client.isReady');
-
-          // This is actually a bug with the onSocketError implementation,
-          // the client should be closed before the error is emitted
-          process.nextTick(() => {
-            assert.equal(client.isOpen, false, 'client.isOpen');
-          });
-
-          timedOut = true;
-        });
-        await setTimeout(timeout * 2);
-        if (!timedOut) assert.fail('Should have timed out by now');
+          // `reconnectStrategy: false` closes the client synchronously after
+          // emitting the error.
+          assert.equal(client.isOpen, false, 'client.isOpen');
+        } finally {
+          if (client.isOpen) client.destroy();
+        }
       },
       {
         ...GLOBAL.SERVERS.OPEN,
+        disableClientSetup: true,
         clientOptions: {
           socket: {
-            socketTimeout: timeout
+            socketTimeout: timeout,
+            reconnectStrategy: false
           }
         }
       }

@@ -7,6 +7,7 @@ import {
   // CommandPolicies,
   createClient,
   createSentinel,
+  AnyRedisClientOptions,
   RedisClientOptions,
   RedisClientType,
   RedisSentinelOptions,
@@ -265,7 +266,7 @@ export default class TestUtils {
   /**
    * Cleans up non-default ACL users using a temporary client connection
    */
-  static async cleanupAclUsers(port: number, clientOptions?: Partial<RedisClientOptions>): Promise<void> {
+  static async cleanupAclUsers(port: number, clientOptions?: Partial<AnyRedisClientOptions>): Promise<void> {
     const cleanupClient = createClient({
       ...clientOptions,
       socket: {
@@ -660,8 +661,8 @@ export default class TestUtils {
         name: 'mymaster',
         sentinelRootNodes: rootNodes,
         RESP,
+        commandOptions: options.clientOptions?.commandOptions,
         nodeClientOptions: {
-          commandOptions: options.clientOptions?.commandOptions,
           password: password || undefined,
         },
         sentinelClientOptions: {

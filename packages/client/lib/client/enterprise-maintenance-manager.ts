@@ -1,4 +1,4 @@
-import RedisClient, { RedisClientOptions } from ".";
+import RedisClient, { AnyRedisClientOptions } from ".";
 import RedisCommandsQueue from "./commands-queue";
 import { isIP } from "net";
 import { lookup } from "dns/promises";
@@ -75,11 +75,11 @@ export interface MaintenanceUpdate {
 
 export default class EnterpriseMaintenanceManager {
   #commandsQueue: RedisCommandsQueue;
-  #options: RedisClientOptions;
+  #options: AnyRedisClientOptions;
   #isMaintenance = 0;
   #client: RedisType;
 
-  static setupDefaultMaintOptions(options: RedisClientOptions) {
+  static setupDefaultMaintOptions(options: AnyRedisClientOptions) {
     if (options.maintNotifications === undefined) {
       options.maintNotifications =
         (options?.RESP ?? DEFAULT_RESP) === 3 ? "auto" : "disabled";
@@ -96,7 +96,7 @@ export default class EnterpriseMaintenanceManager {
   }
 
   static async getHandshakeCommand(
-    options: RedisClientOptions,
+    options: AnyRedisClientOptions,
     clientId: string,
   ): Promise<
     | { cmd: Array<RedisArgument>; errorHandler: (error: Error) => void }
@@ -141,7 +141,7 @@ export default class EnterpriseMaintenanceManager {
   constructor(
     commandsQueue: RedisCommandsQueue,
     client: RedisType,
-    options: RedisClientOptions,
+    options: AnyRedisClientOptions,
   ) {
     this.#commandsQueue = commandsQueue;
     this.#options = options;
@@ -468,7 +468,7 @@ function isPrivateIP(ip: string): boolean {
 async function determineEndpoint(
   tlsEnabled: boolean,
   host: string,
-  options: RedisClientOptions,
+  options: AnyRedisClientOptions,
 ): Promise<MovingEndpointType> {
   assert(options.maintEndpointType !== undefined);
   if (options.maintEndpointType !== "auto") {

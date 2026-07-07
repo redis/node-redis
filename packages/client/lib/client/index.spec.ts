@@ -29,6 +29,87 @@ export const SQUARE_SCRIPT = defineScript({
 });
 
 describe('Client', () => {
+  it('chained withCommandOptions(...).withTypeMapping(...) preserves earlier overrides at dispatch', () => {
+    // Regression: `_commandOptionsProxy` used to layer `_commandOptions` via
+    // `Object.create(this._commandOptions ?? null)`, which left earlier keys
+    // (e.g. `asap`) on the prototype. At dispatch, `{...this._commandOptions, ...}`
+    // only iterates *own* enumerable properties, so those inherited keys
+    // silently disappeared in the spread.
+    const client = RedisClient.create({});
+    const proxy = client
+      .withCommandOptions({ asap: true })
+      .withTypeMapping({ [RESP_TYPES.SIMPLE_STRING]: Buffer });
+    type WithOptions = { _commandOptions?: { asap?: boolean; typeMapping?: unknown } };
+    const ownKeys = { ...(proxy as unknown as WithOptions)._commandOptions };
+    assert.equal(ownKeys.asap, true);
+    assert.deepEqual(ownKeys.typeMapping, { [RESP_TYPES.SIMPLE_STRING]: Buffer });
+  });
+
+  describe('default commandOptions', () => {
+    type WithOptions = { _commandOptions?: { timeout?: number; asap?: boolean } };
+
+    it('applies the 5s default timeout when no commandOptions are passed', () => {
+      const client = RedisClient.create({});
+      assert.equal((client as unknown as WithOptions)._commandOptions?.timeout, 5000);
+    });
+
+    it('merges the default timeout with a partial commandOptions override', () => {
+      const client = RedisClient.create({ commandOptions: { asap: true } });
+      const opts = (client as unknown as WithOptions)._commandOptions;
+      assert.equal(opts?.timeout, 5000);
+      assert.equal(opts?.asap, true);
+    });
+
+    it('allows opting out of the default timeout with `timeout: undefined`', () => {
+      const client = RedisClient.create({ commandOptions: { timeout: undefined } });
+      assert.equal((client as unknown as WithOptions)._commandOptions?.timeout, undefined);
+    });
+
+    it('preserves the default timeout through withCommandOptions(...)', () => {
+      // Regression: `proxy._commandOptions = options` set the override as an own
+      // property that shadowed the prototype's merged `_commandOptions`, dropping
+      // the default at dispatch. The proxy must merge over the current effective
+      // options instead.
+      const client = RedisClient.create({});
+      const proxy = client.withCommandOptions({ asap: true });
+      const opts = (proxy as unknown as WithOptions)._commandOptions;
+      assert.equal(opts?.timeout, 5000);
+      assert.equal(opts?.asap, true);
+    });
+
+    it('lets withCommandOptions(...) opt out of the default timeout', () => {
+      const client = RedisClient.create({});
+      const proxy = client.withCommandOptions({ timeout: undefined });
+      assert.equal((proxy as unknown as WithOptions)._commandOptions?.timeout, undefined);
+    });
+  });
+
+  it('module/function namespaces resolve to the receiver, not the original', () => {
+    // Regression: `attachNamespace` cached the namespace as an own property
+    // on the receiver, leaking via the prototype chain into any
+    // `withCommandOptions(...)` proxy. The proxy then dispatched module/function
+    // commands through the original's `_self`, silently ignoring the override.
+    const fakeModule = {
+      noop: {
+        parseCommand: () => {},
+        transformReply: undefined as unknown as () => unknown
+      }
+    };
+    const client = RedisClient.create({ modules: { fakeModule } });
+    type WithNamespace = { fakeModule: { _self: unknown } };
+    // Force the original to cache its namespace first — pre-fix this is what
+    // poisoned every subsequent proxy access.
+    const originalNamespace = (client as unknown as WithNamespace).fakeModule;
+    assert.equal(originalNamespace._self, client);
+    const proxy = client.withCommandOptions({});
+    const proxyNamespace = (proxy as unknown as WithNamespace).fakeModule;
+    assert.equal(proxyNamespace._self, proxy);
+    assert.notEqual(proxyNamespace._self, client);
+    // Per-receiver cache: subsequent accesses on the same receiver are stable.
+    assert.equal((client as unknown as WithNamespace).fakeModule, originalNamespace);
+    assert.equal((proxy as unknown as WithNamespace).fakeModule, proxyNamespace);
+  });
+
   describe('initialization', () => {
     describe('clientSideCache validation', () => {
       const clientSideCacheConfig = { ttl: 0, maxEntries: 0 };
@@ -1018,6 +1099,18 @@ describe('Client', () => {
       const subscriber = await publisher.duplicate().connect();
 
       try {
+        // The forced reconnect below can emit `error` more than once
+        // (e.g. SocketClosedUnexpectedlyError followed by a transient
+        // ECONNREFUSED while the server tears the connection down). A
+        // permanent listener swallows the extras so they never surface as
+        // uncaught; a one-shot promise gate lets us still await the first
+        // error deterministically.
+        let resolveFirstError!: () => void;
+        const firstError = new Promise<void>(resolve => {
+          resolveFirstError = resolve;
+        });
+        subscriber.on('error', () => resolveFirstError());
+
         const channelListener = spy();
         await subscriber.subscribe('channel', channelListener);
 
@@ -1025,7 +1118,7 @@ describe('Client', () => {
         await subscriber.pSubscribe('channe*', patternListener);
 
         await Promise.all([
-          once(subscriber, 'error'),
+          firstError,
           publisher.clientKill({
             filter: 'SKIPME',
             skipMe: true
@@ -1163,8 +1256,13 @@ describe('Client', () => {
     const promise = assert.rejects(client.connect(), ConnectionTimeoutError),
       start = process.hrtime.bigint();
 
-    while (process.hrtime.bigint() - start < 1_000_000) {
-      // block the event loop for 1ms, to make sure the connection will timeout
+    // Block the event loop for well over `connectTimeout` so the underlying
+    // socket's idle timer is guaranteed to have expired by the time the
+    // event loop runs again. With a 1ms block and a 1ms timeout the two race
+    // and on a fast host the TCP `connect` event can be processed before the
+    // timeout callback, leaving the test with a successful connection.
+    while (process.hrtime.bigint() - start < 50_000_000) {
+      // block the event loop for 50ms, to make sure the connection will timeout
     }
 
     await promise;
@@ -1311,6 +1409,38 @@ describe('Client', () => {
       } finally {
         duplicate.destroy();
       }
+    }, GLOBAL.SERVERS.OPEN);
+  });
+
+  describe('withCommandOptions / withTypeMapping dispatch', () => {
+    testUtils.testWithClient('withTypeMapping override reaches raw sendCommand', async client => {
+      // Regression for `client/index.ts:1253` (`this._self._commandOptions` →
+      // `this._commandOptions`): without this fix, the proxy's `withTypeMapping`
+      // override was silently ignored at `sendCommand` dispatch.
+      const typed = client.withTypeMapping({
+        [RESP_TYPES.SIMPLE_STRING]: Buffer
+      });
+      const resp = await typed.sendCommand(['PING']);
+      assert.deepEqual(resp, Buffer.from('PONG'));
+    }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('withTypeMapping override reaches typed commands', async client => {
+      const typed = client.withTypeMapping({
+        [RESP_TYPES.SIMPLE_STRING]: Buffer
+      });
+      const resp = await typed.ping();
+      assert.deepEqual(resp, Buffer.from('PONG'));
+    }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('withCommandOptions full override reaches typed commands', async client => {
+      // The `withCommandOptions` (full replace) path went through the same
+      // proxy-dispatch fix; covered separately from `withTypeMapping` because
+      // the two helpers store overrides differently on the proxy.
+      const proxy = client.withCommandOptions({
+        typeMapping: { [RESP_TYPES.SIMPLE_STRING]: Buffer }
+      });
+      const resp = await proxy.ping();
+      assert.deepEqual(resp, Buffer.from('PONG'));
     }, GLOBAL.SERVERS.OPEN);
   });
 

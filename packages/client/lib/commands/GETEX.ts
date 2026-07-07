@@ -51,8 +51,11 @@ export default {
           break;
         
         case 'EXAT':
-        case 'PXAT':
           parser.push(options.type, transformEXAT(options.value));
+          break;
+
+        case 'PXAT':
+          parser.push(options.type, transformPXAT(options.value));
           break;
 
         case 'PERSIST':

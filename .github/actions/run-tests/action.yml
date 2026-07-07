@@ -26,13 +26,13 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         repository: ${{ inputs.repository }}
         ref: ${{ inputs.ref }}
         fetch-depth: 1
     - name: Use Node.js ${{ inputs.node-version }}
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v6
       with:
         node-version: ${{ inputs.node-version }}
     - name: Update npm
@@ -50,16 +50,9 @@ runs:
       run: npm run test -ws --if-present -- --forbid-only --redis-tag=${{ inputs.redis-tag }} --redis-version=${{ inputs.redis-version }}
     - name: Upload to Codecov
       if: inputs.run-codecov == 'true'
-      shell: bash
-      run: |
-        curl https://keybase.io/codecovsecurity/pgp_keys.asc | gpg --no-default-keyring --keyring trustedkeys.gpg --import
-        curl -Os https://uploader.codecov.io/latest/linux/codecov
-        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
-        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM.sig
-        gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
-        shasum -a 256 -c codecov.SHA256SUM
-        chmod +x codecov
-        ./codecov
+      uses: codecov/codecov-action@v7
+      with:
+        fail_ci_if_error: false
     - name: Self Report Metrics
       if: (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && inputs.otel-authorization-token != ''
       id: self-report-metrics

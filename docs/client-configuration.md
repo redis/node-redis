@@ -13,13 +13,14 @@
 | socket.socketTimeout           |                                          | The maximum duration (in milliseconds) that the socket can remain idle (i.e., with no data sent or received) before being automatically closed |
 | socket.noDelay               | `true`                                   | Toggle [`Nagle's algorithm`](https://nodejs.org/api/net.html#net_socket_setnodelay_nodelay)                                                                                                                                                         |
 | socket.keepAlive             | `true`                                   | Toggle [`keep-alive`](https://nodejs.org/api/net.html#socketsetkeepaliveenable-initialdelay) functionality                                                                                                                                          |
-| socket.keepAliveInitialDelay | `5000`                                   | If set to a positive number, it sets the initial delay before the first keepalive probe is sent on an idle socket                                                                                                                                   |
+| socket.keepAliveInitialDelay | `30000`                                  | If set to a positive number, it sets the initial delay before the first keepalive probe is sent on an idle socket                                                                                                                                   |
 | socket.tls                   |                                          | See explanation and examples [below](#TLS)                                                                                                                                                                                                          |
 | socket.reconnectStrategy     | Exponential backoff with a maximum of 2000 ms; plus 0-200 ms random jitter.       | A function containing the [Reconnect Strategy](#reconnect-strategy) logic                                                                                                                                                                           |
 | username                     |                                          | ACL username ([see ACL guide](https://redis.io/topics/acl))                                                                                                                                                                                         |
 | password                     |                                          | ACL password or the old "--requirepass" password                                                                                                                                                                                                    |
 | name                         |                                          | Client name ([see `CLIENT SETNAME`](https://redis.io/commands/client-setname))                                                                                                                                                                      |
 | database                     |                                          | Redis database number (see [`SELECT`](https://redis.io/commands/select) command)                                                                                                                                                                    |
+| keyPrefix                    |                                          | Prefix prepended to every key sent to Redis (ioredis-compatible). See [Key Prefixing](#key-prefixing).                                                                                                                                              |
 | modules                      |                                          | Included [Redis Modules](../README.md#packages)                                                                                                                                                                                                     |
 | scripts                      |                                          | Script definitions (see [Lua Scripts](../README.md#lua-scripts))                                                                                                                                                                                    |
 | functions                    |                                          | Function definitions (see [Functions](../README.md#functions))                                                                                                                                                                                      |
@@ -29,7 +30,8 @@
 | legacyMode                   | `false`                                  | Maintain some backwards compatibility (see the [Migration Guide](./v3-to-v4.md))                                                                                                                                                                    |
 | isolationPoolOptions         |                                          | An object that configures a pool of isolated connections, If you frequently need isolated connections, consider using [createClientPool](https://github.com/redis/node-redis/blob/master/docs/pool.md#creating-a-pool) instead                                                                                                     |
 | pingInterval                 |                                          | Send `PING` command at interval (in ms). Useful with ["Azure Cache for Redis"](https://learn.microsoft.com/en-us/azure/azure-cache-for-redis/cache-best-practices-connection#idle-timeout)                                                          |
-| disableClientInfo            | `false`                                  | Disables `CLIENT SETINFO LIB-NAME node-redis` and `CLIENT SETINFO LIB-VER X.X.X` commands                                                                                                                                                           | 
+| disableClientInfo            | `false`                                  | Disables `CLIENT SETINFO LIB-NAME node-redis` and `CLIENT SETINFO LIB-VER X.X.X` commands                                                                                                                                                           |
+| commandOptions.timeout       | `5000`                                   | Default per-command timeout in milliseconds. Set to `undefined` (or `0`) to disable. See [Command Options](./command-options.md).                                                                                                                   |
 
 ## Reconnect Strategy
 
@@ -89,6 +91,40 @@ createClient({
   }
 });
 ```
+## Key Prefixing
+
+The `keyPrefix` option prepends a prefix to **every key** sent to Redis. It is an ioredis-compatible
+way to isolate keyspaces — for example to isolate tests in CI, or to separate the keys of different
+parts of an application (web app, background workers, …) that share a single Redis instance.
+
+```javascript
+const client = createClient({ keyPrefix: 'app:' });
+await client.connect();
+
+await client.set('key', 'value'); // actually stores 'app:key'
+await client.get('key');          // reads 'app:key' -> 'value'
+```
+
+The prefix is applied uniformly across the standard client, [cluster](./clustering.md),
+[sentinel](./sentinel.md), [pool](./pool.md), and inside [transactions and pipelines](./transactions.md).
+In cluster mode the slot is computed from the prefixed key, so routing remains correct.
+
+### Semantics (matching ioredis)
+
+- Only keys **sent** to Redis are prefixed. Keys **returned** by Redis are **not** un-prefixed — e.g.
+  `KEYS *`, `SCAN`, and `RANDOMKEY` return keys that still include the prefix.
+- Because returned keys keep the prefix, **`scanIterator` yields already-prefixed keys**. Feeding
+  them straight back into a key-prefixing command double-prefixes them — e.g. with `keyPrefix: 'app:'`,
+  a yielded `'app:foo'` passed to `client.mGet(...)` becomes `'app:app:foo'`. Strip the prefix first,
+  or use a client without a `keyPrefix`. See [Scan Iterators](./scan-iterators.md).
+- `SCAN`/`KEYS`/`HSCAN`/… `MATCH` patterns are **not** auto-prefixed. Include the prefix in the
+  pattern yourself if required (e.g. `client.scan('0', { MATCH: 'app:user:*' })`).
+- Pub/Sub channels are **not** prefixed (this includes sharded `SPUBLISH`/`SSUBSCRIBE`), since
+  channels are a separate namespace from keys.
+- The deprecated `parseArgs`/`transformArguments` helper does not apply `keyPrefix`.
+
+`keyPrefix` may be a `string` or a `Buffer`.
+
 ## Connection Pooling
 
 In most cases, a single Redis connection is sufficient, as the node-redis client efficiently handles commands using an underlying socket. Unlike traditional databases, Redis does not require connection pooling for optimal performance.

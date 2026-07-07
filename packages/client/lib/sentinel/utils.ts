@@ -15,7 +15,7 @@ export function parseNode(node: Record<string, string>): RedisNode | undefined{
 }
 
 export function createNodeList(nodes: UnwrapReply<ArrayReply<Record<string, string>>>) {
-  var nodeList: Array<RedisNode> = [];
+  const nodeList: Array<RedisNode> = [];
 
   for (const nodeData of nodes) {
     const node = parseNode(nodeData)
@@ -26,6 +26,32 @@ export function createNodeList(nodes: UnwrapReply<ArrayReply<Record<string, stri
   }
 
   return nodeList;
+}
+
+/**
+ * Merges configured seed nodes with nodes discovered from a sentinel, deduping
+ * by `host:port`. Seeds are kept first so DNS-based hostnames remain available
+ * for reconnection even after a full outage where sentinels return new IPs
+ * (see issue #3237).
+ */
+export function mergeSentinelNodes(
+  seedNodes: Array<RedisNode>,
+  discoveredNodes: Array<RedisNode>
+): Array<RedisNode> {
+  const seen = new Set<string>();
+  const merged: Array<RedisNode> = [];
+
+  for (const node of [...seedNodes, ...discoveredNodes]) {
+    const key = `${node.host}:${node.port}`;
+    if (!seen.has(key)) {
+      // Clone so the working root-nodes list never aliases the frozen seed
+      // node objects (or the discovered ones).
+      merged.push({ host: node.host, port: node.port });
+      seen.add(key);
+    }
+  }
+
+  return merged;
 }
 
 export function clientSocketToNode(socket: RedisSocketOptions): RedisNode {
@@ -41,7 +67,7 @@ export function createCommand<T extends ProxySentinel | ProxySentinelClient>(com
   const transformReply = getTransformReply(command, resp);
 
   return async function (this: T, ...args: Array<unknown>) {
-    const parser = new BasicCommandParser();
+    const parser = new BasicCommandParser(this._self._keyPrefix);
     command.parseCommand(parser, ...args);
 
     return this._self._execute(
@@ -56,7 +82,7 @@ export function createFunctionCommand<T extends NamespaceProxySentinel | Namespa
   const transformReply = getTransformReply(fn, resp);
 
   return async function (this: T, ...args: Array<unknown>) {
-    const parser = new BasicCommandParser();
+    const parser = new BasicCommandParser(this._self._keyPrefix);
     parser.push(...prefix);
     fn.parseCommand(parser, ...args);
 
@@ -71,7 +97,7 @@ export function createModuleCommand<T extends NamespaceProxySentinel | Namespace
   const transformReply = getTransformReply(command, resp);
 
   return async function (this: T, ...args: Array<unknown>) {
-    const parser = new BasicCommandParser();
+    const parser = new BasicCommandParser(this._self._keyPrefix);
     command.parseCommand(parser, ...args);
 
     return this._self._execute(
@@ -86,7 +112,7 @@ export function createScriptCommand<T extends ProxySentinel | ProxySentinelClien
   const transformReply = getTransformReply(script, resp);
 
   return async function (this: T, ...args: Array<unknown>) {
-    const parser = new BasicCommandParser();
+    const parser = new BasicCommandParser(this._self._keyPrefix);
     parser.push(...prefix);
     script.parseCommand(parser, ...args);
 

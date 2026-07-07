@@ -25,7 +25,7 @@ export default {
     if (isKeyArray) {
       parser.push('');
     } else {
-      parser.push(key);
+      parser.pushKey(key);
     }
   
     parser.push(
@@ -58,7 +58,7 @@ export default {
   
     if (isKeyArray) {
       parser.push('KEYS');
-      parser.pushVariadic(key);
+      parser.pushKeys(key);
     }
   },
   transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
