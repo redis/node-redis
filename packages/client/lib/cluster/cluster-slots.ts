@@ -169,10 +169,16 @@ export default class RedisClusterSlots<
     }
 
     this.#isOpen = true;
+    this.#isReady = false;
     try {
       await this.#discoverWithRootNodes();
-      this.#isReady = true;
-      this.#emit('connect');
+      // `destroy()` may have run while discovery was in flight; if so, this
+      // resolution is stale and must not resurrect readiness for a session
+      // that's already been torn down.
+      if (this.#isOpen) {
+        this.#isReady = true;
+        this.#emit('connect');
+      }
     } catch (err) {
       this.#isOpen = false;
       this.#isReady = false;
