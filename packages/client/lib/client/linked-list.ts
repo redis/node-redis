@@ -86,19 +86,18 @@ export class DoublyLinkedList<T> {
     if (this.#length === 0) return;
     --this.#length;
 
-    if (this.#tail === node) {
-      this.#tail = node.previous;
-    } 
-    if (this.#head === node) {
-      this.#head = node.next;
+    if (node.previous) {
+      node.previous.next = node.next;
     } else {
-      if (node.previous) {
-          node.previous.next = node.next;
-      }
-      if (node.next) {
-        node.next.previous = node.previous;
-      }
+      this.#head = node.next;
     }
+
+    if (node.next) {
+      node.next.previous = node.previous;
+    } else {
+      this.#tail = node.previous;
+    }
+
     node.previous = undefined;
     node.next = undefined;
   }
