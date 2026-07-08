@@ -1,5 +1,5 @@
 import type { RedisClusterClientOptions, RedisClusterOptions } from '.';
-import { RootNodesUnavailableError } from '../errors';
+import { ClientClosedError, ClientOfflineError, RootNodesUnavailableError } from '../errors';
 import RedisClient, { RedisClientOptions, RedisClientType } from '../client';
 import { EventEmitter } from 'node:stream';
 import { ChannelListeners, PUBSUB_TYPE, PubSubListeners, PubSubTypeListeners } from '../client/pub-sub';
@@ -129,6 +129,12 @@ export default class RedisClusterSlots<
     return this.#isOpen;
   }
 
+  #isReady = false;
+
+  get isReady() {
+    return this.#isReady;
+  }
+
   #validateOptions(options?: RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING>) {
     if (options?.clientSideCache && (options?.RESP ?? DEFAULT_RESP) !== 3) {
       throw new Error('Client Side Caching is only supported with RESP3');
@@ -163,11 +169,19 @@ export default class RedisClusterSlots<
     }
 
     this.#isOpen = true;
+    this.#isReady = false;
     try {
       await this.#discoverWithRootNodes();
-      this.#emit('connect');
+      // `destroy()` may have run while discovery was in flight; if so, this
+      // resolution is stale and must not resurrect readiness for a session
+      // that's already been torn down.
+      if (this.#isOpen) {
+        this.#isReady = true;
+        this.#emit('connect');
+      }
     } catch (err) {
       this.#isOpen = false;
+      this.#isReady = false;
       throw err;
     }
   }
@@ -737,6 +751,7 @@ export default class RedisClusterSlots<
 
   destroy() {
     this.#isOpen = false;
+    this.#isReady = false;
 
     for (const client of this.#clients()) {
       client.destroy();
@@ -773,6 +788,7 @@ export default class RedisClusterSlots<
 
   async #destroy(fn: (client: RedisClientType<M, F, S, RESP>) => Promise<unknown>): Promise<void> {
     this.#isOpen = false;
+    this.#isReady = false;
 
     const promises = [];
     for (const client of this.#clients()) {
@@ -792,6 +808,16 @@ export default class RedisClusterSlots<
     this.#emit('disconnect');
   }
 
+  #assertReady() {
+    if (!this.#isOpen) {
+      throw new ClientClosedError();
+    }
+
+    if (!this.#isReady) {
+      throw new ClientOfflineError();
+    }
+  }
+
   async getClientAndSlotNumber(
     firstKey: RedisArgument | undefined,
     isReadonly: boolean | undefined
@@ -799,6 +825,8 @@ export default class RedisClusterSlots<
     client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>,
     slotNumber?: number
   }> {
+    this.#assertReady();
+
     if (!firstKey) {
       return {
         client: await this.nodeClient(this.getRandomNode())
@@ -823,6 +851,8 @@ export default class RedisClusterSlots<
     key: RedisArgument,
     isReadonly: boolean | undefined
   ): Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {
+    this.#assertReady();
+
     const slotNumber = calculateSlot(key);
     if (isReadonly) {
       return this.nodeClient(this.getSlotRandomNode(slotNumber));
@@ -902,6 +932,8 @@ export default class RedisClusterSlots<
   }
 
   getPubSubClient(): Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {
+    this.#assertReady();
+
     if (!this.pubSubNode) return this.#initiatePubSubClient();
 
     return this.pubSubNode.connectPromise ?? Promise.resolve(this.pubSubNode.client);
@@ -952,6 +984,8 @@ export default class RedisClusterSlots<
   }
 
   getShardedPubSubClient(channel: string): Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {
+    this.#assertReady();
+
     const { master } = this.slots[calculateSlot(channel)];
     if (!master.pubSub) return this.#initiateShardedPubSubClient(master);
     return master.pubSub.connectPromise ?? Promise.resolve(master.pubSub.client);
