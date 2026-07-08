@@ -3,11 +3,47 @@ import { setTimeout } from 'node:timers/promises';
 import testUtils, { GLOBAL, waitTillBeenCalled } from '../test-utils';
 import RedisCluster from '.';
 import { SQUARE_SCRIPT } from '../client/index.spec';
-import { RootNodesUnavailableError } from '../errors';
+import { ClientClosedError, ClientOfflineError, RootNodesUnavailableError } from '../errors';
 import { spy } from 'sinon';
 import RedisClient from '../client';
 import { RESP_TYPES } from '../RESP/decoder';
 import calculateSlot from 'cluster-key-slot';
+
+describe('Cluster command lifecycle', () => {
+  it('rejects commands before connect', async () => {
+    const cluster = RedisCluster.create({ rootNodes: [] });
+    assert.equal(cluster.isOpen, false);
+    assert.equal(cluster.isReady, false);
+
+    await assert.rejects(
+      cluster.get('key'),
+      ClientClosedError
+    );
+  });
+
+  it('rejects commands while connect is in progress', async () => {
+    const cluster = RedisCluster.create({
+      rootNodes: [{
+        socket: {
+          host: '203.0.113.1',
+          port: 6379,
+          connectTimeout: 1
+        }
+      }]
+    });
+    const connectPromise = cluster.connect().catch(() => undefined);
+    assert.equal(cluster.isOpen, true);
+    assert.equal(cluster.isReady, false);
+
+    await assert.rejects(
+      cluster.get('key'),
+      ClientOfflineError
+    );
+
+    cluster.destroy();
+    await connectPromise;
+  });
+});
 
 describe('Cluster', () => {
   describe('default commandOptions', () => {

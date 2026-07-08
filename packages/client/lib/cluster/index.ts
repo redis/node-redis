@@ -350,6 +350,10 @@ export default class RedisCluster<
     return this._self._slots.isOpen;
   }
 
+  get isReady() {
+    return this._self._slots.isReady;
+  }
+
   /**
    * @internal
    * Returns the cluster identity for tracking in metrics.
