@@ -7,3 +7,4 @@ export { TIME_SERIES_AGGREGATION_TYPE, TimeSeriesAggregationType } from './comma
 export { TIME_SERIES_BUCKET_TIMESTAMP, TimeSeriesBucketTimestamp } from './commands/RANGE';
 export { TimeSeriesAggregationTypeList, TsRangeMultiAggrOptions } from './commands/RANGE_MULTIAGGR';
 export { TIME_SERIES_REDUCERS, TimeSeriesReducer } from './commands/MRANGE_GROUPBY';
+export { TS_READ_TIMESTAMP, TsReadTimestamp, TsReadOptions } from './commands/READ';
