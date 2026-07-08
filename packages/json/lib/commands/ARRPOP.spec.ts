@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ARRPOP from './ARRPOP';
-import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
+import { parseArgs, RedisJSON } from '@redis/client/lib/commands/generic-transformers';
 
 describe('JSON.ARRPOP', () => {
   describe('transformArguments', () => {
@@ -73,7 +73,7 @@ describe('JSON.ARRPOP', () => {
         })
       ]);
 
-      const [item] = (res as any[]);
+      const [item] = (res as Array<RedisJSON>);
       assert(typeof item === 'object' && item !== null && 'birthday' in item && item.birthday instanceof Date && item.birthday.getTime() === new Date('1998-02-12').getTime());
     }, GLOBAL.SERVERS.OPEN);
   });
