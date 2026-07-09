@@ -37,11 +37,11 @@ export default {
       parser.push('ABSTTL');
     }
 
-    if (options?.IDLETIME) {
+    if (options?.IDLETIME !== undefined) {
       parser.push('IDLETIME', options.IDLETIME.toString());
     }
 
-    if (options?.FREQ) {
+    if (options?.FREQ !== undefined) {
       parser.push('FREQ', options.FREQ.toString());
     }
   },
