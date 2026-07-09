@@ -444,11 +444,19 @@ export type RedisClusterDockersConfig = RedisServerDockerOptions & {
 }
 
 const CLUSTER_BUS_PORT_OFFSET = 10000;
+// Cluster nodes announce `port + CLUSTER_BUS_PORT_OFFSET` as their bus port
+// (see spawnClusterNetworkNode below), so client ports reserved for a
+// cluster must leave enough headroom for that to stay a valid TCP port.
+const MAX_CLUSTER_CLIENT_PORT = 65535 - CLUSTER_BUS_PORT_OFFSET;
 
-async function reservePorts(count: number): Promise<number[]> {
+async function reservePorts(count: number, maxPort = 65535): Promise<number[]> {
   const ports: number[] = [];
   for (let i = 0; i < count; i++) {
-    ports.push((await portIterator.next()).value);
+    let port: number;
+    do {
+      port = (await portIterator.next()).value;
+    } while (port > maxPort);
+    ports.push(port);
   }
   return ports;
 }
@@ -532,7 +540,7 @@ async function spawnRedisClusterDockers(
 
   // All ports must be known up-front: the network "owner" node has to
   // publish every port the cluster will use in its single `docker run`.
-  const ports = await reservePorts(totalNodeCount);
+  const ports = await reservePorts(totalNodeCount, MAX_CLUSTER_CLIENT_PORT);
   const nodeArguments = [...serverArguments, '--cluster-enabled', 'yes', '--cluster-node-timeout', '5000'];
 
   const ownerDocker = await spawnClusterNetworkNode(dockersConfig, nodeArguments, ports[0], ports, undefined);
