@@ -4,7 +4,6 @@ import { createConnection } from 'node:net';
 import { once } from 'node:events';
 import { createClient } from '@redis/client/index';
 import { setTimeout } from 'node:timers/promises';
-// import { ClusterSlotsReply } from '@redis/client/dist/lib/commands/CLUSTER_SLOTS';
 import { execFile as execFileCallback } from 'node:child_process';
 import { promisify } from 'node:util';
 import * as fs from 'node:fs';
@@ -444,90 +443,76 @@ export type RedisClusterDockersConfig = RedisServerDockerOptions & {
   numberOfReplicas?: number;
 }
 
-async function spawnRedisClusterNodeDockers(
-  dockersConfig: RedisClusterDockersConfig,
-  serverArguments: Array<string>,
-  fromSlot: number,
-  toSlot: number,
-  clientConfig?: Partial<RedisClusterClientOptions>
-) {
-  const range: Array<number> = [];
-  for (let i = fromSlot; i < toSlot; i++) {
-    range.push(i);
+const CLUSTER_BUS_PORT_OFFSET = 10000;
+
+async function reservePorts(count: number): Promise<number[]> {
+  const ports: number[] = [];
+  for (let i = 0; i < count; i++) {
+    ports.push((await portIterator.next()).value);
   }
-
-  const master = await spawnRedisClusterNodeDocker(
-    dockersConfig,
-    serverArguments,
-    clientConfig
-  );
-
-  await master.client.clusterAddSlots(range);
-
-  if (!dockersConfig.numberOfReplicas) return [master];
-
-  const replicasPromises: Array<ReturnType<typeof spawnRedisClusterNodeDocker>> = [];
-  for (let i = 0; i < (dockersConfig.numberOfReplicas ?? 0); i++) {
-    replicasPromises.push(
-      spawnRedisClusterNodeDocker(dockersConfig, [
-        ...serverArguments,
-        '--cluster-enabled',
-        'yes',
-        '--cluster-node-timeout',
-        '5000'
-      ], clientConfig).then(async replica => {
-
-        const requirePassIndex = serverArguments.findIndex((x) => x === '--requirepass');
-        if (requirePassIndex !== -1) {
-          const password = serverArguments[requirePassIndex + 1];
-          await replica.client.configSet({ 'masterauth': password })
-        }
-        await replica.client.clusterMeet('127.0.0.1', master.docker.port);
-
-        while ((await replica.client.clusterSlots()).length === 0) {
-          await setTimeout(25);
-        }
-
-        await replica.client.clusterReplicate(
-          await master.client.clusterMyId()
-        );
-
-        return replica;
-      })
-    );
-  }
-
-  return [
-    master,
-    ...await Promise.all(replicasPromises)
-  ];
+  return ports;
 }
 
-async function spawnRedisClusterNodeDocker(
+// Spawns one redis-server node that's part of a cluster where *all* nodes
+// share a single Docker network namespace, instead of `--network host`.
+//
+// Why: on macOS/Windows, `--network host` only reaches the Docker Desktop VM,
+// not the real host, so the host test process can't connect to the nodes at
+// all (see #2358). Publishing ports (`-p`) the usual way fixes host access,
+// but Redis Cluster nodes can only *announce* one address for themselves --
+// an address that's valid for sibling containers (their bridge-network IP)
+// is *not* valid for the host, and vice-versa.
+//
+// Fix: put every node in the cluster in the *same* network namespace via
+// `--network container:<id>`. The first node spawned ("owner") gets a normal
+// network and publishes every port the whole cluster will ever use; every
+// other node joins the owner's namespace instead of getting its own. From
+// then on, `127.0.0.1:<port>` means the same thing to the host *and* to every
+// sibling node, so `--cluster-announce-ip 127.0.0.1` is simultaneously valid
+// for both audiences.
+async function spawnClusterNetworkNode(
   dockersConfig: RedisServerDockerOptions,
   serverArguments: Array<string>,
-  clientConfig?: Partial<RedisClusterClientOptions>
-) {
-  const docker = await spawnRedisServerDocker(dockersConfig, [
-      ...serverArguments,
-      '--cluster-enabled',
-      'yes',
-      '--cluster-node-timeout',
-      '5000'
-    ]),
-    client = createClient({
-      socket: {
-        port: docker.port
-      },
-      ...clientConfig
-    });
+  port: number,
+  ownerPorts: number[] | undefined,
+  networkOwnerId: string | undefined
+): Promise<RedisServerDocker> {
+  const portStr = port.toString();
+  const busPort = port + CLUSTER_BUS_PORT_OFFSET;
 
-  await client.connect();
+  const dockerArgs = ['run', '--init', '-e', `PORT=${portStr}`];
 
-  return {
-    docker,
-    client
-  };
+  if (networkOwnerId) {
+    dockerArgs.push('--network', `container:${networkOwnerId}`);
+  } else {
+    for (const p of ownerPorts!) {
+      dockerArgs.push(
+        '-p', `${p}:${p}`,
+        '-p', `${p + CLUSTER_BUS_PORT_OFFSET}:${p + CLUSTER_BUS_PORT_OFFSET}`
+      );
+    }
+  }
+
+  dockerArgs.push('-d', `${dockersConfig.image}:${dockersConfig.version}`);
+  dockerArgs.push(
+    ...serverArguments,
+    '--cluster-announce-ip', '127.0.0.1',
+    '--cluster-announce-port', portStr,
+    '--cluster-announce-bus-port', busPort.toString()
+  );
+
+  console.log(`[Docker] Spawning cluster node - Port: ${port}, network: ${networkOwnerId ? `container:${networkOwnerId}` : '(owner)'}`);
+
+  const { stdout, stderr } = await execAsync('docker', dockerArgs);
+  if (!stdout) {
+    throw new Error(`docker run error - ${stderr}`);
+  }
+
+  while (await isPortAvailable(port)) {
+    await setTimeout(50);
+  }
+
+  return { port, dockerId: stdout.trim() };
 }
 
 const SLOTS = 16384;
@@ -538,50 +523,99 @@ async function spawnRedisClusterDockers(
   clientConfig?: Partial<RedisClusterClientOptions>
 ): Promise<Array<RedisServerDocker>> {
   const numberOfMasters = dockersConfig.numberOfMasters ?? 2,
-    slotsPerNode = Math.floor(SLOTS / numberOfMasters),
-    spawnPromises: Array<ReturnType<typeof spawnRedisClusterNodeDockers>> = [];
-  for (let i = 0; i < numberOfMasters; i++) {
-    const fromSlot = i * slotsPerNode,
-      toSlot = i === numberOfMasters - 1 ? SLOTS : fromSlot + slotsPerNode;
-    spawnPromises.push(
-      spawnRedisClusterNodeDockers(
-        dockersConfig,
-        serverArguments,
-        fromSlot,
-        toSlot,
-        clientConfig
-      )
-    );
+    numberOfReplicas = dockersConfig.numberOfReplicas ?? 0,
+    totalNodeCount = numberOfMasters * (1 + numberOfReplicas),
+    slotsPerNode = Math.floor(SLOTS / numberOfMasters);
+
+  // All ports must be known up-front: the network "owner" node has to
+  // publish every port the cluster will use in its single `docker run`.
+  const ports = await reservePorts(totalNodeCount);
+  const nodeArguments = [...serverArguments, '--cluster-enabled', 'yes', '--cluster-node-timeout', '5000'];
+
+  const ownerDocker = await spawnClusterNetworkNode(dockersConfig, nodeArguments, ports[0], ports, undefined);
+  const restDockers = await Promise.all(
+    ports.slice(1).map(port =>
+      spawnClusterNetworkNode(dockersConfig, nodeArguments, port, undefined, ownerDocker.dockerId)
+    )
+  );
+  const dockers = [ownerDocker, ...restDockers];
+
+  const nodes = await Promise.all(
+    dockers.map(async docker => {
+      const client = createClient({ socket: { port: docker.port }, ...clientConfig });
+      await client.connect();
+      return { docker, client };
+    })
+  );
+
+  // First `numberOfMasters` nodes are masters (one per shard); the rest are
+  // replicas, handed out round-robin across the masters.
+  const masters = nodes.slice(0, numberOfMasters);
+  const replicasByMaster: (typeof nodes)[] = masters.map(() => []);
+  for (let i = numberOfMasters; i < nodes.length; i++) {
+    replicasByMaster[(i - numberOfMasters) % numberOfMasters].push(nodes[i]);
   }
 
-  const nodes = (await Promise.all(spawnPromises)).flat(),
-    meetPromises: Array<Promise<unknown>> = [];
+  for (let i = 0; i < numberOfMasters; i++) {
+    const fromSlot = i * slotsPerNode,
+      toSlot = i === numberOfMasters - 1 ? SLOTS : fromSlot + slotsPerNode,
+      range: Array<number> = [];
+    for (let s = fromSlot; s < toSlot; s++) range.push(s);
+    await masters[i].client.clusterAddSlots(range);
+  }
+
+  const meetPromises: Array<Promise<unknown>> = [];
   for (let i = 1; i < nodes.length; i++) {
     meetPromises.push(
       nodes[i].client.clusterMeet('127.0.0.1', nodes[0].docker.port)
     );
   }
-
   await Promise.all(meetPromises);
 
+  // Wait for gossip to cover all slots before replicating -- this only needs
+  // the masters to be visible, not the (not-yet-configured) replicas, so it
+  // must happen *before* clusterReplicate below, not after.
   await Promise.all(
     nodes.map(async ({ client }) => {
       while (
-        totalNodes(await client.clusterSlots()) !== nodes.length ||
         !(await client.sendCommand<string>(['CLUSTER', 'INFO'])).startsWith('cluster_state:ok') // TODO
         ) {
         await setTimeout(50);
       }
-
-      client.destroy();
     })
   );
 
-  return nodes.map(({ docker }) => docker);
+  for (let i = 0; i < numberOfMasters; i++) {
+    for (const replica of replicasByMaster[i]) {
+      const requirePassIndex = serverArguments.findIndex((x) => x === '--requirepass');
+      if (requirePassIndex !== -1) {
+        const password = serverArguments[requirePassIndex + 1];
+        await replica.client.configSet({ 'masterauth': password });
+      }
+      await replica.client.clusterReplicate(await masters[i].client.clusterMyId());
+    }
+  }
+
+  // Now that replicas are attached, wait for every node to see the full
+  // node count (masters + replicas) before handing the cluster back.
+  await Promise.all(
+    nodes.map(async ({ client }) => {
+      while (totalNodes(await client.clusterSlots()) !== nodes.length) {
+        await setTimeout(50);
+      }
+    })
+  );
+
+  for (const { client } of nodes) {
+    client.destroy();
+  }
+
+  return dockers;
 }
 
-// TODO: type ClusterSlotsReply
-function totalNodes(slots: any) {
+type ClusterSlotsReply = Awaited<ReturnType<ReturnType<typeof createClient>['clusterSlots']>>;
+
+function totalNodes(slots: ClusterSlotsReply) {
   let total = slots.length;
   for (const slot of slots) {
     total += slot.replicas.length;
