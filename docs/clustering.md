@@ -57,9 +57,15 @@ await cluster.sendCommand("key", false, ["SET", "key", "value", "NX"]); // 'OK'
 await cluster.sendCommand("key", true, ["HGETALL", "key"]); // ['key1', 'field1', 'key2', 'field2']
 ```
 
-## Auth with password and username
+## Root nodes vs. defaults
 
-Specifying the password in the URL or a root node will only affect the connection to that specific node. In case you want to set the password for all the connections being created from a cluster instance, use the `defaults` option.
+The configuration in `rootNodes` is only used for the connections that discover the cluster topology. It is **not** inherited by the connections the cluster then makes to the discovered nodes — those are created from the `defaults` option (plus the discovered host and port).
+
+This means that any setting that should apply to every connection in the cluster — credentials, TLS, timeouts, etc. — must be specified via `defaults`, even if it is already present in a root node URL or configuration.
+
+### Auth with password and username
+
+Specifying the password in the URL or a root node will only affect the connection used for topology discovery. In case you want to set the password for all the connections being created from a cluster instance, use the `defaults` option.
 
 ```javascript
 createCluster({
@@ -75,11 +81,9 @@ createCluster({
 });
 ```
 
-## TLS
+### TLS
 
-Like the password, TLS options specified in the URL (`rediss://`) or in a root node only affect the connection that is used to discover the cluster topology — they are **not** inherited by the connections made to the discovered cluster nodes. Those connections are created from the `defaults` option.
-
-If your cluster requires TLS (e.g. AWS ElastiCache with in-transit encryption enabled), enable it via `defaults.socket`, otherwise the node connections will be attempted in plaintext and can hang without an error:
+Likewise, TLS options specified in the URL (`rediss://`) or in a root node only affect the topology discovery connection. If your cluster requires TLS (e.g. AWS ElastiCache with in-transit encryption enabled), enable it via `defaults.socket`, otherwise the connections to the discovered nodes will be attempted in plaintext and can hang without an error:
 
 ```javascript
 createCluster({

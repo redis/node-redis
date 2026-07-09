@@ -97,6 +97,13 @@ export type RedisClusterType<
   TYPE_MAPPING extends TypeMapping = {}
 > = genericRedisClusterType<RedisDefaultModules & M, F, S, RESP, TYPE_MAPPING>;
 
+/**
+ * Creates a new Redis Cluster client.
+ *
+ * Note: `rootNodes` is only used to discover the cluster topology; its configuration is not
+ * inherited by the connections made to the discovered nodes. Any setting that should apply to
+ * every connection in the cluster (e.g. credentials, TLS) must be specified via `defaults`.
+ */
 export function createCluster<
   M extends RedisModules = {},
   F extends RedisFunctions = {},

@@ -69,11 +69,18 @@ export interface RedisClusterOptions<
   /**
    * Should contain details for some of the cluster nodes that the client will use to discover
    * the "cluster topology". We recommend including details for at least 3 nodes here.
+   *
+   * Note: this configuration is only used for the connections that discover the topology — it is
+   * not inherited by the connections made to the discovered nodes. Settings that should apply to
+   * every connection (e.g. credentials, TLS) must be specified via `defaults`.
    */
   rootNodes: Array<RedisClusterClientOptions>;
   /**
    * Default values used for every client in the cluster. Use this to specify global values,
    * for example: ACL credentials, timeouts, TLS configuration etc.
+   *
+   * The connections to the discovered cluster nodes are created from these defaults (plus the
+   * discovered host and port) — they do not inherit any other settings from `rootNodes`.
    */
   defaults?: Partial<RedisClusterClientOptions>;
   /**
@@ -275,6 +282,24 @@ export default class RedisCluster<
     };
   }
 
+  /**
+   * Creates a new Redis Cluster client.
+   *
+   * Note: `rootNodes` is only used to discover the cluster topology; its configuration is not
+   * inherited by the connections made to the discovered nodes. Any setting that should apply to
+   * every connection in the cluster (e.g. credentials, TLS) must be specified via `defaults`:
+   *
+   * @example
+   * ```javascript
+   * createCluster({
+   *   rootNodes: [{ url: 'rediss://external-host.io:30001' }],
+   *   defaults: {
+   *     password: 'password',
+   *     socket: { tls: true }
+   *   }
+   * });
+   * ```
+   */
   static create<
     M extends RedisModules = {},
     F extends RedisFunctions = {},
