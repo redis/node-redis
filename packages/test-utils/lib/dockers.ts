@@ -485,11 +485,14 @@ async function spawnClusterNetworkNode(
   if (networkOwnerId) {
     dockerArgs.push('--network', `container:${networkOwnerId}`);
   } else {
+    // Only the client port needs to be reachable from the host -- the
+    // cluster bus port is only ever dialed by sibling nodes over loopback
+    // inside this shared namespace, so it doesn't need (and shouldn't get)
+    // a host mapping. Publishing it anyway is both pointless and unsafe:
+    // `port + CLUSTER_BUS_PORT_OFFSET` can exceed 65535 for high ports,
+    // which makes Docker reject the whole `docker run`.
     for (const p of ownerPorts!) {
-      dockerArgs.push(
-        '-p', `${p}:${p}`,
-        '-p', `${p + CLUSTER_BUS_PORT_OFFSET}:${p + CLUSTER_BUS_PORT_OFFSET}`
-      );
+      dockerArgs.push('-p', `${p}:${p}`);
     }
   }
 
