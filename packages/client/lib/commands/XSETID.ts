@@ -19,7 +19,7 @@ export default {
     parser.pushKey(key);
     parser.push(lastId);
 
-    if (options?.ENTRIESADDED) {
+    if (options?.ENTRIESADDED !== undefined) {
       parser.push('ENTRIESADDED', options.ENTRIESADDED.toString());
     }
 

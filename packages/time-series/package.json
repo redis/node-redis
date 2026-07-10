@@ -1,6 +1,6 @@
 {
   "name": "@redis/time-series",
-  "version": "6.0.1",
+  "version": "6.1.0",
   "license": "MIT",
   "main": "./dist/lib/index.js",
   "types": "./dist/lib/index.d.ts",
@@ -13,7 +13,7 @@
     "release": "release-it"
   },
   "peerDependencies": {
-    "@redis/client": "^6.0.1"
+    "@redis/client": "^6.1.0"
   },
   "devDependencies": {
     "@redis/test-utils": "*"

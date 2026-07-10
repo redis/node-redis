@@ -49,6 +49,24 @@ describe('RESTORE', () => {
       );
     });
 
+    it('with IDLETIME 0', () => {
+      assert.deepEqual(
+        parseArgs(RESTORE, 'key', 0, 'value', {
+          IDLETIME: 0
+        }),
+        ['RESTORE', 'key', '0', 'value', 'IDLETIME', '0']
+      );
+    });
+
+    it('with FREQ 0', () => {
+      assert.deepEqual(
+        parseArgs(RESTORE, 'key', 0, 'value', {
+          FREQ: 0
+        }),
+        ['RESTORE', 'key', '0', 'value', 'FREQ', '0']
+      );
+    });
+
     it('with REPLACE, ABSTTL, IDLETIME and FREQ', () => {
       assert.deepEqual(
         parseArgs(RESTORE, 'key', 0, 'value', {

@@ -49,6 +49,10 @@ To run the tests, run `npm install` to install dependencies, then run `npm run b
 
 Note that the test suite assumes that [`docker`](https://www.docker.com/) is installed in your environment.
 
+#### Running the tests on macOS and Windows
+
+The test suite starts its Redis containers with `--network host`, which requires host networking support. On macOS and Windows this needs Docker Desktop 4.34 or newer with host networking enabled: **Settings → Resources → Network → Enable host networking**. Without it, the spawned containers are not reachable from the host and the dockerized tests will hang or time out.
+
 ### Submitting Code for Review
 
 The bigger the pull request, the longer it will take to review and merge. Where possible try to break down large pull requests into smaller chunks that are easier to review and merge. It is also always helpful to have some context for your pull request. What was the purpose? Why does it matter to you? What problem are you trying to solve? Tag in any relevant issues.

@@ -6,7 +6,7 @@ export default TestUtils.createFromConfig({
   dockerImageName: 'redislabs/client-libs-test',
   dockerImageTagArgument: 'redis-tag',
   dockerImageVersionArgument: 'redis-version',
-  defaultDockerVersion: { tag: '8.8.0', version: '8.8' }
+  defaultDockerVersion: { tag: 'custom-28772936538-debian', version: '8.10' }
 });
 
 export const GLOBAL = {
@@ -24,6 +24,15 @@ export const GLOBAL = {
       serverArguments: [],
       clientOptions: {
         RESP: 3 as RespVersions,
+        modules: {
+          ft: RediSearch
+        }
+      }
+    },
+    OPEN_UNSTABLE: {
+      serverArguments: ['--search-enable-unstable-features', 'yes'],
+      clientOptions: {
+        RESP: 3 as const,
         modules: {
           ft: RediSearch
         }

@@ -14,6 +14,7 @@ import { PubSubProxy } from './pub-sub-proxy';
 import { setTimeout } from 'node:timers/promises';
 import RedisSentinelModule from './module'
 import { RedisVariadicArgument } from '../commands/generic-transformers';
+import { prefixKeys } from '../client/parser';
 import { WaitQueue } from './wait-queue';
 import { TcpNetConnectOpts } from 'node:net';
 import { RedisTcpSocketOptions } from '../client/socket';
@@ -66,6 +67,14 @@ export class RedisSentinelClient<
     return this._commandOptions !== undefined
       ? { ...this._self.#commandOptions, ...this._commandOptions }
       : this._self.#commandOptions;
+  }
+
+  /**
+   * The configured key prefix (see {@link RedisSentinelOptions.keyPrefix}), if any.
+   * @internal
+   */
+  get _keyPrefix(): RedisArgument | undefined {
+    return this._self.#internal.keyPrefix;
   }
 
   #commandOptions?: CommandOptions<TYPE_MAPPING>;
@@ -227,9 +236,13 @@ export class RedisSentinelClient<
       throw new Error("Attempted execution on released RedisSentinelClient lease");
     }
 
+    // Apply the sentinel's `keyPrefix` here: the underlying node client carries no
+    // prefix (it receives already-prefixed args for normal commands), so WATCH must be
+    // prefixed at this level to guard the same key the transaction operates on.
+    const watchKeys = prefixKeys(this._self._keyPrefix, key);
     return this._execute(
       false,
-      client => client.watch(key)
+      client => client.watch(watchKeys)
     )
   }
 
@@ -325,6 +338,14 @@ export default class RedisSentinel<
 
   get clientSideCache() {
     return this._self.#internal.clientSideCache;
+  }
+
+  /**
+   * The configured key prefix (see {@link RedisSentinelOptions.keyPrefix}), if any.
+   * @internal
+   */
+  get _keyPrefix(): RedisArgument | undefined {
+    return this._self.#options.keyPrefix;
   }
 
   constructor(options: RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>) {
@@ -662,6 +683,13 @@ export default class RedisSentinel<
    * paged `SCAN` calls. Yields one array of keys per page until the SCAN cursor
    * returns to `0`.
    *
+   * @remarks
+   * With a configured `keyPrefix`, the yielded keys are the **already-prefixed** keys
+   * as stored on the server — replies are never un-prefixed. Passing them straight back
+   * into a key-prefixed command prefixes them a second time (e.g. with `keyPrefix: 'app:'`,
+   * a yielded `'app:foo'` becomes `'app:app:foo'`). Strip the prefix before reusing the
+   * keys, or read them with a client that has no `keyPrefix`.
+   *
    * The master client lease is acquired for the duration of each `SCAN` call
    * and released before yielding, so consumers can issue other commands from
    * inside the `for await` loop body without deadlocking against the iterator
@@ -759,6 +787,15 @@ export class RedisSentinelInternal<
   readonly #scanInterval: number;
   readonly #passthroughClientErrorEvents: boolean;
   readonly #RESP?: RespVersions;
+  readonly #keyPrefix?: RedisArgument;
+
+  /**
+   * The configured key prefix (see {@link RedisSentinelOptions.keyPrefix}), if any.
+   * @internal
+   */
+  get keyPrefix(): RedisArgument | undefined {
+    return this.#keyPrefix;
+  }
 
   #anotherReset = false;
 
@@ -809,6 +846,7 @@ export class RedisSentinelInternal<
     this.#sentinelClientId = sentinelClientId;
 
     this.#RESP = options.RESP;
+    this.#keyPrefix = options.keyPrefix;
     this.#sentinelSeedNodes = Array.from(options.sentinelRootNodes);
     // Initial root nodes start as a copy of the seed nodes; transform() later
     // merges discovered nodes on top while preserving these seeds.

@@ -372,6 +372,7 @@ import ZRANK from './ZRANK';
 import ZREM from './ZREM';
 import ZREMRANGEBYLEX from './ZREMRANGEBYLEX';
 import ZREMRANGEBYRANK from './ZREMRANGEBYRANK';
+import ZREVRANK_WITHSCORE from './ZREVRANK_WITHSCORE';
 import ZREVRANK from './ZREVRANK';
 import ZSCAN from './ZSCAN';
 import ZSCORE from './ZSCORE';
@@ -5604,6 +5605,16 @@ export default {
    * @param max - Maximum score.
    */
   zRemRangeByScore: ZREMRANGEBYSCORE,
+  /**
+   * Returns the reverse rank of a member in the sorted set with its score.
+   * @param args - Same parameters as the ZREVRANK command.
+   */
+  ZREVRANK_WITHSCORE,
+  /**
+   * Returns the reverse rank of a member in the sorted set with its score.
+   * @param args - Same parameters as the ZREVRANK command.
+   */
+  zRevRankWithScore: ZREVRANK_WITHSCORE,
   /**
    * Returns the rank of a member in the sorted set, with scores ordered from high to low.
    * @param key - Key of the sorted set.

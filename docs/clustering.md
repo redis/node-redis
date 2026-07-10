@@ -152,3 +152,21 @@ Admin commands such as `MEMORY STATS`, `FLUSHALL`, etc. are not attached to the 
 
 Certain commands (e.g. `PUBLISH`) are forwarded to other cluster nodes by the Redis server. The client sends these commands to a random node in order to spread the load across the cluster.
 
+### Transactions with `WATCH`
+
+`WATCH` relies on connection-level state on a specific node, so it isn't exposed directly on the cluster client. Use `.getNodeClientForKey()` to get the node client responsible for a key's slot and run the optimistic-locking transaction on it:
+
+```javascript
+const key = 'key';
+const nodeClient = await cluster.getNodeClientForKey(key);
+
+await nodeClient.watch(key);
+const value = await nodeClient.get(key);
+const reply = await nodeClient
+  .multi()
+  .set(key, calculateNewValue(value)) // application logic
+  .exec(); // `null` if `key` changed since `WATCH`, retry in that case
+```
+
+All keys touched in the transaction must hash to the same slot. Pass `true` as the second argument (`getNodeClientForKey(key, true)`) to allow a replica for read-only use.
+

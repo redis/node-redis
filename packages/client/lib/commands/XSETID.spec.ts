@@ -29,6 +29,15 @@ describe('XSETID', () => {
         ['XSETID', 'key', '0-0', 'MAXDELETEDID', '1-1']
       );
     });
+
+    it('with ENTRIESADDED 0', () => {
+      assert.deepEqual(
+        parseArgs(XSETID, 'key', '0-0', {
+          ENTRIESADDED: 0
+        }),
+        ['XSETID', 'key', '0-0', 'ENTRIESADDED', '0']
+      );
+    });
   });
 
   testUtils.testAll('xSetId', async client => {

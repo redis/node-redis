@@ -39,6 +39,18 @@ interface ClusterCommander<
   // POLICIES extends CommandPolicies
 > extends CommanderConfig<M, F, S, RESP> {
   commandOptions?: ClusterCommandOptions<TYPE_MAPPING/*, POLICIES*/>;
+  /**
+   * Prefix prepended to every key sent to Redis (ioredis-compatible `keyPrefix`).
+   *
+   * Applied by the cluster client itself; the slot of each command is computed from the
+   * prefixed key, so routing stays correct. It is intentionally a cluster-level option
+   * (not a per-node `rootNodes`/`defaults` option) so it is applied exactly once.
+   *
+   * Matches ioredis semantics: only keys *sent* to Redis are prefixed. Keys *returned*
+   * by Redis are NOT un-prefixed, `MATCH` patterns are NOT auto-prefixed, and Pub/Sub
+   * channels are NOT prefixed.
+   */
+  keyPrefix?: RedisArgument;
 }
 
 export type RedisClusterClientOptions = Omit<
@@ -167,7 +179,7 @@ export default class RedisCluster<
     const transformReply = getTransformReply(command, resp);
 
     return async function (this: ProxyCluster, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this._self._keyPrefix);
       command.parseCommand(parser, ...args);
 
       return this._self._execute(
@@ -183,7 +195,7 @@ export default class RedisCluster<
     const transformReply = getTransformReply(command, resp);
 
     return async function (this: NamespaceProxyCluster, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this._self._keyPrefix);
       command.parseCommand(parser, ...args);
 
       return this._self._execute(
@@ -200,7 +212,7 @@ export default class RedisCluster<
     const transformReply = getTransformReply(fn, resp);
 
     return async function (this: NamespaceProxyCluster, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this._self._keyPrefix);
       parser.push(...prefix);
       fn.parseCommand(parser, ...args);
 
@@ -218,7 +230,7 @@ export default class RedisCluster<
     const transformReply = getTransformReply(script, resp);
 
     return async function (this: ProxyCluster, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this._self._keyPrefix);
       parser.push(...prefix);
       script.parseCommand(parser, ...args);
 
@@ -310,6 +322,14 @@ export default class RedisCluster<
   }
 
   /**
+   * The configured key prefix (see {@link RedisClusterOptions.keyPrefix}), if any.
+   * @internal
+   */
+  get _keyPrefix(): RedisArgument | undefined {
+    return this._self._options.keyPrefix;
+  }
+
+  /**
    * An array of the cluster masters.
    * Use with {@link RedisCluster.prototype.nodeClient} to get the client for a specific master node.
    */
@@ -342,6 +362,10 @@ export default class RedisCluster<
 
   get isOpen() {
     return this._self._slots.isOpen;
+  }
+
+  get isReady() {
+    return this._self._slots.isReady;
   }
 
   /**
@@ -581,7 +605,8 @@ export default class RedisCluster<
         return client._executePipeline(commands);
       },
       routing,
-      this._commandOptions?.typeMapping
+      this._commandOptions?.typeMapping,
+      this._self._keyPrefix
     );
   }
 
@@ -752,6 +777,27 @@ export default class RedisCluster<
    */
   getSlotRandomNode(slot: number) {
     return this._self._slots.getSlotRandomNode(slot);
+  }
+
+  /**
+   * Returns the connected node client responsible for the given key's slot.
+   * Useful for connection-level operations that the cluster client does not expose
+   * directly, such as `WATCH` followed by `MULTI`/`EXEC`:
+   *
+   * ```javascript
+   * const nodeClient = await cluster.getNodeClientForKey(key);
+   * await nodeClient.WATCH(key);
+   * const value = await nodeClient.GET(key);
+   * const reply = await nodeClient.MULTI()
+   *   .SET(key, calculateNewValue(value))
+   *   .EXEC(); // `null` if `key` changed, retry
+   * ```
+   *
+   * @param key - The key whose slot determines the node.
+   * @param isReadonly - If `true`, may return a replica client; otherwise returns the slot master.
+   */
+  getNodeClientForKey(key: RedisArgument, isReadonly?: boolean) {
+    return this._self._slots.getClientForKey(key, isReadonly);
   }
 
   /**

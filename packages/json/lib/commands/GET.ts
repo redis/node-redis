@@ -1,9 +1,10 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument, Command } from '@redis/client/dist/lib/RESP/types';
-import { RedisVariadicArgument, transformRedisJsonNullReply } from '@redis/client/dist/lib/commands/generic-transformers';
+import { RedisVariadicArgument, transformRedisJsonNullReply, JsonReviver } from '@redis/client/dist/lib/commands/generic-transformers';
 
 export interface JsonGetOptions {
   path?: RedisVariadicArgument;
+  reviver?: JsonReviver
 }
 
 export default {
@@ -18,6 +19,7 @@ export default {
     if (options?.path !== undefined) {
       parser.pushVariadic(options.path);
     }
+    parser.preserve = options?.reviver;
   },
   transformReply: transformRedisJsonNullReply
 } as const satisfies Command;

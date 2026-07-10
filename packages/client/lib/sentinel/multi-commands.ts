@@ -93,7 +93,7 @@ export default class RedisSentinelMultiCommand<REPLIES = []> {
     const transformReply = getTransformReply(command, resp);
 
     return function (this: RedisSentinelMultiCommand, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this.#sentinel._keyPrefix);
       command.parseCommand(parser, ...args);
 
       const redisArgs: CommandArguments = parser.redisArgs;
@@ -111,7 +111,7 @@ export default class RedisSentinelMultiCommand<REPLIES = []> {
     const transformReply = getTransformReply(command, resp);
 
     return function (this: { _self: RedisSentinelMultiCommand }, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this._self.#sentinel._keyPrefix);
       command.parseCommand(parser, ...args);
 
       const redisArgs: CommandArguments = parser.redisArgs;
@@ -130,7 +130,7 @@ export default class RedisSentinelMultiCommand<REPLIES = []> {
     const transformReply = getTransformReply(fn, resp);
 
     return function (this: { _self: RedisSentinelMultiCommand }, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this._self.#sentinel._keyPrefix);
       parser.push(...prefix);
       fn.parseCommand(parser, ...args);
 
@@ -149,7 +149,7 @@ export default class RedisSentinelMultiCommand<REPLIES = []> {
     const transformReply = getTransformReply(script, resp);
 
     return function (this: RedisSentinelMultiCommand, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this.#sentinel._keyPrefix);
       script.parseCommand(parser, ...args);
 
       const scriptArgs: CommandArguments = parser.redisArgs;

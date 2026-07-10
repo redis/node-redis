@@ -1,6 +1,6 @@
 import { RedisClientOptions } from '../client';
 import { CommandOptions } from '../client/commands-queue';
-import { CommandSignature, CommanderConfig, RedisFunctions, RedisModules, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
+import { CommandSignature, CommanderConfig, RedisArgument, RedisFunctions, RedisModules, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
 import { NON_STICKY_COMMANDS } from '../commands';
 import RedisSentinel, { RedisSentinelClient } from '.';
 import { RedisTcpSocketOptions } from '../client/socket';
@@ -137,6 +137,17 @@ export interface SentinelCommander<
   // POLICIES extends CommandPolicies
 > extends CommanderConfig<M, F, S, RESP> {
   commandOptions?: CommandOptions<TYPE_MAPPING>;
+  /**
+   * Prefix prepended to every key sent to Redis (ioredis-compatible `keyPrefix`).
+   *
+   * Applied by the sentinel client itself. It is intentionally a sentinel-level option
+   * (not a per-node `nodeClientOptions` option) so it is applied exactly once.
+   *
+   * Matches ioredis semantics: only keys *sent* to Redis are prefixed. Keys *returned*
+   * by Redis are NOT un-prefixed, `MATCH` patterns are NOT auto-prefixed, and Pub/Sub
+   * channels are NOT prefixed.
+   */
+  keyPrefix?: RedisArgument;
 }
 
 export type RedisSentinelClientOptions = Omit<
