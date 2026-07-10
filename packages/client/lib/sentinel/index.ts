@@ -1000,7 +1000,7 @@ export class RedisSentinelInternal<
         }
 
         if (err.message !== 'no valid master node') {
-          console.log(e);
+          this.emit('error', err);
         }
         await setTimeout(1000);
       } finally {

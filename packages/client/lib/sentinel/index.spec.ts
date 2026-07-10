@@ -903,6 +903,44 @@ describe('legacy tests', () => {
       assert.notEqual(masterNode!.port, newMaster.port);
     });
 
+    // Regression: when sentinel discovery succeeds but the resolved master is
+    // unreachable (e.g. #3066 - TLS misconfiguration, or a firewalled/NATed
+    // address), #connect()'s retry loop used to silently `console.log` the
+    // failure on every attempt with nothing an application could observe or
+    // catch, leaving `connect()` looking hung until it eventually gave up
+    // after `maxCommandRediscovers` attempts. It should emit `'error'` on
+    // every retry attempt instead.
+    it('emits error while retrying an unreachable master', async function () {
+      this.timeout(60000);
+
+      const masterPort = await frame.getMasterPort();
+
+      sentinel = frame.getSentinelClient({
+        nodeAddressMap: (address: string) => {
+          const [host, portStr] = address.split(':');
+          // Remap only the master to an address nothing listens on, so the
+          // connection attempt fails immediately (ECONNREFUSED) without
+          // ever needing a failover - sentinel itself stays healthy the
+          // whole time, matching the reported scenario.
+          if (Number(portStr) === masterPort) {
+            return { host: '127.0.0.1', port: 1 };
+          }
+          return { host, port: Number(portStr) };
+        }
+      }, false);
+
+      const errors: Array<Error> = [];
+      sentinel.on('error', (err: Error) => errors.push(err));
+
+      const connectPromise = sentinel.connect();
+      connectPromise.catch(() => {});
+
+      // Wait for at least one retry attempt to surface an 'error' event
+      // instead of hanging silently.
+      await assert.doesNotReject(once(sentinel, 'error'));
+      assert.ok(errors.length > 0);
+    });
+
     // if master changes, client should make sure user knows watches are invalid
     it('watch across master change', async function () {
       this.timeout(60000);
