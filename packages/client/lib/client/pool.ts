@@ -106,9 +106,10 @@ export type RedisClientPoolType<
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- variance markers for pool generics
 type ProxyPool = RedisClientPoolType<any, any, any, any, any>;
 
-type NamespaceProxyPool = { 
-  _self: ProxyPool
-  _commandOptions?: CommandOptions };
+type NamespaceProxyPool = {
+  _self: ProxyPool;
+  _commandOptions?: CommandOptions;
+};
 
 export class RedisClientPool<
   M extends RedisModules = {},
@@ -378,8 +379,10 @@ export class RedisClientPool<
     value: V
   ) {
     const proxy = Object.create(this._self);
-    proxy._commandOptions = Object.assign( Object.create(
-        this._commandOptions ?? null), {[key]: value });
+    proxy._commandOptions = Object.assign(
+      Object.create(this._commandOptions ?? null),
+      { [key]: value }
+    );
     return proxy as RedisClientPoolType<
       M,
       F,
@@ -556,7 +559,7 @@ export class RedisClientPool<
     options?: CommandOptions
   ) {
     const mergedOptions = options
-     ? Object.assign(Object.create(this._commandOptions ?? null), options)
+      ? Object.assign(Object.create(this._commandOptions ?? null), options)
       : this._commandOptions;
     return this.execute(client => client.sendCommand(args, mergedOptions));
   }

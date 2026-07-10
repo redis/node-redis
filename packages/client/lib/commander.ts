@@ -98,13 +98,15 @@ function attachNamespace(prototype: any, name: PropertyKey, fns: any) {
       if (value === undefined) {
         value = Object.create(fns);
         value._self = this;
-        
-        Object.defineProperty(value,'_commandOptions',{
-          get(){return this._self._commandOptions ?? null},
-          enumerable:true,
-          configurable:false
-        })
-        perReceiver.set(name,value);
+        // Forward command options to the receiver so namespaced commands
+        // (`client.module.foo(...)`) resolve the same options chain as
+        // top-level commands, including `withCommandOptions(...)` proxies.
+        Object.defineProperty(value, '_commandOptions', {
+          get() { return this._self._commandOptions; },
+          enumerable: true,
+          configurable: false
+        });
+        perReceiver.set(name, value);
       }
       return value;
     }

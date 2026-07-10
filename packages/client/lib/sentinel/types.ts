@@ -225,19 +225,11 @@ export interface SentinelCommandOptions<
 > extends CommandOptions<TYPE_MAPPING> {}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- variance markers for sentinel generics
-export type ProxySentinel = RedisSentinel<any, any, any, any, any>&{
-  _commandOptions?:SentinelCommandOptions;
-};
+export type ProxySentinel = RedisSentinel<any, any, any, any, any>;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- variance markers for sentinel generics
-export type ProxySentinelClient = RedisSentinelClient<any, any, any, any, any>&{
-  _commandOptions?:SentinelCommandOptions;
-};
-export type NamespaceProxySentinel = { 
-  _self: ProxySentinel
-  _commandOptions?: CommandOptions };
-export type NamespaceProxySentinelClient = { 
-  _self: ProxySentinelClient 
-  _commandOptions?: CommandOptions};
+export type ProxySentinelClient = RedisSentinelClient<any, any, any, any, any>;
+export type NamespaceProxySentinel = { _self: ProxySentinel };
+export type NamespaceProxySentinelClient = { _self: ProxySentinelClient };
 
 export type NodeInfo = {
   ip: string,

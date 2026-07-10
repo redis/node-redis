@@ -8,6 +8,9 @@ import { spy } from 'sinon';
 import RedisClient from '../client';
 import { RESP_TYPES } from '../RESP/decoder';
 import calculateSlot from 'cluster-key-slot';
+import { CommandOptions } from '../client/commands-queue';
+
+type WithCommandOptions = { _commandOptions: CommandOptions };
 
 describe('Cluster command lifecycle', () => {
   it('rejects commands before connect', async () => {
@@ -68,16 +71,16 @@ describe('Cluster', () => {
   });
 
   it('chained withCommandOptions(...).withTypeMapping(...) preserves earlier overrides at dispatch', () => {
-    // Regression: cluster's `_commandOptionsProxy` used to layer via `Object.create`,
-    // leaving earlier keys on the prototype where the dispatch-time spread dropped them.
+    // Command options layer via the prototype chain and dispatch paths read
+    // individual properties, so earlier overrides stay reachable.
     const cluster = RedisCluster.create({ rootNodes: [] });
     const proxy = cluster
       .withCommandOptions({ asap: true })
       .withTypeMapping({ [RESP_TYPES.SIMPLE_STRING]: Buffer });
     type WithOptions = { _commandOptions?: { asap?: boolean; typeMapping?: unknown } };
-    const ownKeys = { ...(proxy as unknown as WithOptions)._commandOptions };
-    assert.equal(ownKeys.asap, true);
-    assert.deepEqual(ownKeys.typeMapping, { [RESP_TYPES.SIMPLE_STRING]: Buffer });
+    const opts = (proxy as unknown as WithOptions)._commandOptions;
+    assert.equal(opts?.asap, true);
+    assert.deepEqual(opts?.typeMapping, { [RESP_TYPES.SIMPLE_STRING]: Buffer });
   });
 
   it('should not have HOTKEYS commands (requires session affinity)', () => {
@@ -346,7 +349,7 @@ describe('Cluster', () => {
         [RESP_TYPES.BLOB_STRING]: Buffer
       };
 
-      (cluster as any)._commandOptions = {
+      (cluster as unknown as WithCommandOptions)._commandOptions = {
         timeout: 5000,
         asap: false
       };
@@ -356,16 +359,16 @@ describe('Cluster', () => {
       const controller = new AbortController();
       const proxy2 = proxy1.withCommandOptions({
         asap: true,
-        signal: controller.signal
+        abortSignal: controller.signal
       });
     
-      const proxyOptions = (proxy2 as any)._commandOptions;
+      const proxyOptions = (proxy2 as unknown as WithCommandOptions)._commandOptions;
     
       assert.equal(proxyOptions.timeout, 5000, 'Root level options (timeout) were lost in the chain');
       assert.equal(proxyOptions.asap, true, 'Intermediate overrides (asap) failed to apply');
       assert.deepEqual(proxyOptions.typeMapping, CUSTOM_MAPPING, 'Nested object mappings were lost');
     
-      assert.equal(Object.prototype.hasOwnProperty.call(proxyOptions, 'signal'), true, 'Signal should belong to layer 2');
+      assert.equal(Object.prototype.hasOwnProperty.call(proxyOptions, 'abortSignal'), true, 'Abort signal should belong to layer 2');
       assert.equal(Object.prototype.hasOwnProperty.call(proxyOptions, 'asap'), true, 'Asap override should belong to layer 2');
       assert.equal(Object.prototype.hasOwnProperty.call(proxyOptions, 'typeMapping'), false, 'TypeMapping should be inherited from layer 1');
       assert.equal(Object.prototype.hasOwnProperty.call(proxyOptions, 'timeout'), false, 'Timeout should be inherited from the base cluster root');
@@ -390,7 +393,7 @@ describe('Cluster', () => {
     
       const proxy2Reply = await proxy2.echo('hello');
       assert.ok(
-        (proxy2Reply as any) instanceof Buffer,
+        (proxy2Reply as unknown) instanceof Buffer,
         'Cluster execution stripped typeMapping from deep proxy chain'
       );
       assert.deepEqual(
@@ -400,9 +403,7 @@ describe('Cluster', () => {
       );
     
       controller.abort();
-      },
-      GLOBAL.CLUSTERS.OPEN
-      );
+    }, GLOBAL.CLUSTERS.OPEN);
   });
 
   describe('PubSub', () => {

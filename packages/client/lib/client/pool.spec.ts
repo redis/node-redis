@@ -2,24 +2,25 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import { RESP_TYPES } from '../RESP/decoder';
 import { RedisClientPool } from './pool';
+import { CommandOptions } from './commands-queue';
+
+type WithCommandOptions = { _commandOptions: CommandOptions };
 
 describe('RedisClientPool', () => {
   it('chained withCommandOptions(...).withTypeMapping(...) preserves earlier overrides at dispatch', () => {
-    // Regression: pool's `_commandOptionsProxy` had two related bugs.
-    // First, it built `_commandOptions` via `Object.create(...)`, leaving earlier
-    // keys on the prototype where the dispatch-time spread silently dropped them.
-    // Second, `withTypeMapping`/`withAbortSignal`/`asap` called the helper via
-    // `this._self.#commandOptionsProxy(...)`, so even the prototype chain was
-    // discarded — the helper saw the original pool's `_commandOptions`, not the
-    // prior proxy's.
+    // Command options layer via the prototype chain and dispatch paths read
+    // individual properties, so earlier overrides stay reachable. Also guards
+    // the old bug where `withTypeMapping`/`withAbortSignal`/`asap` called the
+    // helper via `this._self.#commandOptionsProxy(...)`, discarding the prior
+    // proxy's options.
     const pool = RedisClientPool.create({});
     const proxy = pool
       .withCommandOptions({ asap: true })
       .withTypeMapping({ [RESP_TYPES.SIMPLE_STRING]: Buffer });
     type WithOptions = { _commandOptions?: { asap?: boolean; typeMapping?: unknown } };
-    const ownKeys = { ...(proxy as unknown as WithOptions)._commandOptions };
-    assert.equal(ownKeys.asap, true);
-    assert.deepEqual(ownKeys.typeMapping, { [RESP_TYPES.SIMPLE_STRING]: Buffer });
+    const opts = (proxy as unknown as WithOptions)._commandOptions;
+    assert.equal(opts?.asap, true);
+    assert.deepEqual(opts?.typeMapping, { [RESP_TYPES.SIMPLE_STRING]: Buffer });
   });
 
   it('initializes _commandOptions from clientOptions.commandOptions', () => {
@@ -204,7 +205,7 @@ describe('RedisClientPool', () => {
   testUtils.testWithClientPool(' proxy inheritance completes', async pool => {
     const TIMEOUT = 1234;
 
-    (pool as any)._commandOptions = { timeout: TIMEOUT };
+    (pool as unknown as WithCommandOptions)._commandOptions = { timeout: TIMEOUT };
 
     const bufferProxy = pool.withCommandOptions({
       typeMapping: {
@@ -219,7 +220,7 @@ describe('RedisClientPool', () => {
     assert.ok(bufferReply instanceof Buffer, 'Proxy should return a Buffer');
     assert.equal(bufferReply.toString(), 'hello');
 
-    const proxyOptions = (bufferProxy as any)._commandOptions;
+    const proxyOptions = (bufferProxy as unknown as WithCommandOptions)._commandOptions;
 
     assert.equal(
       proxyOptions.timeout,
@@ -240,35 +241,35 @@ describe('RedisClientPool', () => {
     );
   }, GLOBAL.SERVERS.OPEN);
 
-  testUtils.testWithClientPool('nested proxy inheritance',async pool=>{
-     const TIMEOUT = 1234;
+  testUtils.testWithClientPool('nested proxy inheritance', async pool => {
+    const TIMEOUT = 1234;
 
     const timeoutProxy = pool.withCommandOptions({
-  timeout: TIMEOUT
-  });
-  
-  const chainedProxy = timeoutProxy.withTypeMapping({
-    [RESP_TYPES.BLOB_STRING]: Buffer
-  });
-  
-  const chainedReply = await chainedProxy.sendCommand(['ECHO', 'hello']);
-  
-  assert.ok(chainedReply instanceof Buffer);
-  assert.equal(chainedReply.toString(), 'hello');
-  
-  const chainedOptions = (chainedProxy as any)._commandOptions;
-  
-  assert.equal(chainedOptions.timeout, TIMEOUT);
-  assert.equal(
-  Object.prototype.hasOwnProperty.call(chainedOptions, 'timeout'),
-  false
-);
+      timeout: TIMEOUT
+    });
 
-assert.equal(
-  Object.prototype.hasOwnProperty.call(chainedOptions, 'typeMapping'),
-  true
-);
-  },GLOBAL.SERVERS.OPEN)
+    const chainedProxy = timeoutProxy.withTypeMapping({
+      [RESP_TYPES.BLOB_STRING]: Buffer
+    });
+
+    const chainedReply = await chainedProxy.sendCommand(['ECHO', 'hello']);
+
+    assert.ok(chainedReply instanceof Buffer);
+    assert.equal(chainedReply.toString(), 'hello');
+
+    const chainedOptions = (chainedProxy as unknown as WithCommandOptions)._commandOptions;
+
+    assert.equal(chainedOptions.timeout, TIMEOUT);
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(chainedOptions, 'timeout'),
+      false
+    );
+
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(chainedOptions, 'typeMapping'),
+      true
+    );
+  }, GLOBAL.SERVERS.OPEN)
 
   testUtils.testWithClientPool('execute rejects when pool is closed', async pool => {
     await pool.close();

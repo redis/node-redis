@@ -12,6 +12,9 @@ import { SortedSetMember } from '../commands/generic-transformers';
 import { HASH_EXPIRATION } from '../commands/HEXPIRE';
 import { CommandParser } from './parser';
 import { RedisSocketOptions } from './socket';
+import { CommandOptions } from './commands-queue';
+
+type WithCommandOptions = { _commandOptions: CommandOptions };
 import { getFreePortNumber } from '@redis/test-utils/lib/proxy/redis-proxy';
 import { createClient } from '../../';
 import net from 'node:net'
@@ -30,19 +33,18 @@ export const SQUARE_SCRIPT = defineScript({
 
 describe('Client', () => {
   it('chained withCommandOptions(...).withTypeMapping(...) preserves earlier overrides at dispatch', () => {
-    // Regression: `_commandOptionsProxy` used to layer `_commandOptions` via
-    // `Object.create(this._commandOptions ?? null)`, which left earlier keys
-    // (e.g. `asap`) on the prototype. At dispatch, `{...this._commandOptions, ...}`
-    // only iterates *own* enumerable properties, so those inherited keys
-    // silently disappeared in the spread.
+    // Command options layer via the prototype chain (`Object.create` in
+    // `_commandOptionsProxy`), and every dispatch path reads individual
+    // properties instead of spreading, so earlier overrides stay reachable
+    // through the chain.
     const client = RedisClient.create({});
     const proxy = client
       .withCommandOptions({ asap: true })
       .withTypeMapping({ [RESP_TYPES.SIMPLE_STRING]: Buffer });
     type WithOptions = { _commandOptions?: { asap?: boolean; typeMapping?: unknown } };
-    const ownKeys = { ...(proxy as unknown as WithOptions)._commandOptions };
-    assert.equal(ownKeys.asap, true);
-    assert.deepEqual(ownKeys.typeMapping, { [RESP_TYPES.SIMPLE_STRING]: Buffer });
+    const opts = (proxy as unknown as WithOptions)._commandOptions;
+    assert.equal(opts?.asap, true);
+    assert.deepEqual(opts?.typeMapping, { [RESP_TYPES.SIMPLE_STRING]: Buffer });
   });
 
   describe('default commandOptions', () => {
@@ -868,7 +870,7 @@ describe('Client', () => {
   testUtils.testWithClient('proxies respect RedisClient command options', async client => {
 
     const TIMEOUT = 1234;
-    (client as any)._commandOptions = { timeout: TIMEOUT };
+    (client as unknown as WithCommandOptions)._commandOptions = { timeout: TIMEOUT };
 
     const bufferProxy = client.withCommandOptions({
       typeMapping: { [RESP_TYPES.BLOB_STRING]: Buffer }
@@ -877,31 +879,30 @@ describe('Client', () => {
     const stringReply = await client.module.echo('hi');
     const bufferReply = await bufferProxy.module.echo('hi');
 
-
     assert.ok((bufferReply as unknown) instanceof Buffer, 'Proxy failed to return Buffer.');
     assert.strictEqual(typeof stringReply, 'string', 'Original client was corrupted.');
     assert.equal(bufferReply.toString(), stringReply);
 
-    const proxyOptions = (bufferProxy.module as any)._commandOptions;
-    assert.equal(proxyOptions.timeout, TIMEOUT, 'Inherited options (timeout) were lost in the proxy chain.')
+    const proxyOptions = (bufferProxy.module as unknown as WithCommandOptions)._commandOptions;
+    assert.equal(proxyOptions.timeout, TIMEOUT, 'Inherited options (timeout) were lost in the proxy chain.');
 
     assert.ok(!Object.prototype.hasOwnProperty.call(proxyOptions, 'timeout'), 'Timeout should be inherited, not copied.');
 
     const duplicate = bufferProxy.duplicate();
 
-    const duplicateOptions = (duplicate as any)._commandOptions;
-      
+    const duplicateOptions = (duplicate as unknown as WithCommandOptions)._commandOptions;
+
     assert.equal(
       duplicateOptions.timeout,
       TIMEOUT,
       'duplicate() lost inherited timeout.'
     );
-    
+
     assert.deepEqual(
-  duplicateOptions.typeMapping,
-  { [RESP_TYPES.BLOB_STRING]: Buffer },
-  'duplicate() lost typeMapping.'
-);
+      duplicateOptions.typeMapping,
+      { [RESP_TYPES.BLOB_STRING]: Buffer },
+      'duplicate() lost typeMapping.'
+    );
   }, {
     ...GLOBAL.SERVERS.OPEN,
     clientOptions: {

@@ -164,8 +164,9 @@ export type ClusterCommandOptions<
 type ProxyCluster = RedisCluster<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>;
 
 type NamespaceProxyCluster = {
-   _self: ProxyCluster
-   _commandOptions?:ClusterCommandOptions };
+  _self: ProxyCluster;
+  _commandOptions?: ClusterCommandOptions;
+};
 
 export default class RedisCluster<
   M extends RedisModules,
@@ -242,18 +243,19 @@ export default class RedisCluster<
       );
     };
   }
-    static  #flattenCommandOptions(options?: CommandOptions) {
-  if (!options) return options;
+  // Command options inherit through the prototype chain (see
+  // `withCommandOptions`), so flatten them into a plain object before handing
+  // them to a fresh cluster, which only copies own properties.
+  static #flattenCommandOptions(options?: CommandOptions) {
+    if (!options) return options;
 
-  const flattened = {};
-  const chain = [];
+    const chain = [];
+    for (let current = options; current; current = Object.getPrototypeOf(current)) {
+      chain.unshift(current);
+    }
 
-  for (let current = options; current; current = Object.getPrototypeOf(current)) {
-    chain.unshift(current);
+    return Object.assign({}, ...chain);
   }
-
-  return Object.assign(flattened, ...chain);
-}
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- cache stores dynamically generated cluster subclasses
   static #SingleEntryCache = new SingleEntryCache<any, any>();
@@ -419,7 +421,6 @@ export default class RedisCluster<
       Object.create(this._commandOptions ?? null),
       options
     );
-    
     return proxy as RedisClusterType<
       M,
       F,
@@ -438,8 +439,10 @@ export default class RedisCluster<
     value: V
   ) {
     const proxy = Object.create(this);
-    proxy._commandOptions = Object.assign( Object.create(
-        this._commandOptions ?? null),{ [key]: value });
+    proxy._commandOptions = Object.assign(
+      Object.create(this._commandOptions ?? null),
+      { [key]: value }
+    );
     return proxy as RedisClusterType<
       M,
       F,
@@ -470,12 +473,8 @@ export default class RedisCluster<
   ) {
     return async (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>, options?: ClusterCommandOptions) => {
       const chainId = Symbol("asking chain");
-      const opts = Object.assign(
-      Object.create(options ?? null),
-      {});
+      const opts = Object.create(options ?? null);
       opts.chainId = chainId;
-
-
 
       const ret = await Promise.all(
         [
@@ -581,9 +580,9 @@ export default class RedisCluster<
   ): Promise<T> {
 
     // Merge global options with local options
-    const opts = options ?
-      Object.assign(Object.create(this._commandOptions ?? null),
-    options):(this._commandOptions ?? {});
+    const opts = options
+      ? Object.assign(Object.create(this._commandOptions ?? null), options)
+      : (this._commandOptions ?? {});
 
     return this._self._execute(
       firstKey,
