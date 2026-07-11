@@ -915,6 +915,31 @@ export class RedisSentinelInternal<
   }
 
   /**
+   * Waits for a node client's `connect()`, rejecting on the first connection
+   * error instead of waiting for the client to settle.
+   *
+   * Master and replica clients keep the caller's `reconnectStrategy`, which by
+   * default retries forever, so when the resolved node is unreachable (e.g. a
+   * TLS misconfiguration, or a firewalled address — see #3066) their
+   * `connect()` promise never settles and `transform()` would await it
+   * indefinitely. Rejecting on the first connection error hands the failure to
+   * `#connect()`'s retry loop, which re-discovers the topology and, while not
+   * yet ready, gives up after `maxCommandRediscovers` attempts so the public
+   * `connect()` rejects instead of hanging. Per-attempt errors are still
+   * surfaced through the existing `client-error` event (and `error` with
+   * `passthroughClientErrorEvents`), unchanged.
+   */
+  #connectOrFail(client: RedisClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>) {
+    return new Promise<unknown>((resolve, reject) => {
+      const onError = (err: Error) => reject(err);
+      client.once('error', onError);
+      client.connect()
+        .then(resolve, reject)
+        .finally(() => client.off('error', onError));
+    });
+  }
+
+  /**
    * Gets a client lease from the master client pool
    *
    * @returns A client info object or a promise that resolves to a client info object
@@ -964,9 +989,17 @@ export class RedisSentinelInternal<
       this.#connectPromise = this.#connect();
       await this.#connectPromise;
       this.#isReady = true;
+    } catch (err) {
+      // The initial connect gave up. Tear down whatever was created along the
+      // way: clients whose first connection attempt failed keep reconnecting
+      // per their `reconnectStrategy`, and would otherwise stay alive in the
+      // background (holding sockets and timers) after `connect()` rejected.
+      this.#connectPromise = undefined;
+      await this.destroy();
+      throw err;
     } finally {
       this.#connectPromise = undefined;
-      if (this.#scanInterval > 0) {
+      if (this.#isReady && this.#scanInterval > 0) {
         this.#scanTimer = setInterval(this.#reset.bind(this), this.#scanInterval);
       }
     }
@@ -999,9 +1032,6 @@ export class RedisSentinelInternal<
           throw e;
         }
 
-        if (err.message !== 'no valid master node') {
-          console.log(e);
-        }
         await setTimeout(1000);
       } finally {
         this.#trace("finished connect");
@@ -1478,7 +1508,7 @@ export class RedisSentinelInternal<
           client.setDirtyWatch("sentinel config changed in middle of a WATCH Transaction");
         }
         this.#masterClients.push(client);
-        masterPromises.push(client.connect());
+        masterPromises.push(this.#connectOrFail(client));
 
         this.#trace(`created master client to ${analyzed.masterToOpen.host}:${analyzed.masterToOpen.port}`);
       }
@@ -1547,7 +1577,7 @@ export class RedisSentinelInternal<
           });
 
           this.#replicaClients.push(client);
-          promises.push(client.connect());
+          promises.push(this.#connectOrFail(client));
 
           this.#trace(`created replica client to ${node.host}:${node.port}`);
         }
