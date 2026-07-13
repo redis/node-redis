@@ -19,6 +19,13 @@ describe('TS.READ', () => {
       );
     });
 
+    it('with string cursor (precision-safe timestamp)', () => {
+      assert.deepEqual(
+        parseArgs(READ, 'key', '9007199254740993'),
+        ['TS.READ', 'key', '9007199254740993']
+      );
+    });
+
     it('with MAX_COUNT', () => {
       assert.deepEqual(
         parseArgs(READ, 'key', TS_READ_TIMESTAMP.EARLIEST, {

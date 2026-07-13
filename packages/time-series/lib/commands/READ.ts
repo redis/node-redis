@@ -1,6 +1,6 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument, Command, Resp2Reply } from '@redis/client/dist/lib/RESP/types';
-import { transformTimestampArgument, SamplesRawReply, transformSamplesReply } from './helpers';
+import { transformTimestampArgument, SamplesRawReply, transformSamplesReply, Timestamp } from './helpers';
 
 /**
  * Sentinel cursor values for {@link READ}'s `timestamp` argument.
@@ -18,7 +18,12 @@ export const TS_READ_TIMESTAMP = {
   NEW: '$'
 } as const;
 
-export type TsReadTimestamp = number | Date | typeof TS_READ_TIMESTAMP[keyof typeof TS_READ_TIMESTAMP];
+/**
+ * Cursor for {@link READ}'s `timestamp` argument. A {@link Timestamp}
+ * (`number | Date | string`; strings keep precision for values beyond
+ * `Number.MAX_SAFE_INTEGER`) or a {@link TS_READ_TIMESTAMP} sentinel.
+ */
+export type TsReadTimestamp = Timestamp | typeof TS_READ_TIMESTAMP[keyof typeof TS_READ_TIMESTAMP];
 
 export interface TsReadOptions {
   /**
