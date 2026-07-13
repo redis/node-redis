@@ -24,7 +24,7 @@ export default {
     parser.pushKey(key);
     parser.push(group, id);
 
-    if (options?.ENTRIESREAD) {
+    if (options?.ENTRIESREAD !== undefined) {
       parser.push('ENTRIESREAD', options.ENTRIESREAD.toString());
     }
   },
