@@ -32,6 +32,7 @@ import MREVRANGE_WITHLABELS_GROUPBY from './MREVRANGE_WITHLABELS_GROUPBY';
 import MREVRANGE_WITHLABELS from './MREVRANGE_WITHLABELS';
 import MREVRANGE from './MREVRANGE';
 import QUERYINDEX from './QUERYINDEX';
+import READ from './READ';
 import RANGE_MULTIAGGR from './RANGE_MULTIAGGR';
 import RANGE from './RANGE';
 import REVRANGE_MULTIAGGR from './REVRANGE_MULTIAGGR';
@@ -547,6 +548,22 @@ export default {
    * @param filter - Filter to match time series labels
    */
   queryIndex: QUERYINDEX,
+  /**
+   * Reads a batch of samples with timestamp at or after a cursor, in ascending timestamp order.
+   * With `BLOCK`, waits until at least `minCount` samples qualify or the timeout elapses.
+   * @param key - The key name of the time series
+   * @param timestamp - Inclusive cursor: a non-negative integer or one of the {@link TS_READ_TIMESTAMP} sentinels (`-`, `+`, `$`)
+   * @param options - Optional `BLOCK` and `MAX_COUNT` parameters
+   */
+  READ,
+  /**
+   * Reads a batch of samples with timestamp at or after a cursor, in ascending timestamp order.
+   * With `BLOCK`, waits until at least `minCount` samples qualify or the timeout elapses.
+   * @param key - The key name of the time series
+   * @param timestamp - Inclusive cursor: a non-negative integer or one of the {@link TS_READ_TIMESTAMP} sentinels (`-`, `+`, `$`)
+   * @param options - Optional `BLOCK` and `MAX_COUNT` parameters
+   */
+  read: READ,
   /**
    * Gets multi-aggregation samples from a time series within a time range
    * @param args - Arguments passed to the {@link transformRangeMultiArguments} function
