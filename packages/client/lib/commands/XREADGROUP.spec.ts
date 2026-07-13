@@ -117,7 +117,48 @@ describe('XREADGROUP', () => {
           NOACK: true,
           CLAIM: 100
         }),
-        ['XREADGROUP', 'GROUP', 'group', 'consumer', 'COUNT', '1', 'BLOCK', '0', 'NOACK', 'CLAIM', '100', 'STREAMS', 'key', '0-0']
+        ['XREADGROUP', 'GROUP', 'group', 'consumer', 'COUNT', '1', 'BLOCK', '0', 'CLAIM', '100', 'NOACK', 'STREAMS', 'key', '0-0']
+      );
+    });
+
+    it('with MAXCOUNT', () => {
+      assert.deepEqual(
+        parseArgs(XREADGROUP, 'group', 'consumer', {
+          key: 'key',
+          id: '0-0'
+        }, {
+          MAXCOUNT: 3
+        }),
+        ['XREADGROUP', 'GROUP', 'group', 'consumer', 'MAXCOUNT', '3', 'STREAMS', 'key', '0-0']
+      );
+    });
+
+    it('with MAXSIZE', () => {
+      assert.deepEqual(
+        parseArgs(XREADGROUP, 'group', 'consumer', {
+          key: 'key',
+          id: '0-0'
+        }, {
+          MAXSIZE: 65536
+        }),
+        ['XREADGROUP', 'GROUP', 'group', 'consumer', 'MAXSIZE', '65536', 'STREAMS', 'key', '0-0']
+      );
+    });
+
+    it('with COUNT, MAXCOUNT, MAXSIZE, BLOCK, CLAIM, NOACK', () => {
+      assert.deepEqual(
+        parseArgs(XREADGROUP, 'group', 'consumer', {
+          key: 'key',
+          id: '0-0'
+        }, {
+          COUNT: 2,
+          MAXCOUNT: 3,
+          MAXSIZE: 65536,
+          BLOCK: 0,
+          CLAIM: 100,
+          NOACK: true
+        }),
+        ['XREADGROUP', 'GROUP', 'group', 'consumer', 'COUNT', '2', 'MAXCOUNT', '3', 'MAXSIZE', '65536', 'BLOCK', '0', 'CLAIM', '100', 'NOACK', 'STREAMS', 'key', '0-0']
       );
     });
   });
@@ -232,5 +273,29 @@ describe('XREADGROUP', () => {
     assert.ok(readGroupReply[0].messages[0].deliveriesCounter !== undefined);
     assert.equal(typeof readGroupReply[0].messages[0].millisElapsedFromDelivery, 'number');
     assert.equal(typeof readGroupReply[0].messages[0].deliveriesCounter, 'number');
+  }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClientIfVersionWithinRange([[8, 10], 'LATEST'], 'xReadGroup - MAXCOUNT caps entries cumulatively across streams', async client => {
+    await Promise.all([
+      client.xGroupCreate('{t}s1', 'group', '0', { MKSTREAM: true }),
+      client.xGroupCreate('{t}s2', 'group', '0', { MKSTREAM: true })
+    ]);
+    await Promise.all([
+      client.xAdd('{t}s1', '1-0', { field: 'v1' }),
+      client.xAdd('{t}s1', '2-0', { field: 'v2' }),
+      client.xAdd('{t}s2', '1-0', { field: 'v3' }),
+      client.xAdd('{t}s2', '2-0', { field: 'v4' })
+    ]);
+
+    const reply = await client.xReadGroup('group', 'consumer', [
+      { key: '{t}s1', id: '>' },
+      { key: '{t}s2', id: '>' }
+    ], {
+      MAXCOUNT: 3
+    });
+
+    assert.ok(reply);
+    const total = reply.reduce((sum, stream) => sum + stream.messages.length, 0);
+    assert.equal(total, 3);
   }, GLOBAL.SERVERS.OPEN);
 });

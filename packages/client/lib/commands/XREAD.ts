@@ -39,12 +39,16 @@ export function pushXReadStreams(parser: CommandParser, streams: XReadStreams) {
 
 /**
  * Options for the XREAD command
- * 
+ *
  * @property COUNT - Limit the number of entries returned per stream
+ * @property MAXCOUNT - Cumulative cap on the total number of entries returned across all streams (Redis 8.10+)
+ * @property MAXSIZE - Soft cumulative cap on the total server reply size in bytes across all streams (Redis 8.10+)
  * @property BLOCK - Milliseconds to block waiting for new entries (0 for indefinite)
  */
 export interface XReadOptions {
   COUNT?: number;
+  MAXCOUNT?: number;
+  MAXSIZE?: number;
   BLOCK?: number;
 }
 
@@ -55,6 +59,14 @@ export default {
 
     if (options?.COUNT) {
       parser.push('COUNT', options.COUNT.toString());
+    }
+
+    if (options?.MAXCOUNT !== undefined) {
+      parser.push('MAXCOUNT', options.MAXCOUNT.toString());
+    }
+
+    if (options?.MAXSIZE !== undefined) {
+      parser.push('MAXSIZE', options.MAXSIZE.toString());
     }
 
     if (options?.BLOCK !== undefined) {
