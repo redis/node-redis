@@ -11,6 +11,15 @@ describe('XGROUP SETID', () => {
     );
   });
 
+  it('transformArguments with ENTRIESREAD 0', () => {
+    assert.deepEqual(
+      parseArgs(XGROUP_SETID, 'key', 'group', '0', {
+        ENTRIESREAD: 0
+      }),
+      ['XGROUP', 'SETID', 'key', 'group', '0', 'ENTRIESREAD', '0']
+    );
+  });
+
   testUtils.testAll('xGroupSetId', async client => {
     const [, reply] = await Promise.all([
       client.xGroupCreate('key', 'group', '$', {

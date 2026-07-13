@@ -32,7 +32,7 @@ export default {
       parser.push('MKSTREAM');
     }
 
-    if (options?.ENTRIESREAD) {
+    if (options?.ENTRIESREAD !== undefined) {
       parser.push('ENTRIESREAD', options.ENTRIESREAD.toString());
     }
   },

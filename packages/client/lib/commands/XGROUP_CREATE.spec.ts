@@ -29,6 +29,15 @@ describe('XGROUP CREATE', () => {
         ['XGROUP', 'CREATE', 'key', 'group', '$', 'ENTRIESREAD', '1']
       );
     });
+
+    it('with ENTRIESREAD 0', () => {
+      assert.deepEqual(
+        parseArgs(XGROUP_CREATE, 'key', 'group', '$', {
+          ENTRIESREAD: 0
+        }),
+        ['XGROUP', 'CREATE', 'key', 'group', '$', 'ENTRIESREAD', '0']
+      );
+    });
   });
 
   testUtils.testAll('xGroupCreate', async client => {
