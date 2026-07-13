@@ -868,6 +868,69 @@ describe('legacy tests', () => {
       );
     });
 
+    // Regression test for https://github.com/redis/node-redis/issues/3066
+    //
+    // When sentinel discovery succeeds but the resolved master is not
+    // reachable (e.g. a TLS misconfiguration, or a firewalled address), the
+    // master clients keep the default `reconnectStrategy` and retry forever,
+    // so their `connect()` promises never settle and `connect()` used to hang
+    // indefinitely with nothing to observe or catch. It should reject once
+    // the connect retry loop gives up.
+    it('connect() rejects instead of hanging when the resolved master is unreachable', async function () {
+      this.timeout(60000);
+
+      const masterPort = await frame.getMasterPort();
+
+      sentinel = frame.getSentinelClient({
+        // Remap only the master to an address nothing listens on, so master
+        // connection attempts fail while sentinel discovery stays healthy,
+        // matching the reported scenario.
+        nodeAddressMap: (address: string) => {
+          const [host, portStr] = address.split(':');
+          if (Number(portStr) === masterPort) {
+            return { host: '127.0.0.1', port: 1 };
+          }
+          return { host, port: Number(portStr) };
+        },
+        // Keep the test fast: give up after two rediscover attempts.
+        maxCommandRediscovers: 2
+      }, false);
+
+      sentinel.on('error', () => { });
+
+      await assert.rejects(sentinel.connect());
+
+      // The failed connect must tear everything down: master clients keep
+      // reconnecting per their `reconnectStrategy` after a failed first
+      // attempt, and must not stay alive in the background once `connect()`
+      // has rejected.
+      assert.strictEqual(sentinel.isOpen, false);
+
+      const lateErrors: Array<unknown> = [];
+      sentinel.on('client-error', (err: unknown) => lateErrors.push(err));
+      await setTimeout(1000);
+      assert.strictEqual(lateErrors.length, 0);
+    });
+
+    // Same regression, reproducing the exact failure mode reported in #3066:
+    // a TLS misconfiguration on the master clients. Connecting with TLS to a
+    // plaintext Redis makes the handshake fail (while sentinel discovery,
+    // which doesn't use `nodeClientOptions`, stays healthy) - no certificate
+    // setup needed.
+    it('connect() rejects when the master is unreachable over TLS', async function () {
+      this.timeout(60000);
+
+      sentinel = frame.getSentinelClient({
+        nodeClientOptions: { socket: { tls: true, rejectUnauthorized: false } },
+        maxCommandRediscovers: 2
+      }, false);
+
+      sentinel.on('error', () => { });
+
+      await assert.rejects(sentinel.connect());
+      assert.strictEqual(sentinel.isOpen, false);
+    });
+
     // stops master to force sentinel to update
     it('stop master', async function () {
       this.timeout(60000);
