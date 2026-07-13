@@ -4,6 +4,8 @@ import SUNIONCARD from './SUNIONCARD';
 import { parseArgs } from './generic-transformers';
 
 describe('SUNIONCARD', () => {
+  testUtils.isVersionGreaterThanHook([8, 10]);
+
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(

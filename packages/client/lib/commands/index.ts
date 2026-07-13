@@ -4059,16 +4059,20 @@ export default {
   sDiff: SDIFF,
   /**
    * Constructs the SDIFFCARD command to return the cardinality of the difference between the first set and all successive sets
+   * Added since Redis 8.10.
    *
    * @param keys - One or more set keys; the first is the minuend, the rest are subtrahends
    * @param options - Options for the SDIFFCARD command
+   * @see https://redis.io/commands/sdiffcard/
    */
   SDIFFCARD,
   /**
    * Constructs the SDIFFCARD command to return the cardinality of the difference between the first set and all successive sets
+   * Added since Redis 8.10.
    *
    * @param keys - One or more set keys; the first is the minuend, the rest are subtrahends
    * @param options - Options for the SDIFFCARD command
+   * @see https://redis.io/commands/sdiffcard/
    */
   sDiffCard: SDIFFCARD,
   /**
@@ -4473,16 +4477,20 @@ export default {
   sUnion: SUNION,
   /**
    * Constructs the SUNIONCARD command to return the cardinality of the union of all the given sets
+   * Added since Redis 8.10.
    *
    * @param keys - One or more set keys to union
    * @param options - Options for the SUNIONCARD command (APPROX, LIMIT)
+   * @see https://redis.io/commands/sunioncard/
    */
   SUNIONCARD,
   /**
    * Constructs the SUNIONCARD command to return the cardinality of the union of all the given sets
+   * Added since Redis 8.10.
    *
    * @param keys - One or more set keys to union
    * @param options - Options for the SUNIONCARD command (APPROX, LIMIT)
+   * @see https://redis.io/commands/sunioncard/
    */
   sUnionCard: SUNIONCARD,
   /**

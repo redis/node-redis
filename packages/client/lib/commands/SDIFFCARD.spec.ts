@@ -4,6 +4,8 @@ import SDIFFCARD from './SDIFFCARD';
 import { parseArgs } from './generic-transformers';
 
 describe('SDIFFCARD', () => {
+  testUtils.isVersionGreaterThanHook([8, 10]);
+
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(
