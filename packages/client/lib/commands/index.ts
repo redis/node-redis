@@ -276,6 +276,7 @@ import SCRIPT_FLUSH from './SCRIPT_FLUSH';
 import SCRIPT_KILL from './SCRIPT_KILL';
 import SCRIPT_LOAD from './SCRIPT_LOAD';
 import SDIFF from './SDIFF';
+import SDIFFCARD from './SDIFFCARD';
 import SDIFFSTORE from './SDIFFSTORE';
 import SET from './SET';
 import SETBIT from './SETBIT';
@@ -301,6 +302,7 @@ import SREM from './SREM';
 import SSCAN from './SSCAN';
 import STRLEN from './STRLEN';
 import SUNION from './SUNION';
+import SUNIONCARD from './SUNIONCARD';
 import SUNIONSTORE from './SUNIONSTORE';
 import SWAPDB from './SWAPDB';
 import TIME from './TIME';
@@ -4056,6 +4058,20 @@ export default {
    */
   sDiff: SDIFF,
   /**
+   * Constructs the SDIFFCARD command to return the cardinality of the difference between the first set and all successive sets
+   *
+   * @param keys - One or more set keys; the first is the minuend, the rest are subtrahends
+   * @param options - Options for the SDIFFCARD command
+   */
+  SDIFFCARD,
+  /**
+   * Constructs the SDIFFCARD command to return the cardinality of the difference between the first set and all successive sets
+   *
+   * @param keys - One or more set keys; the first is the minuend, the rest are subtrahends
+   * @param options - Options for the SDIFFCARD command
+   */
+  sDiffCard: SDIFFCARD,
+  /**
    * Constructs the SDIFFSTORE command
    *
    * @param destination - The destination key to store the result
@@ -4455,6 +4471,20 @@ export default {
    * @see https://redis.io/commands/sunion/
    */
   sUnion: SUNION,
+  /**
+   * Constructs the SUNIONCARD command to return the cardinality of the union of all the given sets
+   *
+   * @param keys - One or more set keys to union
+   * @param options - Options for the SUNIONCARD command (APPROX, LIMIT)
+   */
+  SUNIONCARD,
+  /**
+   * Constructs the SUNIONCARD command to return the cardinality of the union of all the given sets
+   *
+   * @param keys - One or more set keys to union
+   * @param options - Options for the SUNIONCARD command (APPROX, LIMIT)
+   */
+  sUnionCard: SUNIONCARD,
   /**
    * Constructs the SUNIONSTORE command to store the union of multiple sets into a destination set
    *
