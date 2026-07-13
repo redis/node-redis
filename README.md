@@ -365,7 +365,7 @@ The Node Redis client class is an Nodejs EventEmitter and it emits an event each
 | ----------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------- |
 | `connect`               | Initiating a connection to the server                                              | _No arguments_                                            |
 | `ready`                 | Client is ready to use                                                             | _No arguments_                                            |
-| `end`                   | Connection has been closed (via `.disconnect()`)                                   | _No arguments_                                            |
+| `end`                   | Connection has been closed (via `.close()` or `.destroy()`)                        | _No arguments_                                            |
 | `error`                 | An error has occurred—usually a network issue such as "Socket closed unexpectedly" | `(error: Error)`                                          |
 | `reconnecting`          | Client is trying to reconnect to the server                                        | _No arguments_                                            |
 | `sharded-channel-moved` | See [here](https://github.com/redis/node-redis/blob/master/docs/pub-sub.md#sharded-channel-moved-event)                          | See [here](https://github.com/redis/node-redis/blob/master/docs/pub-sub.md#sharded-channel-moved-event) |
