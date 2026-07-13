@@ -57,7 +57,7 @@ export default {
   parseCommand(parser: CommandParser, streams: XReadStreams, options?: XReadOptions) {
     parser.push('XREAD');
 
-    if (options?.COUNT) {
+    if (options?.COUNT !== undefined) {
       parser.push('COUNT', options.COUNT.toString());
     }
 

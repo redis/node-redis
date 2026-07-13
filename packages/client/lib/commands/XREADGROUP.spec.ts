@@ -298,4 +298,30 @@ describe('XREADGROUP', () => {
     const total = reply.reduce((sum, stream) => sum + stream.messages.length, 0);
     assert.equal(total, 3);
   }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClientIfVersionWithinRange([[8, 10], 'LATEST'], 'xReadGroup - MAXSIZE caps reply size cumulatively across streams', async client => {
+    await Promise.all([
+      client.xGroupCreate('{t}s1', 'group', '0', { MKSTREAM: true }),
+      client.xGroupCreate('{t}s2', 'group', '0', { MKSTREAM: true })
+    ]);
+    await Promise.all([
+      client.xAdd('{t}s1', '1-0', { field: 'v1' }),
+      client.xAdd('{t}s1', '2-0', { field: 'v2' }),
+      client.xAdd('{t}s2', '1-0', { field: 'v3' }),
+      client.xAdd('{t}s2', '2-0', { field: 'v4' })
+    ]);
+
+    // MAXSIZE is a soft cumulative byte cap across all streams; the server always
+    // returns at least one entry, so MAXSIZE of 1 byte yields exactly one entry total.
+    const reply = await client.xReadGroup('group', 'consumer', [
+      { key: '{t}s1', id: '>' },
+      { key: '{t}s2', id: '>' }
+    ], {
+      MAXSIZE: 1
+    });
+
+    assert.ok(reply);
+    const total = reply.reduce((sum, stream) => sum + stream.messages.length, 0);
+    assert.equal(total, 1);
+  }, GLOBAL.SERVERS.OPEN);
 });
