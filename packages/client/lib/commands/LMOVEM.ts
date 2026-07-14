@@ -21,6 +21,25 @@ export type LMoveMOptions = {
   ORDER?: LMoveMOrder;
 };
 
+/**
+ * Pushes the trailing `[<COUNT|EXACTLY> count [OBO|BULK]]` arguments shared by
+ * LMOVEM and BLMOVEM. Kept separate from the command bodies because BLMOVEM's
+ * `timeout` sits between the sides and these options, so only the tail is shared.
+ */
+export function parseLMoveMOptions(parser: CommandParser, options?: LMoveMOptions) {
+  if (options) {
+    if ('EXACTLY' in options) {
+      parser.push('EXACTLY', options.EXACTLY.toString());
+    } else {
+      parser.push('COUNT', options.COUNT.toString());
+    }
+
+    if (options.ORDER !== undefined) {
+      parser.push(options.ORDER);
+    }
+  }
+}
+
 export default {
   IS_READ_ONLY: false,
   parseCommand(
@@ -34,18 +53,7 @@ export default {
     parser.push('LMOVEM');
     parser.pushKeys([source, destination]);
     parser.push(sourceSide, destinationSide);
-
-    if (options) {
-      if ('EXACTLY' in options) {
-        parser.push('EXACTLY', options.EXACTLY.toString());
-      } else {
-        parser.push('COUNT', options.COUNT.toString());
-      }
-
-      if (options.ORDER !== undefined) {
-        parser.push(options.ORDER);
-      }
-    }
+    parseLMoveMOptions(parser, options);
   },
   transformReply: undefined as unknown as () => ArrayReply<BlobStringReply> | NullReply
 } as const satisfies Command;

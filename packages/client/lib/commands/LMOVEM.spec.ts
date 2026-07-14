@@ -93,4 +93,52 @@ describe('LMOVEM', () => {
     client: GLOBAL.SERVERS.OPEN,
     cluster: GLOBAL.CLUSTERS.OPEN
   });
+
+  testUtils.testAll('lMoveM - no options moves a single element as an array', async client => {
+    await client.rPush('{tag}source', ['1', '2', '3']);
+    assert.deepEqual(
+      await client.lMoveM('{tag}source', '{tag}destination', 'LEFT', 'RIGHT'),
+      ['1']
+    );
+    assert.deepEqual(
+      await client.lRange('{tag}source', 0, -1),
+      ['2', '3']
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
+
+  testUtils.testAll('lMoveM - COUNT clamps to available elements', async client => {
+    await client.rPush('{tag}source', ['1', '2', '3']);
+    assert.deepEqual(
+      await client.lMoveM('{tag}source', '{tag}destination', 'LEFT', 'LEFT', {
+        COUNT: 10,
+        ORDER: 'BULK'
+      }),
+      ['1', '2', '3']
+    );
+    assert.equal(await client.exists('{tag}source'), 0);
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
+
+  testUtils.testAll('lMoveM - EXACTLY with too few elements moves nothing', async client => {
+    await client.rPush('{tag}source', ['1', '2']);
+    await assert.rejects(
+      client.lMoveM('{tag}source', '{tag}destination', 'LEFT', 'RIGHT', {
+        EXACTLY: 3,
+        ORDER: 'BULK'
+      })
+    );
+    assert.deepEqual(
+      await client.lRange('{tag}source', 0, -1),
+      ['1', '2']
+    );
+    assert.equal(await client.exists('{tag}destination'), 0);
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

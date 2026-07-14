@@ -954,24 +954,26 @@ export default {
    */
   blMove: BLMOVE,
   /**
-   * Moves multiple elements from one list to another, blocking until enough elements are available
+   * Moves multiple elements from one list to another; or blocks until the source has elements to move
    * @param source - Key of the source list
    * @param destination - Key of the destination list
    * @param sourceSide - Side of source list to pop from (LEFT or RIGHT)
    * @param destinationSide - Side of destination list to push to (LEFT or RIGHT)
    * @param timeout - Timeout in seconds, 0 to block indefinitely
    * @param options - Optional COUNT/EXACTLY count and OBO/BULK ordering
+   * @see https://redis.io/commands/blmovem/
    * @since 8.10
    */
   BLMOVEM,
   /**
-   * Moves multiple elements from one list to another, blocking until enough elements are available
+   * Moves multiple elements from one list to another; or blocks until the source has elements to move
    * @param source - Key of the source list
    * @param destination - Key of the destination list
    * @param sourceSide - Side of source list to pop from (LEFT or RIGHT)
    * @param destinationSide - Side of destination list to push to (LEFT or RIGHT)
    * @param timeout - Timeout in seconds, 0 to block indefinitely
    * @param options - Optional COUNT/EXACTLY count and OBO/BULK ordering
+   * @see https://redis.io/commands/blmovem/
    * @since 8.10
    */
   blMoveM: BLMOVEM,
@@ -3069,6 +3071,7 @@ export default {
    * @param sourceSide - The side to pop from (LEFT or RIGHT)
    * @param destinationSide - The side to push to (LEFT or RIGHT)
    * @param options - Optional COUNT/EXACTLY count and OBO/BULK ordering
+   * @see https://redis.io/commands/lmovem/
    * @since 8.10
    */
   LMOVEM,
@@ -3080,6 +3083,7 @@ export default {
    * @param sourceSide - The side to pop from (LEFT or RIGHT)
    * @param destinationSide - The side to push to (LEFT or RIGHT)
    * @param options - Optional COUNT/EXACTLY count and OBO/BULK ordering
+   * @see https://redis.io/commands/lmovem/
    * @since 8.10
    */
   lMoveM: LMOVEM,

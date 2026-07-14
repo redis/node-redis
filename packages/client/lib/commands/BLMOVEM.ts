@@ -1,7 +1,7 @@
 import { CommandParser } from '../client/parser';
 import { RedisArgument, Command } from '../RESP/types';
 import { ListSide } from './generic-transformers';
-import LMOVEM, { LMoveMOptions } from './LMOVEM';
+import LMOVEM, { LMoveMOptions, parseLMoveMOptions } from './LMOVEM';
 
 export default {
   IS_READ_ONLY: false,
@@ -17,18 +17,7 @@ export default {
     parser.push('BLMOVEM');
     parser.pushKeys([source, destination]);
     parser.push(sourceSide, destinationSide, timeout.toString());
-
-    if (options) {
-      if ('EXACTLY' in options) {
-        parser.push('EXACTLY', options.EXACTLY.toString());
-      } else {
-        parser.push('COUNT', options.COUNT.toString());
-      }
-
-      if (options.ORDER !== undefined) {
-        parser.push(options.ORDER);
-      }
-    }
+    parseLMoveMOptions(parser, options);
   },
   transformReply: LMOVEM.transformReply
 } as const satisfies Command;
