@@ -3,7 +3,7 @@ import { RedisArgument, Command, ReplyUnion, TypeMapping } from '@redis/client/d
 import { RedisVariadicArgument, parseOptionalVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
 import { RediSearchLanguage } from './CREATE';
 import { DEFAULT_DIALECT } from '../dialect/default';
-import { getMapValue, mapLikeToObject, mapLikeValues, parseDocumentValue, parseSearchResultRow } from './reply-transformers';
+import { getMapValue, mapLikeToObject, mapLikeValues, parseDocumentValue, parseSearchResultRow, parseWarnings } from './reply-transformers';
 
 export type FtSearchParams = Record<string, RedisArgument | number>;
 
@@ -179,7 +179,9 @@ function transformSearchReplyResp2(
 
   return {
     total: reply[0] as number,
-    documents
+    documents,
+    // FT.SEARCH only emits warnings on RESP3; RESP2 replies never carry them.
+    warnings: []
   };
 }
 
@@ -210,7 +212,8 @@ function transformSearchReplyResp3(
 
   return {
     total,
-    documents
+    documents,
+    warnings: parseWarnings(reply)
   };
 }
 
@@ -240,6 +243,12 @@ export interface SearchReply {
       id: string;
       value: SearchDocumentValue;
   }>;
+  /**
+   * Warnings returned alongside partial results (e.g. on query timeout under a
+   * `return` / `return-strict` on-timeout policy). Only populated on RESP3;
+   * always empty on RESP2.
+   */
+  warnings: Array<string>;
 }
 
 function documentValue(tuples: unknown) {

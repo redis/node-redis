@@ -641,6 +641,40 @@ describe('AGGREGATE', () => {
     });
   });
 
+  describe('transformReply', () => {
+    it('RESP2 reply has empty warnings', () => {
+      assert.deepEqual(
+        AGGREGATE.transformReply[2]([0]),
+        { total: 0, results: [], warnings: [] }
+      );
+    });
+
+    it('RESP3 reply populates warnings from the `warning` field', () => {
+      const reply = new Map<string, unknown>([
+        ['total_results', 0],
+        ['results', []],
+        ['warning', ['Timeout limit was reached']]
+      ]);
+
+      assert.deepEqual(
+        AGGREGATE.transformReply[3](reply),
+        { total: 0, results: [], warnings: ['Timeout limit was reached'] }
+      );
+    });
+
+    it('RESP3 reply without a `warning` field yields empty warnings', () => {
+      const reply = new Map<string, unknown>([
+        ['total_results', 0],
+        ['results', []]
+      ]);
+
+      assert.deepEqual(
+        AGGREGATE.transformReply[3](reply),
+        { total: 0, results: [], warnings: [] }
+      );
+    });
+  });
+
   testUtils.testWithClient('client.ft.aggregate', async client => {
     await client.ft.create('index', {
       field: 'NUMERIC'
@@ -678,7 +712,8 @@ describe('AGGREGATE', () => {
               enumerable: true
             }
           })
-        ]
+        ],
+        warnings: []
       }
     );
   }, GLOBAL.SERVERS.OPEN);
