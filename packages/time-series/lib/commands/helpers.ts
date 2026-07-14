@@ -145,6 +145,47 @@ export const transformMultiAggregationSamplesReply = {
   }
 };
 
+/**
+ * A single timestamp-major pivot row as returned by `TS.NRANGE` / `TS.NREVRANGE`:
+ * `[timestamp, [value_for_key_0, value_for_key_1, ...]]`. The value array preserves
+ * the input key order; a missing cell is surfaced as `NaN`.
+ */
+export type PivotSampleRawReply = TuplesReply<[
+  timestamp: NumberReply,
+  values: ArrayReply<DoubleReply>
+]>;
+
+export const transformPivotSampleReply = {
+  2(reply: Resp2Reply<PivotSampleRawReply>) {
+    const [ timestamp, values ] = reply as unknown as UnwrapReply<typeof reply>;
+    const unwrappedValues = values as unknown as UnwrapReply<typeof values>;
+    return {
+      timestamp,
+      values: unwrappedValues.map(value => Number(value)) // TODO: use double type mapping instead
+    };
+  },
+  3(reply: PivotSampleRawReply) {
+    const [ timestamp, values ] = reply as unknown as UnwrapReply<typeof reply>;
+    return {
+      timestamp,
+      values
+    };
+  }
+};
+
+export type PivotSamplesRawReply = ArrayReply<PivotSampleRawReply>;
+
+export const transformPivotSamplesReply = {
+  2(reply: Resp2Reply<PivotSamplesRawReply>) {
+    return (reply as unknown as UnwrapReply<typeof reply>)
+      .map(sample => transformPivotSampleReply[2](sample));
+  },
+  3(reply: PivotSamplesRawReply) {
+    return (reply as unknown as UnwrapReply<typeof reply>)
+      .map(sample => transformPivotSampleReply[3](sample));
+  }
+};
+
 // TODO: move to @redis/client?
 export function resp2MapToValue<
   RAW_VALUE extends TuplesReply<[key: BlobStringReply, ...rest: Array<ReplyUnion>]>,
