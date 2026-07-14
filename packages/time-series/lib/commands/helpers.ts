@@ -218,7 +218,7 @@ export const transformPivotSamplesReply = {
       const unwrappedValues = values as unknown as UnwrapReply<typeof values>;
       return {
         timestamp,
-        values: unwrappedValues.map(value => Number(value)) // TODO: use double type mapping instead
+        values: unwrappedValues.map(value => Number(value))
       };
     });
   },

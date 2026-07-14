@@ -590,22 +590,26 @@ export default {
    */
   revRange: REVRANGE,
   /**
-   * Queries multiple time series keys over a range, returning timestamp-major pivot rows in forward order; keys must be same-slot in a cluster
+   * Queries multiple time series keys over a range, returning timestamp-major pivot rows in forward order; keys must be same-slot in a cluster.
+   * Added since Redis 8.10.
    * @param args - Arguments passed to the {@link transformNRangeArguments} function
    */
   NRANGE,
   /**
-   * Queries multiple time series keys over a range, returning timestamp-major pivot rows in forward order; keys must be same-slot in a cluster
+   * Queries multiple time series keys over a range, returning timestamp-major pivot rows in forward order; keys must be same-slot in a cluster.
+   * Added since Redis 8.10.
    * @param args - Arguments passed to the {@link transformNRangeArguments} function
    */
   nRange: NRANGE,
   /**
-   * Queries multiple time series keys over a range, returning timestamp-major pivot rows in reverse order; keys must be same-slot in a cluster
+   * Queries multiple time series keys over a range, returning timestamp-major pivot rows in reverse order; keys must be same-slot in a cluster.
+   * Added since Redis 8.10.
    * @param args - Arguments passed to the {@link transformNRangeArguments} function
    */
   NREVRANGE,
   /**
-   * Queries multiple time series keys over a range, returning timestamp-major pivot rows in reverse order; keys must be same-slot in a cluster
+   * Queries multiple time series keys over a range, returning timestamp-major pivot rows in reverse order; keys must be same-slot in a cluster.
+   * Added since Redis 8.10.
    * @param args - Arguments passed to the {@link transformNRangeArguments} function
    */
   nRevRange: NREVRANGE
