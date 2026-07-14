@@ -590,43 +590,23 @@ export default {
    */
   revRange: REVRANGE,
   /**
-   * Queries an explicit list of time series keys over a range and returns timestamp-major
-   * pivot rows `[timestamp, values]` in forward (increasing timestamp) order. Values preserve
-   * the input key order; missing cells are surfaced as `NaN`.
-   * @param keys - Explicit time series keys; order and duplicates are significant. Must be same-slot in a cluster.
-   * @param fromTimestamp - Inclusive range start (supports `-`/`+` sentinels).
-   * @param toTimestamp - Inclusive range end (supports `-`/`+` sentinels).
-   * @param options - Optional range arguments; `AGGREGATION.types` requires exactly one aggregator per key.
+   * Queries multiple time series keys over a range, returning timestamp-major pivot rows in forward order; keys must be same-slot in a cluster
+   * @param args - Arguments passed to the {@link transformNRangeArguments} function
    */
   NRANGE,
   /**
-   * Queries an explicit list of time series keys over a range and returns timestamp-major
-   * pivot rows `[timestamp, values]` in forward (increasing timestamp) order. Values preserve
-   * the input key order; missing cells are surfaced as `NaN`.
-   * @param keys - Explicit time series keys; order and duplicates are significant. Must be same-slot in a cluster.
-   * @param fromTimestamp - Inclusive range start (supports `-`/`+` sentinels).
-   * @param toTimestamp - Inclusive range end (supports `-`/`+` sentinels).
-   * @param options - Optional range arguments; `AGGREGATION.types` requires exactly one aggregator per key.
+   * Queries multiple time series keys over a range, returning timestamp-major pivot rows in forward order; keys must be same-slot in a cluster
+   * @param args - Arguments passed to the {@link transformNRangeArguments} function
    */
   nRange: NRANGE,
   /**
-   * Queries an explicit list of time series keys over a range and returns timestamp-major
-   * pivot rows `[timestamp, values]` in reverse (decreasing timestamp) order. Values preserve
-   * the input key order; missing cells are surfaced as `NaN`.
-   * @param keys - Explicit time series keys; order and duplicates are significant. Must be same-slot in a cluster.
-   * @param fromTimestamp - Inclusive range start (supports `-`/`+` sentinels).
-   * @param toTimestamp - Inclusive range end (supports `-`/`+` sentinels).
-   * @param options - Optional range arguments; `AGGREGATION.types` requires exactly one aggregator per key.
+   * Queries multiple time series keys over a range, returning timestamp-major pivot rows in reverse order; keys must be same-slot in a cluster
+   * @param args - Arguments passed to the {@link transformNRangeArguments} function
    */
   NREVRANGE,
   /**
-   * Queries an explicit list of time series keys over a range and returns timestamp-major
-   * pivot rows `[timestamp, values]` in reverse (decreasing timestamp) order. Values preserve
-   * the input key order; missing cells are surfaced as `NaN`.
-   * @param keys - Explicit time series keys; order and duplicates are significant. Must be same-slot in a cluster.
-   * @param fromTimestamp - Inclusive range start (supports `-`/`+` sentinels).
-   * @param toTimestamp - Inclusive range end (supports `-`/`+` sentinels).
-   * @param options - Optional range arguments; `AGGREGATION.types` requires exactly one aggregator per key.
+   * Queries multiple time series keys over a range, returning timestamp-major pivot rows in reverse order; keys must be same-slot in a cluster
+   * @param args - Arguments passed to the {@link transformNRangeArguments} function
    */
   nRevRange: NREVRANGE
 } as const satisfies RedisCommands;

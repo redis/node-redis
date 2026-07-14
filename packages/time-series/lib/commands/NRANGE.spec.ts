@@ -103,6 +103,33 @@ describe('TS.NRANGE', () => {
     minimumDockerVersion: [8, 10]
   });
 
+  testUtils.testWithClient('client.ts.nRange (RESP2 surfaces missing cell as NaN)', async client => {
+    await Promise.all([
+      client.ts.create('{t}:1'),
+      client.ts.create('{t}:2')
+    ]);
+    await Promise.all([
+      client.ts.add('{t}:1', 1000, 10),
+      client.ts.add('{t}:1', 2000, 12),
+      client.ts.add('{t}:2', 1000, 13)
+    ]);
+
+    assert.deepEqual(
+      await client.ts.nRange(['{t}:1', '{t}:2'], '-', '+'),
+      [
+        { timestamp: 1000, values: [10, 13] },
+        { timestamp: 2000, values: [12, NaN] }
+      ]
+    );
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    clientOptions: {
+      ...GLOBAL.SERVERS.OPEN.clientOptions,
+      RESP: 2
+    },
+    minimumDockerVersion: [8, 10]
+  });
+
   testUtils.testWithClient('client.ts.nRange (empty result)', async client => {
     await client.ts.create('{t}:1');
 

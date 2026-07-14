@@ -3,21 +3,14 @@ import { RedisArgument, Command } from '@redis/client/dist/lib/RESP/types';
 import {
   Timestamp,
   transformTimestampArgument,
-  PivotSamplesRawReply,
+  TsRangeCommonOptions,
+  parseRangeCommonArguments,
   transformPivotSamplesReply
 } from './helpers';
-import { Resp2Reply } from '@redis/client/dist/lib/RESP/types';
 import { TimeSeriesBucketTimestamp } from './RANGE';
 import { TimeSeriesAggregationTypeList } from './RANGE_MULTIAGGR';
 
-export interface TsNRangeOptions {
-  LATEST?: boolean;
-  FILTER_BY_TS?: Array<Timestamp>;
-  FILTER_BY_VALUE?: {
-    min: number;
-    max: number;
-  };
-  COUNT?: number;
+export interface TsNRangeOptions extends TsRangeCommonOptions {
   ALIGN?: Timestamp;
   AGGREGATION?: {
     /**
@@ -37,33 +30,7 @@ export function parseNRangeArguments(
   toTimestamp: Timestamp,
   options?: TsNRangeOptions
 ) {
-  parser.push(
-    transformTimestampArgument(fromTimestamp),
-    transformTimestampArgument(toTimestamp)
-  );
-
-  if (options?.LATEST) {
-    parser.push('LATEST');
-  }
-
-  if (options?.FILTER_BY_TS) {
-    parser.push('FILTER_BY_TS');
-    for (const timestamp of options.FILTER_BY_TS) {
-      parser.push(transformTimestampArgument(timestamp));
-    }
-  }
-
-  if (options?.FILTER_BY_VALUE) {
-    parser.push(
-      'FILTER_BY_VALUE',
-      options.FILTER_BY_VALUE.min.toString(),
-      options.FILTER_BY_VALUE.max.toString()
-    );
-  }
-
-  if (options?.COUNT !== undefined) {
-    parser.push('COUNT', options.COUNT.toString());
-  }
+  parseRangeCommonArguments(parser, fromTimestamp, toTimestamp, options);
 
   if (options?.AGGREGATION) {
     if (options?.ALIGN !== undefined) {
@@ -108,12 +75,5 @@ export default {
     parser.push('TS.NRANGE');
     transformNRangeArguments(...args);
   },
-  transformReply: {
-    2(reply: Resp2Reply<PivotSamplesRawReply>) {
-      return transformPivotSamplesReply[2](reply);
-    },
-    3(reply: PivotSamplesRawReply) {
-      return transformPivotSamplesReply[3](reply);
-    }
-  }
+  transformReply: transformPivotSamplesReply
 } as const satisfies Command;
