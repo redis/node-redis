@@ -4,6 +4,8 @@ import LMOVEM from './LMOVEM';
 import { parseArgs } from './generic-transformers';
 
 describe('LMOVEM', () => {
+  testUtils.isVersionGreaterThanHook([8, 10]);
+
   describe('transformArguments', () => {
     it('simple', () => {
       assert.deepEqual(

@@ -961,6 +961,7 @@ export default {
    * @param destinationSide - Side of destination list to push to (LEFT or RIGHT)
    * @param timeout - Timeout in seconds, 0 to block indefinitely
    * @param options - Optional COUNT/EXACTLY count and OBO/BULK ordering
+   * @since 8.10
    */
   BLMOVEM,
   /**
@@ -971,6 +972,7 @@ export default {
    * @param destinationSide - Side of destination list to push to (LEFT or RIGHT)
    * @param timeout - Timeout in seconds, 0 to block indefinitely
    * @param options - Optional COUNT/EXACTLY count and OBO/BULK ordering
+   * @since 8.10
    */
   blMoveM: BLMOVEM,
   /**
@@ -3067,6 +3069,7 @@ export default {
    * @param sourceSide - The side to pop from (LEFT or RIGHT)
    * @param destinationSide - The side to push to (LEFT or RIGHT)
    * @param options - Optional COUNT/EXACTLY count and OBO/BULK ordering
+   * @since 8.10
    */
   LMOVEM,
   /**
@@ -3077,6 +3080,7 @@ export default {
    * @param sourceSide - The side to pop from (LEFT or RIGHT)
    * @param destinationSide - The side to push to (LEFT or RIGHT)
    * @param options - Optional COUNT/EXACTLY count and OBO/BULK ordering
+   * @since 8.10
    */
   lMoveM: LMOVEM,
   /**
