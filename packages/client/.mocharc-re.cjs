@@ -59,9 +59,7 @@ module.exports = {
     'lib/commands/VRANGE.spec.ts',
     'lib/commands/XNACK.spec.ts',
     'lib/commands/HELLO.spec.ts',
-    'lib/commands/ZUNION.spec.ts',
-    'lib/commands/ZUNIONSTORE.spec.ts',
-    'lib/commands/ZINTER.spec.ts',
-    'lib/commands/ZINTERSTORE.spec.ts'
+    'lib/commands/ZUNION*.spec.ts',
+    'lib/commands/ZINTER*.spec.ts'
   ]
 };
