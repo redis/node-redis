@@ -52,6 +52,16 @@ module.exports = {
     'lib/commands/CLIENT_UNPAUSE.spec.ts',
     // Cross-DB operations - a managed RE database is a single logical DB
     'lib/commands/MOVE.spec.ts',
-    'lib/commands/SWAPDB.spec.ts'
+    'lib/commands/SWAPDB.spec.ts',
+    // Commands / options not available across the whole managed RE version matrix
+    // (present on RE 8.8 but missing on RE 8.0.x): vector set VRANGE, XNACK, the
+    // HELLO reply shape, and the newer ZUNION/ZINTER AGGREGATE option.
+    'lib/commands/VRANGE.spec.ts',
+    'lib/commands/XNACK.spec.ts',
+    'lib/commands/HELLO.spec.ts',
+    'lib/commands/ZUNION.spec.ts',
+    'lib/commands/ZUNIONSTORE.spec.ts',
+    'lib/commands/ZINTER.spec.ts',
+    'lib/commands/ZINTERSTORE.spec.ts'
   ]
 };
