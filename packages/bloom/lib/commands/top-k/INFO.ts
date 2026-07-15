@@ -11,7 +11,6 @@ export type TopKInfoReplyMap = TuplesToMapReply<[
 ]>;
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, key: RedisArgument) {
     parser.push('TOPK.INFO');
     parser.pushKey(key);

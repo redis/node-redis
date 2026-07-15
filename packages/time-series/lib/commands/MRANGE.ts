@@ -47,8 +47,6 @@ export function createTransformMRangeArguments(command: RedisArgument) {
 }
 
 export default {
-  NOT_KEYED_COMMAND: true,
-  IS_READ_ONLY: true,
   parseCommand: createTransformMRangeArguments('TS.MRANGE'),
   transformReply: {
     2(reply: TsMRangeRawReply2, _?: unknown, typeMapping?: TypeMapping) {

@@ -1,9 +1,9 @@
 import { strict as assert } from 'node:assert';
 import {
-  StaticPolicyResolver,
+  StaticMetadataResolver,
   REQUEST_POLICIES_WITH_DEFAULTS,
   RESPONSE_POLICIES_WITH_DEFAULTS
-} from '.';
+} from '../../command-metadata';
 
 /**
  * Snapshot of the HLD "Command Routing Policy Table" — client interpretation column.
@@ -64,7 +64,7 @@ const HLD_FT_TABLE: Record<string, typeof KEYLESS | typeof KEYED | typeof SPECIA
 };
 
 describe('FT.* policy table matches the HLD', () => {
-  const resolver = new StaticPolicyResolver();
+  const resolver = new StaticMetadataResolver();
 
   for (const [command, expected] of Object.entries(HLD_FT_TABLE)) {
     it(`${command} resolves to the HLD policy`, () => {

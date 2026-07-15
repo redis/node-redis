@@ -16,7 +16,7 @@ import SingleEntryCache from '../single-entry-cache'
 import { publish, CHANNELS } from '../client/tracing';
 import { ClientIdentity, ClientRole, generateClusterClientId } from '../client/identity';
 import { DEFAULT_COMMAND_TIMEOUT } from '../defaults';
-import { POLICIES, PolicyResolver, StaticPolicyResolver, REQUEST_POLICIES_WITH_DEFAULTS, RESPONSE_POLICIES_WITH_DEFAULTS, type CommandPolicies } from './request-response-policies';
+import { defaultCommandMetadata, isReplicaSafe, PolicyResolver, REQUEST_POLICIES_WITH_DEFAULTS, RESPONSE_POLICIES_WITH_DEFAULTS, type CommandMetadata } from '../command-metadata';
 import { REQUEST_ROUTERS, RESPONSE_REDUCERS } from './request-response-policies/dispatch';
 import { captureCursorBinding } from './request-response-policies/ft-cursor';
 
@@ -403,7 +403,9 @@ export default class RedisCluster<
 
     this._commandOptions = { timeout: DEFAULT_COMMAND_TIMEOUT, ...options?.commandOptions };
 
-    this._policyResolver = new StaticPolicyResolver(POLICIES);
+    // Shared process-wide resolver over the static metadata table. Kept as an
+    // instance field so a future per-connection dynamic resolver can replace it.
+    this._policyResolver = defaultCommandMetadata;
   }
 
   duplicate<
@@ -520,7 +522,7 @@ export default class RedisCluster<
     // by contract, so default-keyed is always correct for them. Known
     // multi_shard commands that can't be split still throw from the splitter.
     const hasKeys = parser.keys.length > 0;
-    const policy: CommandPolicies = policyResult.ok
+    const policy: CommandMetadata = policyResult.ok
       ? policyResult.value
       : {
           request: hasKeys
@@ -531,6 +533,12 @@ export default class RedisCluster<
             : RESPONSE_POLICIES_WITH_DEFAULTS.DEFAULT_KEYLESS,
           isKeyless: !hasKeys
         };
+
+    // Resolve-then-fallback: replica-safety derives from the server `write`
+    // flag (see `isReplicaSafe`). On a table miss the synthesized `policy` has
+    // no `flags`, so the predicate falls back to the hardcoded `IS_READ_ONLY`
+    // threaded in as `isReadonly`.
+    const readonly = isReplicaSafe(policy, isReadonly);
 
     const requestPolicy = policy.request
     const responsePolicy = policy.response
@@ -545,7 +553,7 @@ export default class RedisCluster<
     const plan = await router(
       this._slots as unknown as Parameters<typeof router>[0],
       parser,
-      isReadonly,
+      readonly,
       policy.keySpecs
     );
 
@@ -557,7 +565,7 @@ export default class RedisCluster<
       const entryParser = entry.parser ?? parser;
       // Re-narrow the opaque routed client to this cluster's instantiation.
       const client = entry.client as RedisClientType<M, F, S, RESP, TYPE_MAPPING> | undefined;
-      return this._execute(entryParser, isReadonly, options, makeFn(entryParser), client);
+      return this._execute(entryParser, readonly, options, makeFn(entryParser), client);
     });
 
     const reducer = RESPONSE_REDUCERS[responsePolicy];

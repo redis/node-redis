@@ -13,7 +13,6 @@ import {
 } from '@redis/client/dist/lib/commands/generic-transformers';
 
 export default {
-    IS_READ_ONLY: true,
     parseCommand(
         parser: CommandParser,
         keys: Array<RedisArgument>,

@@ -23,7 +23,6 @@ export interface TsCreateOptions {
 }
 
 export default {
-  IS_READ_ONLY: false,
   parseCommand(parser: CommandParser, key: RedisArgument, options?: TsCreateOptions) {
     parser.push('TS.CREATE');
     parser.pushKey(key);

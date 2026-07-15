@@ -7,8 +7,6 @@ export type FunctionListWithCodeReply = ArrayReply<TuplesToMapReply<[
 ]>>;
 
 export default {
-  NOT_KEYED_COMMAND: FUNCTION_LIST.NOT_KEYED_COMMAND,
-  IS_READ_ONLY: FUNCTION_LIST.IS_READ_ONLY,
   parseCommand(...args: Parameters<typeof FUNCTION_LIST.parseCommand>) {
     FUNCTION_LIST.parseCommand(...args);
     args[0].push('WITHCODE');

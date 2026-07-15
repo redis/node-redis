@@ -12,7 +12,6 @@ export interface BfInsertOptions {
 }
 
 export default {
-  IS_READ_ONLY: false,
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

@@ -7,7 +7,6 @@ export interface BfReserveOptions {
 }
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

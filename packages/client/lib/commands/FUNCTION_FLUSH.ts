@@ -3,8 +3,6 @@ import { SimpleStringReply, Command } from '../RESP/types';
 import { RedisFlushMode } from './FLUSHALL';
 
 export default {
-  NOT_KEYED_COMMAND: true,
-  IS_READ_ONLY: false,
   parseCommand(parser: CommandParser, mode?: RedisFlushMode) {
     parser.push('FUNCTION', 'FLUSH');
 

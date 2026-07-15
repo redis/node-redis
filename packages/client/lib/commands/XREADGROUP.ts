@@ -23,7 +23,6 @@ export interface XReadGroupOptions {
 }
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(
     parser: CommandParser,
     group: RedisArgument,

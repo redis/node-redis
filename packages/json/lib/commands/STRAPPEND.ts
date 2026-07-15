@@ -7,7 +7,6 @@ export interface JsonStrAppendOptions {
 }
 
 export default {
-  IS_READ_ONLY: false,
   parseCommand(parser: CommandParser, key: RedisArgument, append: string, options?: JsonStrAppendOptions) {
     parser.push('JSON.STRAPPEND');
     parser.pushKey(key);

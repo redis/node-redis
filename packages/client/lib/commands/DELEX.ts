@@ -23,7 +23,6 @@ export const DelexCondition = {
 type DelexCondition = (typeof DelexCondition)[keyof typeof DelexCondition];
 
 export default {
-  IS_READ_ONLY: false,
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

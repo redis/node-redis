@@ -7,7 +7,6 @@ export interface ZInterCardOptions {
 }
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(
     parser: CommandParser,
     keys: RedisVariadicArgument,

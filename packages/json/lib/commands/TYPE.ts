@@ -6,7 +6,6 @@ export interface JsonTypeOptions {
 }
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, key: RedisArgument, options?: JsonTypeOptions) {
     parser.push('JSON.TYPE');
     parser.pushKey(key);

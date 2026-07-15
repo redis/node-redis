@@ -5,7 +5,6 @@ import { ZKeys } from './generic-transformers';
 import { parseZInterArguments, ZInterOptions } from './ZINTER';
 
 export default {
-  IS_READ_ONLY: false,
   parseCommand(
     parser: CommandParser,
     destination: RedisArgument,

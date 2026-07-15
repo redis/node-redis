@@ -23,7 +23,6 @@ function transformVLinksWithScoresReply(reply: Array<Array<BlobStringReply>>): A
 }
 
 export default {
-  IS_READ_ONLY: VLINKS.IS_READ_ONLY,
   parseCommand(...args: Parameters<typeof VLINKS.parseCommand>) {
     const parser = args[0];
 

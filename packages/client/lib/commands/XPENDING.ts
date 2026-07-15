@@ -20,8 +20,6 @@ type XPendingRawReply = TuplesReply<[
 ]>;
 
 export default {
-  CACHEABLE: true,
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, key: RedisArgument, group: RedisArgument) {
     parser.push('XPENDING');
     parser.pushKey(key);

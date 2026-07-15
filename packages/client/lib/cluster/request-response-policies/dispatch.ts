@@ -19,7 +19,7 @@ import {
   RESPONSE_POLICIES_WITH_DEFAULTS,
   type RequestPolicyWithDefaults,
   type ResponsePolicyWithDefaults
-} from './policies-constants';
+} from '../../command-metadata/policies-constants';
 import { SPECIAL_REQUEST_ROUTERS } from './ft-cursor';
 
 // Routing runs *below* the typed command surface: routers never inspect the

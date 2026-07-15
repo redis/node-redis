@@ -67,7 +67,6 @@ export function parseArGrepArguments(
 export type ArGrepArguments = Tail<Parameters<typeof parseArGrepArguments>>;
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, ...args: ArGrepArguments) {
     parser.push('ARGREP');
     parseArGrepArguments(parser, ...args);

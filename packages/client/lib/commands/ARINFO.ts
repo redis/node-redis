@@ -9,7 +9,6 @@ export interface ArInfoOptions {
 export type ArInfoReply = MapReply<BlobStringReply, NumberReply | DoubleReply>;
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, key: RedisArgument, options?: ArInfoOptions) {
     parser.push('ARINFO');
     parser.pushKey(key);

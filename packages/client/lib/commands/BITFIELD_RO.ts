@@ -7,8 +7,6 @@ export type BitFieldRoOperations = Array<
 >;
 
 export default {
-  CACHEABLE: true,
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, key: RedisArgument, operations: BitFieldRoOperations) {
     parser.push('BITFIELD_RO');
     parser.pushKey(key);

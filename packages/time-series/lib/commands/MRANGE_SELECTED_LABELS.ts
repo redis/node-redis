@@ -55,7 +55,6 @@ export function createTransformMRangeSelectedLabelsArguments(command: RedisArgum
 }
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand: createTransformMRangeSelectedLabelsArguments('TS.MRANGE'),
   transformReply: {
     2(reply: TsMRangeSelectedLabelsRawReply2, _?: unknown, typeMapping?: TypeMapping) {

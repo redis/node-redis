@@ -10,7 +10,6 @@ import { RedisVariadicArgument } from "./generic-transformers";
  * Acknowledges and deletes one or multiple messages for a stream consumer group
  */
 export default {
-  IS_READ_ONLY: false,
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

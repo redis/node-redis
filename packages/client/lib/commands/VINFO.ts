@@ -11,7 +11,6 @@ export type VInfoReplyMap = TuplesToMapReply<[
 ]>;
 
 export default {
-  IS_READ_ONLY: true,
   /**
    * Retrieve metadata and internal details about a vector set, including size, dimensions, quantization type, and graph structure
    *

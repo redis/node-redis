@@ -3,7 +3,6 @@ import { ArrayReply, BlobStringReply, NumberReply, UnwrapReply, Command } from '
 import { RedisVariadicArgument } from './generic-transformers';
 
 export default {
-  IS_READ_ONLY: true,
   /**
    * Constructs the PUBSUB SHARDNUMSUB command
    *

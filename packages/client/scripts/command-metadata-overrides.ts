@@ -1,6 +1,6 @@
 /**
  * Curation applied on top of the raw COMMAND dump when regenerating
- * `static-policies-data.ts`, keeping the static data aligned with the HLD
+ * `command-metadata-data.ts`, keeping the static data aligned with the HLD
  * "Command Routing Policy Table" (see ft-policies.spec.ts).
  *
  * Rationale: the server reports internal, debug, deprecated and cluster-admin
@@ -8,7 +8,7 @@
  * excluded here so the static phase refuses to resolve them (they fall through
  * to the fallback resolver instead).
  */
-import type { CommandPolicies } from '../lib/cluster/request-response-policies/policies-constants';
+import type { CommandMetadata } from '../lib/command-metadata/policies-constants';
 
 /** Entire modules to drop (internal / cluster-admin command namespaces). */
 export const EXCLUDED_MODULES: ReadonlySet<string> = new Set(['_ft', 'search']);
@@ -39,7 +39,8 @@ export const EXCLUDED_COMMANDS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * Full-entry replacements, keyed by `module.command`.
+ * Partial-entry overrides, keyed by `module.command`, shallow-merged onto the
+ * generated entry (override keys win; unspecified keys keep the server value).
  *
  * `ft.cursor` is pinned to the HLD `special` request policy (sticky cursor):
  * FT.CURSOR READ/DEL must reach the node that served the FT.AGGREGATE that
@@ -49,8 +50,16 @@ export const EXCLUDED_COMMANDS: ReadonlySet<string> = new Set([
  * `default-keyless` (single-node pass-through). Pinned as an override so the
  * static table is deterministic regardless of what a given server reports for
  * the container command's subcommands.
+ *
+ * `dont_cache` override: CSC eligibility (`isCacheable`) excludes commands
+ * tipped `dont_cache`. Redis 8.10 tags the read-only script commands with the
+ * `script_runner` flag (handled directly by the predicate) and TS.READ with a
+ * native `dont_cache` tip, but TOUCH is still not tagged — its raw metadata
+ * (readonly + keyed) makes it look cacheable even though it only bumps LRU/LFU
+ * and generates no invalidation. Inject the negative tip until the server tags
+ * it; remove once the server metadata is fixed.
  */
-export const COMMAND_OVERRIDES: Readonly<Record<string, CommandPolicies>> = {
+export const COMMAND_OVERRIDES: Readonly<Record<string, Partial<CommandMetadata>>> = {
   'ft.cursor': {
     request: 'special',
     response: 'default-keyless',
@@ -59,5 +68,6 @@ export const COMMAND_OVERRIDES: Readonly<Record<string, CommandPolicies>> = {
       read: { request: 'special', response: 'default-keyless', isKeyless: true },
       del: { request: 'special', response: 'default-keyless', isKeyless: true }
     }
-  }
+  },
+  'std.touch': { tips: ['dont_cache'] }
 };

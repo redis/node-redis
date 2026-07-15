@@ -1,12 +1,12 @@
 import { strict as assert } from 'node:assert';
 import {
-  StaticPolicyResolver,
+  StaticMetadataResolver,
   REQUEST_POLICIES_WITH_DEFAULTS,
   RESPONSE_POLICIES_WITH_DEFAULTS
 } from '.';
 
-describe('StaticPolicyResolver', () => {
-  const resolver = new StaticPolicyResolver();
+describe('StaticMetadataResolver', () => {
+  const resolver = new StaticMetadataResolver();
 
   describe('subcommand detection', () => {
     it('FT.SEARCH: second arg is an index name, not a subcommand', () => {
@@ -105,7 +105,7 @@ describe('StaticPolicyResolver', () => {
 
   describe('fallback', () => {
     it('falls back to provided resolver on unknown command', () => {
-      const fallback = new StaticPolicyResolver({
+      const fallback = new StaticMetadataResolver({
         std: {
           customping: {
             request: REQUEST_POLICIES_WITH_DEFAULTS.DEFAULT_KEYLESS,

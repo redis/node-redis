@@ -12,8 +12,6 @@ export interface ZRangeByScoreOptions {
 export declare function transformReply(): Array<RedisArgument>;
 
 export default {
-  CACHEABLE: true,
-  IS_READ_ONLY: true,
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

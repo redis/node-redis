@@ -6,7 +6,6 @@ export interface JsonStrLenOptions {
 }
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, key: RedisArgument, options?: JsonStrLenOptions) {
     parser.push('JSON.STRLEN');
     parser.pushKey(key);

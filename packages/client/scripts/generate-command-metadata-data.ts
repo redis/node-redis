@@ -1,14 +1,14 @@
 /**
- * Regenerates `lib/cluster/request-response-policies/static-policies-data.ts`
+ * Regenerates `lib/command-metadata/command-metadata-data.ts`
  * from a live Redis server's COMMAND reply.
  *
- * The policy derivation is shared with `DynamicPolicyResolverFactory`, so the
+ * The metadata derivation is shared with `DynamicPolicyResolverFactory`, so the
  * generated static data is exactly what the dynamic resolver would build at
  * runtime against the same server, minus the HLD curation defined in
- * `static-policies-overrides.ts` (internal/deprecated/cluster-admin commands).
+ * `command-metadata-overrides.ts` (internal/deprecated/cluster-admin commands).
  *
  * Usage:
- *   npm run generate:policies --workspace=packages/client -- redis://localhost:6379
+ *   npm run generate:metadata --workspace=packages/client -- redis://localhost:6379
  *
  * The Redis URL is taken from the first CLI argument, then the REDIS_URL
  * environment variable, and defaults to redis://localhost:6379.
@@ -20,43 +20,43 @@ import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createClient } from '../index';
 import { transformCommandReply, type CommandRawReply } from '../lib/commands/generic-transformers';
-import { DynamicPolicyResolverFactory } from '../lib/cluster/request-response-policies/dynamic-policy-resolver-factory';
-import type { CommandPolicyRecords, ModulePolicyRecords } from '../lib/cluster/request-response-policies/types';
-import type { CommandPolicies } from '../lib/cluster/request-response-policies/policies-constants';
-import { EXCLUDED_MODULES, EXCLUDED_COMMANDS, COMMAND_OVERRIDES } from './static-policies-overrides';
+import { DynamicPolicyResolverFactory } from '../lib/command-metadata/dynamic-policy-resolver-factory';
+import type { CommandMetadataRecords, ModuleMetadataRecords } from '../lib/command-metadata/types';
+import type { CommandMetadata } from '../lib/command-metadata/policies-constants';
+import { EXCLUDED_MODULES, EXCLUDED_COMMANDS, COMMAND_OVERRIDES } from './command-metadata-overrides';
 
-const OUTPUT_PATH = resolve(__dirname, '../lib/cluster/request-response-policies/static-policies-data.ts');
+const OUTPUT_PATH = resolve(__dirname, '../lib/command-metadata/command-metadata-data.ts');
 
 function sortedByKey<T>(record: Record<string, T>, mapValue: (value: T) => T): Record<string, T> {
   const sorted: Record<string, T> = {};
-  // Lowercased to match StaticPolicyResolver's lookup normalization.
+  // Lowercased to match StaticMetadataResolver's lookup normalization.
   for (const key of Object.keys(record).sort()) {
     sorted[key.toLowerCase()] = mapValue(record[key]);
   }
   return sorted;
 }
 
-function sortCommandPolicies(policies: CommandPolicies): CommandPolicies {
+function sortCommandMetadata(policies: CommandMetadata): CommandMetadata {
   return {
     ...policies,
     subcommands: policies.subcommands
-      ? sortedByKey(policies.subcommands, sortCommandPolicies)
+      ? sortedByKey(policies.subcommands, sortCommandMetadata)
       : undefined
   };
 }
 
 // Sort modules, commands and subcommands alphabetically so regeneration
 // produces stable diffs regardless of the order the server lists commands in.
-function sortModulePolicyRecords(records: ModulePolicyRecords): ModulePolicyRecords {
-  return sortedByKey(records, (commands: CommandPolicyRecords) =>
-    sortedByKey(commands, sortCommandPolicies)
+function sortModuleMetadataRecords(records: ModuleMetadataRecords): ModuleMetadataRecords {
+  return sortedByKey(records, (commands: CommandMetadataRecords) =>
+    sortedByKey(commands, sortCommandMetadata)
   );
 }
 
-// Applies the HLD curation from static-policies-overrides.ts. Expects
-// lowercased records (i.e. run after sortModulePolicyRecords).
-function curate(records: ModulePolicyRecords): ModulePolicyRecords {
-  const curated: ModulePolicyRecords = {};
+// Applies the HLD curation from command-metadata-overrides.ts. Expects
+// lowercased records (i.e. run after sortModuleMetadataRecords).
+function curate(records: ModuleMetadataRecords): ModuleMetadataRecords {
+  const curated: ModuleMetadataRecords = {};
 
   for (const [moduleName, commands] of Object.entries(records)) {
     if (EXCLUDED_MODULES.has(moduleName)) continue;
@@ -66,7 +66,9 @@ function curate(records: ModulePolicyRecords): ModulePolicyRecords {
       const fullName = `${moduleName}.${commandName}`;
       if (EXCLUDED_COMMANDS.has(fullName)) continue;
 
-      curated[moduleName][commandName] = COMMAND_OVERRIDES[fullName] ?? policies;
+      // Shallow-merge: override keys win, unspecified keys keep the server value.
+      const override = COMMAND_OVERRIDES[fullName];
+      curated[moduleName][commandName] = override ? { ...policies, ...override } : policies;
     }
   }
 
@@ -81,19 +83,19 @@ async function main() {
   try {
     const rawCommands = await client.sendCommand<Array<CommandRawReply>>(['COMMAND']);
     const commands = rawCommands.map(transformCommandReply);
-    const policies = curate(sortModulePolicyRecords(
-      DynamicPolicyResolverFactory.buildModulePolicyRecords(commands)
+    const policies = curate(sortModuleMetadataRecords(
+      DynamicPolicyResolverFactory.buildModuleMetadataRecords(commands)
     ));
 
     const info = await client.sendCommand<string>(['INFO', 'server']);
     const version = /redis_version:(\S+)/.exec(info)?.[1] ?? 'unknown';
 
     const content = [
-      '// This file is auto-generated by scripts/generate-static-policies-data.ts — do not edit manually.',
+      '// This file is auto-generated by scripts/generate-command-metadata-data.ts — do not edit manually.',
       `// Source: Redis ${version}, ${Object.values(policies).reduce((sum, commands) => sum + Object.keys(commands).length, 0)} commands.`,
-      'import { ModulePolicyRecords } from "./types";',
+      'import { ModuleMetadataRecords } from "./types";',
       '',
-      `export const POLICIES: ModulePolicyRecords = ${JSON.stringify(policies, null, 2)} as const;`,
+      `export const COMMAND_METADATA: ModuleMetadataRecords = ${JSON.stringify(policies, null, 2)} as const;`,
       ''
     ].join('\n');
 

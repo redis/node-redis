@@ -15,7 +15,6 @@ export const AR_OPERATIONS = {
 export type ArOperation = typeof AR_OPERATIONS[keyof typeof AR_OPERATIONS];
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

@@ -26,6 +26,8 @@ describe('COMMAND', () => {
           categories: new Set([CommandCategories.FAST]),
           policies: { request: undefined, response: undefined },
           isKeyless: true,
+          nondeterministicOutput: false,
+          tips: [],
           keySpecs: [],
           subcommands: []
         }
@@ -43,6 +45,8 @@ describe('COMMAND', () => {
           categories: new Set([]),
           policies: { request: 'all_shards', response: 'agg_sum' },
           isKeyless: true,
+          nondeterministicOutput: false,
+          tips: [],
           keySpecs: [],
           subcommands: []
         }
@@ -60,6 +64,9 @@ describe('COMMAND', () => {
           categories: new Set([]),
           policies: { request: undefined, response: undefined },
           isKeyless: false,
+          nondeterministicOutput: false,
+          // invalid policy tips are still recognized as policy tips and dropped
+          tips: [],
           keySpecs: [{ beginSearch: { type: 'unknown' }, findKeys: { type: 'unknown' } }],
           subcommands: []
         }
@@ -77,6 +84,8 @@ describe('COMMAND', () => {
           categories: new Set([]),
           policies: { request: 'all_nodes', response: undefined },
           isKeyless: false,
+          nondeterministicOutput: false,
+          tips: [],
           keySpecs: [{ beginSearch: { type: 'unknown' }, findKeys: { type: 'unknown' } }],
           subcommands: []
         }
@@ -94,23 +103,9 @@ describe('COMMAND', () => {
           categories: new Set([]),
           policies: { request: undefined, response: 'agg_max' },
           isKeyless: true,
-          keySpecs: [],
-          subcommands: []
-        }
-      },
-      {
-        name: 'with response policy only',
-        input: ['test', 0, [], 0, 0, 0, [], ['', 'response_policy:agg_max'], [], []] satisfies CommandRawReply,
-        expected: {
-          name: 'test',
-          arity: 0,
-          flags: new Set([]),
-          firstKeyIndex: 0,
-          lastKeyIndex: 0,
-          step: 0,
-          categories: new Set([]),
-          policies: { request: undefined, response: 'agg_max' },
-          isKeyless: true,
+          nondeterministicOutput: false,
+          // the leading '' is a non-policy tip and is mirrored verbatim
+          tips: [''],
           keySpecs: [],
           subcommands: []
         }
@@ -130,6 +125,8 @@ describe('COMMAND', () => {
           categories: new Set([]),
           policies: { request: 'all_shards', response: 'special' },
           isKeyless: true,
+          nondeterministicOutput: true,
+          tips: ['nondeterministic_output'],
           keySpecs: [],
           subcommands: []
         }
@@ -148,6 +145,8 @@ describe('COMMAND', () => {
           categories: new Set([]),
           policies: { request: 'all_shards', response: undefined },
           isKeyless: true,
+          nondeterministicOutput: true,
+          tips: ['nondeterministic_output'],
           keySpecs: [],
           subcommands: []
         }
@@ -167,6 +166,8 @@ describe('COMMAND', () => {
           categories: new Set([]),
           policies: { request: 'all_shards', response: undefined },
           isKeyless: true,
+          nondeterministicOutput: true,
+          tips: ['nondeterministic_output'],
           keySpecs: [],
           subcommands: []
         }
@@ -184,6 +185,8 @@ describe('COMMAND', () => {
           categories: new Set([]),
           policies: { request: undefined, response: undefined },
           isKeyless: true,
+          nondeterministicOutput: true,
+          tips: ['nondeterministic_output', 'nondeterministic_output_order'],
           keySpecs: [],
           subcommands: []
         }

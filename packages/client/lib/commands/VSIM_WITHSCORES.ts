@@ -10,7 +10,6 @@ import { transformDoubleReply } from './generic-transformers';
 import VSIM from './VSIM';
 
 export default {
-  IS_READ_ONLY: VSIM.IS_READ_ONLY,
   parseCommand(...args: Parameters<typeof VSIM.parseCommand>) {
     const parser = args[0];
 

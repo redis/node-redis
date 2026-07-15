@@ -3,7 +3,6 @@ import { RedisArgument, Command } from '@redis/client/dist/lib/RESP/types';
 import { transformBooleanReply } from '@redis/client/dist/lib/commands/generic-transformers';
 
 export default {
-  IS_READ_ONLY: false,
   parseCommand(parser: CommandParser, key: RedisArgument, item: RedisArgument) {
     parser.push('CF.ADDNX');
     parser.pushKey(key);

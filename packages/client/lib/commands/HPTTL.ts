@@ -3,7 +3,6 @@ import { ArrayReply, Command, NullReply, NumberReply, RedisArgument } from '../R
 import { RedisVariadicArgument } from './generic-transformers';
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

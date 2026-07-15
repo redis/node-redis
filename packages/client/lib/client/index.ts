@@ -4,6 +4,7 @@ import { BasicAuth, CredentialsError, CredentialsProvider, StreamingCredentialsP
 import RedisCommandsQueue, { CommandOptions } from './commands-queue';
 import { EventEmitter } from 'node:events';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
+import { defaultCommandMetadata, isCacheable } from '../command-metadata';
 import { ClientClosedError, ClientOfflineError, DisconnectsClientError, WatchError } from '../errors';
 import { URL } from 'node:url';
 import { TcpSocketConnectOpts } from 'node:net';
@@ -1231,7 +1232,12 @@ export default class RedisClient<
 
     const fn = () => { return this.sendCommand(parser.redisArgs, commandOptions) };
 
-    if (csc && command.CACHEABLE && defaultTypeMapping) {
+    // Resolve-then-fallback: CSC eligibility derives from the server flags/tips
+    // (see `isCacheable`); user scripts/functions/unknown modules miss the table
+    // and fall back to the hardcoded `Command.CACHEABLE`.
+    const cacheable = isCacheable(defaultCommandMetadata.lookup(parser.commandIdentifier), command.CACHEABLE);
+
+    if (csc && cacheable && defaultTypeMapping) {
       return await csc.handleCache(this._self, parser as BasicCommandParser, fn, transformReply, commandOptions?.typeMapping);
     } else {
       const reply = await fn();

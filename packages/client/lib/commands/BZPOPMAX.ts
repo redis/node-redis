@@ -3,7 +3,6 @@ import { NullReply, TuplesReply, BlobStringReply, DoubleReply, UnwrapReply, Comm
 import { RedisVariadicArgument, transformDoubleReply } from './generic-transformers';
 
 export default {
-  IS_READ_ONLY: false,
   parseCommand(parser: CommandParser, keys: RedisVariadicArgument, timeout: number) {
     parser.push('BZPOPMAX');
     parser.pushKeys(keys);

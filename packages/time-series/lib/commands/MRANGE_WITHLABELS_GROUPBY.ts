@@ -53,7 +53,6 @@ export function createMRangeWithLabelsGroupByTransformArguments(command: RedisAr
 }
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand: createMRangeWithLabelsGroupByTransformArguments('TS.MRANGE'),
   transformReply: {
     2(reply: TsMRangeWithLabelsGroupByRawReply2, _?: unknown, typeMapping?: TypeMapping) {

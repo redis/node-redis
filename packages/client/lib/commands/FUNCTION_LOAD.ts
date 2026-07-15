@@ -6,8 +6,6 @@ export interface FunctionLoadOptions {
 }
 
 export default {
-  NOT_KEYED_COMMAND: true,
-  IS_READ_ONLY: false,
   parseCommand(parser: CommandParser, code: RedisArgument, options?: FunctionLoadOptions) {
     parser.push('FUNCTION', 'LOAD');
 

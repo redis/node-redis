@@ -1,6 +1,5 @@
 import { CommandParser } from '../client/parser';
 import { RedisArgument, Command } from '../RESP/types';
-import GEORADIUSBYMEMBER from './GEORADIUSBYMEMBER';
 import { GeoSearchOptions, GeoUnits, parseGeoSearchOptions } from './GEOSEARCH';
 import GEOSEARCH_WITH, { GeoReplyWith } from './GEOSEARCH_WITH';
 
@@ -22,7 +21,6 @@ export function parseGeoRadiusByMemberWithArguments(
 }
 
 export default {
-  IS_READ_ONLY: GEORADIUSBYMEMBER.IS_READ_ONLY,
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

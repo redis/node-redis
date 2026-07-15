@@ -215,8 +215,6 @@ function transformSearchReplyResp3(
 }
 
 export default {
-  NOT_KEYED_COMMAND: true,
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, index: RedisArgument, query: RedisArgument, options?: FtSearchOptions) {
     parser.push('FT.SEARCH', index, query);
 

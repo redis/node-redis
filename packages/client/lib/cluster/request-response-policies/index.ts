@@ -1,10 +1,5 @@
-export type { Either, PolicyResult, PolicyResolver, ModulePolicyRecords, CommandPolicyRecords } from './types';
-
-export { StaticPolicyResolver } from './static-policy-resolver';
-export { DynamicPolicyResolverFactory, type CommandFetcher } from './dynamic-policy-resolver-factory';
-
-export * from './policies-constants';
-export { POLICIES } from './static-policies-data';
+// Cluster-only routing that *consumes* command metadata. The metadata table
+// and its resolver now live in `lib/command-metadata/`; import those from there.
 export * from './dispatch';
 export { splitMultiShardCommand, type SubCommand } from './multi-shard-splitter';
 

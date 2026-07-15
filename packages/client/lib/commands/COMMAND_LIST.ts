@@ -17,8 +17,6 @@ export interface CommandListOptions {
 }
 
 export default {
-  NOT_KEYED_COMMAND: true,
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, options?: CommandListOptions) {
     parser.push('COMMAND', 'LIST');
 

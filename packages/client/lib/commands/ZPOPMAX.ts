@@ -3,7 +3,6 @@ import { RedisArgument, TuplesReply, BlobStringReply, DoubleReply, UnwrapReply, 
 import { transformDoubleReply } from './generic-transformers';
 
 export default {
-  IS_READ_ONLY: false,
   parseCommand(parser: CommandParser, key: RedisArgument) {
     parser.push('ZPOPMAX');
     parser.pushKey(key);

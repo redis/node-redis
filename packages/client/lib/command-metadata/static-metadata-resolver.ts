@@ -1,38 +1,38 @@
-import type { PolicyResult, PolicyResolver, ModulePolicyRecords, CommandPolicyRecords } from './types';
-import { POLICIES } from './static-policies-data';
-import { CommandIdentifier } from '../../client/parser';
-import type { CommandPolicies } from './policies-constants';
+import type { PolicyResult, PolicyResolver, ModuleMetadataRecords, CommandMetadataRecords } from './types';
+import { COMMAND_METADATA } from './command-metadata-data';
+import { CommandIdentifier } from '../client/parser';
+import type { CommandMetadata } from './policies-constants';
 
-const lowercaseCommandPolicies = (policies: CommandPolicies): CommandPolicies => {
-  if (!policies.subcommands) return policies;
-  const subcommands: Record<string, CommandPolicies> = {};
-  for (const [name, sub] of Object.entries(policies.subcommands)) {
-    subcommands[name.toLowerCase()] = lowercaseCommandPolicies(sub);
+const lowercaseCommandMetadata = (metadata: CommandMetadata): CommandMetadata => {
+  if (!metadata.subcommands) return metadata;
+  const subcommands: Record<string, CommandMetadata> = {};
+  for (const [name, sub] of Object.entries(metadata.subcommands)) {
+    subcommands[name.toLowerCase()] = lowercaseCommandMetadata(sub);
   }
-  return { ...policies, subcommands };
+  return { ...metadata, subcommands };
 };
 
-const lowercaseModulePolicies = (policies: ModulePolicyRecords): ModulePolicyRecords => {
-  const out: ModulePolicyRecords = {};
-  for (const [moduleName, commands] of Object.entries(policies)) {
-    const normalized: CommandPolicyRecords = {};
-    for (const [commandName, policy] of Object.entries(commands)) {
-      normalized[commandName.toLowerCase()] = lowercaseCommandPolicies(policy);
+const lowercaseModuleMetadata = (metadata: ModuleMetadataRecords): ModuleMetadataRecords => {
+  const out: ModuleMetadataRecords = {};
+  for (const [moduleName, commands] of Object.entries(metadata)) {
+    const normalized: CommandMetadataRecords = {};
+    for (const [commandName, entry] of Object.entries(commands)) {
+      normalized[commandName.toLowerCase()] = lowercaseCommandMetadata(entry);
     }
     out[moduleName.toLowerCase()] = normalized;
   }
   return out;
 };
 
-export class StaticPolicyResolver implements PolicyResolver {
+export class StaticMetadataResolver implements PolicyResolver {
   private readonly fallbackResolver: PolicyResolver | null = null;
-  private readonly policies: ModulePolicyRecords;
+  private readonly policies: ModuleMetadataRecords;
 
   constructor(
-    policies: ModulePolicyRecords = POLICIES,
+    policies: ModuleMetadataRecords = COMMAND_METADATA,
     fallbackResolver?: PolicyResolver
   ) {
-    this.policies = lowercaseModulePolicies(policies);
+    this.policies = lowercaseModuleMetadata(policies);
     this.fallbackResolver = fallbackResolver || null;
   }
 
@@ -40,10 +40,19 @@ export class StaticPolicyResolver implements PolicyResolver {
    * Sets a fallback resolver to use when policies are not found in this resolver.
    *
    * @param fallbackResolver The resolver to fall back to
-   * @returns A new StaticPolicyResolver with the specified fallback
+   * @returns A new StaticMetadataResolver with the specified fallback
    */
-  withFallback(fallbackResolver: PolicyResolver): StaticPolicyResolver {
-    return new StaticPolicyResolver(this.policies, fallbackResolver);
+  withFallback(fallbackResolver: PolicyResolver): StaticMetadataResolver {
+    return new StaticMetadataResolver(this.policies, fallbackResolver);
+  }
+
+  /**
+   * Convenience over `resolvePolicy` for the resolve-then-fallback readers:
+   * returns the resolved metadata or `undefined` on any miss.
+   */
+  lookup(commandIdentifier: CommandIdentifier): CommandMetadata | undefined {
+    const result = this.resolvePolicy(commandIdentifier);
+    return result.ok ? result.value : undefined;
   }
 
   resolvePolicy(commandIdentifier: CommandIdentifier): PolicyResult {

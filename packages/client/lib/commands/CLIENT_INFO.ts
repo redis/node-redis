@@ -65,8 +65,6 @@ export interface ClientInfoReply {
 const CLIENT_INFO_REGEX = /([^\s=]+)=([^\s]*)/g;
 
 export default {
-  NOT_KEYED_COMMAND: true,
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser) {
     parser.push('CLIENT', 'INFO');
   },

@@ -9,8 +9,6 @@ export const REDIS_FLUSH_MODES = {
 export type RedisFlushMode = typeof REDIS_FLUSH_MODES[keyof typeof REDIS_FLUSH_MODES];
 
 export default {
-  NOT_KEYED_COMMAND: true,
-  IS_READ_ONLY: false,
   parseCommand(parser: CommandParser, mode?: RedisFlushMode) {
     parser.push('FLUSHALL');
     if (mode) {

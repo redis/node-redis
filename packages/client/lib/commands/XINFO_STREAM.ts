@@ -51,7 +51,6 @@ export type XInfoStreamReply = TuplesToMapReply<[
 ]>;
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, key: RedisArgument) {
     parser.push('XINFO', 'STREAM');
     parser.pushKey(key);

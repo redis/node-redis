@@ -1,5 +1,5 @@
 import { BasicCommandParser, CommandParser } from '../client/parser';
-import { REQUEST_POLICIES_WITH_DEFAULTS, RequestPolicyWithDefaults, RESPONSE_POLICIES_WITH_DEFAULTS, ResponsePolicyWithDefaults } from '../cluster/request-response-policies';
+import { REQUEST_POLICIES_WITH_DEFAULTS, RequestPolicyWithDefaults, RESPONSE_POLICIES_WITH_DEFAULTS, ResponsePolicyWithDefaults } from '../command-metadata/policies-constants';
 import { RESP_TYPES } from '../RESP/decoder';
 import { UnwrapReply, ArrayReply, BlobStringReply, BooleanReply, CommandArguments, DoubleReply, NullReply, NumberReply, RedisArgument, ReplyUnion, TuplesReply, MapReply, TypeMapping, Command } from '../RESP/types';
 
@@ -370,6 +370,19 @@ export type CommandReply = {
   categories: Set<CommandCategories>,
   policies: { request: RequestPolicyWithDefaults | undefined, response: ResponsePolicyWithDefaults | undefined }
   isKeyless: boolean,
+  /**
+   * True when the server tags the command with the `nondeterministic_output`
+   * tip (e.g. XPENDING). Distinct from `nondeterministic_output_order`, which
+   * is NOT captured here. Consumed to precompute `cacheable`.
+   */
+  nondeterministicOutput: boolean,
+  /**
+   * Raw command tips, minus the `request_policy:` / `response_policy:` tips
+   * (captured separately in `policies`). Carries `nondeterministic_output`,
+   * `dont_cache`, etc. — mirrored into `CommandMetadata.tips` so CSC
+   * eligibility is derived from the raw server signal.
+   */
+  tips: Array<string>,
   keySpecs: Array<KeySpec>,
   subcommands: Array<CommandReply>
 };
@@ -476,6 +489,12 @@ export function transformCommandReply(
   // whole array instead of relying on positions.
   let requestPolicy: RequestPolicyWithDefaults | undefined;
   let responsePolicy: ResponsePolicyWithDefaults | undefined;
+  // Exact match — must NOT catch 'nondeterministic_output_order', which does
+  // not disqualify caching (HGETALL/SMEMBERS keep unordered but cacheable).
+  let nondeterministicOutput = false;
+  // Non-policy tips, mirrored verbatim into CommandMetadata.tips (dont_cache,
+  // nondeterministic_output, ...). The policy tips are captured separately.
+  const otherTips: Array<string> = [];
 
   for (const tip of tips) {
     if (tip.startsWith('request_policy:')) {
@@ -487,6 +506,11 @@ export function transformCommandReply(
       const raw = tip.slice('response_policy:'.length);
       if ((Object.values(RESPONSE_POLICIES_WITH_DEFAULTS) as string[]).includes(raw)) {
         responsePolicy = raw as ResponsePolicyWithDefaults;
+      }
+    } else {
+      otherTips.push(tip);
+      if (tip === 'nondeterministic_output') {
+        nondeterministicOutput = true;
       }
     }
   }
@@ -506,6 +530,8 @@ export function transformCommandReply(
       response: responsePolicy
     },
     isKeyless: keySpecifications.length === 0,
+    nondeterministicOutput,
+    tips: otherTips,
     keySpecs: keySpecifications.map(transformKeySpec),
     subcommands
   };

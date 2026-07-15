@@ -9,8 +9,6 @@ export const CLIENT_UNBLOCK_MODES = {
 export type ClientUnblockMode = typeof CLIENT_UNBLOCK_MODES[keyof typeof CLIENT_UNBLOCK_MODES];
 
 export default {
-  NOT_KEYED_COMMAND: true,
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, clientId: number | `${number}`, mode?: ClientUnblockMode) {
     parser.push(
       'CLIENT',

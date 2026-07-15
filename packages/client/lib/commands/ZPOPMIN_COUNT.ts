@@ -3,7 +3,6 @@ import { RedisArgument, Command } from '../RESP/types';
 import { transformSortedSetReply } from './generic-transformers';
 
 export default {
-  IS_READ_ONLY: false,
   parseCommand(parser: CommandParser, key: RedisArgument, count: number) {
     parser.push('ZPOPMIN');
     parser.pushKey(key);

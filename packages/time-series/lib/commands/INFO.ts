@@ -250,7 +250,6 @@ function transformInfoReplyResp3(reply: ReplyUnion, preserve?: unknown, typeMapp
 }
 
 export default {
-    IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, key: string) {
       parser.push('TS.INFO');
       parser.pushKey(key);

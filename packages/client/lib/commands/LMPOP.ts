@@ -23,7 +23,6 @@ export function parseLMPopArguments(
 export type LMPopArguments = Tail<Parameters<typeof parseLMPopArguments>>;
 
 export default {
-  IS_READ_ONLY: false,  
   parseCommand(parser: CommandParser, ...args: LMPopArguments) {
     parser.push('LMPOP');
     parseLMPopArguments(parser, ...args);

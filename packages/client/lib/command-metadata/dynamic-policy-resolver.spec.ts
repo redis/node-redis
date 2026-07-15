@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert';
-import type { CommandReply } from '../../commands/generic-transformers';
-import { DynamicPolicyResolverFactory, type CommandFetcher, StaticPolicyResolver, REQUEST_POLICIES_WITH_DEFAULTS, RESPONSE_POLICIES_WITH_DEFAULTS } from '.';
-import testUtils, { GLOBAL } from '../../test-utils';
+import type { CommandReply } from '../commands/generic-transformers';
+import { DynamicPolicyResolverFactory, type CommandFetcher, StaticMetadataResolver, REQUEST_POLICIES_WITH_DEFAULTS, RESPONSE_POLICIES_WITH_DEFAULTS } from '.';
+import testUtils, { GLOBAL } from '../test-utils';
 
 
 const createMockCommandFetcher = (commands: Array<CommandReply>): CommandFetcher => async () => commands;
@@ -9,15 +9,15 @@ const createMockCommandFetcher = (commands: Array<CommandReply>): CommandFetcher
 describe('DynamicPolicyResolverFactory', () => {
 
   describe('create', () => {
-    it('should create StaticPolicyResolver with empty policies', async () => {
+    it('should create StaticMetadataResolver with empty policies', async () => {
       const mockCommandFetcher = createMockCommandFetcher([]);
       const resolver = await DynamicPolicyResolverFactory.create(mockCommandFetcher);
-      assert.ok(resolver instanceof StaticPolicyResolver);
+      assert.ok(resolver instanceof StaticMetadataResolver);
     });
 
-    it('should create StaticPolicyResolver with fallback', async () => {
+    it('should create StaticMetadataResolver with fallback', async () => {
       const mockCommandFetcher = createMockCommandFetcher([]);
-      const fallbackResolver = new StaticPolicyResolver({
+      const fallbackResolver = new StaticMetadataResolver({
         std: {
           ping: {
             request: REQUEST_POLICIES_WITH_DEFAULTS.DEFAULT_KEYLESS,
@@ -28,7 +28,7 @@ describe('DynamicPolicyResolverFactory', () => {
       });
 
       const resolver = await DynamicPolicyResolverFactory.create(mockCommandFetcher, fallbackResolver);
-      assert.ok(resolver instanceof StaticPolicyResolver);
+      assert.ok(resolver instanceof StaticMetadataResolver);
 
       const result = resolver.resolvePolicy({ command: 'ping', subcommand: undefined });
       assert.equal(result.ok, true);
@@ -52,6 +52,7 @@ describe('DynamicPolicyResolverFactory', () => {
           categories: new Set(),
           policies: { request: undefined, response: undefined },
           isKeyless: true,
+          tips: [],
           keySpecs: [],
           subcommands: []
         }
@@ -80,6 +81,7 @@ describe('DynamicPolicyResolverFactory', () => {
           categories: new Set(),
           policies: { request: undefined, response: undefined },
           isKeyless: false,
+          tips: [],
           keySpecs: [],
           subcommands: []
         }
@@ -108,6 +110,7 @@ describe('DynamicPolicyResolverFactory', () => {
           categories: new Set(),
           policies: { request: 'all_shards', response: 'agg_sum' },
           isKeyless: true,
+          tips: [],
           keySpecs: [],
           subcommands: []
         }
@@ -140,6 +143,7 @@ describe('DynamicPolicyResolverFactory', () => {
           categories: new Set(),
           policies: { request: 'multi_shard', response: 'all_succeeded' },
           isKeyless: false,
+          tips: [],
           keySpecs: [...msetKeySpecs],
           subcommands: []
         },
@@ -153,6 +157,7 @@ describe('DynamicPolicyResolverFactory', () => {
           categories: new Set(),
           policies: { request: undefined, response: undefined },
           isKeyless: false,
+          tips: [],
           keySpecs: [{
             beginSearch: { type: 'index', index: 1 },
             findKeys: { type: 'range', lastKey: 0, keyStep: 1, limit: 0 }
@@ -190,6 +195,7 @@ describe('DynamicPolicyResolverFactory', () => {
           categories: new Set(),
           policies: { request: 'all_shards', response: 'special' },
           isKeyless: false,
+          tips: [],
           keySpecs: [],
           subcommands: []
         }
@@ -218,6 +224,7 @@ describe('DynamicPolicyResolverFactory', () => {
           categories: new Set(),
           policies: { request: undefined, response: undefined },
           isKeyless: true,
+          tips: [],
           keySpecs: [],
           subcommands: []
         }
@@ -248,6 +255,7 @@ describe('DynamicPolicyResolverFactory', () => {
           categories: new Set(),
           policies: { request: undefined, response: undefined },
           isKeyless: true,
+          tips: [],
           keySpecs: [],
           subcommands: []
         }
@@ -301,6 +309,7 @@ describe('DynamicPolicyResolverFactory', () => {
           categories: new Set(),
           policies: { request: 'all_nodes', response: undefined },
           isKeyless: false,
+          tips: [],
           keySpecs: [],
           subcommands: []
         },
@@ -314,6 +323,7 @@ describe('DynamicPolicyResolverFactory', () => {
           categories: new Set(),
           policies: { request: undefined, response: 'agg_sum' },
           isKeyless: true,
+          tips: [],
           keySpecs: [],
           subcommands: []
         }
@@ -342,7 +352,7 @@ describe('DynamicPolicyResolverFactory', () => {
     it('should handle empty command list', async () => {
       const mockCommandFetcher = createMockCommandFetcher([]);
       const resolver = await DynamicPolicyResolverFactory.create(mockCommandFetcher);
-      assert.ok(resolver instanceof StaticPolicyResolver);
+      assert.ok(resolver instanceof StaticMetadataResolver);
 
       const result = resolver.resolvePolicy({ command: 'any-command', subcommand: undefined });
       assert.equal(result.ok, false);
@@ -353,7 +363,7 @@ describe('DynamicPolicyResolverFactory', () => {
   describe('integration tests', () => {
     testUtils.testWithClient('should work with real Redis client', async client => {
       const resolver = await DynamicPolicyResolverFactory.create(() => client.command());
-      assert.ok(resolver instanceof StaticPolicyResolver);
+      assert.ok(resolver instanceof StaticMetadataResolver);
 
       // Test that ping command is classified as keyless
       const pingResult = resolver.resolvePolicy({ command: 'ping', subcommand: undefined });

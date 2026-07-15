@@ -18,7 +18,6 @@ export type XInfoConsumersReply = ArrayReply<TuplesToMapReply<[
 ]>>;
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, key: RedisArgument, group: RedisArgument) {
     parser.push('XINFO', 'CONSUMERS');
     parser.pushKey(key);

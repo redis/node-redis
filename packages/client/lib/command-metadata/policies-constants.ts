@@ -1,4 +1,4 @@
-import type { KeySpec } from '../../commands/generic-transformers';
+import type { KeySpec } from '../commands/generic-transformers';
 
 export const REQUEST_POLICIES_WITH_DEFAULTS = {
   /**
@@ -110,10 +110,10 @@ export const RESPONSE_POLICIES_WITH_DEFAULTS = {
 
 export type ResponsePolicyWithDefaults = typeof RESPONSE_POLICIES_WITH_DEFAULTS[keyof typeof RESPONSE_POLICIES_WITH_DEFAULTS];
 
-export interface CommandPolicies {
+export interface CommandMetadata {
   readonly request: RequestPolicyWithDefaults;
   readonly response: ResponsePolicyWithDefaults;
-  readonly subcommands?: Record<string, CommandPolicies>;
+  readonly subcommands?: Record<string, CommandMetadata>;
   readonly isKeyless: boolean;
   /**
    * COMMAND key specifications — the reconstruction recipe for splitting the
@@ -121,4 +121,21 @@ export interface CommandPolicies {
    * commands never split, so their entries stay lean.
    */
   readonly keySpecs?: ReadonlyArray<KeySpec>;
+  /**
+   * Raw command flags from the server `COMMAND` reply (e.g. `write`,
+   * `readonly`, `script`). Stored verbatim rather than pre-cooked into
+   * booleans so the derivation lives in one place (`isReplicaSafe` /
+   * `isCacheable`) and the static table + a future dynamic live-`COMMAND`
+   * resolver feed the identical algorithm. Optional: absent for synthesized
+   * fallback policies and hand-written overrides, in which case the readers
+   * fall back to the hardcoded `Command.IS_READ_ONLY` / `Command.CACHEABLE`.
+   */
+  readonly flags?: ReadonlyArray<string>;
+  /**
+   * Raw command tips from the server `COMMAND` reply, minus the
+   * `request_policy:` / `response_policy:` tips (already captured as
+   * `request` / `response`). Carries `nondeterministic_output`, `dont_cache`,
+   * etc. — the signals `isCacheable` consumes.
+   */
+  readonly tips?: ReadonlyArray<string>;
 }
