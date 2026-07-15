@@ -3,6 +3,8 @@ import { RedisArgument, Command } from '@redis/client/dist/lib/RESP/types';
 import {
   Timestamp,
   transformTimestampArgument,
+  TsRangeCommonOptions,
+  parseRangeCommonArguments,
   MultiAggregationSamplesRawReply,
   transformMultiAggregationSamplesReply
 } from './helpers';
@@ -12,14 +14,7 @@ import { TimeSeriesBucketTimestamp } from './RANGE';
 
 export type TimeSeriesAggregationTypeList = [TimeSeriesAggregationType, ...Array<TimeSeriesAggregationType>];
 
-export interface TsRangeMultiAggrOptions {
-  LATEST?: boolean;
-  FILTER_BY_TS?: Array<Timestamp>;
-  FILTER_BY_VALUE?: {
-    min: number;
-    max: number;
-  };
-  COUNT?: number;
+export interface TsRangeMultiAggrOptions extends TsRangeCommonOptions {
   ALIGN?: Timestamp;
   AGGREGATION: {
     types: TimeSeriesAggregationTypeList;
@@ -35,33 +30,7 @@ export function parseRangeMultiArguments(
   toTimestamp: Timestamp,
   options: TsRangeMultiAggrOptions
 ) {
-  parser.push(
-    transformTimestampArgument(fromTimestamp),
-    transformTimestampArgument(toTimestamp)
-  );
-
-  if (options.LATEST) {
-    parser.push('LATEST');
-  }
-
-  if (options.FILTER_BY_TS) {
-    parser.push('FILTER_BY_TS');
-    for (const timestamp of options.FILTER_BY_TS) {
-      parser.push(transformTimestampArgument(timestamp));
-    }
-  }
-
-  if (options.FILTER_BY_VALUE) {
-    parser.push(
-      'FILTER_BY_VALUE',
-      options.FILTER_BY_VALUE.min.toString(),
-      options.FILTER_BY_VALUE.max.toString()
-    );
-  }
-
-  if (options.COUNT !== undefined) {
-    parser.push('COUNT', options.COUNT.toString());
-  }
+  parseRangeCommonArguments(parser, fromTimestamp, toTimestamp, options);
 
   if (options.ALIGN !== undefined) {
     parser.push('ALIGN', transformTimestampArgument(options.ALIGN));

@@ -64,6 +64,60 @@ export function transformTimestampArgument(timestamp: Timestamp): string {
   ).toString();
 }
 
+/**
+ * Options shared by every `TS.RANGE`-family command, emitted in canonical order
+ * before the optional `ALIGN`/`AGGREGATION` tail (which differs per command).
+ */
+export interface TsRangeCommonOptions {
+  LATEST?: boolean;
+  FILTER_BY_TS?: Array<Timestamp>;
+  FILTER_BY_VALUE?: {
+    min: number;
+    max: number;
+  };
+  COUNT?: number;
+}
+
+/**
+ * Pushes `fromTimestamp toTimestamp [LATEST] [FILTER_BY_TS ...] [FILTER_BY_VALUE ...] [COUNT ...]`,
+ * the portion common to `TS.RANGE`, `TS.REVRANGE`, their multi-aggregation variants, and
+ * `TS.NRANGE`/`TS.NREVRANGE`. Callers append their own `ALIGN`/`AGGREGATION` tail.
+ */
+export function parseRangeCommonArguments(
+  parser: CommandParser,
+  fromTimestamp: Timestamp,
+  toTimestamp: Timestamp,
+  options?: TsRangeCommonOptions
+) {
+  parser.push(
+    transformTimestampArgument(fromTimestamp),
+    transformTimestampArgument(toTimestamp)
+  );
+
+  if (options?.LATEST) {
+    parser.push('LATEST');
+  }
+
+  if (options?.FILTER_BY_TS) {
+    parser.push('FILTER_BY_TS');
+    for (const timestamp of options.FILTER_BY_TS) {
+      parser.push(transformTimestampArgument(timestamp));
+    }
+  }
+
+  if (options?.FILTER_BY_VALUE) {
+    parser.push(
+      'FILTER_BY_VALUE',
+      options.FILTER_BY_VALUE.min.toString(),
+      options.FILTER_BY_VALUE.max.toString()
+    );
+  }
+
+  if (options?.COUNT !== undefined) {
+    parser.push('COUNT', options.COUNT.toString());
+  }
+}
+
 export type Labels = {
   [label: string]: string;
 };
@@ -142,6 +196,40 @@ export const transformMultiAggregationSamplesReply = {
   3(reply: MultiAggregationSamplesRawReply) {
     return (reply as unknown as UnwrapReply<typeof reply>)
       .map(sample => transformMultiAggregationSampleReply[3](sample));
+  }
+};
+
+/**
+ * A single timestamp-major pivot row as returned by `TS.NRANGE` / `TS.NREVRANGE`:
+ * `[timestamp, [value_for_key_0, value_for_key_1, ...]]`. The value array preserves
+ * the input key order; a missing cell is surfaced as `NaN`.
+ */
+export type PivotSampleRawReply = TuplesReply<[
+  timestamp: NumberReply,
+  values: ArrayReply<DoubleReply>
+]>;
+
+export type PivotSamplesRawReply = ArrayReply<PivotSampleRawReply>;
+
+export const transformPivotSamplesReply = {
+  2(reply: Resp2Reply<PivotSamplesRawReply>) {
+    return (reply as unknown as UnwrapReply<typeof reply>).map(sample => {
+      const [ timestamp, values ] = sample as unknown as UnwrapReply<typeof sample>;
+      const unwrappedValues = values as unknown as UnwrapReply<typeof values>;
+      return {
+        timestamp,
+        values: unwrappedValues.map(value => Number(value))
+      };
+    });
+  },
+  3(reply: PivotSamplesRawReply) {
+    return (reply as unknown as UnwrapReply<typeof reply>).map(sample => {
+      const [ timestamp, values ] = sample as unknown as UnwrapReply<typeof sample>;
+      return {
+        timestamp,
+        values
+      };
+    });
   }
 };
 

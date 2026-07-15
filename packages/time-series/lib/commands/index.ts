@@ -37,6 +37,8 @@ import RANGE_MULTIAGGR from './RANGE_MULTIAGGR';
 import RANGE from './RANGE';
 import REVRANGE_MULTIAGGR from './REVRANGE_MULTIAGGR';
 import REVRANGE from './REVRANGE';
+import NRANGE from './NRANGE';
+import NREVRANGE from './NREVRANGE';
 import { RedisCommands } from '@redis/client/dist/lib/RESP/types';
 
 export * from './helpers';
@@ -603,5 +605,29 @@ export default {
    * Gets samples from a time series within a time range (in reverse order)
    * @param args - Arguments passed to the {@link transformRangeArguments} function
    */
-  revRange: REVRANGE
+  revRange: REVRANGE,
+  /**
+   * Queries multiple time series keys over a range, returning timestamp-major pivot rows in forward order; keys must be same-slot in a cluster.
+   * Added since Redis 8.10.
+   * @param args - Arguments passed to the {@link transformNRangeArguments} function
+   */
+  NRANGE,
+  /**
+   * Queries multiple time series keys over a range, returning timestamp-major pivot rows in forward order; keys must be same-slot in a cluster.
+   * Added since Redis 8.10.
+   * @param args - Arguments passed to the {@link transformNRangeArguments} function
+   */
+  nRange: NRANGE,
+  /**
+   * Queries multiple time series keys over a range, returning timestamp-major pivot rows in reverse order; keys must be same-slot in a cluster.
+   * Added since Redis 8.10.
+   * @param args - Arguments passed to the {@link transformNRangeArguments} function
+   */
+  NREVRANGE,
+  /**
+   * Queries multiple time series keys over a range, returning timestamp-major pivot rows in reverse order; keys must be same-slot in a cluster.
+   * Added since Redis 8.10.
+   * @param args - Arguments passed to the {@link transformNRangeArguments} function
+   */
+  nRevRange: NREVRANGE
 } as const satisfies RedisCommands;
