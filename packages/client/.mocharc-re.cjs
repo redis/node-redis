@@ -9,6 +9,9 @@
 module.exports = {
   require: 'tsx',
   timeout: 60000,
+  // Retry to absorb transient connection timeouts against the remote (higher-latency)
+  // managed Redis Enterprise endpoint; local Docker runs rarely need this.
+  retries: 2,
   spec: 'lib/commands/**/*.spec.ts',
   ignore: [
     // AR.* array preview commands - not shipped in managed Redis Enterprise
