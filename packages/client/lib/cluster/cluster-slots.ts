@@ -42,6 +42,21 @@ export interface CursorBinding {
  */
 const DEFAULT_CURSOR_MAX_IDLE_MS = 300_000;
 
+/**
+ * One in-flight cluster-wide SCAN chain (see
+ * `request-response-policies/scan-cursor.ts`). SCAN cursors are per-node
+ * state, so a cluster-wide iteration walks the masters one at a time: the
+ * entry pins the node currently being scanned, the real server cursor to
+ * resume it with, and the masters already exhausted (tracked by address so a
+ * topology refresh mid-scan doesn't rescan or skip nodes that survived).
+ */
+export interface ScanCursorEntry {
+  address: string;
+  cursor: string;
+  visited: Set<string>;
+  createdAt: number;
+}
+
 export interface Node<
   M extends RedisModules,
   F extends RedisFunctions,
@@ -143,6 +158,9 @@ export default class RedisClusterSlots<
   smigratedSeqIdsSeen = new Set<number>;
   /** Per-instance sticky-cursor bindings, keyed `${index}:${cursorId}`. */
   readonly cursorBindings = new Map<string, CursorBinding>();
+  /** Per-instance cluster-wide SCAN chains, keyed by the virtual cursor token. */
+  readonly scanCursors = new Map<string, ScanCursorEntry>();
+  #scanCursorSeq = 0;
   #topologyRefreshPromise?: Promise<boolean | void>;
 
   #isOpen = false;
@@ -1012,6 +1030,51 @@ export default class RedisClusterSlots<
 
   evictCursor(index: string, cursorId: number) {
     this.cursorBindings.delete(this.#cursorKey(index, cursorId));
+  }
+
+  /**
+   * Mint a fresh virtual SCAN cursor token. Tokens are what cluster-wide SCAN
+   * hands back to the caller in place of the per-node server cursor: opaque,
+   * non-"0", never colliding with each other. A plain counter keeps them
+   * valid-looking cursor strings for callers that treat the cursor as an
+   * opaque number.
+   */
+  mintScanCursorToken(): string {
+    return String(++this.#scanCursorSeq);
+  }
+
+  /**
+   * Same opportunistic, timer-free sweep as `#sweepStaleCursors`: an abandoned
+   * scan (caller stopped iterating mid-way) would otherwise leak its entry.
+   */
+  #sweepStaleScanCursors(now: number) {
+    for (const [token, entry] of this.scanCursors) {
+      if (now - entry.createdAt > DEFAULT_CURSOR_MAX_IDLE_MS) {
+        this.scanCursors.delete(token);
+      }
+    }
+  }
+
+  bindScanCursor(token: string, address: string, cursor: string, visited: Set<string>) {
+    const now = Date.now();
+    this.#sweepStaleScanCursors(now);
+    this.scanCursors.set(token, { address, cursor, visited, createdAt: now });
+  }
+
+  lookupScanCursor(token: string): ScanCursorEntry | undefined {
+    return this.scanCursors.get(token);
+  }
+
+  evictScanCursor(token: string) {
+    this.scanCursors.delete(token);
+  }
+
+  /**
+   * First master (in current topology order) whose address is not in
+   * `visited` — the next node a cluster-wide SCAN chain should walk.
+   */
+  nextScanTarget(visited: ReadonlySet<string>): string | undefined {
+    return this.masters.find(master => !visited.has(master.address))?.address;
   }
 
   getPubSubClient(): Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {

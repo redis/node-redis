@@ -318,6 +318,43 @@ describe('Cluster', () => {
     await assert.rejects(cluster.mGet(['a', 'b']));
   }, GLOBAL.CLUSTERS.OPEN);
 
+  testUtils.testWithCluster('cluster-wide SCAN iterates every master', async cluster => {
+    const expected = new Set<string>();
+    const writes: Array<Promise<unknown>> = [];
+    for (let i = 0; i < 100; i++) {
+      const key = `scan-all:${i}`;
+      expected.add(key);
+      writes.push(cluster.set(key, 'v'));
+    }
+    await Promise.all(writes);
+
+    // Low COUNT forces several iterations per node, exercising both the
+    // virtual-token continuation on one node and the advance between nodes.
+    const found = new Set<string>();
+    let cursor = '0';
+    do {
+      const reply = await cluster.scan(cursor, { MATCH: 'scan-all:*', COUNT: 29 });
+      cursor = reply.cursor;
+      for (const key of reply.keys) found.add(key);
+    } while (cursor !== '0');
+
+    assert.deepEqual(found, expected);
+  }, GLOBAL.CLUSTERS.OPEN);
+
+  testUtils.testWithCluster('cluster-wide SCAN rejects a foreign cursor', async cluster => {
+    await assert.rejects(cluster.scan('123456'), /unknown cursor/);
+  }, GLOBAL.CLUSTERS.OPEN);
+
+  testUtils.testWithCluster('RANDOMKEY finds the key whichever shard holds it', async cluster => {
+    // Single key in the whole cluster: a single-node RANDOMKEY would return
+    // nil whenever the randomly-picked node is one of the empty masters; the
+    // all_shards fan-out + non-nil reduction must always find it.
+    await cluster.set('the-only-key', 'v');
+    for (let i = 0; i < 5; i++) {
+      assert.equal(await cluster.randomKey(), 'the-only-key');
+    }
+  }, GLOBAL.CLUSTERS.OPEN);
+
   describe('minimizeConnections', () => {
     testUtils.testWithCluster('false', async cluster => {
       for (const master of cluster.masters) {

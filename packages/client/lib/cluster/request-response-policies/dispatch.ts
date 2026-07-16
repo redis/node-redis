@@ -20,7 +20,8 @@ import {
   type RequestPolicyWithDefaults,
   type ResponsePolicyWithDefaults
 } from '../../command-metadata/policies-constants';
-import { SPECIAL_REQUEST_ROUTERS } from './ft-cursor';
+import { routeFtCursor } from './ft-cursor';
+import { routeScan } from './scan-cursor';
 
 // Routing runs *below* the typed command surface: routers never inspect the
 // command's M/F/S/RESP/TM parameters, they just shuffle opaque clients from
@@ -122,15 +123,28 @@ function specialKey(parser: CommandParser): string {
 }
 
 /**
+ * Special-request routers. Looked up by `COMMAND SUBCOMMAND` first, then bare
+ * `COMMAND` — SCAN registers bare because its second argument is a cursor,
+ * which the naive `commandIdentifier` mistakes for a subcommand.
+ */
+export const SPECIAL_REQUEST_ROUTERS: Record<string, RequestRouter> = {
+  'FT.CURSOR READ': routeFtCursor,
+  'FT.CURSOR DEL': routeFtCursor,
+  SCAN: routeScan
+};
+
+/**
  * Router for the `special` request policy. Commands with a dedicated handler
- * (e.g. FT.CURSOR sticky routing) short-circuit into `SPECIAL_REQUEST_ROUTERS`
- * first. Everything else has non-trivial routing no generic rule captures and
- * no handler yet: route to a single (random) node like a keyless command so it
- * still works, but warn — the reply reflects only that one node.
+ * (e.g. FT.CURSOR sticky routing, cluster-wide SCAN) short-circuit into
+ * `SPECIAL_REQUEST_ROUTERS` first. Everything else has non-trivial routing no
+ * generic rule captures and no handler yet: route to a single (random) node
+ * like a keyless command so it still works, but warn — the reply reflects
+ * only that one node.
  */
 export const routeSpecial: RequestRouter =
   async (slots, parser, isReadonly, keySpecs) => {
-    const handler = SPECIAL_REQUEST_ROUTERS[specialKey(parser)];
+    const handler = SPECIAL_REQUEST_ROUTERS[specialKey(parser)]
+      ?? SPECIAL_REQUEST_ROUTERS[parser.commandIdentifier.command.toUpperCase()];
     if (handler) return handler(slots, parser, isReadonly, keySpecs);
 
     console.warn(
@@ -190,36 +204,16 @@ export const reduceRandomKey = async <T>(promises: Promise<T>[]): Promise<T> => 
 };
 
 /**
- * Reducer for fan-out diagnostic commands (INFO, ...) whose per-node replies
- * can't be merged into one meaningful value and whose reply type is a single
- * node's shape. We still fan out per the `all_shards`/`all_nodes` request tip,
- * wait for every node to succeed, then return one node's reply. This keeps the
- * reply type honest (it matches the single-node command type) at the cost of
- * discarding the other nodes' replies.
- */
-export const reduceFirstReply = async <T>(promises: Promise<T>[]): Promise<T> => {
-  const responses = await Promise.all(promises);
-  return responses[0];
-};
-
-/**
- * Per-command reducers for the `special` response policy, keyed by uppercased
- * command identifier. A `special` response needs command-specific merging that
- * no generic rule captures. Commands absent here hit `reduceSpecial`'s generic
- * fallback.
+ * Per-command reducers for the `special` response policy, keyed like
+ * `SPECIAL_REQUEST_ROUTERS` (`COMMAND SUBCOMMAND`, bare-command fallback). A
+ * `special` response needs command-specific merging that no generic rule
+ * captures; commands absent here hit `reduceSpecial`'s generic fallback. SCAN
+ * (response also tipped `special`) needs no entry: its plan is single-node, so
+ * the fallback passes the sole reply through and the cursor rewrite happens in
+ * `finalizeScanCursor`.
  */
 export const SPECIAL_RESPONSE_REDUCERS: Record<string, ResponseReducer<unknown>> = {
-  RANDOMKEY: reduceRandomKey,
-  INFO: reduceFirstReply,
-  'MEMORY DOCTOR': reduceFirstReply,
-  'MEMORY MALLOC-STATS': reduceFirstReply,
-  'MEMORY STATS': reduceFirstReply,
-  'FUNCTION STATS': reduceFirstReply,
-  'LATENCY DOCTOR': reduceFirstReply,
-  'LATENCY GRAPH': reduceFirstReply,
-  'LATENCY HISTOGRAM': reduceFirstReply,
-  'LATENCY HISTORY': reduceFirstReply,
-  'LATENCY LATEST': reduceFirstReply
+  RANDOMKEY: reduceRandomKey
 };
 
 /**
@@ -230,7 +224,8 @@ export const SPECIAL_RESPONSE_REDUCERS: Record<string, ResponseReducer<unknown>>
  * what the command really wants.
  */
 export const reduceSpecial = async <T>(promises: Promise<T>[], parser: CommandParser): Promise<T> => {
-  const reducer = SPECIAL_RESPONSE_REDUCERS[specialKey(parser)];
+  const reducer = SPECIAL_RESPONSE_REDUCERS[specialKey(parser)]
+    ?? SPECIAL_RESPONSE_REDUCERS[parser.commandIdentifier.command.toUpperCase()];
   if (reducer) return reducer(promises, parser) as Promise<T>;
 
   if (promises.length > 1) {

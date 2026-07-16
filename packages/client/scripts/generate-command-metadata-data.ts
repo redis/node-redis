@@ -53,6 +53,25 @@ function sortModuleMetadataRecords(records: ModuleMetadataRecords): ModuleMetada
   );
 }
 
+// Merges an override onto a generated entry. Top-level keys are shallow-merged
+// (override keys win), except `subcommands`, which is deep-merged per
+// subcommand so an override touching one subcommand doesn't drop its siblings.
+function applyOverride(
+  policies: CommandMetadata,
+  override: Partial<CommandMetadata> | undefined
+): CommandMetadata {
+  if (!override) return policies;
+  const merged = { ...policies, ...override };
+  if (override.subcommands && policies.subcommands) {
+    const subcommands = { ...policies.subcommands };
+    for (const [name, sub] of Object.entries(override.subcommands)) {
+      subcommands[name] = { ...policies.subcommands[name], ...sub };
+    }
+    merged.subcommands = subcommands;
+  }
+  return merged;
+}
+
 // Applies the HLD curation from command-metadata-overrides.ts. Expects
 // lowercased records (i.e. run after sortModuleMetadataRecords).
 function curate(records: ModuleMetadataRecords): ModuleMetadataRecords {
@@ -66,9 +85,7 @@ function curate(records: ModuleMetadataRecords): ModuleMetadataRecords {
       const fullName = `${moduleName}.${commandName}`;
       if (EXCLUDED_COMMANDS.has(fullName)) continue;
 
-      // Shallow-merge: override keys win, unspecified keys keep the server value.
-      const override = COMMAND_OVERRIDES[fullName];
-      curated[moduleName][commandName] = override ? { ...policies, ...override } : policies;
+      curated[moduleName][commandName] = applyOverride(policies, COMMAND_OVERRIDES[fullName]);
     }
   }
 

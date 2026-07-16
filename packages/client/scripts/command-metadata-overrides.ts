@@ -39,8 +39,10 @@ export const EXCLUDED_COMMANDS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * Partial-entry overrides, keyed by `module.command`, shallow-merged onto the
+ * Partial-entry overrides, keyed by `module.command`, merged onto the
  * generated entry (override keys win; unspecified keys keep the server value).
+ * `subcommands` is deep-merged per subcommand, so an override touching one
+ * subcommand keeps its siblings' server-derived policies.
  *
  * `ft.cursor` is pinned to the HLD `special` request policy (sticky cursor):
  * FT.CURSOR READ/DEL must reach the node that served the FT.AGGREGATE that
@@ -58,7 +60,21 @@ export const EXCLUDED_COMMANDS: ReadonlySet<string> = new Set([
  * (readonly + keyed) makes it look cacheable even though it only bumps LRU/LFU
  * and generates no invalidation. Inject the negative tip until the server tags
  * it; remove once the server metadata is fixed.
+ *
+ * `KEYLESS` reverts: the server tips these commands `special` (request and/or
+ * response), but there is no meaningful client-side interpretation for them
+ * (the HLD gives a recipe only for FT.CURSOR; SCAN and RANDOMKEY have obvious
+ * client semantics and are implemented — see
+ * `lib/cluster/request-response-policies/scan-cursor.ts` and
+ * `reduceRandomKey` in `dispatch.ts` — so they keep their server-reported
+ * policies). Without an interpretation they are pinned back to master's
+ * behavior — `default-keyless` routes to a single random node and passes the
+ * sole reply through. `memory purge`/`usage`, `latency reset` and
+ * `hotkeys help` are untouched: the per-subcommand deep-merge keeps their
+ * server-derived policies.
  */
+const KEYLESS = { request: 'default-keyless', response: 'default-keyless', isKeyless: true } as const;
+
 export const COMMAND_OVERRIDES: Readonly<Record<string, Partial<CommandMetadata>>> = {
   'ft.cursor': {
     request: 'special',
@@ -69,5 +85,10 @@ export const COMMAND_OVERRIDES: Readonly<Record<string, Partial<CommandMetadata>
       del: { request: 'special', response: 'default-keyless', isKeyless: true }
     }
   },
-  'std.touch': { tips: ['dont_cache'] }
+  'std.touch': { tips: ['dont_cache'] },
+  'std.info': KEYLESS,
+  'std.memory': { subcommands: { doctor: KEYLESS, 'malloc-stats': KEYLESS, stats: KEYLESS } },
+  'std.latency': { subcommands: { doctor: KEYLESS, graph: KEYLESS, histogram: KEYLESS, history: KEYLESS, latest: KEYLESS } },
+  'std.function': { subcommands: { stats: KEYLESS } },
+  'std.hotkeys': { subcommands: { get: KEYLESS, reset: KEYLESS, start: KEYLESS, stop: KEYLESS } }
 };

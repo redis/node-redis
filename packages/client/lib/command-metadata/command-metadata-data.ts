@@ -101,15 +101,41 @@ export const COMMAND_METADATA: ModuleMetadataRecords = {
         "module"
       ],
       "subcommands": {
-        "read": {
-          "request": "special",
-          "response": "default-keyless",
-          "isKeyless": true
-        },
         "del": {
           "request": "special",
           "response": "default-keyless",
-          "isKeyless": true
+          "isKeyless": true,
+          "flags": [
+            "readonly",
+            "module"
+          ],
+          "tips": [
+            "dont_cache"
+          ]
+        },
+        "gc": {
+          "request": "default-keyless",
+          "response": "default-keyless",
+          "isKeyless": true,
+          "flags": [
+            "readonly",
+            "module"
+          ],
+          "tips": [
+            "dont_cache"
+          ]
+        },
+        "read": {
+          "request": "special",
+          "response": "default-keyless",
+          "isKeyless": true,
+          "flags": [
+            "readonly",
+            "module"
+          ],
+          "tips": [
+            "dont_cache"
+          ]
         }
       }
     },
@@ -2559,8 +2585,8 @@ export const COMMAND_METADATA: ModuleMetadataRecords = {
           ]
         },
         "stats": {
-          "request": "all_shards",
-          "response": "special",
+          "request": "default-keyless",
+          "response": "default-keyless",
           "isKeyless": true,
           "flags": [
             "noscript",
@@ -2874,8 +2900,8 @@ export const COMMAND_METADATA: ModuleMetadataRecords = {
       "flags": [],
       "subcommands": {
         "get": {
-          "request": "special",
-          "response": "special",
+          "request": "default-keyless",
+          "response": "default-keyless",
           "isKeyless": true,
           "flags": [
             "admin",
@@ -2895,7 +2921,7 @@ export const COMMAND_METADATA: ModuleMetadataRecords = {
           ]
         },
         "reset": {
-          "request": "special",
+          "request": "default-keyless",
           "response": "default-keyless",
           "isKeyless": true,
           "flags": [
@@ -2904,7 +2930,7 @@ export const COMMAND_METADATA: ModuleMetadataRecords = {
           ]
         },
         "start": {
-          "request": "special",
+          "request": "default-keyless",
           "response": "default-keyless",
           "isKeyless": true,
           "flags": [
@@ -2913,7 +2939,7 @@ export const COMMAND_METADATA: ModuleMetadataRecords = {
           ]
         },
         "stop": {
-          "request": "special",
+          "request": "default-keyless",
           "response": "default-keyless",
           "isKeyless": true,
           "flags": [
@@ -3096,8 +3122,8 @@ export const COMMAND_METADATA: ModuleMetadataRecords = {
       ]
     },
     "info": {
-      "request": "all_shards",
-      "response": "special",
+      "request": "default-keyless",
+      "response": "default-keyless",
       "isKeyless": true,
       "flags": [
         "loading",
@@ -3138,8 +3164,8 @@ export const COMMAND_METADATA: ModuleMetadataRecords = {
       "flags": [],
       "subcommands": {
         "doctor": {
-          "request": "all_nodes",
-          "response": "special",
+          "request": "default-keyless",
+          "response": "default-keyless",
           "isKeyless": true,
           "flags": [
             "admin",
@@ -3152,8 +3178,8 @@ export const COMMAND_METADATA: ModuleMetadataRecords = {
           ]
         },
         "graph": {
-          "request": "all_nodes",
-          "response": "special",
+          "request": "default-keyless",
+          "response": "default-keyless",
           "isKeyless": true,
           "flags": [
             "admin",
@@ -3175,8 +3201,8 @@ export const COMMAND_METADATA: ModuleMetadataRecords = {
           ]
         },
         "histogram": {
-          "request": "all_nodes",
-          "response": "special",
+          "request": "default-keyless",
+          "response": "default-keyless",
           "isKeyless": true,
           "flags": [
             "admin",
@@ -3189,8 +3215,8 @@ export const COMMAND_METADATA: ModuleMetadataRecords = {
           ]
         },
         "history": {
-          "request": "all_nodes",
-          "response": "special",
+          "request": "default-keyless",
+          "response": "default-keyless",
           "isKeyless": true,
           "flags": [
             "admin",
@@ -3203,8 +3229,8 @@ export const COMMAND_METADATA: ModuleMetadataRecords = {
           ]
         },
         "latest": {
-          "request": "all_nodes",
-          "response": "special",
+          "request": "default-keyless",
+          "response": "default-keyless",
           "isKeyless": true,
           "flags": [
             "admin",
@@ -3367,8 +3393,8 @@ export const COMMAND_METADATA: ModuleMetadataRecords = {
       "flags": [],
       "subcommands": {
         "doctor": {
-          "request": "all_shards",
-          "response": "special",
+          "request": "default-keyless",
+          "response": "default-keyless",
           "isKeyless": true,
           "flags": [],
           "tips": [
@@ -3385,8 +3411,8 @@ export const COMMAND_METADATA: ModuleMetadataRecords = {
           ]
         },
         "malloc-stats": {
-          "request": "all_shards",
-          "response": "special",
+          "request": "default-keyless",
+          "response": "default-keyless",
           "isKeyless": true,
           "flags": [],
           "tips": [
@@ -3400,8 +3426,8 @@ export const COMMAND_METADATA: ModuleMetadataRecords = {
           "flags": []
         },
         "stats": {
-          "request": "all_shards",
-          "response": "special",
+          "request": "default-keyless",
+          "response": "default-keyless",
           "isKeyless": true,
           "flags": [],
           "tips": [

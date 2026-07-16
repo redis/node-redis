@@ -19,6 +19,7 @@ import { DEFAULT_COMMAND_TIMEOUT } from '../defaults';
 import { defaultCommandMetadata, isReplicaSafe, PolicyResolver, REQUEST_POLICIES_WITH_DEFAULTS, RESPONSE_POLICIES_WITH_DEFAULTS, type CommandMetadata } from '../command-metadata';
 import { REQUEST_ROUTERS, RESPONSE_REDUCERS } from './request-response-policies/dispatch';
 import { captureCursorBinding } from './request-response-policies/ft-cursor';
+import { finalizeScanCursor } from './request-response-policies/scan-cursor';
 
 export type ClusterTopologyRefreshOnReconnectionAttemptStrategy =
   false |
@@ -573,7 +574,7 @@ export default class RedisCluster<
       throw new Error(`Unknown response policy ${responsePolicy}`);
     }
     const positionHints = plan.map(entry => entry.groupIndices);
-    const reply = await (reducer(responsePromises, parser, positionHints) as Promise<T>);
+    let reply = await (reducer(responsePromises, parser, positionHints) as Promise<T>);
 
     // Sticky-cursor bookkeeping: FT.AGGREGATE/FT.CURSOR bind/rebind/evict the
     // serving node from the resolved reply. Command-name gated and best-effort
@@ -587,6 +588,19 @@ export default class RedisCluster<
         reply
       );
     } catch { /* binding capture is best-effort */ }
+
+    // Cluster-wide SCAN: advance the scan chain and swap the per-node server
+    // cursor for the chain's virtual token. Command-name gated; best-effort —
+    // on failure the caller gets the raw server cursor, which MISSes (with a
+    // clear error) on the next call instead of silently iterating wrong.
+    try {
+      reply = finalizeScanCursor(
+        this._slots as unknown as Parameters<typeof finalizeScanCursor>[0],
+        parser,
+        plan,
+        reply
+      ) as typeof reply;
+    } catch { /* scan finalization is best-effort */ }
 
     return reply;
   }

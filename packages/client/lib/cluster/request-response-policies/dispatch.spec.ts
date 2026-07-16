@@ -1,9 +1,42 @@
 import { strict as assert } from 'node:assert';
 import type { CommandParser } from '../../client/parser';
-import { reduceDefaultKeyed } from './dispatch';
+import { reduceDefaultKeyed, reduceRandomKey, reduceSpecial } from './dispatch';
 
 // The reducer ignores the parser; a stub keeps the calls readable.
 const PARSER = {} as CommandParser;
+
+describe('reduceRandomKey', () => {
+  it('returns the sole non-nil reply when other shards are empty', async () => {
+    const reply = await reduceRandomKey([
+      Promise.resolve(null),
+      Promise.resolve('the-key'),
+      Promise.resolve(null)
+    ]);
+    assert.equal(reply, 'the-key');
+  });
+
+  it('returns one of the non-nil replies', async () => {
+    const reply = await reduceRandomKey([
+      Promise.resolve('a'),
+      Promise.resolve(null),
+      Promise.resolve('b')
+    ]);
+    assert.ok(reply === 'a' || reply === 'b');
+  });
+
+  it('returns nil only when every shard is empty', async () => {
+    const reply = await reduceRandomKey([Promise.resolve(null), Promise.resolve(null)]);
+    assert.equal(reply, null);
+  });
+
+  it('is dispatched for RANDOMKEY through the special response policy', async () => {
+    const parser = {
+      commandIdentifier: { command: 'randomkey', subcommand: undefined }
+    } as unknown as CommandParser;
+    const reply = await reduceSpecial([Promise.resolve(null), Promise.resolve('k')], parser);
+    assert.equal(reply, 'k');
+  });
+});
 
 describe('reduceDefaultKeyed', () => {
   it('passes the sole reply through when not split (no hints)', async () => {

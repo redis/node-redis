@@ -80,12 +80,6 @@ export const routeFtCursor: RequestRouter = async (slots, parser) => {
   );
 };
 
-/** Special-request routers, keyed like `SPECIAL_RESPONSE_REDUCERS` (see dispatch.ts). */
-export const SPECIAL_REQUEST_ROUTERS: Record<string, RequestRouter> = {
-  'FT.CURSOR READ': routeFtCursor,
-  'FT.CURSOR DEL': routeFtCursor
-};
-
 /**
  * Command-name-gated hook run after an FT.AGGREGATE / FT.CURSOR reply resolves
  * (HLD "hardcoded by command name"). Captures, rebinds, or evicts the sticky
