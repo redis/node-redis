@@ -39,7 +39,7 @@ export default {
 
     parser.push(threshold.toString());
 
-    if (options?.LIMIT) {
+    if (options?.LIMIT !== undefined) {
       parser.push('LIMIT', options.LIMIT.toString());
     }
 

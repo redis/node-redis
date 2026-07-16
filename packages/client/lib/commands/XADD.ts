@@ -89,7 +89,7 @@ export function parseXAddArguments(
 
     parser.push(options.TRIM.threshold.toString());
 
-    if (options.TRIM.limit) {
+    if (options.TRIM.limit !== undefined) {
       parser.push('LIMIT', options.TRIM.limit.toString());
     }
 
