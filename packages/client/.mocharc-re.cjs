@@ -60,6 +60,11 @@ module.exports = {
     'lib/commands/XNACK.spec.ts',
     'lib/commands/HELLO.spec.ts',
     'lib/commands/ZUNION*.spec.ts',
-    'lib/commands/ZINTER*.spec.ts'
+    'lib/commands/ZINTER*.spec.ts',
+    // Stream idempotency additions (XADD IDMP options, XCFGSET) and the XINFO STREAM
+    // reply shape are newer than RE 8.0.x
+    'lib/commands/XADD.spec.ts',
+    'lib/commands/XCFGSET.spec.ts',
+    'lib/commands/XINFO_STREAM.spec.ts'
   ]
 };
