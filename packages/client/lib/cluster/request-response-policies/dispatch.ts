@@ -105,8 +105,11 @@ function buildSubParser(sub: SubCommand): CommandParser {
   return parser;
 }
 
+// `nodeClient` connects lazily — with `minimizeConnections` a node may have
+// no client until first use, and `.client!` would put `undefined` in the plan
+// (breaking the post-reply hooks that attribute the reply to `plan[0].client`).
 export const routeDefaultKeyless: RequestRouter =
-  async (slots) => [{ client: slots.getRandomNode().client! }];
+  async (slots) => [{ client: await slots.nodeClient(slots.getRandomNode()) }];
 
 export const routeDefaultKeyed: RequestRouter =
   async (slots, parser, isReadonly) =>
@@ -152,7 +155,7 @@ export const routeSpecial: RequestRouter =
       `node-redis: no cluster routing implemented for the "special" request policy of ` +
       `"${specialKey(parser)}"; routing to a single node. The reply may be incomplete.`
     );
-    return [{ client: slots.getRandomNode().client! }];
+    return [{ client: await slots.nodeClient(slots.getRandomNode()) }];
   };
 
 // --- response reducers ---
