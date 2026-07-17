@@ -480,7 +480,10 @@ export function transformKeySpec(raw: unknown): KeySpec {
 
 export function transformCommandReply(
   this: void,
-  [name, arity, flags, firstKeyIndex, lastKeyIndex, step, categories, tips, keySpecifications, subcommandsReply]: CommandRawReply
+  // Fields 8-10 (tips, key specifications, subcommands) exist since Redis 7.0;
+  // default them so a shorter reply (older server, truncating proxy) parses
+  // instead of throwing "tips is not iterable".
+  [name, arity, flags, firstKeyIndex, lastKeyIndex, step, categories, tips = [], keySpecifications = [], subcommandsReply = []]: CommandRawReply
 ): CommandReply {
 
 

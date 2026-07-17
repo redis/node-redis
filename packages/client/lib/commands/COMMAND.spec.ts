@@ -33,6 +33,25 @@ describe('COMMAND', () => {
         }
       },
       {
+        name: 'pre-7.0 shape (no tips/key-specs/subcommands fields)',
+        input: ['ping', -1, [CommandFlags.STALE], 0, 0, 0, [CommandCategories.FAST]] as unknown as CommandRawReply,
+        expected: {
+          name: 'ping',
+          arity: -1,
+          flags: new Set([CommandFlags.STALE]),
+          firstKeyIndex: 0,
+          lastKeyIndex: 0,
+          step: 0,
+          categories: new Set([CommandCategories.FAST]),
+          policies: { request: undefined, response: undefined },
+          isKeyless: true,
+          nondeterministicOutput: false,
+          tips: [],
+          keySpecs: [],
+          subcommands: []
+        }
+      },
+      {
         name: 'with valid policies',
         input: ['dbsize', 1, [], 0, 0, 0, [], ['request_policy:all_shards', 'response_policy:agg_sum'], [], []] satisfies CommandRawReply,
         expected: {
