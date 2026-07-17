@@ -80,6 +80,13 @@ function maxIdleFromAggregateArgs(redisArgs: ReadonlyArray<RedisArgument>): numb
  */
 export const routeFtCursor: RequestRouter = async (slots, parser) => {
   const { redisArgs } = parser;
+
+  // Malformed raw command (missing index/cursor): forward to any node so the
+  // server returns its own arity error instead of a client-side TypeError.
+  if (redisArgs.length < 4) {
+    return [{ client: await slots.nodeClient(slots.getRandomNode()) }];
+  }
+
   const token = argToString(redisArgs[3]);
 
   const binding = slots.lookupCursor(token);

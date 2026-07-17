@@ -27,6 +27,12 @@ type ClusterSlots = Parameters<RequestRouter>[0];
  * may be missed or duplicated — same caveat as every cluster-wide scan.
  */
 export const routeScan: RequestRouter = async (slots, parser) => {
+  // Malformed raw command (missing cursor): forward to any node so the server
+  // returns its own arity error instead of a client-side TypeError.
+  if (parser.redisArgs.length < 2) {
+    return [{ client: await slots.nodeClient(slots.getRandomNode()) }];
+  }
+
   const cursorArg = argToString(parser.redisArgs[1]);
 
   if (cursorArg === '0') {

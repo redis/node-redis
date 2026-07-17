@@ -20,6 +20,8 @@ class FakeSlots {
   lookupCursor(token: string) { return this.cursorBindings.get(token); }
   evictCursor(token: string) { this.cursorBindings.delete(token); }
   async getMasterByAddress(address: string) { return this.clientsByAddress.get(address); }
+  getRandomNode() { return { address: this.clientsByAddress.keys().next().value as string }; }
+  async nodeClient(node: { address: string }) { return this.clientsByAddress.get(node.address); }
   nodeAddressByClient(client: object) {
     for (const [address, c] of this.clientsByAddress) if (c === client) return address;
     return undefined;
@@ -66,6 +68,15 @@ describe('routeFtCursor', () => {
     assert.equal(plan.length, 1);
     assert.equal(plan[0].client, client);
     assert.deepEqual(plan[0].parser!.redisArgs, ['FT.CURSOR', 'READ', 'idx', '18446744073709551615']);
+  });
+
+  it('forwards a malformed FT.CURSOR (missing cursor arg) to a node for the server arity error', async () => {
+    const slots = new FakeSlots();
+    const client = { id: 'node-a' };
+    slots.clientsByAddress.set('127.0.0.1:7000', client);
+
+    const plan = await routeFtCursor(asSlots(slots), parserOf('FT.CURSOR', 'READ', 'idx'), undefined, undefined);
+    assert.deepEqual(plan, [{ client }]);
   });
 
   it('throws on MISS (token never minted here)', async () => {

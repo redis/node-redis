@@ -27,6 +27,8 @@ class FakeSlots {
     for (const [address, c] of this.clientsByAddress) if (c === client) return address;
     return undefined;
   }
+  getRandomNode() { return { address: this.masterOrder[0] }; }
+  async nodeClient(node: { address: string }) { return this.clientsByAddress.get(node.address); }
 
   addMaster(address: string) {
     const client = { id: address };
@@ -43,6 +45,14 @@ const parserOf = (...args: Array<string>) =>
 const asSlots = (s: FakeSlots) => s as any;
 
 describe('routeScan', () => {
+  it('forwards a malformed SCAN (no cursor arg) to a node for the server arity error', async () => {
+    const slots = new FakeSlots();
+    const a = slots.addMaster('a:1');
+
+    const plan = await routeScan(asSlots(slots), parserOf('SCAN'), undefined, undefined);
+    assert.deepEqual(plan, [{ client: a }]);
+  });
+
   it('SCAN 0 starts on the first master', async () => {
     const slots = new FakeSlots();
     const a = slots.addMaster('a:1');
