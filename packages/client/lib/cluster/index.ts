@@ -18,6 +18,7 @@ import { ClientIdentity, ClientRole, generateClusterClientId } from '../client/i
 import { DEFAULT_COMMAND_TIMEOUT } from '../defaults';
 import { defaultCommandMetadata, isReplicaSafe, PolicyResolver, REQUEST_POLICIES_WITH_DEFAULTS, RESPONSE_POLICIES_WITH_DEFAULTS, type CommandMetadata } from '../command-metadata';
 import { REQUEST_ROUTERS, RESPONSE_REDUCERS, NUMERIC_AGG_POLICIES, remapAggregateReply } from './request-response-policies/dispatch';
+import calculateSlot from 'cluster-key-slot';
 import { finalizeFtCursor } from './request-response-policies/ft-cursor';
 import { finalizeScanCursor } from './request-response-policies/scan-cursor';
 
@@ -636,8 +637,21 @@ export default class RedisCluster<
   ): Promise<T> {
       const maxCommandRedirections = this._options.maxCommandRedirections ?? 16;
 
-      let client = pinnedClient
-        ?? (await this._slots.getClientAndSlotNumber(parser.firstKey, isReadonly)).client;
+      // The slot number travels with every attempt (commands-queue
+      // `slotNumber`): during an SMIGRATED maintenance event
+      // `extractCommandsForSlots` relocates queued commands to the destination
+      // node by this value. Pinned plans (default-keyed pins, multi_shard
+      // sub-commands) derive it from the parser's first key; keyless fan-outs
+      // carry none. The slot of a key never changes, so it is computed once
+      // even though MOVED redirects re-resolve the client.
+      let client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
+      let slotNumber: number | undefined;
+      if (pinnedClient) {
+        client = pinnedClient;
+        slotNumber = parser.firstKey === undefined ? undefined : calculateSlot(parser.firstKey);
+      } else {
+        ({ client, slotNumber } = await this._slots.getClientAndSlotNumber(parser.firstKey, isReadonly));
+      }
 
       let i = 0;
 
@@ -645,7 +659,8 @@ export default class RedisCluster<
 
       while (true) {
         try {
-          return await myFn(client, options);
+          const opts: ClusterCommandOptions = { ...options, slotNumber };
+          return await myFn(client, opts);
         } catch (_err) {
           const err = _err as Error;
           myFn = fn;
