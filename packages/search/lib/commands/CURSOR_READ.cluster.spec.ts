@@ -11,6 +11,7 @@ import testUtils, { GLOBAL } from '../test-utils';
 describe('FT.CURSOR sticky routing (cluster)', () => {
   const DOC_COUNT = 40;
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test helper over the dynamic cluster surface
   async function seedIndex(cluster: any) {
     await cluster.ft.create('idx', { n: 'NUMERIC' });
     const writes = [];
@@ -48,7 +49,7 @@ describe('FT.CURSOR sticky routing (cluster)', () => {
     await cluster.ft.cursorDel('idx', cursor);
     await assert.rejects(
       cluster.ft.cursorRead('idx', cursor),
-      /no known node for cursor/,
+      /unknown cursor/,
       'READ after DEL should MISS before any network call'
     );
   }, GLOBAL.CLUSTERS.OPEN);
@@ -64,7 +65,7 @@ describe('FT.CURSOR sticky routing (cluster)', () => {
     try {
       await assert.rejects(
         other.ft.cursorRead('idx', cursor),
-        /no known node for cursor/,
+        /unknown cursor/,
         'a second client has no binding for the first client\'s cursor'
       );
     } finally {

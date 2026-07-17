@@ -73,7 +73,7 @@ function withCursor(parser: CommandParser, cursor: string): CommandParser {
 
 /**
  * Post-reply hook for SCAN (invoked from `_executeWithPolicies` after the
- * reducer, like `captureCursorBinding`): advances the chain state and swaps
+ * reducer, like `finalizeFtCursor`): advances the chain state and swaps
  * the server cursor in the reply for the chain's virtual token. No-op for any
  * other command or a non-single-target plan. Returns the (possibly rewritten)
  * reply.
@@ -99,7 +99,7 @@ export function finalizeScanCursor(
 
   if (argToString(serverCursor) !== '0') {
     // Node not exhausted: resume it next call with the real cursor.
-    const token = callerCursor === '0' ? slots.mintScanCursorToken() : callerCursor;
+    const token = callerCursor === '0' ? slots.mintCursorToken() : callerCursor;
     slots.bindScanCursor(token, address, argToString(serverCursor), visited);
     return withReplyCursor(reply, token, serverCursor);
   }
@@ -111,7 +111,7 @@ export function finalizeScanCursor(
     if (callerCursor !== '0') slots.evictScanCursor(callerCursor);
     return reply; // server cursor is already "0" — the chain is done
   }
-  const token = callerCursor === '0' ? slots.mintScanCursorToken() : callerCursor;
+  const token = callerCursor === '0' ? slots.mintCursorToken() : callerCursor;
   slots.bindScanCursor(token, next, '0', visited);
   return withReplyCursor(reply, token, serverCursor);
 }

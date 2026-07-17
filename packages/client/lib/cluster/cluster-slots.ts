@@ -30,6 +30,12 @@ export const RESUBSCRIBE_LISTENERS_EVENT = '__resubscribeListeners'
  */
 export interface CursorBinding {
   address: string;
+  /**
+   * The server's real cursor id, kept as a string: FT cursor ids are uint64
+   * and `Number` would lose precision above 2^53. The caller only ever sees
+   * the client-minted token this binding is keyed by.
+   */
+  cursorId: string;
   createdAt: number;
   maxIdleMs?: number;
 }
@@ -156,11 +162,16 @@ export default class RedisClusterSlots<
   pubSubNode?: PubSubNode<M, F, S, RESP, TYPE_MAPPING>;
   clientSideCache?: PooledClientSideCacheProvider;
   smigratedSeqIdsSeen = new Set<number>;
-  /** Per-instance sticky-cursor bindings, keyed `${index}:${cursorId}`. */
+  /**
+   * Per-instance sticky FT cursor bindings, keyed by the client-minted virtual
+   * token (the value the caller holds in place of the server's cursor id).
+   * Server cursor ids are minted per node and can collide across shards;
+   * client tokens come from one sequence and cannot.
+   */
   readonly cursorBindings = new Map<string, CursorBinding>();
   /** Per-instance cluster-wide SCAN chains, keyed by the virtual cursor token. */
   readonly scanCursors = new Map<string, ScanCursorEntry>();
-  #scanCursorSeq = 0;
+  #cursorTokenSeq = 0;
   #topologyRefreshPromise?: Promise<boolean | void>;
 
   #isOpen = false;
@@ -1000,10 +1011,6 @@ export default class RedisClusterSlots<
     return undefined;
   }
 
-  #cursorKey(index: string, cursorId: number) {
-    return `${index}:${cursorId}`;
-  }
-
   /**
    * Drop bindings idle past their MAXIDLE (or the default TTL). Opportunistic —
    * runs on each `bindCursor` so there's no timer to manage (see
@@ -1018,29 +1025,29 @@ export default class RedisClusterSlots<
     }
   }
 
-  bindCursor(index: string, cursorId: number, address: string, maxIdleMs?: number) {
+  bindCursor(token: string, binding: Omit<CursorBinding, 'createdAt'>) {
     const now = Date.now();
     this.#sweepStaleCursors(now);
-    this.cursorBindings.set(this.#cursorKey(index, cursorId), { address, createdAt: now, maxIdleMs });
+    this.cursorBindings.set(token, { ...binding, createdAt: now });
   }
 
-  lookupCursor(index: string, cursorId: number): CursorBinding | undefined {
-    return this.cursorBindings.get(this.#cursorKey(index, cursorId));
+  lookupCursor(token: string): CursorBinding | undefined {
+    return this.cursorBindings.get(token);
   }
 
-  evictCursor(index: string, cursorId: number) {
-    this.cursorBindings.delete(this.#cursorKey(index, cursorId));
+  evictCursor(token: string) {
+    this.cursorBindings.delete(token);
   }
 
   /**
-   * Mint a fresh virtual SCAN cursor token. Tokens are what cluster-wide SCAN
-   * hands back to the caller in place of the per-node server cursor: opaque,
-   * non-"0", never colliding with each other. A plain counter keeps them
-   * valid-looking cursor strings for callers that treat the cursor as an
-   * opaque number.
+   * Mint a fresh virtual cursor token (cluster-wide SCAN chains, sticky FT
+   * cursors). Tokens are what the client hands back to the caller in place of
+   * the per-node server cursor: opaque, non-"0", never colliding with each
+   * other. A plain counter keeps them valid-looking cursor values for callers
+   * that treat the cursor as an opaque number.
    */
-  mintScanCursorToken(): string {
-    return String(++this.#scanCursorSeq);
+  mintCursorToken(): string {
+    return String(++this.#cursorTokenSeq);
   }
 
   /**

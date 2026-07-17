@@ -18,7 +18,7 @@ import { ClientIdentity, ClientRole, generateClusterClientId } from '../client/i
 import { DEFAULT_COMMAND_TIMEOUT } from '../defaults';
 import { defaultCommandMetadata, isReplicaSafe, PolicyResolver, REQUEST_POLICIES_WITH_DEFAULTS, RESPONSE_POLICIES_WITH_DEFAULTS, type CommandMetadata } from '../command-metadata';
 import { REQUEST_ROUTERS, RESPONSE_REDUCERS, NUMERIC_AGG_POLICIES, remapAggregateReply } from './request-response-policies/dispatch';
-import { captureCursorBinding } from './request-response-policies/ft-cursor';
+import { finalizeFtCursor } from './request-response-policies/ft-cursor';
 import { finalizeScanCursor } from './request-response-policies/scan-cursor';
 
 export type ClusterTopologyRefreshOnReconnectionAttemptStrategy =
@@ -591,17 +591,19 @@ export default class RedisCluster<
     }
 
     // Sticky-cursor bookkeeping: FT.AGGREGATE/FT.CURSOR bind/rebind/evict the
-    // serving node from the resolved reply. Command-name gated and best-effort
-    // (a bad binding only downgrades to a MISS throw on the next READ/DEL), so
-    // never let it mask the caller's reply.
+    // serving node and swap the server cursor id in the reply for a
+    // client-minted token (server ids are per-node and can collide across
+    // shards). Command-name gated; best-effort — on failure the caller gets
+    // the raw server cursor, which MISSes (with a clear error) on the next
+    // READ/DEL instead of silently routing to the wrong node.
     try {
-      captureCursorBinding(
-        this._slots as unknown as Parameters<typeof captureCursorBinding>[0],
+      reply = finalizeFtCursor(
+        this._slots as unknown as Parameters<typeof finalizeFtCursor>[0],
         parser,
         plan,
         reply
-      );
-    } catch { /* binding capture is best-effort */ }
+      ) as typeof reply;
+    } catch { /* cursor finalization is best-effort */ }
 
     // Cluster-wide SCAN: advance the scan chain and swap the per-node server
     // cursor for the chain's virtual token. Command-name gated; best-effort —

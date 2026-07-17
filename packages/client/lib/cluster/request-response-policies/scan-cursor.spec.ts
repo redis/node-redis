@@ -13,7 +13,7 @@ class FakeSlots {
   masterOrder: Array<string> = [];
   #seq = 0;
 
-  mintScanCursorToken() { return String(++this.#seq); }
+  mintCursorToken() { return String(++this.#seq); }
   bindScanCursor(token: string, address: string, cursor: string, visited: Set<string>) {
     this.scanCursors.set(token, { address, cursor, visited, createdAt: 0 });
   }
