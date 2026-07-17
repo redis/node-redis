@@ -32,16 +32,36 @@ export const aggregateLogicalAnd = <T>(replies: Array<unknown>): T => {
   return result as T;
 };
 
-//TODO fix this
-export const aggregateLogicalOr = <T>(
-  replies: Array<unknown>
-): T => {
-  const result = Array((replies[0] as Array<unknown>).length).fill(1);
+/**
+ * Aggregates multiple arrays of numbers using logical OR operation.
+ * @remarks
+ * Mirror of `aggregateLogicalAnd` for the `agg_logical_or` response policy.
+ * No command in the current metadata snapshot uses it, but the reducer is
+ * registered in `RESPONSE_REDUCERS`, so it must be correct for the first
+ * command a future metadata regeneration tags with it.
+ */
+export const aggregateLogicalOr = <T>(replies: Array<unknown>): T => {
+  if (replies.length === 0) return [] as T;
+  if (
+    !replies.every(
+      (reply): reply is number[] =>
+        Array.isArray(reply) &&
+        reply.every((value): value is number => typeof value === 'number')
+    )
+  ) {
+    throw new Error(
+      'All replies must be array of numbers for logical OR aggregation'
+    );
+  }
+
+  const result = Array(replies[0].length).fill(0);
+
   for (const reply of replies) {
-    for (let i = 0; i < (reply as Array<unknown>).length; i++) {
-      result[i] = result[i] || (reply as Array<unknown>)[i];
+    for (let i = 0; i < reply.length; i++) {
+      result[i] = result[i] || reply[i];
     }
   }
+
   return result as T;
 };
 
