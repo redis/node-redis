@@ -314,8 +314,16 @@ describe('Cluster', () => {
     assert.ok(nodeClient instanceof RedisClient);
   }, GLOBAL.CLUSTERS.WITH_REPLICAS);
 
-  testUtils.testWithCluster('should throw CROSSSLOT error', async cluster => {
-    await assert.rejects(cluster.mGet(['a', 'b']));
+  testUtils.testWithCluster('mGet splits cross-slot keys and preserves caller order', async cluster => {
+    // 'a' and 'b' hash to different slots — on master this rejected with
+    // CROSSSLOT; the multi_shard split routes each key to its shard and
+    // reassembles the replies in the caller's key order.
+    await Promise.all([cluster.set('a', 'value-a'), cluster.set('b', 'value-b')]);
+    assert.deepEqual(await cluster.mGet(['a', 'b']), ['value-a', 'value-b']);
+    assert.deepEqual(
+      await cluster.mGet(['b', 'missing', 'a']),
+      ['value-b', null, 'value-a']
+    );
   }, GLOBAL.CLUSTERS.OPEN);
 
   testUtils.testWithCluster('numeric aggregates honor a NUMBER type mapping', async cluster => {
