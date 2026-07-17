@@ -3582,27 +3582,13 @@ export const COMMAND_METADATA: ModuleMetadataRecords = {
       ]
     },
     "msetex": {
-      "request": "multi_shard",
-      "response": "all_succeeded",
+      "request": "default-keyed",
+      "response": "default-keyed",
       "isKeyless": false,
       "flags": [
         "write",
         "denyoom",
         "movablekeys"
-      ],
-      "keySpecs": [
-        {
-          "beginSearch": {
-            "type": "index",
-            "index": 1
-          },
-          "findKeys": {
-            "type": "keynum",
-            "keyNumIdx": 0,
-            "firstKey": 1,
-            "keyStep": 2
-          }
-        }
       ]
     },
     "msetnx": {

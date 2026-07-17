@@ -74,6 +74,17 @@ export const EXCLUDED_COMMANDS: ReadonlySet<string> = new Set([
 const KEYLESS = { request: 'default-keyless', response: 'default-keyless', isKeyless: true } as const;
 
 export const COMMAND_OVERRIDES: Readonly<Record<string, Partial<CommandMetadata>>> = {
+  // MSETEX is pinned back to master's single-node routing (server tips it
+  // multi_shard). Splitting breaks its documented atomic contract twice over:
+  // NX/XX is all-or-nothing across ALL keys, but each shard would evaluate the
+  // condition against its own subset (partial writes), and the 0/1 per-shard
+  // replies cannot be aggregated honestly. The server itself excludes the
+  // conditional sibling MSETNX from multi_shard for the same reason. Pinned
+  // default-keyed: single-slot calls keep full server-side atomicity,
+  // cross-slot calls get the server's own CROSSSLOT error (use hash tags).
+  // keySpecs explicitly unset — only the multi_shard splitter consumes them,
+  // and the shallow merge would otherwise keep the server-derived specs.
+  'std.msetex': { request: 'default-keyed', response: 'default-keyed', keySpecs: undefined },
   'ft.cursor': {
     request: 'special',
     response: 'default-keyless',

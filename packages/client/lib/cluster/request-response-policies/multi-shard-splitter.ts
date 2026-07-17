@@ -30,8 +30,11 @@ export type SubCommand = {
  *
  * Throws on anything it cannot split deterministically — a wrong split of a
  * write command means corrupted data, so refusal beats guessing. All current
- * multi_shard commands (DEL, UNLINK, EXISTS, TOUCH, MGET, MSET, MSETEX)
- * declare exactly one supported spec.
+ * multi_shard commands (DEL, UNLINK, EXISTS, TOUCH, MGET, MSET) declare
+ * exactly one supported spec. MSETEX is curated OUT of multi_shard
+ * (command-metadata-overrides.ts): its NX/XX condition is all-or-nothing
+ * across all keys and cannot be evaluated per shard — it routes default-keyed
+ * like MSETNX, so the keynum branch below currently has no live caller.
  */
 export function splitMultiShardCommand(
   args: ReadonlyArray<RedisArgument>,
