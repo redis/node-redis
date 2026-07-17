@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import type { CommandParser } from '../../client/parser';
-import { reduceDefaultKeyed, reduceRandomKey, reduceSpecial, remapAggregateReply } from './dispatch';
+import { reduceDefaultKeyed, reduceOneSucceeded, reduceRandomKey, reduceSpecial, remapAggregateReply } from './dispatch';
 import { RESP_TYPES } from '../../RESP/decoder';
 import type { TypeMapping } from '../../RESP/types';
 
@@ -106,6 +106,26 @@ describe('reduceDefaultKeyed', () => {
         [[0], undefined]
       ),
       /missing position hints/
+    );
+  });
+});
+
+describe('reduceOneSucceeded', () => {
+  it('returns the first fulfilled reply', async () => {
+    const reply = await reduceOneSucceeded([
+      Promise.reject(new Error('NOTBUSY No scripts in execution right now.')),
+      Promise.resolve('OK')
+    ]);
+    assert.equal(reply, 'OK');
+  });
+
+  it('surfaces a shard error instead of AggregateError when every node rejects', async () => {
+    await assert.rejects(
+      reduceOneSucceeded([
+        Promise.reject(new Error('NOTBUSY No scripts in execution right now.')),
+        Promise.reject(new Error('NOTBUSY No scripts in execution right now.'))
+      ]),
+      /NOTBUSY/
     );
   });
 });

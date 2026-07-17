@@ -160,8 +160,19 @@ export const routeSpecial: RequestRouter =
 
 // --- response reducers ---
 
-export const reduceOneSucceeded = <T>(promises: Promise<T>[]): Promise<T> =>
-  Promise.any(promises);
+/**
+ * `one_succeeded`: first fulfilled reply wins. When every node rejects the
+ * policy requires surfacing one of the shard errors (e.g. SCRIPT KILL's
+ * NOTBUSY), not the opaque `AggregateError` that `Promise.any` throws.
+ */
+export const reduceOneSucceeded = async <T>(promises: Promise<T>[]): Promise<T> => {
+  try {
+    return await Promise.any(promises);
+  } catch (err) {
+    if (err instanceof AggregateError && err.errors.length > 0) throw err.errors[0];
+    throw err;
+  }
+};
 
 export const reduceAllSucceeded = async <T>(promises: Promise<T>[]): Promise<T> => {
   const responses = await Promise.all(promises);
