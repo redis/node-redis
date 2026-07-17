@@ -3,6 +3,7 @@ import { ArrayReply, BlobStringReply, NumberReply, UnwrapReply, Command } from '
 import { RedisVariadicArgument } from './generic-transformers';
 
 export default {
+  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, channels?: RedisVariadicArgument) {
     parser.push('PUBSUB', 'NUMSUB');
 

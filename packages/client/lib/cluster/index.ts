@@ -535,10 +535,10 @@ export default class RedisCluster<
           isKeyless: !hasKeys
         };
 
-    // Resolve-then-fallback: replica-safety derives from the server `write`
-    // flag (see `isReplicaSafe`). On a table miss the synthesized `policy` has
-    // no `flags`, so the predicate falls back to the hardcoded `IS_READ_ONLY`
-    // threaded in as `isReadonly`.
+    // Override-first: a defined `IS_READ_ONLY` (command definition, script, or
+    // the raw `sendCommand` caller argument threaded in as `isReadonly`) wins;
+    // otherwise the table's write/script_runner flags and keyed-ness decide
+    // (see `isReplicaSafe`).
     const readonly = isReplicaSafe(policy, isReadonly);
 
     const requestPolicy = policy.request

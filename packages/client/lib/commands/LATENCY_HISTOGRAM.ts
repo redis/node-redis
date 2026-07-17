@@ -12,6 +12,7 @@ type Histogram = Record<string, {
 const id = (n: number) => n;
 
 export default {
+  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, ...commands: string[]) {
     const args = ['LATENCY', 'HISTOGRAM'];
     if (commands.length !== 0) {

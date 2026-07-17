@@ -2,6 +2,7 @@ import { CommandParser } from '../client/parser';
 import { Command, NumberReply, RedisArgument } from '../RESP/types';
 
 export default {
+  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, key: RedisArgument) {
     parser.push('CLUSTER', 'KEYSLOT');
     // Use pushKey so a configured `keyPrefix` is applied to the reported key: the returned

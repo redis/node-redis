@@ -18,6 +18,7 @@ export type FunctionListReplyItem = [
 export type FunctionListReply = ArrayReply<TuplesToMapReply<FunctionListReplyItem>>;
 
 export default {
+  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, options?: FunctionListOptions) {
     parser.push('FUNCTION', 'LIST');
 

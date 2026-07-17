@@ -19,6 +19,7 @@ export type AclLogReply = ArrayReply<TuplesToMapReply<[
 ]>>;
 
 export default {
+  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, count?: number) {
     parser.push('ACL', 'LOG');
     if (count != undefined) {

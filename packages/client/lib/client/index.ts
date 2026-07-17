@@ -1232,9 +1232,8 @@ export default class RedisClient<
 
     const fn = () => { return this.sendCommand(parser.redisArgs, commandOptions) };
 
-    // Resolve-then-fallback: CSC eligibility derives from the server flags/tips
-    // (see `isCacheable`); user scripts/functions/unknown modules miss the table
-    // and fall back to the hardcoded `Command.CACHEABLE`.
+    // Override-first: a defined `Command.CACHEABLE` wins; otherwise CSC
+    // eligibility derives from the server flags/tips (see `isCacheable`).
     const cacheable = isCacheable(defaultCommandMetadata.lookup(parser.commandIdentifier), command.CACHEABLE);
 
     if (csc && cacheable && defaultTypeMapping) {

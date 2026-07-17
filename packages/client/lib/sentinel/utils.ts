@@ -67,7 +67,8 @@ export function clientSocketToNode(socket: RedisSocketOptions): RedisNode {
 export function createCommand<T extends ProxySentinel | ProxySentinelClient>(command: Command, resp: RespVersions) {
   const transformReply = getTransformReply(command, resp);
   // Resolved once from the wire identifier (known only after the first parse)
-  // and reused — the command function is a shared prototype method.
+  // and reused — the command function is a shared prototype method. A defined
+  // `IS_READ_ONLY` wins over the table (see `isReplicaSafe`).
   let replicaSafe: boolean | undefined;
 
   return async function (this: T, ...args: Array<unknown>) {

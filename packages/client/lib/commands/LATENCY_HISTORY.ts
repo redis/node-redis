@@ -21,6 +21,7 @@ export type LatencyEventType = (
 );
 
 export default {
+  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, event: LatencyEventType) {
     parser.push('LATENCY', 'HISTORY', event);
   },

@@ -11,6 +11,7 @@ type ClusterLinksReply = ArrayReply<TuplesToMapReply<[
 ]>>;
 
 export default {
+  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser) {
     parser.push('CLUSTER', 'LINKS');
   },

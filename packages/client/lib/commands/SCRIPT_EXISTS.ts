@@ -3,6 +3,7 @@ import { ArrayReply, NumberReply, Command } from '../RESP/types';
 import { RedisVariadicArgument } from './generic-transformers';
 
 export default {
+  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, sha1: RedisVariadicArgument) {
     parser.push('SCRIPT', 'EXISTS');
     parser.pushVariadic(sha1);

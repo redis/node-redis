@@ -5,39 +5,55 @@ import type { CommandMetadata } from './policies-constants';
  *
  * In node-redis `Command.IS_READ_ONLY` means, for all intents and purposes,
  * "safe to send to a replica" — it is consumed only by the cluster and sentinel
- * routers to choose replica vs master. The server's `readonly` command flag is
- * NOT the right signal: its definition is broader (it also drives ACL `@read`,
- * key-spec RO/RW, etc.) and is not 1:1 with replica-safety.
+ * routers to choose replica vs master.
  *
- * The authoritative signal is the `write` command flag. The server itself
- * rejects a command on a read-only replica iff the command carries `CMD_WRITE`
- * — see `processCommand` in redis/src/server.c:
+ * Override-first: a defined `IS_READ_ONLY` (or an explicit `isReadonly`
+ * argument on the raw `sendCommand` path) is deliberate intent and always
+ * wins — per-command corrections live in the command definitions, not in the
+ * generated table. Only when no intent is declared does the table decide:
  *
- *   int is_write_command = (cmd_flags & CMD_WRITE) || ...
- *   if (server.masterhost && server.repl_slave_ro && !obey_client && is_write_command)
- *       rejectCommand(c, shared.roslaveerr);   // -READONLY You can't write against a read only replica.
+ *   - `write` flag → never replica-safe. This is the server's own rejection
+ *     signal: a read-only replica rejects a command iff it carries `CMD_WRITE`
+ *     (`processCommand`, redis/src/server.c — "-READONLY You can't write
+ *     against a read only replica."). The `readonly` flag is deliberately NOT
+ *     consulted: its definition is broader (ACL `@read`, key-spec RO/RW, ...)
+ *     and not 1:1 with replica-safety.
+ *   - `script_runner` flag (EVAL/EVALSHA/FCALL family) → not replica-safe by
+ *     default: the server cannot statically know whether a script writes, so
+ *     routing is master unless the script/command declares `IS_READ_ONLY`
+ *     (`defineScript`, or the hand-set value on the `_RO` variants).
+ *   - otherwise, keyed → replica-safe. Every keyed non-write command is a data
+ *     read the replica can serve.
+ *   - keyless → not replica-safe. The flagless-keyless bucket is admin,
+ *     connection-state and pub/sub commands (SHUTDOWN, FAILOVER, HELLO, AUTH,
+ *     MULTI, ...) where "no write flag" does not mean "sensible on a replica"
+ *     — SHUTDOWN is accepted by a replica and shuts it down. Read-ish members
+ *     (PING, INFO, TIME, ...) opt back in via `IS_READ_ONLY: true` overrides
+ *     in their command definitions.
  *
- * So a command is replica-safe iff it does NOT carry the `write` flag. A command
- * that carries neither `write` nor `readonly` (PING/INFO/admin/pubsub) is
- * replica-safe under this rule.
- *
- * Resolve-then-fallback: built-ins / known modules hit the generated table
- * (`meta.flags` present) → derived value wins. User scripts / functions /
- * unknown modules miss the table (`meta`/`meta.flags` absent) → fall back to the
- * hand-set `Command.IS_READ_ONLY`. No breaking change.
+ * Unknown commands (user scripts/functions/unknown modules miss the table)
+ * with no declared intent default to master — the safe choice.
  */
 export function isReplicaSafe(
   meta: CommandMetadata | undefined,
-  fallback: boolean | undefined
+  override: boolean | undefined
 ): boolean {
-  return meta?.flags ? !meta.flags.includes('write') : !!fallback;
+  if (override !== undefined) return override;
+  if (!meta?.flags) return false;
+  if (meta.flags.includes('write')) return false;
+  if (meta.flags.includes('script_runner')) return false;
+  return !meta.isKeyless;
 }
 
 /**
  * Whether a command's reply is eligible for client-side caching (CSC).
  *
- * Implements the cross-client CSC "Command Eligibility" algorithm: a command is
- * cacheable if all of the following hold —
+ * Override-first, like `isReplicaSafe`: a defined `Command.CACHEABLE` always
+ * wins (e.g. `CACHEABLE: false` on commands whose server metadata makes them
+ * look cacheable when they are not — TOUCH only bumps LRU/LFU and generates no
+ * invalidation). With no declared intent, the cross-client CSC "Command
+ * Eligibility" algorithm decides: a command is cacheable if all of the
+ * following hold —
  *   - no `dont_cache` tip (explicit negative override),
  *   - has the `readonly` flag,
  *   - takes at least one key-name argument (`!isKeyless`; CSC invalidation is
@@ -46,14 +62,14 @@ export function isReplicaSafe(
  *     is fine — HGETALL/SMEMBERS stay cacheable),
  *   - no `script` / `script_runner` flag (EVAL_RO/EVALSHA_RO/FCALL_RO).
  *
- * Resolve-then-fallback: table miss (no `meta.flags`) falls back to the hand-set
- * `Command.CACHEABLE`.
+ * Unknown commands with no declared intent are not cacheable.
  */
 export function isCacheable(
   meta: CommandMetadata | undefined,
-  fallback: boolean | undefined
+  override: boolean | undefined
 ): boolean {
-  if (!meta?.flags) return !!fallback;
+  if (override !== undefined) return override;
+  if (!meta?.flags) return false;
   const tips = meta.tips ?? [];
   return !tips.includes('dont_cache')
     && meta.flags.includes('readonly')

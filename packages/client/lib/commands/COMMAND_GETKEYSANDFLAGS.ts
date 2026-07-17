@@ -7,6 +7,7 @@ export type CommandGetKeysAndFlagsRawReply = ArrayReply<TuplesReply<[
 ]>>;
 
 export default {
+  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, args: Array<RedisArgument>) {
     parser.push('COMMAND', 'GETKEYSANDFLAGS');
     parser.push(...args);

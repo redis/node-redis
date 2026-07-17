@@ -175,6 +175,7 @@ function transformHotkeysGetReply(reply: unknown | null): HotkeysGetReply | null
  * server-side payload is treated as a fixed schema, not a generic map.
  */
 export default {
+  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser) {
     parser.push('HOTKEYS', 'GET');
   },

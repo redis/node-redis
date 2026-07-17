@@ -36,6 +36,7 @@ export type MemoryStatsReply = TuplesToMapReply<[
 ]>;
 
 export default {
+  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser) {
     parser.push('MEMORY', 'STATS');
   },

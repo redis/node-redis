@@ -18,6 +18,7 @@ type AclUser = TuplesToMapReply<[
 ]>;
 
 export default {
+  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, username: RedisArgument) {
     parser.push('ACL', 'GETUSER', username);
   },

@@ -3,6 +3,7 @@ import { MapReply, BlobStringReply, Command } from '../RESP/types';
 import { RedisVariadicArgument, transformTuplesReply } from './generic-transformers';
 
 export default {
+  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, parameters: RedisVariadicArgument) {
     parser.push('CONFIG', 'GET');
     parser.pushVariadic(parameters);

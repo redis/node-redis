@@ -23,6 +23,7 @@ export const LATENCY_EVENTS = {
 export type LatencyEvent = typeof LATENCY_EVENTS[keyof typeof LATENCY_EVENTS];
 
 export default {
+  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, event: LatencyEvent) {
     parser.push('LATENCY', 'GRAPH', event);
   },

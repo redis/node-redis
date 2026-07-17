@@ -35,6 +35,7 @@ type SentinelRole = [
 type Role = TuplesReply<MasterRole | SlaveRole | SentinelRole>;
 
 export default {
+  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser) {
     parser.push('ROLE');
   },

@@ -27,6 +27,7 @@ export type ClientTrackingOptions = CommonOptions & (
 );
 
 export default {
+  IS_READ_ONLY: true,
   parseCommand<M extends boolean>(
     parser: CommandParser,
     mode: M,

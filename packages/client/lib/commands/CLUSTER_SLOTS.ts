@@ -17,6 +17,7 @@ type ClusterSlotsRawReply = ArrayReply<[
 export type ClusterSlotsNode = ReturnType<typeof transformNode>;
 
 export default {
+  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser) {
     parser.push('CLUSTER', 'SLOTS');
   },

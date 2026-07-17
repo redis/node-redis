@@ -7,6 +7,7 @@ export interface AuthOptions {
 }
 
 export default {
+  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, { username, password }: AuthOptions) {
     parser.push('AUTH');
     if (username !== undefined) {

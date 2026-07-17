@@ -7,6 +7,12 @@
  * commands that the HLD deliberately omits from client routing. They are
  * excluded here so the static phase refuses to resolve them (they fall through
  * to the fallback resolver instead).
+ *
+ * Scope: this file curates TABLE SHAPE only — which entries exist and their
+ * routing policies (request/response/isKeyless). Per-command value intent
+ * (`IS_READ_ONLY`, `CACHEABLE`) does NOT belong here: it lives in the command
+ * definitions and wins over the table via the override-first predicates
+ * (`isReplicaSafe` / `isCacheable` in `lib/command-metadata/predicates.ts`).
  */
 import type { CommandMetadata } from '../lib/command-metadata/policies-constants';
 
@@ -53,14 +59,6 @@ export const EXCLUDED_COMMANDS: ReadonlySet<string> = new Set([
  * static table is deterministic regardless of what a given server reports for
  * the container command's subcommands.
  *
- * `dont_cache` override: CSC eligibility (`isCacheable`) excludes commands
- * tipped `dont_cache`. Redis 8.10 tags the read-only script commands with the
- * `script_runner` flag (handled directly by the predicate) and TS.READ with a
- * native `dont_cache` tip, but TOUCH is still not tagged — its raw metadata
- * (readonly + keyed) makes it look cacheable even though it only bumps LRU/LFU
- * and generates no invalidation. Inject the negative tip until the server tags
- * it; remove once the server metadata is fixed.
- *
  * `KEYLESS` reverts: the server tips these commands `special` (request and/or
  * response), but there is no meaningful client-side interpretation for them
  * (the HLD gives a recipe only for FT.CURSOR; SCAN and RANDOMKEY have obvious
@@ -85,7 +83,6 @@ export const COMMAND_OVERRIDES: Readonly<Record<string, Partial<CommandMetadata>
       del: { request: 'special', response: 'default-keyless', isKeyless: true }
     }
   },
-  'std.touch': { tips: ['dont_cache'] },
   'std.info': KEYLESS,
   'std.memory': { subcommands: { doctor: KEYLESS, 'malloc-stats': KEYLESS, stats: KEYLESS } },
   'std.latency': { subcommands: { doctor: KEYLESS, graph: KEYLESS, histogram: KEYLESS, history: KEYLESS, latest: KEYLESS } },

@@ -46,6 +46,7 @@ function transformModuleListReply(reply: Array<unknown>) {
 }
 
 export default {
+  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser) {
     parser.push('MODULE', 'LIST');
   },

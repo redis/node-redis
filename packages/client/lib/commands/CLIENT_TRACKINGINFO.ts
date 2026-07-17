@@ -8,6 +8,7 @@ type TrackingInfo = TuplesToMapReply<[
 ]>;
 
 export default {
+  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser) {
     parser.push('CLIENT', 'TRACKINGINFO');
   },

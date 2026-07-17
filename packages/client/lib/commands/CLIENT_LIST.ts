@@ -15,6 +15,7 @@ export interface ListFilterId {
 export type ListFilter = ListFilterType | ListFilterId;
 
 export default {
+  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, filter?: ListFilter) {
     parser.push('CLIENT', 'LIST');
     if (filter) {

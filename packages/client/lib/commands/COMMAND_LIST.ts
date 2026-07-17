@@ -17,6 +17,7 @@ export interface CommandListOptions {
 }
 
 export default {
+  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, options?: CommandListOptions) {
     parser.push('COMMAND', 'LIST');
 
