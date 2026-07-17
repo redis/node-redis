@@ -876,6 +876,8 @@ export default class RedisClusterSlots<
    * Excludes dedicated PubSub connections: they cannot run regular commands.
    */
   getAllClients(): Promise<Array<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>> {
+    this.#assertReady();
+
     return Promise.all([
       ...this.masters.map(master => this.nodeClient(master)),
       ...this.replicas.map(replica => this.nodeClient(replica))
@@ -883,6 +885,8 @@ export default class RedisClusterSlots<
   }
 
   getAllMasterClients(): Promise<Array<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>> {
+    this.#assertReady();
+
     return Promise.all(this.masters.map(master => this.nodeClient(master)));
   }
 
@@ -961,6 +965,8 @@ export default class RedisClusterSlots<
   _randomNodeIterator?: IterableIterator<ShardNode<M, F, S, RESP, TYPE_MAPPING>>;
 
   getRandomNode() {
+    this.#assertReady();
+
     this._randomNodeIterator ??= this.#iterateAllNodes();
     return this._randomNodeIterator.next().value as ShardNode<M, F, S, RESP, TYPE_MAPPING>;
   }
