@@ -3,6 +3,7 @@ import type { RedisClientType } from '../../client';
 import type {
   RedisArgument, RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping
 } from '../../RESP/types';
+import { RESP_TYPES } from '../../RESP/decoder';
 import type { KeySpec } from '../../commands/generic-transformers';
 import type RedisClusterSlots from '../cluster-slots';
 import { splitMultiShardCommand, type SubCommand } from './multi-shard-splitter';
@@ -274,6 +275,39 @@ export const reduceDefaultKeyed = async <T>(
   });
   return result as T;
 };
+
+/**
+ * Response policies whose reducers compute over raw numbers (scalars or
+ * number arrays). Per-node replies for these plans are decoded *without* the
+ * caller's type mapping — a `NUMBER: String` mapping would otherwise feed
+ * strings into the numeric aggregators and throw — and the caller's mapping
+ * is applied to the aggregated result instead (`remapAggregateReply`).
+ */
+export const NUMERIC_AGG_POLICIES: ReadonlySet<ResponsePolicyWithDefaults> = new Set([
+  RESPONSE_POLICIES_WITH_DEFAULTS.AGG_SUM,
+  RESPONSE_POLICIES_WITH_DEFAULTS.AGG_MIN,
+  RESPONSE_POLICIES_WITH_DEFAULTS.AGG_MAX,
+  RESPONSE_POLICIES_WITH_DEFAULTS.AGG_LOGICAL_AND,
+  RESPONSE_POLICIES_WITH_DEFAULTS.AGG_LOGICAL_OR
+]);
+
+/**
+ * Applies the caller's NUMBER type mapping to a numeric aggregate (scalar, or
+ * an array for the element-wise reducers like SCRIPT EXISTS), so aggregated
+ * fan-out replies keep the same shape a standalone client would return.
+ * Aggregation itself runs in JS number space, so — unlike standalone decode —
+ * a `NUMBER: String` mapping does not preserve integer precision above 2^53
+ * (see cluster-policy-caveats.md).
+ */
+export function remapAggregateReply<T>(reply: T, typeMapping: TypeMapping | undefined): T {
+  const map = typeMapping?.[RESP_TYPES.NUMBER];
+  if (!map || map === Number) return reply;
+  // NUMBER maps to NumberConstructor | StringConstructor; both are callable.
+  const apply = map as (value: number) => unknown;
+  return (Array.isArray(reply)
+    ? reply.map(value => apply(value as number))
+    : apply(reply as number)) as T;
+}
 
 // --- registries ---
 

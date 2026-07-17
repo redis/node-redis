@@ -17,7 +17,7 @@ import { publish, CHANNELS } from '../client/tracing';
 import { ClientIdentity, ClientRole, generateClusterClientId } from '../client/identity';
 import { DEFAULT_COMMAND_TIMEOUT } from '../defaults';
 import { defaultCommandMetadata, isReplicaSafe, PolicyResolver, REQUEST_POLICIES_WITH_DEFAULTS, RESPONSE_POLICIES_WITH_DEFAULTS, type CommandMetadata } from '../command-metadata';
-import { REQUEST_ROUTERS, RESPONSE_REDUCERS } from './request-response-policies/dispatch';
+import { REQUEST_ROUTERS, RESPONSE_REDUCERS, NUMERIC_AGG_POLICIES, remapAggregateReply } from './request-response-policies/dispatch';
 import { captureCursorBinding } from './request-response-policies/ft-cursor';
 import { finalizeScanCursor } from './request-response-policies/scan-cursor';
 
@@ -562,11 +562,22 @@ export default class RedisCluster<
       throw new Error(`Request policy ${requestPolicy} produced no target nodes`);
     }
 
+    // Numeric aggregation must see raw numbers: strip the caller's type
+    // mapping from the per-node executions (a `NUMBER: String` mapping would
+    // feed strings into the numeric reducers) and re-apply it to the
+    // aggregated result below. Pass-through policies keep the mapping — their
+    // replies reach the caller undisturbed.
+    const numericAgg = NUMERIC_AGG_POLICIES.has(responsePolicy);
+    const requestedMapping = options?.typeMapping;
+    const execOptions = numericAgg && requestedMapping
+      ? { ...options, typeMapping: undefined }
+      : options;
+
     const responsePromises = plan.map(entry => {
       const entryParser = entry.parser ?? parser;
       // Re-narrow the opaque routed client to this cluster's instantiation.
       const client = entry.client as RedisClientType<M, F, S, RESP, TYPE_MAPPING> | undefined;
-      return this._execute(entryParser, readonly, options, makeFn(entryParser), client);
+      return this._execute(entryParser, readonly, execOptions, makeFn(entryParser), client);
     });
 
     const reducer = RESPONSE_REDUCERS[responsePolicy];
@@ -575,6 +586,9 @@ export default class RedisCluster<
     }
     const positionHints = plan.map(entry => entry.groupIndices);
     let reply = await (reducer(responsePromises, parser, positionHints) as Promise<T>);
+    if (numericAgg) {
+      reply = remapAggregateReply(reply, requestedMapping);
+    }
 
     // Sticky-cursor bookkeeping: FT.AGGREGATE/FT.CURSOR bind/rebind/evict the
     // serving node from the resolved reply. Command-name gated and best-effort

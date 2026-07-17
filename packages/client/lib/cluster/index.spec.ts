@@ -318,6 +318,18 @@ describe('Cluster', () => {
     await assert.rejects(cluster.mGet(['a', 'b']));
   }, GLOBAL.CLUSTERS.OPEN);
 
+  testUtils.testWithCluster('numeric aggregates honor a NUMBER type mapping', async cluster => {
+    const mapped = cluster.withTypeMapping({ [RESP_TYPES.NUMBER]: String });
+    await Promise.all([cluster.set('a', '1'), cluster.set('b', '1')]);
+
+    // multi_shard agg_sum: per-node replies aggregate raw, result is re-mapped.
+    assert.equal(await mapped.del(['a', 'b']), '2');
+    // all_shards agg_sum fan-out.
+    assert.equal(typeof await mapped.dbSize(), 'string');
+    // Unmapped client on the same cluster is untouched.
+    assert.equal(typeof await cluster.dbSize(), 'number');
+  }, GLOBAL.CLUSTERS.OPEN);
+
   testUtils.testWithCluster('cluster-wide SCAN iterates every master', async cluster => {
     const expected = new Set<string>();
     const writes: Array<Promise<unknown>> = [];

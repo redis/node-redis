@@ -1,6 +1,8 @@
 import { strict as assert } from 'node:assert';
 import type { CommandParser } from '../../client/parser';
-import { reduceDefaultKeyed, reduceRandomKey, reduceSpecial } from './dispatch';
+import { reduceDefaultKeyed, reduceRandomKey, reduceSpecial, remapAggregateReply } from './dispatch';
+import { RESP_TYPES } from '../../RESP/decoder';
+import type { TypeMapping } from '../../RESP/types';
 
 // The reducer ignores the parser; a stub keeps the calls readable.
 const PARSER = {} as CommandParser;
@@ -105,5 +107,25 @@ describe('reduceDefaultKeyed', () => {
       ),
       /missing position hints/
     );
+  });
+});
+
+describe('remapAggregateReply', () => {
+  const STRING_MAPPING = { [RESP_TYPES.NUMBER]: String } as TypeMapping;
+
+  it('passes through without a mapping', () => {
+    assert.equal(remapAggregateReply(3, undefined), 3);
+  });
+
+  it('passes through under the identity Number mapping', () => {
+    assert.equal(remapAggregateReply(3, { [RESP_TYPES.NUMBER]: Number } as TypeMapping), 3);
+  });
+
+  it('maps a scalar aggregate (DEL/DBSIZE sum, WAIT min)', () => {
+    assert.equal(remapAggregateReply(3, STRING_MAPPING), '3');
+  });
+
+  it('maps array aggregates element-wise (SCRIPT EXISTS logical AND)', () => {
+    assert.deepEqual(remapAggregateReply([1, 0, 1], STRING_MAPPING), ['1', '0', '1']);
   });
 });
