@@ -3,4 +3,3 @@
 export * from './dispatch';
 export { splitMultiShardCommand, type SubCommand } from './multi-shard-splitter';
 
-// export { type CommandRouter } from './command-router';
