@@ -545,6 +545,19 @@ export default class RedisCluster<
     const requestPolicy = policy.request
     const responsePolicy = policy.response
 
+    // Fast path: default-keyed request + response — the overwhelming majority
+    // of traffic (every single-key command). Route by firstKey and pass the
+    // sole reply through, skipping the plan/reducer/post-reply machinery,
+    // which is a no-op for this shape (the hooks only concern
+    // FT.AGGREGATE/FT.CURSOR/SCAN and the remap only numeric aggregates —
+    // none of them default-keyed).
+    if (
+      requestPolicy === REQUEST_POLICIES_WITH_DEFAULTS.DEFAULT_KEYED &&
+      responsePolicy === RESPONSE_POLICIES_WITH_DEFAULTS.DEFAULT_KEYED
+    ) {
+      return this._execute(parser, readonly, options, makeFn(parser));
+    }
+
     // https://redis.io/docs/latest/develop/reference/command-tips
     const router = REQUEST_ROUTERS[requestPolicy];
     if (!router) {
