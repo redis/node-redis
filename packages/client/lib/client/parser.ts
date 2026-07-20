@@ -60,6 +60,7 @@ export class BasicCommandParser implements CommandParser {
   #redisArgs: Array<RedisArgument> = [];
   #keys: Array<RedisArgument> = [];
   readonly #keyPrefix: RedisArgument | undefined;
+  #commandIdentifier: CommandIdentifier | undefined;
   preserve: unknown;
 
   /**
@@ -93,14 +94,18 @@ export class BasicCommandParser implements CommandParser {
     return tmp.join('_');
   }
 
+  // Memoized: read only after the command is fully parsed, and consumed up to
+  // three times per cluster command (policy resolution + both post-reply
+  // hooks) — each evaluation would otherwise re-decode Buffer args.
   get commandIdentifier(): CommandIdentifier {
+    if (this.#commandIdentifier) return this.#commandIdentifier;
     const rawCommand = this.#redisArgs[0];
     const rawSubcommand = this.#redisArgs[1];
     const command = rawCommand instanceof Buffer ? rawCommand.toString() : rawCommand;
     const subcommand = rawSubcommand === undefined
       ? undefined
       : rawSubcommand instanceof Buffer ? rawSubcommand.toString() : rawSubcommand;
-    return { command, subcommand };
+    return this.#commandIdentifier = { command, subcommand };
   }
 
   push(...arg: Array<RedisArgument>) {
