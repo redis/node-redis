@@ -3,9 +3,12 @@ import { COMMAND_METADATA } from './command-metadata-data';
 import { CommandIdentifier } from '../client/parser';
 import type { CommandMetadata } from './policies-constants';
 
+// The rebuilt lookup tables use null-prototype objects: command names come
+// off the wire, and a name like "constructor" or "__proto__" must miss the
+// table instead of resolving an Object.prototype member as metadata.
 const lowercaseCommandMetadata = (metadata: CommandMetadata): CommandMetadata => {
   if (!metadata.subcommands) return metadata;
-  const subcommands: Record<string, CommandMetadata> = {};
+  const subcommands: Record<string, CommandMetadata> = Object.create(null);
   for (const [name, sub] of Object.entries(metadata.subcommands)) {
     subcommands[name.toLowerCase()] = lowercaseCommandMetadata(sub);
   }
@@ -13,9 +16,9 @@ const lowercaseCommandMetadata = (metadata: CommandMetadata): CommandMetadata =>
 };
 
 const lowercaseModuleMetadata = (metadata: ModuleMetadataRecords): ModuleMetadataRecords => {
-  const out: ModuleMetadataRecords = {};
+  const out: ModuleMetadataRecords = Object.create(null);
   for (const [moduleName, commands] of Object.entries(metadata)) {
-    const normalized: CommandMetadataRecords = {};
+    const normalized: CommandMetadataRecords = Object.create(null);
     for (const [commandName, entry] of Object.entries(commands)) {
       normalized[commandName.toLowerCase()] = lowercaseCommandMetadata(entry);
     }

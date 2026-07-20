@@ -554,6 +554,13 @@ export default class RedisCluster<
     if (!router) {
       throw new Error(`Unknown request policy ${requestPolicy}`);
     }
+    // Validated before any per-node promise is dispatched — throwing after
+    // would orphan in-flight rejections (unhandled-rejection noise) and run
+    // side effects for a reply that can never be reduced.
+    const reducer = RESPONSE_REDUCERS[responsePolicy];
+    if (!reducer) {
+      throw new Error(`Unknown response policy ${responsePolicy}`);
+    }
     // Routers are typed against the erased base cluster types (routing is
     // below the typed command surface); bridge this instantiation's slots in.
     const plan = await router(
@@ -593,10 +600,6 @@ export default class RedisCluster<
       );
     });
 
-    const reducer = RESPONSE_REDUCERS[responsePolicy];
-    if (!reducer) {
-      throw new Error(`Unknown response policy ${responsePolicy}`);
-    }
     const positionHints = plan.map(entry => entry.groupIndices);
     let reply = await (reducer(responsePromises, parser, positionHints) as Promise<T>);
     if (numericAgg) {

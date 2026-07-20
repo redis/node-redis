@@ -128,7 +128,6 @@ export const aggregateMerge = <T>(replies: Array<unknown>): T => {
 		return Array.from(set) as T;
 	}
 
-	//TODO, maybe this needs to be plain object
 	if(firstReply instanceof Map) {
 		const map = new Map();
 		for(const reply of replies) {
@@ -137,6 +136,16 @@ export const aggregateMerge = <T>(replies: Array<unknown>): T => {
 			}
 		}
 		return map as T;
+	}
+
+	// RESP3 map replies decode to plain objects under the default type
+	// mapping; merge them like the Map branch (last node wins per key).
+	if(typeof firstReply === 'object' && firstReply !== null) {
+		const merged: Record<string, unknown> = {};
+		for(const reply of replies) {
+			Object.assign(merged, reply);
+		}
+		return merged as T;
 	}
 
 	throw new Error('Unsupported reply type for merge aggregation');

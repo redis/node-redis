@@ -192,6 +192,19 @@ describe('StaticMetadataResolver', () => {
       assert.equal(r.ok, false);
       if (!r.ok) assert.equal(r.error, 'wrong-command-or-module-name');
     });
+
+    it('Object.prototype member names miss the table instead of resolving', () => {
+      for (const name of ['constructor', '__proto__', 'hasOwnProperty', 'toString']) {
+        const r = resolver.resolvePolicy({ command: name, subcommand: undefined });
+        assert.equal(r.ok, false, name);
+        if (!r.ok) assert.equal(r.error, 'unknown-command', name);
+      }
+      // Unknown subcommand named like a prototype member falls back to the
+      // container's policy instead of resolving a Function as metadata.
+      const r = resolver.resolvePolicy({ command: 'config', subcommand: 'constructor' });
+      assert.equal(r.ok, true);
+      if (r.ok) assert.equal(typeof r.value, 'object');
+    });
   });
 
   describe('fallback', () => {
