@@ -587,11 +587,19 @@ export default class RedisCluster<
       ? { ...options, typeMapping: undefined }
       : options;
 
+    // Track the actually-serving client for single-target plans: after a
+    // MOVED/ASK redirect the reply comes from a different node than
+    // `plan[0].client`, and the post-reply hooks must bind cursors to the node
+    // that really served. Multi-target hooks are no-ops, so nothing to track.
+    const served: { client?: RedisClientType<M, F, S, RESP, TYPE_MAPPING> } = {};
     const responsePromises = plan.map(entry => {
       const entryParser = entry.parser ?? parser;
       // Re-narrow the opaque routed client to this cluster's instantiation.
       const client = entry.client as RedisClientType<M, F, S, RESP, TYPE_MAPPING> | undefined;
-      return this._execute(entryParser, readonly, execOptions, makeFn(entryParser), client);
+      return this._execute(
+        entryParser, readonly, execOptions, makeFn(entryParser), client,
+        plan.length === 1 ? served : undefined
+      );
     });
 
     const reducer = RESPONSE_REDUCERS[responsePolicy];
@@ -604,6 +612,12 @@ export default class RedisCluster<
       reply = remapAggregateReply(reply, requestedMapping);
     }
 
+    // Attribute the reply to the node that actually served it (MOVED/ASK may
+    // have redirected away from the plan's original target).
+    const hookPlan = served.client && served.client !== plan[0].client
+      ? [{ ...plan[0], client: served.client }]
+      : plan;
+
     // Sticky-cursor bookkeeping: FT.AGGREGATE/FT.CURSOR bind/rebind/evict the
     // serving node and swap the server cursor id in the reply for a
     // client-minted token (server ids are per-node and can collide across
@@ -614,7 +628,7 @@ export default class RedisCluster<
       reply = finalizeFtCursor(
         this._slots as unknown as Parameters<typeof finalizeFtCursor>[0],
         parser,
-        plan,
+        hookPlan,
         reply
       ) as typeof reply;
     } catch { /* cursor finalization is best-effort */ }
@@ -627,7 +641,7 @@ export default class RedisCluster<
       reply = finalizeScanCursor(
         this._slots as unknown as Parameters<typeof finalizeScanCursor>[0],
         parser,
-        plan,
+        hookPlan,
         reply
       ) as typeof reply;
     } catch { /* scan finalization is best-effort */ }
@@ -646,7 +660,11 @@ export default class RedisCluster<
     isReadonly: boolean | undefined,
     options: ClusterCommandOptions | undefined,
     fn: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>, opts?: ClusterCommandOptions) => Promise<T>,
-    pinnedClient?: RedisClientType<M, F, S, RESP, TYPE_MAPPING>
+    pinnedClient?: RedisClientType<M, F, S, RESP, TYPE_MAPPING>,
+    // When given, records the client that actually served the reply — after a
+    // MOVED/ASK redirect that differs from the plan's original target, and the
+    // post-reply hooks (sticky cursor bindings) must attribute to it.
+    served?: { client?: RedisClientType<M, F, S, RESP, TYPE_MAPPING> }
   ): Promise<T> {
       const maxCommandRedirections = this._options.maxCommandRedirections ?? 16;
 
@@ -672,6 +690,7 @@ export default class RedisCluster<
 
       while (true) {
         try {
+          if (served) served.client = client;
           const opts: ClusterCommandOptions = { ...options, slotNumber };
           return await myFn(client, opts);
         } catch (_err) {
