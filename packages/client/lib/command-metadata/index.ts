@@ -14,7 +14,7 @@ import { COMMAND_METADATA } from './command-metadata-data';
  * Process-wide resolver over the generated static metadata table. The table is
  * static generated data, so a single shared instance serves every client
  * (standalone, cluster, sentinel, pool) — no constructor threading required.
- * Kept injectable (`withFallback`) so a future per-connection dynamic resolver
- * built from each server's own `COMMAND` reply can override it.
+ * A future per-connection dynamic resolver built from each server's own
+ * `COMMAND` reply can chain to this one via the constructor's fallback.
  */
 export const defaultCommandMetadata = new StaticMetadataResolver(COMMAND_METADATA);

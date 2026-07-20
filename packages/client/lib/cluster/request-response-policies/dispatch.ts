@@ -21,7 +21,7 @@ import {
   type RequestPolicyWithDefaults,
   type ResponsePolicyWithDefaults
 } from '../../command-metadata/policies-constants';
-import { routeFtCursor } from './ft-cursor';
+import { routeFtCursor, upperCommand } from './ft-cursor';
 import { routeScan } from './scan-cursor';
 
 // Routing runs *below* the typed command surface: routers never inspect the
@@ -121,8 +121,8 @@ export const routeDefaultKeyed: RequestRouter =
  * preserves the caller's casing, so normalize before matching.
  */
 function specialKey(parser: CommandParser): string {
-  const { command, subcommand } = parser.commandIdentifier;
-  const c = command.toUpperCase();
+  const { subcommand } = parser.commandIdentifier;
+  const c = upperCommand(parser);
   return subcommand ? `${c} ${subcommand.toUpperCase()}` : c;
 }
 
@@ -179,30 +179,16 @@ export const reduceAllSucceeded = async <T>(promises: Promise<T>[]): Promise<T> 
   return responses[0];
 };
 
-export const reduceLogicalAnd = async <T>(promises: Promise<T>[]): Promise<T> => {
-  const responses = await Promise.all(promises);
-  return aggregateLogicalAnd(responses) as T;
-};
+/** Lifts a synchronous all-replies aggregator into a response reducer. */
+const reduceWith = (aggregate: (replies: Array<unknown>) => unknown) =>
+  async <T>(promises: Promise<T>[]): Promise<T> =>
+    aggregate(await Promise.all(promises)) as T;
 
-export const reduceLogicalOr = async <T>(promises: Promise<T>[]): Promise<T> => {
-  const responses = await Promise.all(promises);
-  return aggregateLogicalOr(responses) as T;
-};
-
-export const reduceMin = async <T>(promises: Promise<T>[]): Promise<T> => {
-  const responses = await Promise.all(promises);
-  return aggregateMin(responses) as T;
-};
-
-export const reduceMax = async <T>(promises: Promise<T>[]): Promise<T> => {
-  const responses = await Promise.all(promises);
-  return aggregateMax(responses) as T;
-};
-
-export const reduceSum = async <T>(promises: Promise<T>[]): Promise<T> => {
-  const responses = await Promise.all(promises);
-  return aggregateSum(responses) as T;
-};
+export const reduceLogicalAnd = reduceWith(aggregateLogicalAnd);
+export const reduceLogicalOr = reduceWith(aggregateLogicalOr);
+export const reduceMin = reduceWith(aggregateMin);
+export const reduceMax = reduceWith(aggregateMax);
+export const reduceSum = reduceWith(aggregateSum);
 
 /**
  * RANDOMKEY under `all_shards`: each master returns a random key from its own

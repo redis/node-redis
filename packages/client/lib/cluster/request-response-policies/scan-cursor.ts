@@ -1,7 +1,7 @@
 import { BasicCommandParser, type CommandParser } from '../../client/parser';
 import type { RedisArgument } from '../../RESP/types';
 import type { RequestRouter, RoutedCommand } from './dispatch';
-import { argToString } from './ft-cursor';
+import { argToString, upperCommand } from './ft-cursor';
 
 // Routing/finalization runs below the typed command surface (see dispatch.ts),
 // so the slots handle is the erased base instantiation. `_executeWithPolicies`
@@ -90,7 +90,7 @@ export function finalizeScanCursor(
   plan: ReadonlyArray<RoutedCommand>,
   reply: unknown
 ): unknown {
-  if (parser.commandIdentifier.command.toUpperCase() !== 'SCAN') return reply;
+  if (upperCommand(parser) !== 'SCAN') return reply;
   if (plan.length !== 1 || !plan[0].client) return reply;
 
   const serverCursor = extractScanCursor(reply);

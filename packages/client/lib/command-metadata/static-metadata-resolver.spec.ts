@@ -195,7 +195,7 @@ describe('StaticMetadataResolver', () => {
   });
 
   describe('fallback', () => {
-    it('falls back to provided resolver on unknown command', () => {
+    it('falls back to the constructor-provided resolver on unknown command', () => {
       const fallback = new StaticMetadataResolver({
         std: {
           customping: {
@@ -205,7 +205,7 @@ describe('StaticMetadataResolver', () => {
           }
         }
       });
-      const chained = resolver.withFallback(fallback);
+      const chained = new StaticMetadataResolver(undefined, fallback);
       const r = chained.resolvePolicy({ command: 'customping', subcommand: undefined });
       assert.equal(r.ok, true);
     });

@@ -16,7 +16,7 @@ import SingleEntryCache from '../single-entry-cache'
 import { publish, CHANNELS } from '../client/tracing';
 import { ClientIdentity, ClientRole, generateClusterClientId } from '../client/identity';
 import { DEFAULT_COMMAND_TIMEOUT } from '../defaults';
-import { defaultCommandMetadata, isReplicaSafe, PolicyResolver, REQUEST_POLICIES_WITH_DEFAULTS, RESPONSE_POLICIES_WITH_DEFAULTS, type CommandMetadata } from '../command-metadata';
+import { defaultCommandMetadata, defaultCommandPolicies, isReplicaSafe, PolicyResolver, REQUEST_POLICIES_WITH_DEFAULTS, RESPONSE_POLICIES_WITH_DEFAULTS, type CommandMetadata } from '../command-metadata';
 import { REQUEST_ROUTERS, RESPONSE_REDUCERS, NUMERIC_AGG_POLICIES, remapAggregateReply } from './request-response-policies/dispatch';
 import calculateSlot from 'cluster-key-slot';
 import { finalizeFtCursor } from './request-response-policies/ft-cursor';
@@ -523,18 +523,9 @@ export default class RedisCluster<
     // passed through) rather than failing. Scripts/functions are single-slot
     // by contract, so default-keyed is always correct for them. Known
     // multi_shard commands that can't be split still throw from the splitter.
-    const hasKeys = parser.keys.length > 0;
     const policy: CommandMetadata = policyResult.ok
       ? policyResult.value
-      : {
-          request: hasKeys
-            ? REQUEST_POLICIES_WITH_DEFAULTS.DEFAULT_KEYED
-            : REQUEST_POLICIES_WITH_DEFAULTS.DEFAULT_KEYLESS,
-          response: hasKeys
-            ? RESPONSE_POLICIES_WITH_DEFAULTS.DEFAULT_KEYED
-            : RESPONSE_POLICIES_WITH_DEFAULTS.DEFAULT_KEYLESS,
-          isKeyless: !hasKeys
-        };
+      : defaultCommandPolicies(parser.keys.length === 0);
 
     // Override-first: a defined `IS_READ_ONLY` (command definition, script, or
     // the raw `sendCommand` caller argument threaded in as `isReadonly`) wins;

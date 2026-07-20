@@ -5,8 +5,7 @@ export type Either<TOk, TError> =
   | { readonly ok: true; readonly value: TOk }
   | { readonly ok: false; readonly error: TError };
 
-export type PolicyResult = Either<CommandMetadata, 'policy-not-found' | 'unknown-command' | 'unknown-module' | 'wrong-command-or-module-name' | 'no-policy-resolved'>;
-
+export type PolicyResult = Either<CommandMetadata, 'unknown-command' | 'unknown-module' | 'wrong-command-or-module-name'>;
 
 export interface PolicyResolver {
   /**
@@ -16,18 +15,22 @@ export interface PolicyResolver {
 
   /**
    * Convenience over `resolvePolicy`: returns the resolved metadata or
-   * `undefined` on any miss, for the resolve-then-fallback predicates
+   * `undefined` on any miss, for the override-first predicates
    * (`isReplicaSafe(resolver.lookup(id), command.IS_READ_ONLY)`).
    */
   lookup(commandIdentifier: CommandIdentifier): CommandMetadata | undefined;
+}
 
-  /**
-   * Sets a fallback resolver to use when policies are not found in this resolver.
-   *
-   * @param fallbackResolver The resolver to fall back to
-   * @returns A new PolicyResolver with the specified fallback
-   */
-  withFallback(fallbackResolver: PolicyResolver): PolicyResolver;
+/**
+ * Parses a `COMMAND`-style command name into its module/command parts:
+ * `"ping"` → `std.ping`, `"ft.search"` → `ft.search`. More than one dot is
+ * invalid in Redis → `undefined`. Callers own case normalization.
+ */
+export function parseCommandName(fullCommandName: string): { moduleName: string; commandName: string } | undefined {
+  const parts = fullCommandName.split('.');
+  if (parts.length === 1) return { moduleName: 'std', commandName: fullCommandName };
+  if (parts.length === 2) return { moduleName: parts[0], commandName: parts[1] };
+  return undefined;
 }
 
 export type CommandMetadataRecords = Record<string, CommandMetadata>;

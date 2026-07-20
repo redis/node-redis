@@ -13,6 +13,14 @@ export function argToString(arg: RedisArgument): string {
 }
 
 /**
+ * Uppercased wire command name for command-name gates — `commandIdentifier`
+ * preserves the caller's casing, so normalize before matching.
+ */
+export function upperCommand(parser: CommandParser): string {
+  return parser.commandIdentifier.command.toUpperCase();
+}
+
+/**
  * Pull the continuation cursor out of an FT.AGGREGATE …WITHCURSOR /
  * FT.CURSOR READ reply, across every reply path:
  *   - transformed command path → `{ total, results, cursor }` (RESP2 + RESP3),
@@ -132,8 +140,7 @@ export function finalizeFtCursor(
   plan: ReadonlyArray<RoutedCommand>,
   reply: unknown
 ): unknown {
-  const { command, subcommand } = parser.commandIdentifier;
-  const cmd = command.toUpperCase();
+  const cmd = upperCommand(parser);
 
   if (cmd !== 'FT.AGGREGATE' && cmd !== 'FT.CURSOR') return reply;
   if (plan.length !== 1) return reply;
@@ -161,7 +168,8 @@ export function finalizeFtCursor(
 
   // FT.CURSOR READ / DEL — the caller-held token is at arg 3 (the routed
   // sub-parser carries the real id; this hook receives the original parser).
-  const sub = subcommand === undefined ? undefined : argToString(subcommand).toUpperCase();
+  const { subcommand } = parser.commandIdentifier;
+  const sub = subcommand === undefined ? undefined : subcommand.toUpperCase();
   const token = argToString(redisArgs[3]);
 
   if (sub === 'DEL') {

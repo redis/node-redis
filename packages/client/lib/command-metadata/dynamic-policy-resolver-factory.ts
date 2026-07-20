@@ -1,7 +1,7 @@
 import type { CommandReply } from '../commands/generic-transformers';
 import type { CommandMetadata } from './policies-constants';
-import { REQUEST_POLICIES_WITH_DEFAULTS, RESPONSE_POLICIES_WITH_DEFAULTS } from './policies-constants';
-import type { PolicyResolver, ModuleMetadataRecords } from './types';
+import { REQUEST_POLICIES_WITH_DEFAULTS, defaultCommandPolicies } from './policies-constants';
+import { parseCommandName, type PolicyResolver, type ModuleMetadataRecords } from './types';
 import { StaticMetadataResolver } from './static-metadata-resolver';
 
 /**
@@ -45,7 +45,7 @@ export class DynamicPolicyResolverFactory {
     const policies: ModuleMetadataRecords = {};
 
     for (const command of commands) {
-      const parsed = DynamicPolicyResolverFactory.#parseCommandName(command.name);
+      const parsed = parseCommandName(command.name);
 
       // Skip commands with invalid format (more than one dot)
       if (!parsed) {
@@ -68,30 +68,6 @@ export class DynamicPolicyResolverFactory {
   }
 
   /**
-   * Parses a command name to extract module and command components.
-   *
-   * Redis commands can be in format:
-   * - "ping" -> module: "std", command: "ping"
-   * - "ft.search" -> module: "ft", command: "search"
-   *
-   * Commands with more than one dot are invalid.
-   */
-  static #parseCommandName(fullCommandName: string): { moduleName: string; commandName: string } | null {
-    const parts = fullCommandName.split('.');
-
-    if (parts.length === 1) {
-      return { moduleName: 'std', commandName: fullCommandName };
-    }
-
-    if (parts.length === 2) {
-      return { moduleName: parts[0], commandName: parts[1] };
-    }
-
-    // Commands with more than one dot are invalid in Redis
-    return null;
-  }
-
-  /**
    * Builds CommandMetadata for a command based on its characteristics.
    *
    * Priority order:
@@ -103,14 +79,8 @@ export class DynamicPolicyResolverFactory {
     // Determine if command is keyless based on keySpecification
     const isKeyless = command.isKeyless
 
-    // Determine default policies based on key specification
-    const defaultRequest = isKeyless
-      ? REQUEST_POLICIES_WITH_DEFAULTS.DEFAULT_KEYLESS
-      : REQUEST_POLICIES_WITH_DEFAULTS.DEFAULT_KEYED;
-    const defaultResponse = isKeyless
-      ? RESPONSE_POLICIES_WITH_DEFAULTS.DEFAULT_KEYLESS
-      : RESPONSE_POLICIES_WITH_DEFAULTS.DEFAULT_KEYED;
-    
+    const defaults = defaultCommandPolicies(isKeyless);
+
     let subcommands: Record<string, CommandMetadata> | undefined;
     if(command.subcommands.length > 0) {
       subcommands = {};
@@ -127,11 +97,11 @@ export class DynamicPolicyResolverFactory {
       }
     }
 
-    const request = command.policies.request ?? defaultRequest;
+    const request = command.policies.request ?? defaults.request;
 
     return {
       request,
-      response: command.policies.response ?? defaultResponse,
+      response: command.policies.response ?? defaults.response,
       isKeyless,
       // Mirror the raw server signals verbatim. Derivation (replica-safety,
       // CSC eligibility) is NOT precomputed here — it lives in the

@@ -110,6 +110,19 @@ export const RESPONSE_POLICIES_WITH_DEFAULTS = {
 
 export type ResponsePolicyWithDefaults = typeof RESPONSE_POLICIES_WITH_DEFAULTS[keyof typeof RESPONSE_POLICIES_WITH_DEFAULTS];
 
+/**
+ * The default policies for a command without request/response tips, per the
+ * command-tips spec: keyed → single shard by hash slot with order-preserving
+ * replies; keyless → arbitrary shard, replies passed through/merged. Shared
+ * by the dynamic resolver factory (table construction) and the cluster
+ * dispatch fallback for commands unknown to the resolver.
+ */
+export function defaultCommandPolicies(isKeyless: boolean): Pick<CommandMetadata, 'request' | 'response' | 'isKeyless'> {
+  return isKeyless
+    ? { request: REQUEST_POLICIES_WITH_DEFAULTS.DEFAULT_KEYLESS, response: RESPONSE_POLICIES_WITH_DEFAULTS.DEFAULT_KEYLESS, isKeyless: true }
+    : { request: REQUEST_POLICIES_WITH_DEFAULTS.DEFAULT_KEYED, response: RESPONSE_POLICIES_WITH_DEFAULTS.DEFAULT_KEYED, isKeyless: false };
+}
+
 export interface CommandMetadata {
   readonly request: RequestPolicyWithDefaults;
   readonly response: ResponsePolicyWithDefaults;
