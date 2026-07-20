@@ -613,9 +613,12 @@ export default class RedisCluster<
     }
 
     // Attribute the reply to the node that actually served it (MOVED/ASK may
-    // have redirected away from the plan's original target).
-    const hookPlan = served.client && served.client !== plan[0].client
-      ? [{ ...plan[0], client: served.client }]
+    // have redirected away from the plan's original target). The plan carries
+    // the erased base client type (routing runs below the typed surface), so
+    // widen this instantiation's client back at the boundary.
+    const servedClient = served.client as unknown as typeof plan[0]['client'];
+    const hookPlan = servedClient && servedClient !== plan[0].client
+      ? [{ ...plan[0], client: servedClient }]
       : plan;
 
     // Sticky-cursor bookkeeping: FT.AGGREGATE/FT.CURSOR bind/rebind/evict the
