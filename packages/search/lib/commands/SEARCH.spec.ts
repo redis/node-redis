@@ -436,7 +436,7 @@ describe('FT.SEARCH', () => {
       { language: REDISEARCH_LANGUAGE.FRENCH, text: 'Les chevaux courent vite', query: 'cheval' },
       { language: REDISEARCH_LANGUAGE.SPANISH, text: 'Nosotros hablamos mucho', query: 'hablar' },
       { language: REDISEARCH_LANGUAGE.GREEK, text: 'Οι άνθρωποι περπατούν', query: 'άνθρωπος' },
-      // Indonesian stemmer reduces "membaca" to the root "baca" (since 8.9.0)
+      // Indonesian stemmer reduces "membaca" to the root "baca"
       { language: REDISEARCH_LANGUAGE.INDONESAIN, text: 'Saya sedang membaca buku', query: 'baca' }
     ];
 
