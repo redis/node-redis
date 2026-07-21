@@ -22,6 +22,47 @@ export type NodeAddressMap = {
 
 export const RESUBSCRIBE_LISTENERS_EVENT = '__resubscribeListeners'
 
+/**
+ * Sticky-cursor binding: which node served a RediSearch cursor. FT.CURSOR
+ * READ/DEL carry no key, so hash-slot routing can't reach the coordinator that
+ * minted the cursor — we pin by `address` ("host:port"), the durable handle
+ * (clients are recreated on reconnect/topology refresh, addresses aren't).
+ */
+export interface CursorBinding {
+  address: string;
+  /**
+   * The server's real cursor id, kept as a string: FT cursor ids are uint64
+   * and `Number` would lose precision above 2^53. The caller only ever sees
+   * the client-minted token this binding is keyed by.
+   */
+  cursorId: string;
+  createdAt: number;
+  maxIdleMs?: number;
+}
+
+/**
+ * Fallback idle TTL for the opportunistic cursor-binding sweep when the
+ * FT.AGGREGATE didn't declare MAXIDLE. Mirrors the RediSearch default (300s)
+ * so abandoned cursors don't leak the binding map (timer-free, like
+ * `smigratedSeqIdsSeen`).
+ */
+const DEFAULT_CURSOR_MAX_IDLE_MS = 300_000;
+
+/**
+ * One in-flight cluster-wide SCAN chain (see
+ * `request-response-policies/scan-cursor.ts`). SCAN cursors are per-node
+ * state, so a cluster-wide iteration walks the masters one at a time: the
+ * entry pins the node currently being scanned, the real server cursor to
+ * resume it with, and the masters already exhausted (tracked by address so a
+ * topology refresh mid-scan doesn't rescan or skip nodes that survived).
+ */
+export interface ScanCursorEntry {
+  address: string;
+  cursor: string;
+  visited: Set<string>;
+  createdAt: number;
+}
+
 export interface Node<
   M extends RedisModules,
   F extends RedisFunctions,
@@ -121,6 +162,16 @@ export default class RedisClusterSlots<
   pubSubNode?: PubSubNode<M, F, S, RESP, TYPE_MAPPING>;
   clientSideCache?: PooledClientSideCacheProvider;
   smigratedSeqIdsSeen = new Set<number>;
+  /**
+   * Per-instance sticky FT cursor bindings, keyed by the client-minted virtual
+   * token (the value the caller holds in place of the server's cursor id).
+   * Server cursor ids are minted per node and can collide across shards;
+   * client tokens come from one sequence and cannot.
+   */
+  readonly cursorBindings = new Map<string, CursorBinding>();
+  /** Per-instance cluster-wide SCAN chains, keyed by the virtual cursor token. */
+  readonly scanCursors = new Map<string, ScanCursorEntry>();
+  #cursorTokenSeq = 0;
   #topologyRefreshPromise?: Promise<boolean | void>;
 
   #isOpen = false;
@@ -818,6 +869,27 @@ export default class RedisClusterSlots<
     }
   }
 
+  /**
+   * All node clients (masters and replicas), connecting lazily — with
+   * `minimizeConnections` nodes have no client until first use, and skipping
+   * them would silently fan commands out to a subset of the cluster.
+   * Excludes dedicated PubSub connections: they cannot run regular commands.
+   */
+  getAllClients(): Promise<Array<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>> {
+    this.#assertReady();
+
+    return Promise.all([
+      ...this.masters.map(master => this.nodeClient(master)),
+      ...this.replicas.map(replica => this.nodeClient(replica))
+    ]);
+  }
+
+  getAllMasterClients(): Promise<Array<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>> {
+    this.#assertReady();
+
+    return Promise.all(this.masters.map(master => this.nodeClient(master)));
+  }
+
   async getClientAndSlotNumber(
     firstKey: RedisArgument | undefined,
     isReadonly: boolean | undefined
@@ -893,6 +965,8 @@ export default class RedisClusterSlots<
   _randomNodeIterator?: IterableIterator<ShardNode<M, F, S, RESP, TYPE_MAPPING>>;
 
   getRandomNode() {
+    this.#assertReady();
+
     this._randomNodeIterator ??= this.#iterateAllNodes();
     return this._randomNodeIterator.next().value as ShardNode<M, F, S, RESP, TYPE_MAPPING>;
   }
@@ -929,6 +1003,91 @@ export default class RedisClusterSlots<
     if (!master) return;
 
     return this.nodeClient(master);
+  }
+
+  /**
+   * Reverse-resolve a routed client to its node address. FT.AGGREGATE is
+   * keyless, so the plan carries only the client; we need its address to bind
+   * the cursor. Clients are few per cluster, so the linear scan is negligible.
+   */
+  nodeAddressByClient(client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>): string | undefined {
+    for (const [address, node] of this.nodeByAddress) {
+      if (node.client === client) return address;
+    }
+    return undefined;
+  }
+
+  /**
+   * Drop bindings idle past their MAXIDLE (or the default TTL). Opportunistic —
+   * runs on each `bindCursor` so there's no timer to manage (see
+   * `smigratedSeqIdsSeen`). Cheap: the map holds only live cursors.
+   */
+  #sweepStaleCursors(now: number) {
+    for (const [key, binding] of this.cursorBindings) {
+      const ttl = binding.maxIdleMs ?? DEFAULT_CURSOR_MAX_IDLE_MS;
+      if (now - binding.createdAt > ttl) {
+        this.cursorBindings.delete(key);
+      }
+    }
+  }
+
+  bindCursor(token: string, binding: Omit<CursorBinding, 'createdAt'>) {
+    const now = Date.now();
+    this.#sweepStaleCursors(now);
+    this.cursorBindings.set(token, { ...binding, createdAt: now });
+  }
+
+  lookupCursor(token: string): CursorBinding | undefined {
+    return this.cursorBindings.get(token);
+  }
+
+  evictCursor(token: string) {
+    this.cursorBindings.delete(token);
+  }
+
+  /**
+   * Mint a fresh virtual cursor token (cluster-wide SCAN chains, sticky FT
+   * cursors). Tokens are what the client hands back to the caller in place of
+   * the per-node server cursor: opaque, non-"0", never colliding with each
+   * other. A plain counter keeps them valid-looking cursor values for callers
+   * that treat the cursor as an opaque number.
+   */
+  mintCursorToken(): string {
+    return String(++this.#cursorTokenSeq);
+  }
+
+  /**
+   * Same opportunistic, timer-free sweep as `#sweepStaleCursors`: an abandoned
+   * scan (caller stopped iterating mid-way) would otherwise leak its entry.
+   */
+  #sweepStaleScanCursors(now: number) {
+    for (const [token, entry] of this.scanCursors) {
+      if (now - entry.createdAt > DEFAULT_CURSOR_MAX_IDLE_MS) {
+        this.scanCursors.delete(token);
+      }
+    }
+  }
+
+  bindScanCursor(token: string, address: string, cursor: string, visited: Set<string>) {
+    const now = Date.now();
+    this.#sweepStaleScanCursors(now);
+    this.scanCursors.set(token, { address, cursor, visited, createdAt: now });
+  }
+
+  lookupScanCursor(token: string): ScanCursorEntry | undefined {
+    return this.scanCursors.get(token);
+  }
+
+  evictScanCursor(token: string) {
+    this.scanCursors.delete(token);
+  }
+
+  /**
+   * First master (in current topology order) whose address is not in
+   * `visited` — the next node a cluster-wide SCAN chain should walk.
+   */
+  nextScanTarget(visited: ReadonlySet<string>): string | undefined {
+    return this.masters.find(master => !visited.has(master.address))?.address;
   }
 
   getPubSubClient(): Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {

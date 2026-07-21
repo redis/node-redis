@@ -3,8 +3,6 @@ import { RedisArgument, SimpleStringReply, Command } from '@redis/client/dist/li
 import { RediSearchSchema, parseSchema } from './CREATE';
 
 export default {
-  NOT_KEYED_COMMAND: true,
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, index: RedisArgument, schema: RediSearchSchema) {
     parser.push('FT.ALTER', index, 'SCHEMA', 'ADD');
     parseSchema(parser, schema);

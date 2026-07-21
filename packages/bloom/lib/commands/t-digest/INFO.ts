@@ -15,7 +15,6 @@ export type TdInfoReplyMap = TuplesToMapReply<[
 ]>;
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, key: RedisArgument) {
     parser.push('TDIGEST.INFO');
     parser.pushKey(key);

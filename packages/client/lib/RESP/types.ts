@@ -283,21 +283,13 @@ export type CommandArguments = Array<RedisArgument> & { preserve?: unknown };
 
 // export type ResponsePolicies = RESPONSE_POLICIES[keyof RESPONSE_POLICIES];
 
-// export type CommandPolicies = {
-//   request?: RequestPolicies | null;
-//   response?: ResponsePolicies | null;
-// };
-
 export type Command = {
   CACHEABLE?: boolean;
   IS_READ_ONLY?: boolean;
-  /**
-   * @internal
-   * TODO: remove once `POLICIES` is implemented
-   */
+  /** @deprecated Unused; superseded by request/response policies. */
   IS_FORWARD_COMMAND?: boolean;
+  /** @deprecated Unused; keyless-ness is derived from server metadata (`isKeyless`). */
   NOT_KEYED_COMMAND?: true;
-  // POLICIES?: CommandPolicies;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- arbitrary arg list per command
   parseCommand(this: void, parser: CommandParser, ...args: Array<any>): void;
   TRANSFORM_LEGACY_REPLY?: boolean;

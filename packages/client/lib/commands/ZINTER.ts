@@ -29,7 +29,6 @@ export function parseZInterArguments(
 }
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, keys: ZInterKeysType, options?: ZInterOptions) {
     parser.push('ZINTER');
     parseZInterArguments(parser, keys, options);

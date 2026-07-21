@@ -10,7 +10,6 @@ export interface MemoryUsageOptions {
 }
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, key: RedisArgument, options?: MemoryUsageOptions) {
     parser.push('MEMORY', 'USAGE');
     parser.pushKey(key);

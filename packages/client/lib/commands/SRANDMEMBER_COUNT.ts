@@ -3,7 +3,6 @@ import { RedisArgument, ArrayReply, BlobStringReply, Command } from '../RESP/typ
 import SRANDMEMBER from './SRANDMEMBER';
 
 export default {
-  IS_READ_ONLY: SRANDMEMBER.IS_READ_ONLY,
   parseCommand(parser: CommandParser, key: RedisArgument, count: number) {
     SRANDMEMBER.parseCommand(parser, key);
     parser.push(count.toString());

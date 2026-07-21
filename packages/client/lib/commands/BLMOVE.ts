@@ -3,7 +3,6 @@ import { RedisArgument, BlobStringReply, NullReply, Command } from '../RESP/type
 import { ListSide } from './generic-transformers';
 
 export default {
-  IS_READ_ONLY: false,
   parseCommand(
     parser: CommandParser,
     source: RedisArgument,

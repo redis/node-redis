@@ -3,7 +3,6 @@ import { RedisArgument, Command } from '@redis/client/dist/lib/RESP/types';
 import NUMINCRBY from './NUMINCRBY';
 
 export default {
-  IS_READ_ONLY: false,
   parseCommand(parser: CommandParser, key: RedisArgument, path: RedisArgument, by: number) {
     parser.push('JSON.NUMMULTBY');
     parser.pushKey(key);

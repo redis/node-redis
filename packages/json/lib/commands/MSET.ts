@@ -9,7 +9,6 @@ export interface JsonMSetItem {
 }
 
 export default {
-  IS_READ_ONLY: false,
   parseCommand(parser: CommandParser, items: Array<JsonMSetItem>) {
     parser.push('JSON.MSET');
 

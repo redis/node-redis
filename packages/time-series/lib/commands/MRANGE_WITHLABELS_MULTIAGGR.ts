@@ -58,8 +58,6 @@ export function createTransformMRangeWithLabelsMultiArguments(command: RedisArgu
 }
 
 export default {
-  NOT_KEYED_COMMAND: true,
-  IS_READ_ONLY: true,
   parseCommand: createTransformMRangeWithLabelsMultiArguments('TS.MRANGE'),
   transformReply: {
     2(reply: TsMRangeWithLabelsMultiRawReply2, _?: unknown, typeMapping?: TypeMapping) {

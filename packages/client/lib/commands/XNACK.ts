@@ -9,7 +9,6 @@ export interface XNackOptions {
 }
 
 export default {
-  IS_READ_ONLY: false,
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

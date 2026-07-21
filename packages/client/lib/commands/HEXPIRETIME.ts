@@ -10,7 +10,6 @@ export const HASH_EXPIRATION_TIME = {
 } as const;
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

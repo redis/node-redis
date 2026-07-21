@@ -3,7 +3,6 @@ import { isNullReply } from '@redis/client/dist/lib/commands/generic-transformer
 import SUGGET from './SUGGET';
 
 export default {
-  IS_READ_ONLY: SUGGET.IS_READ_ONLY,
   parseCommand(...args: Parameters<typeof SUGGET.parseCommand>) {
     SUGGET.parseCommand(...args);
     args[0].push('WITHPAYLOADS');

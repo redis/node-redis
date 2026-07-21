@@ -71,7 +71,6 @@ function normalizeChunks(chunks: unknown): InfoDebugReply['chunks'] {
 }
 
 export default {
-  IS_READ_ONLY: INFO.IS_READ_ONLY,
   parseCommand(parser: CommandParser, key: string) {
     INFO.parseCommand(parser, key);
     parser.push('DEBUG');

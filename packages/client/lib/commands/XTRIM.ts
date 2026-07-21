@@ -21,7 +21,6 @@ export interface XTrimOptions {
  * Command for trimming a stream to a specified length or minimum ID
  */
 export default {
-  IS_READ_ONLY: false,
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

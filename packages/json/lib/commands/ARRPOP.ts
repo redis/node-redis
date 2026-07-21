@@ -10,7 +10,6 @@ export type RedisArrPopOptions = {
 );
 
 export default {
-  IS_READ_ONLY: false,
   parseCommand(parser: CommandParser, key: RedisArgument, options?: RedisArrPopOptions) {
     parser.push('JSON.ARRPOP');
     parser.pushKey(key);

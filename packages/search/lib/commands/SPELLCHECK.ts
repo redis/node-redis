@@ -65,8 +65,6 @@ function transformSpellCheckReplyResp3(rawReply: ReplyUnion): SpellCheckReply {
 }
 
 export default {
-  NOT_KEYED_COMMAND: true,
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, index: RedisArgument, query: RedisArgument, options?: FtSpellCheckOptions) {
     parser.push('FT.SPELLCHECK', index, query);
 

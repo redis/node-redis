@@ -55,8 +55,6 @@ export interface HotkeysStartOptions {
  * - ACTIVE -> ERROR
  */
 export default {
-  NOT_KEYED_COMMAND: true,
-  IS_READ_ONLY: false,
   parseCommand(parser: CommandParser, options: HotkeysStartOptions) {
     parser.push('HOTKEYS', 'START');
 

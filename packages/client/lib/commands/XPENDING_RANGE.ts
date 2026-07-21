@@ -28,8 +28,6 @@ type XPendingRangeRawReply = ArrayReply<TuplesReply<[
 ]>>;
 
 export default {
-  CACHEABLE: true,
-  IS_READ_ONLY: true,
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

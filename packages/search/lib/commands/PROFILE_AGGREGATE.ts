@@ -10,8 +10,6 @@ import {
 } from './PROFILE_SEARCH';
 
 export default {
-  NOT_KEYED_COMMAND: true,
-  IS_READ_ONLY: true,
   parseCommand(
     parser: CommandParser,
     index: string,

@@ -24,7 +24,6 @@ export function parseEvalArguments(
 }
 
 export default {
-  IS_READ_ONLY: false,
   parseCommand(...args: Parameters<typeof parseEvalArguments>) {
     args[0].push('EVAL');
     parseEvalArguments(...args);

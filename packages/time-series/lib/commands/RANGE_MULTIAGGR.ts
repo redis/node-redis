@@ -66,7 +66,6 @@ export function transformRangeMultiArguments(
 }
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(...args: Parameters<typeof transformRangeMultiArguments>) {
     const parser = args[0];
 

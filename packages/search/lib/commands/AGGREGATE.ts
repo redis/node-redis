@@ -211,8 +211,6 @@ function transformAggregateReplyResp3(
 }
 
 export default {
-  NOT_KEYED_COMMAND: true,
-  IS_READ_ONLY: false,
   parseCommand(parser: CommandParser, index: RedisArgument, query: RedisArgument, options?: FtAggregateOptions) {
     parser.push('FT.AGGREGATE', index, query);
 

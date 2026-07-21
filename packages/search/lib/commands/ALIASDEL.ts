@@ -2,8 +2,6 @@ import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument, SimpleStringReply, Command } from '@redis/client/dist/lib/RESP/types';
 
 export default {
-  NOT_KEYED_COMMAND: true,
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, alias: RedisArgument) {
     parser.push('FT.ALIASDEL', alias);
   },

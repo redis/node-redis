@@ -4,6 +4,7 @@ import { BasicAuth, CredentialsError, CredentialsProvider, StreamingCredentialsP
 import RedisCommandsQueue, { CommandOptions } from './commands-queue';
 import { EventEmitter } from 'node:events';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
+import { defaultCommandMetadata, isCacheable } from '../command-metadata';
 import { ClientClosedError, ClientOfflineError, DisconnectsClientError, WatchError } from '../errors';
 import { URL } from 'node:url';
 import { TcpSocketConnectOpts } from 'node:net';
@@ -1226,22 +1227,31 @@ export default class RedisClient<
     transformReply: TransformReply | undefined,
   ) {
     const csc = this._self.#clientSideCache;
-    const defaultTypeMapping = this._self.#options.commandOptions === commandOptions ||
-      (this._self.#options.commandOptions?.typeMapping === commandOptions?.typeMapping);
-
     const fn = () => { return this.sendCommand(parser.redisArgs, commandOptions) };
 
-    if (csc && command.CACHEABLE && defaultTypeMapping) {
-      return await csc.handleCache(this._self, parser as BasicCommandParser, fn, transformReply, commandOptions?.typeMapping);
-    } else {
-      const reply = await fn();
+    // Eligibility is only worth computing when caching is enabled — the
+    // metadata lookup decodes the command identifier (Buffer args included)
+    // and must not tax the common no-CSC path.
+    if (csc) {
+      const defaultTypeMapping = this._self.#options.commandOptions === commandOptions ||
+        (this._self.#options.commandOptions?.typeMapping === commandOptions?.typeMapping);
 
-      const finalReply = transformReply ? transformReply(reply, parser.preserve, commandOptions?.typeMapping) : reply;
+      // Override-first: a defined `Command.CACHEABLE` wins; otherwise CSC
+      // eligibility derives from the server flags/tips (see `isCacheable`).
+      const cacheable = isCacheable(defaultCommandMetadata.lookup(parser.commandIdentifier), command.CACHEABLE);
 
-      publish(CHANNELS.COMMAND_REPLY, () => ({ args: sanitizeArgs(parser.redisArgs), reply: finalReply, clientId: this._self._clientId }));
-
-      return finalReply;
+      if (cacheable && defaultTypeMapping) {
+        return await csc.handleCache(this._self, parser as BasicCommandParser, fn, transformReply, commandOptions?.typeMapping);
+      }
     }
+
+    const reply = await fn();
+
+    const finalReply = transformReply ? transformReply(reply, parser.preserve, commandOptions?.typeMapping) : reply;
+
+    publish(CHANNELS.COMMAND_REPLY, () => ({ args: sanitizeArgs(parser.redisArgs), reply: finalReply, clientId: this._self._clientId }));
+
+    return finalReply;
   }
 
   /**

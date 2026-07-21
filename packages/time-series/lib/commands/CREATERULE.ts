@@ -28,7 +28,6 @@ export const TIME_SERIES_AGGREGATION_TYPE = {
 export type TimeSeriesAggregationType = typeof TIME_SERIES_AGGREGATION_TYPE[keyof typeof TIME_SERIES_AGGREGATION_TYPE];
 
 export default {
-  IS_READ_ONLY: false,
   parseCommand(
     parser: CommandParser,
     sourceKey: RedisArgument,

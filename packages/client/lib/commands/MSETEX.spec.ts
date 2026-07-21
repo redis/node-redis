@@ -271,6 +271,20 @@ describe("MSETEX", () => {
     }
   );
 
+  // MSETEX is curated out of multi_shard (NX/XX is all-or-nothing across ALL
+  // keys and cannot be evaluated per shard) — it routes to the first key's
+  // node like MSETNX, so the server rejects cross-slot key sets itself.
+  testUtils.testWithCluster(
+    "mSetEx cross-slot keys are rejected by the server",
+    async (cluster) => {
+      await assert.rejects(
+        cluster.mSetEx(["a", "value1", "b", "value2"]),
+        /CROSSSLOT/
+      );
+    },
+    { ...GLOBAL.CLUSTERS.OPEN, minimumDockerVersion: [8, 4] }
+  );
+
   testUtils.testAll(
     "mSetEx with NX",
     async (client) => {

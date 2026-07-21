@@ -2,8 +2,6 @@ import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument, ArrayReply, SetReply, BlobStringReply, Command } from '@redis/client/dist/lib/RESP/types';
 
 export default {
-  NOT_KEYED_COMMAND: true,
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, index: RedisArgument, fieldName: RedisArgument) {
     parser.push('FT.TAGVALS', index, fieldName);
   },

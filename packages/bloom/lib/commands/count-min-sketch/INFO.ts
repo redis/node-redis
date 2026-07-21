@@ -15,7 +15,6 @@ export interface CmsInfoReply {
 }
  
 export default {
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, key: RedisArgument) {
     parser.push('CMS.INFO');
     parser.pushKey(key);

@@ -10,12 +10,17 @@ import { PubSubListener, PubSubListeners } from '../client/pub-sub';
 import { ErrorReply } from '../errors';
 import { RedisTcpSocketOptions } from '../client/socket';
 import { ClientSideCacheConfig, PooledClientSideCacheProvider } from '../client/cache';
-import { BasicCommandParser } from '../client/parser';
+import { BasicCommandParser, CommandParser } from '../client/parser';
 import { ASKING_CMD } from '../commands/ASKING';
 import SingleEntryCache from '../single-entry-cache'
 import { publish, CHANNELS } from '../client/tracing';
 import { ClientIdentity, ClientRole, generateClusterClientId } from '../client/identity';
 import { DEFAULT_COMMAND_TIMEOUT } from '../defaults';
+import { defaultCommandMetadata, defaultCommandPolicies, isReplicaSafe, PolicyResolver, REQUEST_POLICIES_WITH_DEFAULTS, RESPONSE_POLICIES_WITH_DEFAULTS, type CommandMetadata } from '../command-metadata';
+import { REQUEST_ROUTERS, RESPONSE_REDUCERS, NUMERIC_AGG_POLICIES, remapAggregateReply } from './request-response-policies/dispatch';
+import calculateSlot from 'cluster-key-slot';
+import { finalizeFtCursor } from './request-response-policies/ft-cursor';
+import { finalizeScanCursor } from './request-response-policies/scan-cursor';
 
 export type ClusterTopologyRefreshOnReconnectionAttemptStrategy =
   false |
@@ -28,7 +33,6 @@ type WithCommands<
 > = {
   [P in keyof typeof NON_STICKY_COMMANDS]: CommandSignature<(typeof NON_STICKY_COMMANDS)[P], RESP, TYPE_MAPPING>;
 };
-
 
 interface ClusterCommander<
   M extends RedisModules,
@@ -187,11 +191,11 @@ export default class RedisCluster<
       const parser = new BasicCommandParser(this._self._keyPrefix);
       command.parseCommand(parser, ...args);
 
-      return this._self._execute(
-        parser.firstKey,
+      return this._self._executeWithPolicies(
+        parser,
         command.IS_READ_ONLY,
         this._commandOptions,
-        (client, opts) => client._executeCommand(command, parser, opts, transformReply)
+        p => (client, opts) => client._executeCommand(command, p, opts, transformReply)
       );
     };
   }
@@ -203,11 +207,11 @@ export default class RedisCluster<
       const parser = new BasicCommandParser(this._self._keyPrefix);
       command.parseCommand(parser, ...args);
 
-      return this._self._execute(
-        parser.firstKey,
+      return this._self._executeWithPolicies(
+        parser,
         command.IS_READ_ONLY,
         this._self._commandOptions,
-        (client, opts) => client._executeCommand(command, parser, opts, transformReply)
+        p => (client, opts) => client._executeCommand(command, p, opts, transformReply)
       );
     };
   }
@@ -221,11 +225,11 @@ export default class RedisCluster<
       parser.push(...prefix);
       fn.parseCommand(parser, ...args);
 
-      return this._self._execute(
-        parser.firstKey,
+      return this._self._executeWithPolicies(
+        parser,
         fn.IS_READ_ONLY,
         this._self._commandOptions,
-        (client, opts) => client._executeCommand(fn, parser, opts, transformReply)
+        p => (client, opts) => client._executeCommand(fn, p, opts, transformReply)
       );
     };
   }
@@ -239,11 +243,11 @@ export default class RedisCluster<
       parser.push(...prefix);
       script.parseCommand(parser, ...args);
 
-      return this._self._execute(
-        parser.firstKey,
+      return this._self._executeWithPolicies(
+        parser,
         script.IS_READ_ONLY,
         this._commandOptions,
-        (client, opts) => client._executeScript(script, parser, opts, transformReply)
+        p => (client, opts) => client._executeScript(script, p, opts, transformReply)
       );
     };
   }
@@ -319,6 +323,7 @@ export default class RedisCluster<
 
   private _self = this;
   private _commandOptions?: ClusterCommandOptions<TYPE_MAPPING/*, POLICIES*/>;
+  private _policyResolver: PolicyResolver;
 
   /**
    * An array of the cluster slots, each slot contain its `master` and `replicas`.
@@ -399,6 +404,10 @@ export default class RedisCluster<
     this.on(RESUBSCRIBE_LISTENERS_EVENT, this.resubscribeAllPubSubListeners.bind(this));
 
     this._commandOptions = { timeout: DEFAULT_COMMAND_TIMEOUT, ...options?.commandOptions };
+
+    // Shared process-wide resolver over the static metadata table. Kept as an
+    // instance field so a future per-connection dynamic resolver can replace it.
+    this._policyResolver = defaultCommandMetadata;
   }
 
   duplicate<
@@ -492,83 +501,253 @@ export default class RedisCluster<
     };
   }
 
-  async _execute<T>(
-    firstKey: RedisArgument | undefined,
+  /**
+   * Resolves the command's policies and executes it accordingly: the request
+   * policy picks the target clients, each target runs through the core
+   * `_execute` transport primitive, and the response policy aggregates the
+   * replies. Call sites pass a `makeFn` factory that builds the per-client
+   * execution closure (command, script, or raw `sendCommand`).
+   */
+  async _executeWithPolicies<T>(
+    parser: CommandParser,
     isReadonly: boolean | undefined,
     options: ClusterCommandOptions | undefined,
-    fn: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>, opts?: ClusterCommandOptions) => Promise<T>
+    makeFn: (parser: CommandParser) => (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>, opts?: ClusterCommandOptions) => Promise<T>
   ): Promise<T> {
-    const maxCommandRedirections = this._options.maxCommandRedirections ?? 16;
-    let { client, slotNumber } = await this._slots.getClientAndSlotNumber(firstKey, isReadonly);
-    let i = 0;
+    const policyResult = this._policyResolver.resolvePolicy(parser.commandIdentifier);
 
-    let myFn = fn;
+    // Commands the resolver doesn't know — user-defined custom commands,
+    // scripts/functions, modules absent from the policy table — have no
+    // request/response policy and nothing to split or aggregate. Fall back to
+    // the default key-routed path (single client by `firstKey`, sole reply
+    // passed through) rather than failing. Scripts/functions are single-slot
+    // by contract, so default-keyed is always correct for them. Known
+    // multi_shard commands that can't be split still throw from the splitter.
+    const policy: CommandMetadata = policyResult.ok
+      ? policyResult.value
+      : defaultCommandPolicies(parser.keys.length === 0);
 
-    while (true) {
-      try {
-        const opts: ClusterCommandOptions = { ...options, slotNumber };
-        return await myFn(client, opts);
-      } catch (_err) {
-        const err = _err as Error;
-        myFn = fn;
+    // Override-first: a defined `IS_READ_ONLY` (command definition, script, or
+    // the raw `sendCommand` caller argument threaded in as `isReadonly`) wins;
+    // otherwise the table's write/script_runner flags and keyed-ness decide
+    // (see `isReplicaSafe`).
+    const readonly = isReplicaSafe(policy, isReadonly);
 
+    const requestPolicy = policy.request
+    const responsePolicy = policy.response
 
-        // TODO: error class
-        if (++i > maxCommandRedirections || !(err instanceof Error)) {
-          if (err instanceof Error) {
+    // Fast path: default-keyed request + response — the overwhelming majority
+    // of traffic (every single-key command). Route by firstKey and pass the
+    // sole reply through, skipping the plan/reducer/post-reply machinery,
+    // which is a no-op for this shape (the hooks only concern
+    // FT.AGGREGATE/FT.CURSOR/SCAN and the remap only numeric aggregates —
+    // none of them default-keyed).
+    if (
+      requestPolicy === REQUEST_POLICIES_WITH_DEFAULTS.DEFAULT_KEYED &&
+      responsePolicy === RESPONSE_POLICIES_WITH_DEFAULTS.DEFAULT_KEYED
+    ) {
+      return this._execute(parser, readonly, options, makeFn(parser));
+    }
+
+    // https://redis.io/docs/latest/develop/reference/command-tips
+    const router = REQUEST_ROUTERS[requestPolicy];
+    if (!router) {
+      throw new Error(`Unknown request policy ${requestPolicy}`);
+    }
+    // Validated before any per-node promise is dispatched — throwing after
+    // would orphan in-flight rejections (unhandled-rejection noise) and run
+    // side effects for a reply that can never be reduced.
+    const reducer = RESPONSE_REDUCERS[responsePolicy];
+    if (!reducer) {
+      throw new Error(`Unknown response policy ${responsePolicy}`);
+    }
+    // Routers are typed against the erased base cluster types (routing is
+    // below the typed command surface); bridge this instantiation's slots in.
+    const plan = await router(
+      this._slots as unknown as Parameters<typeof router>[0],
+      parser,
+      readonly,
+      policy.keySpecs
+    );
+
+    if (plan.length === 0) {
+      throw new Error(`Request policy ${requestPolicy} produced no target nodes`);
+    }
+
+    // Numeric aggregation must see raw numbers: strip the caller's type
+    // mapping from the per-node executions (a `NUMBER: String` mapping would
+    // feed strings into the numeric reducers) and re-apply it to the
+    // aggregated result below. Pass-through policies keep the mapping — their
+    // replies reach the caller undisturbed.
+    const numericAgg = NUMERIC_AGG_POLICIES.has(responsePolicy);
+    const requestedMapping = options?.typeMapping;
+    const execOptions = numericAgg && requestedMapping
+      ? { ...options, typeMapping: undefined }
+      : options;
+
+    // Track the actually-serving client for single-target plans: after a
+    // MOVED/ASK redirect the reply comes from a different node than
+    // `plan[0].client`, and the post-reply hooks must bind cursors to the node
+    // that really served. Multi-target hooks are no-ops, so nothing to track.
+    const served: { client?: RedisClientType<M, F, S, RESP, TYPE_MAPPING> } = {};
+    const responsePromises = plan.map(entry => {
+      const entryParser = entry.parser ?? parser;
+      // Re-narrow the opaque routed client to this cluster's instantiation.
+      const client = entry.client as RedisClientType<M, F, S, RESP, TYPE_MAPPING> | undefined;
+      return this._execute(
+        entryParser, readonly, execOptions, makeFn(entryParser), client,
+        plan.length === 1 ? served : undefined
+      );
+    });
+
+    const positionHints = plan.map(entry => entry.groupIndices);
+    let reply = await (reducer(responsePromises, parser, positionHints) as Promise<T>);
+    if (numericAgg) {
+      reply = remapAggregateReply(reply, requestedMapping);
+    }
+
+    // Attribute the reply to the node that actually served it (MOVED/ASK may
+    // have redirected away from the plan's original target). The plan carries
+    // the erased base client type (routing runs below the typed surface), so
+    // widen this instantiation's client back at the boundary.
+    const servedClient = served.client as unknown as typeof plan[0]['client'];
+    const hookPlan = servedClient && servedClient !== plan[0].client
+      ? [{ ...plan[0], client: servedClient }]
+      : plan;
+
+    // Sticky-cursor bookkeeping: FT.AGGREGATE/FT.CURSOR bind/rebind/evict the
+    // serving node and swap the server cursor id in the reply for a
+    // client-minted token (server ids are per-node and can collide across
+    // shards). Command-name gated; best-effort — on failure the caller gets
+    // the raw server cursor, which MISSes (with a clear error) on the next
+    // READ/DEL instead of silently routing to the wrong node.
+    try {
+      reply = finalizeFtCursor(
+        this._slots as unknown as Parameters<typeof finalizeFtCursor>[0],
+        parser,
+        hookPlan,
+        reply
+      ) as typeof reply;
+    } catch { /* cursor finalization is best-effort */ }
+
+    // Cluster-wide SCAN: advance the scan chain and swap the per-node server
+    // cursor for the chain's virtual token. Command-name gated; best-effort —
+    // on failure the caller gets the raw server cursor, which MISSes (with a
+    // clear error) on the next call instead of silently iterating wrong.
+    try {
+      reply = finalizeScanCursor(
+        this._slots as unknown as Parameters<typeof finalizeScanCursor>[0],
+        parser,
+        hookPlan,
+        reply
+      ) as typeof reply;
+    } catch { /* scan finalization is best-effort */ }
+
+    return reply;
+  }
+
+  /**
+   * Core transport primitive: sends one command to one client — resolved by
+   * the parser's first key unless `pinnedClient` is given — with MOVED/ASK
+   * redirect handling. Policy-free; fan-out and aggregation live in
+   * `_executeWithPolicies`.
+   */
+  async _execute<T>(
+    parser: CommandParser,
+    isReadonly: boolean | undefined,
+    options: ClusterCommandOptions | undefined,
+    fn: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>, opts?: ClusterCommandOptions) => Promise<T>,
+    pinnedClient?: RedisClientType<M, F, S, RESP, TYPE_MAPPING>,
+    // When given, records the client that actually served the reply — after a
+    // MOVED/ASK redirect that differs from the plan's original target, and the
+    // post-reply hooks (sticky cursor bindings) must attribute to it.
+    served?: { client?: RedisClientType<M, F, S, RESP, TYPE_MAPPING> }
+  ): Promise<T> {
+      const maxCommandRedirections = this._options.maxCommandRedirections ?? 16;
+
+      // The slot number travels with every attempt (commands-queue
+      // `slotNumber`): during an SMIGRATED maintenance event
+      // `extractCommandsForSlots` relocates queued commands to the destination
+      // node by this value. Pinned plans (default-keyed pins, multi_shard
+      // sub-commands) derive it from the parser's first key; keyless fan-outs
+      // carry none. The slot of a key never changes, so it is computed once
+      // even though MOVED redirects re-resolve the client.
+      let client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
+      let slotNumber: number | undefined;
+      if (pinnedClient) {
+        client = pinnedClient;
+        slotNumber = parser.firstKey === undefined ? undefined : calculateSlot(parser.firstKey);
+      } else {
+        ({ client, slotNumber } = await this._slots.getClientAndSlotNumber(parser.firstKey, isReadonly));
+      }
+
+      let i = 0;
+
+      let myFn = fn;
+
+      while (true) {
+        try {
+          if (served) served.client = client;
+          const opts: ClusterCommandOptions = { ...options, slotNumber };
+          return await myFn(client, opts);
+        } catch (_err) {
+          const err = _err as Error;
+          myFn = fn;
+
+          // TODO: error class
+          if (++i > maxCommandRedirections || !(err instanceof Error)) {
+            if (err instanceof Error) {
+              publish(CHANNELS.ERROR, () => ({
+                error: err,
+                origin: 'cluster',
+                internal: false,
+                clientId: client._clientId,
+                retryCount: i,
+              }));
+            }
+            throw err;
+          }
+
+          if (err.message.startsWith('ASK')) {
             publish(CHANNELS.ERROR, () => ({
               error: err,
               origin: 'cluster',
-              internal: false,
+              internal: true,
               clientId: client._clientId,
               retryCount: i,
             }));
+            const address = err.message.substring(err.message.lastIndexOf(' ') + 1);
+            let redirectTo = await this._slots.getMasterByAddress(address);
+            if (!redirectTo) {
+              await this._slots.rediscover(client);
+              redirectTo = await this._slots.getMasterByAddress(address);
+            }
+
+            if (!redirectTo) {
+              throw new Error(`Cannot find node ${address}`);
+            }
+
+            client = redirectTo;
+            myFn = this._handleAsk(fn);
+            continue;
           }
+
+          if (err.message.startsWith('MOVED')) {
+            publish(CHANNELS.ERROR, () => ({
+              error: err,
+              origin: 'cluster',
+              internal: true,
+              clientId: client._clientId,
+              retryCount: i,
+            }));
+            await this._slots.rediscover(client);
+            client = (await this._slots.getClientAndSlotNumber(parser.firstKey, isReadonly)).client;
+            continue;
+          }
+
           throw err;
         }
-
-        if (err.message.startsWith('ASK')) {
-          publish(CHANNELS.ERROR, () => ({
-            error: err,
-            origin: 'cluster',
-            internal: true,
-            clientId: client._clientId,
-            retryCount: i,
-          }));
-          const address = err.message.substring(err.message.lastIndexOf(' ') + 1);
-          let redirectTo = await this._slots.getMasterByAddress(address);
-          if (!redirectTo) {
-            await this._slots.rediscover(client);
-            redirectTo = await this._slots.getMasterByAddress(address);
-          }
-
-          if (!redirectTo) {
-            throw new Error(`Cannot find node ${address}`);
-          }
-
-          client = redirectTo;
-          myFn = this._handleAsk(fn);
-          continue;
-        }
-
-        if (err.message.startsWith('MOVED')) {
-          publish(CHANNELS.ERROR, () => ({
-            error: err,
-            origin: 'cluster',
-            internal: true,
-            clientId: client._clientId,
-            retryCount: i,
-          }));
-          await this._slots.rediscover(client);
-          const clientAndSlot = await this._slots.getClientAndSlotNumber(firstKey, isReadonly);
-          client = clientAndSlot.client;
-          slotNumber = clientAndSlot.slotNumber;
-          continue;
-        }
-
-        throw err;
       }
-    }
   }
 
   async sendCommand<T = ReplyUnion>(
@@ -584,11 +763,24 @@ export default class RedisCluster<
       ...this._commandOptions,
       ...options
     }
-    return this._self._execute(
-      firstKey,
+
+    // `args` is the full command as sent on the wire (name at index 0), so it
+    // becomes `redisArgs` verbatim — policy resolution reads the command name
+    // and the multi_shard splitter's key-spec offsets line up. The caller's
+    // `firstKey` is marked for routing without re-appending it.
+    const parser = new BasicCommandParser();
+    args.forEach(arg => parser.push(arg));
+    if (firstKey !== undefined) parser.markRoutingKey(firstKey);
+
+    // Raw path: no command object, so readonly-ness stays an explicit caller
+    // argument and the reply is returned untransformed. The closure sends the
+    // per-entry parser's args, so split multi_shard sub-commands each carry
+    // their own slot's arguments (and the unsplit case sends `args` unchanged).
+    return this._self._executeWithPolicies(
+      parser,
       isReadonly,
       opts,
-      (client, opts) => client.sendCommand(args, opts)
+      p => (client, opts) => client.sendCommand(p.redisArgs as CommandArguments, opts)
     );
   }
 

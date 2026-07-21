@@ -15,7 +15,6 @@ export function transformByRankArguments(
 }
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(...args: Parameters<typeof transformByRankArguments>) {
     args[0].push('TDIGEST.BYRANK');
     transformByRankArguments(...args);

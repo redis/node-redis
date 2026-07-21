@@ -6,7 +6,6 @@ export interface JsonObjKeysOptions {
 }
 
 export default {
-  IS_READ_ONLY: false,
   parseCommand(parser: CommandParser, key: RedisArgument, options?: JsonObjKeysOptions) {
     parser.push('JSON.OBJKEYS');
     parser.pushKey(key);

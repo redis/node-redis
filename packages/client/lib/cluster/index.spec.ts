@@ -314,8 +314,65 @@ describe('Cluster', () => {
     assert.ok(nodeClient instanceof RedisClient);
   }, GLOBAL.CLUSTERS.WITH_REPLICAS);
 
-  testUtils.testWithCluster('should throw CROSSSLOT error', async cluster => {
-    await assert.rejects(cluster.mGet(['a', 'b']));
+  testUtils.testWithCluster('mGet splits cross-slot keys and preserves caller order', async cluster => {
+    // 'a' and 'b' hash to different slots — on master this rejected with
+    // CROSSSLOT; the multi_shard split routes each key to its shard and
+    // reassembles the replies in the caller's key order.
+    await Promise.all([cluster.set('a', 'value-a'), cluster.set('b', 'value-b')]);
+    assert.deepEqual(await cluster.mGet(['a', 'b']), ['value-a', 'value-b']);
+    assert.deepEqual(
+      await cluster.mGet(['b', 'missing', 'a']),
+      ['value-b', null, 'value-a']
+    );
+  }, GLOBAL.CLUSTERS.OPEN);
+
+  testUtils.testWithCluster('numeric aggregates honor a NUMBER type mapping', async cluster => {
+    const mapped = cluster.withTypeMapping({ [RESP_TYPES.NUMBER]: String });
+    await Promise.all([cluster.set('a', '1'), cluster.set('b', '1')]);
+
+    // multi_shard agg_sum: per-node replies aggregate raw, result is re-mapped.
+    assert.equal(await mapped.del(['a', 'b']), '2');
+    // all_shards agg_sum fan-out.
+    assert.equal(typeof await mapped.dbSize(), 'string');
+    // Unmapped client on the same cluster is untouched.
+    assert.equal(typeof await cluster.dbSize(), 'number');
+  }, GLOBAL.CLUSTERS.OPEN);
+
+  testUtils.testWithCluster('cluster-wide SCAN iterates every master', async cluster => {
+    const expected = new Set<string>();
+    const writes: Array<Promise<unknown>> = [];
+    for (let i = 0; i < 100; i++) {
+      const key = `scan-all:${i}`;
+      expected.add(key);
+      writes.push(cluster.set(key, 'v'));
+    }
+    await Promise.all(writes);
+
+    // Low COUNT forces several iterations per node, exercising both the
+    // virtual-token continuation on one node and the advance between nodes.
+    const found = new Set<string>();
+    let cursor = '0';
+    do {
+      const reply = await cluster.scan(cursor, { MATCH: 'scan-all:*', COUNT: 29 });
+      cursor = reply.cursor;
+      for (const key of reply.keys) found.add(key);
+    } while (cursor !== '0');
+
+    assert.deepEqual(found, expected);
+  }, GLOBAL.CLUSTERS.OPEN);
+
+  testUtils.testWithCluster('cluster-wide SCAN rejects a foreign cursor', async cluster => {
+    await assert.rejects(cluster.scan('123456'), /unknown cursor/);
+  }, GLOBAL.CLUSTERS.OPEN);
+
+  testUtils.testWithCluster('RANDOMKEY finds the key whichever shard holds it', async cluster => {
+    // Single key in the whole cluster: a single-node RANDOMKEY would return
+    // nil whenever the randomly-picked node is one of the empty masters; the
+    // all_shards fan-out + non-nil reduction must always find it.
+    await cluster.set('the-only-key', 'v');
+    for (let i = 0; i < 5; i++) {
+      assert.equal(await cluster.randomKey(), 'the-only-key');
+    }
   }, GLOBAL.CLUSTERS.OPEN);
 
   describe('minimizeConnections', () => {

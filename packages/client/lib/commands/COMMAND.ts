@@ -3,7 +3,6 @@ import { ArrayReply, Command, UnwrapReply } from '../RESP/types';
 import { CommandRawReply, CommandReply, transformCommandReply } from './generic-transformers';
 
 export default {
-  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
   parseCommand(parser: CommandParser) {
     parser.push('COMMAND');

@@ -2,8 +2,6 @@ import { Command, ReplyUnion, TypeMapping } from '@redis/client/dist/lib/RESP/ty
 import SEARCH, { SearchRawReply } from './SEARCH';
 
 export default {
-  NOT_KEYED_COMMAND: SEARCH.NOT_KEYED_COMMAND,
-  IS_READ_ONLY: SEARCH.IS_READ_ONLY,
   parseCommand(...args: Parameters<typeof SEARCH.parseCommand>) {
     SEARCH.parseCommand(...args);
     args[0].push('NOCONTENT');

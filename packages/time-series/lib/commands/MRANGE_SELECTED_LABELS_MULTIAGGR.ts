@@ -61,8 +61,6 @@ export function createTransformMRangeSelectedLabelsMultiArguments(command: Redis
 }
 
 export default {
-  NOT_KEYED_COMMAND: true,
-  IS_READ_ONLY: true,
   parseCommand: createTransformMRangeSelectedLabelsMultiArguments('TS.MRANGE'),
   transformReply: {
     2(reply: TsMRangeSelectedLabelsMultiRawReply2, _?: unknown, typeMapping?: TypeMapping) {

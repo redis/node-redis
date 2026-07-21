@@ -15,8 +15,6 @@ export interface XRevRangeOptions {
  * Command for reading stream entries in reverse order
  */
 export default {
-  CACHEABLE: XRANGE.CACHEABLE,
-  IS_READ_ONLY: XRANGE.IS_READ_ONLY,
   parseCommand(parser: CommandParser, key: RedisArgument, ...args: Parameters<typeof xRangeArguments>) {
     parser.push('XREVRANGE');
     parser.pushKey(key);

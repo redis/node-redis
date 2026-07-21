@@ -7,8 +7,6 @@ export interface FtSynUpdateOptions {
 }
 
 export default {
-  NOT_KEYED_COMMAND: true,
-  IS_READ_ONLY: true,
   parseCommand(
     parser: CommandParser,
     index: RedisArgument,

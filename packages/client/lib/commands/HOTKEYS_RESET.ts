@@ -10,8 +10,6 @@ import { SimpleStringReply, Command } from '../RESP/types';
  * - ACTIVE -> ERROR (must stop first)
  */
 export default {
-  NOT_KEYED_COMMAND: true,
-  IS_READ_ONLY: false,
   parseCommand(parser: CommandParser) {
     parser.push('HOTKEYS', 'RESET');
   },

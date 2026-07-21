@@ -4,7 +4,6 @@ import { RedisVariadicArgument, transformPXAT } from './generic-transformers';
 import { HashExpiration } from './HEXPIRE';
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

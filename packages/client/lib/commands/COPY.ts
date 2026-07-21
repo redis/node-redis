@@ -7,7 +7,6 @@ export interface CopyCommandOptions {
 }
 
 export default {
-  IS_READ_ONLY: false,
   parseCommand(parser: CommandParser, source: RedisArgument, destination: RedisArgument, options?: CopyCommandOptions) {
     parser.push('COPY');
     parser.pushKeys([source, destination]);

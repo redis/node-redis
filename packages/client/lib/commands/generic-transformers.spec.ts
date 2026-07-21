@@ -706,7 +706,10 @@ describe('Generic Transformers', () => {
                 0,
                 0,
                 0,
-                [CommandCategories.FAST, CommandCategories.CONNECTION]
+                [CommandCategories.FAST, CommandCategories.CONNECTION],
+                [],
+                [],
+                []
             ]),
             {
                 name: 'ping',
@@ -715,9 +718,33 @@ describe('Generic Transformers', () => {
                 firstKeyIndex: 0,
                 lastKeyIndex: 0,
                 step: 0,
-                categories: new Set([CommandCategories.FAST, CommandCategories.CONNECTION])
+                categories: new Set([CommandCategories.FAST, CommandCategories.CONNECTION]),
+                policies: { request: undefined, response: undefined },
+                isKeyless: true,
+                nondeterministicOutput: false,
+                tips: [],
+                keySpecs: [],
+                subcommands: []
             }
         );
+    });
+
+    it('transformCommandReply captures non-policy tips (dont_cache) and separates policy tips', () => {
+        const reply = transformCommandReply([
+            'touch',
+            -2,
+            [CommandFlags.READONLY, CommandFlags.FAST],
+            1,
+            -1,
+            1,
+            [],
+            ['request_policy:multi_shard', 'dont_cache', 'nondeterministic_output'],
+            [],
+            []
+        ]);
+        assert.deepEqual(reply.tips, ['dont_cache', 'nondeterministic_output']);
+        assert.equal(reply.nondeterministicOutput, true);
+        assert.equal(reply.policies.request, 'multi_shard');
     });
 
     describe('pushSlotRangesArguments', () => {

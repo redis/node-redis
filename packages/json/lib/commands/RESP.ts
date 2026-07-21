@@ -4,7 +4,6 @@ import { Command, RedisArgument } from "@redis/client/dist/lib/RESP/types";
 type RESPReply = Array<string | number | RESPReply>;
 
 export default {
-    IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, key: RedisArgument, path?: string) {
       parser.push('JSON.RESP');
       parser.pushKey(key);

@@ -32,7 +32,6 @@ export function parseZMPopArguments(
 export type ZMPopArguments = Tail<Parameters<typeof parseZMPopArguments>>;
 
 export default {
-  IS_READ_ONLY: false,
   parseCommand(
     parser: CommandParser,
     keys: RedisVariadicArgument,

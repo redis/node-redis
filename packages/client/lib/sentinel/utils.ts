@@ -2,6 +2,7 @@ import { ArrayReply, Command, RedisFunction, RedisScript, RespVersions, UnwrapRe
 import { BasicCommandParser } from '../client/parser';
 import { RedisSocketOptions, RedisTcpSocketOptions } from '../client/socket';
 import { functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
+import { defaultCommandMetadata, isReplicaSafe } from '../command-metadata';
 import { NamespaceProxySentinel, NamespaceProxySentinelClient, NodeAddressMap, ProxySentinel, ProxySentinelClient, RedisNode } from './types';
 
 /* TODO: should use map interface, would need a transform reply probably? as resp2 is list form, which this depends on */
@@ -65,13 +66,19 @@ export function clientSocketToNode(socket: RedisSocketOptions): RedisNode {
 
 export function createCommand<T extends ProxySentinel | ProxySentinelClient>(command: Command, resp: RespVersions) {
   const transformReply = getTransformReply(command, resp);
+  // Resolved once from the wire identifier (known only after the first parse)
+  // and reused — the command function is a shared prototype method. A defined
+  // `IS_READ_ONLY` wins over the table (see `isReplicaSafe`).
+  let replicaSafe: boolean | undefined;
 
   return async function (this: T, ...args: Array<unknown>) {
     const parser = new BasicCommandParser(this._self._keyPrefix);
     command.parseCommand(parser, ...args);
 
+    replicaSafe ??= isReplicaSafe(defaultCommandMetadata.lookup(parser.commandIdentifier), command.IS_READ_ONLY);
+
     return this._self._execute(
-      command.IS_READ_ONLY,
+      replicaSafe,
       client => client._executeCommand(command, parser, this.commandOptions, transformReply)
     );
   };
@@ -95,13 +102,16 @@ export function createFunctionCommand<T extends NamespaceProxySentinel | Namespa
 
 export function createModuleCommand<T extends NamespaceProxySentinel | NamespaceProxySentinelClient>(command: Command, resp: RespVersions) {
   const transformReply = getTransformReply(command, resp);
+  let replicaSafe: boolean | undefined;
 
   return async function (this: T, ...args: Array<unknown>) {
     const parser = new BasicCommandParser(this._self._keyPrefix);
     command.parseCommand(parser, ...args);
 
+    replicaSafe ??= isReplicaSafe(defaultCommandMetadata.lookup(parser.commandIdentifier), command.IS_READ_ONLY);
+
     return this._self._execute(
-      command.IS_READ_ONLY,
+      replicaSafe,
       client => client._executeCommand(command, parser, this._self.commandOptions, transformReply)
     );
   }

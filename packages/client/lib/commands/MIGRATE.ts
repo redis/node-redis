@@ -9,7 +9,6 @@ export interface MigrateOptions {
 }
 
 export default {
-  IS_READ_ONLY: false,
   parseCommand(
     parser: CommandParser,
     host: RedisArgument,

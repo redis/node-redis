@@ -50,7 +50,6 @@ export function createMRangeSelectedLabelsGroupByTransformArguments(
 }
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand: createMRangeSelectedLabelsGroupByTransformArguments('TS.MRANGE'),
   transformReply: {
     2: MRANGE_SELECTED_LABELS.transformReply[2],

@@ -3,8 +3,6 @@ import ZREVRANK from './ZREVRANK';
 import { Command } from '../RESP/types';
 
 export default {
-  CACHEABLE: ZREVRANK.CACHEABLE,
-  IS_READ_ONLY: ZREVRANK.IS_READ_ONLY,
   parseCommand(...args: Parameters<typeof ZREVRANK.parseCommand>) {
     const parser = args[0];
 

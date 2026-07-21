@@ -5,7 +5,6 @@ import { RedisArgument, Command, NumberReply } from '../RESP/types';
  * Command for creating a new consumer in a consumer group
  */
 export default {
-  IS_READ_ONLY: false,
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

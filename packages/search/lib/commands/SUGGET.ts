@@ -7,7 +7,6 @@ export interface FtSugGetOptions {
 }
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, key: RedisArgument, prefix: RedisArgument, options?: FtSugGetOptions) {
     parser.push('FT.SUGGET');
     parser.pushKey(key);

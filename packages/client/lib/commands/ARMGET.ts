@@ -2,7 +2,6 @@ import { CommandParser } from '../client/parser';
 import { RedisArgument, ArrayReply, BlobStringReply, NullReply, Command } from '../RESP/types';
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, key: RedisArgument, indices: number | string | Array<number | string>) {
     parser.push('ARMGET');
     parser.pushKey(key);
