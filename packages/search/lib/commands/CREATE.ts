@@ -382,14 +382,21 @@ export type RediSearchLanguage = typeof REDISEARCH_LANGUAGE[keyof typeof REDISEA
 
 export type RediSearchProperty = `${'@' | '$.'}${string}`;
 
+/**
+ * A document attribute: an `@`-prefixed or JSONPath property, or a plain
+ * hash field name (e.g. `__lang`). `(string & {})` keeps autocomplete for
+ * the prefixed forms while still accepting any field name.
+ */
+export type RediSearchAttribute = RediSearchProperty | (string & {});
+
 export interface CreateOptions {
   ON?: 'HASH' | 'JSON';
   PREFIX?: RedisVariadicArgument;
   FILTER?: RedisArgument;
   LANGUAGE?: RediSearchLanguage;
-  LANGUAGE_FIELD?: RediSearchProperty;
+  LANGUAGE_FIELD?: RediSearchAttribute;
   SCORE?: number;
-  SCORE_FIELD?: RediSearchProperty;
+  SCORE_FIELD?: RediSearchAttribute;
   // PAYLOAD_FIELD?: string;
   MAXTEXTFIELDS?: boolean;
   TEMPORARY?: number;
