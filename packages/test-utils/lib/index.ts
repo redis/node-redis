@@ -93,6 +93,18 @@ interface TestUtilsConfig {
    */
   defaultDockerVersion?: string | { tag: string; version: string };
 }
+
+/**
+ * The default Docker image configuration shared by every package's test-utils.
+ * This is the single place to update when bumping the default Redis test image.
+ */
+export const DEFAULT_DOCKER_CONFIG: TestUtilsConfig = {
+  dockerImageName: 'redislabs/client-libs-test',
+  dockerImageTagArgument: 'redis-tag',
+  dockerImageVersionArgument: 'redis-version',
+  defaultDockerVersion: { tag: '8.10-rc2', version: '8.10' }
+};
+
 interface CommonTestOptions {
   serverArguments: Array<string>;
   minimumDockerVersion?: Array<number>;
@@ -321,6 +333,16 @@ export default class TestUtils {
       ),
       config.dockerImageName
     );
+  }
+
+  /**
+   * Creates a new TestUtils instance using {@link DEFAULT_DOCKER_CONFIG},
+   * the shared default Docker image configuration.
+   *
+   * @returns A new TestUtils instance configured with the default settings
+   */
+  public static createDefault() {
+    return TestUtils.createFromConfig(DEFAULT_DOCKER_CONFIG);
   }
 
   isVersionGreaterThan(minimumVersion: Array<number> | undefined): boolean {
