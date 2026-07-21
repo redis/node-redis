@@ -22,6 +22,7 @@ import {
 } from '@redis/client/index';
 import { RedisNode } from '@redis/client/lib/sentinel/types'
 import { spawnRedisServer, spawnRedisCluster, spawnRedisSentinel, RedisServerDockerOptions, RedisServerDocker, spawnSentinelNode, spawnRedisServerDocker, spawnTlsRedisServer, TlsConfig, spawnProxiedRedisServer } from './dockers';
+import { isReCluster, loadREConnection } from './re-cluster';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 
@@ -379,8 +380,9 @@ export default class TestUtils {
     fn: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>) => unknown,
     options: ClientTestOptions<M, F, S, RESP, TYPE_MAPPING>
   ): void {
+    const reCluster = isReCluster();
     let dockerPromise: ReturnType<typeof spawnRedisServer>;
-    if (this.isVersionGreaterThan(options.minimumDockerVersion)) {
+    if (!reCluster && this.isVersionGreaterThan(options.minimumDockerVersion)) {
       const dockerImage = this.#DOCKER_IMAGE;
       before(function () {
         this.timeout(30000);
@@ -392,15 +394,30 @@ export default class TestUtils {
 
     it(title, async function () {
       if (options.skipTest) return this.skip();
-      if (!dockerPromise) return this.skip();
+      // Against a managed Redis Enterprise database there is no Docker server to spawn;
+      // build the client from the resolved RE endpoint instead.
+      if (!reCluster && !dockerPromise) return this.skip();
 
-      const client = createClient({
-        ...options.clientOptions,
-        socket: {
-          ...options.clientOptions?.socket,
-          port: (await dockerPromise).port
-        }
-      });
+      const client = createClient(
+        reCluster
+          ? ({
+            ...options.clientOptions,
+            username: loadREConnection().username,
+            password: loadREConnection().password,
+            socket: {
+              ...options.clientOptions?.socket,
+              host: loadREConnection().host,
+              port: loadREConnection().port
+            }
+          } as typeof options.clientOptions)
+          : {
+            ...options.clientOptions,
+            socket: {
+              ...options.clientOptions?.socket,
+              port: (await dockerPromise).port
+            }
+          }
+      );
 
       if (options.disableClientSetup) {
         return fn(client);
@@ -634,7 +651,9 @@ export default class TestUtils {
       password = options.serverArguments[passIndex];
     }
 
-    if (this.isVersionGreaterThan(options.minimumDockerVersion)) {
+    // Sentinel requires a local master/replica/sentinel topology that a single managed
+    // Redis Enterprise database cannot provide, so skip these tests on RE.
+    if (!isReCluster() && this.isVersionGreaterThan(options.minimumDockerVersion)) {
       const dockerImage = this.#DOCKER_IMAGE;
       before(function () {
         this.timeout(30000);
@@ -746,8 +765,9 @@ export default class TestUtils {
     fn: (client: RedisClientPoolType<M, F, S, RESP, TYPE_MAPPING>) => unknown,
     options: ClientPoolTestOptions<M, F, S, RESP, TYPE_MAPPING>
   ): void {
+    const reCluster = isReCluster();
     let dockerPromise: ReturnType<typeof spawnRedisServer>;
-    if (this.isVersionGreaterThan(options.minimumDockerVersion)) {
+    if (!reCluster && this.isVersionGreaterThan(options.minimumDockerVersion)) {
       const dockerImage = this.#DOCKER_IMAGE;
       before(function () {
         this.timeout(30000);
@@ -759,15 +779,28 @@ export default class TestUtils {
 
     it(title, async function () {
       if (options.skipTest) return this.skip();
-      if (!dockerPromise) return this.skip();
+      if (!reCluster && !dockerPromise) return this.skip();
 
-      const pool = createClientPool({
-        ...options.clientOptions,
-        socket: {
-          ...options.clientOptions?.socket,
-          port: (await dockerPromise).port
-        }
-      }, options.poolOptions);
+      const pool = createClientPool(
+        reCluster
+          ? ({
+            ...options.clientOptions,
+            username: loadREConnection().username,
+            password: loadREConnection().password,
+            socket: {
+              ...options.clientOptions?.socket,
+              host: loadREConnection().host,
+              port: loadREConnection().port
+            }
+          } as typeof options.clientOptions)
+          : {
+            ...options.clientOptions,
+            socket: {
+              ...options.clientOptions?.socket,
+              port: (await dockerPromise).port
+            }
+          },
+        options.poolOptions);
 
       await pool.connect();
 
@@ -812,8 +845,10 @@ export default class TestUtils {
     fn: (cluster: RedisClusterType<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>) => unknown,
     options: ClusterTestOptions<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>
   ): void {
+    // A managed Redis Enterprise database is not an OSS cluster / sentinel topology,
+    // so leave dockersPromise unset and let the test skip itself below.
     let dockersPromise: ReturnType<typeof spawnRedisCluster>;
-    if (this.isVersionGreaterThan(options.minimumDockerVersion)) {
+    if (!isReCluster() && this.isVersionGreaterThan(options.minimumDockerVersion)) {
       const dockerImage = this.#DOCKER_IMAGE;
       before(function () {
         this.timeout(30000);
