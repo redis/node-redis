@@ -400,15 +400,24 @@ describe('Cluster', () => {
         end: 16383
       };
 
-      // TODO: is there a better way to migrate slots without causing CLUSTERDOWN?
-      const promises: Array<Promise<unknown>> = [];
+      // reassigning slots with `CLUSTER SETSLOT .. NODE` can leave the nodes in a
+      // transient `cluster_state:fail` state, so claim the slots on the importing
+      // node first, then release them on the migrating node, and wait for both
+      // nodes to report a healthy cluster before going on
+      const importingPromises: Array<Promise<unknown>> = [],
+        migratingPromises: Array<Promise<unknown>> = [];
       for (let i = range.start; i <= range.end; i++) {
-        promises.push(
-          migratingClient.clusterSetSlot(i, 'NODE', importing.id),
-          importingClient.clusterSetSlot(i, 'NODE', importing.id)
-        );
+        importingPromises.push(importingClient.clusterSetSlot(i, 'NODE', importing.id));
+        migratingPromises.push(migratingClient.clusterSetSlot(i, 'NODE', importing.id));
       }
-      await Promise.all(promises);
+      await Promise.all(importingPromises);
+      await Promise.all(migratingPromises);
+
+      for (const client of [migratingClient, importingClient]) {
+        while (!(await client.clusterInfo()).startsWith('cluster_state:ok')) {
+          await setTimeout(25);
+        }
+      }
 
       // make sure to cause `MOVED` error
       await cluster.get(range.key);
