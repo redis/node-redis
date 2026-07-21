@@ -985,6 +985,30 @@ describe('Client', () => {
     minimumDockerVersion: [7, 4]
   });
 
+  testUtils.testWithClient('hScanValuesIterator', async client => {
+    const hash: Record<string, string> = {};
+    const expectedValues: Array<string> = [];
+    for (let i = 0; i < 100; i++) {
+      hash[i.toString()] = `value${i}`;
+      expectedValues.push(`value${i}`);
+    }
+
+    await client.hSet('key', hash);
+
+    const actualValues: Array<string> = [];
+    for await (const values of client.hScanValuesIterator('key')) {
+      for (const value of values) {
+        actualValues.push(value);
+      }
+    }
+
+    function sort(a: string, b: string) {
+      return Number(a.slice('value'.length)) - Number(b.slice('value'.length));
+    }
+
+    assert.deepEqual(actualValues.sort(sort), expectedValues);
+  }, GLOBAL.SERVERS.OPEN);
+
   testUtils.testWithClient('sScanIterator', async client => {
     const members = new Set<string>();
     for (let i = 0; i < 100; i++) {
