@@ -7,7 +7,7 @@ export const testUtils = TestUtils.createFromConfig({
   dockerImageName: 'redislabs/client-libs-test',
   dockerImageTagArgument: 'redis-tag',
   dockerImageVersionArgument: 'redis-version',
-  defaultDockerVersion: { tag: 'custom-28772936538-debian', version: '8.10' }
+  defaultDockerVersion: { tag: '8.10-rc2', version: '8.10' }
 });
 
 const DEBUG_MODE_ARGS = testUtils.isVersionGreaterThan([7]) ?
