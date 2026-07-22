@@ -43,7 +43,7 @@ prefix from the file name (`ARRAPPEND.ts` → wire `JSON.ARRAPPEND`).
 
 New commands are often implemented **before they are publicly released**, so
 redis.io may not document them yet and a default `redis:latest` may not have
-them. Before writing any code, ask the user for two things:
+them. Before writing any code, ask the user for three things:
 
 1. **The command spec.** Ask for the redis/redis JSON spec file — one per
    command under
@@ -52,17 +52,26 @@ them. Before writing any code, ask the user for two things:
    command is unreleased, ask the user to paste the spec from their branch.
    As a fallback on a live server: `redis-cli --json COMMAND DOCS <name>` and
    `COMMAND INFO <name>`.
-2. **A running Redis instance that has the command.** Ask for connection
+2. **A running Redis instance that has the command.** This is the single most
+   useful input — ask for it explicitly and up front. Ask for connection
    details (host/port, TLS, auth, module loaded). Use it to explore real
-   behavior and confirm the implementation matches the spec — do not rely on
-   the spec alone. A quick `redis-cli` session or a throwaway probe script
-   (`packages/client` is already wired for `tsx`) is enough; never commit the
-   probe.
+   behavior and confirm the implementation matches the spec — **do not rely on
+   the spec alone**. Probe every argument branch and diff the real reply against
+   your `transformReply`. A quick `redis-cli` session or a throwaway probe
+   script (`packages/client` is already wired for `tsx`) is enough; never commit
+   the probe.
+3. **The first server version that ships the command.** Ask which Redis (or
+   module) version introduced it — the spec's `since` field is the answer when
+   present; otherwise ask the user directly. You need this to (a) write `@since`
+   in the JSDoc (Step 2) and (b) gate the behavior tests with
+   `minimumDockerVersion` (Step 3) so they don't run — and fail — on older
+   servers in CI.
 
 If the user cannot provide a spec, derive arguments/reply from
 [redis.io/commands](https://redis.io/commands) but flag that it is unverified.
 If they cannot provide a live instance, implement from the spec but state that
-runtime behavior was not confirmed.
+runtime behavior was not confirmed. If the introducing version is unknown, say
+so and leave `@since`/`minimumDockerVersion` out rather than guessing.
 
 ### Reading the spec JSON → mapping to a Command
 
@@ -99,7 +108,7 @@ The redis/redis spec drives every part of the `Command` object. Example
 | `multiple: true` | variadic → `parser.pushVariadic*`. |
 | `arity` | sanity-check arg count in `parseArgs` tests. |
 | `reply_schema` (JSON Schema) | the `transformReply` return type. `oneOf [string, null]` → `BlobStringReply \| NullReply`; `integer` → `NumberReply`; `array` → `ArrayReply<...>`; a map differing by RESP version → keyed `transformReply: { 2, 3 }`. |
-| `since` | mention the version in JSDoc / `@remarks` when relevant. |
+| `since` | the introducing server version → `@since` in the registry JSDoc (Step 2) **and** `minimumDockerVersion: [major, minor]` on the behavior tests (Step 3). |
 
 After implementing, run the command against the live instance and diff the real
 reply against `reply_schema` and your `transformReply` output.
@@ -164,6 +173,36 @@ parseCommand(parser: CommandParser, key: RedisArgument, value: RedisArgument, op
 - **Function**: `(reply: <RawType>) => <JsType>`. Use `UnwrapReply<...>` to read the raw RESP container.
 - **RESP-version keyed**: `{ 2: (reply) => ..., 3: (reply) => ... }` when RESP2 and RESP3 shapes differ (e.g. flat array vs map/tuple). See `HRANDFIELD_COUNT_WITHVALUES.ts`.
 
+#### Unify RESP2 onto the RESP3 shape
+
+When the server returns different shapes per protocol, the library exposes **one
+return type to callers**: the **RESP3 shape is the source of truth**, and the
+RESP2 reply is transformed to look like it. So the keyed form is almost always:
+
+- `3:` — **pass-through** (`undefined as unknown as () => <ReplyType>`), because
+  RESP3 already has the target shape (map, tuple, big-number, double, ...).
+- `2:` — a **function** that reshapes the flat/legacy RESP2 reply into that same
+  `<ReplyType>`. Type its input `UnwrapReply<Resp2Reply<ReplyType>>` so the raw
+  RESP2 container is visible while the output type still matches RESP3.
+
+Canonical example — `HELLO.ts` turns the RESP2 flat array (`[k, v, k, v, ...]`)
+into the RESP3 map, while RESP3 passes through:
+
+```typescript
+transformReply: {
+  2: (reply: UnwrapReply<Resp2Reply<HelloReply>>) => ({
+    server: reply[1], version: reply[3], proto: reply[5], /* ... */
+  }),
+  3: undefined as unknown as () => HelloReply
+}
+```
+
+Reuse shared transformers where one exists (`HGETALL.ts` uses
+`transformTuplesReply` for `2:`, map pass-through for `3:`). Only when RESP3
+still needs reshaping does `3:` get its own function too. Verify the actual
+per-protocol shapes against the live instance (Step 0) — connect once with
+`RESP: 2` and once with `RESP: 3` and diff.
+
 Reply types live in `RESP/types`: `BlobStringReply`, `SimpleStringReply<'OK'>`,
 `NumberReply`, `DoubleReply`, `NullReply`, `BooleanReply`, `ArrayReply<T>`,
 `TuplesReply<[...]>`, `MapReply`, `UnwrapReply`.
@@ -210,19 +249,23 @@ export default {
   /**
    * Returns the value of a key, or null if the key does not exist
    * @param key - Key to read
+   * @since 1.0.0
    */
   GET,
   /**
    * Returns the value of a key, or null if the key does not exist
    * @param key - Key to read
+   * @since 1.0.0
    */
   get: GET,
 } satisfies RedisCommands;
 ```
 
 Keep both JSDoc blocks (raw + alias) in sync. Document every `parseCommand`
-param after `parser` with `@param`. Add `@remarks` for the precision caveat
-above when relevant. For module packages the registry files are
+param after `parser` with `@param`. Add `@since <version>` with the introducing
+server version from Step 0 (the spec's `since`); omit it only if that version is
+unknown. Add `@remarks` for the precision caveat above when relevant. For module
+packages the registry files are
 `packages/<pkg>/lib/commands/index.ts` (bloom: per-family `.../<family>/index.ts`).
 
 ## Step 3 — Write `<NAME>.spec.ts` (co-located)
@@ -244,14 +287,15 @@ describe('GET', () => {
   testUtils.testAll('get', async client => {
     assert.equal(await client.get('key'), null);
   }, {
-    client: GLOBAL.SERVERS.OPEN,
-    cluster: GLOBAL.CLUSTERS.OPEN
+    client: { ...GLOBAL.SERVERS.OPEN, minimumDockerVersion: [8, 8] },
+    cluster: { ...GLOBAL.CLUSTERS.OPEN, minimumDockerVersion: [8, 8] }
   });
 });
 ```
 
-- `parseArgs(COMMAND, ...args)` asserts the exact wire array — cover each option/flag branch and variadic shapes.
+- `parseArgs(COMMAND, ...args)` asserts the exact wire array — cover each option/flag branch and variadic shapes. Arg tests need no server, so **never gate them** by version.
 - `testUtils.testAll(name, fn, { client, cluster })` runs the same body against a standalone server and a cluster. Use it so cluster key routing (`pushKey`) is exercised. Drop `cluster` only when the command is genuinely cluster-incompatible.
+- **Gate every behavior test by the introducing version** (Step 0). Spread `minimumDockerVersion: [major, minor]` into **both** the `client` and `cluster` options (as above). CI runs multiple server versions; without the gate the test runs on older servers that lack the command and fails. `[8, 8]` = "8.8 and newer". Apply the same to `testWithClient`/`testWithCluster` by spreading it into their single options object. Omit only if the version is genuinely unknown.
 - Pick the right `GLOBAL.SERVERS.*` / `GLOBAL.CLUSTERS.*` setup (see `test-utils.ts`); `OPEN` is the default.
 - **Docker is required** — test-utils starts real Redis containers.
 
@@ -275,12 +319,13 @@ For module packages, build the client first (or whole repo) — they import from
 
 ## Completion checklist
 
+- [ ] Asked the user for spec, a live instance with the command, and the introducing server version (Step 0); probed real behavior against the live instance.
 - [ ] `<NAME>.ts` created with `parseCommand` + `transformReply`, `as const satisfies Command`.
 - [ ] Flags set correctly (`IS_READ_ONLY` for reads, `CACHEABLE` only for side-effect-free reads, `NOT_KEYED_COMMAND` if no key).
 - [ ] Every key uses `pushKey`/`pushKeys`; numbers stringified; options behind an exported `interface`.
-- [ ] RESP2/3 divergence handled via keyed `transformReply` if shapes differ.
-- [ ] Registered in `commands/index.ts`: import + raw entry + camelCase alias, **each with JSDoc** (`@param` per arg; `@remarks` for >2^53 precision).
-- [ ] `<NAME>.spec.ts`: `parseArgs` covers all branches; `testUtils.testAll` covers server + cluster.
+- [ ] RESP2/3 divergence handled via keyed `transformReply`: RESP3 is the target shape (usually `3:` pass-through), RESP2 transformed to match it; both shapes verified against the live instance.
+- [ ] Registered in `commands/index.ts`: import + raw entry + camelCase alias, **each with JSDoc** (`@param` per arg; `@since` for the introducing version; `@remarks` for >2^53 precision).
+- [ ] `<NAME>.spec.ts`: `parseArgs` covers all branches; `testUtils.testAll` covers server + cluster; behavior tests gated with `minimumDockerVersion` on both `client` and `cluster`.
 - [ ] `npm run build`, `npm run check:command-jsdoc`, the spec, and `npm run lint` all pass.
 - [ ] Commit message uses Conventional Commits; no company-internal refs.
 ```
