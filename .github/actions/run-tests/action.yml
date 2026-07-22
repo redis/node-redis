@@ -56,7 +56,7 @@ runs:
     - name: Self Report Metrics
       if: (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && inputs.otel-authorization-token != ''
       id: self-report-metrics
-      uses: redis-developer/cae-otel-ci-visibility@v2
+      uses: redis-developer/cae-otel-ci-visibility@v3
       with:
         junit-xml-folder: "junit-results"
         otlp-endpoint: "https://otlp-gateway-prod-us-central-0.grafana.net/otlp/v1/metrics"
