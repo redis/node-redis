@@ -16,7 +16,7 @@ export type LMoveMOptions = {
   COUNT: number;
   ORDER?: LMoveMOrder;
 } | {
-  /** Move exactly `EXACTLY` elements; if the source has fewer, move nothing. */
+  /** Move exactly `EXACTLY` elements; if the source has fewer, move nothing and reply with null. */
   EXACTLY: number;
   ORDER?: LMoveMOrder;
 };

@@ -126,11 +126,12 @@ describe('LMOVEM', () => {
 
   testUtils.testAll('lMoveM - EXACTLY with too few elements moves nothing', async client => {
     await client.rPush('{tag}source', ['1', '2']);
-    await assert.rejects(
-      client.lMoveM('{tag}source', '{tag}destination', 'LEFT', 'RIGHT', {
+    assert.equal(
+      await client.lMoveM('{tag}source', '{tag}destination', 'LEFT', 'RIGHT', {
         EXACTLY: 3,
         ORDER: 'BULK'
-      })
+      }),
+      null
     );
     assert.deepEqual(
       await client.lRange('{tag}source', 0, -1),
