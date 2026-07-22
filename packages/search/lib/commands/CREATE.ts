@@ -432,7 +432,7 @@ export default {
       parser.push('LANGUAGE_FIELD', options.LANGUAGE_FIELD);
     }
 
-    if (options?.SCORE) {
+    if (options?.SCORE !== undefined) {
       parser.push('SCORE', options.SCORE.toString());
     }
 

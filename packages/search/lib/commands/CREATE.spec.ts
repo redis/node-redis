@@ -440,6 +440,15 @@ describe('FT.CREATE', () => {
       );
     });
 
+    it('with SCORE 0', () => {
+      assert.deepEqual(
+        parseArgs(CREATE, 'index', {}, {
+          SCORE: 0
+        }),
+        ['FT.CREATE', 'index', 'SCORE', '0', 'SCHEMA']
+      );
+    });
+
     it('with SCORE_FIELD', () => {
       assert.deepEqual(
         parseArgs(CREATE, 'index', {}, {
