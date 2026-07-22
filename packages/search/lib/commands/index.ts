@@ -4,6 +4,7 @@ import AGGREGATE_WITHCURSOR from './AGGREGATE_WITHCURSOR';
 import AGGREGATE from './AGGREGATE';
 import ALIASADD from './ALIASADD';
 import ALIASDEL from './ALIASDEL';
+import ALIASLIST from './ALIASLIST';
 import ALIASUPDATE from './ALIASUPDATE';
 import CONFIG_GET from './CONFIG_GET';
 import CONFIG_SET from './CONFIG_SET';
@@ -121,6 +122,16 @@ export default {
    * @param alias - The alias to remove
    */
   aliasDel: ALIASDEL,
+  /**
+   * Lists all aliases associated with the given index. Read-only; available from RediSearch 8.10.0.
+   * @param index - The index name (must be an index created with FT.CREATE, not an alias)
+   */
+  ALIASLIST,
+  /**
+   * Lists all aliases associated with the given index. Read-only; available from RediSearch 8.10.0.
+   * @param index - The index name (must be an index created with FT.CREATE, not an alias)
+   */
+  aliasList: ALIASLIST,
   /**
    * Updates the index pointed to by an existing alias.
    * @param alias - The existing alias to update
