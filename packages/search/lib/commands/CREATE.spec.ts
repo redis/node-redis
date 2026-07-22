@@ -207,6 +207,44 @@ describe('FT.CREATE', () => {
           );
         });
 
+        it('HNSW algorithm with RERANK', () => {
+          assert.deepEqual(
+            parseArgs(CREATE, 'index', {
+              field: {
+                type: SCHEMA_FIELD_TYPE.VECTOR,
+                ALGORITHM: SCHEMA_VECTOR_FIELD_ALGORITHM.HNSW,
+                TYPE: 'FLOAT32',
+                DIM: 2,
+                DISTANCE_METRIC: 'L2',
+                RERANK: true
+              }
+            }),
+            [
+              'FT.CREATE', 'index', 'SCHEMA', 'field', 'VECTOR', 'HNSW', '8', 'TYPE',
+              'FLOAT32', 'DIM', '2', 'DISTANCE_METRIC', 'L2', 'RERANK', 'TRUE'
+            ]
+          );
+        });
+
+        it('HNSW algorithm with RERANK false', () => {
+          assert.deepEqual(
+            parseArgs(CREATE, 'index', {
+              field: {
+                type: SCHEMA_FIELD_TYPE.VECTOR,
+                ALGORITHM: SCHEMA_VECTOR_FIELD_ALGORITHM.HNSW,
+                TYPE: 'FLOAT32',
+                DIM: 2,
+                DISTANCE_METRIC: 'L2',
+                RERANK: false
+              }
+            }),
+            [
+              'FT.CREATE', 'index', 'SCHEMA', 'field', 'VECTOR', 'HNSW', '8', 'TYPE',
+              'FLOAT32', 'DIM', '2', 'DISTANCE_METRIC', 'L2', 'RERANK', 'FALSE'
+            ]
+          );
+        });
+
         it('VAMANA algorithm', () => {
           assert.deepEqual(
             parseArgs(CREATE, 'index', {
@@ -639,6 +677,25 @@ describe('FT.CREATE', () => {
         },
       }),
       "OK"
+    );
+  }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClientIfVersionWithinRange([[8, 10], 'LATEST'], 'client.ft.create vector hnsw rerank', async client => {
+    // RERANK is only valid for disk-based vector indexes, which the OSS test
+    // server cannot create. Assert the parameter reaches the server and is
+    // recognized (rejected only for the index type, not as a syntax error).
+    await assert.rejects(
+      client.ft.create('index_hnsw_rerank', {
+        field: {
+          type: SCHEMA_FIELD_TYPE.VECTOR,
+          ALGORITHM: SCHEMA_VECTOR_FIELD_ALGORITHM.HNSW,
+          TYPE: 'FLOAT32',
+          DIM: 5,
+          DISTANCE_METRIC: 'L2',
+          RERANK: true
+        },
+      }),
+      /disk-based/
     );
   }, GLOBAL.SERVERS.OPEN);
 
