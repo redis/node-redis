@@ -109,6 +109,7 @@ interface CommonTestOptions {
   serverArguments: Array<string>;
   minimumDockerVersion?: Array<number>;
   skipTest?: boolean;
+  testTimeout?: number;
 }
 
 interface ClientTestOptions<
@@ -886,6 +887,7 @@ export default class TestUtils {
     }
 
     it(title, async function () {
+      if (options.testTimeout) this.timeout(options.testTimeout);
       if (options.skipTest) return this.skip();
       if (!dockersPromise) return this.skip();
       const RESP = (options.clusterConfiguration?.RESP ?? DEFAULT_RESP) as RESP;

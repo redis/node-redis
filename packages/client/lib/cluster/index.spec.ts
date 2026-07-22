@@ -431,7 +431,10 @@ describe('Cluster', () => {
     }, {
       serverArguments: [],
       numberOfMasters: 2,
-      minimumDockerVersion: [7]
+      minimumDockerVersion: [7],
+      // reassigning all 8192 slots one-by-one plus polling both nodes for
+      // `cluster_state:ok` can exceed mocha's default 2000ms on slow CI runners
+      testTimeout: 30000
     });
 
     testUtils.testWithCluster('ssubscribe & sunsubscribe', async cluster => {
