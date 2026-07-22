@@ -6,12 +6,7 @@ import { Command, NumberReply } from './RESP/types';
 import { BasicCommandParser, CommandParser } from './client/parser';
 import { defineScript } from './lua-script';
 import RedisBloomModules from '@redis/bloom';
-const utils = TestUtils.createFromConfig({
-  dockerImageName: 'redislabs/client-libs-test',
-  dockerImageTagArgument: 'redis-tag',
-  dockerImageVersionArgument: 'redis-version',
-  defaultDockerVersion: { tag: '8.10-rc2', version: '8.10' }
-});
+const utils = TestUtils.createDefault();
 
 export default utils;
 
