@@ -37,4 +37,18 @@ describe('FT.ALIASLIST', () => {
       ['alias1', 'alias2']
     );
   }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.ft.aliasList on missing index rejects with index-not-found', async client => {
+    await assert.rejects(
+      client.ft.aliasList('nonexistent'),
+      err => {
+        assert.ok(err instanceof Error);
+        assert.ok(
+          err.message.startsWith('SEARCH_INDEX_NOT_FOUND'),
+          `expected SEARCH_INDEX_NOT_FOUND prefix, got: ${err.message}`
+        );
+        return true;
+      }
+    );
+  }, GLOBAL.SERVERS.OPEN);
 });
