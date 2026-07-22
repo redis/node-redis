@@ -1,8 +1,8 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { Command, UnwrapReply, ArrayReply, BlobStringReply, Resp2Reply, MapReply, TuplesReply, TypeMapping, RedisArgument } from '@redis/client/dist/lib/RESP/types';
 import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
-import { resp2MapToValue, resp3MapToValue, SampleRawReply, Timestamp, transformSamplesReply } from './helpers';
-import { TsRangeOptions, parseRangeArguments } from './RANGE';
+import { parseExcludeEmptyArgument, resp2MapToValue, resp3MapToValue, SampleRawReply, Timestamp, transformSamplesReply } from './helpers';
+import { TsMRangeOptions, parseRangeArguments } from './RANGE';
 import { parseFilterArgument } from './MGET';
 
 export type TsMRangeWithLabelsRawReply2 = ArrayReply<
@@ -35,7 +35,7 @@ export function createTransformMRangeWithLabelsArguments(command: RedisArgument)
     fromTimestamp: Timestamp,
     toTimestamp: Timestamp,
     filter: RedisVariadicArgument,
-    options?: TsRangeOptions
+    options?: TsMRangeOptions
   ) => {
     parser.push(command);
     parseRangeArguments(
@@ -44,6 +44,8 @@ export function createTransformMRangeWithLabelsArguments(command: RedisArgument)
       toTimestamp,
       options
     );
+
+    parseExcludeEmptyArgument(parser, options?.EXCLUDEEMPTY);
 
     parser.push('WITHLABELS');
 

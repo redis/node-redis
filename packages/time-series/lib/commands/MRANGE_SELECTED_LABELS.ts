@@ -1,8 +1,8 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { Command, ArrayReply, BlobStringReply, Resp2Reply, MapReply, TuplesReply, TypeMapping, NullReply, RedisArgument } from '@redis/client/dist/lib/RESP/types';
 import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
-import { parseSelectedLabelsArguments, resp2MapToValue, resp3MapToValue, SampleRawReply, Timestamp, transformRESP2Labels, transformSamplesReply } from './helpers';
-import { TsRangeOptions, parseRangeArguments } from './RANGE';
+import { parseExcludeEmptyArgument, parseSelectedLabelsArguments, resp2MapToValue, resp3MapToValue, SampleRawReply, Timestamp, transformRESP2Labels, transformSamplesReply } from './helpers';
+import { TsMRangeOptions, parseRangeArguments } from './RANGE';
 import { parseFilterArgument } from './MGET';
 
 export type TsMRangeSelectedLabelsRawReply2 = ArrayReply<
@@ -38,7 +38,7 @@ export function createTransformMRangeSelectedLabelsArguments(command: RedisArgum
     toTimestamp: Timestamp,
     selectedLabels: RedisVariadicArgument,
     filter: RedisVariadicArgument,
-    options?: TsRangeOptions
+    options?: TsMRangeOptions
   ) => {
     parser.push(command);
     parseRangeArguments(
@@ -47,7 +47,9 @@ export function createTransformMRangeSelectedLabelsArguments(command: RedisArgum
       toTimestamp,
       options
     );
-  
+
+    parseExcludeEmptyArgument(parser, options?.EXCLUDEEMPTY);
+
     parseSelectedLabelsArguments(parser, selectedLabels);
   
     parseFilterArgument(parser, filter);

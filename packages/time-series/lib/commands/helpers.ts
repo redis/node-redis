@@ -118,6 +118,19 @@ export function parseRangeCommonArguments(
   }
 }
 
+/**
+ * Pushes the bare `EXCLUDEEMPTY` flag for `TS.MRANGE`/`TS.MREVRANGE` when requested.
+ * The flag omits matching series with an empty samples array from the reply. It is
+ * not valid on single-key `TS.RANGE`/`TS.REVRANGE` nor combinable with `GROUPBY`.
+ *
+ * @since Redis 8.10
+ */
+export function parseExcludeEmptyArgument(parser: CommandParser, excludeEmpty?: boolean) {
+  if (excludeEmpty) {
+    parser.push('EXCLUDEEMPTY');
+  }
+}
+
 export type Labels = {
   [label: string]: string;
 };
