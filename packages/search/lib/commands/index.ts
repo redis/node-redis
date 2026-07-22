@@ -123,13 +123,13 @@ export default {
    */
   aliasDel: ALIASDEL,
   /**
-   * Lists all aliases associated with the given index. Read-only; available from RediSearch 8.10.0.
-   * @param index - The index name (must be an index created with FT.CREATE, not an alias)
+   * Lists all aliases associated with the given index.
+   * @param index - The index name whose aliases to list
    */
   ALIASLIST,
   /**
-   * Lists all aliases associated with the given index. Read-only; available from RediSearch 8.10.0.
-   * @param index - The index name (must be an index created with FT.CREATE, not an alias)
+   * Lists all aliases associated with the given index.
+   * @param index - The index name whose aliases to list
    */
   aliasList: ALIASLIST,
   /**

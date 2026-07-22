@@ -13,30 +13,32 @@ describe('FT.ALIASLIST', () => {
   });
 
   testUtils.testWithClient('client.ft.aliasList on index without aliases', async client => {
-    await client.ft.create('index', {
-      field: SCHEMA_FIELD_TYPE.TEXT
-    });
+    const [, reply] = await Promise.all([
+      client.ft.create('index', {
+        field: SCHEMA_FIELD_TYPE.TEXT
+      }),
+      client.ft.aliasList('index')
+    ]);
 
-    assert.deepEqual(
-      await client.ft.aliasList('index'),
-      []
-    );
-  }, GLOBAL.SERVERS.OPEN);
+    assert.deepEqual(reply, []);
+  }, { ...GLOBAL.SERVERS.OPEN, minimumDockerVersion: [8, 10] });
 
   testUtils.testWithClient('client.ft.aliasList with aliases', async client => {
-    await client.ft.create('index', {
-      field: SCHEMA_FIELD_TYPE.TEXT
-    });
-    await client.ft.aliasAdd('alias1', 'index');
-    await client.ft.aliasAdd('alias2', 'index');
+    const [, , , reply] = await Promise.all([
+      client.ft.create('index', {
+        field: SCHEMA_FIELD_TYPE.TEXT
+      }),
+      client.ft.aliasAdd('alias1', 'index'),
+      client.ft.aliasAdd('alias2', 'index'),
+      client.ft.aliasList('index')
+    ]);
 
-    const reply = await client.ft.aliasList('index');
     // ordering is not part of the contract
     assert.deepEqual(
       [...reply].sort(),
       ['alias1', 'alias2']
     );
-  }, GLOBAL.SERVERS.OPEN);
+  }, { ...GLOBAL.SERVERS.OPEN, minimumDockerVersion: [8, 10] });
 
   testUtils.testWithClient('client.ft.aliasList on missing index rejects with index-not-found', async client => {
     await assert.rejects(
@@ -50,5 +52,5 @@ describe('FT.ALIASLIST', () => {
         return true;
       }
     );
-  }, GLOBAL.SERVERS.OPEN);
+  }, { ...GLOBAL.SERVERS.OPEN, minimumDockerVersion: [8, 10] });
 });
