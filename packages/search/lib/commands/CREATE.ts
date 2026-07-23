@@ -352,6 +352,7 @@ export function parseSchema(parser: CommandParser, schema: RediSearchSchema) {
 
 export const REDISEARCH_LANGUAGE = {
   ARABIC: 'Arabic',
+  ARMENIAN: 'Armenian',
   BASQUE: 'Basque',
   CATALANA: 'Catalan',
   DANISH: 'Danish',
@@ -361,20 +362,25 @@ export const REDISEARCH_LANGUAGE = {
   FRENCH: 'French',
   GERMAN: 'German',
   GREEK: 'Greek',
+  HINDI: 'Hindi',
   HUNGARIAN: 'Hungarian',
   INDONESAIN: 'Indonesian',
   IRISH: 'Irish',
   ITALIAN: 'Italian',
   LITHUANIAN: 'Lithuanian',
+  MALAY: 'Malay',
   NEPALI: 'Nepali',
   NORWEIGAN: 'Norwegian',
   PORTUGUESE: 'Portuguese',
   ROMANIAN: 'Romanian',
   RUSSIAN: 'Russian',
+  SERBIAN: 'Serbian',
   SPANISH: 'Spanish',
   SWEDISH: 'Swedish',
+  TAGALOG: 'Tagalog',
   TAMIL: 'Tamil',
   TURKISH: 'Turkish',
+  YIDDISH: 'Yiddish',
   CHINESE: 'Chinese'
 } as const;
 
