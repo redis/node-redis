@@ -42,6 +42,7 @@ import BITFIELD from './BITFIELD';
 import BITOP from './BITOP';
 import BITPOS from './BITPOS';
 import BLMOVE from './BLMOVE';
+import BLMOVEM from './BLMOVEM';
 import BLMPOP from './BLMPOP';
 import BLPOP from './BLPOP';
 import BRPOP from './BRPOP';
@@ -208,6 +209,7 @@ import LINDEX from './LINDEX';
 import LINSERT from './LINSERT';
 import LLEN from './LLEN';
 import LMOVE from './LMOVE';
+import LMOVEM from './LMOVEM';
 import LMPOP from './LMPOP';
 import LOLWUT from './LOLWUT';
 import LPOP_COUNT from './LPOP_COUNT';
@@ -951,6 +953,30 @@ export default {
    * @param timeout - Timeout in seconds, 0 to block indefinitely
    */
   blMove: BLMOVE,
+  /**
+   * Moves multiple elements from one list to another; or blocks until the source has elements to move
+   * @param source - Key of the source list
+   * @param destination - Key of the destination list
+   * @param sourceSide - Side of source list to pop from (LEFT or RIGHT)
+   * @param destinationSide - Side of destination list to push to (LEFT or RIGHT)
+   * @param timeout - Timeout in seconds, 0 to block indefinitely
+   * @param options - Optional COUNT/EXACTLY count and OBO/BULK ordering
+   * @see https://redis.io/commands/blmovem/
+   * @since 8.10
+   */
+  BLMOVEM,
+  /**
+   * Moves multiple elements from one list to another; or blocks until the source has elements to move
+   * @param source - Key of the source list
+   * @param destination - Key of the destination list
+   * @param sourceSide - Side of source list to pop from (LEFT or RIGHT)
+   * @param destinationSide - Side of destination list to push to (LEFT or RIGHT)
+   * @param timeout - Timeout in seconds, 0 to block indefinitely
+   * @param options - Optional COUNT/EXACTLY count and OBO/BULK ordering
+   * @see https://redis.io/commands/blmovem/
+   * @since 8.10
+   */
+  blMoveM: BLMOVEM,
   /**
    * Pops elements from multiple lists; blocks until elements are available
    * @param timeout - Timeout in seconds, 0 to block indefinitely
@@ -3037,6 +3063,30 @@ export default {
    * @see https://redis.io/commands/lmove/
    */
   lMove: LMOVE,
+  /**
+   * Moves multiple elements from one list to another
+   *
+   * @param source - The source list key
+   * @param destination - The destination list key
+   * @param sourceSide - The side to pop from (LEFT or RIGHT)
+   * @param destinationSide - The side to push to (LEFT or RIGHT)
+   * @param options - Optional COUNT/EXACTLY count and OBO/BULK ordering
+   * @see https://redis.io/commands/lmovem/
+   * @since 8.10
+   */
+  LMOVEM,
+  /**
+   * Moves multiple elements from one list to another
+   *
+   * @param source - The source list key
+   * @param destination - The destination list key
+   * @param sourceSide - The side to pop from (LEFT or RIGHT)
+   * @param destinationSide - The side to push to (LEFT or RIGHT)
+   * @param options - Optional COUNT/EXACTLY count and OBO/BULK ordering
+   * @see https://redis.io/commands/lmovem/
+   * @since 8.10
+   */
+  lMoveM: LMOVEM,
   /**
    * Constructs the LMPOP command
    *
