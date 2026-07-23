@@ -390,7 +390,7 @@ describe('Cluster', () => {
           cluster.nodeClient(importing)
         ]);
 
-      const range = cluster.slots[0].master === migrating ? {
+      const range = cluster.slots[0].master.address === migrating.address ? {
         key: 'bar', // 5061
         start: 0,
         end: 8191
@@ -400,18 +400,21 @@ describe('Cluster', () => {
         end: 16383
       };
 
-      // reassigning slots with `CLUSTER SETSLOT .. NODE` can leave the nodes in a
-      // transient `cluster_state:fail` state, so claim the slots on the importing
-      // node first, then release them on the migrating node, and wait for both
-      // nodes to report a healthy cluster before going on
-      const importingPromises: Array<Promise<unknown>> = [],
-        migratingPromises: Array<Promise<unknown>> = [];
-      for (let i = range.start; i <= range.end; i++) {
-        importingPromises.push(importingClient.clusterSetSlot(i, 'NODE', importing.id));
-        migratingPromises.push(migratingClient.clusterSetSlot(i, 'NODE', importing.id));
-      }
-      await Promise.all(importingPromises);
-      await Promise.all(migratingPromises);
+      // Reassign the whole slot range in one shot with DEL/ADDSLOTSRANGE
+      // instead of thousands of per-slot `CLUSTER SETSLOT .. NODE` calls,
+      // which overflowed the test timeout on slow CI runners. Release the
+      // range on both nodes first (`CLUSTER ADDSLOTS` rejects a slot that is
+      // still assigned in the node's own cluster view, and gossip has not yet
+      // propagated the migrating node's release to the importing node), then
+      // claim it on the importing node, then wait for both nodes to reconverge
+      // to a healthy cluster before going on (the reassignment leaves a
+      // transient `cluster_state:fail` window).
+      const slotRange = { start: range.start, end: range.end };
+      await Promise.all([
+        migratingClient.clusterDelSlotsRange(slotRange),
+        importingClient.clusterDelSlotsRange(slotRange)
+      ]);
+      await importingClient.clusterAddSlotsRange(slotRange);
 
       for (const client of [migratingClient, importingClient]) {
         while (!(await client.clusterInfo()).startsWith('cluster_state:ok')) {
@@ -431,7 +434,10 @@ describe('Cluster', () => {
     }, {
       serverArguments: [],
       numberOfMasters: 2,
-      minimumDockerVersion: [7]
+      minimumDockerVersion: [7],
+      // range reassignment plus polling both nodes for `cluster_state:ok` can
+      // exceed mocha's default 2000ms on slow CI runners
+      testTimeout: 30000
     });
 
     testUtils.testWithCluster('ssubscribe & sunsubscribe', async cluster => {
