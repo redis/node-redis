@@ -4,7 +4,7 @@ import { RediSearchProperty } from './CREATE';
 import { FtSearchParams, parseParamsArgument } from './SEARCH';
 import { transformTuplesReply } from '@redis/client/dist/lib/commands/generic-transformers';
 import { DEFAULT_DIALECT } from '../dialect/default';
-import { getMapValue, mapLikeToFlatArray, mapLikeToObject, mapLikeValues, parseAggregateResultRow } from './reply-transformers';
+import { getMapValue, mapLikeToFlatArray, mapLikeToObject, mapLikeValues, parseAggregateResultRow, parseWarnings } from './reply-transformers';
 import { RESP_TYPES } from '@redis/client/dist/lib/RESP/decoder';
 
 type LoadField = RediSearchProperty | {
@@ -149,6 +149,12 @@ export type AggregateRawReply = [
 export interface AggregateReply {
   total: number;
   results: Array<MapReply<BlobStringReply, BlobStringReply>>;
+  /**
+   * Warnings returned alongside partial results (e.g. on query timeout under a
+   * `return` / `return-strict` on-timeout policy). Only populated on RESP3;
+   * always empty on RESP2.
+   */
+  warnings: Array<string>;
 };
 
 function transformAggregateReplyResp2(
@@ -169,7 +175,9 @@ function transformAggregateReplyResp2(
     //  FT.AGGREGATE returns an array reply where each row is an array reply and represents a single aggregate result.
     // The integer reply at position 1 does not represent a valid value.
     total: Number(rawReply[0]),
-    results
+    results,
+    // FT.AGGREGATE only emits warnings on RESP3; RESP2 replies never carry them.
+    warnings: []
   };
 }
 
@@ -206,7 +214,8 @@ function transformAggregateReplyResp3(
 
   return {
     total,
-    results
+    results,
+    warnings: parseWarnings(reply)
   };
 }
 
