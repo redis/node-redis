@@ -34,6 +34,41 @@ describe('TS.MREVRANGE', () => {
     );
   });
 
+  it('transformArguments with EXCLUDEEMPTY', () => {
+    assert.deepEqual(
+      parseArgs(MREVRANGE, '-', '+', 'label=value', {
+        COUNT: 1,
+        EXCLUDEEMPTY: true
+      }),
+      [
+        'TS.MREVRANGE', '-', '+',
+        'COUNT', '1',
+        'EXCLUDEEMPTY',
+        'FILTER', 'label=value'
+      ]
+    );
+  });
+
+  testUtils.testWithClient('client.ts.mRevRange EXCLUDEEMPTY omits empty series', async client => {
+    await Promise.all([
+      client.ts.add('s', 100, 100, { LABELS: { sensor: '1' } }),
+      client.ts.add('t', 100, 100, { LABELS: { sensor: '1' } }),
+      client.ts.create('u', { LABELS: { sensor: '1' } })
+    ]);
+    await client.ts.add('u', 2000, 2000);
+
+    const reply = await client.ts.mRevRange('-', 500, 'sensor=1', {
+      EXCLUDEEMPTY: true
+    });
+
+    assert.ok('s' in reply);
+    assert.ok('t' in reply);
+    assert.ok(!('u' in reply), 'series "u" has no samples in range and must be omitted');
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    minimumDockerVersion: [8, 10]
+  });
+
   testUtils.testWithClient('client.ts.mRevRange', async client => {
     const [, reply] = await Promise.all([
       client.ts.add('key', 0, 0, {

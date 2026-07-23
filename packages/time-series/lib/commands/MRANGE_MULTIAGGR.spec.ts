@@ -37,6 +37,27 @@ describe('TS.MRANGE_MULTIAGGR', () => {
     );
   });
 
+  it('transformArguments with EXCLUDEEMPTY', () => {
+    assert.deepEqual(
+      parseArgs(MRANGE_MULTIAGGR, '-', '+', 'label=value', {
+        AGGREGATION: {
+          types: [
+            TIME_SERIES_AGGREGATION_TYPE.MIN,
+            TIME_SERIES_AGGREGATION_TYPE.MAX
+          ],
+          timeBucket: 1
+        },
+        EXCLUDEEMPTY: true
+      }),
+      [
+        'TS.MRANGE', '-', '+',
+        'AGGREGATION', 'MIN,MAX', '1',
+        'EXCLUDEEMPTY',
+        'FILTER', 'label=value'
+      ]
+    );
+  });
+
   testUtils.testWithClient('client.ts.mRangeMultiAggr', async client => {
     await client.ts.add('mrange-multi', 1000, 0, {
       LABELS: {
