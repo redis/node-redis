@@ -70,7 +70,27 @@ const client = await createClient()
 
 await client.set("key", "value");
 const value = await client.get("key");
+console.log(value); // 'value'
 client.destroy();
+```
+
+The same example in CommonJS (for example `node example.js` without `"type": "module"` in `package.json`):
+
+```js
+const { createClient } = require("redis");
+
+async function main() {
+  const client = await createClient()
+    .on("error", (err) => console.log("Redis Client Error", err))
+    .connect();
+
+  await client.set("key", "value");
+  const value = await client.get("key");
+  console.log(value); // 'value'
+  client.destroy();
+}
+
+main().catch(console.error);
 ```
 
 The above code connects to localhost on port 6379. To connect to a different host or port, use a connection string in
@@ -85,7 +105,7 @@ createClient({
 You can also use discrete parameters, UNIX sockets, and even TLS to connect. Details can be found in
 the [client configuration guide](https://github.com/redis/node-redis/blob/master/docs/client-configuration.md).
 
-To check if the the client is connected and ready to send commands, use `client.isReady` which returns a boolean.
+To check if the client is connected and ready to send commands, use `client.isReady` which returns a boolean.
 `client.isOpen` is also available. This returns `true` when the client's underlying socket is open, and `false` when it
 isn't (for example when the client is still connecting or reconnecting after a network error).
 
