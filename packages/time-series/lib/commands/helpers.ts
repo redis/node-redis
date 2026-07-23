@@ -308,6 +308,27 @@ export function parseSelectedLabelsArguments(
   parser.pushVariadic(selectedLabels);
 }
 
+/**
+ * Pushes the optional `FILTER filterExpr [filterExpr ...]` tail shared by the
+ * `TS.QUERYLABELS` forms. Omitting `filter` queries all indexed series; passing
+ * an explicitly empty array is a local usage error rather than a silent widen to
+ * all series (the server also rejects a bare `FILTER` token). Expressions are
+ * sent verbatim — not parsed, reordered, or deduplicated.
+ */
+export function parseQueryLabelsFilterArgument(
+  parser: CommandParser,
+  filter?: RedisVariadicArgument
+) {
+  if (filter === undefined) return;
+
+  if (Array.isArray(filter) && filter.length === 0) {
+    throw new Error('FILTER was given an empty filter expression list; omit it to query all indexed series');
+  }
+
+  parser.push('FILTER');
+  parser.pushVariadic(filter);
+}
+
 export type RawLabelValue = BlobStringReply | NullReply;
 
 export type RawLabels<T extends RawLabelValue> = ArrayReply<TuplesReply<[
