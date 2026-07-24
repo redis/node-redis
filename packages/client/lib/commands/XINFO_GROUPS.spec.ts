@@ -11,6 +11,44 @@ describe('XINFO GROUPS', () => {
     );
   });
 
+  it('transformReply', () => {
+    assert.deepEqual(
+      XINFO_GROUPS.transformReply[2]([[
+        'name', 'group',
+        'consumers', 0,
+        'pending', 0,
+        'last-delivered-id', '0-0'
+      ]]),
+      [Object.assign(Object.create(null), {
+        name: 'group',
+        consumers: 0,
+        pending: 0,
+        'last-delivered-id': '0-0'
+      })]
+    );
+  });
+
+  it('transformReply - Redis 7 fields', () => {
+    assert.deepEqual(
+      XINFO_GROUPS.transformReply[2]([[
+        'name', 'group',
+        'consumers', 0,
+        'pending', 0,
+        'last-delivered-id', '0-0',
+        'entries-read', null,
+        'lag', null
+      ]]),
+      [Object.assign(Object.create(null), {
+        name: 'group',
+        consumers: 0,
+        pending: 0,
+        'last-delivered-id': '0-0',
+        'entries-read': null,
+        lag: null
+      })]
+    );
+  });
+
   testUtils.testAll('xInfoGroups', async client => {
     const [, reply] = await Promise.all([
       client.xGroupCreate('key', 'group', '$', {
