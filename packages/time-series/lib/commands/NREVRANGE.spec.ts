@@ -12,13 +12,13 @@ describe('TS.NREVRANGE', () => {
     );
   });
 
-  it('transformArguments (aggregators as separate tokens)', () => {
+  it('transformArguments (one aggregator per key)', () => {
     assert.deepEqual(
       parseArgs(NREVRANGE, ['a', 'b'], '-', '+', {
         AGGREGATION: {
           types: [
-            TIME_SERIES_AGGREGATION_TYPE.MIN,
-            TIME_SERIES_AGGREGATION_TYPE.MAX
+            [TIME_SERIES_AGGREGATION_TYPE.MIN],
+            [TIME_SERIES_AGGREGATION_TYPE.MAX]
           ],
           timeBucket: 1000
         }
@@ -26,6 +26,27 @@ describe('TS.NREVRANGE', () => {
       [
         'TS.NREVRANGE', '2', 'a', 'b', '-', '+',
         'AGGREGATION', 'MIN', 'MAX', '1000'
+      ]
+    );
+  });
+
+  it('transformArguments (multiple aggregators per key, comma-joined)', () => {
+    assert.deepEqual(
+      parseArgs(NREVRANGE, ['a', 'b'], '-', '+', {
+        AGGREGATION: {
+          types: [
+            [
+              TIME_SERIES_AGGREGATION_TYPE.MIN,
+              TIME_SERIES_AGGREGATION_TYPE.MAX
+            ],
+            [TIME_SERIES_AGGREGATION_TYPE.SUM]
+          ],
+          timeBucket: 1000
+        }
+      }),
+      [
+        'TS.NREVRANGE', '2', 'a', 'b', '-', '+',
+        'AGGREGATION', 'MIN,MAX', 'SUM', '1000'
       ]
     );
   });
