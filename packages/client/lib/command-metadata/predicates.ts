@@ -60,7 +60,7 @@ export function isReplicaSafe(
  *     key-tracking based, so keyless read-only commands like KEYS must not cache),
  *   - no `nondeterministic_output` tip (value nondeterminism; `*_output_order`
  *     is fine — HGETALL/SMEMBERS stay cacheable),
- *   - no `script` / `script_runner` flag (EVAL_RO/EVALSHA_RO/FCALL_RO).
+ *   - no `script_runner` flag (EVAL_RO/EVALSHA_RO/FCALL_RO).
  *
  * Unknown commands with no declared intent are not cacheable.
  */
@@ -75,8 +75,7 @@ export function isCacheable(
     && meta.flags.includes('readonly')
     && !meta.isKeyless
     && !tips.includes('nondeterministic_output')
-    // `script` (HLD name) / `script_runner` (the flag Redis 8.10 ships) mark the
-    // EVAL_RO/EVALSHA_RO/FCALL_RO family, which must not cache.
-    && !meta.flags.includes('script')
+    // `script_runner` (Redis 8.10) marks the EVAL_RO/EVALSHA_RO/FCALL_RO family,
+    // which must not cache.
     && !meta.flags.includes('script_runner');
 }
