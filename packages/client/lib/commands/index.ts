@@ -90,6 +90,7 @@ import CLUSTER_SET_CONFIG_EPOCH from './CLUSTER_SET-CONFIG-EPOCH';
 import CLUSTER_SETSLOT, { CLUSTER_SLOT_STATES } from './CLUSTER_SETSLOT';
 import CLUSTER_SLOTS from './CLUSTER_SLOTS';
 import COMMAND_COUNT from './COMMAND_COUNT';
+import COMMAND_DOCS from './COMMAND_DOCS';
 import COMMAND_GETKEYS from './COMMAND_GETKEYS';
 import COMMAND_GETKEYSANDFLAGS from './COMMAND_GETKEYSANDFLAGS';
 import COMMAND_INFO from './COMMAND_INFO';
@@ -1449,6 +1450,18 @@ export default {
    * @param args - Command arguments to analyze
    */
   commandGetKeysAndFlags: COMMAND_GETKEYSANDFLAGS,
+  /**
+   * Returns documentary information about one, multiple, or all Redis commands
+   * @param commands - Optional command name or names to get documentation for
+   * @since 7.0.0
+   */
+  COMMAND_DOCS,
+  /**
+   * Returns documentary information about one, multiple, or all Redis commands
+   * @param commands - Optional command name or names to get documentation for
+   * @since 7.0.0
+   */
+  commandDocs: COMMAND_DOCS,
   /**
    * Returns details about specific Redis commands
    * @param commands - Array of command names to get information about
