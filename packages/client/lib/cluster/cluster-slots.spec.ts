@@ -98,5 +98,38 @@ describe('RedisClusterSlots', () => {
         assert.strictEqual(node.readonly, true);
       }
     });
+
+    it('should fall back to master node when replicas array becomes empty in "only" mode', () => {
+      const slots = new RedisClusterSlots({
+        rootNodes: [],
+        useReplicas: 'only'
+      }, () => true, 'client-id');
+      
+      const masterNode = { address: '127.0.0.1:7000', host: '127.0.0.1', port: 7000, id: 'master', readonly: false };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- minimal stub node
+      slots.masters.push(masterNode as any);
+
+      // Call getRandomNode when replicas is empty
+      const node = slots.getRandomNode();
+      assert.strictEqual(node.address, masterNode.address);
+    });
+
+    it('should return master node for getRandomMasterNode', () => {
+      const slots = new RedisClusterSlots({
+        rootNodes: [],
+        useReplicas: 'only'
+      }, () => true, 'client-id');
+      
+      const masterNode = { address: '127.0.0.1:7000', host: '127.0.0.1', port: 7000, id: 'master', readonly: false };
+      const replicaNode = { address: '127.0.0.1:7001', host: '127.0.0.1', port: 7001, id: 'replica', readonly: true };
+      
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- minimal stub node
+      slots.masters.push(masterNode as any);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- minimal stub node
+      slots.replicas.push(replicaNode as any);
+
+      const node = slots.getRandomMasterNode();
+      assert.strictEqual(node.address, masterNode.address);
+    });
   });
 });

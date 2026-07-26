@@ -828,8 +828,11 @@ export default class RedisClusterSlots<
     this.#assertReady();
 
     if (!firstKey) {
+      const node = isReadonly === false ?
+        this.getRandomMasterNode() :
+        this.getRandomNode();
       return {
-        client: await this.nodeClient(this.getRandomNode())
+        client: await this.nodeClient(node)
       };
     }
 
@@ -870,8 +873,14 @@ export default class RedisClusterSlots<
       } while (++i < this.replicas.length);
 
       while (true) {
-        for (const replica of this.replicas) {
-          yield replica;
+        if (this.replicas.length > 0) {
+          for (const replica of this.replicas) {
+            yield replica;
+          }
+        } else {
+          for (const master of this.masters) {
+            yield master;
+          }
         }
       }
     }
@@ -909,6 +918,14 @@ export default class RedisClusterSlots<
     return this._randomNodeIterator.next().value as ShardNode<M, F, S, RESP, TYPE_MAPPING>;
   }
 
+  getRandomMasterNode() {
+    if (this.masters.length === 0) {
+      return this.getRandomNode();
+    }
+    const index = Math.floor(Math.random() * this.masters.length);
+    return this.masters[index];
+  }
+
   *#slotNodesIterator(slot: ShardWithReplicas<M, F, S, RESP, TYPE_MAPPING>) {
     if (this.#options.useReplicas === 'only') {
       let i = Math.floor(Math.random() * slot.replicas.length);
@@ -917,8 +934,12 @@ export default class RedisClusterSlots<
       } while (++i < slot.replicas.length);
 
       while (true) {
-        for (const replica of slot.replicas) {
-          yield replica;
+        if (slot.replicas.length > 0) {
+          for (const replica of slot.replicas) {
+            yield replica;
+          }
+        } else {
+          yield slot.master;
         }
       }
     }
