@@ -89,10 +89,10 @@ export interface RedisClusterOptions<
    */
   minimizeConnections?: boolean;
   /**
-   * When `true`, distribute load by executing readonly commands (such as `GET`, `GEOSEARCH`, etc.) across all cluster nodes. When `false`, only use master nodes.
+   * When `true`, distribute load by executing readonly commands (such as `GET`, `GEOSEARCH`, etc.) across all cluster nodes.
+   * When `'only'`, execute readonly commands exclusively on replica nodes. When `false`, only use master nodes.
    */
-  // TODO: replicas only mode?
-  useReplicas?: boolean;
+  useReplicas?: boolean | 'only';
   /**
    * The maximum number of times a command will be redirected due to `MOVED` or `ASK` errors.
    */

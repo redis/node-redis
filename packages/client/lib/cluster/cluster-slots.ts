@@ -863,6 +863,18 @@ export default class RedisClusterSlots<
 
   *#iterateAllNodes() {
     if(this.masters.length + this.replicas.length === 0) return
+    if (this.#options.useReplicas === 'only' && this.replicas.length > 0) {
+      let i = Math.floor(Math.random() * this.replicas.length);
+      do {
+        yield this.replicas[i];
+      } while (++i < this.replicas.length);
+
+      while (true) {
+        for (const replica of this.replicas) {
+          yield replica;
+        }
+      }
+    }
     let i = Math.floor(Math.random() * (this.masters.length + this.replicas.length));
     if (i < this.masters.length) {
       do {
@@ -898,6 +910,18 @@ export default class RedisClusterSlots<
   }
 
   *#slotNodesIterator(slot: ShardWithReplicas<M, F, S, RESP, TYPE_MAPPING>) {
+    if (this.#options.useReplicas === 'only') {
+      let i = Math.floor(Math.random() * slot.replicas.length);
+      do {
+        yield slot.replicas[i];
+      } while (++i < slot.replicas.length);
+
+      while (true) {
+        for (const replica of slot.replicas) {
+          yield replica;
+        }
+      }
+    }
     let i = Math.floor(Math.random() * (1 + slot.replicas.length));
     if (i < slot.replicas.length) {
       do {
