@@ -1,5 +1,6 @@
 import { CommandParser } from '../client/parser';
-import { ArrayReply, BlobStringReply, Command, MapReply, NumberReply, ReplyUnion, Resp2Reply, TuplesReply, UnwrapReply } from '../RESP/types';
+import { ArrayReply, BlobStringReply, Command, MapReply, NumberReply, ReplyUnion, Resp2Reply, TuplesReply, TypeMapping, UnwrapReply } from '../RESP/types';
+import { RESP_TYPES } from '../RESP/decoder';
 import { RedisVariadicArgument } from './generic-transformers';
 
 export interface CommandDocsArgument {
@@ -12,7 +13,7 @@ export interface CommandDocsArgument {
   since?: BlobStringReply;
   deprecated_since?: BlobStringReply;
   flags?: ArrayReply<BlobStringReply>;
-  arguments?: ArrayReply<ReplyUnion>;
+  arguments?: ArrayReply<CommandDocsArgument>;
 }
 
 export interface CommandDoc {
@@ -25,7 +26,7 @@ export interface CommandDoc {
   deprecated_since?: BlobStringReply;
   replaced_by?: BlobStringReply;
   history?: ArrayReply<TuplesReply<[BlobStringReply, BlobStringReply]>>;
-  arguments?: ArrayReply<ReplyUnion>;
+  arguments?: ArrayReply<CommandDocsArgument>;
   subcommands?: CommandDocsReply;
   reply_schema?: ReplyUnion;
 }
@@ -52,7 +53,7 @@ function transformArgument(reply: unknown): CommandDocsArgument {
   return argument as CommandDocsArgument;
 }
 
-function transformDoc(reply: unknown): CommandDoc {
+function transformDoc(reply: unknown, typeMapping?: TypeMapping): CommandDoc {
   if (!Array.isArray(reply)) {
     return reply as CommandDoc;
   }
@@ -67,10 +68,10 @@ function transformDoc(reply: unknown): CommandDoc {
         doc.arguments = Array.isArray(value) ? value.map(transformArgument) : value;
         break;
       case 'subcommands':
-        doc.subcommands = transformDocsMap(value);
+        doc.subcommands = transformDocsMap(value, typeMapping);
         break;
       case 'reply_schema':
-        doc.reply_schema = Array.isArray(value) ? transformDoc(value) : value;
+        doc.reply_schema = Array.isArray(value) ? transformDoc(value, typeMapping) : value;
         break;
       default:
         doc[key] = value;
@@ -80,18 +81,38 @@ function transformDoc(reply: unknown): CommandDoc {
   return doc as CommandDoc;
 }
 
-function transformDocsMap(reply: unknown): CommandDocsReply {
+function transformDocsMap(reply: unknown, typeMapping?: TypeMapping): CommandDocsReply {
   if (!Array.isArray(reply)) {
     return reply as CommandDocsReply;
   }
 
-  const docs: Record<string, CommandDoc> = {};
-  for (let i = 0; i < reply.length; i += 2) {
-    const name = (reply[i] as { toString(): string }).toString();
-    docs[name] = transformDoc(reply[i + 1]);
-  }
+  const mapType = typeMapping ? typeMapping[RESP_TYPES.MAP] : undefined;
 
-  return docs as unknown as CommandDocsReply;
+  switch (mapType) {
+    case Array: {
+      const ret: unknown[] = [];
+      for (let i = 0; i < reply.length; i += 2) {
+        ret.push(reply[i]);
+        ret.push(transformDoc(reply[i + 1], typeMapping));
+      }
+      return ret as unknown as CommandDocsReply;
+    }
+    case Map: {
+      const ret = new Map<string, CommandDoc>();
+      for (let i = 0; i < reply.length; i += 2) {
+        ret.set((reply[i] as { toString(): string }).toString(), transformDoc(reply[i + 1], typeMapping));
+      }
+      return ret as unknown as CommandDocsReply;
+    }
+    default: {
+      const docs: Record<string, CommandDoc> = {};
+      for (let i = 0; i < reply.length; i += 2) {
+        const name = (reply[i] as { toString(): string }).toString();
+        docs[name] = transformDoc(reply[i + 1], typeMapping);
+      }
+      return docs as unknown as CommandDocsReply;
+    }
+  }
 }
 
 export default {
@@ -107,7 +128,8 @@ export default {
     }
   },
   transformReply: {
-    2: (reply: UnwrapReply<Resp2Reply<CommandDocsReply>>) => transformDocsMap(reply),
+    2: (reply: UnwrapReply<Resp2Reply<CommandDocsReply>>, _preserve?: unknown, typeMapping?: TypeMapping) =>
+      transformDocsMap(reply, typeMapping),
     3: undefined as unknown as () => CommandDocsReply
   }
 } as const satisfies Command;
