@@ -1,5 +1,5 @@
 import type { RedisClusterClientOptions, RedisClusterOptions } from '.';
-import { ClientClosedError, ClientOfflineError, RootNodesUnavailableError } from '../errors';
+import { ClientClosedError, ClientOfflineError, DisconnectsClientError, RootNodesUnavailableError } from '../errors';
 import RedisClient, { RedisClientOptions, RedisClientType } from '../client';
 import { EventEmitter } from 'node:stream';
 import { ChannelListeners, PUBSUB_TYPE, PubSubListeners, PubSubTypeListeners } from '../client/pub-sub';
@@ -385,8 +385,13 @@ export default class RedisClusterSlots<
 
           // 4. Extract commands for this destination's slots and prepend to destination queue
           const commandsForDestination = sourceNode.client._getQueue().extractCommandsForSlots(destinationSlots);
-          destMasterNode.client?._getQueue().prependCommandsToWrite(commandsForDestination);
-          dbgMaintenance(`[CSlots]: Extracted ${commandsForDestination.length} commands for ${destinationSlots.size} slots, prepended to ${destMasterNode.address}`);
+          if (destMasterNode.client) {
+            destMasterNode.client._getQueue().prependCommandsToWrite(commandsForDestination);
+            dbgMaintenance(`[CSlots]: Extracted ${commandsForDestination.length} commands for ${destinationSlots.size} slots, prepended to ${destMasterNode.address}`);
+          } else {
+            sourceNode.client._getQueue().rejectCommands(commandsForDestination, new DisconnectsClientError());
+            dbgMaintenance(`[CSlots]: Rejected ${commandsForDestination.length} commands for ${destinationSlots.size} slots because ${destMasterNode.address} has no client`);
+          }
 
           // 5. Unpause destination
           destMasterNode.client?._unpause();
@@ -427,11 +432,16 @@ export default class RedisClusterSlots<
         } else {
           // Source has no slots left - move remaining slotless commands and cleanup
           const remainingCommands = sourceNode.client._getQueue().extractAllCommands();
-          if (remainingCommands.length > 0 && lastDestNode) {
-            lastDestNode.client?._getQueue().prependCommandsToWrite(remainingCommands);
-            // Trigger write scheduling since commands were added after destination was unpaused
-            lastDestNode.client?._unpause();
-            dbgMaintenance(`[CSlots]: Moved ${remainingCommands.length} remaining slotless commands to ${lastDestNode.address}`);
+          if (remainingCommands.length > 0) {
+            if (lastDestNode?.client) {
+              lastDestNode.client._getQueue().prependCommandsToWrite(remainingCommands);
+              // Trigger write scheduling since commands were added after destination was unpaused
+              lastDestNode.client._unpause();
+              dbgMaintenance(`[CSlots]: Moved ${remainingCommands.length} remaining slotless commands to ${lastDestNode.address}`);
+            } else {
+              sourceNode.client._getQueue().rejectCommands(remainingCommands, new DisconnectsClientError());
+              dbgMaintenance(`[CSlots]: Rejected ${remainingCommands.length} remaining commands because no destination client was available`);
+            }
           }
 
           if ('pubSub' in sourceNode) {

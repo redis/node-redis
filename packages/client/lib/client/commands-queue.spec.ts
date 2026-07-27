@@ -1,6 +1,6 @@
 import assert from 'node:assert';
 import RedisCommandsQueue from './commands-queue';
-import { AbortError, TimeoutError } from '../errors';
+import { AbortError, DisconnectsClientError, TimeoutError } from '../errors';
 
 describe('RedisCommandsQueue', () => {
   function createQueue() {
@@ -41,6 +41,18 @@ describe('RedisCommandsQueue', () => {
   });
 
   describe('prependCommandsToWrite', () => {
+    it('rejects a command that was extracted but never prepended', async () => {
+      const source = createQueue();
+      const promise = source.addCommand(['CMD'], { timeout: 1000 });
+      promise.catch(() => {});
+
+      const [command] = source.extractAllCommands();
+      source.rejectCommands([command], new DisconnectsClientError());
+
+      await assert.rejects(promise, DisconnectsClientError);
+      assert.strictEqual(source.extractAllCommands().length, 0);
+    });
+
     it('rebinds an abort listener so it removes the command from its new queue', async () => {
       const source = createQueue();
       const destination = createQueue();

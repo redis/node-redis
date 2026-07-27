@@ -742,6 +742,19 @@ export default class RedisCommandsQueue {
   }
 
   /**
+   * Rejects commands that were extracted but could not be moved to another queue.
+   */
+  rejectCommands(commands: CommandToWrite[], err: Error) {
+    for (const command of commands) {
+      if (command.rejected) continue;
+
+      command.rejected = true;
+      RedisCommandsQueue.#removeCommandListeners(command);
+      command.reject(err);
+    }
+  }
+
+  /**
    * Prepends commands to the write queue in reverse.
    *
    * Commands arriving here (from `extractAllCommands`/`extractCommandsForSlots` on
