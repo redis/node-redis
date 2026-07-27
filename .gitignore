@@ -10,6 +10,3 @@ documentation/
 tsconfig.tsbuildinfo
 junit-results/
 *.log
-
-# gstack (global install)
-.amazonq/rules/gstack.md

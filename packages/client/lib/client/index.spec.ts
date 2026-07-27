@@ -234,6 +234,31 @@ describe('Client', () => {
       );
     });
 
+    it('throws a descriptive error when password contains unencoded @ (issue #2857)', () => {
+      // "redis://default:p@ssword@localhost:6379" — the extra @ causes the WHATWG
+      // URL parser to misparse the authority, leaving hostname empty.
+      assert.throws(
+        () => RedisClient.parseURL('redis://default:p@ssword@localhost:6379'),
+        (err: unknown) => {
+          assert.ok(err instanceof TypeError);
+          assert.ok(
+            err.message.includes('percent-encode'),
+            `expected hint about percent-encoding, got: ${err.message}`
+          );
+          return true;
+        }
+      );
+    });
+
+    it('accepts password with encoded special characters (issue #2857)', async () => {
+      const password = 'p@ss#word?foo:bar';
+      const result = RedisClient.parseURL(
+        `redis://default:${encodeURIComponent(password)}@localhost:6379`
+      );
+      assert.equal(result.password, password);
+      assert.equal(result.socket.host, 'localhost');
+    });
+
     it('Invalid pathname', () => {
       assert.throws(
         () => RedisClient.parseURL('redis://user:secret@localhost:6379/NaN'),

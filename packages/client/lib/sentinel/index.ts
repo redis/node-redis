@@ -14,7 +14,7 @@ import { setTimeout } from 'node:timers/promises';
 import RedisSentinelModule from './module'
 import { RedisVariadicArgument } from '../commands/generic-transformers';
 import { WaitQueue } from './wait-queue';
-import { TcpNetConnectOpts, isIP } from 'node:net';
+import { TcpNetConnectOpts } from 'node:net';
 import { RedisTcpSocketOptions } from '../client/socket';
 import { BasicPooledClientSideCache, PooledClientSideCacheProvider } from '../client/cache';
 import { ClientIdentity, ClientRole, generateClientId } from '../client/identity';
@@ -733,13 +733,8 @@ export class RedisSentinelInternal<
     this.#sentinelClientId = sentinelClientId;
 
     this.#RESP = options.RESP;
- 
-// Keep seeds exactly as provided (NO filtering)
-this.#sentinelSeedNodes = Array.from(options.sentinelRootNodes);
-
-// Initial root nodes = same as seeds
-this.#sentinelRootNodes = Array.from(options.sentinelRootNodes);
-
+    this.#sentinelSeedNodes = Array.from(options.sentinelRootNodes);
+    this.#sentinelRootNodes = Array.from(this.#sentinelSeedNodes);
     this.#maxCommandRediscovers = options.maxCommandRediscovers ?? 16;
     this.#masterPoolSize = options.masterPoolSize ?? 1;
     this.#replicaPoolSize = options.replicaPoolSize ?? 0;
@@ -781,11 +776,7 @@ this.#sentinelRootNodes = Array.from(options.sentinelRootNodes);
     );
   }
 
-  #createClient(
-    node: RedisNode,
-    clientOptions: RedisClientOptions<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>,
-    reconnectStrategy?: false
-  ) {
+  #createClient(node: RedisNode, clientOptions: RedisClientOptions, reconnectStrategy?: false) {
     const socket = getMappedNode(node.host, node.port, this.#nodeAddressMap);
     const client = RedisClient.create({
       //first take the globally set RESP
@@ -1003,53 +994,6 @@ this.#sentinelRootNodes = Array.from(options.sentinelRootNodes);
 
   #sentinelNodeListKey(nodes: Array<RedisNode>) {
     return nodes.map(node => `${node.host}:${node.port}`).sort().join('|');
-  }
-
-  #mergeSentinelNodes(discoveredNodes: Array<RedisNode>) {
-    const seen = new Set<string>();
-    const merged: Array<RedisNode> = [];
-
-    // Seed preservation is only meant to help early bootstrap.
-    // If we already have discovered candidates, unconditionally keeping
-    // IP-literal seeds at the front can block recovery because observe()
-    // keeps trying those dead IPs before newer sentinels.
-    const haveNonSeedCandidates = this.#sentinelRootNodes.some(
-      root => !this.#sentinelSeedNodes.some(seed => seed.host === root.host && seed.port === root.port)
-    );
-
-    const primarySeeds = haveNonSeedCandidates ? [] : this.#sentinelSeedNodes;
-
-    // First add primary seeds (if we're still bootstrapping)
-    for (const seed of primarySeeds) {
-      const key = `${seed.host}:${seed.port}`;
-      if (!seen.has(key)) {
-        merged.push(seed);
-        seen.add(key);
-      }
-    }
-
-    // Then add discovered nodes (may have IPs) that aren't duplicates
-    for (const node of discoveredNodes) {
-      const key = `${node.host}:${node.port}`;
-      if (!seen.has(key)) {
-        merged.push(node);
-        seen.add(key);
-      }
-    }
-
-    // Finally, if we skipped seeds because we already have candidates,
-    // still append any missing seed nodes so they can be tried after.
-    if (haveNonSeedCandidates) {
-      for (const seed of this.#sentinelSeedNodes) {
-        const key = `${seed.host}:${seed.port}`;
-        if (!seen.has(key)) {
-          merged.push(seed);
-          seen.add(key);
-        }
-      }
-    }
-
-    return merged;
   }
 
   #restoreSentinelRootNodesIfEmpty() {
@@ -1495,21 +1439,14 @@ this.#sentinelRootNodes = Array.from(options.sentinelRootNodes);
       }
     }
 
-   const mergedSentinelList = this.#mergeSentinelNodes(analyzed.sentinelList);
-
-if (
-  this.#sentinelNodeListKey(mergedSentinelList) !==
-  this.#sentinelNodeListKey(this.#sentinelRootNodes)
-) {
-  this.#sentinelRootNodes = mergedSentinelList;
-
-  const event: RedisSentinelEvent = {
-    type: "SENTINE_LIST_CHANGE",
-    size: mergedSentinelList.length
-  };
-
-  this.emit("topology-change", event);
-}
+    if (this.#sentinelNodeListKey(analyzed.sentinelList) !== this.#sentinelNodeListKey(this.#sentinelRootNodes)) {
+      this.#sentinelRootNodes = analyzed.sentinelList;
+      const event: RedisSentinelEvent = {
+        type: "SENTINE_LIST_CHANGE",
+        size: analyzed.sentinelList.length
+      }
+      this.emit('topology-change', event);
+    }
 
     await Promise.all(promises);
     this.#trace("transform: exit");

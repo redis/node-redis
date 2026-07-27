@@ -88,6 +88,16 @@ export interface RedisClusterOptions<
    */
   topologyRefreshOnReconnectionAttemptStrategy?: ClusterTopologyRefreshOnReconnectionAttemptStrategy;
   /**
+   * When set, periodically refreshes the cluster topology in the background.
+   * This helps when the topology changes without triggering `MOVED`/`ASK` for commands issued by the client.
+   *
+   * Set to `false` or `0` to disable.
+   *
+   * Default: disabled.
+   */
+  topologyRefreshInterval?: number | false;
+
+  /**
    * Mapping between the addresses in the cluster (see `CLUSTER SHARDS`) and the addresses the client should connect to
    * Useful when the cluster is running on another network
    */
@@ -264,6 +274,7 @@ export default class RedisCluster<
   }
 
   static create<
+
     M extends RedisModules = {},
     F extends RedisFunctions = {},
     S extends RedisScripts = {},
@@ -487,7 +498,7 @@ export default class RedisCluster<
             retryCount: i,
           }));
           const address = err.message.substring(err.message.lastIndexOf(' ') + 1);
-          let redirectTo = await this._slots.getMasterByAddress(address);
+          const redirectTo = await this._slots.getMasterByAddress(address);
           if (!redirectTo) {
             await this._slots.rediscover(client);
             redirectTo = await this._slots.getMasterByAddress(address);
@@ -521,7 +532,7 @@ export default class RedisCluster<
           // This ensures that on the next rediscover, a fresh connection will be created.
           try {
             client.disconnect();
-          } catch (disconnectErr) {
+          } catch {
             // Ignore errors during disconnect attempt
           }
           
@@ -575,12 +586,12 @@ export default class RedisCluster<
     type Multi = new (...args: ConstructorParameters<typeof RedisClusterMultiCommand>) => RedisClusterMultiCommandType<[], M, F, S, RESP, TYPE_MAPPING>;
     return new (this as this & { Multi: Multi }).Multi(
       async (firstKey, isReadonly, commands) => {
-        const { client } = await this._self._slots.getClientAndSlotNumber(firstKey, isReadonly);
-        return client._executeMulti(commands);
+        const { client, slotNumber } = await this._self._slots.getClientAndSlotNumber(firstKey, isReadonly);
+        return client._executeMulti(commands, undefined, slotNumber);
       },
       async (firstKey, isReadonly, commands) => {
-        const { client } = await this._self._slots.getClientAndSlotNumber(firstKey, isReadonly);
-        return client._executePipeline(commands);
+        const { client, slotNumber } = await this._self._slots.getClientAndSlotNumber(firstKey, isReadonly);
+        return client._executePipeline(commands, undefined, slotNumber);
       },
       routing,
       this._commandOptions?.typeMapping

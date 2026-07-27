@@ -408,8 +408,19 @@ export default class RedisClient<
     }
 
     // https://www.iana.org/assignments/uri-schemes/prov/redis
-    const { hostname, port, protocol, username, password, pathname } = new URL(url),
-      parsed: AnyRedisClientOptions & {
+    let parsed_url: URL;
+    try {
+      parsed_url = new URL(url);
+    } catch {
+      throw new TypeError(`Invalid URL: ${url}`);
+    }
+    const { hostname, port, protocol, username, password, pathname } = parsed_url;
+    if (!hostname) {
+      throw new TypeError(
+        `Invalid URL: host is empty. If the password contains special characters (e.g. @, #, :), percent-encode them first (e.g. encodeURIComponent(password)).`
+      );
+    }
+    const parsed: AnyRedisClientOptions & {
         socket: Exclude<AnyRedisClientOptions['socket'], undefined> & {
           tls: boolean
         }
@@ -1478,7 +1489,8 @@ export default class RedisClient<
    */
   async _executePipeline(
     commands: Array<RedisMultiQueuedCommand>,
-    selectedDB?: number
+    selectedDB?: number,
+    slotNumber?: number
   ) {
     if (!this._self.#socket.isOpen) {
       return Promise.reject(new ClientClosedError());
@@ -1494,6 +1506,7 @@ export default class RedisClient<
             const traced = trace(CHANNELS.TRACE_COMMAND,
               () => this._self.#queue.addCommand(args, {
                 chainId,
+                slotNumber,
                 typeMapping: this._commandOptions?.typeMapping
               }),
               () => ({
@@ -1534,7 +1547,8 @@ export default class RedisClient<
    */
   async _executeMulti(
     commands: Array<RedisMultiQueuedCommand>,
-    selectedDB?: number
+    selectedDB?: number,
+    slotNumber?: number
   ) {
     const dirtyWatch = this._self.#dirtyWatch;
     this._self.#dirtyWatch = undefined;
@@ -1560,20 +1574,21 @@ export default class RedisClient<
         const typeMapping = this._commandOptions?.typeMapping;
         const chainId = Symbol('MULTI Chain');
         const promises: Array<Promise<unknown>> = [
-          this._self.#queue.addCommand(['MULTI'], { chainId }),
+          this._self.#queue.addCommand(['MULTI'], { chainId, slotNumber }),
         ];
 
         for (const { args } of commands) {
           promises.push(
             this._self.#queue.addCommand(args, {
               chainId,
+              slotNumber,
               typeMapping
             })
           );
         }
 
         promises.push(
-          this._self.#queue.addCommand(['EXEC'], { chainId })
+          this._self.#queue.addCommand(['EXEC'], { chainId, slotNumber })
         );
 
         this._self.#scheduleWrite();

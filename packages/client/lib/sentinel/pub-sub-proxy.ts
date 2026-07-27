@@ -1,6 +1,6 @@
 import EventEmitter from 'node:events';
 import { RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
-import { AnyRedisClientOptions } from '../client';
+import { RedisClientOptions } from '../client';
 import { PUBSUB_TYPE, PubSubListener, PubSubTypeListeners } from '../client/pub-sub';
 import { RedisNode } from './types';
 import RedisClient from '../client';
@@ -33,10 +33,7 @@ export class PubSubProxy extends EventEmitter {
   #state?: PubSubState;
   #subscriptions?: Subscriptions;
 
-  constructor(
-    clientOptions: AnyRedisClientOptions,
-    onError: OnError
-  ) {
+  constructor(clientOptions: RedisClientOptions, onError: OnError) {
     super();
 
     this.#clientOptions = clientOptions;
