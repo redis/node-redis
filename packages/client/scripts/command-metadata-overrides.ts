@@ -94,6 +94,25 @@ export const COMMAND_OVERRIDES: Readonly<Record<string, Partial<CommandMetadata>
       del: { request: 'special', response: 'default-keyless', isKeyless: true }
     }
   },
+  // HIMPORT session subcommands fan out to all masters (server-tipped
+  // request_policy:all_shards) but the server defines no response_policy, and the
+  // default-keyless reducer crashes on scalar fan-out replies (`aggregateMerge` throws
+  // 'Unsupported reply type for merge aggregation' for simple strings/integers whenever
+  // ≥2 masters reply). These reducers implement the HLD's "default fan-out handling"
+  // client-side with semantics preserved:
+  // - prepare → all_succeeded: every master must acknowledge; first `OK` is the reply.
+  // - discard/discardall → agg_max: the client hook substitutes registry-based replies
+  //   (exactly one node client performs the registry mutation and returns the real 1/count,
+  //   siblings return 0), so max recovers the registry answer. Request policies are NOT
+  //   overridden — all_shards comes from the server's own tips. HIMPORT SET carries a key
+  //   at position 2 and keeps default keyed routing.
+  'std.himport': {
+    subcommands: {
+      prepare: { response: 'all_succeeded' },
+      discard: { response: 'agg_max' },
+      discardall: { response: 'agg_max' }
+    }
+  },
   'std.info': KEYLESS,
   'std.memory': { subcommands: { doctor: KEYLESS, 'malloc-stats': KEYLESS, stats: KEYLESS } },
   'std.latency': { subcommands: { doctor: KEYLESS, graph: KEYLESS, histogram: KEYLESS, history: KEYLESS, latest: KEYLESS } },

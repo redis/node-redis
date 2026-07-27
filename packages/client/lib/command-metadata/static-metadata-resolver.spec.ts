@@ -155,6 +155,36 @@ describe('StaticMetadataResolver', () => {
       }
     });
 
+    it('HIMPORT session subcommands: all_shards with pinned response reducers', () => {
+      // The server tips request_policy:all_shards and NO response policy; the pinned
+      // reducers replace default-keyless, whose aggregateMerge throws on scalar fan-out
+      // replies (simple-string OK / integers) whenever ≥2 masters reply.
+      const expected: Array<{ subcommand: string; response: string }> = [
+        { subcommand: 'PREPARE', response: 'all_succeeded' },
+        { subcommand: 'DISCARD', response: 'agg_max' },
+        { subcommand: 'DISCARDALL', response: 'agg_max' }
+      ];
+      for (const { subcommand, response } of expected) {
+        const result = resolver.resolvePolicy({ command: 'HIMPORT', subcommand });
+        assert.equal(result.ok, true, `expected HIMPORT ${subcommand} to resolve`);
+        if (result.ok) {
+          assert.equal(result.value.request, 'all_shards', subcommand);
+          assert.equal(result.value.response, response, subcommand);
+          assert.equal(result.value.isKeyless, true, subcommand);
+        }
+      }
+    });
+
+    it('HIMPORT SET: default keyed routing (key at position 2)', () => {
+      const result = resolver.resolvePolicy({ command: 'HIMPORT', subcommand: 'SET' });
+      assert.equal(result.ok, true);
+      if (result.ok) {
+        assert.equal(result.value.request, REQUEST_POLICIES_WITH_DEFAULTS.DEFAULT_KEYED);
+        assert.equal(result.value.response, RESPONSE_POLICIES_WITH_DEFAULTS.DEFAULT_KEYED);
+        assert.equal(result.value.isKeyless, false);
+      }
+    });
+
     it('SCAN keeps the server special/special (cluster-wide scan chain)', () => {
       const result = resolver.resolvePolicy({ command: 'SCAN', subcommand: '0' });
       assert.equal(result.ok, true);

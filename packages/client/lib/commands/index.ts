@@ -162,6 +162,10 @@ import HGET from './HGET';
 import HGETALL from './HGETALL';
 import HGETDEL from './HGETDEL';
 import HGETEX from './HGETEX';
+import HIMPORT_DISCARD from './HIMPORT_DISCARD';
+import HIMPORT_DISCARDALL from './HIMPORT_DISCARDALL';
+import HIMPORT_PREPARE from './HIMPORT_PREPARE';
+import HIMPORT_SET from './HIMPORT_SET';
 import HINCRBY from './HINCRBY';
 import HINCRBYFLOAT from './HINCRBYFLOAT';
 import HKEYS from './HKEYS';
@@ -2347,6 +2351,116 @@ export default {
    * @param options - Options for setting expiration
    */
   hGetEx: HGETEX,
+  /**
+   *
+   * @experimental
+   *
+   * Removes a fieldset registration from the client and discards it from the server
+   * connection session. The reply is registry-based: `1` if the fieldset was registered on
+   * this client and removed, `0` otherwise.
+   * @param fieldset - Name of the fieldset to discard
+   * @see https://redis.io/commands/himport-discard/
+   * @since 8.10
+   */
+  HIMPORT_DISCARD,
+  /**
+   *
+   * @experimental
+   *
+   * Removes a fieldset registration from the client and discards it from the server
+   * connection session. The reply is registry-based: `1` if the fieldset was registered on
+   * this client and removed, `0` otherwise.
+   * @param fieldset - Name of the fieldset to discard
+   * @see https://redis.io/commands/himport-discard/
+   * @since 8.10
+   */
+  hImportDiscard: HIMPORT_DISCARD,
+  /**
+   *
+   * @experimental
+   *
+   * Removes all fieldset registrations from the client and discards them from the server
+   * connection session. The reply is registry-based: the number of fieldsets that were
+   * registered on this client and removed.
+   * @see https://redis.io/commands/himport-discardall/
+   * @since 8.10
+   */
+  HIMPORT_DISCARDALL,
+  /**
+   *
+   * @experimental
+   *
+   * Removes all fieldset registrations from the client and discards them from the server
+   * connection session. The reply is registry-based: the number of fieldsets that were
+   * registered on this client and removed.
+   * @see https://redis.io/commands/himport-discardall/
+   * @since 8.10
+   */
+  hImportDiscardAll: HIMPORT_DISCARDALL,
+  /**
+   *
+   * @experimental
+   *
+   * Registers an ordered list of field names under a fieldset name for use by subsequent
+   * HIMPORT SET calls. The client keeps the registration and transparently re-prepares
+   * connections as needed (reconnects, pool growth, cluster topology changes). Raw
+   * `sendCommand(['HIMPORT', ...])` and raw `sendCommand(['RESET'])` bypass this managed
+   * layer. `duplicate()` shares the parent's registrations; `createPool()` does not.
+   * Inside MULTI, PREPARE/DISCARD/DISCARDALL are rejected client-side; HIMPORT SET is
+   * allowed if the fieldset was prepared on that connection beforehand.
+   * @param fieldset - Name to register the field list under
+   * @param fields - One or more hash field names; values in later HIMPORT SET calls map
+   * positionally to this order
+   * @see https://redis.io/commands/himport-prepare/
+   * @since 8.10
+   */
+  HIMPORT_PREPARE,
+  /**
+   *
+   * @experimental
+   *
+   * Registers an ordered list of field names under a fieldset name for use by subsequent
+   * HIMPORT SET calls. The client keeps the registration and transparently re-prepares
+   * connections as needed (reconnects, pool growth, cluster topology changes). Raw
+   * `sendCommand(['HIMPORT', ...])` and raw `sendCommand(['RESET'])` bypass this managed
+   * layer. `duplicate()` shares the parent's registrations; `createPool()` does not.
+   * Inside MULTI, PREPARE/DISCARD/DISCARDALL are rejected client-side; HIMPORT SET is
+   * allowed if the fieldset was prepared on that connection beforehand.
+   * @param fieldset - Name to register the field list under
+   * @param fields - One or more hash field names; values in later HIMPORT SET calls map
+   * positionally to this order
+   * @see https://redis.io/commands/himport-prepare/
+   * @since 8.10
+   */
+  hImportPrepare: HIMPORT_PREPARE,
+  /**
+   *
+   * @experimental
+   *
+   * Creates or fully replaces the hash at key using the field list of a prepared fieldset.
+   * Values map positionally to the fields given to HIMPORT PREPARE for that fieldset. Hash
+   * field enumeration order is not guaranteed to match the prepare order.
+   * @param key - Hash key to create or replace
+   * @param fieldset - Name of a fieldset registered with HIMPORT PREPARE
+   * @param values - Values, one per prepared field, in the prepared order
+   * @see https://redis.io/commands/himport-set/
+   * @since 8.10
+   */
+  HIMPORT_SET,
+  /**
+   *
+   * @experimental
+   *
+   * Creates or fully replaces the hash at key using the field list of a prepared fieldset.
+   * Values map positionally to the fields given to HIMPORT PREPARE for that fieldset. Hash
+   * field enumeration order is not guaranteed to match the prepare order.
+   * @param key - Hash key to create or replace
+   * @param fieldset - Name of a fieldset registered with HIMPORT PREPARE
+   * @param values - Values, one per prepared field, in the prepared order
+   * @see https://redis.io/commands/himport-set/
+   * @since 8.10
+   */
+  hImportSet: HIMPORT_SET,
   /**
    * Increments the integer value of a field in a hash by the given number
    * @param key - Key of the hash

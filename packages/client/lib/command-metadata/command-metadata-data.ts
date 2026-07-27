@@ -2923,19 +2923,19 @@ export const COMMAND_METADATA: ModuleMetadataRecords = {
       "subcommands": {
         "discard": {
           "request": "all_shards",
-          "response": "default-keyless",
+          "response": "agg_max",
           "isKeyless": true,
           "flags": []
         },
         "discardall": {
           "request": "all_shards",
-          "response": "default-keyless",
+          "response": "agg_max",
           "isKeyless": true,
           "flags": []
         },
         "prepare": {
           "request": "all_shards",
-          "response": "default-keyless",
+          "response": "all_succeeded",
           "isKeyless": true,
           "flags": [
             "denyoom"

@@ -10,6 +10,7 @@ import { BasicPooledClientSideCache, PooledClientSideCacheProvider } from '../cl
 import { SMIGRATED_EVENT, SMigratedEvent, dbgMaintenance } from '../client/enterprise-maintenance-manager';
 import { ClientRole } from '../client/identity';
 import ClusterReconnectionTracker from './cluster-reconnection-tracker';
+import { FieldsetRegistry } from '../himport/registry';
 
 interface NodeAddress {
   host: string;
@@ -161,6 +162,12 @@ export default class RedisClusterSlots<
   readonly nodeByAddress = new Map<string, MasterNode<M, F, S, RESP, TYPE_MAPPING> | ShardNode<M, F, S, RESP, TYPE_MAPPING>>();
   pubSubNode?: PubSubNode<M, F, S, RESP, TYPE_MAPPING>;
   clientSideCache?: PooledClientSideCacheProvider;
+  /**
+   * One fieldset registry for the whole cluster: HIMPORT PREPARE fans out to all masters
+   * via the policy layer, and every node client (including MOVED/rediscovered nodes and
+   * SMIGRATED destinations) must lazily re-prepare from the same registrations.
+   */
+  readonly #himportRegistry = new FieldsetRegistry();
   smigratedSeqIdsSeen = new Set<number>;
   /**
    * Per-instance sticky FT cursor bindings, keyed by the client-minted virtual
@@ -644,6 +651,7 @@ export default class RedisClusterSlots<
     let wasReady = false;
     const client = this.#clientFactory( this.#clientOptionsDefaults({
         clientSideCache: this.clientSideCache,
+        himportRegistry: this.#himportRegistry,
         RESP: this.#options.RESP,
         socket,
         readonly,

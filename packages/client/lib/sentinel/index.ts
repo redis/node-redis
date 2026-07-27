@@ -20,6 +20,7 @@ import { TcpNetConnectOpts } from 'node:net';
 import { RedisTcpSocketOptions } from '../client/socket';
 import { BasicPooledClientSideCache, PooledClientSideCacheProvider } from '../client/cache';
 import { ClientIdentity, ClientRole, generateClientId } from '../client/identity';
+import { FieldsetRegistry } from '../himport/registry';
 import { DEFAULT_COMMAND_TIMEOUT } from '../defaults';
 import { ScanOptions } from '../commands/SCAN';
 
@@ -862,6 +863,10 @@ export class RedisSentinelInternal<
     if (this.#nodeClientOptions.url !== undefined) {
       throw new Error("invalid nodeClientOptions for Sentinel");
     }
+    // One fieldset registry across master/replica node clients: fieldsets registered before
+    // a failover must be transparently re-preparable on the promoted master's connections.
+    // (Sentinel-monitor clients use #sentinelClientOptions and never run HIMPORT.)
+    this.#nodeClientOptions.himportRegistry = new FieldsetRegistry();
 
     if (options.clientSideCache) {
       if (options.clientSideCache instanceof PooledClientSideCacheProvider) {
