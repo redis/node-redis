@@ -665,15 +665,16 @@ export default class RedisCommandsQueue {
   }
 
   /**
-   * Gets all commands from the write queue without removing them.
+   * Extracts all commands from the write queue.
    */
   extractAllCommands(): CommandToWrite[] {
     const result: CommandToWrite[] = [];
     let current = this.#toWrite.head;
     while (current) {
       result.push(current.value);
-      this.#toWrite.remove(current);
+      const toRemove = current;
       current = current.next;
+      this.#toWrite.remove(toRemove);
     }
     return result;
   }
