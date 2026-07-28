@@ -29,6 +29,53 @@ describe('RedisCommandsQueue', () => {
     });
   });
 
+  describe('chainInExecution', () => {
+    it('is undefined before anything is written, and matches a chain once part of it is sent', () => {
+      const queue = createQueue();
+      const chainId = Symbol('MULTI Chain');
+
+      assert.strictEqual(queue.chainInExecution, undefined);
+
+      queue.addCommand(['MULTI'], { chainId }).catch(() => {});
+      queue.addCommand(['SET', 'k', 'v'], { chainId }).catch(() => {});
+      queue.addCommand(['EXEC'], { chainId }).catch(() => {});
+
+      // Nothing sent yet - the whole chain is still just sitting in #toWrite.
+      assert.strictEqual(queue.chainInExecution, undefined);
+
+      const writer = queue.commandsToWrite();
+      writer.next(); // "sends" MULTI
+      writer.next(); // "sends" SET
+
+      // Two of the three commands are now in #waitingForReply (out of view);
+      // chainInExecution should point at this chain, and the one command
+      // still in #toWrite (EXEC) should carry a matching chainId - that's
+      // the tail-of-an-in-flight-chain signal cluster-slots.ts relies on.
+      assert.strictEqual(queue.chainInExecution, chainId);
+
+      const remaining = queue.extractAllCommands();
+      assert.strictEqual(remaining.length, 1);
+      assert.strictEqual(remaining[0].chainId, queue.chainInExecution);
+    });
+
+    it('leaves a finished chain with no queued tail to relocate', () => {
+      const queue = createQueue();
+      const chainId = Symbol('MULTI Chain');
+
+      queue.addCommand(['MULTI'], { chainId }).catch(() => {});
+      queue.addCommand(['EXEC'], { chainId }).catch(() => {});
+
+      const writer = queue.commandsToWrite();
+      writer.next(); // "sends" MULTI
+      writer.next(); // "sends" EXEC - whole chain is now in #waitingForReply
+
+      // The whole chain was sent, so nothing of it remains in #toWrite -
+      // extractAllCommands has nothing left to (mis)classify as its tail.
+      assert.strictEqual(queue.chainInExecution, chainId);
+      assert.strictEqual(queue.extractAllCommands().length, 0);
+    });
+  });
+
   describe('addCommand', () => {
     it('does not keep a command if timeout listener setup fails', async () => {
       const queue = createQueue();

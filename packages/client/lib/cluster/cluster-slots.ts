@@ -152,13 +152,21 @@ export function groupCommandsByDestination<
     MasterNode<M, F, S, RESP, TYPE_MAPPING>,
     CommandToWrite[]
   >();
+  // Commands with neither a resolvable slot owner nor a fallback - the
+  // caller must settle these explicitly (e.g. reject them) instead of
+  // silently dropping them, since they were already removed from the
+  // source queue by the time this is called.
+  const unrouted: CommandToWrite[] = [];
 
   for (const command of commands) {
     const destination = command.slotNumber === undefined ?
       fallback :
       slots[command.slotNumber]?.master ?? fallback;
 
-    if (!destination) continue;
+    if (!destination) {
+      unrouted.push(command);
+      continue;
+    }
 
     const group = byDestination.get(destination);
     if (group) {
@@ -168,7 +176,7 @@ export function groupCommandsByDestination<
     }
   }
 
-  return byDestination;
+  return { byDestination, unrouted };
 }
 
 export type OnShardedChannelMovedError = (
@@ -483,34 +491,22 @@ export default class RedisClusterSlots<
           dbgMaintenance(`[CSlots]: Updated slots to point to destination ${destMasterNode.address}. Sample slots: ${Array.from(slots).slice(0, 5).join(', ')}${slots.length > 5 ? '...' : ''}`);
 
           // 4. Extract commands for this destination's slots and prepend to destination queue
+          //
+          // Note: unlike the full-node-loss path below, this doesn't special-case
+          // a chain already partially written to the socket. The source
+          // connection here isn't destroyed - it keeps serving its remaining
+          // slots - so rejecting just the queued tail wouldn't undo whatever the
+          // server thinks is still an open transaction on that connection.
+          // Fixing that would mean resetting the source connection, which is a
+          // bigger change than this fix's scope.
           const commandsForDestination = sourceNode.client._getQueue().extractCommandsForSlots(destinationSlots);
           if (commandsForDestination.length > 0) {
-            // Same in-flight chain safety as the full-node-loss path below: a
-            // chain already partially written to the socket can't be
-            // relocated as a fragment - its slotNumber matches this
-            // destination, but part of it is out of view in
-            // `#waitingForReply`.
-            const chainInExecution = sourceNode.client._getQueue().chainInExecution;
-            const inFlightChainTail = chainInExecution === undefined
-              ? []
-              : commandsForDestination.filter(command => command.chainId === chainInExecution);
-            const relocatable = inFlightChainTail.length === 0
-              ? commandsForDestination
-              : commandsForDestination.filter(command => command.chainId !== chainInExecution);
-
-            if (inFlightChainTail.length > 0) {
-              sourceNode.client._getQueue().rejectCommands(inFlightChainTail, new DisconnectsClientError());
-              dbgMaintenance(`[CSlots]: Rejected ${inFlightChainTail.length} commands from a chain already partially sent to the server, can't be safely relocated`);
-            }
-
-            if (relocatable.length > 0) {
-              if (destMasterNode.client) {
-                destMasterNode.client._getQueue().prependCommandsToWrite(relocatable);
-                dbgMaintenance(`[CSlots]: Extracted ${relocatable.length} commands for ${destinationSlots.size} slots, prepended to ${destMasterNode.address}`);
-              } else {
-                sourceNode.client._getQueue().rejectCommands(relocatable, new DisconnectsClientError());
-                dbgMaintenance(`[CSlots]: Rejected ${relocatable.length} commands for ${destinationSlots.size} slots because ${destMasterNode.address} has no client`);
-              }
+            if (destMasterNode.client) {
+              destMasterNode.client._getQueue().prependCommandsToWrite(commandsForDestination);
+              dbgMaintenance(`[CSlots]: Extracted ${commandsForDestination.length} commands for ${destinationSlots.size} slots, prepended to ${destMasterNode.address}`);
+            } else {
+              sourceNode.client._getQueue().rejectCommands(commandsForDestination, new DisconnectsClientError());
+              dbgMaintenance(`[CSlots]: Rejected ${commandsForDestination.length} commands for ${destinationSlots.size} slots because ${destMasterNode.address} has no client`);
             }
           }
 
@@ -573,7 +569,13 @@ export default class RedisClusterSlots<
             }
 
             if (relocatable.length > 0) {
-              const commandsByDestination = groupCommandsByDestination(relocatable, this.slots, lastDestNode);
+              const { byDestination: commandsByDestination, unrouted } = groupCommandsByDestination(relocatable, this.slots, lastDestNode);
+
+              if (unrouted.length > 0) {
+                sourceNode.client._getQueue().rejectCommands(unrouted, new DisconnectsClientError());
+                dbgMaintenance(`[CSlots]: Rejected ${unrouted.length} commands with no resolvable slot owner and no fallback destination`);
+              }
+
               for (const [destNode, commands] of commandsByDestination) {
                 if (destNode.client) {
                   destNode.client._getQueue().prependCommandsToWrite(commands);

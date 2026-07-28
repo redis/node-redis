@@ -98,24 +98,40 @@ describe('RedisClusterSlots', () => {
       const slotOne = createCommand(1);
       const slotTwo = createCommand(2);
 
-      const groups = groupCommandsByDestination(
+      const { byDestination, unrouted } = groupCommandsByDestination(
         [slotless, slotOne, slotTwo],
         slots,
         fallback
       );
 
-      assert.deepEqual(groups.get(fallback), [slotless]);
-      assert.deepEqual(groups.get(slotOwner), [slotOne]);
-      assert.deepEqual(groups.get(otherSlotOwner), [slotTwo]);
+      assert.deepEqual(byDestination.get(fallback), [slotless]);
+      assert.deepEqual(byDestination.get(slotOwner), [slotOne]);
+      assert.deepEqual(byDestination.get(otherSlotOwner), [slotTwo]);
+      assert.deepEqual(unrouted, []);
     });
 
     it('falls back when a command has no known slot owner', () => {
       const fallback = createMaster('fallback:6379');
       const command = createCommand(10);
 
-      const groups = groupCommandsByDestination([command], [], fallback);
+      const { byDestination, unrouted } = groupCommandsByDestination([command], [], fallback);
 
-      assert.deepEqual(groups.get(fallback), [command]);
+      assert.deepEqual(byDestination.get(fallback), [command]);
+      assert.deepEqual(unrouted, []);
+    });
+
+    it('reports commands as unrouted instead of dropping them when there is no fallback either', () => {
+      const slotless = createCommand();
+      const unknownSlot = createCommand(10);
+
+      const { byDestination, unrouted } = groupCommandsByDestination(
+        [slotless, unknownSlot],
+        [],
+        undefined
+      );
+
+      assert.strictEqual(byDestination.size, 0);
+      assert.deepEqual(unrouted, [slotless, unknownSlot]);
     });
   });
 });
