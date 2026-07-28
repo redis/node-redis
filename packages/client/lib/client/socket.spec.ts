@@ -87,6 +87,58 @@ describe('Socket', () => {
     });
   });
 
+  describe('initiator interruption (#3346)', () => {
+    it('should keep retrying when the socket dies while the initiator is suspended', async () => {
+      const connections: net.Socket[] = [];
+      const server = net.createServer(conn => {
+        conn.on('error', () => { /* ignore */ });
+        connections.push(conn);
+      });
+      await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+      const { port } = server.address() as net.AddressInfo;
+      const firstConnection = once(server, 'connection') as Promise<[net.Socket]>;
+
+      try {
+        let attempts = 0;
+        const socket = new RedisSocket(() => {
+          attempts += 1;
+          if (attempts === 1) {
+            // Simulate an initiator suspended on async work (DNS resolution,
+            // credentials provider) when the server drops the connection: the
+            // returned promise never settles on its own, just like handshake
+            // commands enqueued after the socket already died.
+            firstConnection.then(([conn]) => conn.destroy());
+            return new Promise(() => { /* never settles */ });
+          }
+          return Promise.resolve();
+        }, CLIENT_ID, {
+          host: '127.0.0.1',
+          port,
+          reconnectStrategy: 0
+        });
+
+        const events: string[] = [];
+        for (const event of ['error', 'reconnecting', 'ready'] as const) {
+          socket.on(event, () => events.push(event));
+        }
+        socket.on('error', () => { /* ignore */ });
+
+        // Without the in-flight failure guard this never resolves: the retry
+        // loop stays suspended inside the abandoned initiator forever.
+        await socket.connect();
+
+        assert.equal(attempts, 2, 'initiator must run again on the new socket');
+        assert.equal(socket.isReady, true, 'socket.isReady');
+        assert.ok(events.includes('reconnecting'), 'must emit reconnecting');
+
+        socket.destroy();
+      } finally {
+        for (const conn of connections) conn.destroy();
+        await new Promise<void>(resolve => server.close(() => resolve()));
+      }
+    });
+  });
+
   describe('write', () => {
     function captureUnderlyingSocket() {
       const original = net.createConnection;

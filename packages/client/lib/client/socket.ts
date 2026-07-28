@@ -246,11 +246,11 @@ export default class RedisSocket extends EventEmitter {
     do {
       try {
         const connectStartTime = performance.now();
-        this.#socket = await this.#createSocket();
+        const socket = this.#socket = await this.#createSocket();
         this.emit('connect');
 
         try {
-          await this.#initiator();
+          await this.#initiateWhileSocketAlive(socket);
 
           // Check if socket was closed/destroyed during initiator execution
           if (!this.#socket || this.#socket.destroyed || !this.#socket.readable || !this.#socket.writable) {
@@ -291,6 +291,34 @@ export default class RedisSocket extends EventEmitter {
         this.emit('reconnecting');
       }
     } while (this.#isOpen && !this.#isReady);
+  }
+
+  /**
+   * Awaits the initiator, rejecting as soon as the socket errors or closes.
+   * If the socket dies while the initiator is suspended (e.g. on DNS
+   * resolution or an async credentials provider), commands it enqueues
+   * afterwards are never written nor flushed — without this guard `#connect`
+   * would stay suspended forever without emitting a terminal event.
+   */
+  #initiateWhileSocketAlive(socket: net.Socket | tls.TLSSocket) {
+    let onSocketDied!: (err?: unknown) => void;
+    const socketDied = new Promise<never>((_, reject) => {
+      onSocketDied = (err?: unknown) => {
+        reject(err instanceof Error ? err : new SocketClosedUnexpectedlyError());
+      };
+      socket.once('error', onSocketDied);
+      socket.once('close', onSocketDied);
+    });
+
+    const initiated = Promise.resolve(this.#initiator());
+    // an abandoned initiator can still reject later (its stranded commands get
+    // flushed on a subsequent failure) — the raced error already drove the retry
+    initiated.catch(() => {});
+
+    return Promise.race([initiated, socketDied]).finally(() => {
+      socket.removeListener('error', onSocketDied);
+      socket.removeListener('close', onSocketDied);
+    });
   }
 
   setMaintenanceTimeout(ms?: number) {
