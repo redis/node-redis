@@ -32,6 +32,8 @@ import MREVRANGE_WITHLABELS_GROUPBY from './MREVRANGE_WITHLABELS_GROUPBY';
 import MREVRANGE_WITHLABELS from './MREVRANGE_WITHLABELS';
 import MREVRANGE from './MREVRANGE';
 import QUERYINDEX from './QUERYINDEX';
+import QUERYLABELS from './QUERYLABELS';
+import QUERYLABELS_VALUES from './QUERYLABELS_VALUES';
 import READ from './READ';
 import RANGE_MULTIAGGR from './RANGE_MULTIAGGR';
 import RANGE from './RANGE';
@@ -550,6 +552,32 @@ export default {
    * @param filter - Filter to match time series labels
    */
   queryIndex: QUERYINDEX,
+  /**
+   * Returns all label names present on time series matching a filter (or all indexed series when the filter is omitted).
+   * Added since Redis 8.10.
+   * @param filter - Optional filter expression(s) (same language as `TS.QUERYINDEX`); omit to query all indexed series
+   */
+  QUERYLABELS,
+  /**
+   * Returns all label names present on time series matching a filter (or all indexed series when the filter is omitted).
+   * Added since Redis 8.10.
+   * @param filter - Optional filter expression(s) (same language as `TS.QUERYINDEX`); omit to query all indexed series
+   */
+  queryLabels: QUERYLABELS,
+  /**
+   * Returns all values assigned to a label across time series matching a filter (or all indexed series when the filter is omitted).
+   * Added since Redis 8.10.
+   * @param label - Label name whose values are collected; matched byte-exactly
+   * @param filter - Optional filter expression(s) (same language as `TS.QUERYINDEX`); omit to query all indexed series
+   */
+  QUERYLABELS_VALUES,
+  /**
+   * Returns all values assigned to a label across time series matching a filter (or all indexed series when the filter is omitted).
+   * Added since Redis 8.10.
+   * @param label - Label name whose values are collected; matched byte-exactly
+   * @param filter - Optional filter expression(s) (same language as `TS.QUERYINDEX`); omit to query all indexed series
+   */
+  queryLabelValues: QUERYLABELS_VALUES,
   /**
    * Reads a batch of samples with timestamp at or after a cursor, in ascending timestamp order.
    * With `BLOCK`, waits until at least `minCount` samples qualify or the timeout elapses.
