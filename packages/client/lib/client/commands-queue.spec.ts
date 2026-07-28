@@ -171,5 +171,51 @@ describe('RedisCommandsQueue', () => {
       assert.strictEqual(source.extractAllCommands().length, 1);
       assert.strictEqual(destination.extractAllCommands().length, 0);
     });
+
+    it('rebinds listeners for every command when extractAllCommands returns multiple commands', async () => {
+      const source = createQueue();
+      const destination = createQueue();
+      const controllers = [
+        new AbortController(),
+        new AbortController(),
+        new AbortController(),
+      ];
+
+      const promises = controllers.map((controller, i) =>
+        source.addCommand([`CMD${i}`], { abortSignal: controller.signal }),
+      );
+      promises.forEach(promise => promise.catch(() => {}));
+
+      const commands = source.extractAllCommands();
+      assert.strictEqual(commands.length, 3);
+      assert.deepStrictEqual(
+        commands.map(command => command.args?.[0]),
+        ['CMD0', 'CMD1', 'CMD2'],
+      );
+
+      destination.prependCommandsToWrite(commands);
+      assert.strictEqual(destination.pendingCount, 3);
+      assert.strictEqual(source.pendingCount, 0);
+
+      // Abort out of order (middle, then last, then first) to confirm each
+      // command's listener was independently rebound to its own node in the
+      // destination queue, and that removing one doesn't corrupt the
+      // destination's linked list for the others still queued.
+      controllers[1].abort();
+      await assert.rejects(promises[1], AbortError);
+      assert.strictEqual(destination.pendingCount, 2);
+
+      controllers[2].abort();
+      await assert.rejects(promises[2], AbortError);
+      assert.strictEqual(destination.pendingCount, 1);
+
+      controllers[0].abort();
+      await assert.rejects(promises[0], AbortError);
+      assert.strictEqual(destination.pendingCount, 0);
+
+      // None of the cancellations should have reached back into the
+      // already-drained source queue.
+      assert.strictEqual(source.extractAllCommands().length, 0);
+    });
   });
 });
