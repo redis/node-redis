@@ -10,14 +10,20 @@ import {
 import { TimeSeriesBucketTimestamp } from './RANGE';
 import { TimeSeriesAggregationTypeList } from './RANGE_MULTIAGGR';
 
+/**
+ * One aggregation group per key. Each group is a non-empty list of aggregators
+ * emitted as a single comma-joined token (e.g. `avg,max`); the group list length
+ * must equal the key list length. See RedisTimeSeries#2079.
+ */
+export type TimeSeriesAggregationTypeGroups = [
+  TimeSeriesAggregationTypeList,
+  ...Array<TimeSeriesAggregationTypeList>
+];
+
 export interface TsNRangeOptions extends TsRangeCommonOptions {
   ALIGN?: Timestamp;
   AGGREGATION?: {
-    /**
-     * One aggregator per key argument; length must equal the key list length.
-     * Emitted as separate tokens (never the comma-joined form).
-     */
-    types: TimeSeriesAggregationTypeList;
+    types: TimeSeriesAggregationTypeGroups;
     timeBucket: Timestamp;
     BUCKETTIMESTAMP?: TimeSeriesBucketTimestamp;
     EMPTY?: boolean;
@@ -38,8 +44,8 @@ export function parseNRangeArguments(
     }
 
     parser.push('AGGREGATION');
-    for (const type of options.AGGREGATION.types) {
-      parser.push(type);
+    for (const group of options.AGGREGATION.types) {
+      parser.push(group.join(','));
     }
     parser.push(transformTimestampArgument(options.AGGREGATION.timeBucket));
 

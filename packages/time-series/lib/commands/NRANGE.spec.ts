@@ -20,7 +20,7 @@ describe('TS.NRANGE', () => {
     );
   });
 
-  it('transformArguments (all options, aggregators as separate tokens)', () => {
+  it('transformArguments (all options, one aggregator per key)', () => {
     assert.deepEqual(
       parseArgs(NRANGE, ['a', 'b', 'c'], '-', '+', {
         LATEST: true,
@@ -33,9 +33,9 @@ describe('TS.NRANGE', () => {
         ALIGN: '-',
         AGGREGATION: {
           types: [
-            TIME_SERIES_AGGREGATION_TYPE.FIRST,
-            TIME_SERIES_AGGREGATION_TYPE.MAX,
-            TIME_SERIES_AGGREGATION_TYPE.MIN
+            [TIME_SERIES_AGGREGATION_TYPE.FIRST],
+            [TIME_SERIES_AGGREGATION_TYPE.MAX],
+            [TIME_SERIES_AGGREGATION_TYPE.MIN]
           ],
           timeBucket: 10000,
           BUCKETTIMESTAMP: TIME_SERIES_BUCKET_TIMESTAMP.LOW,
@@ -47,6 +47,27 @@ describe('TS.NRANGE', () => {
         'FILTER_BY_TS', '0', '1', 'FILTER_BY_VALUE', '1', '2', 'COUNT', '1',
         'ALIGN', '-', 'AGGREGATION', 'FIRST', 'MAX', 'MIN', '10000',
         'BUCKETTIMESTAMP', '-', 'EMPTY'
+      ]
+    );
+  });
+
+  it('transformArguments (multiple aggregators per key, comma-joined)', () => {
+    assert.deepEqual(
+      parseArgs(NRANGE, ['a', 'b'], '-', '+', {
+        AGGREGATION: {
+          types: [
+            [
+              TIME_SERIES_AGGREGATION_TYPE.AVG,
+              TIME_SERIES_AGGREGATION_TYPE.MAX
+            ],
+            [TIME_SERIES_AGGREGATION_TYPE.SUM]
+          ],
+          timeBucket: 1000
+        }
+      }),
+      [
+        'TS.NRANGE', '2', 'a', 'b', '-', '+',
+        'AGGREGATION', 'AVG,MAX', 'SUM', '1000'
       ]
     );
   });
@@ -88,8 +109,8 @@ describe('TS.NRANGE', () => {
     const reply = await client.ts.nRange(['{t}:1', '{t}:2'], 0, 3000, {
       AGGREGATION: {
         types: [
-          TIME_SERIES_AGGREGATION_TYPE.MAX,
-          TIME_SERIES_AGGREGATION_TYPE.MIN
+          [TIME_SERIES_AGGREGATION_TYPE.MAX],
+          [TIME_SERIES_AGGREGATION_TYPE.MIN]
         ],
         timeBucket: 1000
       }
@@ -97,6 +118,38 @@ describe('TS.NRANGE', () => {
 
     assert.deepEqual(reply, [
       { timestamp: 1000, values: [20, 5] }
+    ]);
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    minimumDockerVersion: [8, 10]
+  });
+
+  testUtils.testWithClient('client.ts.nRange (multiple aggregators per key)', async client => {
+    await Promise.all([
+      client.ts.create('{t}:1'),
+      client.ts.create('{t}:2')
+    ]);
+    await Promise.all([
+      client.ts.add('{t}:1', 1000, 10),
+      client.ts.add('{t}:1', 1500, 20),
+      client.ts.add('{t}:2', 1000, 5)
+    ]);
+
+    const reply = await client.ts.nRange(['{t}:1', '{t}:2'], 0, 3000, {
+      AGGREGATION: {
+        types: [
+          [
+            TIME_SERIES_AGGREGATION_TYPE.MIN,
+            TIME_SERIES_AGGREGATION_TYPE.MAX
+          ],
+          [TIME_SERIES_AGGREGATION_TYPE.SUM]
+        ],
+        timeBucket: 1000
+      }
+    });
+
+    assert.deepEqual(reply, [
+      { timestamp: 1000, values: [10, 20, 5] }
     ]);
   }, {
     ...GLOBAL.SERVERS.OPEN,
