@@ -23,6 +23,20 @@ export interface TsRangeOptions extends TsRangeCommonOptions {
   };
 }
 
+/**
+ * `TS.MRANGE`/`TS.MREVRANGE` (non-`GROUPBY`) options: the single-key range options
+ * plus the multi-range-only `EXCLUDEEMPTY` flag.
+ */
+export interface TsMRangeOptions extends TsRangeOptions {
+  /**
+   * Omit matching series whose reported samples array is empty from the reply.
+   * Cannot be combined with `GROUPBY`.
+   *
+   * @since Redis 8.10
+   */
+  EXCLUDEEMPTY?: boolean;
+}
+
 export function parseRangeArguments(
   parser: CommandParser,
   fromTimestamp: Timestamp,

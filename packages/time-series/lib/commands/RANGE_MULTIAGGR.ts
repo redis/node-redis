@@ -24,6 +24,20 @@ export interface TsRangeMultiAggrOptions extends TsRangeCommonOptions {
   };
 }
 
+/**
+ * `TS.MRANGE`/`TS.MREVRANGE` multi-aggregation (non-`GROUPBY`) options: the
+ * multi-aggregation range options plus the multi-range-only `EXCLUDEEMPTY` flag.
+ */
+export interface TsMRangeMultiAggrOptions extends TsRangeMultiAggrOptions {
+  /**
+   * Omit matching series whose reported samples array is empty from the reply.
+   * Cannot be combined with `GROUPBY`.
+   *
+   * @since Redis 8.10
+   */
+  EXCLUDEEMPTY?: boolean;
+}
+
 export function parseRangeMultiArguments(
   parser: CommandParser,
   fromTimestamp: Timestamp,

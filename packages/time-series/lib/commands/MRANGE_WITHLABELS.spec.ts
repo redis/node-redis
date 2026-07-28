@@ -35,6 +35,20 @@ describe('TS.MRANGE_WITHLABELS', () => {
     );
   });
 
+  it('transformArguments with EXCLUDEEMPTY', () => {
+    assert.deepEqual(
+      parseArgs(MRANGE_WITHLABELS, '-', '+', 'label=value', {
+        EXCLUDEEMPTY: true
+      }),
+      [
+        'TS.MRANGE', '-', '+',
+        'EXCLUDEEMPTY',
+        'WITHLABELS',
+        'FILTER', 'label=value'
+      ]
+    );
+  });
+
   testUtils.testWithClient('client.ts.mRangeWithLabels', async client => {
     const [, reply] = await Promise.all([
       client.ts.add('key', 0, 0, {

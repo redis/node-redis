@@ -2,13 +2,14 @@ import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { Command, ArrayReply, BlobStringReply, Resp2Reply, MapReply, TuplesReply, TypeMapping, RedisArgument } from '@redis/client/dist/lib/RESP/types';
 import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
 import {
+  parseExcludeEmptyArgument,
   resp2MapToValue,
   resp3MapToValue,
   MultiAggregationSampleRawReply,
   Timestamp,
   transformMultiAggregationSamplesReply
 } from './helpers';
-import { TsRangeMultiAggrOptions, parseRangeMultiArguments } from './RANGE_MULTIAGGR';
+import { TsMRangeMultiAggrOptions, parseRangeMultiArguments } from './RANGE_MULTIAGGR';
 import { parseFilterArgument } from './MGET';
 
 export type TsMRangeMultiRawReply2 = ArrayReply<
@@ -38,7 +39,7 @@ export function createTransformMRangeMultiArguments(command: RedisArgument) {
     fromTimestamp: Timestamp,
     toTimestamp: Timestamp,
     filter: RedisVariadicArgument,
-    options: TsRangeMultiAggrOptions
+    options: TsMRangeMultiAggrOptions
   ) => {
     parser.push(command);
     parseRangeMultiArguments(
@@ -47,6 +48,8 @@ export function createTransformMRangeMultiArguments(command: RedisArgument) {
       toTimestamp,
       options
     );
+
+    parseExcludeEmptyArgument(parser, options?.EXCLUDEEMPTY);
 
     parseFilterArgument(parser, filter);
   };
