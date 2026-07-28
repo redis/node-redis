@@ -36,7 +36,7 @@
     "mocha": "^10.2.0",
     "mocha-junit-reporter": "^2.2.1",
     "mocha-multi-reporters": "^1.5.1",
-    "nyc": "^15.1.0",
+    "nyc": "^18.0.0",
     "release-it": "^19.0.2",
     "ts-node": "^10.9.2",
     "tsx": "^4.23.0",
