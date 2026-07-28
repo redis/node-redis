@@ -87,6 +87,140 @@ describe('Socket', () => {
     });
   });
 
+  describe('initiator interruption (#3346)', () => {
+    it('should keep retrying when the socket dies while the initiator is suspended', async () => {
+      const connections: net.Socket[] = [];
+      const server = net.createServer(conn => {
+        conn.on('error', () => { /* ignore */ });
+        connections.push(conn);
+      });
+      await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+      const { port } = server.address() as net.AddressInfo;
+      const firstConnection = once(server, 'connection') as Promise<[net.Socket]>;
+
+      try {
+        let attempts = 0;
+        const socket = new RedisSocket(() => {
+          attempts += 1;
+          if (attempts === 1) {
+            // Simulate an initiator suspended on async work (DNS resolution,
+            // credentials provider) when the server drops the connection: the
+            // returned promise never settles on its own, just like handshake
+            // commands enqueued after the socket already died.
+            firstConnection.then(([conn]) => conn.destroy());
+            return new Promise(() => { /* never settles */ });
+          }
+          return Promise.resolve();
+        }, CLIENT_ID, {
+          host: '127.0.0.1',
+          port,
+          reconnectStrategy: 0
+        });
+
+        const events: string[] = [];
+        for (const event of ['error', 'reconnecting', 'ready'] as const) {
+          socket.on(event, () => events.push(event));
+        }
+        socket.on('error', () => { /* ignore */ });
+
+        // Without the in-flight failure guard this never resolves: the retry
+        // loop stays suspended inside the abandoned initiator forever.
+        await socket.connect();
+
+        assert.equal(attempts, 2, 'initiator must run again on the new socket');
+        assert.equal(socket.isReady, true, 'socket.isReady');
+        assert.ok(events.includes('reconnecting'), 'must emit reconnecting');
+
+        socket.destroy();
+      } finally {
+        for (const conn of connections) conn.destroy();
+        await new Promise<void>(resolve => server.close(() => resolve()));
+      }
+    });
+
+    it('should retry (not crash) when the initiator throws synchronously', async () => {
+      const server = net.createServer();
+      await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+      const { port } = server.address() as net.AddressInfo;
+
+      // A synchronous throw must be routed through the socket-death race and
+      // turned into a rejected attempt. If it escapes #initiateWhileSocketAlive
+      // before the race is built, the socketDied listeners leak and the reject
+      // they fire on the subsequent destroy() surfaces as an unhandled rejection.
+      const unhandled: unknown[] = [];
+      const onUnhandled = (reason: unknown) => unhandled.push(reason);
+      process.on('unhandledRejection', onUnhandled);
+
+      try {
+        let attempts = 0;
+        const socket = new RedisSocket(() => {
+          attempts += 1;
+          if (attempts === 1) throw new Error('sync initiator failure');
+          return Promise.resolve();
+        }, CLIENT_ID, {
+          host: '127.0.0.1',
+          port,
+          reconnectStrategy: 0
+        });
+        socket.on('error', () => { /* ignore */ });
+
+        await socket.connect();
+
+        assert.equal(attempts, 2, 'initiator must run again after a synchronous throw');
+        assert.equal(socket.isReady, true, 'socket.isReady');
+
+        socket.destroy();
+        // let any leaked listener / stray rejection settle before asserting
+        await setTimeout(0);
+        assert.deepEqual(unhandled, [], 'must not produce an unhandled rejection');
+      } finally {
+        process.removeListener('unhandledRejection', onUnhandled);
+        await new Promise<void>(resolve => server.close(() => resolve()));
+      }
+    });
+
+    it('should not emit error/reconnecting when destroyed while the initiator is suspended', async () => {
+      const connections: net.Socket[] = [];
+      const server = net.createServer(conn => {
+        conn.on('error', () => { /* ignore */ });
+        connections.push(conn);
+      });
+      await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+      const { port } = server.address() as net.AddressInfo;
+
+      try {
+        let suspended!: () => void;
+        const initiatorSuspended = new Promise<void>(resolve => { suspended = resolve; });
+        const socket = new RedisSocket(() => {
+          // Suspend forever so the destroy() below races an in-flight initiator.
+          suspended();
+          return new Promise(() => { /* never settles */ });
+        }, CLIENT_ID, {
+          host: '127.0.0.1',
+          port,
+          reconnectStrategy: 0
+        });
+
+        const events: string[] = [];
+        for (const event of ['error', 'reconnecting'] as const) {
+          socket.on(event, () => events.push(event));
+        }
+        socket.on('error', () => { /* ignore */ });
+
+        const connectPromise = socket.connect();
+        await initiatorSuspended;
+        socket.destroy();
+
+        await assert.rejects(connectPromise);
+        assert.deepEqual(events, [], 'must not emit error/reconnecting on intentional destroy');
+        assert.equal(socket.isOpen, false, 'socket.isOpen');
+      } finally {
+        for (const conn of connections) conn.destroy();
+        await new Promise<void>(resolve => server.close(() => resolve()));
+      }
+    });
+  });
+
   describe('write', () => {
     function captureUnderlyingSocket() {
       const original = net.createConnection;
