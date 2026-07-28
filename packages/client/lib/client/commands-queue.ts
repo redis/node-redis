@@ -151,6 +151,18 @@ export default class RedisCommandsQueue {
     return this.#toWrite.length + this.#waitingForReply.length;
   }
 
+  /**
+   * The chainId of the most recently written command, if it belonged to a
+   * MULTI/pipeline chain. While this is set, any command still in `#toWrite`
+   * with a matching `chainId` is the tail of a chain that's already partially
+   * sent to the server - the rest of that chain is in `#waitingForReply` and
+   * out of view, so this tail must not be treated as a complete, relocatable
+   * chain (see `flushWaitingForReply`, which rejects it instead of resending it).
+   */
+  get chainInExecution(): symbol | undefined {
+    return this.#chainInExecution;
+  }
+
   constructor(
     respVersion: RespVersions,
     maxLength: number | null | undefined,

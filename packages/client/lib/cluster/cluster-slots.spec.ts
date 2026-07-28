@@ -1,10 +1,31 @@
 import { strict as assert } from 'node:assert';
 import { EventEmitter } from 'node:events';
 import { RedisClusterClientOptions } from './index';
-import RedisClusterSlots from './cluster-slots';
+import RedisClusterSlots, { groupCommandsByDestination } from './cluster-slots';
+import type { MasterNode, Shard } from './cluster-slots';
+import type { CommandToWrite } from '../client/commands-queue';
 import { ClientClosedError } from '../errors';
 
 describe('RedisClusterSlots', () => {
+  function createCommand(slotNumber?: number) {
+    return {
+      args: ['CMD'],
+      slotNumber
+    } as CommandToWrite;
+  }
+
+  function createMaster(address: string) {
+    return {
+      address
+    } as MasterNode<
+      Record<string, never>,
+      Record<string, never>,
+      Record<string, never>,
+      3,
+      Record<string, never>
+    >;
+  }
+
   describe('initialization', () => {
     describe('clientSideCache validation', () => {
       const mockEmit: EventEmitter['emit'] = () => true;
@@ -56,5 +77,45 @@ describe('RedisClusterSlots', () => {
         }, () => true)
         assert.throws(() => slots.getRandomNode(), ClientClosedError)
       });
+  });
+
+  describe('groupCommandsByDestination', () => {
+    it('groups commands by their slot owner instead of the fallback destination', () => {
+      const fallback = createMaster('fallback:6379');
+      const slotOwner = createMaster('slot-owner:6379');
+      const otherSlotOwner = createMaster('other-slot-owner:6379');
+      const slots = [] as Array<Shard<
+        Record<string, never>,
+        Record<string, never>,
+        Record<string, never>,
+        3,
+        Record<string, never>
+      >>;
+      slots[1] = { master: slotOwner };
+      slots[2] = { master: otherSlotOwner };
+
+      const slotless = createCommand();
+      const slotOne = createCommand(1);
+      const slotTwo = createCommand(2);
+
+      const groups = groupCommandsByDestination(
+        [slotless, slotOne, slotTwo],
+        slots,
+        fallback
+      );
+
+      assert.deepEqual(groups.get(fallback), [slotless]);
+      assert.deepEqual(groups.get(slotOwner), [slotOne]);
+      assert.deepEqual(groups.get(otherSlotOwner), [slotTwo]);
+    });
+
+    it('falls back when a command has no known slot owner', () => {
+      const fallback = createMaster('fallback:6379');
+      const command = createCommand(10);
+
+      const groups = groupCommandsByDestination([command], [], fallback);
+
+      assert.deepEqual(groups.get(fallback), [command]);
+    });
   });
 });
