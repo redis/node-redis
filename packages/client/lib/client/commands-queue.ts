@@ -37,7 +37,10 @@ export interface CommandToWrite extends CommandWaitingForReply {
     signal: AbortSignal;
     listener: () => unknown;
     originalTimeout: number | undefined;
+    effectiveTimeout: number;
+    wasInMaintenance: boolean;
   } | undefined;
+  rejected?: boolean;
   slotNumber?: number
 }
 
@@ -118,11 +121,10 @@ export default class RedisCommandsQueue {
       const signal = AbortSignal.timeout(newTimeout);
       command.timeout = {
         signal,
-        listener: () => {
-          this.#toWrite.remove(node);
-          command.reject(new CommandTimeoutDuringMaintenanceError(newTimeout));
-        },
+        listener: this.#createTimeoutListener(node, command, newTimeout, true),
         originalTimeout: command.timeout?.originalTimeout,
+        effectiveTimeout: newTimeout,
+        wasInMaintenance: true,
       };
       signal.addEventListener("abort", command.timeout.listener, {
         once: true,
@@ -253,6 +255,45 @@ export default class RedisCommandsQueue {
     });
   }
 
+  #createAbortListener(
+    node: DoublyLinkedNode<CommandToWrite>,
+    value: CommandToWrite,
+  ) {
+    return () => {
+      this.#rejectCommand(node, value, new AbortError());
+    };
+  }
+
+  #createTimeoutListener(
+    node: DoublyLinkedNode<CommandToWrite>,
+    value: CommandToWrite,
+    effectiveTimeout: number,
+    wasInMaintenance: boolean,
+  ) {
+    return () => {
+      this.#rejectCommand(
+        node,
+        value,
+        wasInMaintenance
+          ? new CommandTimeoutDuringMaintenanceError(effectiveTimeout)
+          : new TimeoutError(),
+      );
+    };
+  }
+
+  #rejectCommand(
+    node: DoublyLinkedNode<CommandToWrite>,
+    value: CommandToWrite,
+    err: Error,
+  ) {
+    if (value.rejected) return;
+
+    value.rejected = true;
+    RedisCommandsQueue.#removeCommandListeners(value);
+    this.#toWrite.remove(node);
+    value.reject(err);
+  }
+
   addCommand<T>(
     args: ReadonlyArray<RedisArgument>,
     options?: CommandOptions,
@@ -267,8 +308,6 @@ export default class RedisCommandsQueue {
     }
 
     return new Promise((resolve, reject) => {
-      // eslint-disable-next-line prefer-const -- assigned after closures that reference it are constructed
-      let node: DoublyLinkedNode<CommandToWrite>;
       const value: CommandToWrite = {
         args,
         chainId: options?.chainId,
@@ -281,42 +320,40 @@ export default class RedisCommandsQueue {
       };
       value.slotNumber = options?.slotNumber;
 
-      // If #maintenanceCommandTimeout was explicitly set, we should
-      // use it instead of the timeout provided by the command
-      const timeout = this.#maintenanceCommandTimeout ?? options?.timeout;
-      const wasInMaintenance = this.#maintenanceCommandTimeout !== undefined;
-      if (timeout) {
-        const signal = AbortSignal.timeout(timeout);
-        value.timeout = {
-          signal,
-          listener: () => {
-            this.#toWrite.remove(node);
-            value.reject(
-              wasInMaintenance
-                ? new CommandTimeoutDuringMaintenanceError(timeout)
-                : new TimeoutError(),
-            );
-          },
-          originalTimeout: options?.timeout,
-        };
-        signal.addEventListener("abort", value.timeout.listener, {
-          once: true,
-        });
-      }
+      const node = this.#toWrite.add(value, options?.asap);
 
-      const signal = options?.abortSignal;
-      if (signal) {
-        value.abort = {
-          signal,
-          listener: () => {
-            this.#toWrite.remove(node);
-            value.reject(new AbortError());
-          },
-        };
-        signal.addEventListener("abort", value.abort.listener, { once: true });
-      }
+      try {
+        // If #maintenanceCommandTimeout was explicitly set, we should
+        // use it instead of the timeout provided by the command
+        const timeout = this.#maintenanceCommandTimeout ?? options?.timeout;
+        const wasInMaintenance = this.#maintenanceCommandTimeout !== undefined;
+        if (timeout) {
+          const signal = AbortSignal.timeout(timeout);
+          value.timeout = {
+            signal,
+            listener: this.#createTimeoutListener(node, value, timeout, wasInMaintenance),
+            originalTimeout: options?.timeout,
+            effectiveTimeout: timeout,
+            wasInMaintenance,
+          };
+          signal.addEventListener("abort", value.timeout.listener, {
+            once: true,
+          });
+        }
 
-      node = this.#toWrite.add(value, options?.asap);
+        const signal = options?.abortSignal;
+        if (signal) {
+          value.abort = {
+            signal,
+            listener: this.#createAbortListener(node, value),
+          };
+          signal.addEventListener("abort", value.abort.listener, { once: true });
+        }
+      } catch (err) {
+        RedisCommandsQueue.#removeCommandListeners(value);
+        this.#toWrite.remove(node);
+        reject(err);
+      }
     });
   }
 
@@ -598,6 +635,17 @@ export default class RedisCommandsQueue {
     );
   }
 
+  static #removeCommandListeners(command: CommandToWrite) {
+    if (command.abort) {
+      RedisCommandsQueue.#removeAbortListener(command);
+      command.abort = undefined;
+    }
+    if (command.timeout) {
+      RedisCommandsQueue.#removeTimeoutListener(command);
+      command.timeout = undefined;
+    }
+  }
+
   static #flushToWrite(toBeSent: CommandToWrite, err: Error) {
     if (toBeSent.abort) {
       RedisCommandsQueue.#removeAbortListener(toBeSent);
@@ -652,7 +700,14 @@ export default class RedisCommandsQueue {
         current.value.slotNumber !== undefined &&
         slots.has(current.value.slotNumber)
       ) {
-        result.push(current.value);
+        const command = current.value;
+        if (command.abort) {
+          RedisCommandsQueue.#removeAbortListener(command);
+        }
+        if (command.timeout) {
+          RedisCommandsQueue.#removeTimeoutListener(command);
+        }
+        result.push(command);
         const toRemove = current;
         current = current.next;
         this.#toWrite.remove(toRemove);
@@ -671,7 +726,14 @@ export default class RedisCommandsQueue {
     const result: CommandToWrite[] = [];
     let current = this.#toWrite.head;
     while (current) {
-      result.push(current.value);
+      const command = current.value;
+      if (command.abort) {
+        RedisCommandsQueue.#removeAbortListener(command);
+      }
+      if (command.timeout) {
+        RedisCommandsQueue.#removeTimeoutListener(command);
+      }
+      result.push(command);
       const toRemove = current;
       current = current.next;
       this.#toWrite.remove(toRemove);
@@ -680,7 +742,26 @@ export default class RedisCommandsQueue {
   }
 
   /**
+   * Rejects commands that were extracted but could not be moved to another queue.
+   */
+  rejectCommands(commands: CommandToWrite[], err: Error) {
+    for (const command of commands) {
+      if (command.rejected) continue;
+
+      command.rejected = true;
+      RedisCommandsQueue.#removeCommandListeners(command);
+      command.reject(err);
+    }
+  }
+
+  /**
    * Prepends commands to the write queue in reverse.
+   *
+   * Commands arriving here (from `extractAllCommands`/`extractCommandsForSlots` on
+   * another queue, e.g. during cluster slot migration) may still carry abort/timeout
+   * listeners bound to the node and queue they were removed from. Those listeners would
+   * reject the caller's promise without actually removing the command from this queue,
+   * so they're rebound to the node created here.
    */
   prependCommandsToWrite(commands: CommandToWrite[]) {
     if (!commands.length) {
@@ -688,7 +769,49 @@ export default class RedisCommandsQueue {
     }
 
     for (let i = commands.length - 1; i >= 0; i--) {
-      this.#toWrite.unshift(commands[i]);
+      const value = commands[i];
+      const node = this.#toWrite.unshift(value);
+
+      if (value.rejected) {
+        this.#toWrite.remove(node);
+        continue;
+      }
+
+      if (value.timeout) {
+        RedisCommandsQueue.#removeTimeoutListener(value);
+        if (value.timeout.signal.aborted) {
+          this.#rejectCommand(
+            node,
+            value,
+            value.timeout.wasInMaintenance
+              ? new CommandTimeoutDuringMaintenanceError(value.timeout.effectiveTimeout)
+              : new TimeoutError(),
+          );
+          continue;
+        } else {
+          value.timeout.listener = this.#createTimeoutListener(
+            node,
+            value,
+            value.timeout.effectiveTimeout,
+            value.timeout.wasInMaintenance,
+          );
+          value.timeout.signal.addEventListener("abort", value.timeout.listener, {
+            once: true,
+          });
+        }
+      }
+
+      if (value.abort) {
+        RedisCommandsQueue.#removeAbortListener(value);
+        if (value.abort.signal.aborted) {
+          this.#rejectCommand(node, value, new AbortError());
+        } else {
+          value.abort.listener = this.#createAbortListener(node, value);
+          value.abort.signal.addEventListener("abort", value.abort.listener, {
+            once: true,
+          });
+        }
+      }
     }
   }
 }
