@@ -40,8 +40,10 @@ describe('RedisCommandsQueue', () => {
     });
   });
 
-  describe('prependCommandsToWrite', () => {
-    it('rejects a command that was extracted but never prepended', async () => {
+  describe('rejectCommands', () => {
+    // Mirrors cluster-slots.ts's full-node-loss path: extractAllCommands()
+    // drains everything, then rejects it when no destination client exists.
+    it('rejects a command extracted via extractAllCommands when there is no destination', async () => {
       const source = createQueue();
       const promise = source.addCommand(['CMD'], { timeout: 1000 });
       promise.catch(() => {});
@@ -52,6 +54,25 @@ describe('RedisCommandsQueue', () => {
       await assert.rejects(promise, DisconnectsClientError);
       assert.strictEqual(source.extractAllCommands().length, 0);
     });
+
+    // Mirrors cluster-slots.ts's partial-slot-migration path:
+    // extractCommandsForSlots() pulls out only the moving slots, then rejects
+    // them when no destination client exists, leaving the rest queued.
+    it('rejects a command extracted via extractCommandsForSlots when there is no destination', async () => {
+      const source = createQueue();
+      const promise = source.addCommand(['CMD'], { slotNumber: 1, timeout: 1000 });
+      promise.catch(() => {});
+      source.addCommand(['KEEP'], { slotNumber: 2 });
+
+      const [command] = source.extractCommandsForSlots(new Set([1]));
+      source.rejectCommands([command], new DisconnectsClientError());
+
+      await assert.rejects(promise, DisconnectsClientError);
+      assert.strictEqual(source.extractAllCommands().length, 1);
+    });
+  });
+
+  describe('prependCommandsToWrite', () => {
 
     it('rebinds an abort listener so it removes the command from its new queue', async () => {
       const source = createQueue();
@@ -118,6 +139,10 @@ describe('RedisCommandsQueue', () => {
 
       const [command] = source.extractCommandsForSlots(new Set([1]));
       await wait(5);
+      // Confirm the timeout actually already fired, so prependCommandsToWrite
+      // is exercising the "reject immediately" branch below and not just
+      // rebinding a listener that happens to fire before the final assert.
+      assert.strictEqual(command.timeout?.signal.aborted, true);
       destination.prependCommandsToWrite([command]);
 
       await assert.rejects(promise, TimeoutError);
@@ -162,6 +187,10 @@ describe('RedisCommandsQueue', () => {
 
       const [command] = source.extractCommandsForSlots(new Set([1]));
       await wait(5);
+      // Confirm the timeout actually already fired before prepend, so the
+      // abort listener removed below is the one attached at addCommand time,
+      // not a listener that would have been rebound had we hit that branch.
+      assert.strictEqual(command.timeout?.signal.aborted, true);
 
       destination.prependCommandsToWrite([command]);
       await assert.rejects(promise, TimeoutError);
