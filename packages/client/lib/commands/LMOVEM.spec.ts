@@ -14,15 +14,6 @@ describe('LMOVEM', () => {
       );
     });
 
-    it('with COUNT', () => {
-      assert.deepEqual(
-        parseArgs(LMOVEM, 'source', 'destination', 'LEFT', 'RIGHT', {
-          COUNT: 3
-        }),
-        ['LMOVEM', 'source', 'destination', 'LEFT', 'RIGHT', 'COUNT', '3']
-      );
-    });
-
     it('with COUNT and ORDER', () => {
       assert.deepEqual(
         parseArgs(LMOVEM, 'source', 'destination', 'LEFT', 'LEFT', {

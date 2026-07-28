@@ -14,17 +14,19 @@ export type LMoveMOrder = 'OBO' | 'BULK';
 export type LMoveMOptions = {
   /** Move up to `COUNT` elements (fewer if the source has fewer). */
   COUNT: number;
-  ORDER?: LMoveMOrder;
+  ORDER: LMoveMOrder;
 } | {
   /** Move exactly `EXACTLY` elements; if the source has fewer, move nothing and reply with null. */
   EXACTLY: number;
-  ORDER?: LMoveMOrder;
+  ORDER: LMoveMOrder;
 };
 
 /**
- * Pushes the trailing `[<COUNT|EXACTLY> count [OBO|BULK]]` arguments shared by
+ * Pushes the trailing `[<COUNT|EXACTLY> count <OBO|BULK>]` arguments shared by
  * LMOVEM and BLMOVEM. Kept separate from the command bodies because BLMOVEM's
  * `timeout` sits between the sides and these options, so only the tail is shared.
+ * `ORDER` is required whenever the block is present: Redis rejects the trailer
+ * without it as a syntax error.
  */
 export function parseLMoveMOptions(parser: CommandParser, options?: LMoveMOptions) {
   if (options) {
@@ -34,9 +36,7 @@ export function parseLMoveMOptions(parser: CommandParser, options?: LMoveMOption
       parser.push('COUNT', options.COUNT.toString());
     }
 
-    if (options.ORDER !== undefined) {
-      parser.push(options.ORDER);
-    }
+    parser.push(options.ORDER);
   }
 }
 
