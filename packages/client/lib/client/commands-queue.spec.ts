@@ -180,11 +180,13 @@ describe('RedisCommandsQueue', () => {
         new AbortController(),
         new AbortController(),
       ];
+      const settled = [false, false, false];
 
-      const promises = controllers.map((controller, i) =>
-        source.addCommand([`CMD${i}`], { abortSignal: controller.signal }),
-      );
-      promises.forEach(promise => promise.catch(() => {}));
+      const promises = controllers.map((controller, i) => {
+        const promise = source.addCommand([`CMD${i}`], { abortSignal: controller.signal });
+        promise.catch(() => {}).finally(() => { settled[i] = true; });
+        return promise;
+      });
 
       const commands = source.extractAllCommands();
       assert.strictEqual(commands.length, 3);
@@ -199,19 +201,26 @@ describe('RedisCommandsQueue', () => {
 
       // Abort out of order (middle, then last, then first) to confirm each
       // command's listener was independently rebound to its own node in the
-      // destination queue, and that removing one doesn't corrupt the
-      // destination's linked list for the others still queued.
+      // destination queue, and that cancelling one doesn't settle or corrupt
+      // the others still queued.
       controllers[1].abort();
       await assert.rejects(promises[1], AbortError);
+      assert.deepStrictEqual(settled, [false, true, false]);
       assert.strictEqual(destination.pendingCount, 2);
 
       controllers[2].abort();
       await assert.rejects(promises[2], AbortError);
+      assert.deepStrictEqual(settled, [false, true, true]);
       assert.strictEqual(destination.pendingCount, 1);
 
       controllers[0].abort();
       await assert.rejects(promises[0], AbortError);
-      assert.strictEqual(destination.pendingCount, 0);
+      assert.deepStrictEqual(settled, [true, true, true]);
+
+      // Check the destination queue by actually traversing it (not just its
+      // length counter), to confirm the linked list itself wasn't corrupted
+      // by the three removals above.
+      assert.strictEqual(destination.extractAllCommands().length, 0);
 
       // None of the cancellations should have reached back into the
       // already-drained source queue.
