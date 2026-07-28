@@ -81,6 +81,11 @@ interface SchemaHNSWVectorField extends SchemaVectorField {
   M?: number;
   EF_CONSTRUCTION?: number;
   EF_RUNTIME?: number;
+  /**
+   * Enable reranking. Requires a disk-based vector index.
+   * available since 8.10
+   */
+  RERANK?: boolean;
 }
 
 export const VAMANA_COMPRESSION_ALGORITHM = {
@@ -291,6 +296,10 @@ export function parseSchema(parser: CommandParser, schema: RediSearchSchema) {
 
               if (fieldOptions.EF_RUNTIME !== undefined) {
                 args.push('EF_RUNTIME', fieldOptions.EF_RUNTIME.toString());
+              }
+
+              if (fieldOptions.RERANK !== undefined) {
+                args.push('RERANK', fieldOptions.RERANK ? 'TRUE' : 'FALSE');
               }
 
               break;
