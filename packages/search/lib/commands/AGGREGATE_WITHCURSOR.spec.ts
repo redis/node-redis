@@ -42,6 +42,7 @@ describe('AGGREGATE WITHCURSOR', () => {
       {
         total: 0,
         results: [],
+        warnings: [],
         cursor: 0
       }
     );

@@ -28,7 +28,8 @@ describe('FT.SEARCH NOCONTENT', () => {
         await client.ft.searchNoContent('index', '*'),
         {
           total: 2,
-          documents: ['1', '2']
+          documents: ['1', '2'],
+          warnings: []
         }
       );
     }, GLOBAL.SERVERS.OPEN);

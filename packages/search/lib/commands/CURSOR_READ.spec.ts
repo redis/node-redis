@@ -38,7 +38,8 @@ describe('FT.CURSOR READ', () => {
       {
         total: 0,
         results: [],
-        cursor: 0
+        cursor: 0,
+        warnings: []
       }
     );
   }, GLOBAL.SERVERS.OPEN);

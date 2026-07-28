@@ -57,6 +57,30 @@ export function parseDocumentValue(value: unknown): Record<string, unknown> {
   return document;
 }
 
+function toWarningString(warning: unknown): string {
+  if (typeof warning === 'string') return warning;
+  if (warning instanceof Buffer) return warning.toString();
+  if (warning === null || warning === undefined) return '';
+  // Anything else (Map/Array/plain object) would collapse to "[object Object]"
+  // under a naive toString — JSON-serialize instead so the caller can read it.
+  try {
+    return JSON.stringify(warning);
+  } catch {
+    return String(warning);
+  }
+}
+
+/**
+ * Extracts the `warning` field emitted by FT.SEARCH / FT.AGGREGATE / FT.HYBRID
+ * alongside partial results when a query hits its timeout under a `return` /
+ * `return-strict` on-timeout policy. Returns an empty array when absent (e.g.
+ * RESP2 replies for FT.SEARCH / FT.AGGREGATE, which never carry warnings).
+ */
+export function parseWarnings(replyMap: Record<string, unknown>): Array<string> {
+  const warnings = mapLikeValues(getMapValue(replyMap, ['warning', 'warnings']) ?? []);
+  return warnings.map(toWarningString);
+}
+
 function normalizeProfileValue(value: unknown): unknown {
   if (Array.isArray(value)) {
     return value.map(normalizeProfileValue);

@@ -12,7 +12,9 @@ export default {
     2: (reply: SearchRawReply): SearchNoContentReply => {
       return {
         total: reply[0] as number,
-        documents: reply.slice(1) as Array<string>
+        documents: reply.slice(1) as Array<string>,
+        // FT.SEARCH only emits warnings on RESP3; RESP2 replies never carry them.
+        warnings: []
       }
     },
     3: (
@@ -26,11 +28,13 @@ export default {
         documents: Array<{
           id: string;
         }>;
+        warnings: Array<string>;
       };
 
       return {
         total: transformed.total,
-        documents: transformed.documents.map(document => document.id)
+        documents: transformed.documents.map(document => document.id),
+        warnings: transformed.warnings
       };
     }
   },
@@ -39,4 +43,10 @@ export default {
 export interface SearchNoContentReply {
   total: number;
   documents: Array<string>;
+  /**
+   * Warnings returned alongside partial results (e.g. on query timeout under a
+   * `return` / `return-strict` on-timeout policy). Only populated on RESP3;
+   * always empty on RESP2.
+   */
+  warnings: Array<string>;
 };
