@@ -120,7 +120,7 @@ export default class RedisSocket extends EventEmitter {
     if (strategy) {
       return (retries, cause) => {
         try {
-          const retryIn = strategy(retries, cause);
+const retryIn = strategy(retries, cause);
           if (retryIn !== false && !(retryIn instanceof Error) && typeof retryIn !== 'number') {
             throw new TypeError(`Reconnect strategy should return \`false | Error | number\`, got ${retryIn} instead`);
           }
@@ -261,7 +261,9 @@ export default class RedisSocket extends EventEmitter {
             continue;
           }
         } catch (err) {
-          this.#socket.destroy();
+          // #socket may already be undefined if the client was destroyed while
+          // the initiator was suspended (destroySocket cleared it).
+          this.#socket?.destroy();
           this.#socket = undefined;
           throw err;
         }
@@ -275,6 +277,11 @@ export default class RedisSocket extends EventEmitter {
         }));
         this.emit('ready');
       } catch (err) {
+        // The client was closed while connecting (e.g. destroy()/quit() raced
+        // an async initiator). Abort the attempt without emitting error/
+        // reconnecting or scheduling a retry — the shutdown is intentional.
+        if (!this.#isOpen) throw err;
+
         const retryIn = this.#shouldReconnect(retries++, err as Error);
         if (typeof retryIn !== 'number') {
           throw retryIn;
@@ -310,7 +317,11 @@ export default class RedisSocket extends EventEmitter {
       socket.once('close', onSocketDied);
     });
 
-    const initiated = Promise.resolve(this.#initiator());
+    // Defer into a microtask so a synchronous throw from the initiator becomes
+    // a rejection routed through the race below, instead of escaping before the
+    // socketDied listeners are registered and cleaned up (which would leak them
+    // and surface the raced rejection as an unhandled rejection).
+    const initiated = Promise.resolve().then(() => this.#initiator());
     // an abandoned initiator can still reject later (its stranded commands get
     // flushed on a subsequent failure) — the raced error already drove the retry
     initiated.catch(() => {});
