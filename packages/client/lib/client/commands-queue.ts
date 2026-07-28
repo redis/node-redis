@@ -710,6 +710,15 @@ export default class RedisCommandsQueue {
    * Extracts commands for the given slots from the toWrite queue.
    * Some commands don't have "slotNumber", which means they are not designated to particular slot/node.
    * We ignore those.
+   *
+   * A command whose chainId matches `chainInExecution` is the queued tail of a
+   * chain (MULTI/pipeline) whose head was already written to this socket - the
+   * rest is in `#waitingForReply`, out of view. It's left in place rather than
+   * extracted: relocating just the tail would split the transaction across two
+   * connections, and this connection isn't going away (unlike a full node
+   * loss), so it'll be sent here as originally queued. If the key has by then
+   * moved to another node, that surfaces as a normal MOVED/ASK error on the
+   * existing retry path, not something this method needs to prevent.
    */
   extractCommandsForSlots(slots: Set<number>): CommandToWrite[] {
     const result: CommandToWrite[] = [];
@@ -717,7 +726,8 @@ export default class RedisCommandsQueue {
     while (current !== undefined) {
       if (
         current.value.slotNumber !== undefined &&
-        slots.has(current.value.slotNumber)
+        slots.has(current.value.slotNumber) &&
+        (this.#chainInExecution === undefined || current.value.chainId !== this.#chainInExecution)
       ) {
         const command = current.value;
         if (command.abort) {

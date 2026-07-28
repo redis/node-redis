@@ -76,6 +76,33 @@ describe('RedisCommandsQueue', () => {
     });
   });
 
+  describe('extractCommandsForSlots', () => {
+    it('leaves the queued tail of an in-flight chain in place instead of extracting it', () => {
+      const queue = createQueue();
+      const chainId = Symbol('MULTI Chain');
+
+      queue.addCommand(['MULTI'], { chainId, slotNumber: 1 }).catch(() => {});
+      queue.addCommand(['SET', 'k', 'v'], { chainId, slotNumber: 1 }).catch(() => {});
+      queue.addCommand(['EXEC'], { chainId, slotNumber: 1 }).catch(() => {});
+      // An unrelated command on the same slot, queued after the chain, should
+      // still be extracted normally - only the in-flight chain's own tail is
+      // held back.
+      queue.addCommand(['GET', 'k'], { slotNumber: 1 }).catch(() => {});
+
+      const writer = queue.commandsToWrite();
+      writer.next(); // "sends" MULTI - SET and EXEC are still queued behind it
+
+      const extracted = queue.extractCommandsForSlots(new Set([1]));
+
+      assert.deepStrictEqual(
+        extracted.map(command => command.args?.[0]),
+        ['GET'],
+      );
+      // SET and EXEC are still sitting in #toWrite, untouched.
+      assert.strictEqual(queue.pendingCount, 3);
+    });
+  });
+
   describe('addCommand', () => {
     it('does not keep a command if timeout listener setup fails', async () => {
       const queue = createQueue();
