@@ -11,15 +11,23 @@ describe('XCLAIM JUSTID', () => {
     );
   });
 
-  // TODO: test with messages
-  testUtils.testWithClient('client.xClaimJustId', async client => {
-    const [, reply] = await Promise.all([
-      client.xGroupCreate('key', 'group', '$', {
-        MKSTREAM: true
-      }),
-      client.xClaimJustId('key', 'group', 'consumer', 1, '0-0')
-    ]);
+  testUtils.testAll('xClaimJustId', async client => {
+    const message = { field: 'value' };
 
-    assert.deepEqual(reply, []);
-  }, GLOBAL.SERVERS.OPEN);
+    await client.xGroupCreate('key', 'group', '$', {
+      MKSTREAM: true
+    });
+    await client.xAdd('key', '1-0', message);
+    await client.xAdd('key', '2-0', message);
+    await client.xReadGroup('group', 'consumer1', {
+      key: 'key',
+      id: '>'
+    });
+    const reply = await client.xClaimJustId('key', 'group', 'consumer2', 0, ['1-0', '2-0']);
+
+    assert.deepEqual(reply, ['1-0', '2-0']);
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });
