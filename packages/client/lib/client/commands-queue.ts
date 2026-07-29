@@ -713,37 +713,39 @@ export default class RedisCommandsQueue {
    *
    * A command whose chainId matches `chainInExecution` is the queued tail of a
    * chain (MULTI/pipeline) whose head was already written to this socket - the
-   * rest is in `#waitingForReply`, out of view. It's left in place rather than
-   * extracted: relocating just the tail would split the transaction across two
-   * connections, and this connection isn't going away (unlike a full node
-   * loss), so it'll be sent here as originally queued. If the key has by then
-   * moved to another node, that surfaces as a normal MOVED/ASK error on the
-   * existing retry path, not something this method needs to prevent.
+   * rest is in `#waitingForReply`, out of view. Relocating just the tail would
+   * split the transaction across two connections, and this connection isn't
+   * going away (unlike a full node loss), so extraction stops there entirely:
+   * that command and everything still queued behind it stay on this
+   * connection, preserving the order they were originally sent in, and get
+   * sent here as originally queued. If a key has by then moved to another
+   * node, that surfaces as a normal MOVED/ASK error on the existing retry
+   * path, not something this method needs to prevent.
    */
   extractCommandsForSlots(slots: Set<number>): CommandToWrite[] {
     const result: CommandToWrite[] = [];
     let current = this.#toWrite.head;
     while (current !== undefined) {
-      if (
-        current.value.slotNumber !== undefined &&
-        slots.has(current.value.slotNumber) &&
-        (this.#chainInExecution === undefined || current.value.chainId !== this.#chainInExecution)
-      ) {
-        const command = current.value;
-        if (command.abort) {
-          RedisCommandsQueue.#removeAbortListener(command);
-        }
-        if (command.timeout) {
-          RedisCommandsQueue.#removeTimeoutListener(command);
-        }
-        result.push(command);
-        const toRemove = current;
+      if (current.value.slotNumber === undefined || !slots.has(current.value.slotNumber)) {
         current = current.next;
-        this.#toWrite.remove(toRemove);
-      } else {
-        // Move to next node even if we don't extract this command
-        current = current.next;
+        continue;
       }
+
+      if (this.#chainInExecution !== undefined && current.value.chainId === this.#chainInExecution) {
+        break;
+      }
+
+      const command = current.value;
+      if (command.abort) {
+        RedisCommandsQueue.#removeAbortListener(command);
+      }
+      if (command.timeout) {
+        RedisCommandsQueue.#removeTimeoutListener(command);
+      }
+      result.push(command);
+      const toRemove = current;
+      current = current.next;
+      this.#toWrite.remove(toRemove);
     }
     return result;
   }

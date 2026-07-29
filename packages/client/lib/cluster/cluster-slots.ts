@@ -492,13 +492,13 @@ export default class RedisClusterSlots<
 
           // 4. Extract commands for this destination's slots and prepend to destination queue
           //
-          // Note: unlike the full-node-loss path below, this doesn't special-case
-          // a chain already partially written to the socket. The source
-          // connection here isn't destroyed - it keeps serving its remaining
-          // slots - so rejecting just the queued tail wouldn't undo whatever the
-          // server thinks is still an open transaction on that connection.
-          // Fixing that would mean resetting the source connection, which is a
-          // bigger change than this fix's scope.
+          // Note: unlike the full-node-loss path below, this doesn't reject an
+          // in-flight chain's queued tail - the source connection here isn't
+          // destroyed, it keeps serving its remaining slots, so rejecting the
+          // tail wouldn't undo whatever the server thinks is still an open
+          // transaction on that connection. Instead, extractCommandsForSlots()
+          // itself leaves an in-flight chain's tail (and anything queued after
+          // it) on source to preserve ordering; see its docstring.
           const commandsForDestination = sourceNode.client._getQueue().extractCommandsForSlots(destinationSlots);
           if (commandsForDestination.length > 0) {
             if (destMasterNode.client) {

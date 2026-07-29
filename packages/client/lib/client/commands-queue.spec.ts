@@ -77,29 +77,52 @@ describe('RedisCommandsQueue', () => {
   });
 
   describe('extractCommandsForSlots', () => {
-    it('leaves the queued tail of an in-flight chain in place instead of extracting it', () => {
+    it('leaves the queued tail of an in-flight chain and everything after it in place', () => {
       const queue = createQueue();
       const chainId = Symbol('MULTI Chain');
 
       queue.addCommand(['MULTI'], { chainId, slotNumber: 1 }).catch(() => {});
       queue.addCommand(['SET', 'k', 'v'], { chainId, slotNumber: 1 }).catch(() => {});
       queue.addCommand(['EXEC'], { chainId, slotNumber: 1 }).catch(() => {});
-      // An unrelated command on the same slot, queued after the chain, should
-      // still be extracted normally - only the in-flight chain's own tail is
-      // held back.
+      // Queued after the chain, on the same connection. If this were
+      // relocated to another node while the transaction is still pending
+      // here, it could run before the transaction completes - reading 'k'
+      // before SET applies, even though it was queued after EXEC.
       queue.addCommand(['GET', 'k'], { slotNumber: 1 }).catch(() => {});
 
       const writer = queue.commandsToWrite();
-      writer.next(); // "sends" MULTI - SET and EXEC are still queued behind it
+      writer.next(); // "sends" MULTI - SET, EXEC and GET are still queued behind it
 
       const extracted = queue.extractCommandsForSlots(new Set([1]));
 
+      // Nothing is extracted: reaching the in-flight chain's tail stops the
+      // scan entirely, so GET stays behind it in queue order too.
+      assert.deepStrictEqual(extracted, []);
+      assert.strictEqual(queue.pendingCount, 4);
+    });
+
+    it('is unaffected by an already-fully-sent chain', () => {
+      const queue = createQueue();
+      const chainId = Symbol('MULTI Chain');
+
+      queue.addCommand(['MULTI'], { chainId, slotNumber: 1 }).catch(() => {});
+      queue.addCommand(['EXEC'], { chainId, slotNumber: 1 }).catch(() => {});
+      queue.addCommand(['GET', 'k'], { slotNumber: 1 }).catch(() => {});
+
+      const writer = queue.commandsToWrite();
+      writer.next(); // "sends" MULTI
+      writer.next(); // "sends" EXEC - the whole chain is now in #waitingForReply
+
+      const extracted = queue.extractCommandsForSlots(new Set([1]));
+
+      // chainInExecution still points at this chain (nothing has been sent
+      // since), but none of its commands remain in #toWrite to (mis)match -
+      // the trailing GET is extracted normally.
+      assert.strictEqual(queue.chainInExecution, chainId);
       assert.deepStrictEqual(
         extracted.map(command => command.args?.[0]),
         ['GET'],
       );
-      // SET and EXEC are still sitting in #toWrite, untouched.
-      assert.strictEqual(queue.pendingCount, 3);
     });
   });
 
