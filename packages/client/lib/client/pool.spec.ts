@@ -2,6 +2,7 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import { RESP_TYPES } from '../RESP/decoder';
 import { RedisClientPool } from './pool';
+import { TimeoutError } from '../errors';
 
 describe('RedisClientPool', () => {
   it('chained withCommandOptions(...).withTypeMapping(...) preserves earlier overrides at dispatch', () => {
@@ -294,5 +295,29 @@ describe('RedisClientPool', () => {
       assert.equal(hasUnhandledRejection, false);
     },
     GLOBAL.SERVERS.OPEN
+  );
+
+  testUtils.testWithClientPool(
+    'rejects with TimeoutError when acquireTimeout expires',
+    async (pool) => {
+      const longRunningTask = pool.execute(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      });
+
+      await assert.rejects(
+        pool.execute(async () => {}),
+        (err: unknown) => {
+          assert(err instanceof TimeoutError);
+          assert.equal(err.message, 'Timeout waiting for a client after 50ms');
+          return true;
+        }
+      );
+
+      await longRunningTask;
+    },
+    {
+      ...GLOBAL.SERVERS.OPEN,
+      poolOptions: { minimum: 1, maximum: 1, acquireTimeout: 50 },
+    }
   );
 });

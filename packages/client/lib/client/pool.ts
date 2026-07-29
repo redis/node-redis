@@ -458,7 +458,7 @@ export class RedisClientPool<
           timeout = setTimeout(
             () => {
               this._self.#tasksQueue.remove(task, tail);
-              reject(new TimeoutError('Timeout waiting for a client')); // TODO: message
+              reject(new TimeoutError(`Timeout waiting for a client after ${this._self.#options.acquireTimeout}ms`));
             },
             this._self.#options.acquireTimeout
           );
