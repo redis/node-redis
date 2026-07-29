@@ -30,6 +30,7 @@ import HIMPORT_DISCARD from '../commands/HIMPORT_DISCARD';
 import HIMPORT_DISCARDALL from '../commands/HIMPORT_DISCARDALL';
 import HIMPORT_PREPARE from '../commands/HIMPORT_PREPARE';
 import HIMPORT_SET from '../commands/HIMPORT_SET';
+import { ASKING_CMD } from '../commands/ASKING';
 
 const noop = () => {};
 
@@ -1355,7 +1356,7 @@ export default class RedisClient<
 
     // Commands to reach the wire BEFORE the main command, in this order. Each carries the
     // rollback undoing its optimistic bookkeeping if the server rejects it.
-    const prelude: Array<{ args: Array<RedisArgument>, rollback: () => void }> = [];
+    const prelude: Array<{ args: Array<RedisArgument>, rollback: () => void, gateMain?: boolean }> = [];
 
     // -- Reconcile: replay discards this session may still be holding. A DISCARD must
     // precede a same-name SET on the wire, or the SET would write through the discarded
@@ -1427,7 +1428,11 @@ export default class RedisClient<
             // permanently lose lazy re-prepare.
             rollback: () => {
               if (prepared.get(name) === entry.version) prepared.delete(name);
-            }
+            },
+            // Gate the SET reply on this PREPARE: if it fails while the connection stays alive
+            // (e.g. ACL denies PREPARE), the SET would otherwise run against the stale
+            // server-side field list and silently write values under the wrong field names.
+            gateMain: true
           });
         }
       }
@@ -1460,21 +1465,35 @@ export default class RedisClient<
       prepared.clear();
     }
 
+    // -- ASK chain: every keyless command in the prelude (a lazy PREPARE or a reconcile
+    // DISCARD) would consume the one-shot ASKING flag that the ASK handler set for this SET,
+    // leaving the SET to be redirected again until maxCommandRedirections. Re-issue ASKING as
+    // the final prelude entry so it lands immediately before the SET on the wire.
+    if (command === HIMPORT_SET && commandOptions?.askRedirect && prelude.length > 0) {
+      prelude.push({ args: [ASKING_CMD], rollback: () => {} });
+    }
+
     // -- Enqueue. Everything below runs in one synchronous tick, so the prelude and the
     // main command flush to the socket in a single write (the HLD-blessed pipelining).
     const send = () => client.sendCommand(parser.redisArgs, commandOptions);
+    // The version-bump PREPARE (if any) whose success the SET reply is gated on.
+    let mainGate: Promise<unknown> | undefined;
+    const enqueue = (injection: { args: Array<RedisArgument>, rollback: () => void, gateMain?: boolean }) => {
+      const promise = client.sendCommand(injection.args, injectOpts);
+      promise.catch(injection.rollback);
+      if (injection.gateMain) mainGate = promise;
+    };
     let mainPromise: Promise<unknown>;
     if (effectiveAsap) {
       // asap unshifts, so consecutive front-insertions reverse: enqueue the main command
       // first, then the prelude back-to-front — the wire sees prelude order, then main.
       mainPromise = send();
       for (let i = prelude.length - 1; i >= 0; i--) {
-        const injection = prelude[i];
-        client.sendCommand(injection.args, injectOpts).catch(injection.rollback);
+        enqueue(prelude[i]);
       }
     } else {
       for (const injection of prelude) {
-        client.sendCommand(injection.args, injectOpts).catch(injection.rollback);
+        enqueue(injection);
       }
       mainPromise = send();
     }
@@ -1534,6 +1553,21 @@ export default class RedisClient<
         prepared.syncedDiscardCount = Math.min(prepared.syncedDiscardCount, userDiscard.countAfter - 1);
       }
       throw err;
+    }
+
+    // The SET succeeded on the wire, but if its version-bump PREPARE was rejected while the
+    // connection stayed alive, the server applied the SET to a STALE field list (the older
+    // version this session still held) — a silent write under the wrong field names. Surface
+    // the PREPARE error instead of the misleading OK, and drop the now-unreliable session claim
+    // so the next SET re-prepares. (The `.catch(rollback)` already cleared the optimistic claim;
+    // this delete is idempotent.)
+    if (mainGate !== undefined) {
+      try {
+        await mainGate;
+      } catch (prepareErr) {
+        if (setName !== undefined) prepared.delete(setName);
+        throw prepareErr;
+      }
     }
 
     const finalReply = registryReply !== undefined

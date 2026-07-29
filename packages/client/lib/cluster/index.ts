@@ -490,6 +490,9 @@ export default class RedisCluster<
       const chainId = Symbol("asking chain");
       const opts = options ? {...options} : {};
       opts.chainId = chainId;
+      // Tell the HIMPORT hook it is on an ASK chain: a keyless PREPARE/DISCARD it pipelines
+      // ahead of the SET would eat the one-shot ASKING flag, so the hook re-issues ASKING.
+      opts.askRedirect = true;
 
 
 

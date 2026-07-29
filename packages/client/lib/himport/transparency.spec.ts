@@ -122,6 +122,67 @@ describe('HIMPORT transparency layer', () => {
     assert.equal(await client.hGet('key2', 'f1'), 'v1');
   }, GLOBAL.SERVERS.OPEN);
 
+  testUtils.testWithClient('a failed injected PREPARE fails the SET instead of writing stale fields', async client => {
+    await client.hImportPrepare('fs', ['f1']);
+    // This connection now holds fs@v1 = [f1] server-side.
+    assert.equal(await client.hImportSet('key1', 'fs', ['x']), 'OK');
+
+    // A duplicate shares the registry. Re-preparing through it advances the registry version
+    // and prepares [g1] on the duplicate's own session — but THIS connection still holds the
+    // old [f1] version, so its next SET must lazily re-prepare.
+    const dup = await client.duplicate().connect();
+    try {
+      await dup.hImportPrepare('fs', ['g1']);
+
+      // Fail this connection's injected PREPARE while the socket stays alive. Without the gate
+      // the SET would run against the stale [f1] template and silently store 'y' under f1
+      // instead of g1; the gate must surface the PREPARE error instead.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const self = (client as any)._self;
+      const original = self.sendCommand.bind(self);
+      self.sendCommand = (args: Array<string>, opts?: unknown) => {
+        if (String(args[0]) === 'HIMPORT' && String(args[1]) === 'PREPARE') {
+          self.sendCommand = original;
+          return Promise.reject(new Error('simulated PREPARE failure'));
+        }
+        return original(args, opts);
+      };
+
+      await assert.rejects(
+        client.hImportSet('key2', 'fs', ['y']),
+        /simulated PREPARE failure/
+      );
+    } finally {
+      await dup.close();
+    }
+  }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('ASK chain re-issues ASKING after the injected PREPARE', async client => {
+    await client.hImportPrepare('fs', ['f1']);
+    // Fresh session so the next SET pipelines a lazy PREPARE ahead of itself.
+    await killClient(client);
+
+    // Record the HIMPORT/ASKING wire order (handshake commands filtered out).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const self = (client as any)._self;
+    const wire: Array<string> = [];
+    const original = self.sendCommand.bind(self);
+    self.sendCommand = (args: Array<string>, opts?: unknown) => {
+      const head = String(args[0]);
+      if (head === 'HIMPORT' || head === 'ASKING') {
+        wire.push([args[0], args[1]].filter(Boolean).map(String).join(' '));
+      }
+      return original(args, opts);
+    };
+
+    // askRedirect mirrors what the cluster ASK handler sets. ASKING errors on a standalone
+    // server but is fire-and-forget, so it does not fail the SET.
+    await client.withCommandOptions({ askRedirect: true }).hImportSet('key', 'fs', ['v1']);
+
+    // The re-issued ASKING lands immediately before the SET, keeping its one-shot flag.
+    assert.deepEqual(wire, ['HIMPORT PREPARE', 'ASKING', 'HIMPORT SET']);
+  }, GLOBAL.SERVERS.OPEN);
+
   testUtils.testWithClient('retries once when the session lost its state unobserved', async client => {
     await client.hImportPrepare('fs', ['f1']);
     await client.hImportSet('key1', 'fs', ['v1']);
