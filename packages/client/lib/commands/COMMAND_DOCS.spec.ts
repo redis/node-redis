@@ -1,5 +1,6 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
+import { RESP_TYPES } from '../RESP/decoder';
 import COMMAND_DOCS from './COMMAND_DOCS';
 import { parseArgs } from './generic-transformers';
 
@@ -117,6 +118,27 @@ describe('COMMAND DOCS', () => {
     assert.equal(typeof get.arguments![0].type, 'string');
   }, {
     ...GLOBAL.SERVERS.OPEN,
+    minimumDockerVersion: [7]
+  });
+
+  testUtils.testWithClient('client.commandDocs with RESP2 and Map type mapping', async client => {
+    const docs = await client
+      .withTypeMapping({ [RESP_TYPES.MAP]: Map })
+      .commandDocs('GET');
+
+    assert.ok(docs instanceof Map);
+    const get = docs.get('get');
+    assert.ok(get instanceof Map);
+
+    const argumentsReply = get.get('arguments');
+    assert.ok(Array.isArray(argumentsReply));
+    assert.ok(argumentsReply[0] instanceof Map);
+    assert.equal(argumentsReply[0].get('name'), 'key');
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    clientOptions: {
+      RESP: 2
+    },
     minimumDockerVersion: [7]
   });
 

@@ -33,90 +33,71 @@ export interface CommandDoc {
 
 export type CommandDocsReply = MapReply<BlobStringReply, CommandDoc>;
 
-function transformArgument(reply: unknown): CommandDocsArgument {
+function transformMap(
+  reply: unknown,
+  typeMapping: TypeMapping | undefined,
+  transformValue: (key: string, value: unknown) => unknown
+): unknown {
   if (!Array.isArray(reply)) {
-    return reply as CommandDocsArgument;
+    return reply;
   }
 
-  const argument: Record<string, unknown> = {};
+  const entries: Array<[string, unknown]> = [];
   for (let i = 0; i < reply.length; i += 2) {
     const key = (reply[i] as { toString(): string }).toString();
-    const value = reply[i + 1];
-
-    if (key === 'arguments' && Array.isArray(value)) {
-      argument.arguments = value.map(transformArgument);
-    } else {
-      argument[key] = value;
-    }
+    entries.push([key, transformValue(key, reply[i + 1])]);
   }
 
-  return argument as CommandDocsArgument;
+  switch (typeMapping?.[RESP_TYPES.MAP]) {
+    case Array:
+      return entries.flat();
+    case Map:
+      return new Map(entries);
+    default: {
+      const object: Record<string, unknown> = {};
+      for (const [key, value] of entries) {
+        object[key] = value;
+      }
+      return object;
+    }
+  }
+}
+
+function transformArgument(reply: unknown, typeMapping?: TypeMapping): CommandDocsArgument {
+  return transformMap(reply, typeMapping, (key, value) => {
+    if (key === 'arguments' && Array.isArray(value)) {
+      return value.map(argument => transformArgument(argument, typeMapping));
+    }
+    return value;
+  }) as CommandDocsArgument;
 }
 
 function transformDoc(reply: unknown, typeMapping?: TypeMapping): CommandDoc {
-  if (!Array.isArray(reply)) {
-    return reply as CommandDoc;
-  }
-
-  const doc: Record<string, unknown> = {};
-  for (let i = 0; i < reply.length; i += 2) {
-    const key = (reply[i] as { toString(): string }).toString();
-    const value = reply[i + 1];
-
+  return transformMap(reply, typeMapping, (key, value) => {
     switch (key) {
       case 'arguments':
-        doc.arguments = Array.isArray(value) ? value.map(transformArgument) : value;
-        break;
+        return Array.isArray(value)
+          ? value.map(argument => transformArgument(argument, typeMapping))
+          : value;
       case 'subcommands':
-        doc.subcommands = transformDocsMap(value, typeMapping);
-        break;
+        return transformDocsMap(value, typeMapping);
       case 'reply_schema':
-        doc.reply_schema = Array.isArray(value) ? transformDoc(value, typeMapping) : value;
-        break;
+        return value;
       default:
-        doc[key] = value;
+        return value;
     }
-  }
-
-  return doc as CommandDoc;
+  }) as CommandDoc;
 }
 
 function transformDocsMap(reply: unknown, typeMapping?: TypeMapping): CommandDocsReply {
-  if (!Array.isArray(reply)) {
-    return reply as CommandDocsReply;
-  }
-
-  const mapType = typeMapping ? typeMapping[RESP_TYPES.MAP] : undefined;
-
-  switch (mapType) {
-    case Array: {
-      const ret: unknown[] = [];
-      for (let i = 0; i < reply.length; i += 2) {
-        ret.push(reply[i]);
-        ret.push(transformDoc(reply[i + 1], typeMapping));
-      }
-      return ret as unknown as CommandDocsReply;
-    }
-    case Map: {
-      const ret = new Map<string, CommandDoc>();
-      for (let i = 0; i < reply.length; i += 2) {
-        ret.set((reply[i] as { toString(): string }).toString(), transformDoc(reply[i + 1], typeMapping));
-      }
-      return ret as unknown as CommandDocsReply;
-    }
-    default: {
-      const docs: Record<string, CommandDoc> = {};
-      for (let i = 0; i < reply.length; i += 2) {
-        const name = (reply[i] as { toString(): string }).toString();
-        docs[name] = transformDoc(reply[i + 1], typeMapping);
-      }
-      return docs as unknown as CommandDocsReply;
-    }
-  }
+  return transformMap(
+    reply,
+    typeMapping,
+    (_key, value) => transformDoc(value, typeMapping)
+  ) as CommandDocsReply;
 }
 
 export default {
-  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
   /**
    * @see https://redis.io/commands/command-docs/
