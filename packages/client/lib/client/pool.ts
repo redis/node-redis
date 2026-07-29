@@ -14,6 +14,7 @@ import SingleEntryCache from '../single-entry-cache';
 import { MULTI_MODE, MultiMode } from '../multi-command';
 import { publish, CHANNELS } from './tracing';
 import { ClientIdentity, ClientRole, generateClientId } from './identity';
+import { FieldsetRegistry } from '../himport/registry';
 
 export interface RedisPoolOptions {
   /**
@@ -323,6 +324,12 @@ export class RedisClientPool<
 //        this.#clientSideCache = clientOptions.clientSideCache = new PooledNoRedirectClientSideCache(cscConfig);
       }
     }
+
+    // One fieldset registry for the whole pool: a fieldset registered through any borrowed
+    // connection must be transparently re-preparable on every other pooled connection.
+    // Deliberately NOT inherited when the pool is created from an existing client
+    // (createPool spreads the client's options, which never carry an instance).
+    clientOptions = { ...clientOptions, himportRegistry: new FieldsetRegistry() };
 
     // Capture the key prefix for the pool's own parser construction, then strip it from
     // the pooled clients' options: the pool builds the (already prefixed) parser and hands
