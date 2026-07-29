@@ -4,7 +4,7 @@ import { BasicAuth, CredentialsError, CredentialsProvider, StreamingCredentialsP
 import RedisCommandsQueue, { CommandOptions } from './commands-queue';
 import { EventEmitter } from 'node:events';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
-import { ClientClosedError, ClientOfflineError, DisconnectsClientError, WatchError } from '../errors';
+import { AbortError, ClientClosedError, ClientOfflineError, DisconnectsClientError, WatchError } from '../errors';
 import { URL } from 'node:url';
 import { TcpSocketConnectOpts } from 'node:net';
 import { PUBSUB_TYPE, PubSubType, PubSubListener, PubSubTypeListeners, ChannelListeners } from './pub-sub';
@@ -25,8 +25,35 @@ import { ClientMetricsHandle, ClientRegistry } from '../opentelemetry';
 import { ClientIdentity, ClientRole, generateClientId } from './identity';
 import { trace, sanitizeArgs, publish, CHANNELS, type CommandTraceContext } from './tracing';
 import { DEFAULT_COMMAND_TIMEOUT } from '../defaults';
+import { FieldsetRegistry, PreparedFieldsets } from '../himport/registry';
+import HIMPORT_DISCARD from '../commands/HIMPORT_DISCARD';
+import HIMPORT_DISCARDALL from '../commands/HIMPORT_DISCARDALL';
+import HIMPORT_PREPARE from '../commands/HIMPORT_PREPARE';
+import HIMPORT_SET from '../commands/HIMPORT_SET';
+import { ASKING_CMD } from '../commands/ASKING';
 
 const noop = () => {};
+
+const HIMPORT_SESSION_SUBCOMMANDS = new Set(['PREPARE', 'DISCARD', 'DISCARDALL']);
+
+/**
+ * MULTI/pipeline stores raw args only, so the HIMPORT transparency hook never sees these
+ * commands — a PREPARE/DISCARD executed that way would silently diverge the client registry
+ * from server state (a fieldset the registry doesn't know about, or a discarded one it
+ * would resurrect via lazy prepare). Rejected client-side at the exec funnel, which covers
+ * both the typed multi methods and raw `multi.addCommand(...)`. HIMPORT SET stays allowed:
+ * it mutates no registry state (the fieldset must already exist on the carrying connection).
+ */
+function assertNoHimportSessionCommands(commands: Array<RedisMultiQueuedCommand>) {
+  for (const { args } of commands) {
+    if (String(args[0]).toUpperCase() !== 'HIMPORT') continue;
+    if (HIMPORT_SESSION_SUBCOMMANDS.has(String(args[1]).toUpperCase())) {
+      throw new Error(
+        'HIMPORT PREPARE/DISCARD/DISCARDALL are not supported inside MULTI/pipeline; call them on the client before the transaction'
+      );
+    }
+  }
+}
 
 export interface RedisClientOptions<
   M extends RedisModules = RedisModules,
@@ -161,6 +188,14 @@ export interface RedisClientOptions<
    * ```
    */
   clientSideCache?: ClientSideCacheProvider | ClientSideCacheConfig;
+  /**
+   * @internal
+   * Shared HIMPORT fieldset registry. Pool/cluster/sentinel construct one instance and inject
+   * it into every client they own so a fieldset registered on the logical client can be
+   * transparently re-prepared on any physical connection; `duplicate()` injects the parent's.
+   * Not a user-facing option — when omitted the client owns a fresh registry.
+   */
+  himportRegistry?: FieldsetRegistry;
   /**
    * If set to true, disables sending client identifier (user-agent like message) to the redis server
    */
@@ -297,6 +332,20 @@ export interface ScanIteratorOptions {
 }
 
 export type MonitorCallback<TYPE_MAPPING extends TypeMapping = TypeMapping> = (reply: ReplyWithTypeMapping<SimpleStringReply, TYPE_MAPPING>) => unknown;
+
+/**
+ * A `sendCommand` rejection that happened BEFORE the command reached the wire (client closed
+ * or offline, an already-aborted signal, or a full queue — see `sendCommand`/`addCommand`).
+ * The HIMPORT layer rolls back optimistic registry mutations on these because the server never
+ * saw the command; genuine wire/server errors (`ErrorReply`, connection drops) are left to the
+ * replay path instead.
+ */
+function isPreEnqueueError(err: unknown): boolean {
+  return err instanceof ClientClosedError ||
+    err instanceof ClientOfflineError ||
+    err instanceof AbortError ||
+    (err instanceof Error && err.message === 'The queue is full');
+}
 
 export default class RedisClient<
   M extends RedisModules,
@@ -549,6 +598,10 @@ export default class RedisClient<
   #dirtyWatch?: string;
   #watchEpoch?: number;
   #clientSideCache?: ClientSideCacheProvider;
+  // What the user registered on the logical client (shared across pooled/cluster/sentinel
+  // clients via the himportRegistry option) vs. what THIS socket's server session holds.
+  #himportRegistry: FieldsetRegistry;
+  #preparedFieldsets = new PreparedFieldsets();
   #credentialsSubscription: Disposable | null = null;
   // Flag used to pause writing to the socket during maintenance windows.
   // When true, prevents new commands from being written while waiting for:
@@ -688,6 +741,7 @@ export default class RedisClient<
 
     this.#queue = this.#initiateQueue(this.#clientIdentity.id);
     this.#socket = this.#initiateSocket(this.#clientIdentity.id);
+    this.#himportRegistry = this.#options.himportRegistry ?? new FieldsetRegistry();
 
     this.#registerForMetrics();
 
@@ -981,6 +1035,10 @@ export default class RedisClient<
     .on('error', err => {
       this.emit('error', err);
       this.#clientSideCache?.onError();
+      // Session state died with the socket. Cleared HERE (not on re-ready): a hImportSet
+      // issued between disconnect and re-ready would otherwise see a live-looking entry,
+      // skip the PREPARE injection, and replay bare onto the new socket's empty session.
+      this.#preparedFieldsets.clear();
       if (this.#socket.isOpen && !this.#options.disableOfflineQueue) {
         this.#queue.flushWaitingForReply(err);
       } else {
@@ -1141,6 +1199,9 @@ export default class RedisClient<
   >(overrides?: Partial<RedisClientOptions<_M, _F, _S, _RESP, _TYPE_MAPPING>>) {
     return new (Object.getPrototypeOf(this).constructor)({
       ...this._self.#options,
+      // The options spread only carries the registry if the user originally passed one —
+      // inject the live instance explicitly: a duplicate SHARES the parent's registrations.
+      himportRegistry: this._self.#himportRegistry,
       commandOptions: this._commandOptions,
       ...overrides
     }) as RedisClientType<_M, _F, _S, _RESP, _TYPE_MAPPING>;
@@ -1175,6 +1236,9 @@ export default class RedisClient<
      if(this._self.#socket) {
       this._self._ejectSocket().destroy();
      }
+     // A swapped-in socket carries a fresh server session with no other observable signal
+     // on this client — the explicit wipe is the only fieldset-invalidation mechanism here.
+     this._self.#preparedFieldsets.clear();
      this._self.#socket = socket;
      this._self.#attachListeners(this._self.#socket);
    }
@@ -1225,6 +1289,13 @@ export default class RedisClient<
     commandOptions: CommandOptions<TYPE_MAPPING> | undefined,
     transformReply: TransformReply | undefined,
   ) {
+    if (
+      command === HIMPORT_SET || command === HIMPORT_PREPARE ||
+      command === HIMPORT_DISCARD || command === HIMPORT_DISCARDALL
+    ) {
+      return this._self.#executeHimport(this, command, parser, commandOptions, transformReply);
+    }
+
     const csc = this._self.#clientSideCache;
     const defaultTypeMapping = this._self.#options.commandOptions === commandOptions ||
       (this._self.#options.commandOptions?.typeMapping === commandOptions?.typeMapping);
@@ -1242,6 +1313,270 @@ export default class RedisClient<
 
       return finalReply;
     }
+  }
+
+  /**
+   * HIMPORT transparency layer (design: ../himport/registry.ts module doc). Runs instead of
+   * the normal `_executeCommand` tail for the four HIMPORT commands and keeps this
+   * connection's server session coherent with the client-level fieldset registry:
+   *
+   * 1. Reconcile — replays DISCARDs this session missed (it was serving other commands when
+   *    the user discarded on another connection).
+   * 2. Lazy prepare — pipelines a PREPARE in front of a SET when this session lacks the
+   *    fieldset or holds a stale field-list version. No await in between: the server
+   *    processes them in arrival order on one socket.
+   * 3. Registry-based replies — DISCARD/DISCARDALL resolve with the registry mutation result
+   *    (`1`/count of registrations removed), not the per-session server reply, so the answer
+   *    is deterministic across pools and clusters.
+   * 4. Retry-once — a SET failing with `no such fieldset` for a *registered* fieldset means
+   *    this session lost its state through a path the client did not observe; re-prepare on
+   *    this same connection and retry a single time.
+   *
+   * Raw `sendCommand(['HIMPORT', ...])` bypasses this layer by construction.
+   */
+  async #executeHimport(
+    // The proxy-aware caller (`duplicate`d command-options carriers derive from the client),
+    // needed for `sendCommand` merging and `_commandOptions`; `this` inside is always _self.
+    client: RedisClient<M, F, S, RESP, TYPE_MAPPING>,
+    command: Command,
+    parser: CommandParser,
+    commandOptions: CommandOptions<TYPE_MAPPING> | undefined,
+    transformReply: TransformReply | undefined,
+    retried = false
+  ): Promise<unknown> {
+    const registry = this.#himportRegistry;
+    const prepared = this.#preparedFieldsets;
+    const args = parser.redisArgs;
+    // The injected commands must ride with the main command's effective queue placement:
+    // same chainId (ASK-redirect chains flush per chain) and same asap-ness (asap unshifts
+    // to the queue front — a non-asap injection would let an asap SET jump its own PREPARE).
+    const effectiveAsap = commandOptions?.asap ?? client._commandOptions?.asap;
+    const effectiveChainId = commandOptions?.chainId ?? client._commandOptions?.chainId;
+    const injectOpts: CommandOptions = { asap: effectiveAsap, chainId: effectiveChainId };
+
+    // Commands to reach the wire BEFORE the main command, in this order. Each carries the
+    // rollback undoing its optimistic bookkeeping if the server rejects it.
+    const prelude: Array<{ args: Array<RedisArgument>, rollback: () => void, gateMain?: boolean }> = [];
+
+    // -- Reconcile: replay discards this session may still be holding. A DISCARD must
+    // precede a same-name SET on the wire, or the SET would write through the discarded
+    // template; hence prelude, not fire-and-forget.
+    if (prepared.syncedDiscardCount < registry.discardCount) {
+      const countAtInjection = registry.discardCount;
+      const pending = registry.diff(prepared.names());
+      // Every session name is pending → one DISCARDALL wipes the session in a single
+      // command. Safe precisely because nothing this session holds is worth keeping.
+      const collapseToDiscardAll = pending.size > 0 && pending.size === prepared.size;
+      const rollbackVersions = new Map<string, number>();
+      for (const name of pending) {
+        rollbackVersions.set(name, prepared.get(name)!);
+        prepared.delete(name);
+      }
+      prepared.syncedDiscardCount = countAtInjection;
+      // Failed injected DISCARD → the fieldset is still alive on this session with no
+      // client-side trace; restore the trace and knock the synced count back so the next
+      // HIMPORT command re-reconciles. Guarded so a newer PREPARE is never clobbered.
+      const rollback = (names: Iterable<string>) => {
+        for (const name of names) {
+          const version = rollbackVersions.get(name);
+          if (version !== undefined && prepared.get(name) === undefined) {
+            prepared.set(name, version);
+          }
+        }
+        prepared.syncedDiscardCount = Math.min(prepared.syncedDiscardCount, countAtInjection - 1);
+      };
+      if (collapseToDiscardAll) {
+        prelude.push({ args: ['HIMPORT', 'DISCARDALL'], rollback: () => rollback(pending) });
+      } else {
+        for (const name of pending) {
+          prelude.push({ args: ['HIMPORT', 'DISCARD', name], rollback: () => rollback([name]) });
+        }
+      }
+    }
+
+    // -- Per-command registry bookkeeping, optimistic (before any reply) so concurrent
+    // same-tick commands see the final state and don't double-prepare (NF.2).
+    let userPrepare: { name: string, version: number, priorFields: Array<RedisArgument> | undefined } | undefined;
+    let registryReply: number | undefined;
+    let setName: string | undefined;
+    let userDiscard: { restore: Map<string, number>, removed: Map<string, Array<RedisArgument>>, countAfter: number } | undefined;
+
+    if (command === HIMPORT_PREPARE) {
+      const name = String(args[2]);
+      // Snapshot the prior registration BEFORE overwriting it: a rejected *replacement*
+      // PREPARE must restore it (the server keeps the old fieldset on reject), not drop the
+      // name and strand later SETs with `no such fieldset`.
+      const priorFields = registry.get(name)?.fields;
+      registry.set(name, args.slice(3));
+      const version = registry.get(name)!.version;
+      userPrepare = { name, version, priorFields };
+      prepared.set(name, version);
+    } else if (command === HIMPORT_SET) {
+      // args layout: [HIMPORT, SET, key, fieldset, ...values] — index 2 is the (possibly
+      // keyPrefix-affected) key, index 3 is the fieldset name.
+      const name = String(args[3]);
+      setName = name;
+      const entry = registry.get(name);
+      if (entry !== undefined) {
+        const sessionVersion = prepared.get(name);
+        if (sessionVersion === undefined || sessionVersion < entry.version) {
+          prepared.set(name, entry.version);
+          prelude.push({
+            args: ['HIMPORT', 'PREPARE', name, ...entry.fields],
+            // Injected-PREPARE failures are often transient (LOADING, failover) — roll back
+            // only the session claim, never the registration, or a valid fieldset would
+            // permanently lose lazy re-prepare.
+            rollback: () => {
+              if (prepared.get(name) === entry.version) prepared.delete(name);
+            },
+            // Gate the SET reply on this PREPARE: if it fails while the connection stays alive
+            // (e.g. ACL denies PREPARE), the SET would otherwise run against the stale
+            // server-side field list and silently write values under the wrong field names.
+            gateMain: true
+          });
+        }
+      }
+      // Name absent from the registry → send as-is; the server's `no such fieldset` is
+      // authoritative and must not be masked.
+    } else if (command === HIMPORT_DISCARD) {
+      const name = String(args[2]);
+      const sessionVersion = prepared.get(name);
+      // Capture the removed field list so a pre-enqueue failure can re-register it.
+      const priorFields = registry.get(name)?.fields;
+      if (registry.discard(name)) {
+        registryReply = 1;
+        userDiscard = {
+          restore: sessionVersion === undefined ? new Map() : new Map([[name, sessionVersion]]),
+          removed: new Map([[name, priorFields!]]),
+          countAfter: registry.discardCount
+        };
+      } else {
+        registryReply = 0;
+      }
+      prepared.delete(name);
+    } else {
+      const restore = new Map(prepared.entries());
+      // Snapshot all registrations so a pre-enqueue failure can re-register them.
+      const removed = registry.snapshot();
+      registryReply = registry.discardAll();
+      if (registryReply > 0) {
+        userDiscard = { restore, removed, countAfter: registry.discardCount };
+      }
+      prepared.clear();
+    }
+
+    // -- ASK chain: every keyless command in the prelude (a lazy PREPARE or a reconcile
+    // DISCARD) would consume the one-shot ASKING flag that the ASK handler set for this SET,
+    // leaving the SET to be redirected again until maxCommandRedirections. Re-issue ASKING as
+    // the final prelude entry so it lands immediately before the SET on the wire.
+    if (command === HIMPORT_SET && commandOptions?.askRedirect && prelude.length > 0) {
+      prelude.push({ args: [ASKING_CMD], rollback: () => {} });
+    }
+
+    // -- Enqueue. Everything below runs in one synchronous tick, so the prelude and the
+    // main command flush to the socket in a single write (the HLD-blessed pipelining).
+    const send = () => client.sendCommand(parser.redisArgs, commandOptions);
+    // The version-bump PREPARE (if any) whose success the SET reply is gated on.
+    let mainGate: Promise<unknown> | undefined;
+    const enqueue = (injection: { args: Array<RedisArgument>, rollback: () => void, gateMain?: boolean }) => {
+      const promise = client.sendCommand(injection.args, injectOpts);
+      promise.catch(injection.rollback);
+      if (injection.gateMain) mainGate = promise;
+    };
+    let mainPromise: Promise<unknown>;
+    if (effectiveAsap) {
+      // asap unshifts, so consecutive front-insertions reverse: enqueue the main command
+      // first, then the prelude back-to-front — the wire sees prelude order, then main.
+      mainPromise = send();
+      for (let i = prelude.length - 1; i >= 0; i--) {
+        enqueue(prelude[i]);
+      }
+    } else {
+      for (const injection of prelude) {
+        enqueue(injection);
+      }
+      mainPromise = send();
+    }
+
+    let reply: unknown;
+    try {
+      reply = await mainPromise;
+    } catch (err) {
+      if (command === HIMPORT_PREPARE && userPrepare !== undefined) {
+        // Roll back the optimistic registration. Version-guarded: a newer successful PREPARE
+        // that won a race must not be clobbered.
+        //   • Rejected *replacement* (a prior field list existed) — the server keeps the old
+        //     fieldset on reject, so restore it; dropping it would strand later SETs (on
+        //     new/reconnected/pooled connections) with `no such fieldset` even though the last
+        //     successful registration was still valid.
+        //   • Rejected *fresh* PREPARE — remove via discard(), which also bumps discardCount so
+        //     any session still holding a stale claim reconciles it away.
+        const { name, version, priorFields } = userPrepare;
+        if (prepared.get(name) === version) prepared.delete(name);
+        if (registry.get(name)?.version === version) {
+          if (priorFields !== undefined) {
+            registry.set(name, priorFields);
+          } else {
+            registry.discard(name);
+          }
+        }
+      } else if (
+        command === HIMPORT_SET && setName !== undefined && !retried &&
+        (err as Error)?.message?.includes?.('no such fieldset') &&
+        registry.get(setName) !== undefined
+      ) {
+        // Recover-and-retry-once (HLD NF.4): the session claim lied — state was lost through
+        // a path the client did not observe. Blind retries on another connection would fail
+        // identically; re-prepare HERE and retry a single time.
+        prepared.delete(setName);
+        return this.#executeHimport(client, command, parser, commandOptions, transformReply, true);
+      } else if (userDiscard !== undefined) {
+        // A rejected user DISCARD/DISCARDALL, two cases:
+        //   • Pre-enqueue failure (client closed/offline, aborted signal, full queue) — the
+        //     command never reached the server, so the discard did not happen. Re-register the
+        //     removed fieldsets (absence-guarded: a re-PREPARE that won the race keeps its newer
+        //     entry) so shared duplicates/pools keep auto-preparing instead of failing with
+        //     `no such fieldset` on a discard the server never saw.
+        //   • Wire/server failure — this session's server state is unknown while the registry
+        //     mutation stands (a discard is recorded user intent; other sessions reconcile off
+        //     the count bump regardless). The registry stays removed and the synced-count knock
+        //     below makes the next HIMPORT command replay the discard on this session.
+        // Either way, restore this session's optimistically-wiped claims.
+        if (isPreEnqueueError(err)) {
+          for (const [name, fields] of userDiscard.removed) {
+            if (registry.get(name) === undefined) registry.set(name, fields);
+          }
+        }
+        for (const [name, version] of userDiscard.restore) {
+          if (prepared.get(name) === undefined) prepared.set(name, version);
+        }
+        prepared.syncedDiscardCount = Math.min(prepared.syncedDiscardCount, userDiscard.countAfter - 1);
+      }
+      throw err;
+    }
+
+    // The SET succeeded on the wire, but if its version-bump PREPARE was rejected while the
+    // connection stayed alive, the server applied the SET to a STALE field list (the older
+    // version this session still held) — a silent write under the wrong field names. Surface
+    // the PREPARE error instead of the misleading OK, and drop the now-unreliable session claim
+    // so the next SET re-prepares. (The `.catch(rollback)` already cleared the optimistic claim;
+    // this delete is idempotent.)
+    if (mainGate !== undefined) {
+      try {
+        await mainGate;
+      } catch (prepareErr) {
+        if (setName !== undefined) prepared.delete(setName);
+        throw prepareErr;
+      }
+    }
+
+    const finalReply = registryReply !== undefined
+      ? registryReply
+      : transformReply ? transformReply(reply, parser.preserve, commandOptions?.typeMapping) : reply;
+
+    publish(CHANNELS.COMMAND_REPLY, () => ({ args: sanitizeArgs(parser.redisArgs), reply: finalReply, clientId: this._clientId }));
+
+    return finalReply;
   }
 
   /**
@@ -1510,6 +1845,8 @@ export default class RedisClient<
     commands: Array<RedisMultiQueuedCommand>,
     selectedDB?: number
   ) {
+    assertNoHimportSessionCommands(commands);
+
     if (!this._self.#socket.isOpen) {
       return Promise.reject(new ClientClosedError());
     }
@@ -1566,6 +1903,8 @@ export default class RedisClient<
     commands: Array<RedisMultiQueuedCommand>,
     selectedDB?: number
   ) {
+    assertNoHimportSessionCommands(commands);
+
     const dirtyWatch = this._self.#dirtyWatch;
     this._self.#dirtyWatch = undefined;
     const watchEpoch = this._self.#watchEpoch;
@@ -1754,6 +2093,12 @@ export default class RedisClient<
    * Reset the client to its default state (i.e. stop PubSub, stop monitoring, select default DB, etc.)
    */
   async reset() {
+    // RESET wipes the server session's fieldsets. Cleared at entry, not after the
+    // round-trip: RESET queues at the #toWrite tail, so a concurrent hImportSet whose hook
+    // runs before a post-completion clear would see a live entry and queue a bare SET
+    // BEHIND the RESET — onto the wiped session. With the entry-time clear it re-injects
+    // PREPARE, which queues behind RESET too, in the correct order.
+    this._self.#preparedFieldsets.clear();
     const chainId = Symbol('Reset Chain'),
       promises = [this._self.#queue.reset(chainId)],
       selectedDB = this._self.#options?.database ?? 0;

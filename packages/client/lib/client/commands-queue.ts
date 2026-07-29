@@ -24,6 +24,13 @@ export interface CommandOptions<T = TypeMapping> {
    * The slot the command is targeted to (if any)
    */
   slotNumber?: number;
+  /**
+   * @internal
+   * Set by the cluster ASK-redirect handler. Signals the HIMPORT hook that this command rides
+   * an ASK chain, so any keyless command it injects ahead of the main (key-bearing) command
+   * would consume the one-shot ASKING flag — the hook re-issues ASKING right before the main.
+   */
+  askRedirect?: boolean;
 }
 
 export interface CommandToWrite extends CommandWaitingForReply {

@@ -16,6 +16,7 @@ import SingleEntryCache from '../single-entry-cache'
 import { publish, CHANNELS } from '../client/tracing';
 import { ClientIdentity, ClientRole, generateClusterClientId } from '../client/identity';
 import { DEFAULT_COMMAND_TIMEOUT } from '../defaults';
+import { FieldsetRegistry } from '../himport/registry';
 
 export type ClusterTopologyRefreshOnReconnectionAttemptStrategy =
   false |
@@ -146,6 +147,14 @@ export interface RedisClusterOptions<
    * ```
    */
   clientSideCache?: PooledClientSideCacheProvider | ClientSideCacheConfig;
+  /**
+   * @internal
+   * Shared HIMPORT fieldset registry for the whole cluster. When omitted the cluster's
+   * `RedisClusterSlots` owns a fresh one; `duplicate()` injects the parent's so the duplicate
+   * SHARES the parent's registrations (matching the standalone `duplicate()` guarantee).
+   * Not a user-facing option.
+   */
+  himportRegistry?: FieldsetRegistry;
 }
 
 export type RedisClusterType<
@@ -410,6 +419,9 @@ export default class RedisCluster<
   >(overrides?: Partial<RedisClusterOptions<_M, _F, _S, _RESP, _TYPE_MAPPING>>) {
     return new (Object.getPrototypeOf(this).constructor)({
       ...this._self._options,
+      // Inject the live registry explicitly (the options spread only carries it if the user
+      // passed one) — a duplicate SHARES the parent's HIMPORT registrations.
+      himportRegistry: this._self._slots.himportRegistry,
       commandOptions: this._commandOptions,
       ...overrides
     }) as RedisClusterType<_M, _F, _S, _RESP, _TYPE_MAPPING>;
@@ -478,6 +490,9 @@ export default class RedisCluster<
       const chainId = Symbol("asking chain");
       const opts = options ? {...options} : {};
       opts.chainId = chainId;
+      // Tell the HIMPORT hook it is on an ASK chain: a keyless PREPARE/DISCARD it pipelines
+      // ahead of the SET would eat the one-shot ASKING flag, so the hook re-issues ASKING.
+      opts.askRedirect = true;
 
 
 
