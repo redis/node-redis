@@ -17,9 +17,11 @@ export default {
   },
   transformReply: {
     2: undefined as unknown as () => NullReply | BlobStringReply | ArrayReply<BlobStringReply | NullReply>,
-    // TODO: RESP3 wraps the response in another array, but only returns 1 
+    /**
+     * Unwraps the top-level array wrapper returned by RedisJSON under RESP3 protocol
+     */
     3: (reply: UnwrapReply<ArrayReply<NullReply | BlobStringReply | ArrayReply<BlobStringReply | NullReply>>>) => {
-      return reply[0];
+      return Array.isArray(reply) ? reply[0] : reply;
     }
   },
 } as const satisfies Command;
