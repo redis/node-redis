@@ -47,7 +47,7 @@ jobs:
             version: "8.4"
           - tag: "8.8.0"
             version: "8.8"
-          - tag: "8.10-rc2"
+          - tag: "custom-30445126297-debian"
             version: "8.10"
     steps:
       - uses: actions/checkout@v6
