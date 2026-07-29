@@ -126,7 +126,12 @@ export default class RedisClusterSlots<
    * via the policy layer, and every node client (including MOVED/rediscovered nodes and
    * SMIGRATED destinations) must lazily re-prepare from the same registrations.
    */
-  readonly #himportRegistry = new FieldsetRegistry();
+  readonly #himportRegistry: FieldsetRegistry;
+
+  /** The cluster-wide registry, exposed so `RedisCluster.duplicate()` can share it. */
+  get himportRegistry() {
+    return this.#himportRegistry;
+  }
   smigratedSeqIdsSeen = new Set<number>;
   #topologyRefreshPromise?: Promise<boolean | void>;
 
@@ -155,6 +160,7 @@ export default class RedisClusterSlots<
   ) {
     this.#validateOptions(options);
     this.#options = options;
+    this.#himportRegistry = options.himportRegistry ?? new FieldsetRegistry();
     this.#clusterClientId = clusterClientId;
     this.#reconnectionTracker = new ClusterReconnectionTracker(options.topologyRefreshOnReconnectionAttemptStrategy);
 

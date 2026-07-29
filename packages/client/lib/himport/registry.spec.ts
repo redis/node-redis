@@ -65,6 +65,23 @@ describe('FieldsetRegistry', () => {
     });
   });
 
+  describe('snapshot', () => {
+    it('returns every registration as name → field list', () => {
+      const registry = new FieldsetRegistry();
+      registry.set('fs1', ['a', 'b']);
+      registry.set('fs2', ['c']);
+
+      const snap = registry.snapshot();
+      assert.deepEqual(snap.get('fs1'), ['a', 'b']);
+      assert.deepEqual(snap.get('fs2'), ['c']);
+      assert.equal(snap.size, 2);
+    });
+
+    it('is empty for an empty registry', () => {
+      assert.equal(new FieldsetRegistry().snapshot().size, 0);
+    });
+  });
+
   describe('discard', () => {
     it('returns true and bumps discardCount for a registered name', () => {
       const registry = new FieldsetRegistry();

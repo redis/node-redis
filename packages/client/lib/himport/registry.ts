@@ -79,6 +79,16 @@ export class FieldsetRegistry {
   }
 
   /**
+   * Snapshot of every registration as name → field list. Used to roll back a `DISCARDALL`
+   * that failed before reaching the server, so shared duplicates/pools keep auto-preparing.
+   */
+  snapshot(): Map<string, Array<RedisArgument>> {
+    const out = new Map<string, Array<RedisArgument>>();
+    for (const [name, fs] of this.#fieldsets) out.set(name, fs.fields);
+    return out;
+  }
+
+  /**
    * Returns `true` iff the name was registered — this boolean IS the user-facing
    * `hImportDiscard` reply (registry-based, not the server session's).
    */

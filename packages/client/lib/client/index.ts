@@ -4,7 +4,7 @@ import { BasicAuth, CredentialsError, CredentialsProvider, StreamingCredentialsP
 import RedisCommandsQueue, { CommandOptions } from './commands-queue';
 import { EventEmitter } from 'node:events';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
-import { ClientClosedError, ClientOfflineError, DisconnectsClientError, WatchError } from '../errors';
+import { AbortError, ClientClosedError, ClientOfflineError, DisconnectsClientError, WatchError } from '../errors';
 import { URL } from 'node:url';
 import { TcpSocketConnectOpts } from 'node:net';
 import { PUBSUB_TYPE, PubSubType, PubSubListener, PubSubTypeListeners, ChannelListeners } from './pub-sub';
@@ -331,6 +331,20 @@ export interface ScanIteratorOptions {
 }
 
 export type MonitorCallback<TYPE_MAPPING extends TypeMapping = TypeMapping> = (reply: ReplyWithTypeMapping<SimpleStringReply, TYPE_MAPPING>) => unknown;
+
+/**
+ * A `sendCommand` rejection that happened BEFORE the command reached the wire (client closed
+ * or offline, an already-aborted signal, or a full queue — see `sendCommand`/`addCommand`).
+ * The HIMPORT layer rolls back optimistic registry mutations on these because the server never
+ * saw the command; genuine wire/server errors (`ErrorReply`, connection drops) are left to the
+ * replay path instead.
+ */
+function isPreEnqueueError(err: unknown): boolean {
+  return err instanceof ClientClosedError ||
+    err instanceof ClientOfflineError ||
+    err instanceof AbortError ||
+    (err instanceof Error && err.message === 'The queue is full');
+}
 
 export default class RedisClient<
   M extends RedisModules,
@@ -1381,16 +1395,20 @@ export default class RedisClient<
 
     // -- Per-command registry bookkeeping, optimistic (before any reply) so concurrent
     // same-tick commands see the final state and don't double-prepare (NF.2).
-    let userPrepare: { name: string, version: number } | undefined;
+    let userPrepare: { name: string, version: number, priorFields: Array<RedisArgument> | undefined } | undefined;
     let registryReply: number | undefined;
     let setName: string | undefined;
-    let userDiscard: { restore: Map<string, number>, countAfter: number } | undefined;
+    let userDiscard: { restore: Map<string, number>, removed: Map<string, Array<RedisArgument>>, countAfter: number } | undefined;
 
     if (command === HIMPORT_PREPARE) {
       const name = String(args[2]);
+      // Snapshot the prior registration BEFORE overwriting it: a rejected *replacement*
+      // PREPARE must restore it (the server keeps the old fieldset on reject), not drop the
+      // name and strand later SETs with `no such fieldset`.
+      const priorFields = registry.get(name)?.fields;
       registry.set(name, args.slice(3));
       const version = registry.get(name)!.version;
-      userPrepare = { name, version };
+      userPrepare = { name, version, priorFields };
       prepared.set(name, version);
     } else if (command === HIMPORT_SET) {
       // args layout: [HIMPORT, SET, key, fieldset, ...values] — index 2 is the (possibly
@@ -1418,10 +1436,13 @@ export default class RedisClient<
     } else if (command === HIMPORT_DISCARD) {
       const name = String(args[2]);
       const sessionVersion = prepared.get(name);
+      // Capture the removed field list so a pre-enqueue failure can re-register it.
+      const priorFields = registry.get(name)?.fields;
       if (registry.discard(name)) {
         registryReply = 1;
         userDiscard = {
           restore: sessionVersion === undefined ? new Map() : new Map([[name, sessionVersion]]),
+          removed: new Map([[name, priorFields!]]),
           countAfter: registry.discardCount
         };
       } else {
@@ -1430,9 +1451,11 @@ export default class RedisClient<
       prepared.delete(name);
     } else {
       const restore = new Map(prepared.entries());
+      // Snapshot all registrations so a pre-enqueue failure can re-register them.
+      const removed = registry.snapshot();
       registryReply = registry.discardAll();
       if (registryReply > 0) {
-        userDiscard = { restore, countAfter: registry.discardCount };
+        userDiscard = { restore, removed, countAfter: registry.discardCount };
       }
       prepared.clear();
     }
@@ -1461,14 +1484,23 @@ export default class RedisClient<
       reply = await mainPromise;
     } catch (err) {
       if (command === HIMPORT_PREPARE && userPrepare !== undefined) {
-        // A rejected user PREPARE (e.g. duplicate field name) must not leave a registration
-        // that lazy prepare would replay forever. Version-guarded: a newer successful
-        // PREPARE must not be clobbered. Deleting through `discard()` also bumps
-        // discardCount, so sessions still holding an OLDER field list for this name
-        // reconcile it away instead of silently serving stale SETs.
-        const { name, version } = userPrepare;
+        // Roll back the optimistic registration. Version-guarded: a newer successful PREPARE
+        // that won a race must not be clobbered.
+        //   • Rejected *replacement* (a prior field list existed) — the server keeps the old
+        //     fieldset on reject, so restore it; dropping it would strand later SETs (on
+        //     new/reconnected/pooled connections) with `no such fieldset` even though the last
+        //     successful registration was still valid.
+        //   • Rejected *fresh* PREPARE — remove via discard(), which also bumps discardCount so
+        //     any session still holding a stale claim reconciles it away.
+        const { name, version, priorFields } = userPrepare;
         if (prepared.get(name) === version) prepared.delete(name);
-        if (registry.get(name)?.version === version) registry.discard(name);
+        if (registry.get(name)?.version === version) {
+          if (priorFields !== undefined) {
+            registry.set(name, priorFields);
+          } else {
+            registry.discard(name);
+          }
+        }
       } else if (
         command === HIMPORT_SET && setName !== undefined && !retried &&
         (err as Error)?.message?.includes?.('no such fieldset') &&
@@ -1480,12 +1512,22 @@ export default class RedisClient<
         prepared.delete(setName);
         return this.#executeHimport(client, command, parser, commandOptions, transformReply, true);
       } else if (userDiscard !== undefined) {
-        // A rejected user DISCARD/DISCARDALL leaves this session's server state unknown while
-        // the registry mutation stands (a discard is recorded user intent — other sessions
-        // reconcile off the count bump regardless). Restore this session's claims and knock
-        // the synced count back so the next HIMPORT command replays the discard here — the
-        // same recovery as a failed injected DISCARD. Absence-guarded: a re-PREPARE that won
-        // the race keeps its entry (its name is back in the registry, so reconcile skips it).
+        // A rejected user DISCARD/DISCARDALL, two cases:
+        //   • Pre-enqueue failure (client closed/offline, aborted signal, full queue) — the
+        //     command never reached the server, so the discard did not happen. Re-register the
+        //     removed fieldsets (absence-guarded: a re-PREPARE that won the race keeps its newer
+        //     entry) so shared duplicates/pools keep auto-preparing instead of failing with
+        //     `no such fieldset` on a discard the server never saw.
+        //   • Wire/server failure — this session's server state is unknown while the registry
+        //     mutation stands (a discard is recorded user intent; other sessions reconcile off
+        //     the count bump regardless). The registry stays removed and the synced-count knock
+        //     below makes the next HIMPORT command replay the discard on this session.
+        // Either way, restore this session's optimistically-wiped claims.
+        if (isPreEnqueueError(err)) {
+          for (const [name, fields] of userDiscard.removed) {
+            if (registry.get(name) === undefined) registry.set(name, fields);
+          }
+        }
         for (const [name, version] of userDiscard.restore) {
           if (prepared.get(name) === undefined) prepared.set(name, version);
         }

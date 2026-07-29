@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert';
 import { once } from 'node:events';
 import testUtils, { GLOBAL } from '../test-utils';
+import { AbortError } from '../errors';
 
 /**
  * Integration tests for the HIMPORT transparency layer (`#executeHimport` +
@@ -82,6 +83,43 @@ describe('HIMPORT transparency layer', () => {
     // A corrected PREPARE registers fresh.
     await client.hImportPrepare('fs', ['f1', 'f2']);
     assert.equal(await client.hImportSet('key', 'fs', ['v1', 'v2']), 'OK');
+  }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('rejected replacement PREPARE keeps the prior registration', async client => {
+    await client.hImportPrepare('fs', ['f1', 'f2']);
+    assert.equal(await client.hImportSet('key1', 'fs', ['v1', 'v2']), 'OK');
+
+    // Re-prepare an already-registered fieldset with an invalid (duplicate) field list. The
+    // server rejects it and keeps the existing fieldset, so the client must NOT drop the
+    // still-valid registration.
+    await assert.rejects(
+      client.hImportPrepare('fs', ['dup', 'dup']),
+      /duplicate field name/
+    );
+
+    // Fresh session (empty server-side) so the SET can only succeed by lazy-preparing from a
+    // surviving registry entry — proving the prior registration was restored, not discarded.
+    await killClient(client);
+    assert.equal(await client.hImportSet('key2', 'fs', ['v1', 'v2']), 'OK');
+    assert.deepEqual(await client.hGetAll('key2'), { f1: 'v1', f2: 'v2' });
+  }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('pre-enqueue DISCARD failure keeps the registration', async client => {
+    await client.hImportPrepare('fs', ['f1']);
+    assert.equal(await client.hImportSet('key1', 'fs', ['v1']), 'OK');
+
+    // An already-aborted signal rejects the DISCARD before it reaches the wire — the server
+    // never saw it, so the discard must be fully rolled back (registry entry re-added).
+    const ac = new AbortController();
+    ac.abort();
+    await assert.rejects(
+      client.withAbortSignal(ac.signal).hImportDiscard('fs'),
+      AbortError
+    );
+
+    // The registration survives, so the fieldset still resolves.
+    assert.equal(await client.hImportSet('key2', 'fs', ['v1']), 'OK');
+    assert.equal(await client.hGet('key2', 'f1'), 'v1');
   }, GLOBAL.SERVERS.OPEN);
 
   testUtils.testWithClient('retries once when the session lost its state unobserved', async client => {
@@ -250,6 +288,20 @@ describe('HIMPORT transparency layer', () => {
       // Registry-based reply: exactly 1 registered fieldset removed — not a per-master
       // sum, not a session count.
       assert.equal(await cluster.hImportDiscardAll(), 1);
+    }, GLOBAL.CLUSTERS.OPEN);
+
+    testUtils.testWithCluster('duplicate() shares HIMPORT registrations', async cluster => {
+      await cluster.hImportPrepare('fs', ['f1', 'f2']);
+
+      // A duplicate made after PREPARE shares the parent's registry (matching the standalone
+      // duplicate-sharing guarantee), so a direct SET lazy-prepares from it per node.
+      const dup = await cluster.duplicate().connect();
+      try {
+        assert.equal(await dup.hImportSet('key:{1}', 'fs', ['v1', 'v2']), 'OK');
+        assert.deepEqual(await dup.hGetAll('key:{1}'), { f1: 'v1', f2: 'v2' });
+      } finally {
+        await dup.close();
+      }
     }, GLOBAL.CLUSTERS.OPEN);
   });
 });
