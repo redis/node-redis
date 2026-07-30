@@ -124,6 +124,49 @@ describe('RedisCommandsQueue', () => {
         ['GET'],
       );
     });
+
+    it('extracts a second, fully-queued chain atomically without mistaking it for the in-flight chain\'s tail', () => {
+      const queue = createQueue();
+      const chainA = Symbol('Chain A (in-flight, different slot)');
+      const chainB = Symbol('Chain B (fully queued, migrating slot)');
+
+      // Chain A is in flight on a slot that isn't migrating - its queued
+      // tail (SET, EXEC) carries a chainId that will equal chainInExecution.
+      queue.addCommand(['MULTI'], { chainId: chainA, slotNumber: 5 }).catch(() => {});
+      queue.addCommand(['SET', 'a', '1'], { chainId: chainA, slotNumber: 5 }).catch(() => {});
+      queue.addCommand(['EXEC'], { chainId: chainA, slotNumber: 5 }).catch(() => {});
+
+      // Chain B is queued entirely behind chain A, on the slot that IS
+      // migrating. None of its commands have been sent, so none of them
+      // carry chainInExecution's id - it's a distinct chain, not a
+      // continuation of chain A's tail.
+      queue.addCommand(['MULTI'], { chainId: chainB, slotNumber: 1 }).catch(() => {});
+      queue.addCommand(['SET', 'b', '2'], { chainId: chainB, slotNumber: 1 }).catch(() => {});
+      queue.addCommand(['EXEC'], { chainId: chainB, slotNumber: 1 }).catch(() => {});
+
+      const writer = queue.commandsToWrite();
+      writer.next(); // "sends" chain A's MULTI - chainInExecution now points at chain A
+
+      const extracted = queue.extractCommandsForSlots(new Set([1]));
+
+      // Chain A's tail lives on slot 5, so it's skipped over (not in the
+      // migrating slot set) without ever triggering the in-flight-tail
+      // guard. Chain B, entirely on slot 1, is then extracted as a whole -
+      // its distinct chainId never matches chainInExecution, so it's never
+      // mistaken for chain A's tail and relocates atomically, in order.
+      assert.deepStrictEqual(
+        extracted.map(command => command.args?.[0]),
+        ['MULTI', 'SET', 'EXEC'],
+      );
+      assert.ok(extracted.every(command => command.chainId === chainB));
+
+      // Chain A's tail stays behind, untouched, on its own slot.
+      const remaining = queue.extractAllCommands();
+      assert.deepStrictEqual(
+        remaining.map(command => command.args?.[0]),
+        ['SET', 'EXEC'],
+      );
+    });
   });
 
   describe('addCommand', () => {
@@ -166,6 +209,49 @@ describe('RedisCommandsQueue', () => {
 
       await assert.rejects(promise, DisconnectsClientError);
       assert.strictEqual(source.extractAllCommands().length, 1);
+    });
+  });
+
+  describe('full node loss (in-flight chain)', () => {
+    // Mirrors cluster-slots.ts's full-node-loss path: extractAllCommands()
+    // pulls the in-flight chain's queued tail out of #toWrite and rejects it
+    // explicitly, then the source client is destroyed, which calls
+    // flushAll() and rejects whatever's left in #waitingForReply - the
+    // chain's already-sent head. Both halves need to reject; otherwise the
+    // transaction half-commits: the server already applied the head against
+    // a connection this client is abandoning, while the tail is rejected as
+    // never sent.
+    it('rejects the already-sent head of an in-flight chain along with its queued tail', async () => {
+      const queue = createQueue();
+      const chainId = Symbol('MULTI Chain');
+
+      const multiPromise = queue.addCommand(['MULTI'], { chainId });
+      const setPromise = queue.addCommand(['SET', 'k', 'v'], { chainId });
+      const execPromise = queue.addCommand(['EXEC'], { chainId });
+      [multiPromise, setPromise, execPromise].forEach(promise => promise.catch(() => {}));
+
+      const writer = queue.commandsToWrite();
+      writer.next(); // "sends" MULTI - now in #waitingForReply
+      writer.next(); // "sends" SET - now in #waitingForReply
+
+      // EXEC is still the queued tail in #toWrite.
+      const remaining = queue.extractAllCommands();
+      assert.strictEqual(remaining.length, 1);
+      assert.strictEqual(remaining[0].chainId, queue.chainInExecution);
+
+      // cluster-slots.ts rejects the queued tail explicitly, since it can't
+      // be safely relocated to another node...
+      queue.rejectCommands(remaining, new DisconnectsClientError());
+
+      // ...then destroy()'s call to flushAll() rejects whatever's left in
+      // #waitingForReply - the already-sent MULTI and SET.
+      queue.flushAll(new DisconnectsClientError());
+
+      await Promise.all([
+        assert.rejects(multiPromise, DisconnectsClientError),
+        assert.rejects(setPromise, DisconnectsClientError),
+        assert.rejects(execPromise, DisconnectsClientError),
+      ]);
     });
   });
 

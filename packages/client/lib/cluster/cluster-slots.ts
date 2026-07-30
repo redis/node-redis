@@ -179,6 +179,32 @@ export function groupCommandsByDestination<
   return { byDestination, unrouted };
 }
 
+/**
+ * Splits commands extracted from a dying node's queue into the queued tail of
+ * a chain (MULTI/pipeline) whose head is already sent (out of view, in
+ * `#waitingForReply`) and everything else, which is safe to relocate as-is.
+ *
+ * Only used on full node loss: the connection is about to be destroyed, so
+ * the in-flight chain's tail is rejected rather than relocated - relocating a
+ * fragment of an already-partially-sent chain would run it out of order or
+ * split it across two connections. This doesn't apply to partial slot
+ * migration, where the source connection survives and keeps its in-flight
+ * chain intact.
+ */
+export function splitInFlightChainTail(
+  commands: CommandToWrite[],
+  chainInExecution: symbol | undefined
+) {
+  const inFlightChainTail = chainInExecution === undefined
+    ? []
+    : commands.filter(command => command.chainId === chainInExecution);
+  const relocatable = inFlightChainTail.length === 0
+    ? commands
+    : commands.filter(command => command.chainId !== chainInExecution);
+
+  return { inFlightChainTail, relocatable };
+}
+
 export type OnShardedChannelMovedError = (
   err: unknown,
   channel: string,
@@ -556,12 +582,7 @@ export default class RedisClusterSlots<
             // relocated on its own - it would run as a fragment of the
             // transaction on a different node than the part already sent.
             const chainInExecution = sourceNode.client._getQueue().chainInExecution;
-            const inFlightChainTail = chainInExecution === undefined
-              ? []
-              : remainingCommands.filter(command => command.chainId === chainInExecution);
-            const relocatable = inFlightChainTail.length === 0
-              ? remainingCommands
-              : remainingCommands.filter(command => command.chainId !== chainInExecution);
+            const { inFlightChainTail, relocatable } = splitInFlightChainTail(remainingCommands, chainInExecution);
 
             if (inFlightChainTail.length > 0) {
               sourceNode.client._getQueue().rejectCommands(inFlightChainTail, new DisconnectsClientError());

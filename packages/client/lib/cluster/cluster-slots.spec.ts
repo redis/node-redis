@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert';
 import { EventEmitter } from 'node:events';
 import { RedisClusterClientOptions } from './index';
-import RedisClusterSlots, { groupCommandsByDestination } from './cluster-slots';
+import RedisClusterSlots, { groupCommandsByDestination, splitInFlightChainTail } from './cluster-slots';
 import type { MasterNode, Shard } from './cluster-slots';
 import type { CommandToWrite } from '../client/commands-queue';
 import { ClientClosedError } from '../errors';
@@ -132,6 +132,52 @@ describe('RedisClusterSlots', () => {
 
       assert.strictEqual(byDestination.size, 0);
       assert.deepEqual(unrouted, [slotless, unknownSlot]);
+    });
+  });
+
+  describe('splitInFlightChainTail', () => {
+    function createChainCommand(chainId: symbol, slotNumber?: number) {
+      return { args: ['CMD'], slotNumber, chainId } as CommandToWrite;
+    }
+
+    // Mirrors the full-node-loss path in cluster-slots.ts: extractAllCommands()
+    // pulls everything out of a dying node's queue regardless of slot, then
+    // this function has to tell apart the in-flight chain's own queued tail
+    // (whose head is already sent, out of view in #waitingForReply - can't be
+    // safely relocated) from an unrelated, fully-queued chain that happens to
+    // be sitting right behind it and is safe to relocate whole.
+    it('separates only the in-flight chain\'s tail and leaves an unrelated, fully-queued chain relocatable', () => {
+      const chainA = Symbol('Chain A (in-flight)');
+      const chainB = Symbol('Chain B (fully queued, never sent)');
+
+      const chainATail = [createChainCommand(chainA, 5), createChainCommand(chainA, 5)];
+      const chainBCommands = [
+        createChainCommand(chainB, 1),
+        createChainCommand(chainB, 1),
+        createChainCommand(chainB, 1),
+      ];
+
+      const { inFlightChainTail, relocatable } = splitInFlightChainTail(
+        [...chainATail, ...chainBCommands],
+        chainA,
+      );
+
+      // The in-flight chain's tail is set apart, not relocatable - the
+      // caller rejects it...
+      assert.deepEqual(inFlightChainTail, chainATail);
+      // ...and chain B, despite queuing right behind it, isn't mistaken for
+      // part of it - it comes back whole, ready to relocate atomically.
+      assert.deepEqual(relocatable, chainBCommands);
+    });
+
+    it('treats every command as relocatable when nothing is in flight', () => {
+      const chainB = Symbol('Chain B');
+      const commands = [createChainCommand(chainB, 1), createChainCommand(chainB, 1)];
+
+      const { inFlightChainTail, relocatable } = splitInFlightChainTail(commands, undefined);
+
+      assert.deepEqual(inFlightChainTail, []);
+      assert.deepEqual(relocatable, commands);
     });
   });
 });
