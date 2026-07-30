@@ -106,7 +106,6 @@ export function parseXAddArguments(
 }
 
 export default {
-  IS_READ_ONLY: false,
   parseCommand(...args: Tail<Parameters<typeof parseXAddArguments>>) {
     return parseXAddArguments(undefined, ...args);
   },

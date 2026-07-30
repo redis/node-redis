@@ -7,7 +7,6 @@ export type HRandFieldCountWithValuesReply = Array<{
 }>;
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, key: RedisArgument, count: number) {
     parser.push('HRANDFIELD');
     parser.pushKey(key);

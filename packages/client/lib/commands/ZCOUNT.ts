@@ -3,8 +3,6 @@ import { RedisArgument, NumberReply, Command } from '../RESP/types';
 import { transformStringDoubleArgument } from './generic-transformers';
 
 export default {
-  CACHEABLE: true,
-  IS_READ_ONLY: true,
   parseCommand(
     parser: CommandParser, 
     key: RedisArgument,

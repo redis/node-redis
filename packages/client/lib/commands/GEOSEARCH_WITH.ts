@@ -23,7 +23,6 @@ export interface GeoReplyWithMember {
 }
 
 export default {
-  IS_READ_ONLY: GEOSEARCH.IS_READ_ONLY,
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

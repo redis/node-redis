@@ -3,7 +3,6 @@ import { RedisArgument, ArrayReply, BlobStringReply, Command } from '@redis/clie
 import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
 
 export default {
-  IS_READ_ONLY: false,
   parseCommand(parser: CommandParser, key: RedisArgument, items: RedisVariadicArgument) {
     parser.push('TOPK.ADD');
     parser.pushKey(key);

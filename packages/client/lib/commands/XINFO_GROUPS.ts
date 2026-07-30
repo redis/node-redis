@@ -16,7 +16,6 @@ export type XInfoGroupsReply = ArrayReply<TuplesToMapReply<[
 ]>>;
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, key: RedisArgument) {
     parser.push('XINFO', 'GROUPS');
     parser.pushKey(key);

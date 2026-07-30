@@ -8,7 +8,6 @@ type SuggestScore = {
 }
 
 export default {
-  IS_READ_ONLY: SUGGET.IS_READ_ONLY,
   parseCommand(...args: Parameters<typeof SUGGET.parseCommand>) {
     SUGGET.parseCommand(...args);
     args[0].push('WITHSCORES');

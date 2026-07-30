@@ -3,7 +3,7 @@ import { NumberReply, Command } from '../RESP/types';
 import { RedisVariadicArgument } from './generic-transformers';
 
 export default {
-  IS_READ_ONLY: false,
+  CACHEABLE: false,
   parseCommand(parser: CommandParser, key: RedisVariadicArgument) {
     parser.push('TOUCH');
     parser.pushKeys(key);

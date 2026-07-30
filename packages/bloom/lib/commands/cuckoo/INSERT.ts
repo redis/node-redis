@@ -28,7 +28,6 @@ export function parseCfInsertArguments(
 }
 
 export default {
-  IS_READ_ONLY: false,
   parseCommand(...args: Parameters<typeof parseCfInsertArguments>) {
     args[0].push('CF.INSERT');
     parseCfInsertArguments(...args);

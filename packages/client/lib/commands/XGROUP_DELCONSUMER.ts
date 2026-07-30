@@ -5,7 +5,6 @@ import { RedisArgument, NumberReply, Command } from '../RESP/types';
  * Command for removing a consumer from a consumer group
  */
 export default {
-  IS_READ_ONLY: false,
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

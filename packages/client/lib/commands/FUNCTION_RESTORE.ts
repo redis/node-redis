@@ -6,8 +6,6 @@ export interface FunctionRestoreOptions {
 }
 
 export default {
-  NOT_KEYED_COMMAND: true,
-  IS_READ_ONLY: false,
   parseCommand(parser: CommandParser, dump: RedisArgument, options?: FunctionRestoreOptions) {
     parser.push('FUNCTION', 'RESTORE', dump);
 

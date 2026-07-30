@@ -32,7 +32,6 @@ export function parseMSetArguments(parser: CommandParser, toSet: MSetArguments) 
 }
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, toSet: MSetArguments) {
     parser.push('MSET');
     return parseMSetArguments(parser, toSet);

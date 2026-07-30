@@ -6,7 +6,6 @@ export interface JsonDebugMemoryOptions {
 }
 
 export default {
-  IS_READ_ONLY: false,
   parseCommand(parser: CommandParser, key: RedisArgument, options?: JsonDebugMemoryOptions) {
     parser.push('JSON.DEBUG', 'MEMORY');
     parser.pushKey(key);

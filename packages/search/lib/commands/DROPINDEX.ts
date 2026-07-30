@@ -6,8 +6,6 @@ export interface FtDropIndexOptions {
 }
 
 export default {
-  NOT_KEYED_COMMAND: true,
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, index: RedisArgument, options?: FtDropIndexOptions) {
     parser.push('FT.DROPINDEX', index);
 

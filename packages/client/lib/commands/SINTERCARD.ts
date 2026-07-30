@@ -12,7 +12,6 @@ export interface SInterCardOptions {
 }
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, keys: RedisVariadicArgument, options?: SInterCardOptions | number) {
     parser.push('SINTERCARD');
     parser.pushKeysLength(keys);

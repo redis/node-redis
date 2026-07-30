@@ -6,7 +6,6 @@ export interface JsonDelOptions {
 }
 
 export default {
-  IS_READ_ONLY: false,
   parseCommand(parser: CommandParser, key: RedisArgument, options?: JsonDelOptions) {
     parser.push('JSON.DEL');
     parser.pushKey(key);

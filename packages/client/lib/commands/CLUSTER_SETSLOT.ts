@@ -11,8 +11,6 @@ export const CLUSTER_SLOT_STATES = {
 export type ClusterSlotState = typeof CLUSTER_SLOT_STATES[keyof typeof CLUSTER_SLOT_STATES];
 
 export default {
-  NOT_KEYED_COMMAND: true,
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, slot: number, state: ClusterSlotState, nodeId?: RedisArgument) {
     parser.push('CLUSTER', 'SETSLOT', slot.toString(), state);
 

@@ -6,8 +6,6 @@ export interface BgSaveOptions {
 }
 
 export default {
-  NOT_KEYED_COMMAND: true,
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, options?: BgSaveOptions) {
     parser.push('BGSAVE');
     if (options?.SCHEDULE) {

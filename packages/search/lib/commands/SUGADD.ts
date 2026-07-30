@@ -7,7 +7,6 @@ export interface FtSugAddOptions {
 }
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, key: RedisArgument, string: RedisArgument, score: number, options?: FtSugAddOptions) {
     parser.push('FT.SUGADD');
     parser.pushKey(key);

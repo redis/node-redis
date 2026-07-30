@@ -5,7 +5,6 @@ import ZDIFF from './ZDIFF';
 
 
 export default {
-  IS_READ_ONLY: ZDIFF.IS_READ_ONLY,
   parseCommand(parser: CommandParser, keys: RedisVariadicArgument) {
     ZDIFF.parseCommand(parser, keys);
     parser.push('WITHSCORES');

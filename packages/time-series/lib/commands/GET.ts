@@ -8,7 +8,6 @@ export interface TsGetOptions {
 export type TsGetReply = TuplesReply<[]> | TuplesReply<[NumberReply, DoubleReply]>;
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, key: RedisArgument, options?: TsGetOptions) {
     parser.push('TS.GET');
     parser.pushKey(key);

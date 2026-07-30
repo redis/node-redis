@@ -70,8 +70,6 @@ export interface ScanOptions extends ScanCommonOptions {
 }
 
 export default {
-  NOT_KEYED_COMMAND: true,
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, cursor: RedisArgument, options?: ScanOptions) {
     parser.push('SCAN');
     parseScanArguments(parser, cursor, options);

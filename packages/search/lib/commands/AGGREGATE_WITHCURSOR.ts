@@ -41,7 +41,6 @@ function transformAggregateWithCursorReplyResp3(
 }
 
 export default {
-  IS_READ_ONLY: AGGREGATE.IS_READ_ONLY,
   parseCommand(parser: CommandParser, index: RedisArgument, query: RedisArgument, options?: FtAggregateWithCursorOptions) {
     AGGREGATE.parseCommand(parser, index, query, options);
     parser.push('WITHCURSOR');

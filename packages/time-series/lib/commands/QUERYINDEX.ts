@@ -3,8 +3,6 @@ import { ArrayReply, BlobStringReply, SetReply, Command } from '@redis/client/di
 import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
 
 export default {
-  NOT_KEYED_COMMAND: true,
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, filter: RedisVariadicArgument) {
     parser.push('TS.QUERYINDEX');
     parser.pushVariadic(filter);

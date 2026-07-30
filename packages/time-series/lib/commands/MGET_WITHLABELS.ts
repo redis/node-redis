@@ -51,7 +51,6 @@ export function createTransformMGetLabelsReply<T extends RawLabelValue>() {
 }
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, filter: RedisVariadicArgument, options?: TsMGetWithLabelsOptions) {
     parser.push('TS.MGET');
     parseLatestArgument(parser, options?.LATEST);

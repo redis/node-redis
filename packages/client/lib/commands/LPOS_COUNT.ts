@@ -3,8 +3,6 @@ import { RedisArgument, ArrayReply, NumberReply, Command } from '../RESP/types';
 import LPOS, { LPosOptions } from './LPOS';
 
 export default {
-  CACHEABLE: LPOS.CACHEABLE,
-  IS_READ_ONLY: LPOS.IS_READ_ONLY,
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

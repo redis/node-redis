@@ -45,8 +45,6 @@ export type MGetRawReply3 = MapReply<
 >;
 
 export default {
-  NOT_KEYED_COMMAND: true,
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, filter: RedisVariadicArgument, options?: TsMGetOptions) {
     parser.push('TS.MGET');
     parseLatestArgument(parser, options?.LATEST);

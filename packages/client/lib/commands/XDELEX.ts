@@ -10,7 +10,6 @@ import { RedisVariadicArgument } from "./generic-transformers";
  * Deletes one or multiple entries from the stream
  */
 export default {
-  IS_READ_ONLY: false,
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

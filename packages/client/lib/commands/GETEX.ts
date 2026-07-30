@@ -38,7 +38,6 @@ export type GetExOptions = {
 };
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, key: RedisArgument, options: GetExOptions) {
     parser.push('GETEX');
     parser.pushKey(key);

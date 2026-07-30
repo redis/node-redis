@@ -2,8 +2,6 @@ import { CommandParser } from '../client/parser';
 import { RedisArgument, ArrayReply, BlobStringReply, SetReply, Command } from '../RESP/types';
 
 export default {
-  CACHEABLE: true,
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, key: RedisArgument) {
     parser.push('SMEMBERS');
     parser.pushKey(key);

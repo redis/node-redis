@@ -3,7 +3,6 @@ import { RedisArgument, NumberReply, Command } from '../RESP/types';
 import { transformPXAT } from './generic-transformers';
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

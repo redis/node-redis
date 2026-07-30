@@ -24,7 +24,6 @@ export type LcsIdxReply = TuplesToMapReply<[
 ]>;
 
 export default {
-  IS_READ_ONLY: LCS.IS_READ_ONLY,
   parseCommand(
     parser: CommandParser,
     key1: RedisArgument,

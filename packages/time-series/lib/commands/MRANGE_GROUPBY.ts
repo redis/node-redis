@@ -102,7 +102,6 @@ export function extractResp3MRangeSources(raw: TsMRangeGroupByRawMetadataReply3)
 }
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand: createTransformMRangeGroupByArguments('TS.MRANGE'),
   transformReply: {
     2(reply: TsMRangeGroupByRawReply2, _?: unknown, typeMapping?: TypeMapping) {

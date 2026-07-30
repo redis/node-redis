@@ -6,7 +6,6 @@ export interface ArLastItemsOptions {
 }
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

@@ -8,7 +8,6 @@ export interface TopKReserveOptions {
 }
 
 export default {
-  IS_READ_ONLY: false,
   parseCommand(parser: CommandParser, key: RedisArgument, topK: number, options?: TopKReserveOptions) {
     parser.push('TOPK.RESERVE');
     parser.pushKey(key);

@@ -53,7 +53,6 @@ export interface XReadOptions {
 }
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, streams: XReadStreams, options?: XReadOptions) {
     parser.push('XREAD');
 

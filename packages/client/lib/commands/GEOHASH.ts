@@ -3,8 +3,6 @@ import { RedisArgument, ArrayReply, BlobStringReply, Command } from '../RESP/typ
 import { RedisVariadicArgument } from './generic-transformers';
 
 export default {
-  CACHEABLE: true,
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, key: RedisArgument, member: RedisVariadicArgument) {
     parser.push('GEOHASH');
     parser.pushKey(key);

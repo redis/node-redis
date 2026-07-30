@@ -2,7 +2,6 @@ import { Command } from '../RESP/types';
 import SORT, { parseSortArguments } from './SORT';
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(...args: Parameters<typeof parseSortArguments>) {
     const parser = args[0];
 
