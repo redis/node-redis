@@ -2,6 +2,7 @@ import { strict as assert } from 'node:assert';
 import { EventEmitter } from 'node:events';
 import { RedisClusterClientOptions } from './index';
 import RedisClusterSlots from './cluster-slots';
+import { ClientClosedError } from '../errors';
 
 describe('RedisClusterSlots', () => {
   describe('initialization', () => {
@@ -45,12 +46,15 @@ describe('RedisClusterSlots', () => {
   });
 
   describe('getRandomNode', ()=> {
-    it('should not enter infinite loop when no nodes', () => {
+    // getRandomNode backs the keyless/fan-out routes, so on a cluster that is
+    // not open it must throw the standard ClientClosedError like every other
+    // command path rather than returning undefined or spinning the node
+    // iterator. The zero-node iterator guard still protects the ready case.
+    it('throws ClientClosedError when the cluster is not connected', () => {
         const slots = new RedisClusterSlots({
           rootNodes: []
         }, () => true)
-        slots.getRandomNode()
-        slots.getRandomNode()
+        assert.throws(() => slots.getRandomNode(), ClientClosedError)
       });
   });
 });

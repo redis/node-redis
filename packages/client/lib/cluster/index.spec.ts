@@ -8,6 +8,7 @@ import { spy } from 'sinon';
 import RedisClient from '../client';
 import { RESP_TYPES } from '../RESP/decoder';
 import calculateSlot from 'cluster-key-slot';
+import { CommandParser } from '../client/parser';
 
 describe('Cluster command lifecycle', () => {
   it('rejects commands before connect', async () => {
@@ -314,9 +315,239 @@ describe('Cluster', () => {
     assert.ok(nodeClient instanceof RedisClient);
   }, GLOBAL.CLUSTERS.WITH_REPLICAS);
 
-  testUtils.testWithCluster('should throw CROSSSLOT error', async cluster => {
-    await assert.rejects(cluster.mGet(['a', 'b']));
+  testUtils.testWithCluster('mGet splits cross-slot keys and preserves caller order', async cluster => {
+    // 'a' and 'b' hash to different slots — on master this rejected with
+    // CROSSSLOT; the multi_shard split routes each key to its shard and
+    // reassembles the replies in the caller's key order.
+    await Promise.all([cluster.set('a', 'value-a'), cluster.set('b', 'value-b')]);
+    assert.deepEqual(await cluster.mGet(['a', 'b']), ['value-a', 'value-b']);
+    assert.deepEqual(
+      await cluster.mGet(['b', 'missing', 'a']),
+      ['value-b', null, 'value-a']
+    );
   }, GLOBAL.CLUSTERS.OPEN);
+
+  testUtils.testWithCluster('numeric aggregates honor a NUMBER type mapping', async cluster => {
+    const mapped = cluster.withTypeMapping({ [RESP_TYPES.NUMBER]: String });
+    await Promise.all([cluster.set('a', '1'), cluster.set('b', '1')]);
+
+    // multi_shard agg_sum: per-node replies aggregate raw, result is re-mapped.
+    assert.equal(await mapped.del(['a', 'b']), '2');
+    // all_shards agg_sum fan-out.
+    assert.equal(typeof await mapped.dbSize(), 'string');
+    // Unmapped client on the same cluster is untouched.
+    assert.equal(typeof await cluster.dbSize(), 'number');
+  }, GLOBAL.CLUSTERS.OPEN);
+
+  testUtils.testWithCluster('cluster-wide SCAN iterates every master', async cluster => {
+    const expected = new Set<string>();
+    const writes: Array<Promise<unknown>> = [];
+    for (let i = 0; i < 100; i++) {
+      const key = `scan-all:${i}`;
+      expected.add(key);
+      writes.push(cluster.set(key, 'v'));
+    }
+    await Promise.all(writes);
+
+    // Low COUNT forces several iterations per node, exercising both the
+    // virtual-token continuation on one node and the advance between nodes.
+    const found = new Set<string>();
+    let cursor = '0';
+    do {
+      const reply = await cluster.scan(cursor, { MATCH: 'scan-all:*', COUNT: 29 });
+      cursor = reply.cursor;
+      for (const key of reply.keys) found.add(key);
+    } while (cursor !== '0');
+
+    assert.deepEqual(found, expected);
+  }, GLOBAL.CLUSTERS.OPEN);
+
+  testUtils.testWithCluster('cluster-wide SCAN rejects a foreign cursor', async cluster => {
+    await assert.rejects(cluster.scan('123456'), /unknown cursor/);
+  }, GLOBAL.CLUSTERS.OPEN);
+
+  testUtils.testWithCluster('RANDOMKEY finds the key whichever shard holds it', async cluster => {
+    // Single key in the whole cluster: a single-node RANDOMKEY would return
+    // nil whenever the randomly-picked node is one of the empty masters; the
+    // all_shards fan-out + non-nil reduction must always find it.
+    await cluster.set('the-only-key', 'v');
+    for (let i = 0; i < 5; i++) {
+      assert.equal(await cluster.randomKey(), 'the-only-key');
+    }
+  }, GLOBAL.CLUSTERS.OPEN);
+
+  // One end-to-end assertion per reachable request/response policy type. The
+  // multi_shard MGET/DEL scatter, cluster-wide SCAN and RANDOMKEY cases live
+  // above; FT.CURSOR (special) is covered in the search package. These fill
+  // the rest of the matrix from .specs/request-response-policies-spec.md.
+  describe('request/response policies', () => {
+    testUtils.testWithCluster('default-keyed SET/GET round-trips', async cluster => {
+      assert.equal(await cluster.set('policy:sg', 'v'), 'OK');
+      assert.equal(await cluster.get('policy:sg'), 'v');
+    }, GLOBAL.CLUSTERS.OPEN);
+
+    testUtils.testWithCluster('default-keyless ECHO returns the sole reply', async cluster => {
+      assert.equal(await cluster.echo('hello'), 'hello');
+    }, GLOBAL.CLUSTERS.OPEN);
+
+    testUtils.testWithCluster('all_shards KEYS merges matches from every master', async cluster => {
+      await cluster.flushAll();
+      const expected = new Set(['pk:a', 'pk:b', 'pk:c', 'pk:d']);
+      await Promise.all([...expected].map(key => cluster.set(key, 'v')));
+      // default-keyless response over an all_shards fan-out: union, deduped.
+      assert.deepEqual(new Set(await cluster.keys('pk:*')), expected);
+    }, GLOBAL.CLUSTERS.OPEN);
+
+    testUtils.testWithCluster('all_shards FLUSHALL + PING collapse identical replies', async cluster => {
+      await Promise.all([cluster.set('fa:x', '1'), cluster.set('fa:y', '1')]);
+      // all_succeeded: every master must ACK; identical replies collapse to one.
+      assert.equal(await cluster.flushAll(), 'OK');
+      assert.equal(await cluster.dbSize(), 0);
+      assert.equal(await cluster.ping(), 'PONG');
+    }, GLOBAL.CLUSTERS.OPEN);
+
+    testUtils.testWithCluster('all_shards WAIT returns the min synced-replica count', async cluster => {
+      await cluster.set('wait:k', 'v');
+      // agg_min: one replica per master → each shard reports >=1; the floor is 1.
+      assert.equal(await cluster.wait(1, 1000), 1);
+    }, GLOBAL.CLUSTERS.WITH_REPLICAS);
+
+    testUtils.testWithCluster('all_shards SCRIPT EXISTS ANDs presence across masters', async cluster => {
+      // SCRIPT LOAD is all_nodes → the script lands on every master.
+      const everywhere = await cluster.scriptLoad('return 1');
+      assert.deepEqual(await cluster.scriptExists(everywhere), [1]);
+
+      // Load a second script on a single master only → agg_logical_and → 0.
+      const oneMaster = await cluster.nodeClient(cluster.masters[0]);
+      const partial = await oneMaster.scriptLoad('return 2');
+      assert.deepEqual(await cluster.scriptExists(partial), [0]);
+    }, GLOBAL.CLUSTERS.OPEN);
+
+    testUtils.testWithCluster('all_nodes CONFIG SET reaches replicas too', async cluster => {
+      // all_nodes (not all_shards): replicas must see it directly, not via
+      // replication — verify each replica reports the new value.
+      assert.equal(await cluster.configSet({ 'maxmemory-samples': '7' }), 'OK');
+      for (const replica of cluster.replicas) {
+        const client = await cluster.nodeClient(replica);
+        assert.equal((await client.configGet('maxmemory-samples'))['maxmemory-samples'], '7');
+      }
+    }, GLOBAL.CLUSTERS.WITH_REPLICAS);
+
+    testUtils.testWithCluster('all_nodes SLOWLOG LEN fans out and reduces with agg_sum', async cluster => {
+      // Raw path: resolves the `slowlog len` subcommand policy (all_nodes /
+      // agg_sum). After RESET (all_nodes / all_succeeded) the fan-out reduces
+      // to a single scalar count, not a per-node array or a throw.
+      await cluster.sendCommand(undefined, false, ['SLOWLOG', 'RESET']);
+      const len = await cluster.sendCommand<number>(undefined, false, ['SLOWLOG', 'LEN']);
+      assert.equal(typeof len, 'number');
+      assert.ok(len >= 0);
+    }, GLOBAL.CLUSTERS.OPEN);
+
+    testUtils.testWithCluster('multi_shard EXISTS/TOUCH/UNLINK sum counts across slots', async cluster => {
+      await Promise.all([cluster.set('a', '1'), cluster.set('b', '1')]);
+      // agg_sum over the per-slot splits.
+      assert.equal(await cluster.exists(['a', 'b', 'missing']), 2);
+      assert.equal(await cluster.touch(['a', 'b']), 2);
+      assert.equal(await cluster.unlink(['a', 'b']), 2);
+      assert.equal(await cluster.exists(['a', 'b']), 0);
+    }, GLOBAL.CLUSTERS.OPEN);
+
+    testUtils.testWithCluster('multi_shard MSET writes each pair to its own shard', async cluster => {
+      // all_succeeded over the split key/value pairs.
+      assert.equal(await cluster.mSet([['a', 'va'], ['b', 'vb']]), 'OK');
+      assert.deepEqual(await cluster.mGet(['a', 'b']), ['va', 'vb']);
+    }, GLOBAL.CLUSTERS.OPEN);
+
+    testUtils.testWithCluster('multi_shard single-slot keys take the no-split fast path', async cluster => {
+      // Hash tags pin both keys to one slot → the splitter returns the command
+      // unsplit and it routes as a single atomic command to that shard.
+      await Promise.all([cluster.set('{t}1', 'v1'), cluster.set('{t}2', 'v2')]);
+      assert.deepEqual(await cluster.mGet(['{t}1', '{t}2']), ['v1', 'v2']);
+      assert.equal(await cluster.del(['{t}1', '{t}2']), 2);
+    }, GLOBAL.CLUSTERS.OPEN);
+
+    testUtils.testWithCluster('multi_shard follows a MOVED/ASK redirect per sub-command', async cluster => {
+      // 'key' hashes to slot 12539; find a second key homed on a different
+      // master so the mGet genuinely spans two shards.
+      const keyA = 'key',
+        slot = calculateSlot(keyA),
+        migrating = cluster.slots[slot].master,
+        importing = cluster.masters.find(master => master.id !== migrating.id)!;
+
+      let keyB = '';
+      for (const candidate of ['b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k']) {
+        if (cluster.slots[calculateSlot(candidate)].master.id === importing.id) {
+          keyB = candidate;
+          break;
+        }
+      }
+      assert.ok(keyB, 'expected a key homed on the importing master');
+
+      await Promise.all([cluster.set(keyA, 'va'), cluster.set(keyB, 'vb')]);
+
+      const [importingClient, migratingClient] = await Promise.all([
+        cluster.nodeClient(importing),
+        cluster.nodeClient(migrating)
+      ]);
+      await Promise.all([
+        importingClient.clusterSetSlot(slot, 'IMPORTING', migrating.id),
+        migratingClient.clusterSetSlot(slot, 'MIGRATING', importing.id)
+      ]);
+      await migratingClient.migrate(importing.host, importing.port, keyA, 0, 10);
+
+      // keyA's sub-command hits the migrating node and follows ASK to importing;
+      // keyB's routes straight to importing. Caller order is preserved.
+      assert.deepEqual(await cluster.mGet([keyA, keyB]), ['va', 'vb']);
+
+      await Promise.all([
+        importingClient.clusterSetSlot(slot, 'NODE', importing.id),
+        migratingClient.clusterSetSlot(slot, 'NODE', importing.id)
+      ]);
+
+      // Slot now permanently on importing → keyA's sub-command takes MOVED.
+      assert.deepEqual(await cluster.mGet([keyA, keyB]), ['va', 'vb']);
+    }, {
+      serverArguments: [],
+      numberOfMasters: 2
+    });
+
+    testUtils.testWithCluster('unknown command falls back to key routing (no policy throw)', async cluster => {
+      // A made-up wire command is absent from the policy table → the resolver
+      // returns {ok:false} → the default-keyed fallback routes by the key and
+      // the request reaches that shard, which rejects it as unknown. Reaching
+      // the server proves the fallback routed instead of throwing a client-side
+      // policy-resolution error before any network call.
+      await assert.rejects(
+        cluster.custom.unknown('policyless:key'),
+        /unknown command/i
+      );
+    }, {
+      ...GLOBAL.CLUSTERS.OPEN,
+      clusterConfiguration: {
+        modules: {
+          custom: {
+            unknown: {
+              parseCommand(parser: CommandParser, key: string) {
+                parser.push('DEFINITELY_NOT_A_COMMAND');
+                parser.pushKey(key);
+              },
+              transformReply: undefined as unknown as () => unknown
+            }
+          }
+        }
+      }
+    });
+
+    testUtils.testWithCluster('raw sendCommand splits a known multi_shard command', async cluster => {
+      await Promise.all([cluster.set('a', 'value-a'), cluster.set('b', 'value-b')]);
+      // The resolver returns MGET's keySpecs for the raw args and the splitter
+      // works on the flat redisArgs, reassembling replies in caller order.
+      assert.deepEqual(
+        await cluster.sendCommand(undefined, true, ['MGET', 'a', 'b']),
+        ['value-a', 'value-b']
+      );
+    }, GLOBAL.CLUSTERS.OPEN);
+  });
 
   describe('minimizeConnections', () => {
     testUtils.testWithCluster('false', async cluster => {

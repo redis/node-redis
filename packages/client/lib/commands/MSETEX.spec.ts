@@ -2,6 +2,7 @@ import { strict as assert } from "node:assert";
 import testUtils, { GLOBAL } from "../test-utils";
 import MSETEX, { ExpirationMode, SetMode } from "./MSETEX";
 import { parseArgs } from "./generic-transformers";
+import { defaultCommandMetadata } from "../command-metadata";
 
 describe("MSETEX", () => {
   describe("transformArguments", () => {
@@ -270,6 +271,20 @@ describe("MSETEX", () => {
       cluster: { ...GLOBAL.CLUSTERS.OPEN, minimumDockerVersion: [8, 4] },
     }
   );
+
+  // MSETEX is curated out of multi_shard (NX/XX is all-or-nothing across ALL
+  // keys and cannot be evaluated per shard): the cluster must route it to the
+  // first key's node as a single command, never split it per slot. Assert the
+  // routing policy directly — server-independent, so it holds on every version
+  // (the previous cross-slot-CROSSSLOT check depended on 8.8+ server
+  // enforcement and spuriously failed on older servers).
+  it("is routed single-node (default-keyed), never multi_shard", () => {
+    const meta = defaultCommandMetadata.lookup({
+      command: "MSETEX",
+      subcommand: undefined,
+    });
+    assert.equal(meta?.request, "default-keyed");
+  });
 
   testUtils.testAll(
     "mSetEx with NX",
