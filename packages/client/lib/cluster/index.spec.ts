@@ -270,6 +270,18 @@ describe('Cluster', () => {
     assert.equal(cluster.nodeByAddress.size, numberOfMasters + numberOfMasters * numberOfReplicas);
   }, GLOBAL.CLUSTERS.WITH_REPLICAS);
 
+  testUtils.testWithCluster('node clients inherit configured cluster RESP version', async cluster => {
+    for (const master of cluster.masters) {
+      assert.ok(master.client instanceof RedisClient);
+      assert.equal(master.client.options.RESP, cluster._options?.RESP ?? 3);
+    }
+  }, {
+    ...GLOBAL.CLUSTERS.OPEN,
+    clusterConfiguration: {
+      minimizeConnections: false
+    }
+  });
+
   testUtils.testWithCluster('getMasters should be backwards competiable (without `minimizeConnections`)', async cluster => {
     const masters = cluster.getMasters();
     assert.ok(Array.isArray(masters));

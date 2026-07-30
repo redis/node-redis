@@ -54,9 +54,15 @@ interface ClusterCommander<
   keyPrefix?: RedisArgument;
 }
 
-export type RedisClusterClientOptions = Omit<
-  RedisClientOptions<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping, RedisTcpSocketOptions>,
-  keyof ClusterCommander<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping/*, CommandPolicies*/>
+export type RedisClusterClientOptions<
+  M extends RedisModules = RedisModules,
+  F extends RedisFunctions = RedisFunctions,
+  S extends RedisScripts = RedisScripts,
+  RESP extends RespVersions = RespVersions,
+  TYPE_MAPPING extends TypeMapping = TypeMapping
+> = Omit<
+  RedisClientOptions<M, F, S, RESP, TYPE_MAPPING, RedisTcpSocketOptions>,
+  keyof ClusterCommander<M, F, S, RESP, TYPE_MAPPING>
 >;
 
 export interface RedisClusterOptions<
@@ -75,7 +81,7 @@ export interface RedisClusterOptions<
    * not inherited by the connections made to the discovered nodes. Settings that should apply to
    * every connection (e.g. credentials, TLS) must be specified via `defaults`.
    */
-  rootNodes: Array<RedisClusterClientOptions>;
+  rootNodes: Array<RedisClusterClientOptions<M, F, S, RESP, TYPE_MAPPING>>;
   /**
    * Default values used for every client in the cluster. Use this to specify global values,
    * for example: ACL credentials, timeouts, TLS configuration etc.
@@ -83,7 +89,7 @@ export interface RedisClusterOptions<
    * The connections to the discovered cluster nodes are created from these defaults (plus the
    * discovered host and port) — they do not inherit any other settings from `rootNodes`.
    */
-  defaults?: Partial<RedisClusterClientOptions>;
+  defaults?: Partial<RedisClusterClientOptions<M, F, S, RESP, TYPE_MAPPING>>;
   /**
    * When `true`, `.connect()` will only discover the cluster topology, without actually connecting to all the nodes.
    * Useful for short-term or PubSub-only connections.
@@ -285,7 +291,9 @@ export default class RedisCluster<
       RedisCluster.#SingleEntryCache.set(config, Cluster);
     }
 
-    return (options?: Omit<RedisClusterOptions, keyof Exclude<typeof config, undefined>>) => {
+    return (
+      options?: Omit<RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING>, keyof Exclude<typeof config, undefined>>
+    ) => {
       // returning a "proxy" to prevent the namespaces._self to leak between "proxies"
       return Object.create(new Cluster(options)) as RedisClusterType<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>;
     };
@@ -317,7 +325,7 @@ export default class RedisCluster<
     TYPE_MAPPING extends TypeMapping = {},
     // POLICIES extends CommandPolicies = {}
   >(options?: RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>) {
-    return RedisCluster.factory(options)(options);
+    return RedisCluster.factory<M, F, S, RESP, TYPE_MAPPING>(options)(options);
   }
 
   readonly _options: RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>;

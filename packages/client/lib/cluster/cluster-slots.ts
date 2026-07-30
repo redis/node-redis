@@ -225,7 +225,7 @@ export default class RedisClusterSlots<
     this._randomNodeIterator = undefined;
   }
 
-  async #discover(rootNode: RedisClusterClientOptions) {
+  async #discover(rootNode: RedisClusterClientOptions<M, F, S, RESP, TYPE_MAPPING>) {
     this.clientSideCache?.clear();
     this.clientSideCache?.disable();
 
@@ -509,16 +509,21 @@ export default class RedisClusterSlots<
     }
   }
 
-  async #getShards(rootNode: RedisClusterClientOptions) {
+  async #getShards(rootNode: RedisClusterClientOptions<M, F, S, RESP, TYPE_MAPPING>) {
     const options = this.#clientOptionsDefaults(rootNode)!;
-    options.socket ??= {};
-    options.socket.reconnectStrategy = false;
-    options.RESP = this.#options.RESP;
-    options.commandOptions = undefined;
-    options.maintNotifications = 'disabled';
+    
+    const clientOptions: RedisClientOptions<M, F, S, RESP, {}> = {
+      ...options,
+      socket: {
+        ...options.socket,
+        reconnectStrategy: false
+      },
+      RESP: this.#options.RESP,
+      commandOptions: undefined,
+      maintNotifications: 'disabled'
+    };
 
-    // TODO: find a way to avoid type casting
-    const client = await this.#clientFactory(options as RedisClientOptions<M, F, S, RESP, {}>)
+    const client = await this.#clientFactory<{}>(clientOptions)
       .on('error', err => this.#emit('error', err))
       .connect();
 
@@ -540,7 +545,7 @@ export default class RedisClusterSlots<
     }
   }
 
-  #nodeClientOptions(node: NodeAddress & { address: string }): RedisClusterClientOptions {
+  #nodeClientOptions(node: NodeAddress & { address: string }): RedisClusterClientOptions<M, F, S, RESP, TYPE_MAPPING> {
     return {
       socket: this.#getNodeAddress(node.address) ?? {
         host: node.host,
@@ -549,7 +554,9 @@ export default class RedisClusterSlots<
     };
   }
 
-  #clientOptionsDefaults(options?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>) {
+  #clientOptionsDefaults(options: RedisClusterClientOptions<M, F, S, RESP, TYPE_MAPPING>): RedisClusterClientOptions<M, F, S, RESP, TYPE_MAPPING>;
+  #clientOptionsDefaults(options?: RedisClusterClientOptions<M, F, S, RESP, TYPE_MAPPING>): RedisClusterClientOptions<M, F, S, RESP, TYPE_MAPPING> | undefined;
+  #clientOptionsDefaults(options?: RedisClusterClientOptions<M, F, S, RESP, TYPE_MAPPING>) {
     if (!this.#options.defaults) return options;
 
     let socket;
@@ -614,13 +621,16 @@ export default class RedisClusterSlots<
     const address = node.address;
     const emit = this.#emit;
     let wasReady = false;
-    const client = this.#clientFactory( this.#clientOptionsDefaults({
+    const clientOptions: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING> = {
+      ...this.#clientOptionsDefaults({
         clientSideCache: this.clientSideCache,
         himportRegistry: this.#himportRegistry,
-        RESP: this.#options.RESP,
         socket,
         readonly,
-      }));
+      }),
+      RESP: this.#options.RESP,
+    };
+    const client = this.#clientFactory<TYPE_MAPPING>(clientOptions);
     client._setIdentity(ClientRole.CLUSTER_NODE, this.#clusterClientId);
     client
       .on('error', error => emit('node-error', error, clientInfo))
