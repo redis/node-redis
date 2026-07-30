@@ -66,16 +66,54 @@ export const aggregateLogicalOr = <T>(replies: Array<unknown>): T => {
 };
 
 /**
- * Aggregates multiple numbers by finding the minimum value.
+ * Per-position reduce over array replies. Validates that every reply is a
+ * number array of the same length, then folds column-wise with `reduce`.
+ * Shared by the array path of `aggregateMin`/`aggregateMax` so element-wise
+ * aggregation matches the server's AGG_MIN/AGG_MAX semantics for commands
+ * whose reply is an array (e.g. WAITAOF's `[numlocal, numreplicas]`).
+ */
+const aggregateElementwise = (
+  replies: Array<unknown>,
+  reduce: (a: number, b: number) => number,
+  label: string
+): Array<number> => {
+  const length = (replies[0] as Array<unknown>).length;
+  if (
+    !replies.every(
+      (reply): reply is number[] =>
+        Array.isArray(reply) &&
+        reply.length === length &&
+        reply.every((value): value is number => typeof value === 'number')
+    )
+  ) {
+    throw new Error(
+      `All replies must be number arrays of equal length for ${label} aggregation`
+    );
+  }
+
+  const result = (replies[0] as number[]).slice();
+  for (let r = 1; r < replies.length; r++) {
+    const reply = replies[r] as number[];
+    for (let i = 0; i < length; i++) {
+      result[i] = reduce(result[i], reply[i]);
+    }
+  }
+  return result;
+};
+
+/**
+ * Aggregates shard replies by taking the minimum value.
  * @remarks
- * This implementation is specifically designed for Array<number> type only,
- * despite the generic type parameter. It is used by commands like WAIT
- * which returns the minimal number of synchronized replicas from all shards.
- * The generic type parameter T is provided for usage ergonomy, but the actual input structure
- * will be validated at runtime.
+ * Scalar replies (e.g. WAIT, the minimal number of synchronized replicas) fold
+ * to a single minimum; array replies (e.g. WAITAOF's `[numlocal, numreplicas]`)
+ * fold element-wise, matching the server's AGG_MIN semantics. Input structure
+ * is validated at runtime; the generic `T` is for call-site ergonomy only.
  */
 export const aggregateMin = <T>(replies: Array<unknown>): T => {
   if (replies.length === 0) return 0 as T;
+  if (Array.isArray(replies[0])) {
+    return aggregateElementwise(replies, Math.min, 'min') as T;
+  }
   if (!replies.every((reply): reply is number => typeof reply === 'number')) {
     throw new Error('All replies must be numbers for min aggregation');
   }
@@ -83,14 +121,17 @@ export const aggregateMin = <T>(replies: Array<unknown>): T => {
 };
 
 /**
- * Aggregates multiple numbers by finding the maximum value.
+ * Aggregates shard replies by taking the maximum value.
  * @remarks
- * This implementation is specifically designed for Array<number> type only,
- * despite the generic type parameter. The generic type parameter T is provided
- * for usage ergonomy, but the actual input structure will be validated at runtime.
+ * Mirrors {@link aggregateMin}: scalar replies fold to a single maximum, array
+ * replies fold element-wise (AGG_MAX semantics). Input structure is validated
+ * at runtime; the generic `T` is for call-site ergonomy only.
  */
 export const aggregateMax = <T>(replies: Array<unknown>): T => {
   if (replies.length === 0) return 0 as T;
+  if (Array.isArray(replies[0])) {
+    return aggregateElementwise(replies, Math.max, 'max') as T;
+  }
   if (!replies.every((reply): reply is number => typeof reply === 'number')) {
     throw new Error('All replies must be numbers for max aggregation');
   }
