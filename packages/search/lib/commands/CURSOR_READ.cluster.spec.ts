@@ -24,16 +24,20 @@ describe('FT.CURSOR sticky routing (cluster)', () => {
 
   // FT.CREATE lands on a single node and its index definition propagates to the
   // other shards asynchronously; an aggregate that routes to a shard which
-  // hasn't caught up yet is rejected with "No such index" (flaky on slower
-  // servers). Retry the aggregate — the cluster client follows MOVED and
-  // re-picks a node each attempt — until the index is live everywhere.
+  // hasn't caught up yet rejects the aggregate because the index is not there
+  // yet (flaky on slower servers). Retry the aggregate — the cluster client
+  // follows MOVED and re-picks a node each attempt — until the index is live
+  // everywhere. The "not found" wording differs by server version: 7.x says
+  // "No such index", 8.x says "SEARCH_INDEX_NOT_FOUND Index not found", so
+  // match both.
+  const INDEX_NOT_READY = /no such index|index not found/i;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test helper over the dynamic cluster surface
   async function openCursor(cluster: any) {
     for (let attempt = 0; ; attempt++) {
       try {
         return await cluster.ft.aggregateWithCursor('idx', '*', { COUNT: 5, LOAD: '@n' });
       } catch (err) {
-        if (attempt >= 100 || !/no such index/i.test(String((err as Error)?.message ?? err))) throw err;
+        if (attempt >= 100 || !INDEX_NOT_READY.test(String((err as Error)?.message ?? err))) throw err;
         await setTimeout(50);
       }
     }
