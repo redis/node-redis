@@ -40,6 +40,10 @@ type ClusterSlots = RedisClusterSlots<RedisModules, RedisFunctions, RedisScripts
  */
 export type RoutedCommand = {
   client?: ClusterClient;
+  // Fan-out entries carry a deferred connect instead of a resolved client, so
+  // each node's lazy connection runs inside its own per-entry promise (one
+  // failed connect rejects only that entry, not the whole route).
+  getClient?: () => Promise<ClusterClient>;
   parser?: CommandParser;
   groupIndices?: Array<number>;
 };
@@ -67,10 +71,10 @@ export type ResponseReducer<T> = (
 // --- request routers ---
 
 export const routeAllNodes: RequestRouter =
-  async (slots) => (await slots.getAllClients()).map(client => ({ client }));
+  async (slots) => slots.getAllNodes().map(node => ({ getClient: () => slots.nodeClient(node) }));
 
 export const routeAllShards: RequestRouter =
-  async (slots) => (await slots.getAllMasterClients()).map(client => ({ client }));
+  async (slots) => slots.getAllMasterNodes().map(node => ({ getClient: () => slots.nodeClient(node) }));
 
 /**
  * Splits the command into one sub-command per hash slot (using the COMMAND key

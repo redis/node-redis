@@ -605,10 +605,15 @@ export default class RedisCluster<
     // `plan[0].client`, and the post-reply hooks must bind cursors to the node
     // that really served. Multi-target hooks are no-ops, so nothing to track.
     const served: { client?: RedisClientType<M, F, S, RESP, TYPE_MAPPING> } = {};
-    const responsePromises = plan.map(entry => {
+    const responsePromises = plan.map(async entry => {
       const entryParser = entry.parser ?? parser;
       // Re-narrow the opaque routed client to this cluster's instantiation.
-      const client = entry.client as RedisClientType<M, F, S, RESP, TYPE_MAPPING> | undefined;
+      // Fan-out entries carry a `getClient` thunk instead of a resolved client,
+      // so each node's lazy connect runs in its own promise: a single failed
+      // connect rejects only this entry (reducers such as one_succeeded still
+      // see the reachable shards) rather than failing the whole route.
+      const client = (entry.client ?? (entry.getClient ? await entry.getClient() : undefined)) as
+        RedisClientType<M, F, S, RESP, TYPE_MAPPING> | undefined;
       return this._execute(
         entryParser, readonly, execOptions, makeFn(entryParser), client,
         plan.length === 1 ? served : undefined

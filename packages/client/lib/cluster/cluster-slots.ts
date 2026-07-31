@@ -899,19 +899,25 @@ export default class RedisClusterSlots<
    * them would silently fan commands out to a subset of the cluster.
    * Excludes dedicated PubSub connections: they cannot run regular commands.
    */
-  getAllClients(): Promise<Array<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>> {
+  /**
+   * All fan-out target nodes (masters + replicas), WITHOUT connecting. The
+   * caller connects each node lazily in its own per-node promise so a single
+   * failed connect rejects only that node's execution — letting reducers such
+   * as `one_succeeded` still see the reachable shards — instead of a `Promise.all`
+   * over the connects failing the whole route up front. Excludes the dedicated
+   * PubSub connection (not in `masters`/`replicas`).
+   */
+  getAllNodes() {
     this.#assertReady();
 
-    return Promise.all([
-      ...this.masters.map(master => this.nodeClient(master)),
-      ...this.replicas.map(replica => this.nodeClient(replica))
-    ]);
+    return [...this.masters, ...this.replicas];
   }
 
-  getAllMasterClients(): Promise<Array<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>> {
+  /** Master fan-out target nodes, WITHOUT connecting (see {@link getAllNodes}). */
+  getAllMasterNodes() {
     this.#assertReady();
 
-    return Promise.all(this.masters.map(master => this.nodeClient(master)));
+    return this.masters;
   }
 
   async getClientAndSlotNumber(
