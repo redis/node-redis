@@ -25,7 +25,9 @@ export const aggregateLogicalAnd = <T>(replies: Array<unknown>): T => {
 
   for (const reply of replies) {
     for (let i = 0; i < reply.length; i++) {
-      result[i] = result[i] && reply[i];
+      // clamp to 0/1: `&&` returns the operand, so non-binary replies would
+      // otherwise leak through (e.g. 1 && 2 === 2).
+      result[i] = result[i] && reply[i] ? 1 : 0;
     }
   }
 
@@ -58,7 +60,9 @@ export const aggregateLogicalOr = <T>(replies: Array<unknown>): T => {
 
   for (const reply of replies) {
     for (let i = 0; i < reply.length; i++) {
-      result[i] = result[i] || reply[i];
+      // clamp to 0/1: `||` returns the operand, so non-binary replies would
+      // otherwise leak through (e.g. 0 || 3 === 3).
+      result[i] = result[i] || reply[i] ? 1 : 0;
     }
   }
 

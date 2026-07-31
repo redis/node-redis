@@ -10,6 +10,10 @@ describe('aggregateLogicalOr', () => {
     assert.deepEqual(aggregateLogicalOr([[0, 0], [0, 0]]), [0, 0]);
   });
 
+  it('clamps non-binary numbers to 0/1', () => {
+    assert.deepEqual(aggregateLogicalOr([[0, 0], [2, 0]]), [1, 0]);
+  });
+
   it('returns [] for an empty replies array', () => {
     assert.deepEqual(aggregateLogicalOr([]), []);
   });
@@ -43,6 +47,10 @@ describe('aggregateMerge', () => {
 describe('aggregateLogicalAnd', () => {
   it('ANDs element-wise across shards (SCRIPT EXISTS)', () => {
     assert.deepEqual(aggregateLogicalAnd([[1, 1, 0], [1, 0, 0]]), [1, 0, 0]);
+  });
+
+  it('clamps non-binary numbers to 0/1', () => {
+    assert.deepEqual(aggregateLogicalAnd([[1, 2], [1, 3]]), [1, 1]);
   });
 
   it('rejects non-numeric replies', () => {
