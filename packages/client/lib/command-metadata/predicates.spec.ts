@@ -87,6 +87,10 @@ describe('predicates (override-first)', () => {
       assert.equal(cacheable(id('eval_ro')), false);
     });
 
+    it('blocking: not cacheable (XREAD ... BLOCK could cache a timeout reply)', () => {
+      assert.equal(cacheable(id('xread')), false);
+    });
+
     it('unknown command: declared intent or not cacheable', () => {
       assert.equal(cacheable(id('definitelynotacommand')), false);
       assert.equal(cacheable(id('definitelynotacommand'), true), true);

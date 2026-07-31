@@ -60,7 +60,11 @@ export function isReplicaSafe(
  *     key-tracking based, so keyless read-only commands like KEYS must not cache),
  *   - no `nondeterministic_output` tip (value nondeterminism; `*_output_order`
  *     is fine — HGETALL/SMEMBERS stay cacheable),
- *   - no `script_runner` flag (EVAL_RO/EVALSHA_RO/FCALL_RO).
+ *   - no `script_runner` flag (EVAL_RO/EVALSHA_RO/FCALL_RO),
+ *   - no `blocking` flag: a blocking read (`XREAD … BLOCK`) can return null on
+ *     timeout, which would be cached and replayed instead of blocking for new
+ *     data; eligibility is per-command, so the non-blocking form can't be
+ *     carved out — the only command this excludes is XREAD.
  *
  * Unknown commands with no declared intent are not cacheable.
  */
@@ -77,5 +81,8 @@ export function isCacheable(
     && !tips.includes('nondeterministic_output')
     // `script_runner` (Redis 8.10) marks the EVAL_RO/EVALSHA_RO/FCALL_RO family,
     // which must not cache.
-    && !meta.flags.includes('script_runner');
+    && !meta.flags.includes('script_runner')
+    // `blocking` reads (XREAD … BLOCK) could cache a timeout reply and replay
+    // it instead of blocking for new data.
+    && !meta.flags.includes('blocking');
 }
