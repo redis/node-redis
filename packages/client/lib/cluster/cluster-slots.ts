@@ -894,12 +894,6 @@ export default class RedisClusterSlots<
   }
 
   /**
-   * All node clients (masters and replicas), connecting lazily — with
-   * `minimizeConnections` nodes have no client until first use, and skipping
-   * them would silently fan commands out to a subset of the cluster.
-   * Excludes dedicated PubSub connections: they cannot run regular commands.
-   */
-  /**
    * All fan-out target nodes (masters + replicas), WITHOUT connecting. The
    * caller connects each node lazily in its own per-node promise so a single
    * failed connect rejects only that node's execution — letting reducers such
