@@ -6,7 +6,6 @@ export interface JsonClearOptions {
 }
 
 export default {
-  IS_READ_ONLY: false,
   parseCommand(parser: CommandParser, key: RedisArgument, options?: JsonClearOptions) {
     parser.push('JSON.CLEAR');
     parser.pushKey(key);

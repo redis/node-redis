@@ -5,7 +5,9 @@ import { createTransformTuplesReplyFunc, transformDoubleReply } from "@redis/cli
 import { TuplesReply } from '@redis/client/dist/lib/RESP/types';
 
 export default {
-  NOT_KEYED_COMMAND: true,
+  // Keyless read: replica-safe, but the metadata-derived isReplicaSafe
+  // returns false for keyless commands, so opt in explicitly (restores the
+  // pre-derivation master behavior).
   IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, index: RedisArgument) {
     parser.push('FT.INFO', index);

@@ -15,7 +15,6 @@ type XAutoClaimJustIdRawReply = TuplesReply<[
 ]>;
 
 export default {
-  IS_READ_ONLY: XAUTOCLAIM.IS_READ_ONLY,
   parseCommand(...args: Parameters<typeof XAUTOCLAIM.parseCommand>) {
     const parser = args[0];
     XAUTOCLAIM.parseCommand(...args);

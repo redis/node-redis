@@ -8,7 +8,6 @@ export type ArGrepWithValuesReply = Array<{
 }>;
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, ...args: ArGrepArguments) {
     parser.push('ARGREP');
     parseArGrepArguments(parser, ...args);

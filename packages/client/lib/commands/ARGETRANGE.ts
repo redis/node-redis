@@ -2,7 +2,6 @@ import { CommandParser } from '../client/parser';
 import { RedisArgument, ArrayReply, BlobStringReply, NullReply, Command } from '../RESP/types';
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, key: RedisArgument, start: number | string, end: number | string) {
     parser.push('ARGETRANGE');
     parser.pushKey(key);

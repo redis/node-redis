@@ -3,7 +3,6 @@ import { RedisArgument, NumberReply, ArrayReply, NullReply, Command } from '@red
 import { RedisJSON, transformRedisJsonArgument } from '@redis/client/dist/lib/commands/generic-transformers';
 
 export default {
-  IS_READ_ONLY: false,
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

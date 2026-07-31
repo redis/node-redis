@@ -12,8 +12,6 @@ import { SimpleStringReply, NullReply, Command } from '../RESP/types';
  * Note: Returns null if no session was started or is already stopped.
  */
 export default {
-  NOT_KEYED_COMMAND: true,
-  IS_READ_ONLY: false,
   parseCommand(parser: CommandParser) {
     parser.push('HOTKEYS', 'STOP');
   },

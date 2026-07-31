@@ -6,8 +6,6 @@ type SingleParameter = [parameter: RedisArgument, value: RedisArgument];
 type MultipleParameters = [config: Record<string, RedisArgument>];
 
 export default {
-  NOT_KEYED_COMMAND: true,
-  IS_READ_ONLY: true,
   parseCommand(
     parser: CommandParser,
     ...[parameterOrConfig, value]: SingleParameter | MultipleParameters

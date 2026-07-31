@@ -15,7 +15,6 @@ export interface ListFilterId {
 export type ListFilter = ListFilterType | ListFilterId;
 
 export default {
-  NOT_KEYED_COMMAND: true,
   IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, filter?: ListFilter) {
     parser.push('CLIENT', 'LIST');

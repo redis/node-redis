@@ -218,7 +218,9 @@ function transformSearchReplyResp3(
 }
 
 export default {
-  NOT_KEYED_COMMAND: true,
+  // Keyless read: replica-safe, but the metadata-derived isReplicaSafe
+  // returns false for keyless commands, so opt in explicitly (restores the
+  // pre-derivation master behavior).
   IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, index: RedisArgument, query: RedisArgument, options?: FtSearchOptions) {
     parser.push('FT.SEARCH', index, query);

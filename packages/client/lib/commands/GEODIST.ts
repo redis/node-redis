@@ -3,8 +3,6 @@ import { RedisArgument, BlobStringReply, NullReply, Command } from '../RESP/type
 import { GeoUnits } from './GEOSEARCH';
 
 export default {
-  CACHEABLE: true,
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser,
     key: RedisArgument,
     member1: RedisArgument,

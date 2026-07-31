@@ -46,7 +46,6 @@ export function parseIncrByArguments(
 }
 
 export default {
-  IS_READ_ONLY: false,
   parseCommand(...args: Parameters<typeof parseIncrByArguments>) {
     const parser = args[0];
 

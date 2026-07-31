@@ -6,7 +6,6 @@ import { RedisVariadicArgument } from './generic-transformers';
  * Command for removing messages from a stream
  */
 export default {
-  IS_READ_ONLY: false,
   parseCommand(parser: CommandParser, key: RedisArgument, id: RedisVariadicArgument) {
     parser.push('XDEL');
     parser.pushKey(key);

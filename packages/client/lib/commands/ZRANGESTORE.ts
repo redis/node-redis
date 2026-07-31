@@ -12,7 +12,6 @@ export interface ZRangeStoreOptions {
 }
 
 export default {
-  IS_READ_ONLY: false,
   parseCommand(
     parser: CommandParser,
     destination: RedisArgument,

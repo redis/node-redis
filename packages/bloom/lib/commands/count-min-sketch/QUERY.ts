@@ -3,7 +3,6 @@ import { ArrayReply, NumberReply, Command, RedisArgument } from '@redis/client/d
 import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, key: RedisArgument, items: RedisVariadicArgument) {
     parser.push('CMS.QUERY');
     parser.pushKey(key);

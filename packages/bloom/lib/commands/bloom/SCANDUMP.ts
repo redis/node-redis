@@ -2,7 +2,6 @@ import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument, TuplesReply, NumberReply, BlobStringReply, UnwrapReply, Command } from '@redis/client/dist/lib/RESP/types';
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, key: RedisArgument, iterator: number) {
     parser.push('BF.SCANDUMP');
     parser.pushKey(key);

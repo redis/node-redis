@@ -9,7 +9,6 @@ export interface TsMAddSample {
 }
 
 export default {
-  IS_READ_ONLY: false,
   parseCommand(parser: CommandParser, toAdd: Array<TsMAddSample>) {
     parser.push('TS.MADD');
 

@@ -8,7 +8,6 @@ export interface ZUnionOptions {
 }
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, keys: ZKeys, options?: ZUnionOptions) {
     parser.push('ZUNION');
     parseZKeysArguments(parser, keys);

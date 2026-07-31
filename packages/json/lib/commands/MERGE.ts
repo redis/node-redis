@@ -3,7 +3,6 @@ import { SimpleStringReply, Command, RedisArgument } from '@redis/client/dist/li
 import { RedisJSON, transformRedisJsonArgument } from '@redis/client/dist/lib/commands/generic-transformers';
 
 export default {
-  IS_READ_ONLY: false,
   parseCommand(parser: CommandParser, key: RedisArgument, path: RedisArgument, value: RedisJSON) {
     parser.push('JSON.MERGE');
     parser.pushKey(key);

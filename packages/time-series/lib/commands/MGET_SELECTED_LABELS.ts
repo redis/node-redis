@@ -6,7 +6,6 @@ import { parseSelectedLabelsArguments } from './helpers';
 import { createTransformMGetLabelsReply } from './MGET_WITHLABELS';
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, filter: RedisVariadicArgument, selectedLabels: RedisVariadicArgument, options?: TsMGetOptions) {
     parser.push('TS.MGET');
     parseLatestArgument(parser, options?.LATEST);

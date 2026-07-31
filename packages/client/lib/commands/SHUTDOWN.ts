@@ -17,8 +17,6 @@ export interface ShutdownOptions {
 }
 
 export default {
-  NOT_KEYED_COMMAND: true,
-  IS_READ_ONLY: false,
   parseCommand(parser: CommandParser, options?: ShutdownOptions) {
     parser.push('SHUTDOWN');
 

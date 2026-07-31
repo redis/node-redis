@@ -40,7 +40,6 @@ export type BitFieldRoOperations = Array<
 >;
 
 export default {
-  IS_READ_ONLY: false,
   parseCommand(parser: CommandParser, key: RedisArgument, operations: BitFieldOperations) {
     parser.push('BITFIELD');
     parser.pushKey(key);

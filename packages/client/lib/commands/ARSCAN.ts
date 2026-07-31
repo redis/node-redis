@@ -11,7 +11,6 @@ export type ArScanReply = Array<{
 }>;
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

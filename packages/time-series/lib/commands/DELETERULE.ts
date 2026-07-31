@@ -2,7 +2,6 @@ import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument, SimpleStringReply, Command } from '@redis/client/dist/lib/RESP/types';
 
 export default {
-  IS_READ_ONLY: false,
   parseCommand(parser: CommandParser, sourceKey: RedisArgument, destinationKey: RedisArgument) {
     parser.push('TS.DELETERULE');
     parser.pushKeys([sourceKey, destinationKey]);

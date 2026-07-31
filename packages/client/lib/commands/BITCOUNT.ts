@@ -8,8 +8,6 @@ export interface BitCountRange {
 }
 
 export default {
-  CACHEABLE: true,
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, key: RedisArgument, range?: BitCountRange) {
     parser.push('BITCOUNT');
     parser.pushKey(key);

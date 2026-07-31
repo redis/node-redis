@@ -17,7 +17,6 @@ export function parseGeoRadiusArguments(
 }
 
 export default {
-  IS_READ_ONLY: false,
   parseCommand(...args: Parameters<typeof parseGeoRadiusArguments>) {
     args[0].push('GEORADIUS');
     return parseGeoRadiusArguments(...args);

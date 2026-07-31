@@ -2,7 +2,6 @@ import { CommandParser } from '../client/parser';
 import { RedisArgument, NumberReply, Command } from '../RESP/types';
 
 export default {
-  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, key: RedisArgument) {
     parser.push('ARCOUNT');
     parser.pushKey(key);

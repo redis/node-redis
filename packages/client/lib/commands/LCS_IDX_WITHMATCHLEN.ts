@@ -15,7 +15,6 @@ export type LcsIdxWithMatchLenReply = TuplesToMapReply<[
 ]>;
 
 export default {
-  IS_READ_ONLY: LCS_IDX.IS_READ_ONLY,
   parseCommand(...args: Parameters<typeof LCS_IDX.parseCommand>) {
     const parser = args[0];
     LCS_IDX.parseCommand(...args);
