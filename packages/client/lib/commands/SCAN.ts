@@ -70,6 +70,10 @@ export interface ScanOptions extends ScanCommonOptions {
 }
 
 export default {
+  // Keyless read: replica-safe, but the metadata-derived isReplicaSafe
+  // returns false for keyless commands, so opt in explicitly (restores the
+  // pre-derivation master behavior).
+  IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, cursor: RedisArgument, options?: ScanOptions) {
     parser.push('SCAN');
     parseScanArguments(parser, cursor, options);
