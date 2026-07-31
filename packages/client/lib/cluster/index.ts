@@ -548,8 +548,8 @@ export default class RedisCluster<
     // (see `isReplicaSafe`).
     const readonly = isReplicaSafe(policy, isReadonly);
 
-    const requestPolicy = policy.request
-    const responsePolicy = policy.response
+    const requestPolicy = policy.request;
+    const responsePolicy = policy.response;
 
     // Fast path: default-keyed request + response — the overwhelming majority
     // of traffic (every single-key command). Route by firstKey and pass the
