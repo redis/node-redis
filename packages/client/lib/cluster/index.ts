@@ -7,7 +7,7 @@ import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumen
 import RedisClusterSlots, { NodeAddressMap, RESUBSCRIBE_LISTENERS_EVENT, ShardNode } from './cluster-slots';
 import RedisClusterMultiCommand, { RedisClusterMultiCommandType } from './multi-command';
 import { PubSubListener, PubSubListeners } from '../client/pub-sub';
-import { ErrorReply } from '../errors';
+import { ErrorReply, MaxCommandRedirectionsError } from '../errors';
 import { RedisTcpSocketOptions } from '../client/socket';
 import { ClientSideCacheConfig, PooledClientSideCacheProvider } from '../client/cache';
 import { BasicCommandParser, CommandParser } from '../client/parser';
@@ -714,16 +714,23 @@ export default class RedisCluster<
           const err = _err as Error;
           myFn = fn;
 
-          // TODO: error class
-          if (++i > maxCommandRedirections || !(err instanceof Error)) {
-            if (err instanceof Error) {
-              publish(CHANNELS.ERROR, () => ({
-                error: err,
-                origin: 'cluster',
-                internal: false,
-                clientId: client._clientId,
-                retryCount: i,
-              }));
+          if (!(err instanceof Error)) {
+            throw err;
+          }
+
+          const isRedirect = err.message.startsWith('ASK') || err.message.startsWith('MOVED');
+
+          if (++i > maxCommandRedirections) {
+            publish(CHANNELS.ERROR, () => ({
+              error: err,
+              origin: 'cluster',
+              internal: false,
+              clientId: client._clientId,
+              retryCount: i,
+            }));
+
+            if (isRedirect) {
+              throw new MaxCommandRedirectionsError(err);
             }
             throw err;
           }
@@ -881,11 +888,20 @@ export default class RedisCluster<
       try {
         return await client.SSUBSCRIBE(channels, listener, bufferMode);
       } catch (err) {
-        if (++i > maxCommandRedirections || !(err instanceof ErrorReply)) {
+        if (!(err instanceof ErrorReply)) {
           throw err;
         }
 
-        if (err.message.startsWith('MOVED')) {
+        const isRedirect = err.message.startsWith('MOVED');
+
+        if (++i > maxCommandRedirections) {
+          if (isRedirect) {
+            throw new MaxCommandRedirectionsError(err);
+          }
+          throw err;
+        }
+
+        if (isRedirect) {
           await this._self._slots.rediscover(client);
           client = await this._self._slots.getShardedPubSubClient(firstChannel);
           continue;
