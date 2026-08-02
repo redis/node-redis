@@ -413,7 +413,9 @@ export class RedisClientPool<
   }
 
   async connect() {
-    if (this._self.#isOpen) return; // TODO: throw error?
+    if (this._self.#isOpen) {
+      throw new Error('Pool already opened');
+    }
     this._self.#isOpen = true;
 
     const promises = [];
@@ -575,8 +577,9 @@ export class RedisClientPool<
   multi = this.MULTI;
 
   async close() {
-    if (this._self.#isClosing) return; // TODO: throw err?
-    if (!this._self.#isOpen) return; // TODO: throw err?
+    if (this._self.#isClosing || !this._self.#isOpen) {
+      throw new ClientClosedError();
+    }
 
     this._self.#isClosing = true;
     clearTimeout(this._self.cleanupTimeout);

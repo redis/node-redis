@@ -2,7 +2,7 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import { RESP_TYPES } from '../RESP/decoder';
 import { RedisClientPool } from './pool';
-import { TimeoutError } from '../errors';
+import { TimeoutError, ClientClosedError } from '../errors';
 
 describe('RedisClientPool', () => {
   it('chained withCommandOptions(...).withTypeMapping(...) preserves earlier overrides at dispatch', () => {
@@ -44,6 +44,26 @@ describe('RedisClientPool', () => {
     assert.equal(pool.HOTKEYS_STOP, undefined);
     assert.equal(pool.HOTKEYS_GET, undefined);
     assert.equal(pool.HOTKEYS_RESET, undefined);
+  });
+
+  it('throws an error if connect is called on an already open pool', async () => {
+    // We can't actually connect to Redis because we don't know the port here without testUtils,
+    // but calling connect() sets #isOpen to true immediately before awaiting the socket connection.
+    const pool = RedisClientPool.create({
+        socket: { port: 9999 }
+    });
+    // Fire first connect (will stay pending / eventually fail to connect)
+    pool.connect().catch(() => {});
+    // Fire second connect while first is running / pool is marked as open
+    await assert.rejects(pool.connect(), /Pool already opened/);
+    // Cleanup
+    await pool.close().catch(() => {});
+  });
+
+  it('throws ClientClosedError if close is called on a closed pool', async () => {
+    const pool = RedisClientPool.create({});
+    // Pool is initially closed, so calling close() directly should throw
+    await assert.rejects(pool.close(), ClientClosedError);
   });
 
   testUtils.testWithClientPool('sendCommand', async pool => {
