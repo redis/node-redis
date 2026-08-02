@@ -57,7 +57,7 @@ describe('RedisClientPool', () => {
     // Fire second connect while first is running / pool is marked as open
     await assert.rejects(pool.connect(), /Pool already opened/);
     // Cleanup
-    await pool.close().catch(() => {});
+    pool.destroy();
   });
 
   it('throws ClientClosedError if close is called on a closed pool', async () => {
