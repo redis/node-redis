@@ -1033,7 +1033,7 @@ export class RedisSentinelInternal<
       } catch (e) {
         const err = e as Error;
         this.#trace(`#connect: exception ${err.message}`);
-        if (!this.#isReady && count > this.#maxCommandRediscovers) {
+        if (count > this.#maxCommandRediscovers) {
           throw e;
         }
 

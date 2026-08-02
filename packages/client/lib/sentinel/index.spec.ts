@@ -1363,6 +1363,40 @@ describe('legacy tests', () => {
       assert.equal(sawRecoverySuccess, true, 'expected periodic GET to recover after restart');
     });
 
+    // Regression test for https://github.com/redis/node-redis/issues/3385
+    //
+    // The rediscovery cap previously applied only before the first successful
+    // connect. A later full Sentinel outage left an operation waiting on the
+    // rediscovery loop forever.
+    it('rejects a command after rediscovery reaches its cap following a full outage', async function () {
+      this.timeout(30000);
+
+      sentinel = frame.getSentinelClient({
+        maxCommandRediscovers: 1,
+        commandOptions: { timeout: undefined }
+      });
+      sentinel.on('error', () => { });
+      await sentinel.connect();
+
+      await Promise.all([
+        ...frame.getAllNodesPort().map(port => frame.stopNode(port.toString())),
+        ...frame.getAllSentinelsPort().map(port => frame.stopSentinel(port.toString()))
+      ]);
+
+      const timeoutError = new Error('rediscovery cap was not enforced');
+      const result = await Promise.race([
+        sentinel.get('some-key').then(
+          () => new Error('command unexpectedly resolved'),
+          err => err
+        ),
+        setTimeout(5000).then(() => timeoutError)
+      ]);
+
+      assert.ok(result instanceof Error);
+      assert.notStrictEqual(result, timeoutError);
+      assert.notStrictEqual(result.message, 'command unexpectedly resolved');
+    });
+
     it('timer works, and updates sentinel list', async function () {
       this.timeout(60000);
 
