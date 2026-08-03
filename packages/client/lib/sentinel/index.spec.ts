@@ -1397,6 +1397,27 @@ describe('legacy tests', () => {
       assert.notStrictEqual(result.message, 'command unexpectedly resolved');
     });
 
+    it('emits an error when background rediscovery reaches its cap', async function () {
+      this.timeout(30000);
+
+      sentinel = frame.getSentinelClient({
+        maxCommandRediscovers: 0,
+        passthroughClientErrorEvents: false
+      });
+      await sentinel.connect();
+
+      const backgroundError = once(sentinel, 'error');
+      await Promise.all(frame.getAllSentinelsPort().map(port => frame.stopSentinel(port.toString())));
+
+      const [err] = await Promise.race([
+        backgroundError,
+        setTimeout(5000).then(() => {
+          throw new Error('background rediscovery did not surface an error');
+        })
+      ]);
+      assert.ok(err instanceof Error);
+    });
+
     it('timer works, and updates sentinel list', async function () {
       this.timeout(60000);
 
