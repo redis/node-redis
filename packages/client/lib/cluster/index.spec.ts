@@ -279,6 +279,42 @@ describe('Cluster', () => {
     }
   });
 
+  testUtils.testWithCluster('sSubscribe should throw MaxCommandRedirectionsError when exceeding maxCommandRedirections', async cluster => {
+    const channel = 'maxCommandRedirectionsErrorChannel',
+      slot = calculateSlot(channel),
+      node1 = cluster.masters[0],
+      node2 = cluster.masters[1],
+      [client1, client2] = await Promise.all([
+        cluster.nodeClient(node1),
+        cluster.nodeClient(node2)
+      ]);
+
+    // Create a MOVED loop
+    await Promise.all([
+      client1.clusterSetSlot(slot, 'NODE', node2.id),
+      client2.clusterSetSlot(slot, 'NODE', node1.id)
+    ]);
+
+    try {
+      await assert.rejects(
+        cluster.sSubscribe(channel, () => {}),
+        MaxCommandRedirectionsError
+      );
+    } finally {
+      // Revert the slot back to its original owner (node1)
+      await Promise.all([
+        client1.clusterSetSlot(slot, 'NODE', node1.id),
+        client2.clusterSetSlot(slot, 'NODE', node1.id)
+      ]);
+    }
+  }, {
+    serverArguments: [],
+    numberOfMasters: 2,
+    clusterConfiguration: {
+      maxCommandRedirections: 2
+    }
+  });
+
   testUtils.testWithCluster('getRandomNode should spread the the load evenly', async cluster => {
     const totalNodes = cluster.masters.length + cluster.replicas.length,
       ids = new Set<string>();
