@@ -1005,7 +1005,7 @@ export class RedisSentinelInternal<
     } finally {
       this.#connectPromise = undefined;
       if (this.#isReady && this.#scanInterval > 0) {
-        this.#scanTimer = setInterval(this.#reset.bind(this), this.#scanInterval);
+        this.#scanTimer = setInterval(this.#resetInBackground.bind(this), this.#scanInterval);
       }
     }
   }
@@ -1015,7 +1015,6 @@ export class RedisSentinelInternal<
     while (true) {
       this.#trace("starting connect loop");
 
-      count+=1;
       if (this.#destroy) {
         this.#trace("in #connect and want to destroy")
         return;
@@ -1033,7 +1032,7 @@ export class RedisSentinelInternal<
       } catch (e) {
         const err = e as Error;
         this.#trace(`#connect: exception ${err.message}`);
-        if (!this.#isReady && count > this.#maxCommandRediscovers) {
+        if (++count > this.#maxCommandRediscovers) {
           throw e;
         }
 
@@ -1104,9 +1103,9 @@ export class RedisSentinelInternal<
     return client;
   }
 
-  async #handlePubSubControlChannel(channel: Buffer, _message: Buffer) {
+  #handlePubSubControlChannel(channel: Buffer, _message: Buffer) {
     this.#trace("pubsub control channel message on " + channel);
-    this.#reset();
+    this.#resetInBackground();
   }
 
   // if clientInfo is defined, it corresponds to a master client in the #masterClients array, otherwise loop around replicaClients
@@ -1147,6 +1146,10 @@ export class RedisSentinelInternal<
     }
   }
 
+  #resetInBackground() {
+    void this.#reset().catch(err => this.emit('error', err));
+  }
+
   #sentinelNodeListKey(nodes: Array<RedisNode>) {
     return nodes.map(node => `${node.host}:${node.port}`).sort().join('|');
   }
@@ -1168,14 +1171,14 @@ export class RedisSentinelInternal<
         this.#sentinelRootNodes.splice(found, 1);
     }
     this.#restoreSentinelRootNodesIfEmpty();
-    this.#reset();
+    this.#resetInBackground();
   }
 
   async close() {
     this.#destroy = true;
 
     if (this.#connectPromise != undefined) {
-      await this.#connectPromise;
+      await this.#connectPromise.catch(() => undefined);
     }
 
     this.#isReady = false;
@@ -1225,7 +1228,7 @@ export class RedisSentinelInternal<
     this.#destroy = true;
 
     if (this.#connectPromise != undefined) {
-      await this.#connectPromise;
+      await this.#connectPromise.catch(() => undefined);
     }
 
     this.#isReady = false;
