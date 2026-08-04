@@ -311,6 +311,47 @@ describe('Socket', () => {
     });
   });
 
+  describe('stale data after socket error (#3209)', () => {
+    it('should not forward data events emitted on the old socket after an error', async () => {
+      const server = net.createServer();
+      server.on('connection', conn => conn.on('error', () => {}));
+      await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+      const { port } = server.address() as net.AddressInfo;
+
+      const original = net.createConnection;
+      const captured: { socket?: net.Socket } = {};
+      const target = net as unknown as { createConnection: unknown };
+      target.createConnection = (...args: unknown[]) => {
+        const s = (original as unknown as (...a: unknown[]) => net.Socket).apply(net, args);
+        captured.socket = s;
+        return s;
+      };
+
+      try {
+        const socket = createSocket({ host: '127.0.0.1', port, reconnectStrategy: false });
+        await socket.connect();
+
+        const underlying = captured.socket!;
+        assert.ok(underlying, 'captured underlying socket');
+
+        const staleData: Buffer[] = [];
+        socket.on('data', data => staleData.push(data));
+
+        // Simulate a socket error — triggers #onSocketError which removes the
+        // 'data' listener from the old socket before destroying it
+        underlying.emit('error', new Error('connection reset'));
+
+        // Simulate buffered data arriving after the error (the race this fix targets)
+        underlying.emit('data', Buffer.from('+STALE\r\n'));
+
+        assert.equal(staleData.length, 0, 'stale data after socket error must not be forwarded');
+      } finally {
+        target.createConnection = original;
+        await new Promise<void>(resolve => server.close(() => resolve()));
+      }
+    });
+  });
+
   describe('keepAliveInitialDelay default', () => {
     function captureConnectOptions() {
       const original = net.createConnection;
