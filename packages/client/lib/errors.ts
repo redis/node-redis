@@ -107,3 +107,9 @@ export class MultiErrorReply extends ErrorReply {
 }
 
 export class OpenTelemetryError extends Error { }
+
+export class MaxCommandRedirectionsError extends Error {
+  constructor(cause?: unknown) {
+    super('Too many Cluster redirections', cause === undefined ? undefined : { cause });
+  }
+}

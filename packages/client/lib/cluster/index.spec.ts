@@ -3,7 +3,7 @@ import { setTimeout } from 'node:timers/promises';
 import testUtils, { GLOBAL, waitTillBeenCalled } from '../test-utils';
 import RedisCluster from '.';
 import { SQUARE_SCRIPT } from '../client/index.spec';
-import { ClientClosedError, ClientOfflineError, RootNodesUnavailableError } from '../errors';
+import { ClientClosedError, ClientOfflineError, RootNodesUnavailableError, MaxCommandRedirectionsError } from '../errors';
 import { spy } from 'sinon';
 import RedisClient from '../client';
 import { RESP_TYPES } from '../RESP/decoder';
@@ -241,6 +241,79 @@ describe('Cluster', () => {
   }, {
     serverArguments: [],
     numberOfMasters: 2
+  });
+
+  testUtils.testWithCluster('should throw MaxCommandRedirectionsError when exceeding maxCommandRedirections', async cluster => {
+    const key = 'maxCommandRedirectionsErrorKey',
+      slot = calculateSlot(key),
+      node1 = cluster.masters[0],
+      node2 = cluster.masters[1],
+      [client1, client2] = await Promise.all([
+        cluster.nodeClient(node1),
+        cluster.nodeClient(node2)
+      ]);
+
+    // Create a MOVED loop
+    await Promise.all([
+      client1.clusterSetSlot(slot, 'NODE', node2.id),
+      client2.clusterSetSlot(slot, 'NODE', node1.id)
+    ]);
+
+    try {
+      await assert.rejects(
+        cluster.get(key),
+        MaxCommandRedirectionsError
+      );
+    } finally {
+      // Revert the slot back to its original owner (node1)
+      await Promise.all([
+        client1.clusterSetSlot(slot, 'NODE', node1.id),
+        client2.clusterSetSlot(slot, 'NODE', node1.id)
+      ]);
+    }
+  }, {
+    serverArguments: [],
+    numberOfMasters: 2,
+    clusterConfiguration: {
+      maxCommandRedirections: 2
+    }
+  });
+
+  testUtils.testWithCluster('sSubscribe should throw MaxCommandRedirectionsError when exceeding maxCommandRedirections', async cluster => {
+    const channel = 'maxCommandRedirectionsErrorChannel',
+      slot = calculateSlot(channel),
+      node1 = cluster.masters[0],
+      node2 = cluster.masters[1],
+      [client1, client2] = await Promise.all([
+        cluster.nodeClient(node1),
+        cluster.nodeClient(node2)
+      ]);
+
+    // Create a MOVED loop
+    await Promise.all([
+      client1.clusterSetSlot(slot, 'NODE', node2.id),
+      client2.clusterSetSlot(slot, 'NODE', node1.id)
+    ]);
+
+    try {
+      await assert.rejects(
+        cluster.sSubscribe(channel, () => {}),
+        MaxCommandRedirectionsError
+      );
+    } finally {
+      // Revert the slot back to its original owner (node1)
+      await Promise.all([
+        client1.clusterSetSlot(slot, 'NODE', node1.id),
+        client2.clusterSetSlot(slot, 'NODE', node1.id)
+      ]);
+    }
+  }, {
+    serverArguments: [],
+    numberOfMasters: 2,
+    clusterConfiguration: {
+      maxCommandRedirections: 2
+    },
+    minimumDockerVersion: [7]
   });
 
   testUtils.testWithCluster('getRandomNode should spread the the load evenly', async cluster => {
