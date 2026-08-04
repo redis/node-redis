@@ -20,6 +20,15 @@ describe('MEMORY USAGE', () => {
         ['MEMORY', 'USAGE', 'key', 'SAMPLES', '1']
       );
     });
+
+    it('with SAMPLES 0 (sample all nested values)', () => {
+      assert.deepEqual(
+        parseArgs(MEMORY_USAGE, 'key', {
+          SAMPLES: 0
+        }),
+        ['MEMORY', 'USAGE', 'key', 'SAMPLES', '0']
+      );
+    });
   });
 
   testUtils.testWithClient('client.memoryUsage', async client => {

@@ -2,13 +2,10 @@ import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument, ArrayReply, SetReply, BlobStringReply, Command } from '@redis/client/dist/lib/RESP/types';
 
 export default {
-  NOT_KEYED_COMMAND: true,
+  // Keyless read: replica-safe, but the metadata-derived isReplicaSafe
+  // returns false for keyless commands, so opt in explicitly (restores the
+  // pre-derivation master behavior).
   IS_READ_ONLY: true,
-  /**
-   * Returns all terms in a dictionary.
-   * @param parser - The command parser
-   * @param dictionary - Name of the dictionary to dump
-   */
   parseCommand(parser: CommandParser, dictionary: RedisArgument) {
     parser.push('FT.DICTDUMP', dictionary);
   },

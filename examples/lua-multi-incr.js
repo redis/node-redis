@@ -1,4 +1,4 @@
-// Define a custome lua script that accepts two keys and an amount to
+// Define a custom lua script that accepts two keys and an amount to
 // increment each of them by
 
 import { createClient, defineScript } from 'redis';

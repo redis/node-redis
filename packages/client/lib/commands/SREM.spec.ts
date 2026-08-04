@@ -29,4 +29,15 @@ describe('SREM', () => {
     client: GLOBAL.SERVERS.OPEN,
     cluster: GLOBAL.CLUSTERS.OPEN
   });
+
+  testUtils.testAll('sRem with existing members', async client => {
+    await client.sAdd('key', ['member1', 'member2', 'member3']);
+    assert.equal(
+      await client.sRem('key', ['member1', 'member2']),
+      2
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

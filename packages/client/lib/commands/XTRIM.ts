@@ -21,18 +21,6 @@ export interface XTrimOptions {
  * Command for trimming a stream to a specified length or minimum ID
  */
 export default {
-  IS_READ_ONLY: false,
-  /**
-   * Constructs the XTRIM command to trim a stream by length or minimum ID
-   *
-   * @param parser - The command parser
-   * @param key - The stream key
-   * @param strategy - Trim by maximum length (MAXLEN) or minimum ID (MINID)
-   * @param threshold - Maximum length or minimum ID threshold
-   * @param options - Additional options for trimming
-   * @returns Number of entries removed from the stream
-   * @see https://redis.io/commands/xtrim/
-   */
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,
@@ -50,7 +38,7 @@ export default {
 
     parser.push(threshold.toString());
 
-    if (options?.LIMIT) {
+    if (options?.LIMIT !== undefined) {
       parser.push('LIMIT', options.LIMIT.toString());
     }
 

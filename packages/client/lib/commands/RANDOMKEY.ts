@@ -2,14 +2,10 @@ import { CommandParser } from '../client/parser';
 import { NumberReply, Command } from '../RESP/types';
 
 export default {
-  NOT_KEYED_COMMAND: true,
+  // Keyless read: replica-safe, but the metadata-derived isReplicaSafe
+  // returns false for keyless commands, so opt in explicitly (restores the
+  // pre-derivation master behavior).
   IS_READ_ONLY: true,
-  /**
-   * Constructs the RANDOMKEY command
-   * 
-   * @param parser - The command parser
-   * @see https://redis.io/commands/randomkey/
-   */
   parseCommand(parser: CommandParser) {
     parser.push('RANDOMKEY');
   },

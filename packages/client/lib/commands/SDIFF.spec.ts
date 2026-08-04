@@ -29,4 +29,17 @@ describe('SDIFF', () => {
     client: GLOBAL.SERVERS.OPEN,
     cluster: GLOBAL.CLUSTERS.OPEN
   });
+
+  testUtils.testWithClient('sDiff with data', async client => {
+    await client.sAdd('sdiff-r3-1', ['a', 'b', 'c', 'd']);
+    await client.sAdd('sdiff-r3-2', ['c']);
+    await client.sAdd('sdiff-r3-3', ['a', 'c', 'e']);
+
+    const result = await client.sDiff(['sdiff-r3-1', 'sdiff-r3-2', 'sdiff-r3-3']);
+
+    // RESP3 returns a Set reply; verify it contains the expected members
+    assert.ok(Array.isArray(result));
+    const sorted = [...result].sort();
+    assert.deepEqual(sorted, ['b', 'd']);
+  }, GLOBAL.SERVERS.OPEN);
 });

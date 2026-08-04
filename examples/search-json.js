@@ -112,7 +112,7 @@ console.log(
 //   ]
 // }
 
-// Some aggregrations, what's the average age and total number of coins...
+// Some aggregations, what's the average age and total number of coins...
 // https://redis.io/commands/ft.aggregate/
 console.log('Aggregation Demo:');
 console.log(

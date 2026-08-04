@@ -12,14 +12,6 @@ import { SimpleStringReply, NullReply, Command } from '../RESP/types';
  * Note: Returns null if no session was started or is already stopped.
  */
 export default {
-  NOT_KEYED_COMMAND: true,
-  IS_READ_ONLY: false,
-  /**
-   * Stops hotkeys tracking. Results remain available via HOTKEYS GET.
-   * Returns null if no session was started or is already stopped.
-   * @param parser - The Redis command parser
-   * @see https://redis.io/commands/hotkeys-stop/
-   */
   parseCommand(parser: CommandParser) {
     parser.push('HOTKEYS', 'STOP');
   },

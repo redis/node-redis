@@ -1,8 +1,8 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { Command, ArrayReply, BlobStringReply, Resp2Reply, MapReply, TuplesReply, TypeMapping, NullReply, RedisArgument } from '@redis/client/dist/lib/RESP/types';
 import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
-import { parseSelectedLabelsArguments, resp2MapToValue, resp3MapToValue, SampleRawReply, Timestamp, transformRESP2Labels, transformSamplesReply } from './helpers';
-import { TsRangeOptions, parseRangeArguments } from './RANGE';
+import { parseExcludeEmptyArgument, parseSelectedLabelsArguments, resp2MapToValue, resp3MapToValue, SampleRawReply, Timestamp, transformRESP2Labels, transformSamplesReply } from './helpers';
+import { TsMRangeOptions, parseRangeArguments } from './RANGE';
 import { parseFilterArgument } from './MGET';
 
 export type TsMRangeSelectedLabelsRawReply2 = ArrayReply<
@@ -20,7 +20,9 @@ export type TsMRangeSelectedLabelsRawReply3 = MapReply<
   BlobStringReply,
   TuplesReply<[
     labels: MapReply<BlobStringReply, BlobStringReply | NullReply>,
-    metadata: never, // ?!
+    // Redis 7.4 leaves this slot empty; Redis 8 may populate it with
+    // aggregation/reducer metadata. We don't consume it, so accept anything.
+    metadata: unknown,
     samples: ArrayReply<SampleRawReply>
   ]>
 >;
@@ -36,7 +38,7 @@ export function createTransformMRangeSelectedLabelsArguments(command: RedisArgum
     toTimestamp: Timestamp,
     selectedLabels: RedisVariadicArgument,
     filter: RedisVariadicArgument,
-    options?: TsRangeOptions
+    options?: TsMRangeOptions
   ) => {
     parser.push(command);
     parseRangeArguments(
@@ -45,7 +47,9 @@ export function createTransformMRangeSelectedLabelsArguments(command: RedisArgum
       toTimestamp,
       options
     );
-  
+
+    parseExcludeEmptyArgument(parser, options?.EXCLUDEEMPTY);
+
     parseSelectedLabelsArguments(parser, selectedLabels);
   
     parseFilterArgument(parser, filter);
@@ -53,19 +57,9 @@ export function createTransformMRangeSelectedLabelsArguments(command: RedisArgum
 }
 
 export default {
-  IS_READ_ONLY: true,
-  /**
-   * Gets samples for time series matching a filter with selected labels
-   * @param parser - The command parser
-   * @param fromTimestamp - Start timestamp for range
-   * @param toTimestamp - End timestamp for range
-   * @param selectedLabels - Labels to include in the output
-   * @param filter - Filter to match time series keys
-   * @param options - Optional parameters for the command
-   */
   parseCommand: createTransformMRangeSelectedLabelsArguments('TS.MRANGE'),
   transformReply: {
-    2(reply: TsMRangeSelectedLabelsRawReply2, _?: any, typeMapping?: TypeMapping) {
+    2(reply: TsMRangeSelectedLabelsRawReply2, _?: unknown, typeMapping?: TypeMapping) {
       return resp2MapToValue(reply, ([_key, labels, samples]) => {
         return {
           labels: transformRESP2Labels(labels, typeMapping),
@@ -74,7 +68,7 @@ export default {
       }, typeMapping);
     },
     3(reply: TsMRangeSelectedLabelsRawReply3) {
-      return resp3MapToValue(reply, ([_key, labels, samples]) => {
+      return resp3MapToValue(reply, ([labels, _metadata, samples]) => {
         return {
           labels,
           samples: transformSamplesReply[3](samples)

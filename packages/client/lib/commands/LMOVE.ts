@@ -3,17 +3,6 @@ import { RedisArgument, BlobStringReply, NullReply, Command } from '../RESP/type
 import { ListSide } from './generic-transformers';
 
 export default {
-  IS_READ_ONLY: false,
-  /**
-   * Constructs the LMOVE command
-   * 
-   * @param parser - The command parser
-   * @param source - The source list key
-   * @param destination - The destination list key
-   * @param sourceSide - The side to pop from (LEFT or RIGHT)
-   * @param destinationSide - The side to push to (LEFT or RIGHT)
-   * @see https://redis.io/commands/lmove/
-   */
   parseCommand(
     parser: CommandParser,
     source: RedisArgument,

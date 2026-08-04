@@ -57,9 +57,15 @@ await cluster.sendCommand("key", false, ["SET", "key", "value", "NX"]); // 'OK'
 await cluster.sendCommand("key", true, ["HGETALL", "key"]); // ['key1', 'field1', 'key2', 'field2']
 ```
 
-## Auth with password and username
+## Root nodes vs. defaults
 
-Specifying the password in the URL or a root node will only affect the connection to that specific node. In case you want to set the password for all the connections being created from a cluster instance, use the `defaults` option.
+The configuration in `rootNodes` is only used for the connections that discover the cluster topology. It is **not** inherited by the connections the cluster then makes to the discovered nodes — those are created from the `defaults` option (plus the discovered host and port).
+
+This means that any setting that should apply to every connection in the cluster — credentials, TLS, timeouts, etc. — must be specified via `defaults`, even if it is already present in a root node URL or configuration.
+
+### Auth with password and username
+
+Specifying the password in the URL or a root node will only affect the connection used for topology discovery. In case you want to set the password for all the connections being created from a cluster instance, use the `defaults` option.
 
 ```javascript
 createCluster({
@@ -71,6 +77,23 @@ createCluster({
   defaults: {
     username: 'username',
     password: 'password'
+  }
+});
+```
+
+### TLS
+
+Likewise, TLS options specified in the URL (`rediss://`) or in a root node only affect the topology discovery connection. If your cluster requires TLS (e.g. AWS ElastiCache with in-transit encryption enabled), enable it via `defaults.socket`, otherwise the connections to the discovered nodes will be attempted in plaintext and can hang without an error:
+
+```javascript
+createCluster({
+  rootNodes: [{
+    url: 'rediss://external-host.io:30001'
+  }],
+  defaults: {
+    socket: {
+      tls: true
+    }
   }
 });
 ```
@@ -151,4 +174,22 @@ Admin commands such as `MEMORY STATS`, `FLUSHALL`, etc. are not attached to the 
 ### "Forwarded Commands"
 
 Certain commands (e.g. `PUBLISH`) are forwarded to other cluster nodes by the Redis server. The client sends these commands to a random node in order to spread the load across the cluster.
+
+### Transactions with `WATCH`
+
+`WATCH` relies on connection-level state on a specific node, so it isn't exposed directly on the cluster client. Use `.getNodeClientForKey()` to get the node client responsible for a key's slot and run the optimistic-locking transaction on it:
+
+```javascript
+const key = 'key';
+const nodeClient = await cluster.getNodeClientForKey(key);
+
+await nodeClient.watch(key);
+const value = await nodeClient.get(key);
+const reply = await nodeClient
+  .multi()
+  .set(key, calculateNewValue(value)) // application logic
+  .exec(); // `null` if `key` changed since `WATCH`, retry in that case
+```
+
+All keys touched in the transaction must hash to the same slot. Pass `true` as the second argument (`getNodeClientForKey(key, true)`) to allow a replica for read-only use.
 

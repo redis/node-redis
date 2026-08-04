@@ -3,15 +3,6 @@ import { isNullReply } from '@redis/client/dist/lib/commands/generic-transformer
 import SUGGET from './SUGGET';
 
 export default {
-  IS_READ_ONLY: SUGGET.IS_READ_ONLY,
-  /**
-   * Gets completion suggestions with their payloads from a suggestion dictionary.
-   * @param args - Same parameters as FT.SUGGET:
-   *   - parser: The command parser
-   *   - key: The suggestion dictionary key
-   *   - prefix: The prefix to get completion suggestions for
-   *   - options: Optional parameters for fuzzy matching and max results
-   */
   parseCommand(...args: Parameters<typeof SUGGET.parseCommand>) {
     SUGGET.parseCommand(...args);
     args[0].push('WITHPAYLOADS');

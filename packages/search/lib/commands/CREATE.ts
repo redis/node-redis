@@ -41,9 +41,9 @@ interface SchemaTextField extends SchemaCommonField<typeof SCHEMA_FIELD_TYPE['TE
   INDEXEMPTY?: boolean;
 }
 
-interface SchemaNumericField extends SchemaCommonField<typeof SCHEMA_FIELD_TYPE['NUMERIC']> {}
+type SchemaNumericField = SchemaCommonField<typeof SCHEMA_FIELD_TYPE['NUMERIC']>;
 
-interface SchemaGeoField extends SchemaCommonField<typeof SCHEMA_FIELD_TYPE['GEO']> {}
+type SchemaGeoField = SchemaCommonField<typeof SCHEMA_FIELD_TYPE['GEO']>;
 
 interface SchemaTagField extends SchemaCommonField<typeof SCHEMA_FIELD_TYPE['TAG']> {
   SEPARATOR?: RedisArgument;
@@ -81,6 +81,11 @@ interface SchemaHNSWVectorField extends SchemaVectorField {
   M?: number;
   EF_CONSTRUCTION?: number;
   EF_RUNTIME?: number;
+  /**
+   * Enable reranking. Requires a disk-based vector index.
+   * available since 8.10
+   */
+  RERANK?: boolean;
 }
 
 export const VAMANA_COMPRESSION_ALGORITHM = {
@@ -257,7 +262,7 @@ export function parseSchema(parser: CommandParser, schema: RediSearchSchema) {
           parseCommonSchemaFieldOptions(parser, fieldOptions)
           break;
 
-        case SCHEMA_FIELD_TYPE.VECTOR:
+        case SCHEMA_FIELD_TYPE.VECTOR: {
           parser.push(fieldOptions.ALGORITHM);
 
           const args: Array<RedisArgument> = [];
@@ -291,6 +296,10 @@ export function parseSchema(parser: CommandParser, schema: RediSearchSchema) {
 
               if (fieldOptions.EF_RUNTIME !== undefined) {
                 args.push('EF_RUNTIME', fieldOptions.EF_RUNTIME.toString());
+              }
+
+              if (fieldOptions.RERANK !== undefined) {
+                args.push('RERANK', fieldOptions.RERANK ? 'TRUE' : 'FALSE');
               }
 
               break;
@@ -333,6 +342,7 @@ export function parseSchema(parser: CommandParser, schema: RediSearchSchema) {
           }
 
           break;
+        }
 
         case SCHEMA_FIELD_TYPE.GEOSHAPE:
           if (fieldOptions.COORD_SYSTEM !== undefined) {
@@ -351,6 +361,7 @@ export function parseSchema(parser: CommandParser, schema: RediSearchSchema) {
 
 export const REDISEARCH_LANGUAGE = {
   ARABIC: 'Arabic',
+  ARMENIAN: 'Armenian',
   BASQUE: 'Basque',
   CATALANA: 'Catalan',
   DANISH: 'Danish',
@@ -360,20 +371,25 @@ export const REDISEARCH_LANGUAGE = {
   FRENCH: 'French',
   GERMAN: 'German',
   GREEK: 'Greek',
+  HINDI: 'Hindi',
   HUNGARIAN: 'Hungarian',
   INDONESAIN: 'Indonesian',
   IRISH: 'Irish',
   ITALIAN: 'Italian',
   LITHUANIAN: 'Lithuanian',
+  MALAY: 'Malay',
   NEPALI: 'Nepali',
   NORWEIGAN: 'Norwegian',
   PORTUGUESE: 'Portuguese',
   ROMANIAN: 'Romanian',
   RUSSIAN: 'Russian',
+  SERBIAN: 'Serbian',
   SPANISH: 'Spanish',
   SWEDISH: 'Swedish',
+  TAGALOG: 'Tagalog',
   TAMIL: 'Tamil',
   TURKISH: 'Turkish',
+  YIDDISH: 'Yiddish',
   CHINESE: 'Chinese'
 } as const;
 
@@ -381,14 +397,21 @@ export type RediSearchLanguage = typeof REDISEARCH_LANGUAGE[keyof typeof REDISEA
 
 export type RediSearchProperty = `${'@' | '$.'}${string}`;
 
+/**
+ * A document attribute: an `@`-prefixed or JSONPath property, or a plain
+ * hash field name (e.g. `__lang`). `(string & {})` keeps autocomplete for
+ * the prefixed forms while still accepting any field name.
+ */
+export type RediSearchAttribute = RediSearchProperty | (string & {});
+
 export interface CreateOptions {
   ON?: 'HASH' | 'JSON';
   PREFIX?: RedisVariadicArgument;
   FILTER?: RedisArgument;
   LANGUAGE?: RediSearchLanguage;
-  LANGUAGE_FIELD?: RediSearchProperty;
+  LANGUAGE_FIELD?: RediSearchAttribute;
   SCORE?: number;
-  SCORE_FIELD?: RediSearchProperty;
+  SCORE_FIELD?: RediSearchAttribute;
   // PAYLOAD_FIELD?: string;
   MAXTEXTFIELDS?: boolean;
   TEMPORARY?: number;
@@ -401,25 +424,6 @@ export interface CreateOptions {
 }
 
 export default {
-  NOT_KEYED_COMMAND: true,
-  IS_READ_ONLY: true,
-  /**
-   * Creates a new search index with the given schema and options.
-   * @param parser - The command parser
-   * @param index - Name of the index to create
-   * @param schema - Index schema defining field names and types (TEXT, NUMERIC, GEO, TAG, VECTOR, GEOSHAPE).
-   *   Each field can be a single definition or an array to index the same field multiple times with different configurations.
-   * @param options - Optional parameters:
-   *   - ON: Type of container to index (HASH or JSON)
-   *   - PREFIX: Prefixes for document keys to index
-   *   - FILTER: Expression that filters indexed documents
-   *   - LANGUAGE/LANGUAGE_FIELD: Default language for indexing
-   *   - SCORE/SCORE_FIELD: Document ranking parameters
-   *   - MAXTEXTFIELDS: Index all text fields without specifying them
-   *   - TEMPORARY: Create a temporary index
-   *   - NOOFFSETS/NOHL/NOFIELDS/NOFREQS: Index optimization flags
-   *   - STOPWORDS: Custom stopword list
-   */
   parseCommand(parser: CommandParser, index: RedisArgument, schema: RediSearchSchema, options?: CreateOptions) {
     parser.push('FT.CREATE', index);
 
@@ -441,7 +445,7 @@ export default {
       parser.push('LANGUAGE_FIELD', options.LANGUAGE_FIELD);
     }
 
-    if (options?.SCORE) {
+    if (options?.SCORE !== undefined) {
       parser.push('SCORE', options.SCORE.toString());
     }
 

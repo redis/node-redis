@@ -8,7 +8,6 @@ import BYRANK, { transformByRankArguments } from './BYRANK';
  * @param ranks - Array of ranks to get value estimates for (descending order)
  */
 export default {
-  IS_READ_ONLY: BYRANK.IS_READ_ONLY,
   parseCommand(...args: Parameters<typeof transformByRankArguments>) {
     args[0].push('TDIGEST.BYREVRANK');
     transformByRankArguments(...args);

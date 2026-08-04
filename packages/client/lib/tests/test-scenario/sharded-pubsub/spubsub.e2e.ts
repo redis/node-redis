@@ -1,362 +1,582 @@
-import type { Cluster, TestConfig } from "./utils/test.util";
-import { createClusterTestClient, getConfig } from "./utils/test.util";
-import { FaultInjectorClient } from "../fault-injector-client";
+import type { ActionRequest } from "@redis/test-utils/lib/fault-injector";
+import testUtils from "../../../test-utils";
 import { TestCommandRunner } from "./utils/command-runner";
 import { CHANNELS, CHANNELS_BY_SLOT } from "./utils/test.util";
 import { MessageTracker } from "./utils/message-tracker";
 import assert from "node:assert";
 import { setTimeout } from "node:timers/promises";
 
-describe("Sharded Pub/Sub E2E", () => {
-  let faultInjectorClient: FaultInjectorClient;
-  let config: TestConfig;
+const TEST_TIMEOUT = 180_000;
+const CLUSTER_INDEX = 0;
+const FAILURE_ACTION_TIMEOUT_MS = 120_000;
+const FAILURE_PUBLISH_WARMUP_MS = 1_000;
+const FAILURE_RECOVERY_WAIT_MS = 2_000;
+const PUBLISH_VERIFICATION_DURATION_MS = 10_000;
+const UNSUBSCRIBE_VERIFICATION_DURATION_MS = 5_000;
+const POST_RECOVERY_PUBLISH_DURATION_MS = 10_000;
+const POST_RECOVERY_DELIVERY_RATIO = 0.9;
+const RECOVERY_ASSERTION_TIMEOUT_MS = 45_000;
+const RECOVERY_ASSERTION_INTERVAL_MS = 100;
 
-  before(() => {
-    config = getConfig();
+const FAILURE_CASES = [
+  {
+    name: "should resume publishing and receiving after failover",
+    action: {
+      type: "failover",
+      parameters: {
+        cluster_index: CLUSTER_INDEX,
+      },
+    },
+  },
+  {
+    name: "should resume publishing and receiving after rebooting a cluster node",
+    action: {
+      type: "node_failure",
+      parameters: {
+        cluster_index: CLUSTER_INDEX,
+        node_id: 1,
+        method: "reboot",
+      },
+    },
+  },
+  {
+    name: "should resume publishing and receiving after restarting the database proxy",
+    action: {
+      type: "proxy_failure",
+      parameters: {
+        cluster_index: CLUSTER_INDEX,
+        action: "restart",
+      },
+    },
+  },
+  {
+    name: "should resume publishing and receiving after a shard failure",
+    action: {
+      type: "shard_failure",
+      parameters: {
+        cluster_index: CLUSTER_INDEX,
+      },
+    },
+  },
+] as const satisfies ReadonlyArray<{
+  name: string;
+  action: Readonly<ActionRequest>;
+}>;
 
-    faultInjectorClient = new FaultInjectorClient(config.faultInjectorUrl);
-  });
+function getChannelStatsOrThrow(messageTracker: MessageTracker, channel: string) {
+  const stats = messageTracker.getChannelStats(channel);
+  assert.ok(stats, `Expected stats for channel ${channel}`);
+  return stats;
+}
 
-  describe("Single Subscriber", () => {
-    let subscriber: Cluster;
-    let publisher: Cluster;
-    let messageTracker: MessageTracker;
+type BackgroundPublisher = Parameters<
+  typeof TestCommandRunner.publishMessagesUntilAbortSignal
+>[0];
+type BackgroundPublishOptions = Parameters<
+  typeof TestCommandRunner.publishMessagesUntilAbortSignal
+>[3];
 
-    beforeEach(async () => {
-      messageTracker = new MessageTracker(CHANNELS);
-      subscriber = createClusterTestClient(config.clientConfig, {});
-      publisher = createClusterTestClient(config.clientConfig, {});
-      await Promise.all([subscriber.connect(), publisher.connect()]);
-    });
+async function createConnectedDuplicate<
+  T extends {
+    duplicate(): T;
+    connect(): Promise<unknown>;
+  },
+>(client: T): Promise<T> {
+  const duplicate = client.duplicate();
+  await duplicate.connect();
+  return duplicate;
+}
 
-    afterEach(async () => {
-      await Promise.all([subscriber.quit(), publisher.quit()]);
-    });
+async function withBackgroundPublishing<T>(
+  client: BackgroundPublisher,
+  channels: string[],
+  messageTracker: MessageTracker,
+  callback: () => Promise<T>,
+  options?: BackgroundPublishOptions,
+): Promise<T> {
+  const { controller, result } =
+    TestCommandRunner.publishMessagesUntilAbortSignal(
+      client,
+      channels,
+      messageTracker,
+      options,
+    );
 
-    it("should receive messages published to multiple channels", async () => {
-      for (const channel of CHANNELS) {
-        await subscriber.sSubscribe(channel, (_msg, channel) =>
-          messageTracker.incrementReceived(channel),
-        );
-      }
-      const { controller, result } =
-        TestCommandRunner.publishMessagesUntilAbortSignal(
-          publisher,
-          CHANNELS,
-          messageTracker,
-        );
-      // Wait for 10 seconds, while publishing messages
-      await setTimeout(10_000);
-      controller.abort();
+  let callbackError: unknown;
+
+  try {
+    return await callback();
+  } catch (error) {
+    callbackError = error;
+    throw error;
+  } finally {
+    controller.abort();
+
+    try {
       await result;
-
-      for (const channel of CHANNELS) {
-        assert.strictEqual(
-          messageTracker.getChannelStats(channel)?.received,
-          messageTracker.getChannelStats(channel)?.sent,
-        );
+    } catch (error) {
+      if (callbackError === undefined) {
+        // eslint-disable-next-line no-unsafe-finally -- intentionally surface publisher failure when callback succeeded
+        throw error;
       }
-    });
+    }
+  }
+}
 
-    it("should resume publishing and receiving after failover", async () => {
-      for (const channel of CHANNELS) {
-        await subscriber.sSubscribe(channel, (_msg, channel) => {
-          messageTracker.incrementReceived(channel);
-        });
-      }
+async function waitForAssertion(
+  assertion: () => void,
+  timeoutMs: number,
+  intervalMs = RECOVERY_ASSERTION_INTERVAL_MS,
+) {
+  const start = Date.now();
+  let lastError: unknown;
 
-      // Trigger failover twice
-      for (let i = 0; i < 2; i++) {
-        // Start publishing messages
-        const { controller: publishAbort, result: publishResult } =
-          TestCommandRunner.publishMessagesUntilAbortSignal(
+  while (Date.now() - start < timeoutMs) {
+    try {
+      assertion();
+      return;
+    } catch (error) {
+      lastError = error;
+      await setTimeout(intervalMs);
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error(`Assertion did not pass within ${timeoutMs}ms`);
+}
+
+describe("Sharded Pub/Sub E2E", () => {
+  describe("Single Subscriber", () => {
+    testUtils.testWithRECluster(
+      "should receive messages published to multiple channels",
+      async (cluster) => {
+        const messageTracker = new MessageTracker(CHANNELS);
+        const publisher = cluster;
+        const subscriber = await createConnectedDuplicate(cluster);
+
+        try {
+          for (const channel of CHANNELS) {
+            await subscriber.sSubscribe(channel, (_message, receivedChannel) =>
+              messageTracker.incrementReceived(receivedChannel),
+            );
+          }
+
+          await withBackgroundPublishing(
             publisher,
             CHANNELS,
             messageTracker,
-          );
-
-        // Trigger failover during publishing
-        const { action_id: failoverActionId } =
-          await faultInjectorClient.triggerAction({
-            type: "failover",
-            parameters: {
-              bdb_id: config.clientConfig.bdbId.toString(),
-              cluster_index: 0,
+            async () => {
+              await setTimeout(PUBLISH_VERIFICATION_DURATION_MS);
             },
-          });
-
-        // Wait for failover to complete
-        await faultInjectorClient.waitForAction(failoverActionId);
-
-        publishAbort.abort();
-        await publishResult;
-
-        for (const channel of CHANNELS) {
-          const sent = messageTracker.getChannelStats(channel)!.sent;
-          const received = messageTracker.getChannelStats(channel)!.received;
-
-          assert.ok(
-            received <= sent,
-            `Channel ${channel}: received (${received}) should be <= sent (${sent})`,
           );
+
+          for (const channel of CHANNELS) {
+            const { sent, received } = getChannelStatsOrThrow(
+              messageTracker,
+              channel,
+            );
+
+            assert.strictEqual(
+              received,
+              sent,
+              `Channel ${channel} should receive every published message`,
+            );
+          }
+        } finally {
+          subscriber.destroy();
         }
+      },
+      { testTimeout: TEST_TIMEOUT },
+    );
 
-        // Wait for 2 seconds before resuming publishing
-        await setTimeout(2_000);
-        messageTracker.reset();
+    for (const failureCase of FAILURE_CASES) {
+      testUtils.testWithRECluster(
+        failureCase.name,
+        async (cluster, faultInjectorClient) => {
+          const messageTracker = new MessageTracker(CHANNELS);
+          const publisher = cluster;
+          const subscriber = await createConnectedDuplicate(cluster);
 
-        const {
-          controller: afterFailoverController,
-          result: afterFailoverResult,
-        } = TestCommandRunner.publishMessagesUntilAbortSignal(
-          publisher,
-          CHANNELS,
-          messageTracker,
-        );
+          try {
+            for (const channel of CHANNELS) {
+              await subscriber.sSubscribe(channel, (_message, receivedChannel) => {
+                messageTracker.incrementReceived(receivedChannel);
+              });
+            }
 
-        await setTimeout(10_000);
-        afterFailoverController.abort();
-        await afterFailoverResult;
+            await withBackgroundPublishing(
+              publisher,
+              CHANNELS,
+              messageTracker,
+              async () => {
+                await setTimeout(FAILURE_PUBLISH_WARMUP_MS);
 
-        for (const channel of CHANNELS) {
-          const sent = messageTracker.getChannelStats(channel)!.sent;
-          const received = messageTracker.getChannelStats(channel)!.received;
-          assert.ok(sent > 0, `Channel ${channel} should have sent messages`);
-          assert.ok(
-            received > 0,
-            `Channel ${channel} should have received messages`,
+                await faultInjectorClient.triggerAction(failureCase.action, {
+                  maxWaitTimeMs: FAILURE_ACTION_TIMEOUT_MS,
+                });
+              },
+            );
+
+            const sentDuringFailure = CHANNELS.reduce(
+              (sum, channel) =>
+                sum + getChannelStatsOrThrow(messageTracker, channel).sent,
+              0,
+            );
+            const receivedDuringFailure = CHANNELS.reduce(
+              (sum, channel) =>
+                sum + getChannelStatsOrThrow(messageTracker, channel).received,
+              0,
+            );
+
+            assert.ok(
+              sentDuringFailure > 0,
+              "Expected messages to be published during the failure scenario",
+            );
+            assert.ok(
+              receivedDuringFailure > 0,
+              "Expected messages to be received during the failure scenario",
+            );
+
+            for (const channel of CHANNELS) {
+              const { sent, received } = getChannelStatsOrThrow(
+                messageTracker,
+                channel,
+              );
+
+              assert.ok(
+                received <= sent,
+                `Channel ${channel}: received (${received}) should be <= sent (${sent})`,
+              );
+              assert.ok(
+                received > 0,
+                `Channel ${channel} should receive messages during the failure scenario`,
+              );
+            }
+
+            await setTimeout(FAILURE_RECOVERY_WAIT_MS);
+            messageTracker.reset();
+
+            await withBackgroundPublishing(
+              publisher,
+              CHANNELS,
+              messageTracker,
+              async () => {
+                await waitForAssertion(() => {
+                  for (const channel of CHANNELS) {
+                    const { received } = getChannelStatsOrThrow(
+                      messageTracker,
+                      channel,
+                    );
+
+                    assert.ok(
+                      received > 0,
+                      `Channel ${channel} should resume receiving messages after recovery`,
+                    );
+                  }
+                }, RECOVERY_ASSERTION_TIMEOUT_MS);
+              },
+            );
+
+            messageTracker.reset();
+
+            await withBackgroundPublishing(
+              publisher,
+              CHANNELS,
+              messageTracker,
+              async () => {
+                await setTimeout(POST_RECOVERY_PUBLISH_DURATION_MS);
+              },
+            );
+
+            for (const channel of CHANNELS) {
+              const { sent, received } = getChannelStatsOrThrow(
+                messageTracker,
+                channel,
+              );
+              const deliveryRatio = received / sent;
+
+              assert.ok(
+                sent > 0,
+                `Channel ${channel} should have sent messages`,
+              );
+              assert.ok(
+                received > 0,
+                `Channel ${channel} should have received messages`,
+              );
+              assert.ok(
+                deliveryRatio >= POST_RECOVERY_DELIVERY_RATIO,
+                `Channel ${channel} received ${received} of ${sent} messages after recovery (${(
+                  deliveryRatio * 100
+                ).toFixed(1)}%)`,
+              );
+            }
+          } finally {
+            subscriber.destroy();
+          }
+        },
+        { testTimeout: TEST_TIMEOUT },
+      );
+    }
+
+    testUtils.testWithRECluster(
+      "should NOT receive messages after sunsubscribe",
+      async (cluster) => {
+        const messageTracker = new MessageTracker(CHANNELS);
+        const publisher = cluster;
+        const subscriber = await createConnectedDuplicate(cluster);
+
+        try {
+          for (const channel of CHANNELS) {
+            await subscriber.sSubscribe(channel, (_message, receivedChannel) =>
+              messageTracker.incrementReceived(receivedChannel),
+            );
+          }
+
+          await withBackgroundPublishing(
+            publisher,
+            CHANNELS,
+            messageTracker,
+            async () => {
+              await setTimeout(UNSUBSCRIBE_VERIFICATION_DURATION_MS);
+            },
           );
-          assert.strictEqual(
-            messageTracker.getChannelStats(channel)!.received,
-            messageTracker.getChannelStats(channel)!.sent,
-            `Channel ${channel} received (${received}) should equal sent (${sent}) once resumed after failover`,
+
+          for (const channel of CHANNELS) {
+            const { sent, received } = getChannelStatsOrThrow(
+              messageTracker,
+              channel,
+            );
+
+            assert.strictEqual(
+              received,
+              sent,
+              `Channel ${channel} should receive every published message before unsubscribe`,
+            );
+          }
+
+          messageTracker.reset();
+
+          const unsubscribeChannels = [
+            CHANNELS_BY_SLOT["1000"],
+            CHANNELS_BY_SLOT["8000"],
+            CHANNELS_BY_SLOT["16000"],
+          ];
+
+          for (const channel of unsubscribeChannels) {
+            await subscriber.sUnsubscribe(channel);
+          }
+
+          await withBackgroundPublishing(
+            publisher,
+            CHANNELS,
+            messageTracker,
+            async () => {
+              await setTimeout(UNSUBSCRIBE_VERIFICATION_DURATION_MS);
+            },
           );
+
+          for (const channel of unsubscribeChannels) {
+            assert.strictEqual(
+              getChannelStatsOrThrow(messageTracker, channel).received,
+              0,
+              `Channel ${channel} should not receive messages after unsubscribe`,
+            );
+          }
+
+          const unsubscribedChannels = new Set<string>(unsubscribeChannels);
+          const stillSubscribedChannels = CHANNELS.filter(
+            (channel) => !unsubscribedChannels.has(channel),
+          );
+
+          for (const channel of stillSubscribedChannels) {
+            assert.ok(
+              getChannelStatsOrThrow(messageTracker, channel).received > 0,
+              `Channel ${channel} should continue receiving messages`,
+            );
+          }
+        } finally {
+          subscriber.destroy();
         }
-      }
-    });
-
-    it("should NOT receive messages after sunsubscribe", async () => {
-      for (const channel of CHANNELS) {
-        await subscriber.sSubscribe(channel, (_msg, channel) => messageTracker.incrementReceived(channel));
-      }
-
-      const { controller, result } =
-        TestCommandRunner.publishMessagesUntilAbortSignal(
-          publisher,
-          CHANNELS,
-          messageTracker,
-        );
-
-      // Wait for 5 seconds, while publishing messages
-      await setTimeout(5_000);
-      controller.abort();
-      await result;
-
-      for (const channel of CHANNELS) {
-        assert.strictEqual(
-          messageTracker.getChannelStats(channel)?.received,
-          messageTracker.getChannelStats(channel)?.sent,
-        );
-      }
-
-      // Reset message tracker
-      messageTracker.reset();
-
-      const unsubscribeChannels = [
-        CHANNELS_BY_SLOT["1000"],
-        CHANNELS_BY_SLOT["8000"],
-        CHANNELS_BY_SLOT["16000"],
-      ];
-
-      for (const channel of unsubscribeChannels) {
-        await subscriber.sUnsubscribe(channel);
-      }
-
-      const {
-        controller: afterUnsubscribeController,
-        result: afterUnsubscribeResult,
-      } = TestCommandRunner.publishMessagesUntilAbortSignal(
-        publisher,
-        CHANNELS,
-        messageTracker,
-      );
-
-      // Wait for 5 seconds, while publishing messages
-      await setTimeout(5_000);
-      afterUnsubscribeController.abort();
-      await afterUnsubscribeResult;
-
-      for (const channel of unsubscribeChannels) {
-        assert.strictEqual(
-          messageTracker.getChannelStats(channel)?.received,
-          0,
-          `Channel ${channel} should not have received messages after unsubscribe`,
-        );
-      }
-
-      // All other channels should have received messages
-      const stillSubscribedChannels = CHANNELS.filter(
-        (channel) => !unsubscribeChannels.includes(channel as any),
-      );
-
-      for (const channel of stillSubscribedChannels) {
-        assert.ok(
-          messageTracker.getChannelStats(channel)!.received > 0,
-          `Channel ${channel} should have received messages`,
-        );
-      }
-    });
+      },
+      { testTimeout: TEST_TIMEOUT },
+    );
   });
 
   describe("Multiple Subscribers", () => {
-    let subscriber1: Cluster;
-    let subscriber2: Cluster;
+    testUtils.testWithRECluster(
+      "should receive messages published to multiple channels",
+      async (cluster) => {
+        const messageTracker1 = new MessageTracker(CHANNELS);
+        const messageTracker2 = new MessageTracker(CHANNELS);
+        const publisher = cluster;
+        const [subscriber1, subscriber2] = await Promise.all([
+          createConnectedDuplicate(cluster),
+          createConnectedDuplicate(cluster),
+        ]);
 
-    let publisher: Cluster;
+        try {
+          for (const channel of CHANNELS) {
+            await subscriber1.sSubscribe(channel, (_message, receivedChannel) => {
+              messageTracker1.incrementReceived(receivedChannel);
+            });
+            await subscriber2.sSubscribe(channel, (_message, receivedChannel) => {
+              messageTracker2.incrementReceived(receivedChannel);
+            });
+          }
 
-    let messageTracker1: MessageTracker;
-    let messageTracker2: MessageTracker;
+          await withBackgroundPublishing(
+            publisher,
+            CHANNELS,
+            messageTracker1,
+            async () => {
+              await setTimeout(PUBLISH_VERIFICATION_DURATION_MS);
+            },
+          );
 
-    beforeEach(async () => {
-      messageTracker1 = new MessageTracker(CHANNELS);
-      messageTracker2 = new MessageTracker(CHANNELS);
-      subscriber1 = createClusterTestClient(config.clientConfig);
-      subscriber2 = createClusterTestClient(config.clientConfig);
-      publisher = createClusterTestClient(config.clientConfig);
-      await Promise.all([
-        subscriber1.connect(),
-        subscriber2.connect(),
-        publisher.connect(),
-      ]);
-    });
+          for (const channel of CHANNELS) {
+            const { sent, received: received1 } = getChannelStatsOrThrow(
+              messageTracker1,
+              channel,
+            );
+            const { received: received2 } = getChannelStatsOrThrow(
+              messageTracker2,
+              channel,
+            );
 
-    afterEach(async () => {
-      await Promise.all([
-        subscriber1.quit(),
-        subscriber2.quit(),
-        publisher.quit(),
-      ]);
-    });
+            assert.strictEqual(
+              received1,
+              sent,
+              `Channel ${channel} should deliver every message to subscriber 1`,
+            );
+            assert.strictEqual(
+              received2,
+              sent,
+              `Channel ${channel} should deliver every message to subscriber 2`,
+            );
+          }
+        } finally {
+          subscriber1.destroy();
+          subscriber2.destroy();
+        }
+      },
+      { testTimeout: TEST_TIMEOUT },
+    );
 
-    it("should receive messages published to multiple channels", async () => {
-      for (const channel of CHANNELS) {
-        await subscriber1.sSubscribe(channel, (_msg, channel) => { messageTracker1.incrementReceived(channel); });
-        await subscriber2.sSubscribe(channel, (_msg, channel) => { messageTracker2.incrementReceived(channel); });
-      }
+    testUtils.testWithRECluster(
+      "should resume publishing and receiving after failover",
+      async (cluster, faultInjectorClient) => {
+        const messageTracker1 = new MessageTracker(CHANNELS);
+        const messageTracker2 = new MessageTracker(CHANNELS);
+        const publisher = cluster;
+        const [subscriber1, subscriber2] = await Promise.all([
+          createConnectedDuplicate(cluster),
+          createConnectedDuplicate(cluster),
+        ]);
 
-      const { controller, result } =
-        TestCommandRunner.publishMessagesUntilAbortSignal(
-          publisher,
-          CHANNELS,
-          messageTracker1, // Use messageTracker1 for all publishing
-        );
+        try {
+          for (const channel of CHANNELS) {
+            await subscriber1.sSubscribe(channel, (_message, receivedChannel) => {
+              messageTracker1.incrementReceived(receivedChannel);
+            });
+            await subscriber2.sSubscribe(channel, (_message, receivedChannel) => {
+              messageTracker2.incrementReceived(receivedChannel);
+            });
+          }
 
-      // Wait for 10 seconds, while publishing messages
-      await setTimeout(10_000);
-      controller.abort();
-      await result;
+          await withBackgroundPublishing(
+            publisher,
+            CHANNELS,
+            messageTracker1,
+            async () => {
+              await setTimeout(FAILURE_PUBLISH_WARMUP_MS);
 
-      for (const channel of CHANNELS) {
-        assert.strictEqual(
-          messageTracker1.getChannelStats(channel)?.received,
-          messageTracker1.getChannelStats(channel)?.sent,
-        );
-        assert.strictEqual(
-          messageTracker2.getChannelStats(channel)?.received,
-          messageTracker1.getChannelStats(channel)?.sent,
-        );
-      }
-    });
+              await faultInjectorClient.triggerAction(
+                {
+                  type: "failover",
+                  parameters: {
+                    cluster_index: CLUSTER_INDEX,
+                  },
+                },
+                {
+                  maxWaitTimeMs: FAILURE_ACTION_TIMEOUT_MS,
+                },
+              );
+            },
+          );
 
-    it("should resume publishing and receiving after failover", async () => {
-      for (const channel of CHANNELS) {
-        await subscriber1.sSubscribe(channel, (_msg, channel) => { messageTracker1.incrementReceived(channel); });
-        await subscriber2.sSubscribe(channel, (_msg, channel) => { messageTracker2.incrementReceived(channel); });
-      }
+          for (const channel of CHANNELS) {
+            const sent = getChannelStatsOrThrow(messageTracker1, channel).sent;
+            const received1 = getChannelStatsOrThrow(
+              messageTracker1,
+              channel,
+            ).received;
+            const received2 = getChannelStatsOrThrow(
+              messageTracker2,
+              channel,
+            ).received;
 
-      // Start publishing messages
-      const { controller: publishAbort, result: publishResult } =
-        TestCommandRunner.publishMessagesUntilAbortSignal(
-          publisher,
-          CHANNELS,
-          messageTracker1, // Use messageTracker1 for all publishing
-        );
+            assert.ok(
+              received1 <= sent,
+              `Channel ${channel}: subscriber 1 received (${received1}) should be <= sent (${sent})`,
+            );
+            assert.ok(
+              received2 <= sent,
+              `Channel ${channel}: subscriber 2 received (${received2}) should be <= sent (${sent})`,
+            );
+          }
 
-      // Trigger failover during publishing
-      const { action_id: failoverActionId } =
-        await faultInjectorClient.triggerAction({
-          type: "failover",
-          parameters: {
-            bdb_id: config.clientConfig.bdbId.toString(),
-            cluster_index: 0,
-          },
-        });
+          await setTimeout(FAILURE_RECOVERY_WAIT_MS);
 
-      // Wait for failover to complete
-      await faultInjectorClient.waitForAction(failoverActionId);
+          messageTracker1.reset();
+          messageTracker2.reset();
 
-      publishAbort.abort();
-      await publishResult;
+          await withBackgroundPublishing(
+            publisher,
+            CHANNELS,
+            messageTracker1,
+            async () => {
+              await setTimeout(PUBLISH_VERIFICATION_DURATION_MS);
+            },
+          );
 
-      for (const channel of CHANNELS) {
-        const sent = messageTracker1.getChannelStats(channel)!.sent;
-        const received1 = messageTracker1.getChannelStats(channel)!.received;
+          for (const channel of CHANNELS) {
+            const sent = getChannelStatsOrThrow(messageTracker1, channel).sent;
+            const received1 = getChannelStatsOrThrow(
+              messageTracker1,
+              channel,
+            ).received;
+            const received2 = getChannelStatsOrThrow(
+              messageTracker2,
+              channel,
+            ).received;
 
-        const received2 = messageTracker2.getChannelStats(channel)!.received;
-
-        assert.ok(
-          received1 <= sent,
-          `Channel ${channel}: received (${received1}) should be <= sent (${sent})`,
-        );
-        assert.ok(
-          received2 <= sent,
-          `Channel ${channel}: received2 (${received2}) should be <= sent (${sent})`,
-        );
-      }
-
-      // Wait for 2 seconds before resuming publishing
-      await setTimeout(2_000);
-
-      messageTracker1.reset();
-      messageTracker2.reset();
-
-      const {
-        controller: afterFailoverController,
-        result: afterFailoverResult,
-      } = TestCommandRunner.publishMessagesUntilAbortSignal(
-        publisher,
-        CHANNELS,
-        messageTracker1,
-      );
-
-      await setTimeout(10_000);
-      afterFailoverController.abort();
-      await afterFailoverResult;
-
-      for (const channel of CHANNELS) {
-        const sent = messageTracker1.getChannelStats(channel)!.sent;
-        const received1 = messageTracker1.getChannelStats(channel)!.received;
-        const received2 = messageTracker2.getChannelStats(channel)!.received;
-        assert.ok(sent > 0, `Channel ${channel} should have sent messages`);
-        assert.ok(
-          received1 > 0,
-          `Channel ${channel} should have received messages by subscriber 1`,
-        );
-        assert.ok(
-          received2 > 0,
-          `Channel ${channel} should have received messages by subscriber 2`,
-        );
-        assert.strictEqual(
-          received1,
-          sent,
-          `Channel ${channel} received (${received1}) should equal sent (${sent}) once resumed after failover by subscriber 1`,
-        );
-        assert.strictEqual(
-          received2,
-          sent,
-          `Channel ${channel} received (${received2}) should equal sent (${sent}) once resumed after failover by subscriber 2`,
-        );
-      }
-    });
+            assert.ok(sent > 0, `Channel ${channel} should have sent messages`);
+            assert.ok(
+              received1 > 0,
+              `Channel ${channel} should have received messages by subscriber 1`,
+            );
+            assert.ok(
+              received2 > 0,
+              `Channel ${channel} should have received messages by subscriber 2`,
+            );
+            assert.strictEqual(
+              received1,
+              sent,
+              `Channel ${channel} should fully recover for subscriber 1 after failover`,
+            );
+            assert.strictEqual(
+              received2,
+              sent,
+              `Channel ${channel} should fully recover for subscriber 2 after failover`,
+            );
+          }
+        } finally {
+          subscriber1.destroy();
+          subscriber2.destroy();
+        }
+      },
+      { testTimeout: TEST_TIMEOUT },
+    );
   });
 });

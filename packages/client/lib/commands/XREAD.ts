@@ -1,6 +1,6 @@
 import { CommandParser } from '../client/parser';
-import { Command, RedisArgument, ReplyUnion } from '../RESP/types';
-import { transformStreamsMessagesReplyResp2 } from './generic-transformers';
+import { Command, RedisArgument } from '../RESP/types';
+import { transformStreamsMessagesReplyResp2, transformStreamsMessagesReplyResp3Compat } from './generic-transformers';
 
 /**
  * Structure representing a stream to read from
@@ -39,31 +39,33 @@ export function pushXReadStreams(parser: CommandParser, streams: XReadStreams) {
 
 /**
  * Options for the XREAD command
- * 
+ *
  * @property COUNT - Limit the number of entries returned per stream
+ * @property MAXCOUNT - Cumulative cap on the total number of entries returned across all streams (Redis 8.10+)
+ * @property MAXSIZE - Soft cumulative cap on the total server reply size in bytes across all streams (Redis 8.10+)
  * @property BLOCK - Milliseconds to block waiting for new entries (0 for indefinite)
  */
 export interface XReadOptions {
   COUNT?: number;
+  MAXCOUNT?: number;
+  MAXSIZE?: number;
   BLOCK?: number;
 }
 
 export default {
-  IS_READ_ONLY: true,
-  /**
-   * Constructs the XREAD command to read messages from one or more streams
-   *
-   * @param parser - The command parser
-   * @param streams - Single stream or array of streams to read from
-   * @param options - Additional options for reading streams
-   * @returns Array of stream entries, each containing the stream name and its messages
-   * @see https://redis.io/commands/xread/
-   */
   parseCommand(parser: CommandParser, streams: XReadStreams, options?: XReadOptions) {
     parser.push('XREAD');
 
-    if (options?.COUNT) {
+    if (options?.COUNT !== undefined) {
       parser.push('COUNT', options.COUNT.toString());
+    }
+
+    if (options?.MAXCOUNT !== undefined) {
+      parser.push('MAXCOUNT', options.MAXCOUNT.toString());
+    }
+
+    if (options?.MAXSIZE !== undefined) {
+      parser.push('MAXSIZE', options.MAXSIZE.toString());
     }
 
     if (options?.BLOCK !== undefined) {
@@ -77,7 +79,6 @@ export default {
    */
   transformReply: {
     2: transformStreamsMessagesReplyResp2,
-    3: undefined as unknown as () => ReplyUnion
-  },
-  unstableResp3: true
+    3: transformStreamsMessagesReplyResp3Compat
+  }
 } as const satisfies Command;

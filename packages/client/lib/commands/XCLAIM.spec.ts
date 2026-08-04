@@ -27,7 +27,7 @@ describe('XCLAIM', () => {
         ['XCLAIM', 'key', 'group', 'consumer', '1', '0-0', 'IDLE', '1']
       );
     });
-    
+
     describe('with TIME', () => {
       it('number', () => {
         assert.deepEqual(
@@ -37,7 +37,7 @@ describe('XCLAIM', () => {
           ['XCLAIM', 'key', 'group', 'consumer', '1', '0-0', 'TIME', '1']
         );
       });
-  
+
       it('Date', () => {
         const d = new Date();
         assert.deepEqual(
@@ -91,7 +91,7 @@ describe('XCLAIM', () => {
   });
 
   testUtils.testAll('xClaim', async client => {
-    const message = Object.create(null, {
+    const message = Object.defineProperties({}, {
       field: {
         value: 'value',
         enumerable: true

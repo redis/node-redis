@@ -2,14 +2,10 @@ import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument, ArrayReply, SetReply, BlobStringReply, Command } from '@redis/client/dist/lib/RESP/types';
 
 export default {
-  NOT_KEYED_COMMAND: true,
+  // Keyless read: replica-safe, but the metadata-derived isReplicaSafe
+  // returns false for keyless commands, so opt in explicitly (restores the
+  // pre-derivation master behavior).
   IS_READ_ONLY: true,
-  /**
-   * Returns the distinct values in a TAG field.
-   * @param parser - The command parser
-   * @param index - Name of the index
-   * @param fieldName - Name of the TAG field to get values from
-   */
   parseCommand(parser: CommandParser, index: RedisArgument, fieldName: RedisArgument) {
     parser.push('FT.TAGVALS', index, fieldName);
   },

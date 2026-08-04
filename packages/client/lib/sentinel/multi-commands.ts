@@ -5,6 +5,7 @@ import { attachConfig, functionArgumentsPrefix, getTransformReply } from '../com
 import { RedisSentinelType } from './types';
 import { BasicCommandParser } from '../client/parser';
 import { Tail } from '../commands/generic-transformers';
+import { isReplicaSafe, defaultCommandMetadata } from '../command-metadata';
 
 type CommandSignature<
   REPLIES extends Array<unknown>,
@@ -73,6 +74,7 @@ type WithScripts<
 };
 
 export type RedisSentinelMultiCommandType<
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- variance marker for reply tuple
   REPLIES extends Array<any>,
   M extends RedisModules,
   F extends RedisFunctions,
@@ -90,16 +92,20 @@ export type RedisSentinelMultiCommandType<
 export default class RedisSentinelMultiCommand<REPLIES = []> {
   private static _createCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
+    // Derive replica-safety once per command (override-first, else server
+    // metadata) so read-only commands in a pipeline route like standalone ones.
+    let replicaSafe: boolean | undefined;
 
     return function (this: RedisSentinelMultiCommand, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this.#sentinel._keyPrefix);
       command.parseCommand(parser, ...args);
 
       const redisArgs: CommandArguments = parser.redisArgs;
       redisArgs.preserve = parser.preserve;
+      replicaSafe ??= isReplicaSafe(defaultCommandMetadata.lookup(parser.commandIdentifier), command.IS_READ_ONLY);
 
       return this.addCommand(
-        command.IS_READ_ONLY,
+        replicaSafe,
         redisArgs,
         transformReply
       );
@@ -108,16 +114,18 @@ export default class RedisSentinelMultiCommand<REPLIES = []> {
 
   private static _createModuleCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
+    let replicaSafe: boolean | undefined;
 
     return function (this: { _self: RedisSentinelMultiCommand }, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this._self.#sentinel._keyPrefix);
       command.parseCommand(parser, ...args);
 
       const redisArgs: CommandArguments = parser.redisArgs;
       redisArgs.preserve = parser.preserve;
+      replicaSafe ??= isReplicaSafe(defaultCommandMetadata.lookup(parser.commandIdentifier), command.IS_READ_ONLY);
 
       return this._self.addCommand(
-        command.IS_READ_ONLY,
+        replicaSafe,
         redisArgs,
         transformReply
       );
@@ -129,7 +137,7 @@ export default class RedisSentinelMultiCommand<REPLIES = []> {
     const transformReply = getTransformReply(fn, resp);
 
     return function (this: { _self: RedisSentinelMultiCommand }, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this._self.#sentinel._keyPrefix);
       parser.push(...prefix);
       fn.parseCommand(parser, ...args);
 
@@ -148,7 +156,7 @@ export default class RedisSentinelMultiCommand<REPLIES = []> {
     const transformReply = getTransformReply(script, resp);
 
     return function (this: RedisSentinelMultiCommand, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this.#sentinel._keyPrefix);
       script.parseCommand(parser, ...args);
 
       const scriptArgs: CommandArguments = parser.redisArgs;
@@ -167,7 +175,7 @@ export default class RedisSentinelMultiCommand<REPLIES = []> {
     M extends RedisModules = Record<string, never>,
     F extends RedisFunctions = Record<string, never>,
     S extends RedisScripts = Record<string, never>,
-    RESP extends RespVersions = 2
+    RESP extends RespVersions = 3
   >(config?: CommanderConfig<M, F, S, RESP>) {
     return attachConfig({
       BaseClass: RedisSentinelMultiCommand,

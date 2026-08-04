@@ -113,6 +113,7 @@ describe('PROFILE AGGREGATE', () => {
     // assert.equal(res.Results.total_results, 2);
 
     const normalizedRes = normalizeObject(res);
-    assert.ok(normalizedRes.Profile.Shards);
+    assert.ok(Array.isArray(normalizedRes.profile));
+    assert.equal(normalizedRes.profile[0], 'Shards');
   }, GLOBAL.SERVERS.OPEN_3);
 });

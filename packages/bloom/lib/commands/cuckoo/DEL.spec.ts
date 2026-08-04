@@ -19,4 +19,13 @@ describe('CF.DEL', () => {
 
     assert.equal(reply, false);
   }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.cf.del with existing item', async client => {
+    await client.cf.reserve('key', 4);
+    await client.cf.add('key', 'item');
+
+    const reply = await client.cf.del('key', 'item');
+
+    assert.equal(reply, true);
+  }, GLOBAL.SERVERS.OPEN);
 });

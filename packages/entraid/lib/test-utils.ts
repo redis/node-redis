@@ -3,12 +3,7 @@ import { IdentityProvider, StreamingCredentialsProvider, TokenManager, TokenResp
 import TestUtils from '@redis/test-utils';
 import { EntraidCredentialsProvider } from './entraid-credentials-provider';
 
-export const testUtils = TestUtils.createFromConfig({
-  dockerImageName: 'redislabs/client-libs-test',
-  dockerImageTagArgument: 'redis-tag',
-  dockerImageVersionArgument: 'redis-version',
-  defaultDockerVersion: { tag: 'custom-21860421418-debian-amd64', version: '8.6' }
-});
+export const testUtils = TestUtils.createDefault();
 
 const DEBUG_MODE_ARGS = testUtils.isVersionGreaterThan([7]) ?
   ['--enable-debug-command', 'yes'] :
@@ -16,12 +11,11 @@ const DEBUG_MODE_ARGS = testUtils.isVersionGreaterThan([7]) ?
 
 const idp: IdentityProvider<AuthenticationResult> = {
   requestToken(): Promise<TokenResponse<AuthenticationResult>> {
-    // @ts-ignore
     return Promise.resolve({
       ttlMs: 100000,
       token: {
         accessToken: 'password'
-      }
+      } as AuthenticationResult
     })
   }
 }

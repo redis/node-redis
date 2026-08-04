@@ -6,12 +6,7 @@ import { Command, NumberReply } from './RESP/types';
 import { BasicCommandParser, CommandParser } from './client/parser';
 import { defineScript } from './lua-script';
 import RedisBloomModules from '@redis/bloom';
-const utils = TestUtils.createFromConfig({
-  dockerImageName: 'redislabs/client-libs-test',
-  dockerImageTagArgument: 'redis-tag',
-  dockerImageVersionArgument: 'redis-version',
-  defaultDockerVersion: { tag: 'custom-21860421418-debian-amd64', version: '8.6' }
-});
+const utils = TestUtils.createDefault();
 
 export default utils;
 
@@ -29,7 +24,7 @@ const streamingCredentialsProvider: CredentialsProvider =
   {
     type: 'streaming-credentials-provider',
 
-    subscribe : (observable) => ( Promise.resolve([
+    subscribe : (_) => ( Promise.resolve([
      { password: 'password' },
       {
        dispose: () => {
@@ -86,7 +81,10 @@ export const MATH_FUNCTION = {
 export const GLOBAL = {
   SERVERS: {
     OPEN: {
-      serverArguments: [...DEBUG_MODE_ARGS]
+      serverArguments: [...DEBUG_MODE_ARGS],
+      clientOptions: {
+        RESP: 3 as const
+      }
     },
     PASSWORD: {
       serverArguments: ['--requirepass', 'password', ...DEBUG_MODE_ARGS],
@@ -97,7 +95,7 @@ export const GLOBAL = {
     OPEN_RESP_3: {
       serverArguments: [...DEBUG_MODE_ARGS],
       clientOptions: {
-        RESP: 3,
+        RESP: 3 as const,
       }
     },
     ASYNC_BASIC_AUTH: {
@@ -192,7 +190,7 @@ export const BLOCKING_MIN_VALUE = (
   1
 );
 
-export function parseFirstKey(command: Command, ...args: Array<any>) {
+export function parseFirstKey(command: Command, ...args: Array<unknown>) {
   const parser = new BasicCommandParser();
   command.parseCommand!(parser, ...args);
   return parser.firstKey;

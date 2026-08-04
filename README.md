@@ -70,7 +70,27 @@ const client = await createClient()
 
 await client.set("key", "value");
 const value = await client.get("key");
+console.log(value); // 'value'
 client.destroy();
+```
+
+The same example in CommonJS (for example `node example.js` without `"type": "module"` in `package.json`):
+
+```js
+const { createClient } = require("redis");
+
+async function main() {
+  const client = await createClient()
+    .on("error", (err) => console.log("Redis Client Error", err))
+    .connect();
+
+  await client.set("key", "value");
+  const value = await client.get("key");
+  console.log(value); // 'value'
+  client.destroy();
+}
+
+main().catch(console.error);
 ```
 
 The above code connects to localhost on port 6379. To connect to a different host or port, use a connection string in
@@ -85,7 +105,7 @@ createClient({
 You can also use discrete parameters, UNIX sockets, and even TLS to connect. Details can be found in
 the [client configuration guide](https://github.com/redis/node-redis/blob/master/docs/client-configuration.md).
 
-To check if the the client is connected and ready to send commands, use `client.isReady` which returns a boolean.
+To check if the client is connected and ready to send commands, use `client.isReady` which returns a boolean.
 `client.isOpen` is also available. This returns `true` when the client's underlying socket is open, and `false` when it
 isn't (for example when the client is still connecting or reconnecting after a network error).
 
@@ -230,7 +250,7 @@ You can override the default options by providing a configuration object:
 ```typescript
 client.scanIterator({
   TYPE: "string", // `SCAN` only
-  MATCH: "patter*",
+  MATCH: "pattern*",
   COUNT: 100,
 });
 ```
@@ -326,6 +346,37 @@ See the [Programmability overview](https://github.com/redis/node-redis/blob/mast
 
 Check out the [Clustering Guide](https://github.com/redis/node-redis/blob/master/docs/clustering.md) when using Node Redis to connect to a Redis Cluster.
 
+### OpenTelemetry
+
+#### OpenTelemetry Metrics Instrumentation
+
+```typescript
+import { createClient, OpenTelemetry } from "redis";
+
+OpenTelemetry.init({
+  metrics: {
+    enabled: true
+  }
+});
+
+const client = createClient()
+
+await client.connect();
+// ... use the client as usual
+```
+
+**Important:** Initializing `OpenTelemetry` only enables node-redis metrics instrumentation and requires both `@opentelemetry/api` and an OpenTelemetry SDK configured in your application.
+
+**Important:** Initialize `OpenTelemetry` before creating Redis clients.
+For SDK/provider/exporter setup, verification, and advanced configuration, see:
+
+- [OpenTelemetry Metrics docs](./docs/otel-metrics.md)
+- [OpenTelemetry Metrics example](./examples/otel-metrics.js)
+
+### Diagnostics Channel
+
+Node Redis publishes telemetry through Node.js [`diagnostics_channel`](https://nodejs.org/api/diagnostics_channel.html), enabling APM tools and custom instrumentation to observe commands, connections, and internal events. See the [Diagnostics Channel guide](./docs/diagnostics-channel.md) for the full channel reference and usage examples.
+
 ### Events
 
 The Node Redis client class is an Nodejs EventEmitter and it emits an event each time the network status changes:
@@ -334,7 +385,7 @@ The Node Redis client class is an Nodejs EventEmitter and it emits an event each
 | ----------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------- |
 | `connect`               | Initiating a connection to the server                                              | _No arguments_                                            |
 | `ready`                 | Client is ready to use                                                             | _No arguments_                                            |
-| `end`                   | Connection has been closed (via `.disconnect()`)                                   | _No arguments_                                            |
+| `end`                   | Connection has been closed (via `.close()` or `.destroy()`)                        | _No arguments_                                            |
 | `error`                 | An error has occurred—usually a network issue such as "Socket closed unexpectedly" | `(error: Error)`                                          |
 | `reconnecting`          | Client is trying to reconnect to the server                                        | _No arguments_                                            |
 | `sharded-channel-moved` | See [here](https://github.com/redis/node-redis/blob/master/docs/pub-sub.md#sharded-channel-moved-event)                          | See [here](https://github.com/redis/node-redis/blob/master/docs/pub-sub.md#sharded-channel-moved-event) |

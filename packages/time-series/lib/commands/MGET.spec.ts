@@ -30,7 +30,7 @@ describe('TS.MGET', () => {
       client.ts.mGet('label=value')
     ]);
 
-    assert.deepStrictEqual(reply, Object.create(null, {
+    assert.deepStrictEqual(reply, Object.defineProperties({}, {
       key: {
         configurable: true,
         enumerable: true,

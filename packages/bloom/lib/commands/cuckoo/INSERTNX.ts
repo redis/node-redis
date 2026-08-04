@@ -1,5 +1,5 @@
-import { Command } from '@redis/client/dist/lib/RESP/types';
-import INSERT, { parseCfInsertArguments } from './INSERT';
+import { ArrayReply, Command, NumberReply } from '@redis/client/dist/lib/RESP/types';
+import { parseCfInsertArguments } from './INSERT';
 
 /**
  * Adds one or more items to a Cuckoo Filter only if they do not exist yet, creating the filter if needed
@@ -11,10 +11,9 @@ import INSERT, { parseCfInsertArguments } from './INSERT';
  * @param options.NOCREATE - If true, prevents automatic filter creation
  */
 export default {
-  IS_READ_ONLY: INSERT.IS_READ_ONLY,
   parseCommand(...args: Parameters<typeof parseCfInsertArguments>) {
     args[0].push('CF.INSERTNX');
     parseCfInsertArguments(...args);
   },
-  transformReply: INSERT.transformReply
+  transformReply: undefined as unknown as () => ArrayReply<NumberReply<-1 | 0 | 1>>
 } as const satisfies Command;

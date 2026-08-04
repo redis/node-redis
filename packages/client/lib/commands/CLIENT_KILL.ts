@@ -48,13 +48,6 @@ export interface ClientKillMaxAge extends ClientKillFilterCommon<CLIENT_KILL_FIL
 export type ClientKillFilter = ClientKillAddress | ClientKillLocalAddress | ClientKillId | ClientKillType | ClientKillUser | ClientKillSkipMe | ClientKillMaxAge;
 
 export default {
-  NOT_KEYED_COMMAND: true,
-  IS_READ_ONLY: true,
-  /**
-   * Closes client connections matching the specified filters
-   * @param parser - The Redis command parser
-   * @param filters - One or more filters to match client connections to kill
-   */
   parseCommand(parser: CommandParser, filters: ClientKillFilter | Array<ClientKillFilter>) {
     parser.push('CLIENT', 'KILL');
 

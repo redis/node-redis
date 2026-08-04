@@ -2,19 +2,13 @@ import { CommandParser } from '../client/parser';
 import { RedisArgument, NumberReply, Command } from '../RESP/types';
 
 export default {
-  IS_READ_ONLY: true,
-  /**
-   * Constructs the SPUBLISH command to post a message to a Sharded Pub/Sub channel
-   *
-   * @param parser - The command parser
-   * @param channel - The channel to publish to
-   * @param message - The message to publish
-   * @see https://redis.io/commands/spublish/
-   */
   parseCommand(parser: CommandParser, channel: RedisArgument, message: RedisArgument) {
     parser.push('SPUBLISH');
-    parser.pushKey(channel);
+    // The channel routes the command to the correct shard (like a key) but must NOT be
+    // prefixed: Pub/Sub channels are a separate namespace and the subscribe side
+    // (SSUBSCRIBE) does not apply `keyPrefix` either.
+    parser.pushKey(channel, false);
     parser.push(message);
   },
-  transformReply: undefined as unknown as () => NumberReply
+  transformReply: undefined as unknown as () => NumberReply,
 } as const satisfies Command;

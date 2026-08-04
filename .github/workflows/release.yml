@@ -20,13 +20,13 @@ jobs:
       packages: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           ssh-key: ${{ secrets.RELEASE_KEY }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
@@ -49,3 +49,13 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Packages are released one workspace at a time starting with @redis/client.
+          # `npm version` runs a workspace-update install after the bump; because the sibling
+          # packages still pin "@redis/client" to the pre-bump range until their own bumpers
+          # run, that install ERESOLVEs. This is most visible on a pre-release bump (e.g.
+          # 6.2.0-beta.0), which semver excludes from a plain "^6.1.0" range even though a
+          # non-pre 6.2.0 would satisfy it. The post-bump install is throwaway (each package
+          # publishes from its own dist), so skip it entirely — this avoids the resolve
+          # altogether, rather than relaxing peer checks (which would pull the stale client
+          # from the registry) and leaves the lockfile untouched.
+          NPM_CONFIG_WORKSPACES_UPDATE: "false"

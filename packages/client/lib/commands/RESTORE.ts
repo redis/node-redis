@@ -17,17 +17,6 @@ export interface RestoreOptions {
 }
 
 export default {
-  IS_READ_ONLY: false,
-  /**
-   * Constructs the RESTORE command
-   * 
-   * @param parser - The command parser
-   * @param key - The key to restore
-   * @param ttl - Time to live in milliseconds, 0 for no expiry
-   * @param serializedValue - The serialized value from DUMP command
-   * @param options - Options for the RESTORE command
-   * @see https://redis.io/commands/restore/
-   */
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,
@@ -47,11 +36,11 @@ export default {
       parser.push('ABSTTL');
     }
 
-    if (options?.IDLETIME) {
+    if (options?.IDLETIME !== undefined) {
       parser.push('IDLETIME', options.IDLETIME.toString());
     }
 
-    if (options?.FREQ) {
+    if (options?.FREQ !== undefined) {
       parser.push('FREQ', options.FREQ.toString());
     }
   },

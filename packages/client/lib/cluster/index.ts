@@ -10,9 +10,23 @@ import { PubSubListener, PubSubListeners } from '../client/pub-sub';
 import { ErrorReply } from '../errors';
 import { RedisTcpSocketOptions } from '../client/socket';
 import { ClientSideCacheConfig, PooledClientSideCacheProvider } from '../client/cache';
-import { BasicCommandParser } from '../client/parser';
+import { BasicCommandParser, CommandParser } from '../client/parser';
 import { ASKING_CMD } from '../commands/ASKING';
 import SingleEntryCache from '../single-entry-cache'
+import { publish, CHANNELS } from '../client/tracing';
+import { ClientIdentity, ClientRole, generateClusterClientId } from '../client/identity';
+import { DEFAULT_COMMAND_TIMEOUT } from '../defaults';
+import { FieldsetRegistry } from '../himport/registry';
+import { defaultCommandMetadata, defaultCommandPolicies, isReplicaSafe, PolicyResolver, REQUEST_POLICIES_WITH_DEFAULTS, RESPONSE_POLICIES_WITH_DEFAULTS, type CommandMetadata } from '../command-metadata';
+import { REQUEST_ROUTERS, RESPONSE_REDUCERS, NUMERIC_AGG_POLICIES, remapAggregateReply } from './request-response-policies/dispatch';
+import calculateSlot from 'cluster-key-slot';
+import { finalizeFtCursor } from './request-response-policies/ft-cursor';
+import { finalizeScanCursor } from './request-response-policies/scan-cursor';
+
+export type ClusterTopologyRefreshOnReconnectionAttemptStrategy =
+  false |
+  number |
+  ((firstReconnectionAt: number) => false | number | undefined);
 
 type WithCommands<
   RESP extends RespVersions,
@@ -30,6 +44,18 @@ interface ClusterCommander<
   // POLICIES extends CommandPolicies
 > extends CommanderConfig<M, F, S, RESP> {
   commandOptions?: ClusterCommandOptions<TYPE_MAPPING/*, POLICIES*/>;
+  /**
+   * Prefix prepended to every key sent to Redis (ioredis-compatible `keyPrefix`).
+   *
+   * Applied by the cluster client itself; the slot of each command is computed from the
+   * prefixed key, so routing stays correct. It is intentionally a cluster-level option
+   * (not a per-node `rootNodes`/`defaults` option) so it is applied exactly once.
+   *
+   * Matches ioredis semantics: only keys *sent* to Redis are prefixed. Keys *returned*
+   * by Redis are NOT un-prefixed, `MATCH` patterns are NOT auto-prefixed, and Pub/Sub
+   * channels are NOT prefixed.
+   */
+  keyPrefix?: RedisArgument;
 }
 
 export type RedisClusterClientOptions = Omit<
@@ -41,18 +67,25 @@ export interface RedisClusterOptions<
   M extends RedisModules = RedisModules,
   F extends RedisFunctions = RedisFunctions,
   S extends RedisScripts = RedisScripts,
-  RESP extends RespVersions = RespVersions,
+  RESP extends RespVersions = 3,
   TYPE_MAPPING extends TypeMapping = TypeMapping,
   // POLICIES extends CommandPolicies = CommandPolicies
 > extends ClusterCommander<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/> {
   /**
    * Should contain details for some of the cluster nodes that the client will use to discover
    * the "cluster topology". We recommend including details for at least 3 nodes here.
+   *
+   * Note: this configuration is only used for the connections that discover the topology — it is
+   * not inherited by the connections made to the discovered nodes. Settings that should apply to
+   * every connection (e.g. credentials, TLS) must be specified via `defaults`.
    */
   rootNodes: Array<RedisClusterClientOptions>;
   /**
    * Default values used for every client in the cluster. Use this to specify global values,
    * for example: ACL credentials, timeouts, TLS configuration etc.
+   *
+   * The connections to the discovered cluster nodes are created from these defaults (plus the
+   * discovered host and port) — they do not inherit any other settings from `rootNodes`.
    */
   defaults?: Partial<RedisClusterClientOptions>;
   /**
@@ -69,6 +102,15 @@ export interface RedisClusterOptions<
    * The maximum number of times a command will be redirected due to `MOVED` or `ASK` errors.
    */
   maxCommandRedirections?: number;
+  /**
+   * The number of milliseconds after the first post-ready node reconnection attempt
+   * before background cluster topology refreshes are triggered. Omitted or `undefined`
+   * uses the default delay of `5000`.
+   * Use `false` or `0` to disable reconnect-triggered topology refreshes. A function can
+   * return the delay dynamically, or `false`/`undefined`/`0` to skip the refresh attempt.
+   * Concurrent refreshes are de-duplicated.
+   */
+  topologyRefreshOnReconnectionAttemptStrategy?: ClusterTopologyRefreshOnReconnectionAttemptStrategy;
   /**
    * Mapping between the addresses in the cluster (see `CLUSTER SHARDS`) and the addresses the client should connect to
    * Useful when the cluster is running on another network
@@ -109,13 +151,21 @@ export interface RedisClusterOptions<
    * ```
    */
   clientSideCache?: PooledClientSideCacheProvider | ClientSideCacheConfig;
+  /**
+   * @internal
+   * Shared HIMPORT fieldset registry for the whole cluster. When omitted the cluster's
+   * `RedisClusterSlots` owns a fresh one; `duplicate()` injects the parent's so the duplicate
+   * SHARES the parent's registrations (matching the standalone `duplicate()` guarantee).
+   * Not a user-facing option.
+   */
+  himportRegistry?: FieldsetRegistry;
 }
 
 export type RedisClusterType<
   M extends RedisModules = {},
   F extends RedisFunctions = {},
   S extends RedisScripts = {},
-  RESP extends RespVersions = 2,
+  RESP extends RespVersions = 3,
   TYPE_MAPPING extends TypeMapping = {},
   // POLICIES extends CommandPolicies = {}
 > = (
@@ -126,14 +176,12 @@ export type RedisClusterType<
   WithScripts<S, RESP, TYPE_MAPPING>
 );
 
-export interface ClusterCommandOptions<
+export type ClusterCommandOptions<
   TYPE_MAPPING extends TypeMapping = TypeMapping
   // POLICIES extends CommandPolicies = CommandPolicies
-> extends CommandOptions<TYPE_MAPPING> {
-  // policies?: POLICIES;
-}
+> = CommandOptions<TYPE_MAPPING>;
 
-type ProxyCluster = RedisCluster<any, any, any, any, any/*, any*/>;
+type ProxyCluster = RedisCluster<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>;
 
 type NamespaceProxyCluster = { _self: ProxyCluster };
 
@@ -149,14 +197,14 @@ export default class RedisCluster<
     const transformReply = getTransformReply(command, resp);
 
     return async function (this: ProxyCluster, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this._self._keyPrefix);
       command.parseCommand(parser, ...args);
 
-      return this._self._execute(
-        parser.firstKey,
+      return this._self._executeWithPolicies(
+        parser,
         command.IS_READ_ONLY,
         this._commandOptions,
-        (client, opts) => client._executeCommand(command, parser, opts, transformReply)
+        p => (client, opts) => client._executeCommand(command, p, opts, transformReply)
       );
     };
   }
@@ -165,14 +213,14 @@ export default class RedisCluster<
     const transformReply = getTransformReply(command, resp);
 
     return async function (this: NamespaceProxyCluster, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this._self._keyPrefix);
       command.parseCommand(parser, ...args);
 
-      return this._self._execute(
-        parser.firstKey,
+      return this._self._executeWithPolicies(
+        parser,
         command.IS_READ_ONLY,
         this._self._commandOptions,
-        (client, opts) => client._executeCommand(command, parser, opts, transformReply)
+        p => (client, opts) => client._executeCommand(command, p, opts, transformReply)
       );
     };
   }
@@ -182,15 +230,15 @@ export default class RedisCluster<
     const transformReply = getTransformReply(fn, resp);
 
     return async function (this: NamespaceProxyCluster, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this._self._keyPrefix);
       parser.push(...prefix);
       fn.parseCommand(parser, ...args);
 
-      return this._self._execute(
-        parser.firstKey,
+      return this._self._executeWithPolicies(
+        parser,
         fn.IS_READ_ONLY,
         this._self._commandOptions,
-        (client, opts) => client._executeCommand(fn, parser, opts, transformReply)
+        p => (client, opts) => client._executeCommand(fn, p, opts, transformReply)
       );
     };
   }
@@ -200,26 +248,27 @@ export default class RedisCluster<
     const transformReply = getTransformReply(script, resp);
 
     return async function (this: ProxyCluster, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this._self._keyPrefix);
       parser.push(...prefix);
       script.parseCommand(parser, ...args);
 
-      return this._self._execute(
-        parser.firstKey,
+      return this._self._executeWithPolicies(
+        parser,
         script.IS_READ_ONLY,
         this._commandOptions,
-        (client, opts) => client._executeScript(script, parser, opts, transformReply)
+        p => (client, opts) => client._executeScript(script, p, opts, transformReply)
       );
     };
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- cache stores dynamically generated cluster subclasses
   static #SingleEntryCache = new SingleEntryCache<any, any>();
 
   static factory<
     M extends RedisModules = {},
     F extends RedisFunctions = {},
     S extends RedisScripts = {},
-    RESP extends RespVersions = 2,
+    RESP extends RespVersions = 3,
     TYPE_MAPPING extends TypeMapping = {},
     // POLICIES extends CommandPolicies = {}
   >(config?: ClusterCommander<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>) {
@@ -246,11 +295,29 @@ export default class RedisCluster<
     };
   }
 
+  /**
+   * Creates a new Redis Cluster client.
+   *
+   * Note: `rootNodes` is only used to discover the cluster topology; its configuration is not
+   * inherited by the connections made to the discovered nodes. Any setting that should apply to
+   * every connection in the cluster (e.g. credentials, TLS) must be specified via `defaults`:
+   *
+   * @example
+   * ```javascript
+   * createCluster({
+   *   rootNodes: [{ url: 'rediss://external-host.io:30001' }],
+   *   defaults: {
+   *     password: 'password',
+   *     socket: { tls: true }
+   *   }
+   * });
+   * ```
+   */
   static create<
     M extends RedisModules = {},
     F extends RedisFunctions = {},
     S extends RedisScripts = {},
-    RESP extends RespVersions = 2,
+    RESP extends RespVersions = 3,
     TYPE_MAPPING extends TypeMapping = {},
     // POLICIES extends CommandPolicies = {}
   >(options?: RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>) {
@@ -261,8 +328,11 @@ export default class RedisCluster<
 
   readonly _slots: RedisClusterSlots<M, F, S, RESP, TYPE_MAPPING>;
 
+  readonly #identity: ClientIdentity;
+
   private _self = this;
   private _commandOptions?: ClusterCommandOptions<TYPE_MAPPING/*, POLICIES*/>;
+  private _policyResolver: PolicyResolver;
 
   /**
    * An array of the cluster slots, each slot contain its `master` and `replicas`.
@@ -274,6 +344,14 @@ export default class RedisCluster<
 
   get clientSideCache() {
     return this._self._slots.clientSideCache;
+  }
+
+  /**
+   * The configured key prefix (see {@link RedisClusterOptions.keyPrefix}), if any.
+   * @internal
+   */
+  get _keyPrefix(): RedisArgument | undefined {
+    return this._self._options.keyPrefix;
   }
 
   /**
@@ -311,16 +389,34 @@ export default class RedisCluster<
     return this._self._slots.isOpen;
   }
 
+  get isReady() {
+    return this._self._slots.isReady;
+  }
+
+  /**
+   * @internal
+   * Returns the cluster identity for tracking in metrics.
+   */
+  get identity(): ClientIdentity {
+    return this._self.#identity;
+  }
+
   constructor(options: RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING/*, POLICIES*/>) {
     super();
 
+    this.#identity = {
+      id: generateClusterClientId(options.rootNodes),
+      role: ClientRole.CLUSTER
+    };
     this._options = options;
-    this._slots = new RedisClusterSlots(options, this.emit.bind(this));
+    this._slots = new RedisClusterSlots(options, this.emit.bind(this), this.#identity.id);
     this.on(RESUBSCRIBE_LISTENERS_EVENT, this.resubscribeAllPubSubListeners.bind(this));
 
-    if (options?.commandOptions) {
-      this._commandOptions = options.commandOptions;
-    }
+    this._commandOptions = { timeout: DEFAULT_COMMAND_TIMEOUT, ...options?.commandOptions };
+
+    // Shared process-wide resolver over the static metadata table. Kept as an
+    // instance field so a future per-connection dynamic resolver can replace it.
+    this._policyResolver = defaultCommandMetadata;
   }
 
   duplicate<
@@ -332,6 +428,9 @@ export default class RedisCluster<
   >(overrides?: Partial<RedisClusterOptions<_M, _F, _S, _RESP, _TYPE_MAPPING>>) {
     return new (Object.getPrototypeOf(this).constructor)({
       ...this._self._options,
+      // Inject the live registry explicitly (the options spread only carries it if the user
+      // passed one) — a duplicate SHARES the parent's HIMPORT registrations.
+      himportRegistry: this._self._slots.himportRegistry,
       commandOptions: this._commandOptions,
       ...overrides
     }) as RedisClusterType<_M, _F, _S, _RESP, _TYPE_MAPPING>;
@@ -367,8 +466,7 @@ export default class RedisCluster<
     value: V
   ) {
     const proxy = Object.create(this);
-    proxy._commandOptions = Object.create(this._commandOptions ?? null);
-    proxy._commandOptions[key] = value;
+    proxy._commandOptions = { ...this._commandOptions, [key]: value };
     return proxy as RedisClusterType<
       M,
       F,
@@ -401,6 +499,9 @@ export default class RedisCluster<
       const chainId = Symbol("asking chain");
       const opts = options ? {...options} : {};
       opts.chainId = chainId;
+      // Tell the HIMPORT hook it is on an ASK chain: a keyless PREPARE/DISCARD it pipelines
+      // ahead of the SET would eat the one-shot ASKING flag, so the hook re-issues ASKING.
+      opts.askRedirect = true;
 
 
 
@@ -415,60 +516,258 @@ export default class RedisCluster<
     };
   }
 
-  async _execute<T>(
-    firstKey: RedisArgument | undefined,
+  /**
+   * Resolves the command's policies and executes it accordingly: the request
+   * policy picks the target clients, each target runs through the core
+   * `_execute` transport primitive, and the response policy aggregates the
+   * replies. Call sites pass a `makeFn` factory that builds the per-client
+   * execution closure (command, script, or raw `sendCommand`).
+   */
+  async _executeWithPolicies<T>(
+    parser: CommandParser,
     isReadonly: boolean | undefined,
     options: ClusterCommandOptions | undefined,
-    fn: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>, opts?: ClusterCommandOptions) => Promise<T>
+    makeFn: (parser: CommandParser) => (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>, opts?: ClusterCommandOptions) => Promise<T>
   ): Promise<T> {
-    const maxCommandRedirections = this._options.maxCommandRedirections ?? 16;
-    let { client, slotNumber } = await this._slots.getClientAndSlotNumber(firstKey, isReadonly);
-    let i = 0;
+    const policyResult = this._policyResolver.resolvePolicy(parser.commandIdentifier);
 
-    let myFn = fn;
+    // Commands the resolver doesn't know — user-defined custom commands,
+    // scripts/functions, modules absent from the policy table — have no
+    // request/response policy and nothing to split or aggregate. Fall back to
+    // the default key-routed path (single client by `firstKey`, sole reply
+    // passed through) rather than failing. Scripts/functions are single-slot
+    // by contract, so default-keyed is always correct for them. Known
+    // multi_shard commands that can't be split still throw from the splitter.
+    const policy: CommandMetadata = policyResult.ok
+      ? policyResult.value
+      : defaultCommandPolicies(parser.keys.length === 0);
 
-    while (true) {
-      try {
-        const opts = options ?? {};
-        opts.slotNumber = slotNumber;
-        return await myFn(client, opts);
-      } catch (err) {
-        myFn = fn;
+    // Override-first: a defined `IS_READ_ONLY` (command definition, script, or
+    // the raw `sendCommand` caller argument threaded in as `isReadonly`) wins;
+    // otherwise the table's write/script_runner flags and keyed-ness decide
+    // (see `isReplicaSafe`).
+    const readonly = isReplicaSafe(policy, isReadonly);
 
+    const requestPolicy = policy.request;
+    const responsePolicy = policy.response;
 
-        // TODO: error class
-        if (++i > maxCommandRedirections || !(err instanceof Error)) {
+    // Fast path: default-keyed request + response — the overwhelming majority
+    // of traffic (every single-key command). Route by firstKey and pass the
+    // sole reply through, skipping the plan/reducer/post-reply machinery,
+    // which is a no-op for this shape (the hooks only concern
+    // FT.AGGREGATE/FT.CURSOR/SCAN and the remap only numeric aggregates —
+    // none of them default-keyed).
+    if (
+      requestPolicy === REQUEST_POLICIES_WITH_DEFAULTS.DEFAULT_KEYED &&
+      responsePolicy === RESPONSE_POLICIES_WITH_DEFAULTS.DEFAULT_KEYED
+    ) {
+      return this._execute(parser, readonly, options, makeFn(parser));
+    }
+
+    // https://redis.io/docs/latest/develop/reference/command-tips
+    const router = REQUEST_ROUTERS[requestPolicy];
+    if (!router) {
+      throw new Error(`Unknown request policy ${requestPolicy}`);
+    }
+    // Validated before any per-node promise is dispatched — throwing after
+    // would orphan in-flight rejections (unhandled-rejection noise) and run
+    // side effects for a reply that can never be reduced.
+    const reducer = RESPONSE_REDUCERS[responsePolicy];
+    if (!reducer) {
+      throw new Error(`Unknown response policy ${responsePolicy}`);
+    }
+    // Routers are typed against the erased base cluster types (routing is
+    // below the typed command surface); bridge this instantiation's slots in.
+    const plan = await router(
+      this._slots as unknown as Parameters<typeof router>[0],
+      parser,
+      readonly,
+      policy.keySpecs
+    );
+
+    if (plan.length === 0) {
+      throw new Error(`Request policy ${requestPolicy} produced no target nodes`);
+    }
+
+    // Numeric aggregation must see raw numbers: strip the caller's type
+    // mapping from the per-node executions (a `NUMBER: String` mapping would
+    // feed strings into the numeric reducers) and re-apply it to the
+    // aggregated result below. Pass-through policies keep the mapping — their
+    // replies reach the caller undisturbed.
+    const numericAgg = NUMERIC_AGG_POLICIES.has(responsePolicy);
+    const requestedMapping = options?.typeMapping;
+    const execOptions = numericAgg && requestedMapping
+      ? { ...options, typeMapping: undefined }
+      : options;
+
+    // Track the actually-serving client for single-target plans: after a
+    // MOVED/ASK redirect the reply comes from a different node than
+    // `plan[0].client`, and the post-reply hooks must bind cursors to the node
+    // that really served. Multi-target hooks are no-ops, so nothing to track.
+    const served: { client?: RedisClientType<M, F, S, RESP, TYPE_MAPPING> } = {};
+    const responsePromises = plan.map(async entry => {
+      const entryParser = entry.parser ?? parser;
+      // Re-narrow the opaque routed client to this cluster's instantiation.
+      // Fan-out entries carry a `getClient` thunk instead of a resolved client,
+      // so each node's lazy connect runs in its own promise: a single failed
+      // connect rejects only this entry (reducers such as one_succeeded still
+      // see the reachable shards) rather than failing the whole route.
+      const client = (entry.client ?? (entry.getClient ? await entry.getClient() : undefined)) as
+        RedisClientType<M, F, S, RESP, TYPE_MAPPING> | undefined;
+      return this._execute(
+        entryParser, readonly, execOptions, makeFn(entryParser), client,
+        plan.length === 1 ? served : undefined
+      );
+    });
+
+    const positionHints = plan.map(entry => entry.groupIndices);
+    let reply = await (reducer(responsePromises, parser, positionHints) as Promise<T>);
+    if (numericAgg) {
+      reply = remapAggregateReply(reply, requestedMapping);
+    }
+
+    // Attribute the reply to the node that actually served it (MOVED/ASK may
+    // have redirected away from the plan's original target). The plan carries
+    // the erased base client type (routing runs below the typed surface), so
+    // widen this instantiation's client back at the boundary.
+    const servedClient = served.client as unknown as typeof plan[0]['client'];
+    const hookPlan = servedClient && servedClient !== plan[0].client
+      ? [{ ...plan[0], client: servedClient }]
+      : plan;
+
+    // Sticky-cursor bookkeeping: FT.AGGREGATE/FT.CURSOR bind/rebind/evict the
+    // serving node and swap the server cursor id in the reply for a
+    // client-minted token (server ids are per-node and can collide across
+    // shards). Command-name gated; best-effort — on failure the caller gets
+    // the raw server cursor, which MISSes (with a clear error) on the next
+    // READ/DEL instead of silently routing to the wrong node.
+    try {
+      reply = finalizeFtCursor(
+        this._slots as unknown as Parameters<typeof finalizeFtCursor>[0],
+        parser,
+        hookPlan,
+        reply
+      ) as typeof reply;
+    } catch { /* cursor finalization is best-effort */ }
+
+    // Cluster-wide SCAN: advance the scan chain and swap the per-node server
+    // cursor for the chain's virtual token. Command-name gated; best-effort —
+    // on failure the caller gets the raw server cursor, which MISSes (with a
+    // clear error) on the next call instead of silently iterating wrong.
+    try {
+      reply = finalizeScanCursor(
+        this._slots as unknown as Parameters<typeof finalizeScanCursor>[0],
+        parser,
+        hookPlan,
+        reply
+      ) as typeof reply;
+    } catch { /* scan finalization is best-effort */ }
+
+    return reply;
+  }
+
+  /**
+   * Core transport primitive: sends one command to one client — resolved by
+   * the parser's first key unless `pinnedClient` is given — with MOVED/ASK
+   * redirect handling. Policy-free; fan-out and aggregation live in
+   * `_executeWithPolicies`.
+   */
+  async _execute<T>(
+    parser: CommandParser,
+    isReadonly: boolean | undefined,
+    options: ClusterCommandOptions | undefined,
+    fn: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>, opts?: ClusterCommandOptions) => Promise<T>,
+    pinnedClient?: RedisClientType<M, F, S, RESP, TYPE_MAPPING>,
+    // When given, records the client that actually served the reply — after a
+    // MOVED/ASK redirect that differs from the plan's original target, and the
+    // post-reply hooks (sticky cursor bindings) must attribute to it.
+    served?: { client?: RedisClientType<M, F, S, RESP, TYPE_MAPPING> }
+  ): Promise<T> {
+      const maxCommandRedirections = this._options.maxCommandRedirections ?? 16;
+
+      // The slot number travels with every attempt (commands-queue
+      // `slotNumber`): during an SMIGRATED maintenance event
+      // `extractCommandsForSlots` relocates queued commands to the destination
+      // node by this value. Pinned plans (default-keyed pins, multi_shard
+      // sub-commands) derive it from the parser's first key; keyless fan-outs
+      // carry none. The slot of a key never changes, so it is computed once
+      // even though MOVED redirects re-resolve the client.
+      let client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
+      let slotNumber: number | undefined;
+      if (pinnedClient) {
+        client = pinnedClient;
+        slotNumber = parser.firstKey === undefined ? undefined : calculateSlot(parser.firstKey);
+      } else {
+        ({ client, slotNumber } = await this._slots.getClientAndSlotNumber(parser.firstKey, isReadonly));
+      }
+
+      let i = 0;
+
+      let myFn = fn;
+
+      while (true) {
+        try {
+          if (served) served.client = client;
+          const opts: ClusterCommandOptions = { ...options, slotNumber };
+          return await myFn(client, opts);
+        } catch (_err) {
+          const err = _err as Error;
+          myFn = fn;
+
+          // TODO: error class
+          if (++i > maxCommandRedirections || !(err instanceof Error)) {
+            if (err instanceof Error) {
+              publish(CHANNELS.ERROR, () => ({
+                error: err,
+                origin: 'cluster',
+                internal: false,
+                clientId: client._clientId,
+                retryCount: i,
+              }));
+            }
+            throw err;
+          }
+
+          if (err.message.startsWith('ASK')) {
+            publish(CHANNELS.ERROR, () => ({
+              error: err,
+              origin: 'cluster',
+              internal: true,
+              clientId: client._clientId,
+              retryCount: i,
+            }));
+            const address = err.message.substring(err.message.lastIndexOf(' ') + 1);
+            let redirectTo = await this._slots.getMasterByAddress(address);
+            if (!redirectTo) {
+              await this._slots.rediscover(client);
+              redirectTo = await this._slots.getMasterByAddress(address);
+            }
+
+            if (!redirectTo) {
+              throw new Error(`Cannot find node ${address}`);
+            }
+
+            client = redirectTo;
+            myFn = this._handleAsk(fn);
+            continue;
+          }
+
+          if (err.message.startsWith('MOVED')) {
+            publish(CHANNELS.ERROR, () => ({
+              error: err,
+              origin: 'cluster',
+              internal: true,
+              clientId: client._clientId,
+              retryCount: i,
+            }));
+            await this._slots.rediscover(client);
+            client = (await this._slots.getClientAndSlotNumber(parser.firstKey, isReadonly)).client;
+            continue;
+          }
+
           throw err;
         }
-
-        if (err.message.startsWith('ASK')) {
-          const address = err.message.substring(err.message.lastIndexOf(' ') + 1);
-          let redirectTo = await this._slots.getMasterByAddress(address);
-          if (!redirectTo) {
-            await this._slots.rediscover(client);
-            redirectTo = await this._slots.getMasterByAddress(address);
-          }
-
-          if (!redirectTo) {
-            throw new Error(`Cannot find node ${address}`);
-          }
-
-          client = redirectTo;
-          myFn = this._handleAsk(fn);
-          continue;
-        }
-
-        if (err.message.startsWith('MOVED')) {
-          await this._slots.rediscover(client);
-          const clientAndSlot = await this._slots.getClientAndSlotNumber(firstKey, isReadonly);
-          client = clientAndSlot.client;
-          slotNumber = clientAndSlot.slotNumber;
-          continue;
-        }
-
-        throw err;
       }
-    }
   }
 
   async sendCommand<T = ReplyUnion>(
@@ -481,20 +780,33 @@ export default class RedisCluster<
 
     // Merge global options with local options
     const opts = {
-      ...this._self._commandOptions,
+      ...this._commandOptions,
       ...options
     }
-    return this._self._execute(
-      firstKey,
+
+    // `args` is the full command as sent on the wire (name at index 0), so it
+    // becomes `redisArgs` verbatim — policy resolution reads the command name
+    // and the multi_shard splitter's key-spec offsets line up. The caller's
+    // `firstKey` is marked for routing without re-appending it.
+    const parser = new BasicCommandParser();
+    args.forEach(arg => parser.push(arg));
+    if (firstKey !== undefined) parser.markRoutingKey(firstKey);
+
+    // Raw path: no command object, so readonly-ness stays an explicit caller
+    // argument and the reply is returned untransformed. The closure sends the
+    // per-entry parser's args, so split multi_shard sub-commands each carry
+    // their own slot's arguments (and the unsplit case sends `args` unchanged).
+    return this._self._executeWithPolicies(
+      parser,
       isReadonly,
       opts,
-      (client, opts) => client.sendCommand(args, opts)
+      p => (client, opts) => client.sendCommand(p.redisArgs as CommandArguments, opts)
     );
   }
 
   MULTI(routing?: RedisArgument) {
     type Multi = new (...args: ConstructorParameters<typeof RedisClusterMultiCommand>) => RedisClusterMultiCommandType<[], M, F, S, RESP, TYPE_MAPPING>;
-    return new ((this as any).Multi as Multi)(
+    return new (this as this & { Multi: Multi }).Multi(
       async (firstKey, isReadonly, commands) => {
         const { client } = await this._self._slots.getClientAndSlotNumber(firstKey, isReadonly);
         return client._executeMulti(commands);
@@ -504,7 +816,8 @@ export default class RedisCluster<
         return client._executePipeline(commands);
       },
       routing,
-      this._commandOptions?.typeMapping
+      this._commandOptions?.typeMapping,
+      this._self._keyPrefix
     );
   }
 
@@ -675,6 +988,27 @@ export default class RedisCluster<
    */
   getSlotRandomNode(slot: number) {
     return this._self._slots.getSlotRandomNode(slot);
+  }
+
+  /**
+   * Returns the connected node client responsible for the given key's slot.
+   * Useful for connection-level operations that the cluster client does not expose
+   * directly, such as `WATCH` followed by `MULTI`/`EXEC`:
+   *
+   * ```javascript
+   * const nodeClient = await cluster.getNodeClientForKey(key);
+   * await nodeClient.WATCH(key);
+   * const value = await nodeClient.GET(key);
+   * const reply = await nodeClient.MULTI()
+   *   .SET(key, calculateNewValue(value))
+   *   .EXEC(); // `null` if `key` changed, retry
+   * ```
+   *
+   * @param key - The key whose slot determines the node.
+   * @param isReadonly - If `true`, may return a replica client; otherwise returns the slot master.
+   */
+  getNodeClientForKey(key: RedisArgument, isReadonly?: boolean) {
+    return this._self._slots.getClientForKey(key, isReadonly);
   }
 
   /**

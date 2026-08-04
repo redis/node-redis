@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SEARCH from './SEARCH';
+import { SCHEMA_FIELD_TYPE, REDISEARCH_LANGUAGE } from './CREATE';
 import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 import { DEFAULT_DIALECT } from '../dialect/default';
 
@@ -274,6 +275,40 @@ describe('FT.SEARCH', () => {
     });
   });
 
+  describe('transformReply', () => {
+    it('RESP2 reply has empty warnings', () => {
+      assert.deepEqual(
+        SEARCH.transformReply[2]([0]),
+        { total: 0, documents: [], warnings: [] }
+      );
+    });
+
+    it('RESP3 reply populates warnings from the `warning` field', () => {
+      const reply = new Map<string, unknown>([
+        ['total_results', 0],
+        ['results', []],
+        ['warning', ['Timeout limit was reached']]
+      ]);
+
+      assert.deepEqual(
+        SEARCH.transformReply[3](reply),
+        { total: 0, documents: [], warnings: ['Timeout limit was reached'] }
+      );
+    });
+
+    it('RESP3 reply without a `warning` field yields empty warnings', () => {
+      const reply = new Map<string, unknown>([
+        ['total_results', 0],
+        ['results', []]
+      ]);
+
+      assert.deepEqual(
+        SEARCH.transformReply[3](reply),
+        { total: 0, documents: [], warnings: [] }
+      );
+    });
+  });
+
   describe('client.ft.search', () => {
     testUtils.testWithClient('without optional options', async client => {
       await Promise.all([
@@ -289,14 +324,15 @@ describe('FT.SEARCH', () => {
           total: 1,
           documents: [{
             id: '1',
-            value: Object.create(null, {
+            value: Object.defineProperties({}, {
               field: {
                 value: '1',
                 configurable: true,
                 enumerable: true
               }
             })
-          }]
+          }],
+          warnings: []
         }
       );
     }, GLOBAL.SERVERS.OPEN);
@@ -318,13 +354,32 @@ describe('FT.SEARCH', () => {
           total: 2,
           documents: [{
             id: '1',
-            value: Object.create(null)
+            value: {}
           }, {
             id: '2',
-            value: Object.create(null)
-          }]
+            value: {}
+          }],
+          warnings: []
         }
       );
+    }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('with data', async client => {
+      await Promise.all([
+        client.ft.create('index', {
+          field: 'TEXT'
+        }),
+        client.hSet('1', 'field', '1')
+      ]);
+
+      const reply = await client.ft.search('index', '*');
+
+      // Transformed reply has { total, documents }
+      assert.ok(reply !== null && typeof reply === 'object');
+      assert.equal(typeof reply.total, 'number');
+      assert.equal(reply.total, 1);
+      assert.ok(Array.isArray(reply.documents));
+      assert.equal(reply.documents.length, 1);
     }, GLOBAL.SERVERS.OPEN);
 
     testUtils.testWithClient('properly parse content/nocontent scenarios', async client => {
@@ -405,5 +460,92 @@ describe('FT.SEARCH', () => {
 
     }, GLOBAL.SERVERS.OPEN);
 
+  });
+
+  describe('non-English languages', () => {
+    // Each case: a document whose text contains an inflected word, and a query
+    // for a different inflection of the same word. The match only succeeds when
+    // the index is built with the matching language's Snowball stemmer; the
+    // English stemmer leaves the two forms distinct.
+    const STEMMING_CASES = [
+      { language: REDISEARCH_LANGUAGE.GERMAN, text: 'Die Kinder spielen im Garten', query: 'Kind' },
+      { language: REDISEARCH_LANGUAGE.FRENCH, text: 'Les chevaux courent vite', query: 'cheval' },
+      { language: REDISEARCH_LANGUAGE.SPANISH, text: 'Nosotros hablamos mucho', query: 'hablar' },
+      { language: REDISEARCH_LANGUAGE.GREEK, text: 'Οι άνθρωποι περπατούν', query: 'άνθρωπος' },
+      // Indonesian stemmer reduces "membaca" to the root "baca"
+      { language: REDISEARCH_LANGUAGE.INDONESAIN, text: 'Saya sedang membaca buku', query: 'baca' }
+    ];
+
+    for (const { language, text, query } of STEMMING_CASES) {
+      testUtils.testWithClient(`stemming with LANGUAGE ${language}`, async client => {
+        await Promise.all([
+          client.ft.create('lang', { content: SCHEMA_FIELD_TYPE.TEXT }, { LANGUAGE: language }),
+          client.ft.create('en', { content: SCHEMA_FIELD_TYPE.TEXT }, { LANGUAGE: REDISEARCH_LANGUAGE.ENGLISH }),
+          client.hSet('doc', 'content', text)
+        ]);
+
+        // language-specific stemmer reduces both inflections to the same stem
+        assert.equal(
+          (await client.ft.search('lang', query)).total,
+          1,
+          `${language} stemmer should match "${query}" against "${text}"`
+        );
+
+        // explicit query-time LANGUAGE is accepted and yields the same match
+        assert.equal(
+          (await client.ft.search('lang', query, { LANGUAGE: language })).total,
+          1,
+          `query-time LANGUAGE ${language} should match "${query}"`
+        );
+
+        // English stemmer keeps the inflections distinct, so no match
+        assert.equal(
+          (await client.ft.search('en', query)).total,
+          0,
+          `English stemmer should not match "${query}" against "${text}"`
+        );
+      }, GLOBAL.SERVERS.OPEN);
+    }
+
+    testUtils.testWithClient('Chinese tokenization', async client => {
+      await Promise.all([
+        client.ft.create('zh', { content: SCHEMA_FIELD_TYPE.TEXT }, { LANGUAGE: REDISEARCH_LANGUAGE.CHINESE }),
+        client.ft.create('en', { content: SCHEMA_FIELD_TYPE.TEXT }),
+        client.hSet('doc', 'content', '我喜欢编程')
+      ]);
+
+      // friso tokenizer segments "我喜欢编程", so the sub-term "编程" matches
+      assert.equal(
+        (await client.ft.search('zh', '编程')).total,
+        1
+      );
+
+      // without Chinese tokenization the un-segmented text does not match
+      assert.equal(
+        (await client.ft.search('en', '编程')).total,
+        0
+      );
+    }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('per-document LANGUAGE_FIELD', async client => {
+      await client.ft.create('idx', { content: SCHEMA_FIELD_TYPE.TEXT }, {
+        LANGUAGE_FIELD: '__lang'
+      });
+
+      await Promise.all([
+        client.hSet('de', { content: 'Die Kinder spielen im Garten', __lang: REDISEARCH_LANGUAGE.GERMAN }),
+        client.hSet('fr', { content: 'Les chevaux courent vite', __lang: REDISEARCH_LANGUAGE.FRENCH })
+      ]);
+
+      // each document is stemmed with its own language
+      assert.deepEqual(
+        (await client.ft.search('idx', 'Kind')).documents.map(d => d.id),
+        ['de']
+      );
+      assert.deepEqual(
+        (await client.ft.search('idx', 'cheval')).documents.map(d => d.id),
+        ['fr']
+      );
+    }, GLOBAL.SERVERS.OPEN);
   });
 });

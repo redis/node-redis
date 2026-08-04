@@ -9,6 +9,7 @@ import { MATH_FUNCTION, loadMathFunction } from '../commands/FUNCTION_LOAD.spec'
 import { RESP_TYPES } from '../RESP/decoder';
 import { BlobStringReply, NumberReply } from '../RESP/types';
 import { SortedSetMember } from '../commands/generic-transformers';
+import { HASH_EXPIRATION } from '../commands/HEXPIRE';
 import { CommandParser } from './parser';
 import { RedisSocketOptions } from './socket';
 import { getFreePortNumber } from '@redis/test-utils/lib/proxy/redis-proxy';
@@ -28,6 +29,87 @@ export const SQUARE_SCRIPT = defineScript({
 });
 
 describe('Client', () => {
+  it('chained withCommandOptions(...).withTypeMapping(...) preserves earlier overrides at dispatch', () => {
+    // Regression: `_commandOptionsProxy` used to layer `_commandOptions` via
+    // `Object.create(this._commandOptions ?? null)`, which left earlier keys
+    // (e.g. `asap`) on the prototype. At dispatch, `{...this._commandOptions, ...}`
+    // only iterates *own* enumerable properties, so those inherited keys
+    // silently disappeared in the spread.
+    const client = RedisClient.create({});
+    const proxy = client
+      .withCommandOptions({ asap: true })
+      .withTypeMapping({ [RESP_TYPES.SIMPLE_STRING]: Buffer });
+    type WithOptions = { _commandOptions?: { asap?: boolean; typeMapping?: unknown } };
+    const ownKeys = { ...(proxy as unknown as WithOptions)._commandOptions };
+    assert.equal(ownKeys.asap, true);
+    assert.deepEqual(ownKeys.typeMapping, { [RESP_TYPES.SIMPLE_STRING]: Buffer });
+  });
+
+  describe('default commandOptions', () => {
+    type WithOptions = { _commandOptions?: { timeout?: number; asap?: boolean } };
+
+    it('applies the 5s default timeout when no commandOptions are passed', () => {
+      const client = RedisClient.create({});
+      assert.equal((client as unknown as WithOptions)._commandOptions?.timeout, 5000);
+    });
+
+    it('merges the default timeout with a partial commandOptions override', () => {
+      const client = RedisClient.create({ commandOptions: { asap: true } });
+      const opts = (client as unknown as WithOptions)._commandOptions;
+      assert.equal(opts?.timeout, 5000);
+      assert.equal(opts?.asap, true);
+    });
+
+    it('allows opting out of the default timeout with `timeout: undefined`', () => {
+      const client = RedisClient.create({ commandOptions: { timeout: undefined } });
+      assert.equal((client as unknown as WithOptions)._commandOptions?.timeout, undefined);
+    });
+
+    it('preserves the default timeout through withCommandOptions(...)', () => {
+      // Regression: `proxy._commandOptions = options` set the override as an own
+      // property that shadowed the prototype's merged `_commandOptions`, dropping
+      // the default at dispatch. The proxy must merge over the current effective
+      // options instead.
+      const client = RedisClient.create({});
+      const proxy = client.withCommandOptions({ asap: true });
+      const opts = (proxy as unknown as WithOptions)._commandOptions;
+      assert.equal(opts?.timeout, 5000);
+      assert.equal(opts?.asap, true);
+    });
+
+    it('lets withCommandOptions(...) opt out of the default timeout', () => {
+      const client = RedisClient.create({});
+      const proxy = client.withCommandOptions({ timeout: undefined });
+      assert.equal((proxy as unknown as WithOptions)._commandOptions?.timeout, undefined);
+    });
+  });
+
+  it('module/function namespaces resolve to the receiver, not the original', () => {
+    // Regression: `attachNamespace` cached the namespace as an own property
+    // on the receiver, leaking via the prototype chain into any
+    // `withCommandOptions(...)` proxy. The proxy then dispatched module/function
+    // commands through the original's `_self`, silently ignoring the override.
+    const fakeModule = {
+      noop: {
+        parseCommand: () => {},
+        transformReply: undefined as unknown as () => unknown
+      }
+    };
+    const client = RedisClient.create({ modules: { fakeModule } });
+    type WithNamespace = { fakeModule: { _self: unknown } };
+    // Force the original to cache its namespace first — pre-fix this is what
+    // poisoned every subsequent proxy access.
+    const originalNamespace = (client as unknown as WithNamespace).fakeModule;
+    assert.equal(originalNamespace._self, client);
+    const proxy = client.withCommandOptions({});
+    const proxyNamespace = (proxy as unknown as WithNamespace).fakeModule;
+    assert.equal(proxyNamespace._self, proxy);
+    assert.notEqual(proxyNamespace._self, client);
+    // Per-receiver cache: subsequent accesses on the same receiver are stable.
+    assert.equal((client as unknown as WithNamespace).fakeModule, originalNamespace);
+    assert.equal((proxy as unknown as WithNamespace).fakeModule, proxyNamespace);
+  });
+
   describe('initialization', () => {
     describe('clientSideCache validation', () => {
       const clientSideCacheConfig = { ttl: 0, maxEntries: 0 };
@@ -42,12 +124,11 @@ describe('Client', () => {
         );
       });
 
-      it('should throw error when clientSideCache is enabled with RESP undefined', () => {
-        assert.throws(
-          () => new RedisClient({
+      it('should not throw when clientSideCache is enabled with RESP undefined', () => {
+        assert.doesNotThrow(() =>
+          new RedisClient({
             clientSideCache: clientSideCacheConfig,
-          }),
-          new Error('Client Side Caching is only supported with RESP3')
+          })
         );
       });
 
@@ -84,8 +165,8 @@ describe('Client', () => {
       };
 
       // Compare everything except the credentials function
-      const { credentialsProvider: resultCredProvider, ...resultRest } = result;
-      const { credentialsProvider: expectedCredProvider, ...expectedRest } = expected;
+      const { credentialsProvider: _resultCredProvider, ...resultRest } = result;
+      const { credentialsProvider: _expectedCredProvider, ...expectedRest } = expected;
 
       // Compare non-function properties
       assert.deepEqual(resultRest, expectedRest);
@@ -284,6 +365,100 @@ describe('Client', () => {
         } else {
           assert.fail('Credentials provider type mismatch');
         }
+      });
+    });
+
+    describe('unix socket URLs', () => {
+      it('unix:///tmp/redis.sock', () => {
+        assert.deepEqual(
+          RedisClient.parseURL('unix:///tmp/redis.sock'),
+          {
+            socket: {
+              path: '/tmp/redis.sock',
+              tls: false
+            }
+          }
+        );
+      });
+
+      it('unix:///tmp/redis.sock?db=2', () => {
+        assert.deepEqual(
+          RedisClient.parseURL('unix:///tmp/redis.sock?db=2'),
+          {
+            socket: {
+              path: '/tmp/redis.sock',
+              tls: false
+            },
+            database: 2
+          }
+        );
+      });
+
+      it('unix://user:secret@/tmp/redis.sock?db=2', async () => {
+        const result = RedisClient.parseURL('unix://user:secret@/tmp/redis.sock?db=2');
+        const expected: RedisClientOptions = {
+          socket: {
+            path: '/tmp/redis.sock',
+            tls: false
+          },
+          username: 'user',
+          password: 'secret',
+          database: 2,
+          credentialsProvider: {
+            type: 'async-credentials-provider',
+            credentials: async () => ({
+              username: 'user',
+              password: 'secret'
+            })
+          }
+        };
+
+        const { credentialsProvider: _r, ...resultRest } = result;
+        const { credentialsProvider: _e, ...expectedRest } = expected;
+        assert.deepEqual(resultRest, expectedRest);
+
+        if (result.credentialsProvider?.type === 'async-credentials-provider'
+          && expected.credentialsProvider?.type === 'async-credentials-provider') {
+          assert.deepEqual(
+            await result.credentialsProvider.credentials(),
+            await expected.credentialsProvider.credentials()
+          );
+        } else {
+          assert.fail('Credentials provider type mismatch');
+        }
+      });
+
+      it('percent-encoded path is decoded', () => {
+        assert.deepEqual(
+          RedisClient.parseURL('unix:///var/run/redis%20test.sock'),
+          {
+            socket: {
+              path: '/var/run/redis test.sock',
+              tls: false
+            }
+          }
+        );
+      });
+
+      it('missing path is rejected', () => {
+        assert.throws(
+          () => RedisClient.parseURL('unix://'),
+          TypeError
+        );
+      });
+
+      it('empty path is rejected', () => {
+        assert.throws(
+          () => RedisClient.parseURL('unix:///'),
+          TypeError
+        );
+      });
+
+      it('invalid db query parameter is rejected', () => {
+        assert.throws(
+          () => RedisClient.parseURL('unix:///tmp/redis.sock?db=NaN'),
+          TypeError
+        );
       });
     });
   });
@@ -487,7 +662,8 @@ describe('Client', () => {
 
     testUtils.testWithClient('undefined and null should not break the client', async client => {
       await assert.rejects(
-        client.sendCommand([null as any, undefined as any]),
+        // @ts-expect-error testing invalid inputs
+        client.sendCommand([null, undefined]),
         TypeError
       );
 
@@ -624,7 +800,7 @@ describe('Client', () => {
           assert.equal(err.replies.length, 2);
           assert.deepEqual(err.errorIndexes, [1]);
           assert.ok(err.replies[1] instanceof ErrorReply);
-          // @ts-ignore TS2802
+          // @ts-expect-error its fine
           assert.deepEqual([...err.errors()], [err.replies[1]]);
           return true;
         }
@@ -715,8 +891,8 @@ describe('Client', () => {
   });
 
   async function killClient(
-    client: RedisClientType<any, any, any, any, any>,
-    errorClient: RedisClientType<any, any, any, any, any> = client
+    client: RedisClientType<{}, {}, {}, 2, {}>,
+    errorClient: RedisClientType<{}, {}, {}, 2, {}> = client
   ): Promise<void> {
     const onceErrorPromise = once(errorClient, 'error');
     await client.sendCommand(['QUIT']);
@@ -808,6 +984,30 @@ describe('Client', () => {
     ...GLOBAL.SERVERS.OPEN,
     minimumDockerVersion: [7, 4]
   });
+
+  testUtils.testWithClient('hScanValuesIterator', async client => {
+    const hash: Record<string, string> = {};
+    const expectedValues: Array<string> = [];
+    for (let i = 0; i < 100; i++) {
+      hash[i.toString()] = `value${i}`;
+      expectedValues.push(`value${i}`);
+    }
+
+    await client.hSet('key', hash);
+
+    const actualValues: Array<string> = [];
+    for await (const values of client.hScanValuesIterator('key')) {
+      for (const value of values) {
+        actualValues.push(value);
+      }
+    }
+
+    function sort(a: string, b: string) {
+      return Number(a.slice('value'.length)) - Number(b.slice('value'.length));
+    }
+
+    assert.deepEqual(actualValues.sort(sort), expectedValues);
+  }, GLOBAL.SERVERS.OPEN);
 
   testUtils.testWithClient('sScanIterator', async client => {
     const members = new Set<string>();
@@ -923,6 +1123,18 @@ describe('Client', () => {
       const subscriber = await publisher.duplicate().connect();
 
       try {
+        // The forced reconnect below can emit `error` more than once
+        // (e.g. SocketClosedUnexpectedlyError followed by a transient
+        // ECONNREFUSED while the server tears the connection down). A
+        // permanent listener swallows the extras so they never surface as
+        // uncaught; a one-shot promise gate lets us still await the first
+        // error deterministically.
+        let resolveFirstError!: () => void;
+        const firstError = new Promise<void>(resolve => {
+          resolveFirstError = resolve;
+        });
+        subscriber.on('error', () => resolveFirstError());
+
         const channelListener = spy();
         await subscriber.subscribe('channel', channelListener);
 
@@ -930,7 +1142,7 @@ describe('Client', () => {
         await subscriber.pSubscribe('channe*', patternListener);
 
         await Promise.all([
-          once(subscriber, 'error'),
+          firstError,
           publisher.clientKill({
             filter: 'SKIPME',
             skipMe: true
@@ -973,14 +1185,108 @@ describe('Client', () => {
 
       assert.equal(client.isOpen, false);
     }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClientIfVersionWithinRange([[8, 8], 'LATEST'],
+      'should receive hash field subkey notifications',
+      async client => {
+        const subscriber = await client.duplicate().connect();
+        try {
+          const previousNotifyConfig =
+            (await client.configGet('notify-keyspace-events'))['notify-keyspace-events'];
+          await client.configSet('notify-keyspace-events', 'STIVh');
+
+          try {
+            const HASH_KEY = 'skn:hash';
+            const FIELD = 'field-alpha';
+            const HEXPIRE_CHANNEL = '__subkeyevent@0__:hexpire';
+            const EXPIRED_CHANNEL = '__subkeyevent@0__:hexpired';
+            const SUBKEYSPACEITEM_CHANNEL = `__subkeyspaceitem@0__:${HASH_KEY}\n${FIELD}`;
+            const SUBKEYSPACEEVENT_HEXPIRE_CHANNEL = `__subkeyspaceevent@0__:hexpire|${HASH_KEY}`;
+            const SUBKEYSPACEEVENT_EXPIRED_CHANNEL = `__subkeyspaceevent@0__:hexpired|${HASH_KEY}`;
+            const SUBKEYEVENT_PAYLOAD = '8:skn:hash|11:field-alpha';
+            const SUBKEYSPACEEVENT_PAYLOAD = '11:field-alpha';
+
+            await client.del(HASH_KEY);
+
+            const expected = new Map<string, Set<string>>([
+              [HEXPIRE_CHANNEL, new Set([SUBKEYEVENT_PAYLOAD])],
+              [EXPIRED_CHANNEL, new Set([SUBKEYEVENT_PAYLOAD])],
+              [SUBKEYSPACEITEM_CHANNEL, new Set(['hexpire', 'hexpired'])],
+              [SUBKEYSPACEEVENT_HEXPIRE_CHANNEL, new Set([SUBKEYSPACEEVENT_PAYLOAD])],
+              [SUBKEYSPACEEVENT_EXPIRED_CHANNEL, new Set([SUBKEYSPACEEVENT_PAYLOAD])]
+            ]);
+            const received = new Map<string, Set<string>>();
+            let totalExpected = 0;
+            expected.forEach(s => totalExpected += s.size);
+            let totalReceived = 0;
+
+            let resolveAll!: () => void;
+            let rejectAll!: (err: Error) => void;
+            const allReceived = new Promise<void>((resolve, reject) => {
+              resolveAll = resolve;
+              rejectAll = reject;
+            });
+            const timer = setTimeout(
+              () => rejectAll(new Error('Timed out waiting for hash subkey notifications')),
+              10_000
+            );
+
+            const listener = (message: string, channel: string) => {
+              const expectedForChannel = expected.get(channel);
+              if (!expectedForChannel || !expectedForChannel.has(message)) return;
+              let bucket = received.get(channel);
+              if (!bucket) {
+                bucket = new Set();
+                received.set(channel, bucket);
+              }
+              if (bucket.has(message)) return;
+              bucket.add(message);
+              totalReceived++;
+              if (totalReceived === totalExpected) {
+                clearTimeout(timer);
+                resolveAll();
+              }
+            };
+
+            await Promise.all([
+              subscriber.subscribe(HEXPIRE_CHANNEL, listener),
+              subscriber.subscribe(EXPIRED_CHANNEL, listener),
+              subscriber.subscribe(SUBKEYSPACEITEM_CHANNEL, listener),
+              subscriber.subscribe(SUBKEYSPACEEVENT_HEXPIRE_CHANNEL, listener),
+              subscriber.subscribe(SUBKEYSPACEEVENT_EXPIRED_CHANNEL, listener)
+            ]);
+
+            await client.hSet(HASH_KEY, FIELD, 'value');
+            assert.deepEqual(
+              await client.hpExpire(HASH_KEY, [FIELD], 50),
+              [HASH_EXPIRATION.UPDATED]
+            );
+
+            await allReceived;
+
+            for (const [channel, payloads] of expected) {
+              assert.deepEqual(received.get(channel), payloads, `mismatch on ${channel}`);
+            }
+          } finally {
+            await client.configSet('notify-keyspace-events', previousNotifyConfig);
+          }
+        } finally {
+          subscriber.destroy();
+        }
+      }, GLOBAL.SERVERS.OPEN);
   });
 
   testUtils.testWithClient('ConnectionTimeoutError', async client => {
     const promise = assert.rejects(client.connect(), ConnectionTimeoutError),
       start = process.hrtime.bigint();
 
-    while (process.hrtime.bigint() - start < 1_000_000) {
-      // block the event loop for 1ms, to make sure the connection will timeout
+    // Block the event loop for well over `connectTimeout` so the underlying
+    // socket's idle timer is guaranteed to have expired by the time the
+    // event loop runs again. With a 1ms block and a 1ms timeout the two race
+    // and on a fast host the TCP `connect` event can be processed before the
+    // timeout callback, leaving the test with a successful connection.
+    while (process.hrtime.bigint() - start < 50_000_000) {
+      // block the event loop for 50ms, to make sure the connection will timeout
     }
 
     await promise;
@@ -1130,6 +1436,38 @@ describe('Client', () => {
     }, GLOBAL.SERVERS.OPEN);
   });
 
+  describe('withCommandOptions / withTypeMapping dispatch', () => {
+    testUtils.testWithClient('withTypeMapping override reaches raw sendCommand', async client => {
+      // Regression for `client/index.ts:1253` (`this._self._commandOptions` →
+      // `this._commandOptions`): without this fix, the proxy's `withTypeMapping`
+      // override was silently ignored at `sendCommand` dispatch.
+      const typed = client.withTypeMapping({
+        [RESP_TYPES.SIMPLE_STRING]: Buffer
+      });
+      const resp = await typed.sendCommand(['PING']);
+      assert.deepEqual(resp, Buffer.from('PONG'));
+    }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('withTypeMapping override reaches typed commands', async client => {
+      const typed = client.withTypeMapping({
+        [RESP_TYPES.SIMPLE_STRING]: Buffer
+      });
+      const resp = await typed.ping();
+      assert.deepEqual(resp, Buffer.from('PONG'));
+    }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('withCommandOptions full override reaches typed commands', async client => {
+      // The `withCommandOptions` (full replace) path went through the same
+      // proxy-dispatch fix; covered separately from `withTypeMapping` because
+      // the two helpers store overrides differently on the proxy.
+      const proxy = client.withCommandOptions({
+        typeMapping: { [RESP_TYPES.SIMPLE_STRING]: Buffer }
+      });
+      const resp = await proxy.ping();
+      assert.deepEqual(resp, Buffer.from('PONG'));
+    }, GLOBAL.SERVERS.OPEN);
+  });
+
   describe("socket errors during handshake", () => {
 
     it("should successfully connect when server accepts connection immediately", async () => {
@@ -1142,6 +1480,14 @@ describe('Client', () => {
     it("should reconnect after multiple connection drops during handshake", async () => {
       const { log, client, teardown } = await setup({}, 2);
       await client.connect();
+
+      // Some environments emit duplicate consecutive `error` events per dropped
+      // socket during handshake. Normalize those duplicates before asserting
+      // the reconnect sequence.
+      const normalized = log.filter((event, index) => {
+        return !(event === "error" && log[index - 1] === "error");
+      });
+
       assert.deepEqual(
         [
           "connect",
@@ -1153,7 +1499,7 @@ describe('Client', () => {
           "connect",
           "ready",
         ],
-        log,
+        normalized,
       );
       teardown();
     });
@@ -1196,17 +1542,34 @@ describe('Client', () => {
       return log;
     }
 
-    // Create a TCP server that accepts connections but immediately drops them <dropImmediately> times
-    // This simulates what happens when Docker container is stopped:
-    // - TCP connection succeeds (OS accepts it)
-    // - But socket is immediately destroyed, causing ECONNRESET during handshake
-    function setupMockServer(dropImmediately: number) {
-      const server = net.createServer(async (socket) => {
-        if (dropImmediately > 0) {
-          dropImmediately--;
-          socket.destroy();
+    function countRespCommands(chunk: Buffer): number {
+      let commands = 0;
+
+      for (let i = 0; i < chunk.length; i++) {
+        if (chunk[i] === 42 && (i === 0 || chunk[i - 1] === 10)) {
+          commands++;
         }
-        socket.write("+OK\r\n+OK\r\n");
+      }
+
+      return commands;
+    }
+
+    // Create a TCP server that accepts connections but immediately drops them <dropImmediately> times.
+    // For accepted connections, reply with one `+OK` per incoming RESP command.
+    function setupMockServer(dropImmediately: number) {
+      const server = net.createServer((socket) => {
+        socket.on("data", (chunk: Buffer) => {
+          if (dropImmediately > 0) {
+            dropImmediately--;
+            socket.destroy();
+            return;
+          }
+
+          const commands = countRespCommands(chunk);
+          if (commands > 0) {
+            socket.write("+OK\r\n".repeat(commands));
+          }
+        });
       });
       return server;
     }
@@ -1219,7 +1582,7 @@ describe('Client', () => {
  * This blocks setImmediate callbacks from executing
  */
 async function blockSetImmediate(fn: () => Promise<unknown>) {
-  let setImmediateStub: any;
+  let setImmediateStub: ReturnType<typeof stub> | undefined;
 
   try {
     setImmediateStub = stub(global, 'setImmediate');

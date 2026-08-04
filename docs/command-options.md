@@ -73,6 +73,8 @@ try {
 
 This option is similar to the Abort Signal one, but provides an easier way to set timeout for commands. Again, this applies to commands that haven't been written to the socket yet.
 
+Since v6, `commandOptions.timeout` defaults to `5000` (5 seconds). Set it to `undefined` (or `0`) to disable.
+
 ```javascript
 const client = createClient({
   commandOptions: {

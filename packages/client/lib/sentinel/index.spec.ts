@@ -2,11 +2,12 @@ import { strict as assert } from 'node:assert';
 import { setTimeout } from 'node:timers/promises';
 import testUtils, { GLOBAL, MATH_FUNCTION } from '../test-utils';
 import { RESP_TYPES } from '../RESP/decoder';
-import { WatchError } from "../errors";
+import { ScanIteratorInterruptedError, WatchError } from "../errors";
 import { RedisSentinelConfig, SentinelFramework } from "./test-util";
 import { RedisSentinelEvent, RedisSentinelType, RedisSentinelClientType, RedisNode } from "./types";
 import RedisSentinel from "./index";
-import { RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping, NumberReply } from '../RESP/types';
+import { mergeSentinelNodes } from "./utils";
+import { RedisArgument, RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
 import { promisify } from 'node:util';
 import { exec } from 'node:child_process';
 import { BasicPooledClientSideCache } from '../client/cache'
@@ -14,20 +15,207 @@ import { once } from 'node:events'
 const execAsync = promisify(exec);
 
 describe('RedisSentinel', () => {
+  describe('default commandOptions', () => {
+    it('applies the 5s default timeout when no commandOptions are passed', () => {
+      const sentinel = RedisSentinel.create({
+        name: 'mymaster',
+        sentinelRootNodes: [{ host: 'localhost', port: 26379 }]
+      });
+      assert.equal(sentinel.commandOptions?.timeout, 5000);
+    });
+
+    it('merges the default timeout with a partial commandOptions override', () => {
+      const sentinel = RedisSentinel.create({
+        name: 'mymaster',
+        sentinelRootNodes: [{ host: 'localhost', port: 26379 }],
+        commandOptions: { asap: true }
+      });
+      assert.equal(sentinel.commandOptions?.timeout, 5000);
+      assert.equal(sentinel.commandOptions?.asap, true);
+    });
+
+    it('allows opting out of the default timeout with `timeout: undefined`', () => {
+      const sentinel = RedisSentinel.create({
+        name: 'mymaster',
+        sentinelRootNodes: [{ host: 'localhost', port: 26379 }],
+        commandOptions: { timeout: undefined }
+      });
+      assert.equal(sentinel.commandOptions?.timeout, undefined);
+    });
+  });
+
+  it('exposes top-level commandOptions via the commandOptions getter', () => {
+    // Regression: commandOptions used to be settable on both top-level and
+    // `nodeClientOptions`/`sentinelClientOptions`; the nested location was
+    // silently ignored at dispatch time. Top-level is now the only place.
+    const typeMapping = {};
+    const sentinel = RedisSentinel.create({
+      name: 'mymaster',
+      sentinelRootNodes: [{ host: 'localhost', port: 26379 }],
+      commandOptions: { typeMapping }
+    });
+    assert.equal(sentinel.commandOptions?.typeMapping, typeMapping);
+  });
+
+  it('withTypeMapping does not mutate the source sentinel commandOptions', () => {
+    // Regression: `_commandOptionsProxy` used to assign to `proxy._self.#commandOptions`,
+    // which (because `_self` resolves to the original sentinel) corrupted shared state —
+    // the original instance and every other proxy observed the typeMapping change.
+    const initialTypeMapping = { [RESP_TYPES.SIMPLE_STRING]: Buffer };
+    const sentinel = RedisSentinel.create({
+      name: 'mymaster',
+      sentinelRootNodes: [{ host: 'localhost', port: 26379 }],
+      commandOptions: { typeMapping: initialTypeMapping }
+    });
+    sentinel.withTypeMapping({ [RESP_TYPES.SIMPLE_STRING]: String });
+    assert.equal(sentinel.commandOptions?.typeMapping, initialTypeMapping);
+  });
+
+  it('withCommandOptions proxy overrides reach the commandOptions getter', () => {
+    // Regression: `withCommandOptions(...)` returned a proxy with an own
+    // `_commandOptions` property, but the getter and every dispatch path read
+    // only the constructor-set `#commandOptions`, so the override was a no-op.
+    const baseTypeMapping = {};
+    const overrideTimeout = 12345;
+    const sentinel = RedisSentinel.create({
+      name: 'mymaster',
+      sentinelRootNodes: [{ host: 'localhost', port: 26379 }],
+      commandOptions: { typeMapping: baseTypeMapping }
+    });
+    const proxy = sentinel.withCommandOptions({ timeout: overrideTimeout });
+    assert.equal(proxy.commandOptions?.typeMapping, baseTypeMapping);
+    assert.equal(proxy.commandOptions?.timeout, overrideTimeout);
+  });
+
+  it('chained withCommandOptions(...).withTypeMapping(...) preserves earlier overrides', () => {
+    // Regression: `_commandOptionsProxy` used to layer over `this._self.#commandOptions`
+    // (the constructor base) instead of `this.commandOptions` (the effective options),
+    // so any prior `withCommandOptions` override was silently dropped on the second call.
+    const sentinel = RedisSentinel.create({
+      name: 'mymaster',
+      sentinelRootNodes: [{ host: 'localhost', port: 26379 }]
+    });
+    const overrideTypeMapping = { [RESP_TYPES.SIMPLE_STRING]: Buffer };
+    const proxy = sentinel
+      .withCommandOptions({ asap: true })
+      .withTypeMapping(overrideTypeMapping);
+    assert.equal(proxy.commandOptions?.asap, true);
+    assert.equal(proxy.commandOptions?.typeMapping, overrideTypeMapping);
+  });
+
+  it('chained withTypeMapping(...).withTypeMapping(...) keeps the latest override', () => {
+    // Sanity: `_commandOptionsProxy` builds from the prior effective options, so a
+    // later `withTypeMapping` should still win for the same key.
+    const initial = { [RESP_TYPES.SIMPLE_STRING]: Buffer };
+    const sentinel = RedisSentinel.create({
+      name: 'mymaster',
+      sentinelRootNodes: [{ host: 'localhost', port: 26379 }],
+      commandOptions: { typeMapping: initial }
+    });
+    const second = { [RESP_TYPES.SIMPLE_STRING]: String };
+    const proxy = sentinel
+      .withTypeMapping({ [RESP_TYPES.SIMPLE_STRING]: Buffer })
+      .withTypeMapping(second);
+    assert.equal(proxy.commandOptions?.typeMapping, second);
+  });
+
+  it('duplicate() on a withCommandOptions proxy carries the override into the new sentinel', () => {
+    // Regression: `duplicate()` used to read `this._self.#commandOptions` directly,
+    // so any proxy override created via `withCommandOptions(...)` was dropped.
+    const overrideTimeout = 99999;
+    const sentinel = RedisSentinel.create({
+      name: 'mymaster',
+      sentinelRootNodes: [{ host: 'localhost', port: 26379 }]
+    });
+    const proxy = sentinel.withCommandOptions({ timeout: overrideTimeout });
+    const duplicated = proxy.duplicate();
+    assert.equal(duplicated.commandOptions?.timeout, overrideTimeout);
+  });
+
+  describe('mergeSentinelNodes (issue #3237)', () => {
+    // Regression: transform() used to replace sentinelRootNodes with the
+    // discovered list alone, dropping hostname-based seeds. After a full outage
+    // where sentinels restart with new IPs, the client then had no resolvable
+    // address left to reconnect to. mergeSentinelNodes keeps the configured
+    // hostname seeds available alongside discovered nodes.
+
+    it('keeps hostname seeds when sentinel reports only new IPs', () => {
+      const seeds = [
+        { host: 'redis-sentinel-0.svc.local', port: 26379 },
+        { host: 'redis-sentinel-1.svc.local', port: 26380 },
+      ];
+      const discovered = [
+        { host: '10.0.0.1', port: 26379 },
+        { host: '10.0.0.2', port: 26380 },
+      ];
+
+      const merged = mergeSentinelNodes(seeds, discovered);
+
+      assert.deepEqual(merged, [...seeds, ...discovered]);
+    });
+
+    it('places seeds first, then appends discovered nodes', () => {
+      const seeds = [{ host: 'seed.local', port: 26379 }];
+      const discovered = [
+        { host: '10.0.0.1', port: 26379 },
+        { host: '10.0.0.2', port: 26380 },
+      ];
+
+      const merged = mergeSentinelNodes(seeds, discovered);
+
+      assert.equal(merged[0].host, 'seed.local');
+      assert.deepEqual(merged.slice(1), discovered);
+    });
+
+    it('dedupes by host:port across seeds and discovered nodes', () => {
+      const seeds = [{ host: '10.0.0.1', port: 26379 }];
+      const discovered = [
+        { host: '10.0.0.1', port: 26379 }, // duplicate of seed
+        { host: '10.0.0.2', port: 26380 },
+      ];
+
+      const merged = mergeSentinelNodes(seeds, discovered);
+
+      assert.equal(merged.length, 2);
+      assert.deepEqual(merged, [
+        { host: '10.0.0.1', port: 26379 },
+        { host: '10.0.0.2', port: 26380 },
+      ]);
+    });
+
+    it('treats same host with different ports as distinct nodes', () => {
+      const seeds = [{ host: '10.0.0.1', port: 26379 }];
+      const discovered = [{ host: '10.0.0.1', port: 26380 }];
+
+      const merged = mergeSentinelNodes(seeds, discovered);
+
+      assert.equal(merged.length, 2);
+    });
+
+    it('returns just the seeds when nothing is discovered', () => {
+      const seeds = [
+        { host: 'seed-0.local', port: 26379 },
+        { host: 'seed-1.local', port: 26380 },
+      ];
+
+      assert.deepEqual(mergeSentinelNodes(seeds, []), seeds);
+    });
+  });
+
   it('should not have HOTKEYS commands (requires session affinity)', () => {
     // HOTKEYS commands require session affinity and are only available on standalone clients
     const sentinel = RedisSentinel.create({
       name: 'mymaster',
       sentinelRootNodes: [{ host: 'localhost', port: 26379 }]
     });
-    assert.equal((sentinel as any).hotkeysStart, undefined);
-    assert.equal((sentinel as any).hotkeysStop, undefined);
-    assert.equal((sentinel as any).hotkeysGet, undefined);
-    assert.equal((sentinel as any).hotkeysReset, undefined);
-    assert.equal((sentinel as any).HOTKEYS_START, undefined);
-    assert.equal((sentinel as any).HOTKEYS_STOP, undefined);
-    assert.equal((sentinel as any).HOTKEYS_GET, undefined);
-    assert.equal((sentinel as any).HOTKEYS_RESET, undefined);
+    assert.equal((sentinel as unknown as Record<string, unknown>).hotkeysStart, undefined);
+    assert.equal((sentinel as unknown as Record<string, unknown>).hotkeysStop, undefined);
+    assert.equal((sentinel as unknown as Record<string, unknown>).hotkeysGet, undefined);
+    assert.equal((sentinel as unknown as Record<string, unknown>).hotkeysReset, undefined);
+    assert.equal((sentinel as unknown as Record<string, unknown>).HOTKEYS_START, undefined);
+    assert.equal((sentinel as unknown as Record<string, unknown>).HOTKEYS_STOP, undefined);
+    assert.equal((sentinel as unknown as Record<string, unknown>).HOTKEYS_GET, undefined);
+    assert.equal((sentinel as unknown as Record<string, unknown>).HOTKEYS_RESET, undefined);
   });
 
   describe('initialization', () => {
@@ -51,13 +239,12 @@ describe('RedisSentinel', () => {
         );
       });
 
-      it('should throw error when clientSideCache is enabled with RESP undefined', () => {
-        assert.throws(
-          () => RedisSentinel.create({
+      it('should not throw when clientSideCache is enabled with RESP undefined', () => {
+        assert.doesNotThrow(() =>
+          RedisSentinel.create({
             ...options,
             clientSideCache: clientSideCacheConfig,
-          }),
-          new Error('Client Side Caching is only supported with RESP3')
+          })
         );
       });
 
@@ -157,6 +344,62 @@ describe('RedisSentinel', () => {
       assert.deepEqual(resp, Buffer.from('PONG'));
     }, testOptions);
 
+    testUtils.testWithClientSentinel('withTypeMapping override flows through use() to the leased client', async sentinel => {
+      // Regression: `use()` used to pass `this._self.#commandOptions` (constructor base)
+      // to `RedisSentinelClient.create`, so any `withTypeMapping`/`withCommandOptions`
+      // proxy override was dropped before the leased client ever saw it.
+      const typeMapped = sentinel.withTypeMapping({
+        [RESP_TYPES.SIMPLE_STRING]: Buffer
+      });
+
+      await typeMapped.use(async client => {
+        const resp = await client.ping();
+        assert.deepEqual(resp, Buffer.from('PONG'));
+      });
+    }, testOptions);
+
+    testUtils.testWithClientSentinel('withTypeMapping override flows through acquire() to the leased client', async sentinel => {
+      // Regression: same as above, but for `acquire()` which returns the leased
+      // client to the caller instead of passing it to a callback.
+      const typeMapped = sentinel.withTypeMapping({
+        [RESP_TYPES.SIMPLE_STRING]: Buffer
+      });
+
+      const client = await typeMapped.acquire();
+      try {
+        const resp = await client.ping();
+        assert.deepEqual(resp, Buffer.from('PONG'));
+      } finally {
+        client.release();
+      }
+    }, testOptions);
+
+    testUtils.testWithClientSentinel('RedisSentinelClient.withTypeMapping override reaches dispatch', async sentinel => {
+      // T2 / parity: every other proxy-options regression test hits top-level
+      // `RedisSentinel`. The same getter/merge/dispatch fixes live on
+      // `RedisSentinelClient` and need direct coverage.
+      await sentinel.use(async client => {
+        const typeMapped = client.withTypeMapping({
+          [RESP_TYPES.SIMPLE_STRING]: Buffer
+        });
+        const resp = await typeMapped.ping();
+        assert.deepEqual(resp, Buffer.from('PONG'));
+      });
+    }, testOptions);
+
+    testUtils.testWithClientSentinel('RedisSentinelClient chained withCommandOptions(...).withTypeMapping(...) preserves earlier overrides', async sentinel => {
+      // B2 parity: the leased client's `_commandOptionsProxy` had the same
+      // chained-override bug as the top-level sentinel.
+      await sentinel.use(async client => {
+        const proxy = client
+          .withCommandOptions({ asap: true })
+          .withTypeMapping({ [RESP_TYPES.SIMPLE_STRING]: Buffer });
+        assert.equal(proxy.commandOptions?.asap, true);
+        const resp = await proxy.ping();
+        assert.deepEqual(resp, Buffer.from('PONG'));
+      });
+    }, testOptions);
+
     testUtils.testWithClientSentinel('many readers', async sentinel => {
       await sentinel.set("x", 1);
       for (let i = 0; i < 10; i++) {
@@ -180,7 +423,7 @@ describe('RedisSentinel', () => {
 
     testUtils.testWithClientSentinel('use', async sentinel => {
       await sentinel.use(
-        async (client: any ) => {
+        async client => {
           await assert.doesNotReject(client.get('x'));
         }
       );
@@ -251,7 +494,7 @@ describe('RedisSentinel', () => {
       let tester = false;
       await sentinel.sSubscribe('test', () => {
         tester = true;
-        pubSubResolve && pubSubResolve(1);
+        if (pubSubResolve) pubSubResolve(1);
       })
 
       await sentinel.sPublish('test', 'hello world');
@@ -285,8 +528,8 @@ describe(`test with scripts`, () => {
   }, GLOBAL.SENTINEL.WITH_SCRIPT);
 
   testUtils.testWithClientSentinel('use with script', async sentinel => {
-    const reply = await sentinel.use(
-      async (client: any) => {
+    await sentinel.use(
+      async client => {
         assert.equal(await client.set('key', '2'), 'OK');
         assert.equal(await client.get('key'), '2');
         return client.square('key')
@@ -325,7 +568,7 @@ describe(`test with functions`, () => {
     );
 
     const reply = await sentinel.use(
-      async (client: any) => {
+      async client => {
         await client.set('key', '2');
         return client.math.square('key');
       }
@@ -348,7 +591,7 @@ describe(`test with modules`, () => {
 
   testUtils.testWithClientSentinel('use with module', async sentinel => {
     const reply = await sentinel.use(
-      async (client: any) => {
+      async client => {
         return client.bf.add('key', 'item');
       }
     );
@@ -371,7 +614,7 @@ describe(`test with replica pool size 1`, () => {
         assert.equal(await sentinel.get("x"), '456');
         matched = true;
         break;
-      } catch (err) {
+      } catch {
         await setTimeout(1000);
       }
     }
@@ -437,7 +680,7 @@ describe(`test with masterPoolSize 2`, () => {
   }, GLOBAL.SENTINEL.WITH_MASTER_POOL_SIZE_2);
 
   testUtils.testWithClientSentinel('use - watch - clean', async sentinel => {
-    let promise = sentinel.use(async (client) => {
+    const promise = sentinel.use(async (client) => {
       await client.set("x", 1);
       await client.watch("x");
       return client.multi().get("x").exec();
@@ -447,7 +690,7 @@ describe(`test with masterPoolSize 2`, () => {
   }, GLOBAL.SENTINEL.WITH_MASTER_POOL_SIZE_2);
 
   testUtils.testWithClientSentinel('use - watch - dirty', async sentinel => {
-    let promise = sentinel.use(async (client) => {
+    const promise = sentinel.use(async (client) => {
       await client.set('x', 1);
       await client.watch('x');
       await sentinel!.set('x', 2);
@@ -494,10 +737,9 @@ async function steadyState(frame: SentinelFramework) {
       }
     }
   }
-  let nodeResolve, nodeReject;
-  const nodePromise = new Promise((res, rej) => {
+  let nodeResolve;
+  const nodePromise = new Promise(res => {
     nodeResolve = res;
-    nodeReject = rej;
   })
   const seenNodes = new Set<number>();
   let sentinel: RedisSentinelType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping> | undefined;
@@ -511,7 +753,7 @@ async function steadyState(frame: SentinelFramework) {
             nodeResolve();
           }
         }
-      }).on('error', err => { });
+      }).on('error', () => { });
     sentinel.setTracer(tracer);
     await sentinel.connect();
     await nodePromise;
@@ -527,7 +769,7 @@ async function steadyState(frame: SentinelFramework) {
 describe('legacy tests', () => {
   const config: RedisSentinelConfig = { sentinelName: "test", numberOfNodes: 3, password: undefined };
   const frame = new SentinelFramework(config);
-  let tracer = new Array<string>();
+  const tracer = new Array<string>();
   let stopMeasuringBlocking = false;
   let longestDelta = 0;
   let longestTestDelta = 0;
@@ -588,13 +830,13 @@ describe('legacy tests', () => {
         console.log(`sentinel sentinels:\n${JSON.stringify(results[0], undefined, '\t')}`);
         console.log(`sentinel master:\n${JSON.stringify(results[1], undefined, '\t')}`);
         console.log(`sentinel replicas:\n${JSON.stringify(results[2], undefined, '\t')}`);
-        const { stdout, stderr } = await execAsync("docker ps -a");
+        const { stdout } = await execAsync("docker ps -a");
         console.log(`docker stdout:\n${stdout}`);
         const ids = frame.getAllDockerIds();
         console.log("docker logs");
         for (const [id, port] of ids) {
           console.log(`${id}/${port}\n`);
-          const { stdout, stderr } = await execAsync(`docker logs ${id}`, {maxBuffer: 8192 * 8192 * 4});
+          const { stdout } = await execAsync(`docker logs ${id}`, {maxBuffer: 8192 * 8192 * 4});
           console.log(stdout);
         }
       }
@@ -624,6 +866,69 @@ describe('legacy tests', () => {
           await assert.doesNotReject(client.get('x'));
         }
       );
+    });
+
+    // Regression test for https://github.com/redis/node-redis/issues/3066
+    //
+    // When sentinel discovery succeeds but the resolved master is not
+    // reachable (e.g. a TLS misconfiguration, or a firewalled address), the
+    // master clients keep the default `reconnectStrategy` and retry forever,
+    // so their `connect()` promises never settle and `connect()` used to hang
+    // indefinitely with nothing to observe or catch. It should reject once
+    // the connect retry loop gives up.
+    it('connect() rejects instead of hanging when the resolved master is unreachable', async function () {
+      this.timeout(60000);
+
+      const masterPort = await frame.getMasterPort();
+
+      sentinel = frame.getSentinelClient({
+        // Remap only the master to an address nothing listens on, so master
+        // connection attempts fail while sentinel discovery stays healthy,
+        // matching the reported scenario.
+        nodeAddressMap: (address: string) => {
+          const [host, portStr] = address.split(':');
+          if (Number(portStr) === masterPort) {
+            return { host: '127.0.0.1', port: 1 };
+          }
+          return { host, port: Number(portStr) };
+        },
+        // Keep the test fast: give up after two rediscover attempts.
+        maxCommandRediscovers: 2
+      }, false);
+
+      sentinel.on('error', () => { });
+
+      await assert.rejects(sentinel.connect());
+
+      // The failed connect must tear everything down: master clients keep
+      // reconnecting per their `reconnectStrategy` after a failed first
+      // attempt, and must not stay alive in the background once `connect()`
+      // has rejected.
+      assert.strictEqual(sentinel.isOpen, false);
+
+      const lateErrors: Array<unknown> = [];
+      sentinel.on('client-error', (err: unknown) => lateErrors.push(err));
+      await setTimeout(1000);
+      assert.strictEqual(lateErrors.length, 0);
+    });
+
+    // Same regression, reproducing the exact failure mode reported in #3066:
+    // a TLS misconfiguration on the master clients. Connecting with TLS to a
+    // plaintext Redis makes the handshake fail (while sentinel discovery,
+    // which doesn't use `nodeClientOptions`, stays healthy) - no certificate
+    // setup needed.
+    it('connect() rejects when the master is unreachable over TLS', async function () {
+      this.timeout(60000);
+
+      sentinel = frame.getSentinelClient({
+        nodeClientOptions: { socket: { tls: true, rejectUnauthorized: false } },
+        maxCommandRediscovers: 2
+      }, false);
+
+      sentinel.on('error', () => { });
+
+      await assert.rejects(sentinel.connect());
+      assert.strictEqual(sentinel.isOpen, false);
     });
 
     // stops master to force sentinel to update
@@ -1026,10 +1331,11 @@ describe('legacy tests', () => {
           try {
             await timedGet();
             pollResults.push({ phase, status: 'success' });
-          } catch (err: any) {
+          } catch (err) {
+            const message = (err as { message?: string })?.message;
             pollResults.push({
               phase,
-              status: err?.message === '1s Timeout' ? 'timeout' : 'error'
+              status: message === '1s Timeout' ? 'timeout' : 'error'
             });
           }
           await setTimeout(3000);
@@ -1055,6 +1361,61 @@ describe('legacy tests', () => {
         result.phase === 'recovery' && result.status === 'success'
       );
       assert.equal(sawRecoverySuccess, true, 'expected periodic GET to recover after restart');
+    });
+
+    // Regression test for https://github.com/redis/node-redis/issues/3385
+    //
+    // The rediscovery cap previously applied only before the first successful
+    // connect. A later full Sentinel outage left an operation waiting on the
+    // rediscovery loop forever.
+    it('rejects a command after rediscovery reaches its cap following a full outage', async function () {
+      this.timeout(30000);
+
+      sentinel = frame.getSentinelClient({
+        maxCommandRediscovers: 1,
+        commandOptions: { timeout: undefined }
+      });
+      sentinel.on('error', () => { });
+      await sentinel.connect();
+
+      await Promise.all([
+        ...frame.getAllNodesPort().map(port => frame.stopNode(port.toString())),
+        ...frame.getAllSentinelsPort().map(port => frame.stopSentinel(port.toString()))
+      ]);
+
+      const timeoutError = new Error('rediscovery cap was not enforced');
+      const result = await Promise.race([
+        sentinel.get('some-key').then(
+          () => new Error('command unexpectedly resolved'),
+          err => err
+        ),
+        setTimeout(5000).then(() => timeoutError)
+      ]);
+
+      assert.ok(result instanceof Error);
+      assert.notStrictEqual(result, timeoutError);
+      assert.notStrictEqual(result.message, 'command unexpectedly resolved');
+    });
+
+    it('emits an error when background rediscovery reaches its cap', async function () {
+      this.timeout(30000);
+
+      sentinel = frame.getSentinelClient({
+        maxCommandRediscovers: 0,
+        passthroughClientErrorEvents: false
+      });
+      await sentinel.connect();
+
+      const backgroundError = once(sentinel, 'error');
+      await Promise.all(frame.getAllSentinelsPort().map(port => frame.stopSentinel(port.toString())));
+
+      const [err] = await Promise.race([
+        backgroundError,
+        setTimeout(5000).then(() => {
+          throw new Error('background rediscovery did not surface an error');
+        })
+      ]);
+      assert.ok(err instanceof Error);
     });
 
     it('timer works, and updates sentinel list', async function () {
@@ -1091,7 +1452,7 @@ describe('legacy tests', () => {
 
       sentinel = frame.getSentinelClient({ replicaPoolSize: 1 });
       sentinel.setTracer(tracer);
-      sentinel.on('error', err => { });
+      sentinel.on('error', () => { });
       await sentinel.connect();
       tracer.push("connected");
 
@@ -1148,7 +1509,7 @@ describe('legacy tests', () => {
       sentinel = frame.getSentinelClient({ scanInterval: 2000, replicaPoolSize: 1 });
       sentinel.setTracer(tracer);
       // need to handle errors, as the spawning a new docker node can cause existing connections to time out
-      sentinel.on('error', err => { });
+      sentinel.on('error', () => { });
       await sentinel.connect();
       tracer.push("connected");
 
@@ -1206,5 +1567,422 @@ describe('legacy tests', () => {
       assert.equal(csc.stats().missCount, 2);
       assert.equal(csc.stats().hitCount, 6);
     })
+  });
+
+  describe('scanIterator tests', () => {
+    testUtils.testWithClientSentinel('should iterate through all keys in normal operation', async sentinel => {
+      // Set up test data
+      const testKeys = new Set<string>();
+      const entries: Array<string> = [];
+      
+      // Create 50 test keys to ensure we get multiple scan iterations
+      for (let i = 0; i < 50; i++) {
+        const key = `scantest:${i}`;
+        testKeys.add(key);
+        entries.push(key, `value${i}`);
+      }
+
+      // Insert all test data
+      await sentinel.mSet(entries);
+
+      // Collect all keys using scanIterator
+      const foundKeys = new Set<string>();
+      for await (const keyBatch of sentinel.scanIterator({ MATCH: 'scantest:*' })) {
+        for (const key of keyBatch) {
+          foundKeys.add(key);
+        }
+      }
+
+      // Verify all keys were found
+      assert.deepEqual(testKeys, foundKeys);
+    }, GLOBAL.SENTINEL.OPEN);
+
+    testUtils.testWithClientSentinel('should respect MATCH pattern', async sentinel => {
+      // Set up test data with different patterns
+      await sentinel.mSet([
+        'match:1', 'value1',
+        'match:2', 'value2', 
+        'nomatch:1', 'value3',
+        'nomatch:2', 'value4'
+      ]);
+
+      const foundKeys = new Set<string>();
+      for await (const keyBatch of sentinel.scanIterator({ MATCH: 'match:*' })) {
+        for (const key of keyBatch) {
+          foundKeys.add(key);
+        }
+      }
+
+      const expectedKeys = new Set(['match:1', 'match:2']);
+      assert.deepEqual(foundKeys, expectedKeys);
+    }, GLOBAL.SENTINEL.OPEN);
+
+    testUtils.testWithClientSentinel('should not deadlock when consumer runs commands inside the loop with masterPoolSize 1', async sentinel => {
+      const entries: Array<string> = [];
+      for (let i = 0; i < 20; i++) {
+        entries.push(`deadlock:${i}`, `value${i}`);
+      }
+      await sentinel.mSet(entries);
+
+      const collected = new Map<string, string | null>();
+      for await (const keyBatch of sentinel.scanIterator({ MATCH: 'deadlock:*', COUNT: 5 })) {
+        if (keyBatch.length === 0) continue;
+        const values = await sentinel.mGet(keyBatch);
+        keyBatch.forEach((key, i) => collected.set(key, values[i]));
+      }
+
+      assert.equal(collected.size, 20);
+      for (let i = 0; i < 20; i++) {
+        assert.equal(collected.get(`deadlock:${i}`), `value${i}`);
+      }
+    }, GLOBAL.SENTINEL.OPEN);
+
+    testUtils.testWithClientSentinel('should throw ScanIteratorInterruptedError on the next page after MASTER_CHANGE is observed', async sentinel => {
+      const entries: Array<string> = [];
+      for (let i = 0; i < 200; i++) {
+        entries.push(`master-change-mid:${i}`, String(i));
+      }
+      await sentinel.mSet(entries);
+
+      const iter = sentinel.scanIterator({ MATCH: 'master-change-mid:*', COUNT: 10 });
+      // First page: cursor must come back non-zero so the iterator still has
+      // work to do after the synthetic event fires.
+      const firstPage = await iter.next();
+      assert.equal(firstPage.done, false, 'first page must not terminate iteration');
+
+      sentinel.emit('topology-change', {
+        type: 'MASTER_CHANGE',
+        node: { host: 'synthetic', port: 0 }
+      });
+
+      await assert.rejects(iter.next(), ScanIteratorInterruptedError);
+    }, GLOBAL.SENTINEL.OPEN);
+
+    testUtils.testWithClientSentinel('should throw ScanIteratorInterruptedError when MASTER_CHANGE fires during _execute (after pre-check, before scan)', async sentinel => {
+      const entries: Array<string> = [];
+      for (let i = 0; i < 200; i++) {
+        entries.push(`master-change-race:${i}`, String(i));
+      }
+      await sentinel.mSet(entries);
+
+      let executeCalls = 0;
+      const sentinelAny = sentinel as unknown as {
+        _execute: (
+          isReadonly: boolean | undefined,
+          fn: (client: unknown) => Promise<unknown>
+        ) => Promise<unknown>;
+      };
+      const realExecute = sentinelAny._execute.bind(sentinel);
+      sentinelAny._execute = function (isReadonly, fn) {
+        executeCalls++;
+        // On the second SCAN call the iterator already ran its pre-check at the
+        // top of the loop (masterChanged was still false). Fire MASTER_CHANGE
+        // synchronously inside _execute so the listener flips masterChanged
+        // before the lambda passed to _execute is invoked. Without the
+        // in-lambda re-check, scan would proceed against the (now potentially
+        // stale) lease and the failure would be silent.
+        if (executeCalls === 2) {
+          sentinel.emit('topology-change', {
+            type: 'MASTER_CHANGE',
+            node: { host: 'synthetic', port: 0 }
+          });
+        }
+        return realExecute(isReadonly, fn);
+      };
+
+      try {
+        const iter = sentinel.scanIterator({ MATCH: 'master-change-race:*', COUNT: 10 });
+        const firstPage = await iter.next();
+        assert.equal(firstPage.done, false, 'first page must not terminate iteration');
+
+        await assert.rejects(iter.next(), ScanIteratorInterruptedError);
+      } finally {
+        sentinelAny._execute = realExecute;
+      }
+    }, GLOBAL.SENTINEL.OPEN);
+
+    testUtils.testWithClientSentinel(
+      'should terminate when Blob String type mapping returns the cursor as a Buffer',
+      async sentinel => {
+        // Regression: comparing the (Buffer) cursor to the literal string '0'
+        // with !== never becomes false, so the iterator looped forever.
+        await sentinel.mSet([
+          'buffer-cursor:1', '1',
+          'buffer-cursor:2', '2'
+        ]);
+
+        const found = new Set<string>();
+        for await (const keyBatch of sentinel.scanIterator({ MATCH: 'buffer-cursor:*' })) {
+          for (const key of keyBatch) {
+            found.add(key.toString());
+          }
+        }
+
+        assert.deepEqual(found, new Set(['buffer-cursor:1', 'buffer-cursor:2']));
+      },
+      {
+        ...GLOBAL.SENTINEL.OPEN,
+        clientOptions: {
+          commandOptions: {
+            typeMapping: { [RESP_TYPES.BLOB_STRING]: Buffer }
+          }
+        }
+      }
+    );
+
+    testUtils.testWithClientSentinel('should forward a user-supplied cursor to SCAN on the first call', async sentinel => {
+      await sentinel.mSet([
+        'cursor-opt:1', '1',
+        'cursor-opt:2', '2'
+      ]);
+
+      const seenCursors: Array<string> = [];
+      const sentinelAny = sentinel as unknown as {
+        _execute: (
+          isReadonly: boolean | undefined,
+          fn: (client: unknown) => Promise<unknown>
+        ) => Promise<unknown>;
+      };
+      const realExecute = sentinelAny._execute.bind(sentinel);
+      sentinelAny._execute = function (isReadonly, fn) {
+        return realExecute(isReadonly, (client: unknown) => {
+          const wrapped = new Proxy(client as object, {
+            get(target, prop, receiver) {
+              if (prop === 'scan') {
+                return (cursor: RedisArgument, opts: unknown) => {
+                  seenCursors.push(cursor.toString());
+                  return (target as { scan: (c: RedisArgument, o: unknown) => unknown }).scan(cursor, opts);
+                };
+              }
+              return Reflect.get(target, prop, receiver);
+            }
+          });
+          return fn(wrapped);
+        });
+      };
+
+      try {
+        const iter = sentinel.scanIterator({ MATCH: 'cursor-opt:*', cursor: '7' });
+        await iter.next();
+        await iter.return?.(undefined);
+      } finally {
+        sentinelAny._execute = realExecute;
+      }
+
+      assert.equal(seenCursors[0], '7', 'first SCAN call must use the user-supplied cursor');
+    }, GLOBAL.SENTINEL.OPEN);
+
+    testUtils.testWithClientSentinel('should remove the topology-change listener when the consumer breaks early', async sentinel => {
+      await sentinel.mSet([
+        'cleanup:1', '1',
+        'cleanup:2', '2'
+      ]);
+
+      const before = sentinel.listenerCount('topology-change');
+      for await (const _ of sentinel.scanIterator({ MATCH: 'cleanup:*' })) {
+        break;
+      }
+      assert.equal(
+        sentinel.listenerCount('topology-change'),
+        before,
+        'scanIterator must detach its topology-change listener on early break'
+      );
+    }, GLOBAL.SENTINEL.OPEN);
+
+    testUtils.testWithClientSentinel(
+      'should iterate without hanging when reserveClient:true and masterPoolSize:1',
+      async sentinel => {
+        // Regression: connect() consumes the only master lease into the
+        // reserved client, so an acquire() inside scanIterator would block
+        // forever on an empty pool. Routing through _execute reuses the
+        // reserved lease instead.
+        await sentinel.mSet([
+          'reserve-scan:1', '1',
+          'reserve-scan:2', '2'
+        ]);
+
+        const found = new Set<string>();
+        for await (const keyBatch of sentinel.scanIterator({ MATCH: 'reserve-scan:*' })) {
+          for (const key of keyBatch) found.add(key);
+        }
+
+        assert.deepEqual(found, new Set(['reserve-scan:1', 'reserve-scan:2']));
+      },
+      {
+        ...GLOBAL.SENTINEL.OPEN,
+        reserveClient: true,
+        masterPoolSize: 1
+      }
+    );
+  });
+
+  describe('scanIterator with master failover', () => {
+    const config: RedisSentinelConfig = { sentinelName: "test", numberOfNodes: 3, password: undefined };
+    const frame = new SentinelFramework(config);
+    let sentinel: RedisSentinelType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping> | undefined;
+    const tracer: Array<string> = [];
+
+    beforeEach(async function () {
+      this.timeout(60000);
+      await frame.spawnRedisSentinel();
+      await frame.getAllRunning();
+      await steadyState(frame);
+    });
+
+    afterEach(async function () {
+      this.timeout(60000);
+      if (sentinel !== undefined) {
+        sentinel.destroy();
+        sentinel = undefined;
+      }
+      await frame.cleanup();
+    });
+
+    it('should throw when master changes during iteration', async function () {
+      this.timeout(60000);
+
+      sentinel = frame.getSentinelClient({ scanInterval: 1000 });
+      sentinel.setTracer(tracer);
+      sentinel.on("error", () => {});
+      await sentinel.connect();
+
+      const entries: Array<string> = [];
+      for (let i = 0; i < 100; i++) {
+        entries.push(`failovertest:${i}`, `value${i}`);
+      }
+
+      await sentinel.mSet(entries);
+      // Wait for added keys to be replicated
+      await setTimeout(2000);
+
+      let masterChangeDetected = false;
+      let iterationCount = 0;
+      const foundKeys = new Set<string>();
+
+      sentinel.on("topology-change", (event: RedisSentinelEvent) => {
+        if (event.type === "MASTER_CHANGE") {
+          masterChangeDetected = true;
+          tracer.push(`Master change detected during scan: ${event.node.port}`);
+        }
+      });
+
+      const originalMaster = sentinel.getMasterNode();
+      tracer.push(`Original master port: ${originalMaster?.port}`);
+
+      const scanIterator = sentinel.scanIterator({
+        MATCH: "failovertest:*",
+        COUNT: 10,
+      });
+
+      let caught: unknown;
+      try {
+        for await (const keyBatch of scanIterator) {
+          iterationCount++;
+          if (iterationCount === 1) {
+            tracer.push(
+              `Triggering master failover by stopping node ${originalMaster?.port}`
+            );
+            await frame.stopNode(originalMaster!.port.toString());
+            tracer.push(`Master node stopped`);
+          }
+          tracer.push(
+            `Scan iteration ${iterationCount}, got ${keyBatch.length} keys`
+          );
+
+          for (const key of keyBatch) {
+            foundKeys.add(key);
+          }
+        }
+      } catch (error) {
+        caught = error;
+        tracer.push(`Error during scan: ${error}`);
+      }
+
+      // The error may be either ScanIteratorInterruptedError (if the
+      // topology-change event was observed before the next scan call) or a
+      // raw connection-class error (if the dropped socket raced ahead of the
+      // Sentinel down detection — usually gated by down-after-milliseconds).
+      // Both outcomes are valid; what matters is that the iteration does not
+      // silently continue across the failover.
+      assert.ok(
+        caught instanceof Error,
+        `iteration must throw on master failover, got ${caught}`
+      );
+      assert.equal(
+        masterChangeDetected,
+        true,
+        "Master change should have been detected"
+      );
+
+      const newMaster = sentinel.getMasterNode();
+      tracer.push(`New master port: ${newMaster?.port}`);
+      assert.notEqual(
+        originalMaster?.port,
+        newMaster?.port,
+        "Master should have changed"
+      );
+    });
+
+    // This test waits for MASTER_CHANGE to fire before constructing the
+    // iterator, so the iterator never sees a failover in flight — it only
+    // verifies that a scan started after a completed failover talks to the
+    // new master. The in-flight-failover case is covered by the test above.
+    it('should iterate against the new master when failover completes before scan starts', async function () {
+      this.timeout(60000);
+
+      sentinel = frame.getSentinelClient({ scanInterval: 1000 });
+      sentinel.setTracer(tracer);
+      sentinel.on("error", () => { });
+      await sentinel.connect();
+
+      // Set up test data
+      const entries: Array<string> = [];
+      for (let i = 0; i < 30; i++) {
+        entries.push(`startfailover:${i}`, `value${i}`);
+      }
+      await sentinel.mSet(entries);
+
+      // Wait for addded keys to be replicated
+      await setTimeout(2000);
+
+      // Get original master and trigger immediate failover
+      const originalMaster = sentinel.getMasterNode();
+      
+      // Stop master immediately before starting scan
+      await frame.stopNode(originalMaster!.port.toString());
+      
+      let masterChangeDetected = false;
+      let masterChangeResolve: () => void;
+      const masterChangePromise = new Promise<void>((resolve) => {
+        masterChangeResolve = resolve;
+      });
+
+      // Listen for manifest change events
+      sentinel.on('topology-change', (event: RedisSentinelEvent) => {
+        if (event.type === "MASTER_CHANGE") {
+          masterChangeDetected = true;
+          tracer.push(`Master change detected during scan: ${event.node.port}`);
+          if (masterChangeResolve) masterChangeResolve();
+        }
+      });
+
+      await masterChangePromise;
+
+      // Now start scan - should work with new master
+      const foundKeys = new Set<string>();
+      for await (const keyBatch of sentinel.scanIterator({ MATCH: 'startfailover:*' })) {
+        for (const key of keyBatch) {
+          foundKeys.add(key);
+        }
+      }
+
+      assert.equal(masterChangeDetected, true, 'Master change should have been detected');
+      // Should find all keys even though master changed before scan started
+      assert.equal(foundKeys.size, 30);
+      
+      // Verify master actually changed
+      const newMaster = sentinel.getMasterNode();
+      assert.notEqual(originalMaster?.port, newMaster?.port);
+    });
   });
 });

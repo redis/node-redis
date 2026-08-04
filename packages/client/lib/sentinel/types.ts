@@ -1,6 +1,6 @@
 import { RedisClientOptions } from '../client';
 import { CommandOptions } from '../client/commands-queue';
-import { CommandSignature, CommanderConfig, RedisFunctions, RedisModules, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
+import { CommandSignature, CommanderConfig, RedisArgument, RedisFunctions, RedisModules, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
 import { NON_STICKY_COMMANDS } from '../commands';
 import RedisSentinel, { RedisSentinelClient } from '.';
 import { RedisTcpSocketOptions } from '../client/socket';
@@ -15,11 +15,23 @@ export type NodeAddressMap = {
   [address: string]: RedisNode;
 } | ((address: string) => RedisNode | undefined);
 
+/**
+ * Per-node/per-sentinel client options. Excludes sentinel-level options (e.g. `commandOptions`)
+ * which must be set on the top-level sentinel options instead.
+ */
+export type RedisSentinelNodeClientOptions<
+  RESP extends RespVersions = 3,
+  TYPE_MAPPING extends TypeMapping = TypeMapping
+> = Omit<
+  RedisClientOptions<RedisModules, RedisFunctions, RedisScripts, RESP, TYPE_MAPPING, RedisTcpSocketOptions>,
+  keyof SentinelCommander<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>
+>;
+
 export interface RedisSentinelOptions<
   M extends RedisModules = RedisModules,
   F extends RedisFunctions = RedisFunctions,
   S extends RedisScripts = RedisScripts,
-  RESP extends RespVersions = RespVersions,
+  RESP extends RespVersions = 3,
   TYPE_MAPPING extends TypeMapping = TypeMapping
 > extends SentinelCommander<M, F, S, RESP, TYPE_MAPPING> {
   /**
@@ -34,16 +46,18 @@ export interface RedisSentinelOptions<
    * The maximum number of times a command will retry due to topology changes.
    */
   maxCommandRediscovers?: number;
-  // TODO: omit properties that users shouldn't be able to specify for sentinel at this level
   /**
-   * The configuration values for every node in the cluster. Use this for example when specifying an ACL user to connect with
+   * The configuration values for every node in the cluster. Use this for example when specifying an ACL user to connect with.
+   *
+   * Sentinel-level options (e.g. `commandOptions`) cannot be set here — set them on the top-level sentinel options instead.
    */
-  nodeClientOptions?: RedisClientOptions<RedisModules, RedisFunctions, RedisScripts, RESP, TYPE_MAPPING, RedisTcpSocketOptions>;
-  // TODO: omit properties that users shouldn't be able to specify for sentinel at this level
+  nodeClientOptions?: RedisSentinelNodeClientOptions<RESP, TYPE_MAPPING>;
   /**
-   * The configuration values for every sentinel in the cluster. Use this for example when specifying an ACL user to connect with
+   * The configuration values for every sentinel in the cluster. Use this for example when specifying an ACL user to connect with.
+   *
+   * Sentinel-level options (e.g. `commandOptions`) cannot be set here — set them on the top-level sentinel options instead.
    */
-  sentinelClientOptions?: RedisClientOptions<RedisModules, RedisFunctions, RedisScripts, RESP, TYPE_MAPPING, RedisTcpSocketOptions>;
+  sentinelClientOptions?: RedisSentinelNodeClientOptions<RESP, TYPE_MAPPING>;
   /**
    * The number of clients connected to the master node
    */
@@ -123,6 +137,17 @@ export interface SentinelCommander<
   // POLICIES extends CommandPolicies
 > extends CommanderConfig<M, F, S, RESP> {
   commandOptions?: CommandOptions<TYPE_MAPPING>;
+  /**
+   * Prefix prepended to every key sent to Redis (ioredis-compatible `keyPrefix`).
+   *
+   * Applied by the sentinel client itself. It is intentionally a sentinel-level option
+   * (not a per-node `nodeClientOptions` option) so it is applied exactly once.
+   *
+   * Matches ioredis semantics: only keys *sent* to Redis are prefixed. Keys *returned*
+   * by Redis are NOT un-prefixed, `MATCH` patterns are NOT auto-prefixed, and Pub/Sub
+   * channels are NOT prefixed.
+   */
+  keyPrefix?: RedisArgument;
 }
 
 export type RedisSentinelClientOptions = Omit<
@@ -170,7 +195,7 @@ export type RedisSentinelClientType<
   M extends RedisModules = {},
   F extends RedisFunctions = {},
   S extends RedisScripts = {},
-  RESP extends RespVersions = 2,
+  RESP extends RespVersions = 3,
   TYPE_MAPPING extends TypeMapping = {},
 > = (
   RedisSentinelClient<M, F, S, RESP, TYPE_MAPPING> &
@@ -184,7 +209,7 @@ export type RedisSentinelType<
   M extends RedisModules = {},
   F extends RedisFunctions = {},
   S extends RedisScripts = {},
-  RESP extends RespVersions = 2,
+  RESP extends RespVersions = 3,
   TYPE_MAPPING extends TypeMapping = {},
   // POLICIES extends CommandPolicies = {}
 > = (
@@ -199,15 +224,17 @@ export interface SentinelCommandOptions<
   TYPE_MAPPING extends TypeMapping = TypeMapping
 > extends CommandOptions<TYPE_MAPPING> {}
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- variance markers for sentinel generics
 export type ProxySentinel = RedisSentinel<any, any, any, any, any>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- variance markers for sentinel generics
 export type ProxySentinelClient = RedisSentinelClient<any, any, any, any, any>;
 export type NamespaceProxySentinel = { _self: ProxySentinel };
 export type NamespaceProxySentinelClient = { _self: ProxySentinelClient };
 
 export type NodeInfo = {
-  ip: any,
-  port: any,
-  flags: any,
+  ip: string,
+  port: string,
+  flags: string,
 };
 
 export type RedisSentinelEvent = NodeChangeEvent | SizeChangeEvent;
@@ -219,7 +246,7 @@ export type NodeChangeEvent = {
 
 export type SizeChangeEvent = {
   type: "SENTINE_LIST_CHANGE";
-  size: Number;
+  size: number;
 }
 
 export type ClientErrorEvent = {

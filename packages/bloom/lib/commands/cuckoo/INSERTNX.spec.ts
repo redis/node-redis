@@ -17,7 +17,7 @@ describe('CF.INSERTNX', () => {
   testUtils.testWithClient('client.cf.insertnx', async client => {
     assert.deepEqual(
       await client.cf.insertNX('key', 'item'),
-      [true]
+      [1]
     );
   }, GLOBAL.SERVERS.OPEN);
 });

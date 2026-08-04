@@ -9,19 +9,6 @@ export interface MigrateOptions {
 }
 
 export default {
-  IS_READ_ONLY: false,
-  /**
-   * Constructs the MIGRATE command
-   * 
-   * @param parser - The command parser
-   * @param host - Target Redis instance host
-   * @param port - Target Redis instance port
-   * @param key - Key or keys to migrate
-   * @param destinationDb - Target database index
-   * @param timeout - Timeout in milliseconds
-   * @param options - Optional parameters including COPY, REPLACE, and AUTH
-   * @see https://redis.io/commands/migrate/
-   */
   parseCommand(
     parser: CommandParser,
     host: RedisArgument,
@@ -37,7 +24,7 @@ export default {
     if (isKeyArray) {
       parser.push('');
     } else {
-      parser.push(key);
+      parser.pushKey(key);
     }
   
     parser.push(
@@ -70,7 +57,7 @@ export default {
   
     if (isKeyArray) {
       parser.push('KEYS');
-      parser.pushVariadic(key);
+      parser.pushKeys(key);
     }
   },
   transformReply: undefined as unknown as () => SimpleStringReply<'OK'>

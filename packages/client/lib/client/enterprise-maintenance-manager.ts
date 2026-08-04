@@ -1,4 +1,4 @@
-import RedisClient, { RedisClientOptions } from ".";
+import RedisClient, { AnyRedisClientOptions } from ".";
 import RedisCommandsQueue from "./commands-queue";
 import { isIP } from "net";
 import { lookup } from "dns/promises";
@@ -6,8 +6,10 @@ import assert from "node:assert";
 import { setTimeout } from "node:timers/promises";
 import { RedisTcpSocketOptions } from "./socket";
 import diagnostics_channel from "node:diagnostics_channel";
-import { RedisArgument } from "../RESP/types";
+import { RedisArgument, DEFAULT_RESP } from "../RESP/types";
+import { publish, CHANNELS } from "./tracing";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- variance markers for RedisClient generics
 type RedisType = RedisClient<any, any, any, any, any>;
 
 export const SMIGRATED_EVENT = "__SMIGRATED";
@@ -51,10 +53,10 @@ const PN = {
 export type DiagnosticsEvent = {
   type: string;
   timestamp: number;
-  data?: Object;
+  data?: object;
 };
 
-export const dbgMaintenance = (...args: any[]) => {
+export const dbgMaintenance = (...args: unknown[]) => {
   if (!process.env.REDIS_DEBUG_MAINTENANCE) return;
   return console.log(new Date().toISOString().slice(11, 23), "[MNT]", ...args);
 };
@@ -73,14 +75,14 @@ export interface MaintenanceUpdate {
 
 export default class EnterpriseMaintenanceManager {
   #commandsQueue: RedisCommandsQueue;
-  #options: RedisClientOptions;
+  #options: AnyRedisClientOptions;
   #isMaintenance = 0;
   #client: RedisType;
 
-  static setupDefaultMaintOptions(options: RedisClientOptions) {
+  static setupDefaultMaintOptions(options: AnyRedisClientOptions) {
     if (options.maintNotifications === undefined) {
       options.maintNotifications =
-        options?.RESP === 3 ? "auto" : "disabled";
+        (options?.RESP ?? DEFAULT_RESP) === 3 ? "auto" : "disabled";
     }
     if (options.maintEndpointType === undefined) {
       options.maintEndpointType = "auto";
@@ -94,7 +96,8 @@ export default class EnterpriseMaintenanceManager {
   }
 
   static async getHandshakeCommand(
-    options: RedisClientOptions,
+    options: AnyRedisClientOptions,
+    clientId: string,
   ): Promise<
     | { cmd: Array<RedisArgument>; errorHandler: (error: Error) => void }
     | undefined
@@ -120,9 +123,17 @@ export default class EnterpriseMaintenanceManager {
       ],
       errorHandler: (error: Error) => {
         dbgMaintenance("handshake failed:", error);
+
         if (options.maintNotifications === "enabled") {
+          publish(CHANNELS.ERROR, () => ({
+            error,
+            origin: 'client',
+            internal: true,
+            clientId,
+          }));
           throw error;
         }
+
       },
     };
   }
@@ -130,7 +141,7 @@ export default class EnterpriseMaintenanceManager {
   constructor(
     commandsQueue: RedisCommandsQueue,
     client: RedisType,
-    options: RedisClientOptions,
+    options: AnyRedisClientOptions,
   ) {
     this.#commandsQueue = commandsQueue;
     this.#options = options;
@@ -139,6 +150,7 @@ export default class EnterpriseMaintenanceManager {
     this.#commandsQueue.addPushHandler(this.#onPush);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- heterogeneous push payload
   #onPush = (push: Array<any>): boolean => {
     dbgMaintenance("ONPUSH:", push.map(String));
 
@@ -147,6 +159,11 @@ export default class EnterpriseMaintenanceManager {
     }
 
     const type = String(push[0]);
+
+    publish(CHANNELS.MAINTENANCE, () => ({
+      notification: type,
+      clientId: this.#client._clientId,
+    }));
 
     emitDiagnostics({
       type,
@@ -289,6 +306,7 @@ export default class EnterpriseMaintenanceManager {
     dbgMaintenance("Resume writing");
     this.#client._unpause();
     this.#onMigrated();
+    publish(CHANNELS.CONNECTION_HANDOFF, () => ({ clientId: this.#client._clientId }));
   };
 
   #onMigrating = () => {
@@ -322,6 +340,7 @@ export default class EnterpriseMaintenanceManager {
     this.#client._maintenanceUpdate(update);
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- heterogeneous push payload
   #onSMigrated = (push: any[]) => {
     const smigratedEvent = EnterpriseMaintenanceManager.parseSMigratedPush(push);
     dbgMaintenance(`emit smigratedEvent`, smigratedEvent);
@@ -352,6 +371,7 @@ export default class EnterpriseMaintenanceManager {
    * - Each destination contains the complete list of slots that moved from that source to that destination
    * - Note: The same destination address CAN appear under different sources (e.g., node X receives slots from both A and B)
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- heterogeneous push payload
   static parseSMigratedPush(push: any[]): SMigratedEvent {
     const map = new Map<string, Destination[]>();
 
@@ -448,7 +468,7 @@ function isPrivateIP(ip: string): boolean {
 async function determineEndpoint(
   tlsEnabled: boolean,
   host: string,
-  options: RedisClientOptions,
+  options: AnyRedisClientOptions,
 ): Promise<MovingEndpointType> {
   assert(options.maintEndpointType !== undefined);
   if (options.maintEndpointType !== "auto") {

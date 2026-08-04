@@ -1,6 +1,5 @@
 import { CommandParser } from '../client/parser';
 import { RedisArgument, Command } from '../RESP/types';
-import GEORADIUSBYMEMBER from './GEORADIUSBYMEMBER';
 import { GeoSearchOptions, GeoUnits, parseGeoSearchOptions } from './GEOSEARCH';
 import GEOSEARCH_WITH, { GeoReplyWith } from './GEOSEARCH_WITH';
 
@@ -22,17 +21,6 @@ export function parseGeoRadiusByMemberWithArguments(
 }
 
 export default {
-  IS_READ_ONLY: GEORADIUSBYMEMBER.IS_READ_ONLY,
-  /**
-   * Queries members in a geospatial index based on a radius from a member with additional information
-   * @param parser - The Redis command parser
-   * @param key - Key of the geospatial index
-   * @param from - Member name to use as center point
-   * @param radius - Radius of the search area
-   * @param unit - Unit of distance (m, km, ft, mi)
-   * @param replyWith - Information to include with each returned member
-   * @param options - Additional search options
-   */
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,

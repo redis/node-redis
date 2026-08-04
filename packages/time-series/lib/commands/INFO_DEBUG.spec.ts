@@ -26,7 +26,7 @@ describe('TS.INFO_DEBUG', () => {
         ]);
 
         const infoDebug = await client.ts.infoDebug('key');
-        assertInfo(infoDebug as any);
+        assertInfo(infoDebug as never);
         assert.equal(typeof infoDebug.keySelfName, 'string');
         assert.ok(Array.isArray(infoDebug.chunks));
         for (const chunk of infoDebug.chunks) {
@@ -37,5 +37,28 @@ describe('TS.INFO_DEBUG', () => {
             assert.equal(typeof chunk.size, 'number');
             assert.equal(typeof chunk.bytesPerSample, 'string');
         }
+    }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('client.ts.infoDebug with data', async client => {
+        await Promise.all([
+            client.ts.create('key', {
+                LABELS: { id: '1' },
+                DUPLICATE_POLICY: TIME_SERIES_DUPLICATE_POLICIES.LAST
+            }),
+            client.ts.create('key2'),
+            client.ts.createRule('key', 'key2', TIME_SERIES_AGGREGATION_TYPE.COUNT, 5),
+            client.ts.add('key', 1, 10)
+        ]);
+
+        const infoDebug = await client.ts.infoDebug('key') as never;
+        // RESP3 returns a Map, verify key fields exist with correct types
+        assert.equal(typeof infoDebug.totalSamples, 'number');
+        assert.equal(typeof infoDebug.memoryUsage, 'number');
+        assert.equal(typeof infoDebug.firstTimestamp, 'number');
+        assert.equal(typeof infoDebug.lastTimestamp, 'number');
+        assert.equal(typeof infoDebug.retentionTime, 'number');
+        assert.equal(typeof infoDebug.chunkCount, 'number');
+        assert.equal(typeof infoDebug.keySelfName, 'string');
+        assert.ok(infoDebug.Chunks !== undefined || infoDebug.chunks !== undefined);
     }, GLOBAL.SERVERS.OPEN);
 });

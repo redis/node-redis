@@ -1,8 +1,8 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { Command, ArrayReply, BlobStringReply, Resp2Reply, MapReply, TuplesReply, TypeMapping, RedisArgument } from '@redis/client/dist/lib/RESP/types';
 import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
-import { resp2MapToValue, resp3MapToValue, SampleRawReply, Timestamp, transformSamplesReply } from './helpers';
-import { TsRangeOptions, parseRangeArguments } from './RANGE';
+import { parseExcludeEmptyArgument, resp2MapToValue, resp3MapToValue, SampleRawReply, Timestamp, transformSamplesReply } from './helpers';
+import { TsMRangeOptions, parseRangeArguments } from './RANGE';
 import { parseFilterArgument } from './MGET';
 
 export type TsMRangeRawReply2 = ArrayReply<
@@ -32,7 +32,7 @@ export function createTransformMRangeArguments(command: RedisArgument) {
     fromTimestamp: Timestamp,
     toTimestamp: Timestamp,
     filter: RedisVariadicArgument,
-    options?: TsRangeOptions
+    options?: TsMRangeOptions
   ) => {
     parser.push(command);
     parseRangeArguments(
@@ -41,25 +41,21 @@ export function createTransformMRangeArguments(command: RedisArgument) {
       toTimestamp,
       options
     );
-  
+
+    parseExcludeEmptyArgument(parser, options?.EXCLUDEEMPTY);
+
     parseFilterArgument(parser, filter);
   };
 }
 
 export default {
-  NOT_KEYED_COMMAND: true,
+  // Keyless read: replica-safe, but the metadata-derived isReplicaSafe
+  // returns false for keyless commands, so opt in explicitly (restores the
+  // pre-derivation master behavior).
   IS_READ_ONLY: true,
-  /**
-   * Gets samples for time series matching a specific filter within a time range
-   * @param parser - The command parser
-   * @param fromTimestamp - Start timestamp for range
-   * @param toTimestamp - End timestamp for range
-   * @param filter - Filter to match time series keys
-   * @param options - Optional parameters for the command
-   */
   parseCommand: createTransformMRangeArguments('TS.MRANGE'),
   transformReply: {
-    2(reply: TsMRangeRawReply2, _?: any, typeMapping?: TypeMapping) {
+    2(reply: TsMRangeRawReply2, _?: unknown, typeMapping?: TypeMapping) {
       return resp2MapToValue(reply, ([_key, _labels, samples]) => {
         return transformSamplesReply[2](samples);
       }, typeMapping);

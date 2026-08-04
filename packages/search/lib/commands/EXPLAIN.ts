@@ -9,17 +9,10 @@ export interface FtExplainOptions {
 }
 
 export default {
-  NOT_KEYED_COMMAND: true,
+  // Keyless read: replica-safe, but the metadata-derived isReplicaSafe
+  // returns false for keyless commands, so opt in explicitly (restores the
+  // pre-derivation master behavior).
   IS_READ_ONLY: true,
-  /**
-   * Returns the execution plan for a complex query.
-   * @param parser - The command parser
-   * @param index - Name of the index to explain query against
-   * @param query - The query string to explain
-   * @param options - Optional parameters:
-   *   - PARAMS: Named parameters to use in the query
-   *   - DIALECT: Version of query dialect to use (defaults to 1)
-   */
   parseCommand(
     parser: CommandParser,
     index: RedisArgument,

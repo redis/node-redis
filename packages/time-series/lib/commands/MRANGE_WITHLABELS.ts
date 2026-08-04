@@ -1,8 +1,8 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { Command, UnwrapReply, ArrayReply, BlobStringReply, Resp2Reply, MapReply, TuplesReply, TypeMapping, RedisArgument } from '@redis/client/dist/lib/RESP/types';
 import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
-import { resp2MapToValue, resp3MapToValue, SampleRawReply, Timestamp, transformSamplesReply } from './helpers';
-import { TsRangeOptions, parseRangeArguments } from './RANGE';
+import { parseExcludeEmptyArgument, resp2MapToValue, resp3MapToValue, SampleRawReply, Timestamp, transformSamplesReply } from './helpers';
+import { TsMRangeOptions, parseRangeArguments } from './RANGE';
 import { parseFilterArgument } from './MGET';
 
 export type TsMRangeWithLabelsRawReply2 = ArrayReply<
@@ -35,7 +35,7 @@ export function createTransformMRangeWithLabelsArguments(command: RedisArgument)
     fromTimestamp: Timestamp,
     toTimestamp: Timestamp,
     filter: RedisVariadicArgument,
-    options?: TsRangeOptions
+    options?: TsMRangeOptions
   ) => {
     parser.push(command);
     parseRangeArguments(
@@ -44,31 +44,23 @@ export function createTransformMRangeWithLabelsArguments(command: RedisArgument)
       toTimestamp,
       options
     );
-  
+
+    parseExcludeEmptyArgument(parser, options?.EXCLUDEEMPTY);
+
     parser.push('WITHLABELS');
-  
+
     parseFilterArgument(parser, filter);
   };
 }
 
 export default {
-  NOT_KEYED_COMMAND: true,
-  IS_READ_ONLY: true,
-  /**
-   * Gets samples for time series matching a filter with labels
-   * @param parser - The command parser
-   * @param fromTimestamp - Start timestamp for range
-   * @param toTimestamp - End timestamp for range
-   * @param filter - Filter to match time series keys
-   * @param options - Optional parameters for the command
-   */
   parseCommand: createTransformMRangeWithLabelsArguments('TS.MRANGE'),
   transformReply: {
-    2(reply: TsMRangeWithLabelsRawReply2, _?: any, typeMapping?: TypeMapping) {
+    2(reply: TsMRangeWithLabelsRawReply2, _?: unknown, typeMapping?: TypeMapping) {
       return resp2MapToValue(reply, ([_key, labels, samples]) => {
         const unwrappedLabels = labels as unknown as UnwrapReply<typeof labels>;
         // TODO: use Map type mapping for labels
-        const labelsObject: Record<string, BlobStringReply> = Object.create(null);
+        const labelsObject: Record<string, BlobStringReply> = {};
         for (const tuple of unwrappedLabels) {
           const [key, value] = tuple as unknown as UnwrapReply<typeof tuple>;
           const unwrappedKey = key as unknown as UnwrapReply<typeof key>;

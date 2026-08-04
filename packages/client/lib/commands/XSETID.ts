@@ -8,7 +8,6 @@ export interface XSetIdOptions {
 }
 
 export default {
-  IS_READ_ONLY: false,
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,
@@ -19,7 +18,7 @@ export default {
     parser.pushKey(key);
     parser.push(lastId);
 
-    if (options?.ENTRIESADDED) {
+    if (options?.ENTRIESADDED !== undefined) {
       parser.push('ENTRIESADDED', options.ENTRIESADDED.toString());
     }
 

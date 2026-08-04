@@ -2,13 +2,10 @@ import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument, MapReply, BlobStringReply, ArrayReply, UnwrapReply, Command } from '@redis/client/dist/lib/RESP/types';
 
 export default {
-  NOT_KEYED_COMMAND: true,
+  // Keyless read: replica-safe, but the metadata-derived isReplicaSafe
+  // returns false for keyless commands, so opt in explicitly (restores the
+  // pre-derivation master behavior).
   IS_READ_ONLY: true,
-  /**
-   * Dumps the contents of a synonym group.
-   * @param parser - The command parser
-   * @param index - Name of the index that contains the synonym group
-   */
   parseCommand(parser: CommandParser, index: RedisArgument) {
     parser.push('FT.SYNDUMP', index);
   },

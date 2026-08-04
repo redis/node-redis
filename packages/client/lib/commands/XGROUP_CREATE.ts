@@ -16,18 +16,6 @@ export interface XGroupCreateOptions {
 }
 
 export default {
-  IS_READ_ONLY: false,
-  /**
-   * Constructs the XGROUP CREATE command to create a consumer group for a stream
-   *
-   * @param parser - The command parser
-   * @param key - The stream key
-   * @param group - Name of the consumer group
-   * @param id - ID of the last delivered item in the stream ('$' for last item, '0' for all items)
-   * @param options - Additional options for group creation
-   * @returns 'OK' if successful
-   * @see https://redis.io/commands/xgroup-create/
-   */
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,
@@ -43,7 +31,7 @@ export default {
       parser.push('MKSTREAM');
     }
 
-    if (options?.ENTRIESREAD) {
+    if (options?.ENTRIESREAD !== undefined) {
       parser.push('ENTRIESREAD', options.ENTRIESREAD.toString());
     }
   },

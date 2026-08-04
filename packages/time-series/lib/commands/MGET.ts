@@ -45,14 +45,10 @@ export type MGetRawReply3 = MapReply<
 >;
 
 export default {
-  NOT_KEYED_COMMAND: true,
+  // Keyless read: replica-safe, but the metadata-derived isReplicaSafe
+  // returns false for keyless commands, so opt in explicitly (restores the
+  // pre-derivation master behavior).
   IS_READ_ONLY: true,
-  /**
-   * Gets the last samples matching a specific filter from multiple time series
-   * @param parser - The command parser
-   * @param filter - Filter to match time series keys
-   * @param options - Optional parameters for the command
-   */
   parseCommand(parser: CommandParser, filter: RedisVariadicArgument, options?: TsMGetOptions) {
     parser.push('TS.MGET');
     parseLatestArgument(parser, options?.LATEST);

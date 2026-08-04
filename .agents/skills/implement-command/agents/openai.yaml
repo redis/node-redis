@@ -1,0 +1,4 @@
+interface:
+  display_name: "Implement Command"
+  short_description: "Add a new Redis command to node-redis end-to-end"
+  default_prompt: "Use $implement-command to add a new Redis command to node-redis: write the <NAME>.ts Command file (parseCommand + transformReply), register it with JSDoc in the package commands/index.ts (raw name + camelCase alias), and add a co-located <NAME>.spec.ts with parseArgs and testUtils.testAll tests, then build, run check:command-jsdoc, the spec, and lint."

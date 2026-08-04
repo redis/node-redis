@@ -80,6 +80,20 @@ describe('XADD', () => {
       );
     });
 
+    it('with TRIM.limit 0', () => {
+      assert.deepEqual(
+        parseArgs(XADD, 'key', '*', {
+          field: 'value'
+        }, {
+          TRIM: {
+            threshold: 1000,
+            limit: 0
+          }
+        }),
+        ['XADD', 'key', '1000', 'LIMIT', '0', '*', 'field', 'value']
+      );
+    });
+
     it('with TRIM.policy', () => {
       assert.deepEqual(
         parseArgs(XADD, 'key', '*', {

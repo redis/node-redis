@@ -92,4 +92,23 @@ describe('PROFILE SEARCH', () => {
 
   }, GLOBAL.SERVERS.OPEN);
 
+  testUtils.testWithClientIfVersionWithinRange([[8], 'LATEST'], 'client.ft.profileSearch returns structured response', async client => {
+    await Promise.all([
+      client.ft.create('index', {
+        field: SCHEMA_FIELD_TYPE.NUMERIC
+      }),
+      client.hSet('1', 'field', '1')
+    ]);
+
+    const res = await client.ft.profileSearch('index', '*');
+
+    // Transformed reply has { results, profile }
+    assert.ok(typeof res === 'object' && res !== null);
+    assert.ok(!Array.isArray(res));
+
+    const keys = Object.keys(res as Record<string, unknown>);
+    assert.ok(keys.includes('results'), `Expected 'results' key in response, got keys: ${keys}`);
+    assert.ok(keys.includes('profile'), `Expected 'profile' key in response, got keys: ${keys}`);
+  }, GLOBAL.SERVERS.OPEN);
+
 });

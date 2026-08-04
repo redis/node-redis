@@ -19,7 +19,7 @@ Here, we'll create a new time series "`temperature`":
 ```javascript
 
 import { createClient } from 'redis';
-import { TimeSeriesDuplicatePolicies, TimeSeriesEncoding, TimeSeriesAggregationType } from '@redis/time-series';
+import { TimeSeriesDuplicatePolicies, TimeSeriesEncoding, TIME_SERIES_AGGREGATION_TYPE } from '@redis/time-series';
 
 ...
 const created = await client.ts.create('temperature', {
@@ -82,7 +82,7 @@ const toTimestamp = 1640995260000; // Jan 1 2022 00:01:00
 const rangeResponse = await client.ts.range('temperature', fromTimestamp, toTimestamp, {
   // Group into 10 second averages.
   AGGREGATION: {
-    type: TimeSeriesAggregationType.AVERAGE,
+    type: TIME_SERIES_AGGREGATION_TYPE.AVG,
     timeBucket: 10000
   }
 });
@@ -99,6 +99,31 @@ console.log('RANGE RESPONSE:');
 //   { timestamp: 1640995260000, value: 600 }
 // ]
 ```
+
+For multiple aggregations in one command, use the dedicated `*MultiAggr` methods:
+
+```javascript
+const multiRangeResponse = await client.ts.rangeMultiAggr('temperature', fromTimestamp, toTimestamp, {
+  AGGREGATION: {
+    types: [
+      TIME_SERIES_AGGREGATION_TYPE.MIN,
+      TIME_SERIES_AGGREGATION_TYPE.MAX,
+      TIME_SERIES_AGGREGATION_TYPE.AVG
+    ],
+    timeBucket: 10000
+  }
+});
+
+// multiRangeResponse looks like:
+// [
+//   { timestamp: 1640995200000, values: [120, 580, 356.8] },
+//   ...
+// ]
+```
+
+Equivalent multi-aggregation helpers are also available for reverse and multi-key variants:
+`revRangeMultiAggr`, `mRangeMultiAggr`, `mRevRangeMultiAggr`, `mRangeWithLabelsMultiAggr`,
+`mRevRangeWithLabelsMultiAggr`, `mRangeSelectedLabelsMultiAggr`, and `mRevRangeSelectedLabelsMultiAggr`.
 
 ### Altering Time Series data Stored in Redis
 
@@ -140,4 +165,3 @@ const tsInfo = await client.ts.info('temperature');
 //   rules: []
 // }
 ```
-

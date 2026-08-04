@@ -64,6 +64,73 @@ export function transformTimestampArgument(timestamp: Timestamp): string {
   ).toString();
 }
 
+/**
+ * Options shared by every `TS.RANGE`-family command, emitted in canonical order
+ * before the optional `ALIGN`/`AGGREGATION` tail (which differs per command).
+ */
+export interface TsRangeCommonOptions {
+  LATEST?: boolean;
+  FILTER_BY_TS?: Array<Timestamp>;
+  FILTER_BY_VALUE?: {
+    min: number;
+    max: number;
+  };
+  COUNT?: number;
+}
+
+/**
+ * Pushes `fromTimestamp toTimestamp [LATEST] [FILTER_BY_TS ...] [FILTER_BY_VALUE ...] [COUNT ...]`,
+ * the portion common to `TS.RANGE`, `TS.REVRANGE`, their multi-aggregation variants, and
+ * `TS.NRANGE`/`TS.NREVRANGE`. Callers append their own `ALIGN`/`AGGREGATION` tail.
+ */
+export function parseRangeCommonArguments(
+  parser: CommandParser,
+  fromTimestamp: Timestamp,
+  toTimestamp: Timestamp,
+  options?: TsRangeCommonOptions
+) {
+  parser.push(
+    transformTimestampArgument(fromTimestamp),
+    transformTimestampArgument(toTimestamp)
+  );
+
+  if (options?.LATEST) {
+    parser.push('LATEST');
+  }
+
+  if (options?.FILTER_BY_TS) {
+    parser.push('FILTER_BY_TS');
+    for (const timestamp of options.FILTER_BY_TS) {
+      parser.push(transformTimestampArgument(timestamp));
+    }
+  }
+
+  if (options?.FILTER_BY_VALUE) {
+    parser.push(
+      'FILTER_BY_VALUE',
+      options.FILTER_BY_VALUE.min.toString(),
+      options.FILTER_BY_VALUE.max.toString()
+    );
+  }
+
+  if (options?.COUNT !== undefined) {
+    parser.push('COUNT', options.COUNT.toString());
+  }
+}
+
+/**
+ * Pushes the bare `EXCLUDEEMPTY` flag for `TS.MRANGE`/`TS.MREVRANGE` when requested.
+ * The flag omits matching series with an empty samples array from the reply. It is
+ * not valid on single-key `TS.RANGE`/`TS.REVRANGE` nor combinable with `GROUPBY`.
+ *
+ * @since Redis 8.10
+ */
+export function parseExcludeEmptyArgument(parser: CommandParser, excludeEmpty?: boolean) {
+  if (excludeEmpty) {
+    parser.push('EXCLUDEEMPTY');
+  }
+}
+
 export type Labels = {
   [label: string]: string;
 };
@@ -110,6 +177,75 @@ export const transformSamplesReply = {
   }
 };
 
+export type MultiAggregationSampleRawReply = TuplesReply<[
+  timestamp: NumberReply,
+  ...values: Array<DoubleReply>
+]>;
+
+export const transformMultiAggregationSampleReply = {
+  2(reply: Resp2Reply<MultiAggregationSampleRawReply>) {
+    const [ timestamp, ...values ] = reply as unknown as UnwrapReply<typeof reply>;
+    return {
+      timestamp,
+      values: values.map(value => Number(value))
+    };
+  },
+  3(reply: MultiAggregationSampleRawReply) {
+    const [ timestamp, ...values ] = reply as unknown as UnwrapReply<typeof reply>;
+    return {
+      timestamp,
+      values
+    };
+  }
+};
+
+export type MultiAggregationSamplesRawReply = ArrayReply<MultiAggregationSampleRawReply>;
+
+export const transformMultiAggregationSamplesReply = {
+  2(reply: Resp2Reply<MultiAggregationSamplesRawReply>) {
+    return (reply as unknown as UnwrapReply<typeof reply>)
+      .map(sample => transformMultiAggregationSampleReply[2](sample));
+  },
+  3(reply: MultiAggregationSamplesRawReply) {
+    return (reply as unknown as UnwrapReply<typeof reply>)
+      .map(sample => transformMultiAggregationSampleReply[3](sample));
+  }
+};
+
+/**
+ * A single timestamp-major pivot row as returned by `TS.NRANGE` / `TS.NREVRANGE`:
+ * `[timestamp, [value_for_key_0, value_for_key_1, ...]]`. The value array preserves
+ * the input key order; a missing cell is surfaced as `NaN`.
+ */
+export type PivotSampleRawReply = TuplesReply<[
+  timestamp: NumberReply,
+  values: ArrayReply<DoubleReply>
+]>;
+
+export type PivotSamplesRawReply = ArrayReply<PivotSampleRawReply>;
+
+export const transformPivotSamplesReply = {
+  2(reply: Resp2Reply<PivotSamplesRawReply>) {
+    return (reply as unknown as UnwrapReply<typeof reply>).map(sample => {
+      const [ timestamp, values ] = sample as unknown as UnwrapReply<typeof sample>;
+      const unwrappedValues = values as unknown as UnwrapReply<typeof values>;
+      return {
+        timestamp,
+        values: unwrappedValues.map(value => Number(value))
+      };
+    });
+  },
+  3(reply: PivotSamplesRawReply) {
+    return (reply as unknown as UnwrapReply<typeof reply>).map(sample => {
+      const [ timestamp, values ] = sample as unknown as UnwrapReply<typeof sample>;
+      return {
+        timestamp,
+        values
+      };
+    });
+  }
+};
+
 // TODO: move to @redis/client?
 export function resp2MapToValue<
   RAW_VALUE extends TuplesReply<[key: BlobStringReply, ...rest: Array<ReplyUnion>]>,
@@ -138,7 +274,7 @@ export function resp2MapToValue<
       return reply as never;
     }
     default: {
-      const ret: Record<string, TRANSFORMED> = Object.create(null);
+      const ret: Record<string, TRANSFORMED> = {};
       for (const wrappedTuple of reply) {
         const tuple = wrappedTuple as unknown as UnwrapReply<typeof wrappedTuple>;
         const key = tuple[0] as unknown as UnwrapReply<typeof tuple[0]>;
@@ -146,17 +282,18 @@ export function resp2MapToValue<
       }
       return ret as never;
     }
-  } 
+  }
 }
 
 export function resp3MapToValue<
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic over arbitrary RespType
   RAW_VALUE extends RespType<any, any, any, any>, // TODO: simplify types
   TRANSFORMED
 >(
   wrappedReply: MapReply<BlobStringReply, RAW_VALUE>,
   parseFunc: (rawValue: UnwrapReply<RAW_VALUE>) => TRANSFORMED
 ): MapReply<BlobStringReply, TRANSFORMED> {
-  const reply = wrappedReply as unknown as UnwrapReply<typeof wrappedReply>;  
+  const reply = wrappedReply as unknown as UnwrapReply<typeof wrappedReply>;
   if (reply instanceof Array) {
     for (let i = 1; i < reply.length; i += 2) {
       (reply[i] as unknown as TRANSFORMED) = parseFunc(reply[i] as unknown as UnwrapReply<RAW_VALUE>);
@@ -184,6 +321,27 @@ export function parseSelectedLabelsArguments(
   parser.pushVariadic(selectedLabels);
 }
 
+/**
+ * Pushes the optional `FILTER filterExpr [filterExpr ...]` tail shared by the
+ * `TS.QUERYLABELS` forms. Omitting `filter` queries all indexed series; passing
+ * an explicitly empty array is a local usage error rather than a silent widen to
+ * all series (the server also rejects a bare `FILTER` token). Expressions are
+ * sent verbatim — not parsed, reordered, or deduplicated.
+ */
+export function parseQueryLabelsFilterArgument(
+  parser: CommandParser,
+  filter?: RedisVariadicArgument
+) {
+  if (filter === undefined) return;
+
+  if (Array.isArray(filter) && filter.length === 0) {
+    throw new Error('FILTER was given an empty filter expression list; omit it to query all indexed series');
+  }
+
+  parser.push('FILTER');
+  parser.pushVariadic(filter);
+}
+
 export type RawLabelValue = BlobStringReply | NullReply;
 
 export type RawLabels<T extends RawLabelValue> = ArrayReply<TuplesReply<[
@@ -197,7 +355,7 @@ export function transformRESP2Labels<T extends RawLabelValue>(
 ): MapReply<BlobStringReply, T> {
   const unwrappedLabels = labels as unknown as UnwrapReply<typeof labels>;
   switch (typeMapping?.[RESP_TYPES.MAP]) {
-    case Map:
+    case Map: {
       const map = new Map<string, T>();
       for (const tuple of unwrappedLabels) {
         const [key, value] = tuple as unknown as UnwrapReply<typeof tuple>;
@@ -205,19 +363,21 @@ export function transformRESP2Labels<T extends RawLabelValue>(
         map.set(unwrappedKey.toString(), value);
       }
       return map as never;
+    }
 
     case Array:
       return unwrappedLabels.flat() as never;
 
     case Object:
-    default:
-      const labelsObject: Record<string, T> = Object.create(null);
+    default: {
+      const labelsObject: Record<string, T> = {};
       for (const tuple of unwrappedLabels) {
         const [key, value] = tuple as unknown as UnwrapReply<typeof tuple>;
         const unwrappedKey = key as unknown as UnwrapReply<typeof key>;
         labelsObject[unwrappedKey.toString()] = value;
       }
       return labelsObject as never;
+    }
   }
 }
 
@@ -229,7 +389,7 @@ export function transformRESP2LabelsWithSources<T extends RawLabelValue>(
   const to = unwrappedLabels.length - 2; // ignore __reducer__ and __source__
   let transformedLabels: MapReply<BlobStringReply, T>;
   switch (typeMapping?.[RESP_TYPES.MAP]) {
-    case Map:
+    case Map: {
       const map = new Map<string, T>();
       for (let i = 0; i < to; i++) {
         const [key, value] = unwrappedLabels[i] as unknown as UnwrapReply<typeof unwrappedLabels[number]>;
@@ -238,14 +398,15 @@ export function transformRESP2LabelsWithSources<T extends RawLabelValue>(
       }
       transformedLabels = map as never;
       break;
+    }
 
     case Array:
       transformedLabels = unwrappedLabels.slice(0, to).flat() as never;
       break;
 
     case Object:
-    default:
-      const labelsObject: Record<string, T> = Object.create(null);
+    default: {
+      const labelsObject: Record<string, T> = {};
       for (let i = 0; i < to; i++) {
         const [key, value] = unwrappedLabels[i] as unknown as UnwrapReply<typeof unwrappedLabels[number]>;
         const unwrappedKey = key as unknown as UnwrapReply<typeof key>;
@@ -253,6 +414,7 @@ export function transformRESP2LabelsWithSources<T extends RawLabelValue>(
       }
       transformedLabels = labelsObject as never;
       break;
+    }
   }
 
   const sourcesTuple = unwrappedLabels[unwrappedLabels.length - 1];
@@ -269,7 +431,7 @@ export function transformRESP2LabelsWithSources<T extends RawLabelValue>(
 function transformRESP2Sources(sourcesRaw: BlobStringReply) {
   // if a label contains "," this function will produce incorrcet results..
   // there is not much we can do about it, and we assume most users won't be using "," in their labels..
-  
+
   const unwrappedSources = sourcesRaw as unknown as UnwrapReply<typeof sourcesRaw>;
   if (typeof unwrappedSources === 'string') {
     return unwrappedSources.split(',');

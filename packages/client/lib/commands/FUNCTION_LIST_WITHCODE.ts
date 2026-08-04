@@ -7,13 +7,7 @@ export type FunctionListWithCodeReply = ArrayReply<TuplesToMapReply<[
 ]>>;
 
 export default {
-  NOT_KEYED_COMMAND: FUNCTION_LIST.NOT_KEYED_COMMAND,
-  IS_READ_ONLY: FUNCTION_LIST.IS_READ_ONLY,
-  /**
-   * Returns all libraries and functions including their source code
-   * @param parser - The Redis command parser
-   * @param options - Options for listing functions
-   */
+  IS_READ_ONLY: true,
   parseCommand(...args: Parameters<typeof FUNCTION_LIST.parseCommand>) {
     FUNCTION_LIST.parseCommand(...args);
     args[0].push('WITHCODE');

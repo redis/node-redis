@@ -14,7 +14,7 @@ describe('FT.CONFIG GET', () => {
   testUtils.testWithClient('client.ft.configGet', async client => {
     assert.deepEqual(
       await client.ft.configGet('TIMEOUT'),
-      Object.create(null, {
+      Object.defineProperties({}, {
         TIMEOUT: {
           value: '500',
           configurable: true,

@@ -2,8 +2,9 @@ import { NON_STICKY_COMMANDS } from '../commands';
 import RedisMultiCommand, { MULTI_REPLY, MultiReply, MultiReplyType, RedisMultiQueuedCommand } from '../multi-command';
 import { ReplyWithTypeMapping, CommandReply, Command, CommandArguments, CommanderConfig, RedisFunctions, RedisModules, RedisScripts, RespVersions, TransformReply, RedisScript, RedisFunction, TypeMapping, RedisArgument } from '../RESP/types';
 import { attachConfig, functionArgumentsPrefix, getTransformReply } from '../commander';
-import { BasicCommandParser } from '../client/parser';
+import { BasicCommandParser, prefixKey } from '../client/parser';
 import { Tail } from '../commands/generic-transformers';
+import { isReplicaSafe, defaultCommandMetadata } from '../command-metadata';
 
 type CommandSignature<
   REPLIES extends Array<unknown>,
@@ -71,6 +72,7 @@ type WithScripts<
 };
 
 export type RedisClusterMultiCommandType<
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- variance marker for reply tuple
   REPLIES extends Array<any>,
   M extends RedisModules,
   F extends RedisFunctions,
@@ -94,18 +96,22 @@ export type ClusterMultiExecute = (
 export default class RedisClusterMultiCommand<REPLIES = []> {
   static #createCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
+    // Derive replica-safety once per command (override-first, else server
+    // metadata) so read-only commands in a pipeline route like standalone ones.
+    let replicaSafe: boolean | undefined;
 
     return function (this: RedisClusterMultiCommand, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this.#keyPrefix);
       command.parseCommand(parser, ...args);
 
       const redisArgs: CommandArguments = parser.redisArgs;
       redisArgs.preserve = parser.preserve;
       const firstKey = parser.firstKey;
-      
+      replicaSafe ??= isReplicaSafe(defaultCommandMetadata.lookup(parser.commandIdentifier), command.IS_READ_ONLY);
+
       return this.addCommand(
         firstKey,
-        command.IS_READ_ONLY,
+        replicaSafe,
         redisArgs,
         transformReply
       );
@@ -114,18 +120,20 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
 
   static #createModuleCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
+    let replicaSafe: boolean | undefined;
 
     return function (this: { _self: RedisClusterMultiCommand }, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this._self.#keyPrefix);
       command.parseCommand(parser, ...args);
 
       const redisArgs: CommandArguments = parser.redisArgs;
       redisArgs.preserve = parser.preserve;
       const firstKey = parser.firstKey;
+      replicaSafe ??= isReplicaSafe(defaultCommandMetadata.lookup(parser.commandIdentifier), command.IS_READ_ONLY);
 
       return this._self.addCommand(
         firstKey,
-        command.IS_READ_ONLY,
+        replicaSafe,
         redisArgs,
         transformReply
       );
@@ -137,7 +145,7 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
     const transformReply = getTransformReply(fn, resp);
 
     return function (this: { _self: RedisClusterMultiCommand }, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this._self.#keyPrefix);
       parser.push(...prefix);
       fn.parseCommand(parser, ...args);
 
@@ -158,7 +166,7 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
     const transformReply = getTransformReply(script, resp);
 
     return function (this: RedisClusterMultiCommand, ...args: Array<unknown>) {
-      const parser = new BasicCommandParser();
+      const parser = new BasicCommandParser(this.#keyPrefix);
       script.parseCommand(parser, ...args);
 
       const scriptArgs: CommandArguments = parser.redisArgs;
@@ -179,7 +187,7 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
     M extends RedisModules = Record<string, never>,
     F extends RedisFunctions = Record<string, never>,
     S extends RedisScripts = Record<string, never>,
-    RESP extends RespVersions = 2
+    RESP extends RespVersions = 3
   >(config?: CommanderConfig<M, F, S, RESP>) {
     return attachConfig({
       BaseClass: RedisClusterMultiCommand,
@@ -198,17 +206,22 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
   readonly #executePipeline: ClusterMultiExecute;
   #firstKey: RedisArgument | undefined;
   #isReadonly: boolean | undefined = true;
+  readonly #keyPrefix?: RedisArgument;
 
   constructor(
     executeMulti: ClusterMultiExecute,
     executePipeline: ClusterMultiExecute,
     routing: RedisArgument | undefined,
-    typeMapping?: TypeMapping
+    typeMapping?: TypeMapping,
+    keyPrefix?: RedisArgument
   ) {
     this.#multi = new RedisMultiCommand(typeMapping);
     this.#executeMulti = executeMulti;
     this.#executePipeline = executePipeline;
-    this.#firstKey = routing;
+    // An explicit routing key must be prefixed too, so it hashes to the same slot as the
+    // (prefixed) keys the commands inside the transaction operate on.
+    this.#firstKey = routing === undefined ? undefined : prefixKey(keyPrefix, routing);
+    this.#keyPrefix = keyPrefix;
   }
 
   #setState(

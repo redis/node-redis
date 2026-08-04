@@ -20,4 +20,13 @@ describe('RANDOMKEY', () => {
     client: GLOBAL.SERVERS.OPEN,
     cluster: GLOBAL.CLUSTERS.OPEN
   });
+
+  testUtils.testWithClient('randomKey with keys in database', async client => {
+    await client.set('key1', 'value1');
+    await client.set('key2', 'value2');
+
+    const reply = await client.randomKey();
+    assert.equal(typeof reply, 'string');
+    assert.ok(['key1', 'key2'].includes(reply!));
+  }, GLOBAL.SERVERS.OPEN);
 });
