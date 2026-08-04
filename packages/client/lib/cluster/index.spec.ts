@@ -312,7 +312,8 @@ describe('Cluster', () => {
     numberOfMasters: 2,
     clusterConfiguration: {
       maxCommandRedirections: 2
-    }
+    },
+    minimumDockerVersion: [7]
   });
 
   testUtils.testWithCluster('getRandomNode should spread the the load evenly', async cluster => {
