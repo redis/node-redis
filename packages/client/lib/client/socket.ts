@@ -395,6 +395,8 @@ const retryIn = strategy(retries, cause);
   #onSocketError(err: Error): void {
     const wasReady = this.#isReady;
     this.#isReady = false;
+    const socket = this.#socket;
+    this.#socket = undefined;
     publish(CHANNELS.ERROR, () => ({
       error: err,
       origin: 'client',
@@ -402,6 +404,9 @@ const retryIn = strategy(retries, cause);
       clientId: this.#clientId
     }));
     this.emit('error', err);
+
+    socket?.removeAllListeners('data');
+    socket?.destroy();
 
     if (wasReady) {
       publish(CHANNELS.CONNECTION_CLOSED, () => ({ clientId: this.#clientId, reason: 'error', wasConnected: true }));
