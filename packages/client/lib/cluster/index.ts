@@ -815,12 +815,12 @@ export default class RedisCluster<
     type Multi = new (...args: ConstructorParameters<typeof RedisClusterMultiCommand>) => RedisClusterMultiCommandType<[], M, F, S, RESP, TYPE_MAPPING>;
     return new (this as this & { Multi: Multi }).Multi(
       async (firstKey, isReadonly, commands) => {
-        const { client } = await this._self._slots.getClientAndSlotNumber(firstKey, isReadonly);
-        return client._executeMulti(commands);
+        const { client, slotNumber } = await this._self._slots.getClientAndSlotNumber(firstKey, isReadonly);
+        return client._executeMulti(commands, undefined, slotNumber);
       },
       async (firstKey, isReadonly, commands) => {
-        const { client } = await this._self._slots.getClientAndSlotNumber(firstKey, isReadonly);
-        return client._executePipeline(commands);
+        const { client, slotNumber } = await this._self._slots.getClientAndSlotNumber(firstKey, isReadonly);
+        return client._executePipeline(commands, undefined, slotNumber);
       },
       routing,
       this._commandOptions?.typeMapping,

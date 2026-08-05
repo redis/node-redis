@@ -29,6 +29,146 @@ describe('RedisCommandsQueue', () => {
     });
   });
 
+  describe('chainInExecution', () => {
+    it('is undefined before anything is written, and matches a chain once part of it is sent', () => {
+      const queue = createQueue();
+      const chainId = Symbol('MULTI Chain');
+
+      assert.strictEqual(queue.chainInExecution, undefined);
+
+      queue.addCommand(['MULTI'], { chainId }).catch(() => {});
+      queue.addCommand(['SET', 'k', 'v'], { chainId }).catch(() => {});
+      queue.addCommand(['EXEC'], { chainId }).catch(() => {});
+
+      // Nothing sent yet - the whole chain is still just sitting in #toWrite.
+      assert.strictEqual(queue.chainInExecution, undefined);
+
+      const writer = queue.commandsToWrite();
+      writer.next(); // "sends" MULTI
+      writer.next(); // "sends" SET
+
+      // Two of the three commands are now in #waitingForReply (out of view);
+      // chainInExecution should point at this chain, and the one command
+      // still in #toWrite (EXEC) should carry a matching chainId - that's
+      // the tail-of-an-in-flight-chain signal cluster-slots.ts relies on.
+      assert.strictEqual(queue.chainInExecution, chainId);
+
+      const remaining = queue.extractAllCommands();
+      assert.strictEqual(remaining.length, 1);
+      assert.strictEqual(remaining[0].chainId, queue.chainInExecution);
+    });
+
+    it('leaves a finished chain with no queued tail to relocate', () => {
+      const queue = createQueue();
+      const chainId = Symbol('MULTI Chain');
+
+      queue.addCommand(['MULTI'], { chainId }).catch(() => {});
+      queue.addCommand(['EXEC'], { chainId }).catch(() => {});
+
+      const writer = queue.commandsToWrite();
+      writer.next(); // "sends" MULTI
+      writer.next(); // "sends" EXEC - whole chain is now in #waitingForReply
+
+      // The whole chain was sent, so nothing of it remains in #toWrite -
+      // extractAllCommands has nothing left to (mis)classify as its tail.
+      assert.strictEqual(queue.chainInExecution, chainId);
+      assert.strictEqual(queue.extractAllCommands().length, 0);
+    });
+  });
+
+  describe('extractCommandsForSlots', () => {
+    it('leaves the queued tail of an in-flight chain and everything after it in place', () => {
+      const queue = createQueue();
+      const chainId = Symbol('MULTI Chain');
+
+      queue.addCommand(['MULTI'], { chainId, slotNumber: 1 }).catch(() => {});
+      queue.addCommand(['SET', 'k', 'v'], { chainId, slotNumber: 1 }).catch(() => {});
+      queue.addCommand(['EXEC'], { chainId, slotNumber: 1 }).catch(() => {});
+      // Queued after the chain, on the same connection. If this were
+      // relocated to another node while the transaction is still pending
+      // here, it could run before the transaction completes - reading 'k'
+      // before SET applies, even though it was queued after EXEC.
+      queue.addCommand(['GET', 'k'], { slotNumber: 1 }).catch(() => {});
+
+      const writer = queue.commandsToWrite();
+      writer.next(); // "sends" MULTI - SET, EXEC and GET are still queued behind it
+
+      const extracted = queue.extractCommandsForSlots(new Set([1]));
+
+      // Nothing is extracted: reaching the in-flight chain's tail stops the
+      // scan entirely, so GET stays behind it in queue order too.
+      assert.deepStrictEqual(extracted, []);
+      assert.strictEqual(queue.pendingCount, 4);
+    });
+
+    it('is unaffected by an already-fully-sent chain', () => {
+      const queue = createQueue();
+      const chainId = Symbol('MULTI Chain');
+
+      queue.addCommand(['MULTI'], { chainId, slotNumber: 1 }).catch(() => {});
+      queue.addCommand(['EXEC'], { chainId, slotNumber: 1 }).catch(() => {});
+      queue.addCommand(['GET', 'k'], { slotNumber: 1 }).catch(() => {});
+
+      const writer = queue.commandsToWrite();
+      writer.next(); // "sends" MULTI
+      writer.next(); // "sends" EXEC - the whole chain is now in #waitingForReply
+
+      const extracted = queue.extractCommandsForSlots(new Set([1]));
+
+      // chainInExecution still points at this chain (nothing has been sent
+      // since), but none of its commands remain in #toWrite to (mis)match -
+      // the trailing GET is extracted normally.
+      assert.strictEqual(queue.chainInExecution, chainId);
+      assert.deepStrictEqual(
+        extracted.map(command => command.args?.[0]),
+        ['GET'],
+      );
+    });
+
+    it('extracts a second, fully-queued chain atomically without mistaking it for the in-flight chain\'s tail', () => {
+      const queue = createQueue();
+      const chainA = Symbol('Chain A (in-flight, different slot)');
+      const chainB = Symbol('Chain B (fully queued, migrating slot)');
+
+      // Chain A is in flight on a slot that isn't migrating - its queued
+      // tail (SET, EXEC) carries a chainId that will equal chainInExecution.
+      queue.addCommand(['MULTI'], { chainId: chainA, slotNumber: 5 }).catch(() => {});
+      queue.addCommand(['SET', 'a', '1'], { chainId: chainA, slotNumber: 5 }).catch(() => {});
+      queue.addCommand(['EXEC'], { chainId: chainA, slotNumber: 5 }).catch(() => {});
+
+      // Chain B is queued entirely behind chain A, on the slot that IS
+      // migrating. None of its commands have been sent, so none of them
+      // carry chainInExecution's id - it's a distinct chain, not a
+      // continuation of chain A's tail.
+      queue.addCommand(['MULTI'], { chainId: chainB, slotNumber: 1 }).catch(() => {});
+      queue.addCommand(['SET', 'b', '2'], { chainId: chainB, slotNumber: 1 }).catch(() => {});
+      queue.addCommand(['EXEC'], { chainId: chainB, slotNumber: 1 }).catch(() => {});
+
+      const writer = queue.commandsToWrite();
+      writer.next(); // "sends" chain A's MULTI - chainInExecution now points at chain A
+
+      const extracted = queue.extractCommandsForSlots(new Set([1]));
+
+      // Chain A's tail lives on slot 5, so it's skipped over (not in the
+      // migrating slot set) without ever triggering the in-flight-tail
+      // guard. Chain B, entirely on slot 1, is then extracted as a whole -
+      // its distinct chainId never matches chainInExecution, so it's never
+      // mistaken for chain A's tail and relocates atomically, in order.
+      assert.deepStrictEqual(
+        extracted.map(command => command.args?.[0]),
+        ['MULTI', 'SET', 'EXEC'],
+      );
+      assert.ok(extracted.every(command => command.chainId === chainB));
+
+      // Chain A's tail stays behind, untouched, on its own slot.
+      const remaining = queue.extractAllCommands();
+      assert.deepStrictEqual(
+        remaining.map(command => command.args?.[0]),
+        ['SET', 'EXEC'],
+      );
+    });
+  });
+
   describe('addCommand', () => {
     it('does not keep a command if timeout listener setup fails', async () => {
       const queue = createQueue();
@@ -69,6 +209,49 @@ describe('RedisCommandsQueue', () => {
 
       await assert.rejects(promise, DisconnectsClientError);
       assert.strictEqual(source.extractAllCommands().length, 1);
+    });
+  });
+
+  describe('full node loss (in-flight chain)', () => {
+    // Mirrors cluster-slots.ts's full-node-loss path: extractAllCommands()
+    // pulls the in-flight chain's queued tail out of #toWrite and rejects it
+    // explicitly, then the source client is destroyed, which calls
+    // flushAll() and rejects whatever's left in #waitingForReply - the
+    // chain's already-sent head. Both halves need to reject; otherwise the
+    // transaction half-commits: the server already applied the head against
+    // a connection this client is abandoning, while the tail is rejected as
+    // never sent.
+    it('rejects the already-sent head of an in-flight chain along with its queued tail', async () => {
+      const queue = createQueue();
+      const chainId = Symbol('MULTI Chain');
+
+      const multiPromise = queue.addCommand(['MULTI'], { chainId });
+      const setPromise = queue.addCommand(['SET', 'k', 'v'], { chainId });
+      const execPromise = queue.addCommand(['EXEC'], { chainId });
+      [multiPromise, setPromise, execPromise].forEach(promise => promise.catch(() => {}));
+
+      const writer = queue.commandsToWrite();
+      writer.next(); // "sends" MULTI - now in #waitingForReply
+      writer.next(); // "sends" SET - now in #waitingForReply
+
+      // EXEC is still the queued tail in #toWrite.
+      const remaining = queue.extractAllCommands();
+      assert.strictEqual(remaining.length, 1);
+      assert.strictEqual(remaining[0].chainId, queue.chainInExecution);
+
+      // cluster-slots.ts rejects the queued tail explicitly, since it can't
+      // be safely relocated to another node...
+      queue.rejectCommands(remaining, new DisconnectsClientError());
+
+      // ...then destroy()'s call to flushAll() rejects whatever's left in
+      // #waitingForReply - the already-sent MULTI and SET.
+      queue.flushAll(new DisconnectsClientError());
+
+      await Promise.all([
+        assert.rejects(multiPromise, DisconnectsClientError),
+        assert.rejects(setPromise, DisconnectsClientError),
+        assert.rejects(execPromise, DisconnectsClientError),
+      ]);
     });
   });
 

@@ -151,6 +151,18 @@ export default class RedisCommandsQueue {
     return this.#toWrite.length + this.#waitingForReply.length;
   }
 
+  /**
+   * The chainId of the most recently written command, if it belonged to a
+   * MULTI/pipeline chain. While this is set, any command still in `#toWrite`
+   * with a matching `chainId` is the tail of a chain that's already partially
+   * sent to the server - the rest of that chain is in `#waitingForReply` and
+   * out of view, so this tail must not be treated as a complete, relocatable
+   * chain (see `flushWaitingForReply`, which rejects it instead of resending it).
+   */
+  get chainInExecution(): symbol | undefined {
+    return this.#chainInExecution;
+  }
+
   constructor(
     respVersion: RespVersions,
     maxLength: number | null | undefined,
@@ -698,30 +710,45 @@ export default class RedisCommandsQueue {
    * Extracts commands for the given slots from the toWrite queue.
    * Some commands don't have "slotNumber", which means they are not designated to particular slot/node.
    * We ignore those.
+   *
+   * A command whose chainId matches `chainInExecution` is the queued tail of a
+   * chain (MULTI/pipeline) whose head was already written to this socket - the
+   * rest is in `#waitingForReply`, out of view. Relocating just the tail would
+   * split the transaction across two connections, and this connection isn't
+   * going away (unlike a full node loss), so extraction stops there entirely:
+   * that command and everything still queued behind it stay on this
+   * connection, preserving the order they were originally sent in, and get
+   * sent here as originally queued. If a key has by then moved to another
+   * node, that surfaces as a normal MOVED/ASK error through this method's
+   * caller - unlike single commands, MULTI/pipeline execution doesn't go
+   * through cluster's redirect-and-retry loop, so this isn't automatically
+   * retried, but that's an existing, separate limitation this method isn't
+   * responsible for preventing.
    */
   extractCommandsForSlots(slots: Set<number>): CommandToWrite[] {
     const result: CommandToWrite[] = [];
     let current = this.#toWrite.head;
     while (current !== undefined) {
-      if (
-        current.value.slotNumber !== undefined &&
-        slots.has(current.value.slotNumber)
-      ) {
-        const command = current.value;
-        if (command.abort) {
-          RedisCommandsQueue.#removeAbortListener(command);
-        }
-        if (command.timeout) {
-          RedisCommandsQueue.#removeTimeoutListener(command);
-        }
-        result.push(command);
-        const toRemove = current;
+      if (current.value.slotNumber === undefined || !slots.has(current.value.slotNumber)) {
         current = current.next;
-        this.#toWrite.remove(toRemove);
-      } else {
-        // Move to next node even if we don't extract this command
-        current = current.next;
+        continue;
       }
+
+      if (this.#chainInExecution !== undefined && current.value.chainId === this.#chainInExecution) {
+        break;
+      }
+
+      const command = current.value;
+      if (command.abort) {
+        RedisCommandsQueue.#removeAbortListener(command);
+      }
+      if (command.timeout) {
+        RedisCommandsQueue.#removeTimeoutListener(command);
+      }
+      result.push(command);
+      const toRemove = current;
+      current = current.next;
+      this.#toWrite.remove(toRemove);
     }
     return result;
   }
