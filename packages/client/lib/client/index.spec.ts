@@ -1542,18 +1542,6 @@ describe('Client', () => {
       return log;
     }
 
-    function countRespCommands(chunk: Buffer): number {
-      let commands = 0;
-
-      for (let i = 0; i < chunk.length; i++) {
-        if (chunk[i] === 42 && (i === 0 || chunk[i - 1] === 10)) {
-          commands++;
-        }
-      }
-
-      return commands;
-    }
-
     // Create a TCP server that accepts connections but immediately drops them <dropImmediately> times.
     // For accepted connections, reply with one `+OK` per incoming RESP command.
     function setupMockServer(dropImmediately: number) {
@@ -1575,7 +1563,54 @@ describe('Client', () => {
     }
 
   });
+
+  describe('close', () => {
+    it('disposes the credentials subscription when the command queue is empty', async () => {
+      const server = net.createServer(socket => {
+        socket.on('data', (chunk: Buffer) => {
+          socket.write('+OK\r\n'.repeat(countRespCommands(chunk)));
+        });
+      });
+      const port = await getFreePortNumber();
+      await once(server.listen(port), 'listening');
+
+      let disposed = false;
+      const client = createClient({
+        socket: {
+          host: 'localhost',
+          port
+        },
+        credentialsProvider: {
+          type: 'streaming-credentials-provider',
+          subscribe: async () => [
+            { password: 'password' },
+            { dispose: () => { disposed = true; } }
+          ],
+          onReAuthenticationError: () => {}
+        }
+      });
+
+      await client.connect();
+      await client.close();
+
+      assert.equal(disposed, true);
+
+      server.close();
+    });
+  });
 });
+
+function countRespCommands(chunk: Buffer): number {
+  let commands = 0;
+
+  for (let i = 0; i < chunk.length; i++) {
+    if (chunk[i] === 42 && (i === 0 || chunk[i - 1] === 10)) {
+      commands++;
+    }
+  }
+
+  return commands;
+}
 
 /**
  * Executes the provided function in a context where setImmediate is stubbed to not do anything.
