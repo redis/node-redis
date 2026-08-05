@@ -60,3 +60,13 @@ export {
   type CommandReplyEvent,
   type PoolConnectionWaitEvent,
 } from './lib/client/tracing';
+
+export {
+  createMultiDbClient,
+  createMultiDbClientPool,
+  createMultiDbCluster,
+  createMultiDbSentinel,
+  MultiDbController,
+  type MultiDbResult,
+  type AnyRedisClientType
+} from './lib/multi-db';

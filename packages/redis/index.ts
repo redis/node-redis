@@ -16,6 +16,8 @@ import {
   createClientPool as genericCreateClientPool,
   RedisClientPoolType as GenericRedisClientPoolType,
   RedisPoolOptions,
+  createMultiDbClient as genericCreateMultiDbClient,
+  MultiDbResult,
 } from '@redis/client';
 import RedisBloomModules from '@redis/bloom';
 import RedisJSON from '@redis/json';
@@ -62,6 +64,37 @@ export function createClient<
       ...(options?.modules as M)
     }
   }) as RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
+}
+
+/**
+ * Multi-database client with the Redis Stack default modules pre-registered
+ * (mirrors {@link createClient}). Returns `{ client, controller }`; `client`
+ * is a drop-in {@link RedisClientType}.
+ */
+export function createMultiDbClient<
+  M extends RedisModules = {},
+  F extends RedisFunctions = {},
+  S extends RedisScripts = {},
+  RESP extends RespVersions = 3,
+  TYPE_MAPPING extends TypeMapping = {}
+>(options: {
+  databases: Array<{
+    options: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>;
+    weight?: number;
+  }>;
+}): MultiDbResult<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {
+  return genericCreateMultiDbClient({
+    databases: options.databases.map(db => ({
+      ...db,
+      options: {
+        ...db.options,
+        modules: {
+          ...modules,
+          ...(db.options?.modules as M)
+        }
+      }
+    }))
+  }) as unknown as MultiDbResult<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>;
 }
 
 export function createClientPool<
