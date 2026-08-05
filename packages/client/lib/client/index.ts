@@ -2187,6 +2187,8 @@ export default class RedisClient<
       clearTimeout(this._self.#pingTimer);
       this._self.#socket.close();
       this._self.#clientSideCache?.onClose();
+      this._self.#credentialsSubscription?.dispose();
+      this._self.#credentialsSubscription = null;
 
       if (this._self.#queue.isEmpty()) {
         this._self.#unregisterFromMetrics();
@@ -2203,8 +2205,6 @@ export default class RedisClient<
         resolve();
       };
       this._self.#socket.on('data', maybeClose);
-      this._self.#credentialsSubscription?.dispose();
-      this._self.#credentialsSubscription = null;
     });
   }
 
