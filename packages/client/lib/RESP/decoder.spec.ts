@@ -211,6 +211,70 @@ describe('RESP Decoder', () => {
       toWrite: Buffer.from(',1\r\n'),
       replies: ['1']
     });
+
+    // The server writes the shortest representation that round-trips
+    // (`fpconv_dtoa` via `d2string`), so decoding must return the exact same
+    // double — anything else and a score read back differs from the score
+    // stored. These are the values that used to decode a rounding off.
+    describe('round-trips the double the server encoded', () => {
+      test('0.3', {
+        toWrite: Buffer.from(',0.3\r\n'),
+        replies: [0.3]
+      });
+
+      test('99.99', {
+        toWrite: Buffer.from(',99.99\r\n'),
+        replies: [99.99]
+      });
+
+      test('12345.6789', {
+        toWrite: Buffer.from(',12345.6789\r\n'),
+        replies: [12345.6789]
+      });
+
+      test('0.30000000000000004', {
+        toWrite: Buffer.from(',0.30000000000000004\r\n'),
+        replies: [0.30000000000000004]
+      });
+
+      test('-0', {
+        toWrite: Buffer.from(',-0\r\n'),
+        replies: [-0]
+      });
+
+      // 16+ significant digits and exponents exceed the exact path and take
+      // the `Number` fallback.
+      test('3.141592653589793', {
+        toWrite: Buffer.from(',3.141592653589793\r\n'),
+        replies: [3.141592653589793]
+      });
+
+      test('1.2345678901234567e+9', {
+        toWrite: Buffer.from(',1.2345678901234567e+9\r\n'),
+        replies: [1234567890.1234567]
+      });
+
+      // MAX_VALUE used to overflow to Infinity, MIN_VALUE to underflow to 0
+      test('1.7976931348623157e+308 (MAX_VALUE)', {
+        toWrite: Buffer.from(',1.7976931348623157e+308\r\n'),
+        replies: [Number.MAX_VALUE]
+      });
+
+      test('-1.7976931348623157e+308 (-MAX_VALUE)', {
+        toWrite: Buffer.from(',-1.7976931348623157e+308\r\n'),
+        replies: [-Number.MAX_VALUE]
+      });
+
+      test('5e-324 (MIN_VALUE)', {
+        toWrite: Buffer.from(',5e-324\r\n'),
+        replies: [Number.MIN_VALUE]
+      });
+
+      test('2.2250738585072014e-308', {
+        toWrite: Buffer.from(',2.2250738585072014e-308\r\n'),
+        replies: [2.2250738585072014e-308]
+      });
+    });
   });
 
   describe('SimpleString', () => {
