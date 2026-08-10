@@ -28,12 +28,40 @@ const ASCII = {
   '+': 43,
   '-': 45,
   '0': 48,
-  '.': 46,
-  'i': 105,
-  'n': 110,
-  'E': 69,
-  'e': 101
+  '.': 46
 } as const;
+
+// Powers of ten that are exactly representable as a double, so dividing by one
+// of them rounds only once.
+const POWERS_OF_10 = [
+  1, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10, 1e11,
+  1e12, 1e13, 1e14, 1e15, 1e16, 1e17, 1e18, 1e19, 1e20, 1e21, 1e22
+];
+
+// Largest significand that can still absorb one more digit exactly:
+// 900719925474098 * 10 + 9 is the last value <= MAX_SAFE_INTEGER.
+const MAX_SIGNIFICAND_BEFORE_DIGIT = 900719925474098;
+
+// Fallback for tokens the exact path cannot scale in one rounding. Mirrors the
+// RESP2 double transformer (`transformDoubleReply[2]` in
+// `../commands/generic-transformers`), so both protocol versions agree.
+function slowParseDouble(buffer, start, end) {
+  const string = buffer.toString(undefined, start, end);
+
+  switch (string) {
+    case 'inf':
+    case '+inf':
+      return Infinity;
+
+    case '-inf':
+      return -Infinity;
+
+    case 'nan':
+      return NaN;
+  }
+
+  return Number(string);
+}
 
 export const PUSH_TYPE_MAPPING = {
   [RESP_TYPES.BLOB_STRING]: Buffer
@@ -338,137 +366,66 @@ export class Decoder {
       return this.#decodeSimpleString(String, chunk);
     }
 
-    switch (chunk[this.#cursor]) {
-      case ASCII.n:
-        this.#cursor += 5; // skip nan\r\n
-        return NaN;
-
-      case ASCII['+']:
-        return this.#maybeDecodeDoubleInteger(false, chunk);
-
-      case ASCII['-']:
-        return this.#maybeDecodeDoubleInteger(true, chunk);
-
-      default:
-        return this.#decodeDoubleInteger(false, 0, chunk);
-    }
-  }
-
-  #maybeDecodeDoubleInteger(isNegative, chunk) {
-    return ++this.#cursor === chunk.length ?
-      this.#decodeDoubleInteger.bind(this, isNegative, 0) :
-      this.#decodeDoubleInteger(isNegative, 0, chunk);
-  }
-
-  #decodeDoubleInteger(isNegative, integer, chunk) {
-    if (chunk[this.#cursor] === ASCII.i) {
-      this.#cursor += 5; // skip inf\r\n
-      return isNegative ? -Infinity : Infinity;
+    // Digits accumulate into an integer significand, scaled by a single division
+    // at the end so the value is rounded once — the exact double the server
+    // encoded. Shapes that would need more than one rounding (`e` exponents,
+    // significands or decimal exponents outside the exactly representable range)
+    // and `inf`/`nan` go to `slowParseDouble`.
+    const start = this.#cursor;
+    let cursor = start;
+    if (chunk[cursor] === ASCII['-'] || chunk[cursor] === ASCII['+']) {
+      cursor++;
     }
 
-    return this.#continueDecodeDoubleInteger(isNegative, integer, chunk);
-  }
+    let significand = 0,
+      digits = 0,
+      // -1 until the decimal point is seen, then the number of digits after it.
+      fractionDigits = -1;
 
-  #continueDecodeDoubleInteger(isNegative, integer, chunk) {
-    let cursor = this.#cursor;
-    do {
+    while (cursor < chunk.length) {
       const byte = chunk[cursor];
-      switch (byte) {
-        case ASCII['.']:
-          this.#cursor = cursor + 1; // skip .
-          return this.#cursor < chunk.length ?
-            this.#decodeDoubleDecimal(isNegative, 0, integer, chunk) :
-            this.#decodeDoubleDecimal.bind(this, isNegative, 0, integer);
 
-        case ASCII.E:
-        case ASCII.e: {
-          this.#cursor = cursor + 1; // skip E/e
-          const i = isNegative ? -integer : integer;
-          return this.#cursor < chunk.length ?
-            this.#decodeDoubleExponent(i, chunk) :
-            this.#decodeDoubleExponent.bind(this, i);
-        }
-
-        case ASCII['\r']:
-          this.#cursor = cursor + 2; // skip \r\n
-          return isNegative ? -integer : integer;
-
-        default:
-          integer = integer * 10 + byte - ASCII['0'];
-      }
-    } while (++cursor < chunk.length);
-
-    this.#cursor = cursor;
-    return this.#continueDecodeDoubleInteger.bind(this, isNegative, integer);
-  }
-
-  // Precalculated multipliers for decimal points to improve performance
-  // "... about 15 to 17 decimal places ..."
-  // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number#:~:text=about%2015%20to%2017%20decimal%20places
-  static #DOUBLE_DECIMAL_MULTIPLIERS = [
-    1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6,
-    1e-7, 1e-8, 1e-9, 1e-10, 1e-11, 1e-12,
-    1e-13, 1e-14, 1e-15, 1e-16, 1e-17
-  ];
-
-  #decodeDoubleDecimal(isNegative, decimalIndex, double, chunk) {
-    let cursor = this.#cursor;
-    do {
-      const byte = chunk[cursor];
-      switch (byte) {
-        case ASCII.E:
-        case ASCII.e: {
-          this.#cursor = cursor + 1; // skip E/e
-          const d = isNegative ? -double : double;
-          return this.#cursor === chunk.length ?
-            this.#decodeDoubleExponent.bind(this, d) :
-            this.#decodeDoubleExponent(d, chunk);
-        }
-
-        case ASCII['\r']:
-          this.#cursor = cursor + 2; // skip \r\n
-          return isNegative ? -double : double;
-      }
-
-      if (decimalIndex < Decoder.#DOUBLE_DECIMAL_MULTIPLIERS.length) {
-        double += (byte - ASCII['0']) * Decoder.#DOUBLE_DECIMAL_MULTIPLIERS[decimalIndex++];
-      }
-    } while (++cursor < chunk.length);
-
-    this.#cursor = cursor;
-    return this.#decodeDoubleDecimal.bind(this, isNegative, decimalIndex, double);
-  }
-
-  #decodeDoubleExponent(double, chunk) {
-    switch (chunk[this.#cursor]) {
-      case ASCII['+']:
-        return ++this.#cursor === chunk.length ?
-          this.#continueDecodeDoubleExponent.bind(this, false, double, 0) :
-          this.#continueDecodeDoubleExponent(false, double, 0, chunk);
-
-      case ASCII['-']:
-        return ++this.#cursor === chunk.length ?
-          this.#continueDecodeDoubleExponent.bind(this, true, double, 0) :
-          this.#continueDecodeDoubleExponent(true, double, 0, chunk);
-    }
-
-    return this.#continueDecodeDoubleExponent(false, double, 0, chunk);
-  }
-
-  #continueDecodeDoubleExponent(isNegative, double, exponent, chunk) {
-    let cursor = this.#cursor;
-    do {
-      const byte = chunk[cursor];
       if (byte === ASCII['\r']) {
         this.#cursor = cursor + 2; // skip \r\n
-        return double * 10 ** (isNegative ? -exponent : exponent);
+        if (digits === 0 || fractionDigits >= POWERS_OF_10.length) {
+          return slowParseDouble(chunk, start, cursor);
+        }
+
+        const double = fractionDigits > 0 ?
+          significand / POWERS_OF_10[fractionDigits] :
+          significand;
+        return chunk[start] === ASCII['-'] ? -double : double;
       }
 
-      exponent = exponent * 10 + byte - ASCII['0'];
-    } while (++cursor < chunk.length);
+      if (byte === ASCII['.'] && fractionDigits === -1) {
+        fractionDigits = 0;
+      } else {
+        const digit = byte - ASCII['0'];
+        if (digit < 0 || digit > 9 || significand > MAX_SIGNIFICAND_BEFORE_DIGIT) {
+          const crlfIndex = this.#findCRLF(chunk, cursor);
+          return crlfIndex === -1 ?
+            this.#continueDecodeDouble.bind(this, [chunk.subarray(start)]) :
+            slowParseDouble(chunk, start, crlfIndex);
+        }
 
+        significand = significand * 10 + digit;
+        digits++;
+        if (fractionDigits !== -1) fractionDigits++;
+      }
+
+      cursor++;
+    }
+
+    // The token continues in the next chunk; buffer it and convert once whole.
     this.#cursor = cursor;
-    return this.#continueDecodeDoubleExponent.bind(this, isNegative, double, exponent);
+    return this.#continueDecodeDouble.bind(this, [chunk.subarray(start)]);
+  }
+
+  #continueDecodeDouble(chunks, chunk) {
+    const buffer = this.#continueDecodeSimpleString(chunks, Buffer, chunk);
+    return typeof buffer === 'function' ?
+      this.#continueDecodeDouble.bind(this, chunks) :
+      slowParseDouble(buffer, 0, buffer.length);
   }
 
   #findCRLF(chunk, cursor) {
