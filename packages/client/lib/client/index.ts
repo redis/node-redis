@@ -1914,7 +1914,8 @@ export default class RedisClient<
   async _executeMulti(
     commands: Array<RedisMultiQueuedCommand>,
     selectedDB?: number,
-    slotNumber?: number
+    slotNumber?: number,
+    chainId = Symbol('MULTI Chain')
   ) {
     assertNoHimportSessionCommands(commands);
 
@@ -1940,7 +1941,6 @@ export default class RedisClient<
     return trace(CHANNELS.TRACE_BATCH,
       async () => {
         const typeMapping = this._commandOptions?.typeMapping;
-        const chainId = Symbol('MULTI Chain');
         const promises: Array<Promise<unknown>> = [
           this._self.#queue.addCommand(['MULTI'], { chainId, slotNumber }),
         ];
