@@ -62,13 +62,16 @@ describe('Cluster MULTI redirects', () => {
     } catch (error) {
       // After any post-failover failure, repair the cached topology before
       // test-utils flushes the cluster so the original error is not masked.
-      await cluster.get(key).catch(() => undefined);
+      await cluster.set(key, '0').catch(() => undefined);
       throw error;
     }
   }, {
     serverArguments: [],
     numberOfMasters: 2,
     numberOfReplicas: 1,
+    clusterConfiguration: {
+      useReplicas: true
+    },
     testTimeout: 30000
   });
 });
