@@ -720,10 +720,8 @@ export default class RedisCommandsQueue {
    * connection, preserving the order they were originally sent in, and get
    * sent here as originally queued. If a key has by then moved to another
    * node, that surfaces as a normal MOVED/ASK error through this method's
-   * caller - unlike single commands, MULTI/pipeline execution doesn't go
-   * through cluster's redirect-and-retry loop, so this isn't automatically
-   * retried, but that's an existing, separate limitation this method isn't
-   * responsible for preventing.
+   * caller. Atomic MULTI execution retries through the cluster redirect loop;
+   * non-atomic pipeline execution intentionally does not.
    */
   extractCommandsForSlots(slots: Set<number>): CommandToWrite[] {
     const result: CommandToWrite[] = [];
