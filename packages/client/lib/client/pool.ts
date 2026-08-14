@@ -238,7 +238,12 @@ export class RedisClientPool<
     return this._self.#idleClients.length + this._self.#clientsInUse.length;
   }
 
-  readonly #tasksQueue = new SinglyLinkedList<{
+  // Doubly-linked so the acquire-timeout path can remove a queued task by node
+  // alone. A singly-linked list forces the caller to supply the predecessor,
+  // and the pool's only source for that was a `tail` snapshot captured when the
+  // task was enqueued — stale by the time the timeout fires, which corrupted
+  // the queue. `node.previous` is always live, so no predecessor is passed.
+  readonly #tasksQueue = new DoublyLinkedList<{
     timeout: NodeJS.Timeout | undefined;
     resolve: (value: unknown) => unknown;
     reject: (reason?: unknown) => unknown;
@@ -457,14 +462,13 @@ export class RedisClientPool<
       }
 
       const waitStartTimestamp = performance.now();
-      const client = this._self.#idleClients.shift(),
-        { tail } = this._self.#tasksQueue;
+      const client = this._self.#idleClients.shift();
       if (!client) {
         let timeout;
         if (this._self.#options.acquireTimeout > 0) {
           timeout = setTimeout(
             () => {
-              this._self.#tasksQueue.remove(task, tail);
+              this._self.#tasksQueue.remove(task);
               reject(new TimeoutError(`Timeout waiting for a client after ${this._self.#options.acquireTimeout}ms`));
             },
             this._self.#options.acquireTimeout
