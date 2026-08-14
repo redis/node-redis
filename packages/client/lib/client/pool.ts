@@ -474,7 +474,7 @@ export class RedisClientPool<
       const waitStartTimestamp = performance.now();
       const client = this._self.#idleClients.shift();
       if (!client) {
-        let timeout;
+        let timeout: NodeJS.Timeout | undefined;
         if (this._self.#options.acquireTimeout > 0) {
           timeout = setTimeout(
             () => {
@@ -495,7 +495,22 @@ export class RedisClientPool<
         });
 
         if (this.totalClients < this._self.#options.maximum) {
-          this._self.#create();
+          // Fire-and-forget scale-up. If the connect fails, surface the real
+          // error to the waiting task instead of letting the rejection go
+          // unhandled and leaving the caller to hit `acquireTimeout` (or hang
+          // forever when `acquireTimeout` is 0).
+          //
+          // Reject *this* task, not the queue head: with concurrent scale-ups a
+          // sibling connect may still succeed and serve an earlier waiter, so
+          // rejecting the head could fail a request that a connection is about
+          // to satisfy. `remove()` is idempotent, so it is a no-op if the task
+          // was already served or timed out; reject() then no-ops on the
+          // already-settled promise.
+          this._self.#create().catch(err => {
+            this._self.#tasksQueue.remove(task);
+            clearTimeout(timeout);
+            reject(err);
+          });
         }
 
         return;
@@ -514,7 +529,18 @@ export class RedisClientPool<
     reject: (reason?: unknown) => void,
     fn: PoolTask<M, F, S, RESP, TYPE_MAPPING>
   ) {
-    const result = fn(node.value);
+    let result;
+    try {
+      result = fn(node.value);
+    } catch (err) {
+      // A synchronous throw from the user callback settles this task, not the
+      // connection. Reject it and return the client, rather than letting the
+      // throw escape — on the scale-up path it propagates out of #create() and
+      // would otherwise be misread as a connect failure by execute()'s .catch.
+      reject(err);
+      this.#returnClient(node);
+      return;
+    }
     if (result instanceof Promise) {
       result
       .then(resolve, reject)

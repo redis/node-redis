@@ -373,4 +373,64 @@ describe('RedisClientPool', () => {
       poolOptions: { minimum: 1, maximum: 1, acquireTimeout: 50 },
     }
   );
+
+  it('scale-up connect failure rejects the waiting task with the real error, not TimeoutError, and never goes unhandled', async () => {
+    // Regression for #3397: execute() fires a fire-and-forget #create() to scale
+    // the pool up. When that connect fails, the rejection used to go unhandled and
+    // the waiting task was left to hit acquireTimeout (masking the real error) or
+    // hang forever when acquireTimeout is 0. The failure must now be routed to the
+    // waiting task with the real connect error.
+    let unhandled: unknown;
+    const onUnhandled = (err: unknown) => { unhandled = err; };
+    process.on('unhandledRejection', onUnhandled);
+
+    // minimum: 0 opens the pool with no clients (no server needed); the first
+    // task then triggers a scale-up connect against a dead address, which fails
+    // fast because reconnectStrategy is disabled. acquireTimeout: 0 means no
+    // timer is armed, so an unfixed pool would hang here rather than time out.
+    const pool = RedisClientPool.create(
+      {
+        socket: { host: '127.0.0.1', port: 1, reconnectStrategy: false, connectTimeout: 100 }
+      },
+      { minimum: 0, maximum: 1, acquireTimeout: 0 }
+    );
+    pool.on('error', () => {}); // swallow re-emitted client connect errors
+
+    try {
+      await pool.connect();
+
+      await assert.rejects(
+        pool.execute(async () => { /* never runs */ }),
+        (err: unknown) => {
+          assert(!(err instanceof TimeoutError), 'must surface the real connect error, not TimeoutError');
+          return true;
+        }
+      );
+
+      // Let any stray unhandled rejection surface before asserting.
+      await new Promise(resolve => setImmediate(resolve));
+      assert.equal(unhandled, undefined, 'scale-up connect failure must not go unhandled');
+    } finally {
+      process.removeListener('unhandledRejection', onUnhandled);
+      await pool.close().catch(() => {});
+    }
+  });
+
+  testUtils.testWithClientPool('a synchronous throw from one task does not strand another waiter', async pool => {
+    // #3401 review (finding 2): on the scale-up path #create() runs the queued
+    // callback after a successful connect. A synchronous throw there used to
+    // escape into execute()'s scale-up .catch, which rejected an unrelated
+    // waiter and left the throwing task's neighbour stranded. The throw must
+    // settle its own task and the client must be returned so the next queued
+    // task is served.
+    const throwing = pool.execute(() => { throw new Error('boom'); });
+    const normal = pool.execute(client => client.sendCommand(['PING']));
+
+    await assert.rejects(throwing, /boom/);
+    // Would hang (then TimeoutError) before the fix — must be served instead.
+    assert.equal(await normal, 'PONG');
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    poolOptions: { minimum: 0, maximum: 1, acquireTimeout: 1000 }
+  });
 });
