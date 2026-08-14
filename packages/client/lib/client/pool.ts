@@ -445,6 +445,11 @@ export class RedisClientPool<
     } catch (err) {
       this._self.#clientsInUse.remove(node);
       if (this._self.#isClosing && this._self.#clientsInUse.length === 0) {
+        let orphanedTask;
+        while ((orphanedTask = this._self.#tasksQueue.shift())) {
+          clearTimeout(orphanedTask.timeout);
+          orphanedTask.reject(err);
+        }
         this._self.#drainResolve?.();
       }
       throw err;

@@ -62,6 +62,27 @@ describe('RedisClientPool', () => {
     await pool.close();
   });
 
+  it('close() rejects a queued task if a scale-up connect fails while draining', async () => {
+    // Regression: the drain check added above only looked at #clientsInUse, not
+    // #tasksQueue. A task queued while the sole in-flight connect is still pending
+    // (no room to scale up further, no acquireTimeout to reject it on its own) got
+    // abandoned when that connect failed: #clientsInUse hit 0 and close() resolved
+    // while the queued task stayed pending forever.
+    const pool = RedisClientPool.create(
+      { socket: { host: '127.0.0.1', port: 1, reconnectStrategy: false } },
+      { minimum: 1, maximum: 1, acquireTimeout: 0 }
+    );
+
+    const connectPromise = pool.connect();
+    connectPromise.catch(() => {});
+
+    const queuedTask = pool.execute(() => Promise.resolve());
+
+    await pool.close();
+
+    await assert.rejects(queuedTask);
+  });
+
   testUtils.testWithClientPool('sendCommand', async pool => {
     assert.equal(
       await pool.sendCommand(['PING']),
