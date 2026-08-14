@@ -129,6 +129,23 @@ describe("DoublyLinkedList", () => {
     deepEqual(Array.from(list), [1, 3, 5]);
   });
 
+  it("remove is idempotent — removing an already-removed node does not corrupt the list", () => {
+    list.reset();
+    const a = list.push(1);
+    const b = list.push(2);
+    const c = list.push(3);
+
+    list.remove(b); // remove the middle node
+    equal(list.length, 2);
+    deepEqual(Array.from(list), [1, 3]);
+
+    list.remove(b); // same node again — must be a no-op, not a corruption
+    equal(list.length, 2);
+    deepEqual(Array.from(list), [1, 3]);
+    equal(list.head, a);
+    equal(list.tail, c);
+  });
+
   it("should clear the previous pointer of the new head when removing the head", () => {
     list.reset();
     const first = list.push(1);

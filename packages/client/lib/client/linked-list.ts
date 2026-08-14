@@ -84,6 +84,16 @@ export class DoublyLinkedList<T> {
 
   remove(node: DoublyLinkedNode<T>) {
     if (this.#length === 0) return;
+    // Idempotent: a node that was already removed (or shifted) is fully unlinked
+    // and is not an endpoint. Removing it again would double-decrement #length
+    // and wipe #head/#tail, so bail out. The sole node of a one-element list is
+    // #head/#tail, so it is not mistaken for a removed node.
+    if (
+      node !== this.#head &&
+      node !== this.#tail &&
+      node.previous === undefined &&
+      node.next === undefined
+    ) return;
     --this.#length;
 
     if (node.previous) {
