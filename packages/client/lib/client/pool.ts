@@ -444,6 +444,9 @@ export class RedisClientPool<
       await client.connect();
     } catch (err) {
       this._self.#clientsInUse.remove(node);
+      if (this._self.#isClosing && this._self.#clientsInUse.length === 0) {
+        this._self.#drainResolve?.();
+      }
       throw err;
     }
 

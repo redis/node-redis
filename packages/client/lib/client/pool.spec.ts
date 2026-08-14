@@ -46,6 +46,22 @@ describe('RedisClientPool', () => {
     assert.equal(pool.HOTKEYS_RESET, undefined);
   });
 
+  it('close() does not hang when a scale-up connect fails while draining', async () => {
+    // Regression: #create() pushes onto #clientsInUse before awaiting connect, and its
+    // catch only removed the node, never resolving #drainResolve. If close() started
+    // while that connect was in flight and it then failed, #clientsInUse reached 0
+    // without the drain check ever running, so close() never settled.
+    const pool = RedisClientPool.create(
+      { socket: { host: '127.0.0.1', port: 1, reconnectStrategy: false } },
+      { minimum: 1, maximum: 1, acquireTimeout: 500 }
+    );
+
+    const connectPromise = pool.connect();
+    connectPromise.catch(() => {});
+
+    await pool.close();
+  });
+
   testUtils.testWithClientPool('sendCommand', async pool => {
     assert.equal(
       await pool.sendCommand(['PING']),
