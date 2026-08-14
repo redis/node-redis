@@ -160,6 +160,59 @@ describe('RedisClientPool', () => {
     poolOptions: { minimum: 1, maximum: 1, acquireTimeout: 2000, cleanupDelay: 400  }
   });
 
+  it('close resolves when the last pending connect fails', async () => {
+    // Regression: on a failed connect `#create()` removed the client from `#clientsInUse`
+    // directly instead of going through `#returnClient()`, the only place that resolves the
+    // drain promise. `#clientsInUse` reached 0 without waking `close()`, which hung forever.
+    // Nothing listens on port 1 here, so the connect always fails.
+    const pool = RedisClientPool.create(
+      { socket: { host: '127.0.0.1', port: 1, reconnectStrategy: false } },
+      { minimum: 1, maximum: 1, acquireTimeout: 500 }
+    );
+
+    const connectPromise = pool.connect();
+    assert.equal(pool.clientsInUse, 1, 'a connecting client should count as in use');
+
+    const closePromise = pool.close().then(() => 'closed');
+    const hangGuard = new Promise<string>(resolve => {
+      setTimeout(resolve, 1000, 'hung').unref();
+    });
+
+    await assert.rejects(connectPromise);
+    assert.equal(await Promise.race([closePromise, hangGuard]), 'closed');
+  });
+
+  it('close rejects the tasks it can no longer serve when the connect fails', async () => {
+    // A task queued behind the pending connect is the one thing `close()` is still waiting
+    // for. Once that connect fails there is no client left to run it on, so it has to be
+    // settled with the connection error rather than left sitting until `acquireTimeout`.
+    const acquireTimeout = 200;
+    const pool = RedisClientPool.create(
+      { socket: { host: '127.0.0.1', port: 1, reconnectStrategy: false } },
+      { minimum: 1, maximum: 1, acquireTimeout }
+    );
+
+    const connectPromise = pool.connect();
+    const connectRejects = assert.rejects(connectPromise);
+    const taskRejects = assert.rejects(pool.execute(() => 'never runs'), /ECONNREFUSED/);
+    assert.equal(pool.tasksQueueLength, 1, 'the task should be waiting for the connecting client');
+    assert.equal(pool.clientsInUse, 1, 'the connecting client should count as in use');
+
+    const closePromise = pool.close().then(() => 'closed');
+    const hangGuard = new Promise<string>(resolve => {
+      setTimeout(resolve, 1000, 'hung').unref();
+    });
+
+    await connectRejects;
+    await taskRejects;
+    assert.equal(await Promise.race([closePromise, hangGuard]), 'closed');
+    assert.equal(pool.tasksQueueLength, 0);
+
+    // The task's acquire timer has to be cleared along with it, otherwise it fires on a node
+    // that is already out of the queue and `remove()` throws where nobody can catch it.
+    await new Promise(resolve => setTimeout(resolve, acquireTimeout + 50));
+  });
+
   testUtils.testWithClientPool('execute rejects when pool is closing', async pool => {
     // Start a long-running task to keep the pool busy during close
     const task1Promise = pool.execute(async _client => {

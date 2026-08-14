@@ -444,6 +444,16 @@ export class RedisClientPool<
       await client.connect();
     } catch (err) {
       this._self.#clientsInUse.remove(node);
+      // Closing with no client left: `#returnClient()`, the only other place that signals the
+      // drain, will not run again, and nothing can pick up the queued tasks either
+      if (this._self.#isClosing && this._self.#clientsInUse.length === 0) {
+        let task;
+        while ((task = this._self.#tasksQueue.shift())) {
+          clearTimeout(task.timeout);
+          task.reject(err);
+        }
+        this._self.#drainResolve?.();
+      }
       throw err;
     }
 
