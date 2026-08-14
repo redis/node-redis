@@ -466,10 +466,13 @@ const retryIn = strategy(retries, cause);
   }
 
   destroy() {
-    if (!this.#isOpen) {
-      throw new ClientClosedError();
-    }
-
+    // Idempotent: return instead of throwing when already closed. A terminal
+    // connect failure (reconnectStrategy gave up) leaves #isOpen === false, and
+    // the owning client still needs to dispose itself (unregister metrics,
+    // dispose credentials) — throwing here would abort that cleanup. Returning
+    // also means a repeated destroy() won't re-run destroySocket() and
+    // republish CONNECTION_CLOSED / re-emit 'end'.
+    if (!this.#isOpen) return;
     this.#isOpen = false;
     this.destroySocket();
   }

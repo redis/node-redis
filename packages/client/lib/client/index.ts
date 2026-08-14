@@ -2190,7 +2190,10 @@ export default class RedisClient<
     return new Promise<void>(resolve => {
       clearTimeout(this._self.#pingTimer);
       this._self.#socket.close();
-      this._self.#clientSideCache?.onClose();
+      // See destroy(): only flush the cache if this client ever connected.
+      if (this._self.#socket.socketEpoch > 0) {
+        this._self.#clientSideCache?.onClose();
+      }
       this._self.#credentialsSubscription?.dispose();
       this._self.#credentialsSubscription = null;
 
@@ -2219,7 +2222,14 @@ export default class RedisClient<
     clearTimeout(this._self.#pingTimer);
     this._self.#queue.flushAll(new DisconnectsClientError());
     this._self.#socket.destroy();
-    this._self.#clientSideCache?.onClose();
+    // Only flush the client-side cache if this client ever connected. A client
+    // that never became ready (e.g. a cluster node whose connect failed
+    // terminally) cached nothing and missed no invalidations, so there is
+    // nothing to go stale — and clearing a pooled cache it shares with healthy
+    // connections would needlessly cold-start them.
+    if (this._self.#socket.socketEpoch > 0) {
+      this._self.#clientSideCache?.onClose();
+    }
     this._self.#unregisterFromMetrics();
     this._self.#credentialsSubscription?.dispose();
     this._self.#credentialsSubscription = null;

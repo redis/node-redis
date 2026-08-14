@@ -807,6 +807,16 @@ export default class RedisClusterSlots<
   #createNodeClient(node: ShardNode<M, F, S, RESP, TYPE_MAPPING>, readonly?: boolean) {
     const client = node.client = this.#createClient(node, readonly);
     return node.connectPromise = client.connect()
+      .catch(err => {
+        // Terminal connect failure (reconnectStrategy gave up). Drop the dead
+        // client so the next nodeClient() call retries with a fresh one, and
+        // destroy it so its ClientRegistry entry and listeners don't leak.
+        // Guard on identity: #discover may have swapped in a new client while
+        // this connect was in flight — never clobber that one.
+        if (node.client === client) node.client = undefined;
+        client.destroy();
+        throw err;
+      })
       .finally(() => node.connectPromise = undefined);
   }
 
