@@ -2,7 +2,7 @@ import { strict as assert } from 'node:assert';
 import { EventEmitter } from 'node:events';
 import { RedisClusterClientOptions } from './index';
 import RedisClusterSlots, { groupCommandsByDestination, splitInFlightChainTail } from './cluster-slots';
-import type { MasterNode, Shard } from './cluster-slots';
+import type { MasterNode, Shard, ShardNode } from './cluster-slots';
 import type { CommandToWrite } from '../client/commands-queue';
 import { ClientClosedError } from '../errors';
 
@@ -178,6 +178,47 @@ describe('RedisClusterSlots', () => {
 
       assert.deepEqual(inFlightChainTail, []);
       assert.deepEqual(relocatable, commands);
+    });
+  });
+
+  describe('nodeClient after a terminal connect failure (#3396)', () => {
+    // Point a node at a dead address with reconnectStrategy disabled so the
+    // very first connect fails terminally (no retries).
+    function createSlots() {
+      return new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: 1 } }],
+        defaults: { socket: { host: '127.0.0.1', port: 1, reconnectStrategy: false, connectTimeout: 100 } },
+      }, () => true, 'test-cluster');
+    }
+
+    function createNode() {
+      return {
+        address: '127.0.0.1:1',
+        host: '127.0.0.1',
+        port: 1,
+        id: 'test-node',
+        readonly: false,
+      } as ShardNode<Record<string, never>, Record<string, never>, Record<string, never>, 3, Record<string, never>>;
+    }
+
+    it('does not cache the dead client and retries on the next call', async () => {
+      const slots = createSlots();
+      const node = createNode();
+
+      // First attempt fails terminally, and must reject with the real connect
+      // error — not a ClientClosedError thrown by destroy() on the dead client
+      // (which would prove destroy() is not idempotent on a closed socket).
+      await assert.rejects(slots.nodeClient(node), (err: unknown) => {
+        assert(!(err instanceof ClientClosedError), 'should surface the real connect error, not ClientClosedError from destroy()');
+        return true;
+      });
+      // The dead client must not stay cached...
+      assert.equal(node.client, undefined, 'dead client should be cleared, not cached');
+
+      // ...so the second call retries with a fresh client and fails again.
+      // Before the fix it resolved to the cached dead client (no rejection).
+      await assert.rejects(slots.nodeClient(node), 'second call must retry, not return the cached dead client');
+      assert.equal(node.client, undefined);
     });
   });
 });

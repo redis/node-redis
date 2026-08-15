@@ -3,8 +3,28 @@ import testUtils, { GLOBAL } from "../test-utils"
 import { BasicClientSideCache, BasicPooledClientSideCache, CacheStats } from "./cache"
 import { REDIS_FLUSH_MODES } from "../commands/FLUSHALL";
 import { once } from 'events';
+import RedisClient from "./index";
 
 describe("Client Side Cache", () => {
+  it("destroy() on a never-connected client does not flush a shared pooled cache (#3396)", () => {
+    // Cluster/pool/sentinel share one pooled cache across node clients. Disposing
+    // a client whose connect failed terminally must not wipe entries the healthy
+    // connections are still using (the dead client cached nothing / missed no
+    // invalidations). It must also not throw — the owning client still needs to
+    // finish its own cleanup (unregister metrics, dispose credentials).
+    const cache = new BasicPooledClientSideCache({ maxEntries: 100 });
+    const client = RedisClient.create({ RESP: 3, clientSideCache: cache });
+
+    // Seed the shared cache as if a healthy pooled connection had cached a key.
+    cache.set("k", cache.createValueEntry(client as never, "v"), ["k"]);
+    assert.ok(cache.get("k"));
+
+    // Never connected (socketEpoch 0): idempotent, no throw, cache untouched.
+    assert.doesNotThrow(() => client.destroy());
+    assert.doesNotThrow(() => client.destroy());
+    assert.ok(cache.get("k"), "a never-connected client must not flush the shared cache");
+  });
+
   describe('Basic Cache', () => {
     const csc = new BasicClientSideCache({ maxEntries: 10 });
 
@@ -306,13 +326,13 @@ describe("Client Side Cache", () => {
 
       let p: Promise<Array<string>> = once(csc, 'invalidate');
       await client.set("x", 2);
-      let [i] = await p;
+      await p;
 
       assert.equal(await client.get("x"), '2', 'second get');
 
       p = once(csc, 'invalidate');
       await client.set("x", 3);
-      [i] = await p;
+      await p;
 
       assert.equal(await client.get("x"), '3');
 
