@@ -1,9 +1,10 @@
 import { CommandParser } from '../client/parser';
-import { RedisArgument, NumberReply, NullReply, Command } from '../RESP/types';
+import { RedisArgument, NumberReply, NullReply,ArrayReply, Command } from '../RESP/types';
 
 export interface LPosOptions {
   RANK?: number;
   MAXLEN?: number;
+  COUNT?: number;
 }
 
 export default {
@@ -20,10 +21,12 @@ export default {
     if (options?.RANK !== undefined) {
       parser.push('RANK', options.RANK.toString());
     }
-
+    if (options?.COUNT !== undefined) {
+      parser.push('COUNT', options.COUNT.toString());
+    }
     if (options?.MAXLEN !== undefined) {
       parser.push('MAXLEN', options.MAXLEN.toString());
     }
   },
-  transformReply: undefined as unknown as () => NumberReply | NullReply
+  transformReply: undefined as unknown as () => NumberReply | NullReply | ArrayReply<NumberReply>
 } as const satisfies Command;

@@ -32,13 +32,14 @@ describe('LPOS', () => {
       );
     });
 
-    it('with RANK, MAXLEN', () => {
+    it('with RANK, COUNT, MAXLEN', () => {
       assert.deepEqual(
         parseArgs(LPOS, 'key', 'element', {
           RANK: 0,
+          COUNT: 2,
           MAXLEN: 10
         }),
-        ['LPOS', 'key', 'element', 'RANK', '0', 'MAXLEN', '10']
+        ['LPOS', 'key', 'element', 'RANK', '0', 'COUNT', '2', 'MAXLEN', '10']
       );
     });
   });
