@@ -28,5 +28,5 @@ export default {
       parser.push('MAXLEN', options.MAXLEN.toString());
     }
   },
-  transformReply: undefined as unknown as () => NumberReply | NullReply | ArrayReply<NumberReply>
+  transformReply: undefined as unknown as () => NumberReply | NullReply
 } as const satisfies Command;
