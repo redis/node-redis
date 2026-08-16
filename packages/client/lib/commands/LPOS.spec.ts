@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import LPOS from './LPOS';
+import LPOS, { LPosOptions } from './LPOS';
 import { parseArgs } from './generic-transformers';
 
 describe('LPOS', () => {
@@ -31,6 +31,14 @@ describe('LPOS', () => {
         ['LPOS', 'key', 'element', 'MAXLEN', '10']
       );
     });
+    it('with COUNT', () => {
+    assert.deepEqual(
+      parseArgs(LPOS, 'key', 'element', {
+        COUNT: 2
+      }),
+      ['LPOS', 'key', 'element', 'COUNT', '2']
+    );
+  });
 
     it('with RANK, COUNT, MAXLEN', () => {
       assert.deepEqual(
