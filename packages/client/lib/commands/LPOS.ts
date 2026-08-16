@@ -6,7 +6,7 @@ export interface LPosOptions {
   MAXLEN?: number;
   COUNT?: number;
 }
-
+export type LPosCountOptions = Omit<LPosOptions, 'COUNT'>;
 export default {
   parseCommand(
     parser: CommandParser,
@@ -28,5 +28,5 @@ export default {
       parser.push('MAXLEN', options.MAXLEN.toString());
     }
   },
-  transformReply: undefined as unknown as () => NumberReply | NullReply
+  transformReply: undefined as unknown as () => NumberReply | NullReply | ArrayReply<NumberReply>
 } as const satisfies Command;
