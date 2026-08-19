@@ -30,6 +30,15 @@ describe('HSCAN', () => {
       );
     });
 
+    it('with COUNT: 0', () => {
+      assert.deepEqual(
+        parseArgs(HSCAN, 'key', '0', {
+          COUNT: 0
+        }),
+        ['HSCAN', 'key', '0', 'COUNT', '0']
+      );
+    });
+
     it('with MATCH & COUNT', () => {
       assert.deepEqual(
         parseArgs(HSCAN, 'key', '0', {
@@ -51,7 +60,7 @@ describe('HSCAN', () => {
         }
       );
     });
-    
+
     it('with tuples', () => {
       assert.deepEqual(
         HSCAN.transformReply(['0' as any, ['field', 'value'] as any]),

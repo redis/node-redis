@@ -30,6 +30,15 @@ describe('SCAN', () => {
       );
     });
 
+    it('with COUNT: 0', () => {
+      assert.deepEqual(
+        parseArgs(SCAN, '0', {
+          COUNT: 0
+        }),
+        ['SCAN', '0', 'COUNT', '0']
+      );
+    });
+
     it('with TYPE', () => {
       assert.deepEqual(
         parseArgs(SCAN, '0', {

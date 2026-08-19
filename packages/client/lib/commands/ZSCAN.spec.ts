@@ -30,6 +30,15 @@ describe('ZSCAN', () => {
       );
     });
 
+    it('with COUNT: 0', () => {
+      assert.deepEqual(
+        parseArgs(ZSCAN, 'key', '0', {
+          COUNT: 0
+        }),
+        ['ZSCAN', 'key', '0', 'COUNT', '0']
+      );
+    });
+
     it('with MATCH & COUNT', () => {
       assert.deepEqual(
         parseArgs(ZSCAN, 'key', '0', {

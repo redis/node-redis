@@ -30,6 +30,15 @@ describe('SSCAN', () => {
       );
     });
 
+    it('with COUNT: 0', () => {
+      assert.deepEqual(
+        parseArgs(SSCAN, 'key', '0', {
+          COUNT: 0
+        }),
+        ['SSCAN', 'key', '0', 'COUNT', '0']
+      );
+    });
+
     it('with MATCH & COUNT', () => {
       assert.deepEqual(
         parseArgs(SSCAN, 'key', '0', {

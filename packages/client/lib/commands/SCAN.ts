@@ -29,7 +29,7 @@ export function parseScanArguments(
     parser.push('MATCH', options.MATCH);
   }
 
-  if (options?.COUNT) {
+  if (options?.COUNT !== undefined) {
     parser.push('COUNT', options.COUNT.toString());
   }
 }
@@ -53,7 +53,7 @@ export function pushScanArguments(
     args.push('MATCH', options.MATCH);
   }
 
-  if (options?.COUNT) {
+  if (options?.COUNT !== undefined) {
     args.push('COUNT', options.COUNT.toString());
   }
 
