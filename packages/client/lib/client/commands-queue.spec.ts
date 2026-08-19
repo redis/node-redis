@@ -1,5 +1,6 @@
 import assert from 'node:assert';
 import RedisCommandsQueue from './commands-queue';
+import { PUBSUB_TYPE } from './pub-sub';
 import { AbortError, DisconnectsClientError, TimeoutError } from '../errors';
 
 describe('RedisCommandsQueue', () => {
@@ -437,6 +438,26 @@ describe('RedisCommandsQueue', () => {
       // None of the cancellations should have reached back into the
       // already-drained source queue.
       assert.strictEqual(source.extractAllCommands().length, 0);
+    });
+  });
+
+  describe('pubsub push after a connection error', () => {
+    it('drops a stale subscribe confirmation instead of crashing', () => {
+      const queue = createQueue();
+      queue.subscribe(PUBSUB_TYPE.CHANNELS, 'foo', () => {}).catch(() => {});
+
+      // move the SUBSCRIBE command into #waitingForReply, as the socket
+      // writer does right before the bytes go out on the wire
+      queue.commandsToWrite().next();
+
+      // a connection error flushes #waitingForReply before the server's
+      // confirmation for that SUBSCRIBE is processed
+      queue.flushWaitingForReply(new Error('simulated connection error'));
+
+      // the confirmation was already in flight on the wire and arrives anyway
+      assert.doesNotThrow(() => {
+        queue.decoder.onPush([Buffer.from('subscribe'), Buffer.from('foo'), 1]);
+      });
     });
   });
 });

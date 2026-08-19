@@ -199,10 +199,14 @@ export default class RedisCommandsQueue {
       );
       return true;
     } else if (isShardedUnsubscribe || PubSub.isStatusReply(push)) {
-      const head = this.#waitingForReply.head!.value;
+      const head = this.#waitingForReply.head;
+      // A connection error can flush `#waitingForReply` while this confirmation
+      // was already in flight on the wire - nothing left to resolve for it.
+      if (!head) return true;
+
       if (
-        (Number.isNaN(head.channelsCounter!) && push[2] === 0) ||
-        --head.channelsCounter! === 0
+        (Number.isNaN(head.value.channelsCounter!) && push[2] === 0) ||
+        --head.value.channelsCounter! === 0
       ) {
         this.#waitingForReply.shift()!.resolve();
       }
