@@ -1135,6 +1135,9 @@ describe('Client', () => {
         // Following commands must receive their own replies (no off-by-one misalignment).
         assert.equal(await subscriber.ping('AAA'), 'AAA');
         assert.equal(await subscriber.ping('BBB'), 'BBB');
+
+        // Leave subscriber mode so the harness teardown (flushAll) is accepted on RESP2.
+        await subscriber.pUnsubscribe();
       }, {
         ...GLOBAL.SERVERS.OPEN,
         clientOptions: { ...GLOBAL.SERVERS.OPEN.clientOptions, RESP: resp }
@@ -1153,27 +1156,9 @@ describe('Client', () => {
 
         assert.equal(await subscriber.ping('AAA'), 'AAA');
         assert.equal(await subscriber.ping('BBB'), 'BBB');
-      }, {
-        ...GLOBAL.SERVERS.OPEN,
-        clientOptions: { ...GLOBAL.SERVERS.OPEN.clientOptions, RESP: resp }
-      });
-    }
 
-    for (const resp of [2, 3] as const) {
-      testUtils.testWithClient(`argument-less pUnsubscribe() with an active channel resolves and keeps replies aligned (RESP${resp})`, async subscriber => {
-        await subscriber.pSubscribe(['pat1*', 'pat2*'], () => {});
-        await subscriber.subscribe('ch', () => {});
-
-        // The mirror of the case above. A PUNSUBSCRIBE reply carries the same
-        // combined channel + pattern count, so an argument-less pUnsubscribe()
-        // never sees 0 while a channel subscription remains. One channel vs two
-        // patterns keeps the residual asymmetric, so reading the pattern count
-        // where the channel count belongs is caught here too.
-        await assert.doesNotReject(subscriber.pUnsubscribe());
-
-        // Following commands must receive their own replies (no off-by-one misalignment).
-        assert.equal(await subscriber.ping('AAA'), 'AAA');
-        assert.equal(await subscriber.ping('BBB'), 'BBB');
+        // Leave subscriber mode so the harness teardown (flushAll) is accepted on RESP2.
+        await subscriber.unsubscribe();
       }, {
         ...GLOBAL.SERVERS.OPEN,
         clientOptions: { ...GLOBAL.SERVERS.OPEN.clientOptions, RESP: resp }

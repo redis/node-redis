@@ -125,7 +125,7 @@ export class PubSub {
     const args: Array<RedisArgument> = [COMMANDS[type].subscribe],
       channelsArray = PubSub.#channelsArray(channels);
     for (const channel of channelsArray) {
-      let channelListeners = this.listeners[type].get(channel);
+      const channelListeners = this.listeners[type].get(channel);
       if (!channelListeners || channelListeners.unsubscribing) {
         args.push(channel);
       }
@@ -492,7 +492,7 @@ export class PubSub {
       messageString = channelString === '__redis__:invalidate' ?
         // https://github.com/redis/redis/pull/7469
         // https://github.com/redis/redis/issues/7463
-        (message === null ? null : (message as any as Array<Buffer>).map(x => x.toString())) as any :
+        (message === null ? null : (message as unknown as Array<Buffer>).map(x => x.toString())) as unknown as string :
         message.toString();
     for (const listener of listeners.strings) {
       listener(messageString, channelString);
