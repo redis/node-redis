@@ -74,6 +74,23 @@ export class PubSub {
     return COMMANDS[PUBSUB_TYPE.SHARDED].unsubscribe.equals(firstElement);
   }
 
+  // The count Redis reports on an UNSUBSCRIBE/PUNSUBSCRIBE reply is the total of the
+  // remaining channel + pattern subscriptions (sharded channels are counted separately).
+  // An argument-less UNSUBSCRIBE therefore does not drive that count to 0 while pattern
+  // subscriptions remain (and vice versa), so completion is reached when only the other
+  // type's subscriptions are left, not at 0.
+  residualAfterUnsubscribeAll(reply: Array<Buffer>): number {
+    const firstElement = typeof reply[0] === 'string' ? Buffer.from(reply[0]) : reply[0];
+    if (COMMANDS[PUBSUB_TYPE.PATTERNS].unsubscribe.equals(firstElement)) {
+      return this.listeners[PUBSUB_TYPE.CHANNELS].size;
+    }
+    if (COMMANDS[PUBSUB_TYPE.CHANNELS].unsubscribe.equals(firstElement)) {
+      return this.listeners[PUBSUB_TYPE.PATTERNS].size;
+    }
+    // sharded: Redis tracks its counter independently, so it does reach 0
+    return 0;
+  }
+
   static #channelsArray(channels: string | Array<string>) {
     return (Array.isArray(channels) ? channels : [channels]);
   }
@@ -108,7 +125,7 @@ export class PubSub {
     const args: Array<RedisArgument> = [COMMANDS[type].subscribe],
       channelsArray = PubSub.#channelsArray(channels);
     for (const channel of channelsArray) {
-      let channelListeners = this.listeners[type].get(channel);
+      const channelListeners = this.listeners[type].get(channel);
       if (!channelListeners || channelListeners.unsubscribing) {
         args.push(channel);
       }
@@ -475,7 +492,7 @@ export class PubSub {
       messageString = channelString === '__redis__:invalidate' ?
         // https://github.com/redis/redis/pull/7469
         // https://github.com/redis/redis/issues/7463
-        (message === null ? null : (message as any as Array<Buffer>).map(x => x.toString())) as any :
+        (message === null ? null : (message as unknown as Array<Buffer>).map(x => x.toString())) as unknown as string :
         message.toString();
     for (const listener of listeners.strings) {
       listener(messageString, channelString);

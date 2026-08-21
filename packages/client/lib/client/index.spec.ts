@@ -1119,6 +1119,52 @@ describe('Client', () => {
       }
     }, GLOBAL.SERVERS.OPEN);
 
+    for (const resp of [2, 3] as const) {
+      testUtils.testWithClient(`argument-less unsubscribe() with an active pattern resolves and keeps replies aligned (RESP${resp})`, async subscriber => {
+        await subscriber.subscribe(['ch1', 'ch2'], () => {});
+        await subscriber.pSubscribe('pat*', () => {});
+
+        // Argument-less UNSUBSCRIBE while a pattern subscription remains: Redis
+        // reports the remaining channel + pattern count, not 0, so a naive `=== 0`
+        // completion check never resolves and the eventual confirm gets mismatched
+        // to the following command's reply. Two channels vs one pattern keeps the
+        // residual asymmetric, so using the wrong subscription type's count is
+        // caught too (it would misalign the following replies).
+        await assert.doesNotReject(subscriber.unsubscribe());
+
+        // Following commands must receive their own replies (no off-by-one misalignment).
+        assert.equal(await subscriber.ping('AAA'), 'AAA');
+        assert.equal(await subscriber.ping('BBB'), 'BBB');
+
+        // Leave subscriber mode so the harness teardown (flushAll) is accepted on RESP2.
+        await subscriber.pUnsubscribe();
+      }, {
+        ...GLOBAL.SERVERS.OPEN,
+        clientOptions: { ...GLOBAL.SERVERS.OPEN.clientOptions, RESP: resp }
+      });
+
+      testUtils.testWithClient(`argument-less pUnsubscribe() with an active channel resolves and keeps replies aligned (RESP${resp})`, async subscriber => {
+        await subscriber.subscribe('ch1', () => {});
+        await subscriber.pSubscribe(['pat1*', 'pat2*'], () => {});
+
+        // Mirror of the UNSUBSCRIBE case for the PATTERNS branch: an argument-less
+        // PUNSUBSCRIBE while a channel subscription remains gets a non-zero remaining
+        // count (the channel), so completion must key off the remaining channel count,
+        // not 0. One channel vs two patterns keeps the residual asymmetric so using the
+        // wrong subscription type's count is caught too.
+        await assert.doesNotReject(subscriber.pUnsubscribe());
+
+        assert.equal(await subscriber.ping('AAA'), 'AAA');
+        assert.equal(await subscriber.ping('BBB'), 'BBB');
+
+        // Leave subscriber mode so the harness teardown (flushAll) is accepted on RESP2.
+        await subscriber.unsubscribe();
+      }, {
+        ...GLOBAL.SERVERS.OPEN,
+        clientOptions: { ...GLOBAL.SERVERS.OPEN.clientOptions, RESP: resp }
+      });
+    }
+
     testUtils.testWithClient('should resubscribe', async publisher => {
       const subscriber = await publisher.duplicate().connect();
 
