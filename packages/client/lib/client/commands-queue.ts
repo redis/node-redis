@@ -201,7 +201,8 @@ export default class RedisCommandsQueue {
     } else if (isShardedUnsubscribe || PubSub.isStatusReply(push)) {
       const head = this.#waitingForReply.head!.value;
       if (
-        (Number.isNaN(head.channelsCounter!) && push[2] === 0) ||
+        (Number.isNaN(head.channelsCounter!) &&
+          push[2] === this.#pubSub.residualAfterUnsubscribeAll(push)) ||
         --head.channelsCounter! === 0
       ) {
         this.#waitingForReply.shift()!.resolve();
