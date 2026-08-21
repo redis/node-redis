@@ -65,12 +65,12 @@ export function parseGeoSearchOptions(
     parser.push(options.SORT);
   }
 
-  if (options?.COUNT) {
+  if (options?.COUNT !== undefined) {
     if (typeof options.COUNT === 'number') {
       parser.push('COUNT', options.COUNT.toString());
     } else {
       parser.push('COUNT', options.COUNT.value.toString());
-  
+
       if (options.COUNT.ANY) {
         parser.push('ANY');
       }

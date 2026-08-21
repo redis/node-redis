@@ -56,6 +56,18 @@ describe('GEOSEARCH', () => {
         );
       });
 
+      it('number with value 0', () => {
+        assert.deepEqual(
+          parseArgs(GEOSEARCH, 'key', 'member', {
+            radius: 1,
+            unit: 'm'
+          }, {
+            COUNT: 0
+          }),
+          ['GEOSEARCH', 'key', 'FROMMEMBER', 'member', 'BYRADIUS', '1', 'm', 'COUNT', '0']
+        );
+      });
+
       it('with ANY', () => {
         assert.deepEqual(
           parseArgs(GEOSEARCH, 'key', 'member', {
