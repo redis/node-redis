@@ -1,4 +1,6 @@
 import { strict as assert } from 'node:assert';
+import { readFileSync } from 'node:fs';
+import * as ts from 'typescript';
 import { BasicCommandParser } from '../client/parser';
 import { pushScanArguments } from './SCAN';
 import { parseGeoSearchArguments, parseGeoSearchOptions } from './GEOSEARCH';
@@ -769,6 +771,38 @@ describe('Generic Transformers', () => {
                 }]),
                 ['0', '1', '2', '3']
             );
+        });
+    });
+
+    describe('tuple reply declarations', () => {
+        // Mixing labeled and unlabeled members in a tuple type makes the
+        // emitted declarations fail to compile for consumers using TypeScript
+        // versions that enforce TS5084 ("Tuple members must all have names or
+        // all not have names"), see
+        // https://github.com/redis/node-redis/issues/3009. Labels are erased
+        // during type checking, so the invariant is verified by walking the
+        // source AST rather than relying on tsc diagnostics.
+        it('tuple reply types should not mix named and unnamed members', () => {
+            const file = __filename.replace('generic-transformers.spec.ts', 'generic-transformers.ts');
+            const source = ts.createSourceFile(
+                file,
+                readFileSync(file, 'utf8'),
+                ts.ScriptTarget.Latest,
+                true
+            );
+            const offenders: Array<number> = [];
+            (function visit(node: ts.Node) {
+                if (ts.isTupleTypeNode(node)) {
+                    const named = node.elements
+                        .filter((element) => !ts.isRestTypeNode(element))
+                        .map((element) => ts.isNamedTupleMember(element));
+                    if (named.includes(true) && named.includes(false)) {
+                        offenders.push(source.getLineAndCharacterOfPosition(node.getStart()).line + 1);
+                    }
+                }
+                ts.forEachChild(node, visit);
+            })(source);
+            assert.deepEqual(offenders, []);
         });
     });
 });
