@@ -17,7 +17,14 @@ export type HelloReply = TuplesToMapReply<[
   [BlobStringReply<'id'>, NumberReply],
   [BlobStringReply<'mode'>, BlobStringReply],
   [BlobStringReply<'role'>, BlobStringReply],
-  [BlobStringReply<'modules'>, ArrayReply<BlobStringReply>]
+  [BlobStringReply<'modules'>, ArrayReply<TuplesToMapReply<[
+    [BlobStringReply<'name'>, BlobStringReply],
+    [BlobStringReply<'ver'>, NumberReply],
+    /** added in 7.0 */
+    [BlobStringReply<'path'>, BlobStringReply],
+    /** added in 7.0 */
+    [BlobStringReply<'args'>, ArrayReply<BlobStringReply>]
+  ]>>]
 ]>;
 
 export default {
