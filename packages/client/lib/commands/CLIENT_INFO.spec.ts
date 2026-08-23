@@ -14,6 +14,15 @@ describe('CLIENT INFO', () => {
     );
   });
 
+  it('transformReply parses fields added in newer Redis versions', () => {
+    const reply = CLIENT_INFO.transformReply(
+      'id=3 addr=127.0.0.1:6379 laddr=127.0.0.1:53000 fd=8 name= age=10 idle=0 flags=N db=0 sub=0 psub=0 ssub=0 multi=0 watch=2 qbuf=26 qbuf-free=20448 argv-mem=120 multi-mem=0 rbs=1024 rbp=2048 obl=0 oll=0 omem=0 tot-mem=22264 events=r cmd=client user=default redir=-1 resp=2' as unknown as Parameters<typeof CLIENT_INFO.transformReply>[0]
+    );
+    assert.equal(reply.watch, 2);
+    assert.equal(reply.rbs, 1024);
+    assert.equal(reply.rbp, 2048);
+  });
+
   testUtils.testWithClient('client.clientInfo', async client => {
     const reply = await client.clientInfo();
     assert.equal(typeof reply.id, 'number');
