@@ -1,5 +1,5 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
-import { RedisArgument, TuplesReply, NumberReply, BlobStringReply, UnwrapReply, Command } from '@redis/client/dist/lib/RESP/types';
+import { RedisArgument, TuplesReply, NumberReply, BlobStringReply, NullReply, UnwrapReply, Command } from '@redis/client/dist/lib/RESP/types';
 
 export default {
   parseCommand(parser: CommandParser, key: RedisArgument, iterator: number) {
@@ -7,7 +7,7 @@ export default {
     parser.pushKey(key);
     parser.push(iterator.toString());
   },
-  transformReply(reply: UnwrapReply<TuplesReply<[NumberReply, BlobStringReply]>>) {
+  transformReply(reply: UnwrapReply<TuplesReply<[NumberReply, BlobStringReply | NullReply]>>) {
     return {
       iterator: reply[0],
       chunk: reply[1]
