@@ -1,5 +1,5 @@
 import { CommandParser } from '../client/parser';
-import { RedisArgument, VerbatimStringReply, Command } from '../RESP/types';
+import { RedisArgument, BlobStringReply, VerbatimStringReply, Command } from '../RESP/types';
 
 export default {
   IS_READ_ONLY: true,
@@ -10,5 +10,5 @@ export default {
       parser.push(section);
     }
   },
-  transformReply: undefined as unknown as () => VerbatimStringReply
+  transformReply: undefined as unknown as () => BlobStringReply | VerbatimStringReply
 } as const satisfies Command;

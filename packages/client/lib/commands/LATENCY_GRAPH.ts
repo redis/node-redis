@@ -1,5 +1,5 @@
 import { CommandParser } from '../client/parser';
-import { BlobStringReply, Command } from '../RESP/types';
+import { BlobStringReply, VerbatimStringReply, Command } from '../RESP/types';
 
 export const LATENCY_EVENTS = {
   ACTIVE_DEFRAG_CYCLE: 'active-defrag-cycle',
@@ -27,5 +27,5 @@ export default {
   parseCommand(parser: CommandParser, event: LatencyEvent) {
     parser.push('LATENCY', 'GRAPH', event);
   },
-  transformReply: undefined as unknown as () => BlobStringReply
+  transformReply: undefined as unknown as () => BlobStringReply | VerbatimStringReply
 } as const satisfies Command;
