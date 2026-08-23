@@ -17,7 +17,7 @@ type SlaveRole = [
   role: BlobStringReply<'slave'>,
   masterHost: BlobStringReply,
   masterPort: NumberReply,
-  state: BlobStringReply<'connect' | 'connecting' | 'sync' | 'connected'>,
+  state: BlobStringReply<'connect' | 'connecting' | 'sync' | 'connected' | 'handshake' | 'none' | 'unknown'>,
   dataReceived: NumberReply
 ];
 
