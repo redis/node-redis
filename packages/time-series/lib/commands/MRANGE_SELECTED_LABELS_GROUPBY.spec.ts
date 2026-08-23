@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import MRANGE_SELECTED_LABELS_GROUPBY from './MRANGE_SELECTED_LABELS_GROUPBY';
+import MRANGE_SELECTED_LABELS_GROUPBY, { TsMRangeSelectedLabelsGroupByRawReply2, TsMRangeWithLabelsGroupByRawReply3 } from './MRANGE_SELECTED_LABELS_GROUPBY';
 import { TIME_SERIES_REDUCERS } from './MRANGE_GROUPBY';
 import { TIME_SERIES_AGGREGATION_TYPE } from './CREATERULE';
 import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
@@ -39,6 +39,60 @@ describe('TS.MRANGE_SELECTED_LABELS_GROUPBY', () => {
     );
   });
 
+  describe('transformReply', () => {
+    it('extracts __reducer__ and __source__ from RESP2 grouped labels', () => {
+      assert.deepStrictEqual(
+        MRANGE_SELECTED_LABELS_GROUPBY.transformReply[2]([
+          ['key', [
+            ['label', 'value'],
+            ['__reducer__', 'avg'],
+            ['__source__', 'key']
+          ], [
+            [0, '1']
+          ]]
+        ] as unknown as TsMRangeSelectedLabelsGroupByRawReply2),
+        {
+          key: {
+            labels: {
+              label: 'value'
+            },
+            sources: ['key'],
+            samples: [{
+              timestamp: 0,
+              value: 1
+            }]
+          }
+        }
+      );
+    });
+
+    it('extracts sources from RESP3 grouped metadata', () => {
+      const metadata2 = new Map([['sources', ['key']]]);
+      assert.deepStrictEqual(
+        MRANGE_SELECTED_LABELS_GROUPBY.transformReply[3](new Map([
+          ['key', [
+            new Map([['label', 'value']]),
+            undefined,
+            metadata2,
+            [[0, 1]]
+          ]]
+        ]) as unknown as TsMRangeWithLabelsGroupByRawReply3),
+        new Map([
+          ['key', {
+            labels: new Map([
+              ['label', 'value']
+            ]),
+            sources: ['key'],
+            samples: [{
+              timestamp: 0,
+              value: 1
+            }]
+          }]
+        ])
+      );
+    });
+  });
+
   testUtils.testWithClient('client.ts.mRangeSelectedLabelsGroupBy', async client => {
     const [, reply] = await Promise.all([
       client.ts.add('key', 0, 0, {
@@ -69,6 +123,7 @@ describe('TS.MRANGE_SELECTED_LABELS_GROUPBY', () => {
                 value: null
               }
             }),
+            sources: ['key'],
             samples: [{
               timestamp: 0,
               value: 0
