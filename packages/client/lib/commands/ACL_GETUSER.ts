@@ -1,8 +1,8 @@
 import { CommandParser } from '../client/parser';
-import { RedisArgument, TuplesToMapReply, BlobStringReply, ArrayReply, UnwrapReply, Resp2Reply, Command } from '../RESP/types';
+import { RedisArgument, TuplesToMapReply, BlobStringReply, ArrayReply, SetReply, UnwrapReply, Resp2Reply, Command } from '../RESP/types';
 
 type AclUser = TuplesToMapReply<[
-  [BlobStringReply<'flags'>, ArrayReply<BlobStringReply>],
+  [BlobStringReply<'flags'>, SetReply<BlobStringReply>],
   [BlobStringReply<'passwords'>, ArrayReply<BlobStringReply>],
   [BlobStringReply<'commands'>, BlobStringReply],
   /** changed to BlobStringReply in 7.0 */
