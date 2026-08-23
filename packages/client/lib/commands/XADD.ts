@@ -32,7 +32,11 @@ export interface XAddOptions {
     iid: RedisArgument;
   };
   TRIM?: {
-    strategy?: 'MAXLEN' | 'MINID';
+    /**
+     * Required by the XADD grammar: without MAXLEN or MINID the server parses
+     * the threshold as the entry ID instead of trimming.
+     */
+    strategy: 'MAXLEN' | 'MINID';
     strategyModifier?: '=' | '~';
     threshold: number;
     limit?: number;

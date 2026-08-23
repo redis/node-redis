@@ -31,10 +31,11 @@ describe('XADD', () => {
           field: 'value'
         }, {
           TRIM: {
-            threshold: 1000
+            strategy: 'MINID',
+            threshold: 5
           }
         }),
-        ['XADD', 'key', '1000', '*', 'field', 'value']
+        ['XADD', 'key', 'MINID', '5', '*', 'field', 'value']
       );
     });
 
@@ -58,11 +59,12 @@ describe('XADD', () => {
           field: 'value'
         }, {
           TRIM: {
+            strategy: 'MAXLEN',
             strategyModifier: '=',
             threshold: 1000
           }
         }),
-        ['XADD', 'key', '=', '1000', '*', 'field', 'value']
+        ['XADD', 'key', 'MAXLEN', '=', '1000', '*', 'field', 'value']
       );
     });
 
@@ -72,11 +74,12 @@ describe('XADD', () => {
           field: 'value'
         }, {
           TRIM: {
+            strategy: 'MAXLEN',
             threshold: 1000,
             limit: 1
           }
         }),
-        ['XADD', 'key', '1000', 'LIMIT', '1', '*', 'field', 'value']
+        ['XADD', 'key', 'MAXLEN', '1000', 'LIMIT', '1', '*', 'field', 'value']
       );
     });
 
@@ -86,11 +89,12 @@ describe('XADD', () => {
           field: 'value'
         }, {
           TRIM: {
+            strategy: 'MAXLEN',
             threshold: 1000,
             limit: 0
           }
         }),
-        ['XADD', 'key', '1000', 'LIMIT', '0', '*', 'field', 'value']
+        ['XADD', 'key', 'MAXLEN', '1000', 'LIMIT', '0', '*', 'field', 'value']
       );
     });
 
@@ -100,11 +104,12 @@ describe('XADD', () => {
           field: 'value'
         }, {
           TRIM: {
+            strategy: 'MAXLEN',
             threshold: 1000,
             policy: STREAM_DELETION_POLICY.DELREF
           }
         }),
-        ['XADD', 'key', '1000', 'DELREF', '*', 'field', 'value']
+        ['XADD', 'key', 'MAXLEN', '1000', 'DELREF', '*', 'field', 'value']
       );
     });
 
