@@ -3,6 +3,7 @@ import { BlobStringReply, Command } from '../RESP/types';
 
 export const LATENCY_EVENTS = {
   ACTIVE_DEFRAG_CYCLE: 'active-defrag-cycle',
+  AOF_FSTAT: 'aof-fstat',
   AOF_FSYNC_ALWAYS: 'aof-fsync-always',
   AOF_STAT: 'aof-stat',
   AOF_REWRITE_DIFF_WRITE: 'aof-rewrite-diff-write',
@@ -15,9 +16,11 @@ export const LATENCY_EVENTS = {
   EXPIRE_CYCLE: 'expire-cycle',
   EVICTION_CYCLE: 'eviction-cycle',
   EVICTION_DEL: 'eviction-del',
+  EVICTION_LAZYFREE: 'eviction-lazyfree',
   FAST_COMMAND: 'fast-command',
   FORK: 'fork',
-  RDB_UNLINK_TEMP_FILE: 'rdb-unlink-temp-file'
+  RDB_UNLINK_TEMP_FILE: 'rdb-unlink-temp-file',
+  WHILE_BLOCKED_CRON: 'while-blocked-cron'
 } as const;
 
 export type LatencyEvent = typeof LATENCY_EVENTS[keyof typeof LATENCY_EVENTS];
