@@ -1,5 +1,5 @@
 import { CommandParser } from '../client/parser';
-import { ArrayReply, BlobStringReply, Command, MapReply, NumberReply, ReplyUnion, Resp2Reply, TuplesReply, TypeMapping, UnwrapReply } from '../RESP/types';
+import { ArrayReply, BlobStringReply, Command, MapReply, NumberReply, ReplyUnion, Resp2Reply, SetReply, TuplesReply, TypeMapping, UnwrapReply } from '../RESP/types';
 import { RESP_TYPES } from '../RESP/decoder';
 import { RedisVariadicArgument } from './generic-transformers';
 
@@ -12,7 +12,7 @@ export interface CommandDocsArgument {
   summary?: BlobStringReply;
   since?: BlobStringReply;
   deprecated_since?: BlobStringReply;
-  flags?: ArrayReply<BlobStringReply>;
+  flags?: SetReply<BlobStringReply>;
   arguments?: ArrayReply<CommandDocsArgument>;
 }
 
@@ -22,10 +22,10 @@ export interface CommandDoc {
   group?: BlobStringReply;
   complexity?: BlobStringReply;
   module?: BlobStringReply;
-  doc_flags?: ArrayReply<BlobStringReply>;
+  doc_flags?: SetReply<BlobStringReply>;
   deprecated_since?: BlobStringReply;
   replaced_by?: BlobStringReply;
-  history?: ArrayReply<TuplesReply<[BlobStringReply, BlobStringReply]>>;
+  history?: SetReply<TuplesReply<[BlobStringReply, BlobStringReply]>>;
   arguments?: ArrayReply<CommandDocsArgument>;
   subcommands?: CommandDocsReply;
   reply_schema?: ReplyUnion;
