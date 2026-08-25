@@ -1051,6 +1051,41 @@ describe('Client', () => {
     assert.deepEqual(map, results);
   }, GLOBAL.SERVERS.OPEN);
 
+  testUtils.testWithClient('scan iterators terminate under a Blob String type mapping', async client => {
+    // Regression: the iterators compared the reply cursor against the string
+    // '0', which a Buffer cursor never equals, so they scanned the keyspace
+    // forever. The Sentinel scanIterator already guarded against this.
+    const fields: Record<string, string> = {};
+    for (let i = 0; i < 100; i++) {
+      fields[i.toString()] = i.toString();
+    }
+
+    await client.mSet(Object.entries(fields).flat());
+    await client.hSet('hash', fields);
+    await client.sAdd('set', Object.keys(fields));
+    await client.zAdd('zset', Object.keys(fields).map(value => ({ value, score: 1 })));
+
+    const buffers = client.withTypeMapping({
+      [RESP_TYPES.BLOB_STRING]: Buffer
+    });
+
+    // Bound the page count so an unterminated iterator fails the test instead
+    // of hanging it.
+    const MAX_PAGES = 200;
+    async function drain(name: string, iterator: AsyncIterable<unknown>) {
+      let pages = 0;
+      for await (const _page of iterator) {
+        assert.ok(++pages <= MAX_PAGES, `${name} did not terminate within ${MAX_PAGES} pages`);
+      }
+    }
+
+    await drain('scanIterator', buffers.scanIterator({ COUNT: 10 }));
+    await drain('hScanIterator', buffers.hScanIterator('hash', { COUNT: 10 }));
+    await drain('hScanValuesIterator', buffers.hScanValuesIterator('hash', { COUNT: 10 }));
+    await drain('sScanIterator', buffers.sScanIterator('set', { COUNT: 10 }));
+    await drain('zScanIterator', buffers.zScanIterator('zset', { COUNT: 10 }));
+  }, GLOBAL.SERVERS.OPEN);
+
   describe('PubSub', () => {
     testUtils.testWithClient('should be able to publish and subscribe to messages', async publisher => {
       function assertStringListener(message: string, channel: string) {
