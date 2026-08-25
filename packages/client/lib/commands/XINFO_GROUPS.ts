@@ -8,7 +8,7 @@ export type XInfoGroupsReply = ArrayReply<TuplesToMapReply<[
   [BlobStringReply<'name'>, BlobStringReply],
   [BlobStringReply<'consumers'>, NumberReply],
   [BlobStringReply<'pending'>, NumberReply],
-  [BlobStringReply<'last-delivered-id'>, NumberReply],
+  [BlobStringReply<'last-delivered-id'>, BlobStringReply],
   /** added in 7.0 */
   [BlobStringReply<'entries-read'>, NumberReply | NullReply],
   /** added in 7.0 */
