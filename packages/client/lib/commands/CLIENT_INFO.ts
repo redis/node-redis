@@ -31,6 +31,18 @@ export interface ClientInfoReply {
    * available since 7.0
    */
   multiMem?: number;
+  /**
+   * available since 7.4
+   */
+  watch?: number;
+  /**
+   * available since 7.0
+   */
+  rbs?: number;
+  /**
+   * available since 7.0
+   */
+  rbp?: number;
   obl: number;
   oll: number;
   omem: number;
@@ -118,6 +130,18 @@ export default {
 
     if (map.resp !== undefined) {
       reply.resp = Number(map.resp);
+    }
+
+    if (map.watch !== undefined) {
+      reply.watch = Number(map.watch);
+    }
+
+    if (map.rbs !== undefined) {
+      reply.rbs = Number(map.rbs);
+    }
+
+    if (map.rbp !== undefined) {
+      reply.rbp = Number(map.rbp);
     }
 
     return reply;
