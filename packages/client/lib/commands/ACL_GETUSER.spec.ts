@@ -13,6 +13,13 @@ describe('ACL GETUSER', () => {
     );
   });
 
+  it('transformReply passes a null reply through for nonexistent users', () => {
+    assert.equal(
+      (ACL_GETUSER.transformReply[2] as unknown as (reply: unknown) => unknown)(null),
+      null
+    );
+  });
+
   testUtils.testWithClient('client.aclGetUser', async client => {
     const reply = await client.aclGetUser('default');
 
