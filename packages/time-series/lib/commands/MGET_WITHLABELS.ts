@@ -34,7 +34,7 @@ export function createTransformMGetLabelsReply<T extends RawLabelValue>() {
     2(reply: MGetLabelsRawReply2<T>, _, typeMapping?: TypeMapping) {
       return resp2MapToValue(reply, ([, labels, sample]) => {
         return {
-          labels: transformRESP2Labels(labels),
+          labels: transformRESP2Labels(labels, typeMapping),
           sample: transformSampleReply[2](sample)
         };
       }, typeMapping);

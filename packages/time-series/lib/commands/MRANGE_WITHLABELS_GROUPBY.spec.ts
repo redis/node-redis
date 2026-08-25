@@ -4,6 +4,7 @@ import MRANGE_WITHLABELS_GROUPBY from './MRANGE_WITHLABELS_GROUPBY';
 import { TIME_SERIES_REDUCERS } from './MRANGE_GROUPBY';
 import { TIME_SERIES_AGGREGATION_TYPE } from './CREATERULE';
 import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
+import { RESP_TYPES } from '@redis/client';
 
 describe('TS.MRANGE_WITHLABELS_GROUPBY', () => {
   it('transformArguments', () => {
@@ -38,6 +39,24 @@ describe('TS.MRANGE_WITHLABELS_GROUPBY', () => {
         'GROUPBY', 'label', 'REDUCE', 'AVG'
       ]
     );
+  });
+
+  it('transformReply maps labels with the MAP type mapping', () => {
+    const reply = MRANGE_WITHLABELS_GROUPBY.transformReply[2](
+      [[
+        'key',
+        [['label', 'value'], ['__reducer__', 'avg'], ['__source__', 'source']],
+        [[0, '1']]
+      ]] as never,
+      undefined,
+      { [RESP_TYPES.MAP]: Map }
+    ) as unknown as Map<string, { labels: unknown, sources: Array<string> }>;
+
+    assert.deepEqual(
+      reply.get('key')?.labels,
+      new Map([['label', 'value']])
+    );
+    assert.deepEqual(reply.get('key')?.sources, ['source']);
   });
 
   testUtils.testWithClient('client.ts.mRangeWithLabelsGroupBy', async client => {

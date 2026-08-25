@@ -2,12 +2,26 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import MGET_WITHLABELS from './MGET_WITHLABELS';
 import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
+import { RESP_TYPES } from '@redis/client';
 
 describe('TS.MGET_WITHLABELS', () => {
   it('transformArguments', () => {
     assert.deepEqual(
       parseArgs(MGET_WITHLABELS, 'label=value'),
       ['TS.MGET', 'WITHLABELS', 'FILTER', 'label=value']
+    );
+  });
+
+  it('transformReply maps labels with the MAP type mapping', () => {
+    const reply = MGET_WITHLABELS.transformReply[2](
+      [['key', [['label', 'value']], [0, '1']]] as never,
+      undefined,
+      { [RESP_TYPES.MAP]: Map }
+    ) as unknown as Map<string, { labels: unknown }>;
+
+    assert.deepEqual(
+      reply.get('key')?.labels,
+      new Map([['label', 'value']])
     );
   });
 
