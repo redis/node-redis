@@ -367,6 +367,13 @@ export default class RedisSentinel<
     this.#internal = new RedisSentinelInternal<M, F, S, RESP, TYPE_MAPPING>(options, this.#identity.id);
     this.#internal.on('error', err => this.emit('error', err));
 
+    /* forward the lifecycle events the internal emits from its open/ready transitions */
+    this.#internal
+      .on('connect', () => this.emit('connect'))
+      .on('ready', () => this.emit('ready'))
+      .on('reconnecting', () => this.emit('reconnecting'))
+      .on('end', () => this.emit('end'));
+
     /* pass through underling events */
     /* TODO: perhaps make this a struct and one vent, instead of multiple events */
     this.#internal.on('topology-change', (event: RedisSentinelEvent) => {
@@ -780,6 +787,33 @@ export class RedisSentinelInternal<
     return this.#isReady;
   }
 
+  /**
+   * Single source of truth for the `#isOpen` transition. Emits `connect` when the
+   * sentinel opens and `end` when it closes, once per real transition, so repeated
+   * `close()`/`destroy()` calls fire `end` at most once.
+   */
+  #setOpen(value: boolean) {
+    if (this.#isOpen === value) return;
+    this.#isOpen = value;
+    this.emit(value ? 'connect' : 'end');
+  }
+
+  /**
+   * Single source of truth for the `#isReady` transition. Emits `ready` when the
+   * sentinel becomes ready. A readiness drop while still open and not tearing down
+   * (a topology reconfigure) emits `reconnecting`; a drop from `close()`/`destroy()`
+   * is silent because `#destroy` is set before readiness is cleared.
+   */
+  #setReady(value: boolean) {
+    if (this.#isReady === value) return;
+    this.#isReady = value;
+    if (value) {
+      this.emit('ready');
+    } else if (this.#isOpen && !this.#destroy) {
+      this.emit('reconnecting');
+    }
+  }
+
   readonly #name: string;
   readonly #sentinelClientId: string;
   readonly #nodeClientOptions: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING, RedisTcpSocketOptions>;
@@ -989,11 +1023,11 @@ export class RedisSentinelInternal<
     }
 
     try {
-      this.#isOpen = true;
+      this.#setOpen(true);
 
       this.#connectPromise = this.#connect();
       await this.#connectPromise;
-      this.#isReady = true;
+      this.#setReady(true);
     } catch (err) {
       // The initial connect gave up. Tear down whatever was created along the
       // way: clients whose first connection attempt failed keep reconnecting
@@ -1138,8 +1172,20 @@ export class RedisSentinelInternal<
     }
 
     try {
+      // A reconfigure is starting: readiness drops (emits `reconnecting`) and is
+      // restored once the new topology is connected (emits `ready`), mirroring the
+      // standalone client's reconnect cycle.
+      this.#setReady(false);
       this.#connectPromise = this.#connect();
-      return await this.#connectPromise;
+      const result = await this.#connectPromise;
+      this.#setReady(true);
+      return result;
+    } catch (err) {
+      // Reconfigure failed: restore readiness without emitting so the guard above
+      // still lets future resets retry (matches prior behavior where `isReady`
+      // stayed true across a failed background reset).
+      this.#isReady = true;
+      throw err;
     } finally {
       this.#trace("finished reconfgure");
       this.#connectPromise = undefined;
@@ -1181,7 +1227,7 @@ export class RedisSentinelInternal<
       await this.#connectPromise.catch(() => undefined);
     }
 
-    this.#isReady = false;
+    this.#setReady(false);
 
     this.#clientSideCache?.onPoolClose();
 
@@ -1219,7 +1265,7 @@ export class RedisSentinelInternal<
 
     this.#pubSubProxy.destroy();
 
-    this.#isOpen = false;
+    this.#setOpen(false);
   }
 
   // destroy has to be async because its stopping others async events, timers and the like
@@ -1231,7 +1277,7 @@ export class RedisSentinelInternal<
       await this.#connectPromise.catch(() => undefined);
     }
 
-    this.#isReady = false;
+    this.#setReady(false);
 
     this.#clientSideCache?.onPoolClose();
 
@@ -1263,7 +1309,7 @@ export class RedisSentinelInternal<
 
     this.#pubSubProxy.destroy();
 
-    this.#isOpen = false
+    this.#setOpen(false);
     this.#destroy = false;
   }
 

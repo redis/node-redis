@@ -85,6 +85,32 @@ const sentinel = await createSentinel({
 | passthroughClientErrorEvents | `false` | When `true`, error events from client instances inside the sentinel will be propagated to the sentinel instance. This allows handling all client errors through a single error handler on the sentinel instance.                                                                                                     |
 | reserveClient              | `false`   | When `true`, one client will be reserved for the sentinel object. When `false`, the sentinel object will wait for the first available client from the pool.                                                                                                                                                           |
 
+## Events
+
+The sentinel object is an `EventEmitter` and emits the following lifecycle events, tracking its own `isOpen`/`isReady` state (see [`client.isReady`](../README.md#events) for the standalone client equivalents):
+
+| Name           | When                                                                                                | Listener arguments |
+| -------------- | --------------------------------------------------------------------------------------------------- | ------------------ |
+| `connect`      | The sentinel starts opening a connection (`isOpen` becomes `true`)                                  | _No arguments_     |
+| `ready`        | The sentinel has discovered the topology and is ready to accept commands (`isReady` becomes `true`) | _No arguments_     |
+| `reconnecting` | A topology reconfigure (e.g. a failover) started, so the sentinel is momentarily not ready          | _No arguments_     |
+| `end`          | The connection has been closed via `close()` or `destroy()` (`isOpen` becomes `false`)              | _No arguments_     |
+| `error`        | An error occurred on the sentinel or one of its underlying clients                                  | `(error: Error)`   |
+| `topology-change` | The monitored topology changed (master/replica added, removed, or promoted)                      | `(event: RedisSentinelEvent)` |
+
+```javascript
+sentinel
+  .on('connect', () => console.log('sentinel connecting'))
+  .on('ready', () => console.log('sentinel ready'))
+  .on('reconnecting', () => console.log('sentinel reconfiguring after a topology change'))
+  .on('end', () => console.log('sentinel closed'))
+  .on('error', err => console.error('Redis Sentinel Error', err));
+```
+
+> :warning: You **MUST** listen to `error` events. Without at least one `error` listener, an emitted error is thrown and crashes the process.
+
+**Divergence from the standalone client:** these events track the sentinel facade's own state, not the sockets of the individual master/replica node clients. On a failover the sentinel emits `reconnecting` once while it reconfigures and `ready` again once the new topology is connected; it does not surface the per-socket reconnect churn of the underlying node clients. Because the sentinel abstracts failover away, a `connect`/`ready` pair is emitted once on the initial `connect()`, and `end` fires at most once even if `close()` and `destroy()` are both called.
+
 ## Reconnecting after an outage
 
 As the client learns the sentinel topology it discovers additional sentinel nodes (reported by the sentinels as IP addresses). The nodes you pass in `sentinelRootNodes` are kept as **seeds**: they are always retained as reconnection candidates and are tried first, alongside the discovered nodes. This matters after an outage where the whole sentinel set restarts.
