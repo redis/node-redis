@@ -60,5 +60,5 @@ export default {
       parser.pushKeys(key);
     }
   },
-  transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+  transformReply: undefined as unknown as () => SimpleStringReply<'OK' | 'NOKEY'>
 } as const satisfies Command;

@@ -3,6 +3,7 @@ import { ArrayReply, TuplesReply, NumberReply, Command } from '../RESP/types';
 
 export type LatencyEventType = (
   'active-defrag-cycle' |
+  'aof-fstat' |
   'aof-fsync-always' |
   'aof-stat' |
   'aof-rewrite-diff-write' |
@@ -15,9 +16,11 @@ export type LatencyEventType = (
   'expire-cycle' |
   'eviction-cycle' |
   'eviction-del' |
+  'eviction-lazyfree' |
   'fast-command' |
   'fork' |
-  'rdb-unlink-temp-file'
+  'rdb-unlink-temp-file' |
+  'while-blocked-cron'
 );
 
 export default {

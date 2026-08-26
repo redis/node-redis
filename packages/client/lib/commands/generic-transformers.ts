@@ -740,7 +740,7 @@ export function transformStreamMessagesReply(
   return reply.map(transformStreamMessageReply.bind(undefined, typeMapping));
 }
 
-type StreamMessagesRawReply = TuplesReply<[name: BlobStringReply, ArrayReply<StreamMessageRawReply>]>;
+type StreamMessagesRawReply = TuplesReply<[name: BlobStringReply, messages: ArrayReply<StreamMessageRawReply>]>;
 export type StreamsMessagesRawReply2 = ArrayReply<StreamMessagesRawReply>;
 
 export function transformStreamsMessagesReplyResp2(

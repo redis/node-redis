@@ -1,5 +1,6 @@
 import { CommandParser } from '../client/parser';
-import { RedisArgument, TuplesToMapReply, BlobStringReply, ArrayReply, SetReply, UnwrapReply, Resp2Reply, Command } from '../RESP/types';
+import { RedisArgument, TuplesToMapReply, BlobStringReply, ArrayReply, SetReply, UnwrapReply, Resp2Reply, Command, NullReply } from '../RESP/types';
+import { isNullReply } from './generic-transformers';
 
 type AclUser = TuplesToMapReply<[
   [BlobStringReply<'flags'>, SetReply<BlobStringReply>],
@@ -23,21 +24,26 @@ export default {
     parser.push('ACL', 'GETUSER', username);
   },
   transformReply: {
-    2: (reply: UnwrapReply<Resp2Reply<AclUser>>) => ({
-      flags: reply[1],
-      passwords: reply[3],
-      commands: reply[5],
-      keys: reply[7],
-      channels: reply[9],
-      selectors: (reply[11] as unknown as UnwrapReply<typeof reply[11]>)?.map(selector => {
-        const inferred = selector as unknown as UnwrapReply<typeof selector>;
-        return {
-          commands: inferred[1],
-          keys: inferred[3],
-          channels: inferred[5]
-        };
-      })
-    }),
-    3: undefined as unknown as () => AclUser
+    // NullReply when the user does not exist
+    2: (reply: UnwrapReply<Resp2Reply<AclUser>> | NullReply) => {
+      if (isNullReply(reply)) return reply;
+
+      return {
+        flags: reply[1],
+        passwords: reply[3],
+        commands: reply[5],
+        keys: reply[7],
+        channels: reply[9],
+        selectors: (reply[11] as unknown as UnwrapReply<typeof reply[11]>)?.map(selector => {
+          const inferred = selector as unknown as UnwrapReply<typeof selector>;
+          return {
+            commands: inferred[1],
+            keys: inferred[3],
+            channels: inferred[5]
+          };
+        })
+      };
+    },
+    3: undefined as unknown as () => AclUser | NullReply
   }
 } as const satisfies Command;

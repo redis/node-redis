@@ -63,6 +63,21 @@ export interface InfoReply {
     index_capacity: NumberReply;
     index_total: NumberReply;
   };
+  /**
+   * Number of queries executed per dialect version, keyed by `dialect_N`
+   */
+  dialect_stats?: {
+    [dialect: string]: NumberReply;
+  };
+  /**
+   * Global index error statistics
+   */
+  'Index Errors'?: {
+    'indexing failures': NumberReply;
+    'last indexing error': BlobStringReply;
+    'last indexing error key': BlobStringReply;
+    'background indexing status': BlobStringReply;
+  };
   stopwords_list?: ArrayReply<BlobStringReply> | TuplesReply<[NullReply]>;
 }
 
@@ -112,6 +127,12 @@ function transformV2Reply(reply: Array<unknown>, preserve?: unknown, typeMapping
         break;
       case 'attributes':
         ret[key] = (reply[i+1] as Array<ArrayReply<SimpleStringReply>>).map(attribute => myTransformFunc(attribute));
+        break;
+      case 'dialect_stats':
+        ret[key] = myTransformFunc(reply[i+1] as ArrayReply<SimpleStringReply>) as never;
+        break;
+      case 'Index Errors':
+        ret[key] = myTransformFunc(reply[i+1] as ArrayReply<SimpleStringReply>) as never;
         break;
       case 'gc_stats': {
         const innerRet = {} as unknown as InfoReply['gc_stats'];

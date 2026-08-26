@@ -15,8 +15,14 @@ export type MemoryStatsReply = TuplesToMapReply<[
   [BlobStringReply<'lua.caches'>, NumberReply],
   /** added in 7.0 */
   [BlobStringReply<'functions.caches'>, NumberReply],
+  /** added in 7.4 */
+  [BlobStringReply<'overhead.db.hashtable.lut'>, NumberReply],
+  /** added in 7.4 */
+  [BlobStringReply<'overhead.db.hashtable.rehashing'>, NumberReply],
   // FIXME: 'db.0', and perhaps others' is here and is a map that should be handled?
   [BlobStringReply<'overhead.total'>, NumberReply],
+  /** added in 7.4 */
+  [BlobStringReply<'db.dict.rehashing.count'>, NumberReply],
   [BlobStringReply<'keys.count'>, NumberReply],
   [BlobStringReply<'keys.bytes-per-key'>, NumberReply],
   [BlobStringReply<'dataset.bytes'>, NumberReply],
@@ -25,6 +31,8 @@ export type MemoryStatsReply = TuplesToMapReply<[
   [BlobStringReply<'allocator.allocated'>, NumberReply],
   [BlobStringReply<'allocator.active'>, NumberReply],
   [BlobStringReply<'allocator.resident'>, NumberReply],
+  /** added in 7.4 */
+  [BlobStringReply<'allocator.muzzy'>, NumberReply],
   [BlobStringReply<'allocator-fragmentation.ratio'>, DoubleReply],
   [BlobStringReply<'allocator-fragmentation.bytes'>, NumberReply],
   [BlobStringReply<'allocator-rss.ratio'>, DoubleReply],
