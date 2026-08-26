@@ -2024,7 +2024,9 @@ export default class RedisClient<
       const reply = await this.scan(cursor, options);
       cursor = reply.cursor;
       yield reply.keys;
-    } while (cursor !== '0');
+      // Cursor may be a Buffer when a Blob String type mapping is in use;
+      // compare by string value so iteration actually terminates.
+    } while (cursor.toString() !== '0');
   }
 
   async* hScanIterator(
@@ -2037,7 +2039,7 @@ export default class RedisClient<
       const reply = await this.hScan(key, cursor, options);
       cursor = reply.cursor;
       yield reply.entries;
-    } while (cursor !== '0');
+    } while (cursor.toString() !== '0');
   }
 
   async* hScanValuesIterator(
@@ -2050,7 +2052,7 @@ export default class RedisClient<
       const reply = await this.hScan(key, cursor, options);
       cursor = reply.cursor;
       yield reply.entries.map(entry => entry.value);
-    } while (cursor !== '0');
+    } while (cursor.toString() !== '0');
   }
 
   async* hScanNoValuesIterator(
@@ -2063,7 +2065,7 @@ export default class RedisClient<
       const reply = await this.hScanNoValues(key, cursor, options);
       cursor = reply.cursor;
       yield reply.fields;
-    } while (cursor !== '0');
+    } while (cursor.toString() !== '0');
   }
 
   async* sScanIterator(
@@ -2076,7 +2078,7 @@ export default class RedisClient<
       const reply = await this.sScan(key, cursor, options);
       cursor = reply.cursor;
       yield reply.members;
-    } while (cursor !== '0');
+    } while (cursor.toString() !== '0');
   }
 
   async* zScanIterator(
@@ -2089,7 +2091,7 @@ export default class RedisClient<
       const reply = await this.zScan(key, cursor, options);
       cursor = reply.cursor;
       yield reply.members;
-    } while (cursor !== '0');
+    } while (cursor.toString() !== '0');
   }
 
   async MONITOR(callback: MonitorCallback<TYPE_MAPPING>) {
