@@ -19,11 +19,8 @@ export type HelloReply = TuplesToMapReply<[
   [BlobStringReply<'role'>, BlobStringReply],
   [BlobStringReply<'modules'>, ArrayReply<TuplesToMapReply<[
     [BlobStringReply<'name'>, BlobStringReply],
-    [BlobStringReply<'ver'>, NumberReply],
-    /** added in 7.0 */
-    [BlobStringReply<'path'>, BlobStringReply],
-    /** added in 7.0 */
-    [BlobStringReply<'args'>, ArrayReply<BlobStringReply>]
+    [BlobStringReply<'ver'>, NumberReply]
+    /** path and args exist only on Redis 7.0+ */
   ]>>]
 ]>;
 

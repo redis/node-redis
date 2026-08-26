@@ -1,8 +1,9 @@
 /**
  * Compile-time regression: each entry of the HELLO reply's modules field is a
- * structured entry (name, ver, and path/args since 7.0), not a plain string.
- * The declared reply type used to label it Array<BlobStringReply>, so
- * consumers had no type-safe access to the module fields.
+ * structured entry (name, ver), not a plain string. The declared reply type
+ * used to label it Array<BlobStringReply>, so consumers had no type-safe
+ * access to the module fields. path and args exist only on Redis 7.0+ and are
+ * intentionally left out of the declared shape, mirroring MODULE LIST.
  *
  * Lives outside `lib/` so it is not picked up by the production build /
  * typedoc. Checked with `npm run test:types -w @redis/client`.
@@ -18,15 +19,13 @@ export function helloModulesAreStructured(entry: ModuleEntry): void {
     if (!Array.isArray(entry)) {
         const name: string = entry.name;
         const ver: number = entry.ver;
-        const path: string = entry.path;
-        const args: string[] = entry.args;
 
         // A module version is a number, not a string.
         // @ts-expect-error module versions are numbers
         const notAString: string = entry.ver;
 
         if (process.env.NODE_ENV !== 'production') {
-            console.log(name, ver, path, args, notAString);
+            console.log(name, ver, notAString);
         }
 
         return;
