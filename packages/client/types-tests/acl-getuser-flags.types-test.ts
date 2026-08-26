@@ -1,9 +1,9 @@
 /**
- * Compile-time regression: ACL GETUSER's flags field must be typed as a
- * RESP3 SET. acl.c emits the flags element with setDeferredSetLen, so RESP3
- * clients receive a set on the wire, while ArrayReply promised an array.
- * Sibling commands already model this with SetReply (FUNCTION LIST,
- * CLIENT TRACKINGINFO); RESP2 replies remain arrays either way.
+ * Compile-time regression: ACL GETUSER's flags field must model the RESP3
+ * set that acl.c emits (setDeferredSetLen). The wire element is a set, but it
+ * decodes to a plain Array unless callers map RESP_TYPES.SET to Set, which is
+ * exactly how SetReply types it. Sibling commands already use SetReply
+ * (FUNCTION LIST, CLIENT TRACKINGINFO); replies remain arrays by default.
  *
  * Lives outside `lib/` so it is not picked up by the production build /
  * typedoc. Checked with `npm run test:types -w @redis/client`.
@@ -18,7 +18,7 @@ type FlagsWithSetMapping = ReplyWithTypeMapping<
 >;
 
 export function aclGetUserFlagsAreSets(reply: FlagsWithSetMapping): void {
-    // With SET mapped, flags resolves to the RESP3 wire type.
+    // With SET mapped to Set, flags resolves to Set<string>.
     const flags: Set<string> = reply.flags;
     console.log(flags.size > 0 ? 'has flags' : 'no flags');
 }
