@@ -1273,6 +1273,10 @@ export class RedisSentinelInternal<
 
     this.#pubSubProxy.destroy();
 
+    // Clear #destroy before emitting `end` (via #setOpen) and before returning, so a
+    // later connect() — or a reentrant connect() from an `end` listener — is not left
+    // half-open by #connect()'s teardown guard. Mirrors destroy().
+    this.#destroy = false;
     this.#setOpen(false);
   }
 
@@ -1317,8 +1321,10 @@ export class RedisSentinelInternal<
 
     this.#pubSubProxy.destroy();
 
-    this.#setOpen(false);
+    // Clear #destroy before emitting `end` (via #setOpen), so a reentrant connect()
+    // from an `end` listener sees teardown finalized and can reopen cleanly.
     this.#destroy = false;
+    this.#setOpen(false);
   }
 
   async subscribe<T extends boolean = false>(
