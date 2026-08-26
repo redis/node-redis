@@ -69,6 +69,7 @@ describe('TS.MREVRANGE_SELECTED_LABELS_GROUPBY', () => {
                 value: null
               }
             }),
+            sources: ['key'],
             samples: [{
               timestamp: 0,
               value: 0
