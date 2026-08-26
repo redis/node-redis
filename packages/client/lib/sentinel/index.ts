@@ -1175,32 +1175,25 @@ export class RedisSentinelInternal<
       return;
     }
 
-    // Coalesce with an in-flight connect/reset (an initial connect, or an ongoing
-    // reconfigure that dropped `#isReady`) BEFORE the readiness gate below, so a
-    // control event arriving mid-reconfigure still registers via `#anotherReset`
-    // and the running `#connect()` re-observes the newest topology.
+    // Coalesce with an in-flight connect/reset BEFORE the gate below, so a control
+    // event arriving mid-reconfigure still registers via `#anotherReset` and the
+    // running `#connect()` re-observes the newest topology.
     if (this.#connectPromise !== undefined) {
       this.#anotherReset = true;
       return await this.#connectPromise;
     }
 
-    /* never connected / already closed */
-    if (this.#isReady == false) {
+    // Gate on #isOpen, not #isReady: a failover (or a failed one) may have left
+    // readiness false, and later control events must still be able to retry and
+    // eventually re-emit `ready`. #isReady is owned by #connect()/transform(), so a
+    // failed reconfigure honestly stays not-ready rather than falsely reporting ready.
+    if (this.#isOpen == false) {
       return;
     }
 
     try {
       this.#connectPromise = this.#connect();
       return await this.#connectPromise;
-    } catch (err) {
-      // A failed reconfigure must not leave the sentinel permanently not-ready:
-      // transform() may have dropped `#isReady` (emitting `reconnecting`) before the
-      // connect gave up. Restore it silently so later control events can retry,
-      // matching prior behavior where `isReady` stayed usable across a failed reset.
-      if (this.#isOpen && !this.#destroy) {
-        this.#isReady = true;
-      }
-      throw err;
     } finally {
       this.#trace("finished reconfgure");
       this.#connectPromise = undefined;

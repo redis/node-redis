@@ -95,8 +95,7 @@ The sentinel object is an `EventEmitter` and emits the following lifecycle event
 | `ready`        | The sentinel has discovered the topology and is ready to accept commands (`isReady` becomes `true`) | _No arguments_     |
 | `reconnecting` | The monitored master actually changed, so the sentinel is reconfiguring and momentarily not ready (`isReady` becomes `false`). Not emitted for routine topology scans that change nothing. | _No arguments_     |
 | `end`          | The connection has been closed via `close()` or `destroy()` (`isOpen` becomes `false`)              | _No arguments_     |
-| `error`        | An error on the sentinel itself (e.g. topology discovery failed). The observe path may pass a formatted string rather than an `Error`. | `(error: Error \| string)` |
-| `client-error` | An error from an underlying master/replica/sentinel client. These are surfaced here, **not** via `error`, unless `passthroughClientErrorEvents: true` also re-emits them as `error`. | `(event: ClientErrorEvent)` |
+| `error`        | An error on the sentinel itself (e.g. topology discovery failed). Errors from the underlying master/replica/sentinel clients are included here **only when** [`passthroughClientErrorEvents: true`](#createsentinel-configuration); otherwise they are not surfaced on the sentinel object. May be a formatted string rather than an `Error`. | `(error: Error \| string)` |
 | `topology-change` | The monitored topology changed (master/replica added, removed, or promoted)                      | `(event: RedisSentinelEvent)` |
 
 ```javascript
