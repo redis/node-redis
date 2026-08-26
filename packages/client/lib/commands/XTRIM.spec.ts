@@ -34,12 +34,12 @@ describe('XTRIM', () => {
       );
     });
 
-    it('with LIMIT', () => {
+    it('with LIMIT without strategyModifier ~', () => {
       assert.deepEqual(
         parseArgs(XTRIM, 'key', 'MAXLEN', 1, {
           LIMIT: 1
         }),
-        ['XTRIM', 'key', 'MAXLEN', '1', 'LIMIT', '1']
+        ['XTRIM', 'key', 'MAXLEN', '1']
       );
     });
 
