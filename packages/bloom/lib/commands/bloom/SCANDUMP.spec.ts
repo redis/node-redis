@@ -20,4 +20,20 @@ describe('BF.SCANDUMP', () => {
     assert.equal(typeof dump.iterator, 'number');
     assert.equal(typeof dump.chunk, 'string');
   }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.bf.scanDump iterating to the terminating pair', async client => {
+    await client.bf.reserve('scandump-key', 0.01, 100);
+
+    let iterator = 0;
+    while (true) {
+      const reply = await client.bf.scanDump('scandump-key', iterator);
+      if (reply.iterator === 0) {
+        assert.equal(reply.chunk, null);
+        break;
+      }
+
+      assert.equal(typeof reply.chunk, 'string');
+      iterator = reply.iterator;
+    }
+  }, GLOBAL.SERVERS.OPEN);
 });
