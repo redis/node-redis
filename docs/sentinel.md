@@ -93,9 +93,10 @@ The sentinel object is an `EventEmitter` and emits the following lifecycle event
 | -------------- | --------------------------------------------------------------------------------------------------- | ------------------ |
 | `connect`      | The sentinel starts opening a connection (`isOpen` becomes `true`)                                  | _No arguments_     |
 | `ready`        | The sentinel has discovered the topology and is ready to accept commands (`isReady` becomes `true`) | _No arguments_     |
-| `reconnecting` | A topology reconfigure (e.g. a failover) started, so the sentinel is momentarily not ready          | _No arguments_     |
+| `reconnecting` | The monitored master actually changed, so the sentinel is reconfiguring and momentarily not ready (`isReady` becomes `false`). Not emitted for routine topology scans that change nothing. | _No arguments_     |
 | `end`          | The connection has been closed via `close()` or `destroy()` (`isOpen` becomes `false`)              | _No arguments_     |
-| `error`        | An error occurred on the sentinel or one of its underlying clients                                  | `(error: Error)`   |
+| `error`        | An error on the sentinel itself (e.g. topology discovery failed). The observe path may pass a formatted string rather than an `Error`. | `(error: Error \| string)` |
+| `client-error` | An error from an underlying master/replica/sentinel client. These are surfaced here, **not** via `error`, unless `passthroughClientErrorEvents: true` also re-emits them as `error`. | `(event: ClientErrorEvent)` |
 | `topology-change` | The monitored topology changed (master/replica added, removed, or promoted)                      | `(event: RedisSentinelEvent)` |
 
 ```javascript
@@ -109,7 +110,7 @@ sentinel
 
 > :warning: You **MUST** listen to `error` events. Without at least one `error` listener, an emitted error is thrown and crashes the process.
 
-**Divergence from the standalone client:** these events track the sentinel facade's own state, not the sockets of the individual master/replica node clients. On a failover the sentinel emits `reconnecting` once while it reconfigures and `ready` again once the new topology is connected; it does not surface the per-socket reconnect churn of the underlying node clients. Because the sentinel abstracts failover away, a `connect`/`ready` pair is emitted once on the initial `connect()`, and `end` fires at most once even if `close()` and `destroy()` are both called.
+**Divergence from the standalone client:** these events track the sentinel facade's own state, not the sockets of the individual master/replica node clients. `reconnecting` is emitted only when the monitored master actually changes (a failover) — routine periodic topology scans that find no change are silent — and `ready` is re-emitted once the new master is connected; the per-socket reconnect churn of the underlying node clients is not surfaced. Because the sentinel abstracts failover away, a `connect`/`ready` pair is emitted once on the initial `connect()`, and `end` fires at most once even if `close()` and `destroy()` are both called.
 
 ## Reconnecting after an outage
 

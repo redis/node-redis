@@ -801,11 +801,15 @@ export class RedisSentinelInternal<
   /**
    * Single source of truth for the `#isReady` transition. Emits `ready` when the
    * sentinel becomes ready. A readiness drop while still open and not tearing down
-   * (a topology reconfigure) emits `reconnecting`; a drop from `close()`/`destroy()`
-   * is silent because `#destroy` is set before readiness is cleared.
+   * (an actual topology reconfigure — see `transform()`) emits `reconnecting`; a
+   * drop from `close()`/`destroy()` is silent because `#destroy` is set first.
    */
   #setReady(value: boolean) {
     if (this.#isReady === value) return;
+    // Never flip to ready while tearing down: close()/destroy() set #destroy first,
+    // so an in-flight connect that resolves afterwards stays not-ready and does not
+    // emit `ready` after `end`.
+    if (value && this.#destroy) return;
     this.#isReady = value;
     if (value) {
       this.emit('ready');
@@ -1023,11 +1027,12 @@ export class RedisSentinelInternal<
     }
 
     try {
-      this.#setOpen(true);
-
+      // Assign #connectPromise before emitting `connect`, so a listener that calls
+      // close()/destroy() from within the event awaits the in-flight attempt instead
+      // of tearing down before it starts. Readiness (and `ready`) is set by #connect().
       this.#connectPromise = this.#connect();
+      this.#setOpen(true);
       await this.#connectPromise;
-      this.#setReady(true);
     } catch (err) {
       // The initial connect gave up. Tear down whatever was created along the
       // way: clients whose first connection attempt failed keep reconnecting
@@ -1060,6 +1065,11 @@ export class RedisSentinelInternal<
           this.#trace("#connect: anotherReset is true, so continuing");
           continue;
         }
+
+        // Topology is connected: (re)assert readiness. Emits `ready` only on a real
+        // transition, so an initial connect and the tail of a failover both emit it,
+        // while a healthy periodic scan that changed nothing stays silent.
+        this.#setReady(true);
 
         this.#trace("#connect: returning");
         return;
@@ -1161,30 +1171,35 @@ export class RedisSentinelInternal<
 
   async #reset() {
     /* closing / don't reset */
-    if (this.#isReady == false || this.#destroy == true) {
+    if (this.#destroy == true) {
       return;
     }
 
-    // already in #connect()
+    // Coalesce with an in-flight connect/reset (an initial connect, or an ongoing
+    // reconfigure that dropped `#isReady`) BEFORE the readiness gate below, so a
+    // control event arriving mid-reconfigure still registers via `#anotherReset`
+    // and the running `#connect()` re-observes the newest topology.
     if (this.#connectPromise !== undefined) {
       this.#anotherReset = true;
       return await this.#connectPromise;
     }
 
+    /* never connected / already closed */
+    if (this.#isReady == false) {
+      return;
+    }
+
     try {
-      // A reconfigure is starting: readiness drops (emits `reconnecting`) and is
-      // restored once the new topology is connected (emits `ready`), mirroring the
-      // standalone client's reconnect cycle.
-      this.#setReady(false);
       this.#connectPromise = this.#connect();
-      const result = await this.#connectPromise;
-      this.#setReady(true);
-      return result;
+      return await this.#connectPromise;
     } catch (err) {
-      // Reconfigure failed: restore readiness without emitting so the guard above
-      // still lets future resets retry (matches prior behavior where `isReady`
-      // stayed true across a failed background reset).
-      this.#isReady = true;
+      // A failed reconfigure must not leave the sentinel permanently not-ready:
+      // transform() may have dropped `#isReady` (emitting `reconnecting`) before the
+      // connect gave up. Restore it silently so later control events can retry,
+      // matching prior behavior where `isReady` stayed usable across a failed reset.
+      if (this.#isOpen && !this.#destroy) {
+        this.#isReady = true;
+      }
       throw err;
     } finally {
       this.#trace("finished reconfgure");
@@ -1528,6 +1543,12 @@ export class RedisSentinelInternal<
 
     if (analyzed.masterToOpen) {
       this.#trace(`transform: opening a new master`);
+      // The master actually changed (analyze() leaves masterToOpen undefined otherwise).
+      // If the sentinel was already running and ready, it is now reconfiguring: drop
+      // readiness (emits `reconnecting`). #connect() re-asserts readiness (emits `ready`)
+      // once the new topology is connected. On the initial connect `#isReady` is still
+      // false, so this is a no-op and no `reconnecting` is emitted.
+      this.#setReady(false);
       const masterPromises = [];
       const masterWatches: Array<boolean> = [];
 
