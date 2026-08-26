@@ -21,7 +21,7 @@ export type TsMRangeSelectedLabelsGroupByRawReply2 = ArrayReply<
     key: BlobStringReply,
     labels: ArrayReply<TuplesReply<[
       label: BlobStringReply,
-      value: BlobStringReply
+      value: BlobStringReply | NullReply
     ]>>,
     samples: ArrayReply<Resp2Reply<SampleRawReply>>
   ]>
