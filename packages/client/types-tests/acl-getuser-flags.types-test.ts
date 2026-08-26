@@ -18,6 +18,9 @@ type FlagsWithSetMapping = ReplyWithTypeMapping<
 >;
 
 export function aclGetUserFlagsAreSets(reply: FlagsWithSetMapping): void {
+    // The reply includes null when the user does not exist.
+    if (reply === null) return;
+
     // With SET mapped to Set, flags resolves to Set<string>.
     const flags: Set<string> = reply.flags;
     console.log(flags.size > 0 ? 'has flags' : 'no flags');
