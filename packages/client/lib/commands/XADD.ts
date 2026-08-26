@@ -83,9 +83,7 @@ export function parseXAddArguments(
 
   // Trimming options
   if (options?.TRIM) {
-    if (options.TRIM.strategy) {
-      parser.push(options.TRIM.strategy);
-    }
+    parser.push(options.TRIM.strategy);
 
     if (options.TRIM.strategyModifier) {
       parser.push(options.TRIM.strategyModifier);
