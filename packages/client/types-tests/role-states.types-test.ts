@@ -13,13 +13,13 @@ type Client = ReturnType<typeof createClient>;
 type RoleReply = Awaited<ReturnType<Client['role']>>;
 
 export function roleSlaveStateCoversServerStates(reply: RoleReply): void {
-    if (!reply) return;
-    if (reply.role === 'slave') {
-        const state = reply.state;
-        // Comparing against real server states must be a legal check.
-        if (state === 'handshake' || state === 'none' || state === 'unknown') {
-            console.log('transient state:', state);
-        }
-        console.log(state);
+  if (!reply) return;
+  if (reply.role === 'slave') {
+    const state = reply.state;
+    // Comparing against real server states must be a legal check.
+    if (state === 'handshake' || state === 'none' || state === 'unknown') {
+      console.log('transient state:', state);
     }
+    console.log(state);
+  }
 }
