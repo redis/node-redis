@@ -109,7 +109,7 @@ sentinel
 
 > :warning: You **MUST** listen to `error` events. Without at least one `error` listener, an emitted error is thrown and crashes the process.
 
-**Divergence from the standalone client:** these events track the sentinel facade's own state, not the sockets of the individual master/replica node clients. `reconnecting` is emitted only when the monitored master actually changes (a failover) — routine periodic topology scans that find no change are silent — and `ready` is re-emitted once the new master is connected; the per-socket reconnect churn of the underlying node clients is not surfaced. Because the sentinel abstracts failover away, a `connect`/`ready` pair is emitted once on the initial `connect()`, and `end` fires at most once even if `close()` and `destroy()` are both called.
+**Divergence from the standalone client:** these events track the sentinel facade's own state, not the sockets of the individual master/replica node clients. `reconnecting` is emitted only when the monitored master actually changes (a failover) — routine periodic topology scans that find no change are silent — and `ready` is re-emitted once the new master is connected; the per-socket reconnect churn of the underlying node clients is not surfaced. Because the sentinel abstracts failover away, a `connect`/`ready` pair is emitted once on the initial `connect()`, and `end` fires at most once even if `close()` and `destroy()` are both called. Also note that `connect` marks the start of the connection attempt (not an established socket), so a `connect()` that fails emits `connect` followed by `end` before rejecting — whereas the standalone client emits nothing in that case.
 
 ## Reconnecting after an outage
 
