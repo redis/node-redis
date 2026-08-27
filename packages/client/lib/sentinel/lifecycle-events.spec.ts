@@ -63,4 +63,17 @@ describe('RedisSentinel lifecycle events', () => {
 
     await sentinel.destroy();
   }, OPEN);
+
+  // Hangs in getClientLease() if teardown does not return the reserved lease's
+  // slot to the pool queue, which is only filled at construction.
+  testUtils.testWithClientSentinel('reopens after close() with reserveClient', async sentinel => {
+    sentinel.on('error', () => { });
+
+    await sentinel.connect();
+    await sentinel.close();
+    await sentinel.connect();
+    assert.equal(await sentinel.ping(), 'PONG');
+
+    await sentinel.destroy();
+  }, { ...OPEN, reserveClient: true });
 });

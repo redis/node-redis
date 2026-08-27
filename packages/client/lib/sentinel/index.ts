@@ -571,11 +571,23 @@ export default class RedisSentinel<
   multi = this.MULTI;
 
   async close() {
-    return this._self.#internal.close();
+    await this._self.#internal.close();
+    this._self.#releaseReservedLease();
   }
 
-  destroy() {
-    return this._self.#internal.destroy();
+  async destroy() {
+    await this._self.#internal.destroy();
+    this._self.#releaseReservedLease();
+  }
+
+  // The reserved lease's slot must go back to the pool queue (it is only filled at
+  // construction), otherwise a reopening connect() with reserveClient waits forever
+  // for a free client.
+  #releaseReservedLease() {
+    if (this.#reservedClientInfo) {
+      this.#internal.releaseClientLease(this.#reservedClientInfo);
+      this.#reservedClientInfo = undefined;
+    }
   }
 
   async SUBSCRIBE<T extends boolean = false>(
