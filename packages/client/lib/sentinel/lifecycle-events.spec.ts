@@ -1,5 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { once } from 'node:events';
+import { setTimeout } from 'node:timers/promises';
 import testUtils, { GLOBAL } from '../test-utils';
 
 // `disableClientSetup` hands us an un-connected sentinel so we can attach
@@ -76,4 +77,23 @@ describe('RedisSentinel lifecycle events', () => {
 
     await sentinel.destroy();
   }, { ...OPEN, reserveClient: true });
+
+  testUtils.testWithClientSentinel('settles closed when a connect listener throws', async sentinel => {
+    const events: Array<string> = [];
+    sentinel
+      .on('ready', () => events.push('ready'))
+      .on('end', () => events.push('end'))
+      .on('error', () => { })
+      .on('connect', () => { throw new Error('listener boom'); });
+
+    await assert.rejects(sentinel.connect(), /listener boom/);
+
+    // Give an abandoned discovery attempt time to resurrect clients — the bug
+    // being pinned is `ready` after `end` from a connect that outlived destroy().
+    await setTimeout(100);
+
+    assert.equal(sentinel.isOpen, false);
+    assert.equal(sentinel.isReady, false);
+    assert.deepEqual(events, ['end']);
+  }, OPEN);
 });

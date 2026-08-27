@@ -1050,7 +1050,8 @@ export class RedisSentinelInternal<
       // way: clients whose first connection attempt failed keep reconnecting
       // per their `reconnectStrategy`, and would otherwise stay alive in the
       // background (holding sockets and timers) after `connect()` rejected.
-      this.#connectPromise = undefined;
+      // Keep #connectPromise assigned so destroy() awaits the attempt — it is
+      // still in flight when a `connect` listener threw; the finally clears it.
       await this.destroy();
       throw err;
     } finally {
