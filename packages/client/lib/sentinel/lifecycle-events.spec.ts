@@ -44,4 +44,23 @@ describe('RedisSentinel lifecycle events', () => {
 
     assert.equal(endCount, 1);
   }, OPEN);
+
+  // Pins the ordering in `close()`: `#destroy` must be cleared before
+  // `#setOpen(false)`, otherwise a later `connect()` ends up half-open
+  // (`connect` without `ready`).
+  testUtils.testWithClientSentinel('reopens after close(): connect+ready emitted again', async sentinel => {
+    const events: Array<string> = [];
+    sentinel
+      .on('connect', () => events.push('connect'))
+      .on('ready', () => events.push('ready'))
+      .on('end', () => events.push('end'))
+      .on('error', () => { });
+
+    await sentinel.connect();
+    await sentinel.close();
+    await sentinel.connect();
+    assert.deepEqual(events, ['connect', 'ready', 'end', 'connect', 'ready']);
+
+    await sentinel.destroy();
+  }, OPEN);
 });
