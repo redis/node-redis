@@ -571,13 +571,21 @@ export default class RedisSentinel<
   multi = this.MULTI;
 
   async close() {
-    await this._self.#internal.close();
-    this._self.#releaseReservedLease();
+    try {
+      await this._self.#internal.close();
+    } finally {
+      // In a finally: internal teardown completes even when an `end` listener
+      // throws, and the lease must not be stranded in that case either.
+      this._self.#releaseReservedLease();
+    }
   }
 
   async destroy() {
-    await this._self.#internal.destroy();
-    this._self.#releaseReservedLease();
+    try {
+      await this._self.#internal.destroy();
+    } finally {
+      this._self.#releaseReservedLease();
+    }
   }
 
   // The reserved lease's slot must go back to the pool queue (it is only filled at

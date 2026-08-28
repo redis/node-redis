@@ -78,6 +78,21 @@ describe('RedisSentinel lifecycle events', () => {
     await sentinel.destroy();
   }, { ...OPEN, reserveClient: true });
 
+  // Same reopen hang as above, through a different door: the lease release runs
+  // in a finally, so a throwing `end` listener cannot strand the reservation.
+  testUtils.testWithClientSentinel('releases the reserved lease when an end listener throws', async sentinel => {
+    sentinel.on('error', () => { });
+    await sentinel.connect();
+
+    sentinel.once('end', () => { throw new Error('end boom'); });
+    await assert.rejects(sentinel.close(), /end boom/);
+
+    await sentinel.connect();
+    assert.equal(await sentinel.ping(), 'PONG');
+
+    await sentinel.destroy();
+  }, { ...OPEN, reserveClient: true });
+
   testUtils.testWithClientSentinel('settles closed when a connect listener throws', async sentinel => {
     const events: Array<string> = [];
     sentinel
