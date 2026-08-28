@@ -883,6 +883,7 @@ export class RedisSentinelInternal<
   }
 
   #connectPromise?: Promise<void>;
+  #teardownPromise?: Promise<void>;
   #maxCommandRediscovers: number;
   readonly #pubSubProxy: PubSubProxy;
 
@@ -1264,7 +1265,20 @@ export class RedisSentinelInternal<
     this.#resetInBackground();
   }
 
+  /**
+   * Serializes teardown: overlapping close()/destroy() calls join the in-flight
+   * teardown instead of running a second pass over already-emptied client arrays —
+   * a second pass would emit `end` early and let the tail of the first pass kill a
+   * sentinel that a listener has since reopened.
+   */
   async close() {
+    this.#teardownPromise ??= this.#doClose().finally(() => {
+      this.#teardownPromise = undefined;
+    });
+    return this.#teardownPromise;
+  }
+
+  async #doClose() {
     this.#destroy = true;
 
     if (this.#connectPromise != undefined) {
@@ -1316,9 +1330,17 @@ export class RedisSentinelInternal<
     this.#setOpen(false);
   }
 
+  // Coalesces with an in-flight close()/destroy() — see close() above.
+  async destroy() {
+    this.#teardownPromise ??= this.#doDestroy().finally(() => {
+      this.#teardownPromise = undefined;
+    });
+    return this.#teardownPromise;
+  }
+
   // destroy has to be async because its stopping others async events, timers and the like
   // and shouldn't return until its finished.
-  async destroy() {
+  async #doDestroy() {
     this.#destroy = true;
 
     if (this.#connectPromise != undefined) {

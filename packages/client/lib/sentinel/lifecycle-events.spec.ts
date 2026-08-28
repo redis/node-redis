@@ -135,6 +135,25 @@ describe('RedisSentinel lifecycle events', () => {
     assert.deepEqual(events, ['end']);
   }, OPEN);
 
+  // Overlapping teardown calls must coalesce: a second pass over already-emptied
+  // client arrays emits `end` early, and the first pass's tail then closes a
+  // sentinel that the `end` listener has since reopened.
+  testUtils.testWithClientSentinel('overlapping close() and destroy() do not kill a reopened sentinel', async sentinel => {
+    sentinel.on('error', () => { });
+    await sentinel.connect();
+
+    let reopen: Promise<unknown> | undefined;
+    sentinel.once('end', () => { reopen = sentinel.connect(); });
+
+    await Promise.all([sentinel.close(), sentinel.destroy()]);
+    await reopen;
+
+    assert.equal(sentinel.isOpen, true);
+    assert.equal(sentinel.isReady, true);
+
+    await sentinel.destroy();
+  }, OPEN);
+
   // `ready`/`reconnecting` are emitted inside #connect()'s topology-retry loop; a
   // throwing listener must surface on `error`, not masquerade as a discovery failure.
   testUtils.testWithClientSentinel('routes a throwing ready listener to the error event', async sentinel => {
