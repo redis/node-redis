@@ -1272,9 +1272,16 @@ export class RedisSentinelInternal<
    * sentinel that a listener has since reopened.
    */
   async close() {
-    this.#teardownPromise ??= this.#doClose().finally(() => {
-      this.#teardownPromise = undefined;
-    });
+    if (this.#teardownPromise === undefined) {
+      const teardown: Promise<void> = this.#doClose().finally(() => {
+        // Guarded like #connectPromise in connect(): an `end` listener may have
+        // started a new teardown generation that must not be wiped.
+        if (this.#teardownPromise === teardown) {
+          this.#teardownPromise = undefined;
+        }
+      });
+      this.#teardownPromise = teardown;
+    }
     return this.#teardownPromise;
   }
 
@@ -1325,16 +1332,24 @@ export class RedisSentinelInternal<
 
     // Clear #destroy before emitting `end` (via #setOpen) and before returning, so a
     // later connect() — or a reentrant connect() from an `end` listener — is not left
-    // half-open by #connect()'s teardown guard. Mirrors destroy().
+    // half-open by #connect()'s teardown guard. Mirrors destroy(). Also start a new
+    // teardown generation: a close()/destroy() from inside the emit must tear down a
+    // reentrantly reopened sentinel, not join this already-finished pass.
     this.#destroy = false;
+    this.#teardownPromise = undefined;
     this.#setOpen(false);
   }
 
   // Coalesces with an in-flight close()/destroy() — see close() above.
   async destroy() {
-    this.#teardownPromise ??= this.#doDestroy().finally(() => {
-      this.#teardownPromise = undefined;
-    });
+    if (this.#teardownPromise === undefined) {
+      const teardown: Promise<void> = this.#doDestroy().finally(() => {
+        if (this.#teardownPromise === teardown) {
+          this.#teardownPromise = undefined;
+        }
+      });
+      this.#teardownPromise = teardown;
+    }
     return this.#teardownPromise;
   }
 
@@ -1380,8 +1395,10 @@ export class RedisSentinelInternal<
     this.#pubSubProxy.destroy();
 
     // Clear #destroy before emitting `end` (via #setOpen), so a reentrant connect()
-    // from an `end` listener sees teardown finalized and can reopen cleanly.
+    // from an `end` listener sees teardown finalized and can reopen cleanly. Also
+    // start a new teardown generation — see #doClose().
     this.#destroy = false;
+    this.#teardownPromise = undefined;
     this.#setOpen(false);
   }
 

@@ -154,6 +154,30 @@ describe('RedisSentinel lifecycle events', () => {
     await sentinel.destroy();
   }, OPEN);
 
+  // #teardownPromise is cleared before `end` is emitted: a destroy() from inside
+  // the emit must tear down a reentrantly reopened sentinel, not join the
+  // already-finished pass and resolve while the reopen goes on to become ready.
+  testUtils.testWithClientSentinel('destroy() from an end listener tears down a reentrant reopen', async sentinel => {
+    const events: Array<string> = [];
+    sentinel
+      .on('ready', () => events.push('ready'))
+      .on('end', () => events.push('end'))
+      .on('error', () => { });
+    await sentinel.connect();
+
+    sentinel.once('end', () => {
+      sentinel.connect().catch(() => { });
+      sentinel.destroy().catch(() => { });
+    });
+
+    await sentinel.close();
+    await setTimeout(100);
+
+    assert.equal(sentinel.isOpen, false);
+    assert.equal(sentinel.isReady, false);
+    assert.ok(events.lastIndexOf('ready') < events.lastIndexOf('end'), `ready after end: ${events}`);
+  }, OPEN);
+
   // `ready`/`reconnecting` are emitted inside #connect()'s topology-retry loop; a
   // throwing listener must surface on `error`, not masquerade as a discovery failure.
   testUtils.testWithClientSentinel('routes a throwing ready listener to the error event', async sentinel => {
