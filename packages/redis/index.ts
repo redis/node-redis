@@ -18,6 +18,8 @@ import {
   RedisPoolOptions,
   createMultiDbClient as genericCreateMultiDbClient,
   MultiDbResult,
+  MultiDbConfig,
+  DatabaseConfig,
 } from '@redis/client';
 import RedisBloomModules from '@redis/bloom';
 import RedisJSON from '@redis/json';
@@ -78,13 +80,12 @@ export function createMultiDbClient<
   RESP extends RespVersions = 3,
   TYPE_MAPPING extends TypeMapping = {}
 >(options: {
-  databases: Array<{
-    options: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>;
-    weight?: number;
-  }>;
-}): MultiDbResult<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {
+  databases: Array<DatabaseConfig<RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>>>;
+} & MultiDbConfig): MultiDbResult<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {
+  const { databases, ...multiDbOptions } = options;
   return genericCreateMultiDbClient({
-    databases: options.databases.map(db => ({
+    ...multiDbOptions,
+    databases: databases.map(db => ({
       ...db,
       options: {
         ...db.options,
