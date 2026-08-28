@@ -67,6 +67,20 @@ export {
   createMultiDbCluster,
   createMultiDbSentinel,
   MultiDbController,
+  TemporarilyUnavailableError,
+  PermanentlyUnavailableError,
   type MultiDbResult,
-  type AnyRedisClientType
+  type AnyRedisClientType,
+  type MultiDbConfig,
+  type DatabaseConfig,
+  type PoolDatabaseConfig,
+  type HealthCheckConfig,
+  type FailureDetectorConfig,
+  type ProbePolicy,
+  type InitialAvailability,
+  type FailureDetector,
+  type HealthCheck,
+  type HealthCheckTarget,
+  type FailoverStrategy,
+  type CircuitState
 } from './lib/multi-db';

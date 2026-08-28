@@ -1,15 +1,16 @@
-import { EventEmitter } from 'node:events';
 import RedisClient, { RedisClientType, RedisClientOptions } from '../client';
-import { RedisClientPool, RedisClientPoolType, RedisPoolOptions } from '../client/pool';
+import { RedisClientPool, RedisClientPoolType } from '../client/pool';
 import RedisCluster, { RedisClusterType, RedisClusterOptions } from '../cluster';
 import RedisSentinel from '../sentinel';
 import { RedisSentinelType, RedisSentinelOptions } from '../sentinel/types';
 import { RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
+import { MultiDbManager } from './manager';
+import { MultiDbController } from './controller';
+import type { DatabaseConfig, PoolDatabaseConfig, MultiDbConfig } from './config';
 
 /**
- * SKETCH — type mechanics only. No failover / health / routing logic yet.
- *
- * Each factory returns `{ client, controller }`:
+ * Multi-database client: N homogeneous member databases behind one drop-in
+ * client. Each factory returns `{ client, controller }`:
  *
  *   - `client`    — typed EXACTLY as the underlying client (`RedisClientType`,
  *                   `RedisClusterType`, ...). A true drop-in: any code/type that
@@ -40,47 +41,6 @@ export interface MultiDbResult<C extends AnyRedisClientType> {
   client: C;
   /** multi-db admin surface */
   controller: MultiDbController<C>;
-}
-
-interface DatabaseConfig<OPTIONS> {
-  options: OPTIONS;
-  /** highest healthy weight = active DB */
-  weight?: number;
-}
-
-interface PoolDatabaseConfig<OPTIONS> extends DatabaseConfig<OPTIONS> {
-  poolOptions?: Partial<RedisPoolOptions>;
-}
-
-/* -------------------------------------------------------------------------- */
-/* Manager — owns the underlying clients + active selection                   */
-/* -------------------------------------------------------------------------- */
-
-class MultiDbManager<C extends AnyRedisClientType> {
-  readonly clients: ReadonlyArray<C>;
-  active: C;
-
-  constructor(clients: Array<C>) {
-    this.clients = clients;
-    this.active = clients[0]; // failover selection stubbed
-  }
-
-  async connect(): Promise<void> {
-    await Promise.all(this.clients.map(c => c.connect()));
-  }
-
-  async close(): Promise<void> {
-    await Promise.all(this.clients.map(c => c.close()));
-  }
-
-  destroy(): void {
-    for (const c of this.clients) c.destroy();
-  }
-
-  async quit(): Promise<void> {
-    // no per-DB quit fan-out subtleties for the sketch; treat like close
-    await this.close();
-  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -122,8 +82,8 @@ class MultiDbClientBase<C extends AnyRedisClientType> {
  * no runtime trap — but discovered by walking a representative built client's
  * prototype chain instead of a command registry (kind-agnostic; avoids
  * importing each kind's registry + private executor). Runs ONCE at construction;
- * the closures read `mgr.active` at CALL time, so the method SET is fixed
- * (homogeneous DBs) while the TARGET tracks failover.
+ * the closures read the manager's active member at CALL time, so the method SET
+ * is fixed (homogeneous DBs) while the TARGET tracks failover.
  */
 function attachForwarders<C extends AnyRedisClientType>(
   target: MultiDbClientBase<C>,
@@ -159,38 +119,6 @@ function makeClient<C extends AnyRedisClientType>(mgr: MultiDbManager<C>): C {
 }
 
 /* -------------------------------------------------------------------------- */
-/* controller — multi-db-only surface (all stubbed)                           */
-/* -------------------------------------------------------------------------- */
-
-export class MultiDbController<C extends AnyRedisClientType> extends EventEmitter {
-  #mgr: MultiDbManager<C>;
-
-  /** @internal */
-  constructor(mgr: MultiDbManager<C>) {
-    super();
-    this.#mgr = mgr;
-  }
-
-  /** the DB currently receiving commands */
-  getActiveDatabase(): C {
-    return this.#mgr.active;
-  }
-
-  /** all managed DBs, in config order */
-  getDatabases(): ReadonlyArray<C> {
-    return this.#mgr.clients;
-  }
-
-  /** force the active DB (TODO: validate index, emit 'failover') */
-  setActiveDatabase(index: number): void {
-    this.#mgr.active = this.#mgr.clients[index];
-  }
-
-  // TODO: setWeight, addDatabase, removeDatabase, health inspection,
-  //       'failover' / 'database-down' events.
-}
-
-/* -------------------------------------------------------------------------- */
 /* Dedicated factories                                                        */
 /* -------------------------------------------------------------------------- */
 
@@ -207,7 +135,7 @@ export function createMultiDbClient<
   T extends TypeMapping = {}
 >(options: {
   databases: Array<DatabaseConfig<RedisClientOptions<M, F, S, RESP, T>>>;
-}): MultiDbResult<RedisClientType<M, F, S, RESP, T>> {
+} & MultiDbConfig): MultiDbResult<RedisClientType<M, F, S, RESP, T>> {
   return assemble(options.databases.map(db => RedisClient.create(db.options)));
 }
 
@@ -219,7 +147,7 @@ export function createMultiDbClientPool<
   T extends TypeMapping = {}
 >(options: {
   databases: Array<PoolDatabaseConfig<RedisClientOptions<M, F, S, RESP, T>>>;
-}): MultiDbResult<RedisClientPoolType<M, F, S, RESP, T>> {
+} & MultiDbConfig): MultiDbResult<RedisClientPoolType<M, F, S, RESP, T>> {
   return assemble(options.databases.map(db => RedisClientPool.create(db.options, db.poolOptions)));
 }
 
@@ -231,7 +159,7 @@ export function createMultiDbCluster<
   T extends TypeMapping = {}
 >(options: {
   databases: Array<DatabaseConfig<RedisClusterOptions<M, F, S, RESP, T>>>;
-}): MultiDbResult<RedisClusterType<M, F, S, RESP, T>> {
+} & MultiDbConfig): MultiDbResult<RedisClusterType<M, F, S, RESP, T>> {
   return assemble(options.databases.map(db => RedisCluster.create(db.options)));
 }
 
@@ -243,6 +171,26 @@ export function createMultiDbSentinel<
   T extends TypeMapping = {}
 >(options: {
   databases: Array<DatabaseConfig<RedisSentinelOptions<M, F, S, RESP, T>>>;
-}): MultiDbResult<RedisSentinelType<M, F, S, RESP, T>> {
+} & MultiDbConfig): MultiDbResult<RedisSentinelType<M, F, S, RESP, T>> {
   return assemble(options.databases.map(db => RedisSentinel.create(db.options)));
 }
+
+/* -------------------------------------------------------------------------- */
+/* Public surface re-exports                                                  */
+/* -------------------------------------------------------------------------- */
+
+export { MultiDbController } from './controller';
+export { TemporarilyUnavailableError, PermanentlyUnavailableError } from './errors';
+export type {
+  MultiDbConfig,
+  DatabaseConfig,
+  PoolDatabaseConfig,
+  HealthCheckConfig,
+  FailureDetectorConfig,
+  ProbePolicy,
+  InitialAvailability
+} from './config';
+export type { FailureDetector } from './failure-detector';
+export type { HealthCheck, HealthCheckTarget } from './health-check';
+export type { FailoverStrategy } from './failover-strategy';
+export type { CircuitState } from './circuit';
