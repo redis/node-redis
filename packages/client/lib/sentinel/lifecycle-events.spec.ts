@@ -93,6 +93,29 @@ describe('RedisSentinel lifecycle events', () => {
     await sentinel.destroy();
   }, { ...OPEN, reserveClient: true });
 
+  // A reentrant connect() from an `end` listener re-assigns the in-flight promise;
+  // the failed original attempt's finally must not clobber it, or close()/destroy()
+  // stop awaiting the new attempt and it can emit `ready` after `end`.
+  testUtils.testWithClientSentinel('tracks a reentrant connect() from an end listener', async sentinel => {
+    const events: Array<string> = [];
+    sentinel
+      .on('ready', () => events.push('ready'))
+      .on('end', () => events.push('end'))
+      .on('error', () => { });
+    sentinel.once('connect', () => { throw new Error('boom'); });
+    sentinel.once('end', () => { sentinel.connect().catch(() => { }); });
+
+    await assert.rejects(sentinel.connect(), /boom/);
+
+    // The reentrant attempt from the end listener is in flight; destroy() must await it.
+    await sentinel.destroy();
+    await setTimeout(100);
+
+    assert.equal(sentinel.isOpen, false);
+    assert.equal(sentinel.isReady, false);
+    assert.ok(events.lastIndexOf('ready') < events.lastIndexOf('end'), `ready after end: ${events}`);
+  }, OPEN);
+
   testUtils.testWithClientSentinel('settles closed when a connect listener throws', async sentinel => {
     const events: Array<string> = [];
     sentinel

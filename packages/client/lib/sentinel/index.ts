@@ -1046,13 +1046,14 @@ export class RedisSentinelInternal<
       throw new Error("already attempting to open")
     }
 
+    // Assign #connectPromise before emitting `connect`, so a listener that calls
+    // close()/destroy() from within the event awaits the in-flight attempt instead
+    // of tearing down before it starts. Readiness (and `ready`) is set by #connect().
+    const connectPromise = this.#connect();
     try {
-      // Assign #connectPromise before emitting `connect`, so a listener that calls
-      // close()/destroy() from within the event awaits the in-flight attempt instead
-      // of tearing down before it starts. Readiness (and `ready`) is set by #connect().
-      this.#connectPromise = this.#connect();
+      this.#connectPromise = connectPromise;
       this.#setOpen(true);
-      await this.#connectPromise;
+      await connectPromise;
     } catch (err) {
       // The initial connect gave up. Tear down whatever was created along the
       // way: clients whose first connection attempt failed keep reconnecting
@@ -1063,7 +1064,11 @@ export class RedisSentinelInternal<
       await this.destroy();
       throw err;
     } finally {
-      this.#connectPromise = undefined;
+      // Clear only if still ours: an `end` listener may have started a reentrant
+      // connect() whose in-flight promise must stay tracked for close()/destroy().
+      if (this.#connectPromise === connectPromise) {
+        this.#connectPromise = undefined;
+      }
       if (this.#isReady && this.#scanInterval > 0) {
         this.#scanTimer = setInterval(this.#resetInBackground.bind(this), this.#scanInterval);
       }
@@ -1212,12 +1217,15 @@ export class RedisSentinelInternal<
       return;
     }
 
+    const connectPromise = this.#connect();
     try {
-      this.#connectPromise = this.#connect();
-      return await this.#connectPromise;
+      this.#connectPromise = connectPromise;
+      return await connectPromise;
     } finally {
       this.#trace("finished reconfgure");
-      this.#connectPromise = undefined;
+      if (this.#connectPromise === connectPromise) {
+        this.#connectPromise = undefined;
+      }
     }
   }
 
