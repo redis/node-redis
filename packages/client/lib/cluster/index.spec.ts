@@ -7,7 +7,7 @@ import { ClientClosedError, ClientOfflineError, RootNodesUnavailableError, MaxCo
 import { spy } from 'sinon';
 import RedisClient from '../client';
 import { RESP_TYPES } from '../RESP/decoder';
-import calculateSlot from 'cluster-key-slot';
+import calculateSlot from '../utils/calculate-slot';
 import { CommandParser } from '../client/parser';
 
 describe('Cluster command lifecycle', () => {

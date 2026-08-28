@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { setTimeout } from 'node:timers/promises';
-import calculateSlot from 'cluster-key-slot';
+import calculateSlot from '../utils/calculate-slot';
 import testUtils from '../test-utils';
 import { ErrorReply } from '../errors';
 
