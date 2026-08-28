@@ -831,10 +831,17 @@ export class RedisSentinelInternal<
     // emit `ready` after `end`.
     if (value && this.#destroy) return;
     this.#isReady = value;
-    if (value) {
-      this.emit('ready');
-    } else if (this.#isOpen && !this.#destroy) {
-      this.emit('reconnecting');
+    // Route listener exceptions to `error`: these emits fire inside #connect()'s
+    // topology-retry loop, where a throwing listener would otherwise be mistaken
+    // for a discovery failure and silently swallowed by the retry.
+    try {
+      if (value) {
+        this.emit('ready');
+      } else if (this.#isOpen && !this.#destroy) {
+        this.emit('reconnecting');
+      }
+    } catch (err) {
+      this.emit('error', err);
     }
   }
 

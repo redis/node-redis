@@ -134,4 +134,19 @@ describe('RedisSentinel lifecycle events', () => {
     assert.equal(sentinel.isReady, false);
     assert.deepEqual(events, ['end']);
   }, OPEN);
+
+  // `ready`/`reconnecting` are emitted inside #connect()'s topology-retry loop; a
+  // throwing listener must surface on `error`, not masquerade as a discovery failure.
+  testUtils.testWithClientSentinel('routes a throwing ready listener to the error event', async sentinel => {
+    const errors: Array<unknown> = [];
+    sentinel.on('error', err => errors.push(err));
+    sentinel.once('ready', () => { throw new Error('ready boom'); });
+
+    await sentinel.connect();
+
+    assert.equal(sentinel.isReady, true);
+    assert.ok(errors.some(err => /ready boom/.test(String(err))), `errors: ${errors}`);
+
+    await sentinel.destroy();
+  }, OPEN);
 });
