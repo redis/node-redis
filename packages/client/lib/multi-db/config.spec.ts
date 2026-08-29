@@ -129,7 +129,7 @@ describe('resolveMultiDbConfig', () => {
     });
   });
 
-  it('defaults table matches the data model', () => {
+  it('pins the defaults table', () => {
     assert.deepEqual(MULTI_DB_DEFAULTS, {
       gracePeriod: 60_000,
       healthCheck: {

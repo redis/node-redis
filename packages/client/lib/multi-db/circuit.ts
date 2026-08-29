@@ -16,7 +16,7 @@ export interface CircuitOptions {
 }
 
 /**
- * Per-member circuit breaker (FR-010).
+ * Per-member circuit breaker.
  *
  * ```
  * CLOSED ──(detector threshold OR health check fails)──▶ OPEN
