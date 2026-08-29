@@ -72,6 +72,7 @@ export function createClient<
  * Multi-database client with the Redis Stack default modules pre-registered
  * (mirrors {@link createClient}). Returns `{ client, controller }`; `client`
  * is a drop-in {@link RedisClientType}.
+ * @experimental
  */
 export function createMultiDbClient<
   M extends RedisModules = {},

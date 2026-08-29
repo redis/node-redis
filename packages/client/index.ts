@@ -82,5 +82,14 @@ export {
   type HealthCheck,
   type HealthCheckTarget,
   type FailoverStrategy,
-  type CircuitState
+  type CircuitState,
+  type DatabaseRole,
+  type DatabaseDescriptor,
+  type FailoverReason,
+  type FailoverEvent,
+  type FallbackEvent,
+  type DatabaseUnhealthyEvent,
+  type DatabaseRecoveredEvent,
+  type AllDatabasesDownEvent,
+  type MultiDbControllerEvents
 } from './lib/multi-db';

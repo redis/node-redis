@@ -6,6 +6,8 @@
  */
 export interface FailureDetector {
   onCommandResult(ok: boolean, err?: Error): void;
+  /** True = the active member is considered failed; the manager opens its circuit and fails over. */
   isFaulty(): boolean;
+  /** Discard all accumulated observations — called when the active member switches so state never spans members. */
   reset(): void;
 }
