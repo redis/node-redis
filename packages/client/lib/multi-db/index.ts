@@ -4,22 +4,16 @@ import RedisCluster, { RedisClusterType, RedisClusterOptions } from '../cluster'
 import RedisSentinel from '../sentinel';
 import { RedisSentinelType, RedisSentinelOptions } from '../sentinel/types';
 import { RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
-import { MultiDbManager } from './manager';
+import { MultiDbManager, MemberSpec } from './manager';
 import { MultiDbController } from './controller';
-import type { DatabaseConfig, PoolDatabaseConfig, MultiDbConfig } from './config';
+import { resolveMultiDbConfig } from './config';
+import type { DatabaseConfig, PoolDatabaseConfig, MultiDbConfig, ResolvedMultiDbConfig } from './config';
 
 /**
  * Multi-database client: N homogeneous member databases behind one drop-in
- * client. Each factory returns `{ client, controller }`:
- *
- *   - `client`    — typed EXACTLY as the underlying client (`RedisClientType`,
- *                   `RedisClusterType`, ...). A true drop-in: any code/type that
- *                   expects the base client accepts it unchanged. Its command
- *                   methods forward to the active DB; its `connect`/`close`/
- *                   `destroy`/`quit` are intercepted to fan out across all DBs.
- *   - `controller`— the multi-db-only surface (topology, weights, active-DB
- *                   selection, failover events). Kept OFF `client` so `client`
- *                   stays exactly the base type.
+ * client. Each factory returns `{ client, controller }` — the contract lives
+ * on {@link createMultiDbClient}; the multi-db-only surface is kept on
+ * `controller` so `client` stays exactly the base client type.
  */
 
 /* -------------------------------------------------------------------------- */
@@ -27,13 +21,20 @@ import type { DatabaseConfig, PoolDatabaseConfig, MultiDbConfig } from './config
 /* -------------------------------------------------------------------------- */
 
 /** Every client shape the multi-db layer can wrap. */
+/* eslint-disable @typescript-eslint/no-explicit-any -- any parametrization of each client kind */
 export type AnyRedisClientType =
   | RedisClientType<any, any, any, any, any>
   | RedisClientPoolType<any, any, any, any, any>
   | RedisClusterType<any, any, any, any, any>
   | RedisSentinelType<any, any, any, any, any>;
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
-/** Lifecycle members the multi-db layer intercepts (fan-out) rather than forwarding to one DB. */
+/**
+ * Lifecycle members the multi-db layer intercepts (fan-out) rather than
+ * forwarding to one DB. Must list every `MultiDbClientBase` method
+ * (`constructor` aside) — forwarders are installed as own properties and
+ * would silently shadow an unlisted one.
+ */
 const INTERCEPTED = new Set<PropertyKey>(['connect', 'close', 'destroy', 'quit']);
 
 export interface MultiDbResult<C extends AnyRedisClientType> {
@@ -48,8 +49,8 @@ export interface MultiDbResult<C extends AnyRedisClientType> {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Lifecycle base. `connect`/`close`/`destroy`/`quit` are real methods (fan-out),
- * NOT forwarded to one DB. Everything else is patched on by `attachForwarders`.
+ * Lifecycle base: implements each `INTERCEPTED` member as a real fan-out
+ * method. Everything else is patched on by `attachForwarders`.
  */
 class MultiDbClientBase<C extends AnyRedisClientType> {
   /** @internal read by the forwarders patched below */
@@ -78,12 +79,14 @@ class MultiDbClientBase<C extends AnyRedisClientType> {
 
 /**
  * Patch command methods + module/function namespaces onto `target`, forwarding
- * each to the ACTIVE DB. Same shape as `attachConfig` — real (own) properties,
- * no runtime trap — but discovered by walking a representative built client's
- * prototype chain instead of a command registry (kind-agnostic; avoids
+ * each to the ACTIVE DB. Same shape as `commander.ts:attachConfig` — real (own)
+ * properties, no runtime trap — but discovered by walking a representative built
+ * client's prototype chain instead of a command registry (kind-agnostic; avoids
  * importing each kind's registry + private executor). Runs ONCE at construction;
- * the closures read the manager's active member at CALL time, so the method SET
- * is fixed (homogeneous DBs) while the TARGET tracks failover.
+ * the closures read `mgr.active` at CALL time, so the method SET is fixed
+ * (homogeneous DBs) while the TARGET tracks failover —
+ * `manager.ts:MultiDbManager.switchTo`'s single-assignment repoint relies on
+ * these reads staying uncached.
  */
 function attachForwarders<C extends AnyRedisClientType>(
   target: MultiDbClientBase<C>,
@@ -104,9 +107,25 @@ function attachForwarders<C extends AnyRedisClientType>(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic
         Object.defineProperty(dst, name, { get: () => (mgr.active as any)[name], enumerable: false });
       } else if (typeof desc.value === 'function') {
-        // command / script method → call active's own method (this = active)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic
-        dst[name] = (...args: Array<unknown>) => (mgr.active as any)[name](...args);
+        // command / script method → call active's own method (this = active);
+        // settled outcomes must reach `manager.ts:onCommandResult` — the detector feed
+        dst[name] = (...args: Array<unknown>) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic
+          const result = (mgr.active as any)[name](...args);
+          if (result instanceof Promise) {
+            return result.then(
+              (reply: unknown) => {
+                mgr.onCommandResult(true);
+                return reply;
+              },
+              (err: unknown) => {
+                mgr.onCommandResult(false, err as Error);
+                throw err;
+              }
+            );
+          }
+          return result;
+        };
       }
     }
   }
@@ -122,11 +141,24 @@ function makeClient<C extends AnyRedisClientType>(mgr: MultiDbManager<C>): C {
 /* Dedicated factories                                                        */
 /* -------------------------------------------------------------------------- */
 
-function assemble<C extends AnyRedisClientType>(clients: Array<C>): MultiDbResult<C> {
-  const mgr = new MultiDbManager(clients);
+function assemble<C extends AnyRedisClientType>(
+  members: Array<MemberSpec<C>>,
+  config: ResolvedMultiDbConfig
+): MultiDbResult<C> {
+  const mgr = new MultiDbManager(members, config);
   return { client: makeClient(mgr), controller: new MultiDbController(mgr) };
 }
 
+/**
+ * Multi-database failover over standalone `RedisClient` members. Returns
+ * `{ client, controller }`: `client` is a drop-in `RedisClientType` — command
+ * methods forward to the active member, while `connect`/`close`/`destroy`/
+ * `quit` fan out across all members; `controller` is the multi-db admin
+ * surface (topology, weights, forced failover, events). Throws `TypeError`
+ * synchronously on invalid config: no databases, duplicate ids, weight
+ * outside [0, 1], or health-check timeout >= interval.
+ * @experimental
+ */
 export function createMultiDbClient<
   M extends RedisModules = {},
   F extends RedisFunctions = {},
@@ -136,9 +168,11 @@ export function createMultiDbClient<
 >(options: {
   databases: Array<DatabaseConfig<RedisClientOptions<M, F, S, RESP, T>>>;
 } & MultiDbConfig): MultiDbResult<RedisClientType<M, F, S, RESP, T>> {
-  return assemble(options.databases.map(db => RedisClient.create(db.options)));
+  const { databases, config } = resolveMultiDbConfig(options.databases, options);
+  return assemble(databases.map(db => ({ ...db, client: RedisClient.create(db.options) })), config);
 }
 
+/** As {@link createMultiDbClient}, over pooled (`RedisClientPool`) members. @experimental */
 export function createMultiDbClientPool<
   M extends RedisModules = {},
   F extends RedisFunctions = {},
@@ -148,9 +182,11 @@ export function createMultiDbClientPool<
 >(options: {
   databases: Array<PoolDatabaseConfig<RedisClientOptions<M, F, S, RESP, T>>>;
 } & MultiDbConfig): MultiDbResult<RedisClientPoolType<M, F, S, RESP, T>> {
-  return assemble(options.databases.map(db => RedisClientPool.create(db.options, db.poolOptions)));
+  const { databases, config } = resolveMultiDbConfig(options.databases, options);
+  return assemble(databases.map(db => ({ ...db, client: RedisClientPool.create(db.options, db.poolOptions) })), config);
 }
 
+/** As {@link createMultiDbClient}, over `RedisCluster` members. @experimental */
 export function createMultiDbCluster<
   M extends RedisModules = {},
   F extends RedisFunctions = {},
@@ -160,9 +196,11 @@ export function createMultiDbCluster<
 >(options: {
   databases: Array<DatabaseConfig<RedisClusterOptions<M, F, S, RESP, T>>>;
 } & MultiDbConfig): MultiDbResult<RedisClusterType<M, F, S, RESP, T>> {
-  return assemble(options.databases.map(db => RedisCluster.create(db.options)));
+  const { databases, config } = resolveMultiDbConfig(options.databases, options);
+  return assemble(databases.map(db => ({ ...db, client: RedisCluster.create(db.options) })), config);
 }
 
+/** As {@link createMultiDbClient}, over `RedisSentinel` members. @experimental */
 export function createMultiDbSentinel<
   M extends RedisModules = {},
   F extends RedisFunctions = {},
@@ -172,15 +210,27 @@ export function createMultiDbSentinel<
 >(options: {
   databases: Array<DatabaseConfig<RedisSentinelOptions<M, F, S, RESP, T>>>;
 } & MultiDbConfig): MultiDbResult<RedisSentinelType<M, F, S, RESP, T>> {
-  return assemble(options.databases.map(db => RedisSentinel.create(db.options)));
+  const { databases, config } = resolveMultiDbConfig(options.databases, options);
+  return assemble(databases.map(db => ({ ...db, client: RedisSentinel.create(db.options) })), config);
 }
 
 /* -------------------------------------------------------------------------- */
 /* Public surface re-exports                                                  */
 /* -------------------------------------------------------------------------- */
 
-export { MultiDbController } from './controller';
+export {
+  MultiDbController,
+  type DatabaseDescriptor,
+  type FailoverReason,
+  type FailoverEvent,
+  type FallbackEvent,
+  type DatabaseUnhealthyEvent,
+  type DatabaseRecoveredEvent,
+  type AllDatabasesDownEvent,
+  type MultiDbControllerEvents
+} from './controller';
 export { TemporarilyUnavailableError, PermanentlyUnavailableError } from './errors';
+export type { DatabaseRole } from './database';
 export type {
   MultiDbConfig,
   DatabaseConfig,
