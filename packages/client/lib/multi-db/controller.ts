@@ -31,7 +31,7 @@ export interface DatabaseRecoveredEvent {
   id: string;
 }
 
-/** One failed failover attempt while no eligible member exists; `attempt` counts toward `maxFailoverAttempts` (FR-013). */
+/** One failed failover attempt while no eligible member exists; `attempt` counts toward `maxFailoverAttempts`. */
 export interface AllDatabasesDownEvent {
   attempt: number;
   maxAttempts: number;
@@ -46,7 +46,7 @@ export interface MultiDbControllerEvents {
   'error': [Error];
 }
 
-/** Point-in-time view of one member; raw member clients stay internal (FR-024). */
+/** Point-in-time view of one member; raw member clients stay internal. */
 export interface DatabaseDescriptor {
   id: string;
   weight: number;
@@ -56,7 +56,7 @@ export interface DatabaseDescriptor {
 
 /**
  * The multi-db-only admin surface: topology inspection, weights, active-DB
- * selection, failover events (FR-018). Kept OFF `client` so `client` stays
+ * selection, failover events. Kept OFF `client` so `client` stays
  * exactly the base client type.
  */
 export class MultiDbController<C extends AnyRedisClientType> extends EventEmitter {

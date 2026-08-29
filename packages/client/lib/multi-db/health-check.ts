@@ -12,8 +12,7 @@ export interface HealthCheckTarget {
 /**
  * One probe against one member: resolve `true` if the member is healthy,
  * `false` if not. Scheduling, probe counts and the ALL/MAJORITY/ANY
- * aggregation policy are owned by the probe runner, not the check itself
- * (FR-004/FR-008).
+ * aggregation policy are owned by the probe runner, not the check itself.
  */
 export interface HealthCheck {
   probe(target: HealthCheckTarget): Promise<boolean>;

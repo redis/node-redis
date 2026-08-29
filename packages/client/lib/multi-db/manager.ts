@@ -75,8 +75,7 @@ export class MultiDbManager<C extends AnyRedisClientType> {
    * Hook point on the command hot path: `index.ts:attachForwarders` reports
    * the settled outcome of each promise-returning forwarded method call here.
    * Getter-forwarded namespaces (`json.*`) and non-promise returns (`multi()`)
-   * bypass this feed (research R7). The default failure detector consumes it
-   * (US1).
+   * bypass this feed. The default failure detector consumes it (US1).
    */
   onCommandResult(_ok: boolean, _err?: Error): void {
     // detector wiring lands with US1 (T018/T020)
@@ -86,9 +85,8 @@ export class MultiDbManager<C extends AnyRedisClientType> {
    * Switch primitive: atomically repoint the active member. The repoint is a
    * single synchronous assignment — forwarder closures observe it immediately,
    * and commands issued after it ride the new member's own offline queue if it
-   * is mid-reconnect (FR-023). Old-member housekeeping runs asynchronously and
-   * is never awaited (research R5: synchronous teardown on switch is a known
-   * defect in other clients).
+   * is mid-reconnect. Old-member housekeeping runs asynchronously and is never
+   * awaited — synchronous teardown on switch is a known defect in other clients.
    */
   switchTo(target: Database<C>, reason: SwitchReason): void {
     const from = this.#active;
