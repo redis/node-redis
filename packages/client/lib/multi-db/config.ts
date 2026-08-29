@@ -3,7 +3,7 @@ import type { FailureDetector } from './failure-detector';
 import type { HealthCheck } from './health-check';
 import type { FailoverStrategy } from './failover-strategy';
 
-/** Identity + connection options for one member database (FR-001). */
+/** Identity + connection options for one member database. */
 export interface DatabaseConfig<OPTIONS> {
   /**
    * Stable identifier used across controller methods, descriptors and event
@@ -11,14 +11,14 @@ export interface DatabaseConfig<OPTIONS> {
    * if omitted.
    */
   id?: string;
-  /** Unchanged base client options (FR-019). */
+  /** Unchanged base client options. */
   options: OPTIONS;
   /**
    * Selection weight in [0, 1]; the highest-weight healthy member is active.
    * Default 1 (equal weights).
    */
   weight?: number;
-  /** Honored only via `controller.addDatabase` (FR-005). */
+  /** Honored only via `controller.addDatabase`. */
   skipInitialHealthCheck?: boolean;
 }
 
@@ -29,7 +29,7 @@ export interface PoolDatabaseConfig<OPTIONS> extends DatabaseConfig<OPTIONS> {
 /** Aggregation of one round of health-check probes, evaluated with early exit. */
 export type ProbePolicy = 'ALL' | 'MAJORITY' | 'ANY';
 
-/** Members that must pass the initial health check for `connect()` to resolve (FR-015). */
+/** Members that must pass the initial health check for `connect()` to resolve. */
 export type InitialAvailability = 'all' | 'majority' | 'one';
 
 export interface HealthCheckConfig {
@@ -45,7 +45,7 @@ export interface HealthCheckConfig {
   policy?: ProbePolicy;
 }
 
-/** Thresholds for the default sliding-window failure detector (FR-007). */
+/** Thresholds for the default sliding-window failure detector. */
 export interface FailureDetectorConfig {
   /** minimum failures within the window; 0 = rate-only. Default 1000. */
   minNumOfFailures?: number;
@@ -62,16 +62,16 @@ export interface MultiDbConfig {
   /** ms an OPEN circuit waits before HALF_OPEN recovery probing. Default 60_000. */
   gracePeriod?: number;
   healthCheck?: HealthCheckConfig;
-  /** health-check chain — all checks must pass (FR-008). Default: the built-in PING check. */
+  /** health-check chain — all checks must pass. Default: the built-in PING check. */
   healthChecks?: Array<HealthCheck>;
-  /** custom detector instance, or thresholds for the default one (FR-007). */
+  /** custom detector instance, or thresholds for the default one. */
   failureDetector?: FailureDetector | FailureDetectorConfig;
   failoverStrategy?: FailoverStrategy;
-  /** failover attempts before `PermanentlyUnavailableError` (FR-013). Default 10. */
+  /** failover attempts before `PermanentlyUnavailableError`. Default 10. */
   maxFailoverAttempts?: number;
   /** ms between failover attempts. Default 12_000. */
   delayBetweenFailoverAttempts?: number;
-  /** ms between auto-fallback evaluations; -1 disables (default, FR-006). */
+  /** ms between auto-fallback evaluations; -1 disables (default). */
   autoFallbackInterval?: number;
   /** initial health-check gate for `connect()`. Default 'majority'. */
   initialAvailability?: InitialAvailability;
@@ -140,7 +140,7 @@ function isFailureDetector(
 }
 
 /**
- * Apply the defaults table and validate (FR-001/FR-004/FR-007): ≥1 database,
+ * Apply the defaults table and validate: ≥1 database,
  * weights within [0, 1], unique ids (generated per `DatabaseConfig.id` when
  * omitted), health-check timeout below the check interval.
  */
@@ -187,7 +187,7 @@ export function resolveMultiDbConfig<DB extends DatabaseConfig<unknown>>(
   const failureDetector = config.failureDetector !== undefined && isFailureDetector(config.failureDetector)
     ? config.failureDetector
     : {
-        // not in MULTI_DB_DEFAULTS — the table stays data-only (deep-equal checked against the data model)
+        // not in MULTI_DB_DEFAULTS — the table stays data-only (deep-equal pinned by config.spec.ts)
         errorFilter: () => true,
         ...MULTI_DB_DEFAULTS.failureDetector,
         ...config.failureDetector
