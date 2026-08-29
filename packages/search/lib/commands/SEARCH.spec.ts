@@ -33,6 +33,15 @@ describe('FT.SEARCH', () => {
       );
     });
 
+    it('with WITHSCORES',() => {
+      assert.deepEqual(
+        parseArgs(SEARCH,'index','query',{
+          WITHSCORES:true
+        }),
+        ['FT.SEARCH','index','query','WITHSCORES','DIALECT',DEFAULT_DIALECT]
+      )
+    })
+
     it('with INKEYS', () => {
       assert.deepEqual(
         parseArgs(SEARCH, 'index', 'query', {
@@ -362,6 +371,23 @@ describe('FT.SEARCH', () => {
           warnings: []
         }
       );
+    }, GLOBAL.SERVERS.OPEN);
+
+     testUtils.testWithClient('withscores', async client => {
+      await Promise.all([
+        client.ft.create('index', {
+          field: 'TEXT'
+        }),
+        client.hSet('1', 'field', '1')
+      ]);
+
+      const res = await client.ft.search('index','*',{WITHSCORES: true});
+      
+      assert.strictEqual(res.total,1);
+      assert.strictEqual(res.documents.length,1);
+      assert.strictEqual(res.documents[0].id,'1');
+      assert.strictEqual(typeof res.documents[0].score,'number');
+      
     }, GLOBAL.SERVERS.OPEN);
 
     testUtils.testWithClient('with data', async client => {

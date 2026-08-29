@@ -30,6 +30,7 @@ export interface FtSearchOptions {
   VERBATIM?: boolean;
   NOSTOPWORDS?: boolean;
   INKEYS?: RedisVariadicArgument;
+  WITHSCORES?: boolean;
   INFIELDS?: RedisVariadicArgument;
   RETURN?: RedisVariadicArgument;
   SUMMARIZE?: boolean | {
@@ -70,6 +71,10 @@ export function parseSearchOptions(parser: CommandParser, options?: FtSearchOpti
 
   if (options?.NOSTOPWORDS) {
     parser.push('NOSTOPWORDS');
+  }
+
+  if (options?.WITHSCORES) {
+    parser.push('WITHSCORES');
   }
 
   parseOptionalVariadicArgument(parser, 'INKEYS', options?.INKEYS);
@@ -171,8 +176,14 @@ function transformSearchReplyResp2(
   const documents: SearchReply['documents'] = [];
   let i = 1;
   while (i < reply.length) {
+    let score: number | undefined;
+
+    if(typeof reply[i] === 'number' || (typeof reply[i] === 'string' && !isNaN(Number(reply[i])) && Array.isArray(reply[i + 1]))){
+      score = Number(reply[i++]);
+    }
     documents.push({
       id: reply[i++] as string,
+      ...(score !== undefined ? {score} : {}),
       value: (withoutDocuments ? {} : documentValue(reply[i++])) as SearchDocumentValue
     });
   }
@@ -203,9 +214,15 @@ function transformSearchReplyResp3(
   );
 
   const documents: SearchReply['documents'] = results.map(result => {
+    const resultMap = mapLikeToObject(result);
     const { id, value } = parseSearchResultRow(result);
+    
+    const rawScore = getMapValue(resultMap,['score']);
+    const score = rawScore !== undefined ? Number(rawScore) : undefined;
+
     return {
       id: String((id as { toString?(): string })?.toString?.() ?? id ?? ''),
+      ...(score !== undefined && !isNaN(score) ? {score} : {}),
       value: value as SearchDocumentValue
     };
   });
@@ -243,6 +260,7 @@ export interface SearchReply {
   total: number;
   documents: Array<{
       id: string;
+      score?: number;
       value: SearchDocumentValue;
   }>;
   /**
