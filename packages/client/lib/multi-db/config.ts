@@ -76,3 +76,136 @@ export interface MultiDbConfig {
   /** initial health-check gate for `connect()`. Default 'majority'. */
   initialAvailability?: InitialAvailability;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Defaults & resolution                                                      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Runtime defaults (single source, pinned by config.spec.ts). The `Default …`
+ * notes in the option JSDoc above restate these for IDE hover — update both
+ * in the same commit.
+ */
+export const MULTI_DB_DEFAULTS = {
+  gracePeriod: 60_000,
+  healthCheck: {
+    interval: 5_000,
+    timeout: 3_000,
+    numProbes: 3,
+    delayBetweenProbes: 500,
+    policy: 'ALL'
+  },
+  failureDetector: {
+    minNumOfFailures: 1_000,
+    failureRateThreshold: 10,
+    windowSize: 2_000
+  },
+  maxFailoverAttempts: 10,
+  delayBetweenFailoverAttempts: 12_000,
+  autoFallbackInterval: -1,
+  initialAvailability: 'majority'
+} as const satisfies MultiDbConfig;
+
+export type ResolvedHealthCheckConfig = Required<HealthCheckConfig>;
+
+export interface ResolvedFailureDetectorConfig extends Required<Omit<FailureDetectorConfig, 'errorFilter'>> {
+  errorFilter: (err: Error) => boolean;
+}
+
+export interface ResolvedMultiDbConfig {
+  gracePeriod: number;
+  healthCheck: ResolvedHealthCheckConfig;
+  /** undefined = the default PING chain (built by the health-check runner). */
+  healthChecks?: Array<HealthCheck>;
+  failureDetector: FailureDetector | ResolvedFailureDetectorConfig;
+  /** undefined = `WeightBasedStrategy`. */
+  failoverStrategy?: FailoverStrategy;
+  maxFailoverAttempts: number;
+  delayBetweenFailoverAttempts: number;
+  autoFallbackInterval: number;
+  initialAvailability: InitialAvailability;
+}
+
+/** Stable per-member identity attached to every database config by resolution. */
+export interface ResolvedDatabaseIdentity {
+  id: string;
+  weight: number;
+  skipInitialHealthCheck: boolean;
+}
+
+function isFailureDetector(
+  detector: FailureDetector | FailureDetectorConfig
+): detector is FailureDetector {
+  return typeof (detector as FailureDetector).isFaulty === 'function';
+}
+
+/**
+ * Apply the defaults table and validate (FR-001/FR-004/FR-007): ≥1 database,
+ * weights within [0, 1], unique ids (generated per `DatabaseConfig.id` when
+ * omitted), health-check timeout below the check interval.
+ */
+export function resolveMultiDbConfig<DB extends DatabaseConfig<unknown>>(
+  databases: Array<DB>,
+  config: MultiDbConfig = {}
+): {
+  databases: Array<DB & ResolvedDatabaseIdentity>;
+  config: ResolvedMultiDbConfig;
+} {
+  if (databases.length < 1) {
+    throw new TypeError('MultiDb: at least one database is required');
+  }
+
+  const seen = new Set<string>();
+  const resolvedDatabases = databases.map((db, index) => {
+    const id = db.id ?? `db-${index}`;
+    if (seen.has(id)) {
+      throw new TypeError(`MultiDb: duplicate database id "${id}"`);
+    }
+    seen.add(id);
+
+    const weight = db.weight ?? 1;
+    // negated form also rejects NaN
+    if (!(weight >= 0 && weight <= 1)) {
+      throw new TypeError(`MultiDb: database "${id}" weight must be within [0, 1], got ${weight}`);
+    }
+
+    return {
+      ...db,
+      id,
+      weight,
+      skipInitialHealthCheck: db.skipInitialHealthCheck ?? false
+    };
+  });
+
+  const healthCheck = { ...MULTI_DB_DEFAULTS.healthCheck, ...config.healthCheck };
+  if (!(healthCheck.timeout < healthCheck.interval)) {
+    throw new TypeError(
+      `MultiDb: healthCheck.timeout (${healthCheck.timeout}) must be less than healthCheck.interval (${healthCheck.interval})`
+    );
+  }
+
+  const failureDetector = config.failureDetector !== undefined && isFailureDetector(config.failureDetector)
+    ? config.failureDetector
+    : {
+        // not in MULTI_DB_DEFAULTS — the table stays data-only (deep-equal checked against the data model)
+        errorFilter: () => true,
+        ...MULTI_DB_DEFAULTS.failureDetector,
+        ...config.failureDetector
+      };
+
+  return {
+    databases: resolvedDatabases,
+    config: {
+      gracePeriod: config.gracePeriod ?? MULTI_DB_DEFAULTS.gracePeriod,
+      healthCheck,
+      healthChecks: config.healthChecks,
+      failureDetector,
+      failoverStrategy: config.failoverStrategy,
+      maxFailoverAttempts: config.maxFailoverAttempts ?? MULTI_DB_DEFAULTS.maxFailoverAttempts,
+      delayBetweenFailoverAttempts:
+        config.delayBetweenFailoverAttempts ?? MULTI_DB_DEFAULTS.delayBetweenFailoverAttempts,
+      autoFallbackInterval: config.autoFallbackInterval ?? MULTI_DB_DEFAULTS.autoFallbackInterval,
+      initialAvailability: config.initialAvailability ?? MULTI_DB_DEFAULTS.initialAvailability
+    }
+  };
+}
