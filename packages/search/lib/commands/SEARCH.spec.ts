@@ -42,6 +42,85 @@ describe('FT.SEARCH', () => {
       )
     })
 
+     it('with NOCONTENT',() => {
+      assert.deepEqual(
+        parseArgs(SEARCH,'index','query',{
+          NOCONTENT:true
+        }),
+        ['FT.SEARCH','index','query','NOCONTENT','DIALECT',DEFAULT_DIALECT]
+      )
+    })
+
+     it('with WITHPAYLOADS',() => {
+      assert.deepEqual(
+        parseArgs(SEARCH,'index','query',{
+          WITHPAYLOADS:true
+        }),
+        ['FT.SEARCH','index','query','WITHPAYLOADS','DIALECT',DEFAULT_DIALECT]
+      )
+    })
+
+     it('with WITHSORTKEYS',() => {
+      assert.deepEqual(
+        parseArgs(SEARCH,'index','query',{
+          WITHSORTKEYS:true
+        }),
+        ['FT.SEARCH','index','query','WITHSORTKEYS','DIALECT',DEFAULT_DIALECT]
+      )
+    })
+
+      it('with FILTER (single and array)', () => {
+    
+    assert.deepStrictEqual(
+      parseArgs(SEARCH, 'index', 'query', {
+        FILTER: { field: 'price', min: 10, max: 100 }
+      }),
+      ['FT.SEARCH', 'index', 'query', 'FILTER', 'price', '10', '100', 'DIALECT', DEFAULT_DIALECT]
+    );
+
+    
+    assert.deepStrictEqual(
+      parseArgs(SEARCH, 'index', 'query', {
+        FILTER: [
+          { field: 'price', min: 10, max: 100 },
+          { field: 'age', min: 18, max: 65 }
+        ]
+      }),
+      [
+        'FT.SEARCH', 'index', 'query',
+        'FILTER', 'price', '10', '100',
+        'FILTER', 'age', '18', '65',
+        'DIALECT', DEFAULT_DIALECT
+      ]
+    );
+  });
+
+  it('with GEOFILTER (single and array with units)', () => {
+    
+    assert.deepStrictEqual(
+      parseArgs(SEARCH, 'index', 'query', {
+        GEOFILTER: { field: 'location', lon: -122.4194, lat: 37.7749, radius: 10, unit: 'km' }
+      }),
+      ['FT.SEARCH', 'index', 'query', 'GEOFILTER', 'location', '-122.4194', '37.7749', '10', 'km', 'DIALECT', DEFAULT_DIALECT]
+    );
+
+    
+    assert.deepStrictEqual(
+      parseArgs(SEARCH, 'index', 'query', {
+        GEOFILTER: [
+          { field: 'loc1', lon: 10, lat: 20, radius: 500, unit: 'm' },
+          { field: 'loc2', lon: 30, lat: 40, radius: 50, unit: 'mi' }
+        ]
+      }),
+      [
+        'FT.SEARCH', 'index', 'query',
+        'GEOFILTER', 'loc1', '10', '20', '500', 'm',
+        'GEOFILTER', 'loc2', '30', '40', '50', 'mi',
+        'DIALECT', DEFAULT_DIALECT
+      ]
+    );
+  });
+
     it('with INKEYS', () => {
       assert.deepEqual(
         parseArgs(SEARCH, 'index', 'query', {
@@ -240,6 +319,26 @@ describe('FT.SEARCH', () => {
       );
     });
 
+    it('with EXPLAINSCORE', () => {
+    assert.deepStrictEqual(
+      parseArgs(SEARCH, 'index', 'query', {
+        WITHSCORES: true,
+        EXPLAINSCORE: true
+      }),
+      ['FT.SEARCH', 'index', 'query', 'WITHSCORES', 'EXPLAINSCORE', 'DIALECT', DEFAULT_DIALECT]
+    );
+    });
+  
+
+    it('with PAYLOAD', () => {
+    assert.deepStrictEqual(
+      parseArgs(SEARCH, 'index', 'query', {
+        PAYLOAD: 'evaluation-payload-string'
+      }),
+      ['FT.SEARCH', 'index', 'query', 'PAYLOAD', 'evaluation-payload-string', 'DIALECT', DEFAULT_DIALECT]
+    );
+  });
+
     it('with SORTBY', () => {
       assert.deepEqual(
         parseArgs(SEARCH, 'index', 'query', {
@@ -373,7 +472,26 @@ describe('FT.SEARCH', () => {
       );
     }, GLOBAL.SERVERS.OPEN);
 
-     testUtils.testWithClient('withscores', async client => {
+    testUtils.testWithClient('EXPLAINSCORE', async client => {
+      await Promise.all([
+      client.ft.create('index', { field: 'TEXT' }),
+      client.hSet('1', 'field', 'hello world')
+    ]);
+
+    const res = await client.ft.search('index', 'hello', {
+      WITHSCORES: true,
+      EXPLAINSCORE: true
+    });
+
+    assert.strictEqual(res.total, 1);
+    assert.strictEqual(res.documents.length, 1);
+    assert.strictEqual(res.documents[0].id, '1');
+    assert.strictEqual(typeof res.documents[0].score, 'number');
+    assert.ok(Array.isArray(res.documents[0].scoreExplain));
+    assert.ok(res.documents[0].scoreExplain.length > 0);
+  }, GLOBAL.SERVERS.OPEN);
+
+     testUtils.testWithClient('WITHSCORES', async client => {
       await Promise.all([
         client.ft.create('index', {
           field: 'TEXT'
@@ -389,6 +507,139 @@ describe('FT.SEARCH', () => {
       assert.strictEqual(typeof res.documents[0].score,'number');
       
     }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('NOCONTENT', async client => {
+    await Promise.all([
+      client.ft.create('index', { field: 'TEXT' }),
+      client.hSet('1', 'field', 'hello world')
+    ]);
+
+    const res = await client.ft.search('index', '*', { NOCONTENT: true });
+
+    assert.strictEqual(res.total, 1);
+    assert.strictEqual(res.documents.length, 1);
+    assert.strictEqual(res.documents[0].id, '1');
+    assert.deepStrictEqual(res.documents[0].value, {});
+  }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('WITHPAYLOADS', async client => {
+    await Promise.all([
+      client.ft.create('index', { field: 'TEXT' }),
+      client.hSet('1', 'field', 'hello world')
+    ]);
+
+    const res = await client.ft.search('index', '*', {
+      WITHPAYLOADS: true
+    });
+
+    assert.strictEqual(res.total, 1);
+    assert.strictEqual(res.documents.length, 1);
+    assert.strictEqual(res.documents[0].id, '1');
+    console.log(res.documents[0].payload);
+    assert.strictEqual(res.documents[0].payload, 'null');
+    assert.deepStrictEqual(res.documents[0].value, { field: 'hello world' });
+  }, GLOBAL.SERVERS.OPEN);
+
+
+  testUtils.testWithClient('WITHSORTKEYS', async client => {
+    await Promise.all([
+      client.ft.create('index', {
+        field: { type: 'TEXT', SORTABLE: true }
+      }),
+      client.hSet('1', 'field', 'hello world')
+    ]);
+
+    const res = await client.ft.search('index', '*', {
+      SORTBY: 'field',
+      WITHSORTKEYS: true
+    });
+
+    assert.strictEqual(res.total, 1);
+    assert.strictEqual(res.documents.length, 1);
+    assert.strictEqual(res.documents[0].id, '1');
+    assert.strictEqual(typeof res.documents[0].sortKey, 'string');
+    assert.deepStrictEqual(res.documents[0].value, { field: 'hello world' });
+  }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('WITHSCORES + NOCONTENT', async client => {
+    await Promise.all([
+      client.ft.create('index', { field: 'TEXT' }),
+      client.hSet('101', 'field', 'numeric id test')
+    ]);
+
+    const res = await client.ft.search('index', '*', {
+      WITHSCORES: true,
+      NOCONTENT: true
+    });
+
+    assert.strictEqual(res.total, 1);
+    assert.strictEqual(res.documents.length, 1);
+    assert.strictEqual(res.documents[0].id, '101');
+    assert.strictEqual(typeof res.documents[0].score, 'number');
+    assert.deepStrictEqual(res.documents[0].value, {});
+  }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('FILTER', async client => {
+    await Promise.all([
+      client.ft.create('index', {
+        price: { type: 'NUMERIC' }
+      }),
+      client.hSet('doc:1', 'price', '15'),
+      client.hSet('doc:2', 'price', '50'),
+      client.hSet('doc:3', 'price', '120')
+    ]);
+
+    const res = await client.ft.search('index', '*', {
+      FILTER: { field: 'price', min: 10, max: 100 }
+    });
+
+    assert.strictEqual(res.total, 2);
+    assert.strictEqual(res.documents.length, 2);
+    const ids = res.documents.map(d => d.id).sort();
+    assert.deepStrictEqual(ids, ['doc:1', 'doc:2']);
+  }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('GEOFILTER', async client => {
+    await Promise.all([
+      client.ft.create('index', {
+        location: { type: 'GEO' }
+      }),
+      
+      client.hSet('doc:sf', 'location', '-122.4194,37.7749'),
+      client.hSet('doc:oakland', 'location', '-122.2711,37.8044')
+    ]);
+
+    
+    const res = await client.ft.search('index', '*', {
+      GEOFILTER: {
+        field: 'location',
+        lon: -122.4194,
+        lat: 37.7749,
+        radius: 5,
+        unit: 'km'
+      }
+    });
+
+    assert.strictEqual(res.total, 1);
+    assert.strictEqual(res.documents[0].id, 'doc:sf');
+  }, GLOBAL.SERVERS.OPEN);
+
+
+    testUtils.testWithClient('PAYLOAD', async client => {
+    await Promise.all([
+      client.ft.create('index', { field: 'TEXT' }),
+      client.hSet('1', 'field', 'hello world')
+    ]);
+
+    const res = await client.ft.search('index', '*', {
+      PAYLOAD: 'custom-eval-context'
+    });
+
+    assert.strictEqual(res.total, 1);
+    assert.strictEqual(res.documents[0].id, '1');
+    assert.strictEqual(res.documents[0].payload, undefined); 
+    assert.deepStrictEqual(res.documents[0].value, { field: 'hello world' });
+  }, GLOBAL.SERVERS.OPEN);
 
     testUtils.testWithClient('with data', async client => {
       await Promise.all([

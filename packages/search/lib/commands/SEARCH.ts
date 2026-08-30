@@ -31,6 +31,32 @@ export interface FtSearchOptions {
   NOSTOPWORDS?: boolean;
   INKEYS?: RedisVariadicArgument;
   WITHSCORES?: boolean;
+  EXPLAINSCORE?: boolean;
+  NOCONTENT?: boolean;
+  WITHPAYLOADS?: boolean;
+  WITHSORTKEYS?: boolean;
+  FILTER?: {
+    field: RedisArgument;
+    min: number | RedisArgument;
+    max: number | RedisArgument;
+  } | Array<{
+    field: RedisArgument;
+    min: number | RedisArgument;
+    max: number | RedisArgument;
+  }>;
+  GEOFILTER?: {
+    field: RedisArgument;
+    lon: number;
+    lat: number;
+    radius: number;
+    unit: 'm' | 'km' | 'mi' | 'ft';
+  } | Array<{
+    field: RedisArgument;
+    lon: number;
+    lat: number;
+    radius: number;
+    unit: 'm' | 'km' | 'mi' | 'ft';
+  }>;
   INFIELDS?: RedisVariadicArgument;
   RETURN?: RedisVariadicArgument;
   SUMMARIZE?: boolean | {
@@ -52,6 +78,7 @@ export interface FtSearchOptions {
   LANGUAGE?: RediSearchLanguage;
   EXPANDER?: RedisArgument;
   SCORER?: RedisArgument;
+  PAYLOAD?: RedisArgument;
   SORTBY?: RedisArgument | {
     BY: RedisArgument;
     DIRECTION?: 'ASC' | 'DESC';
@@ -73,8 +100,38 @@ export function parseSearchOptions(parser: CommandParser, options?: FtSearchOpti
     parser.push('NOSTOPWORDS');
   }
 
+  if(options?.NOCONTENT) {
+    parser.push('NOCONTENT');
+  }
+
   if (options?.WITHSCORES) {
     parser.push('WITHSCORES');
+  }
+
+  if (options?.EXPLAINSCORE) {
+    parser.push('EXPLAINSCORE');
+  }
+
+  if(options?.WITHPAYLOADS) {
+    parser.push('WITHPAYLOADS');
+  }
+
+  if(options?.WITHSORTKEYS) {
+    parser.push('WITHSORTKEYS');
+  }
+
+  if (options?.FILTER) {
+    const filters = Array.isArray(options.FILTER) ? options.FILTER : [options.FILTER];
+    for (const filter of filters) {
+      parser.push('FILTER', filter.field, filter.min.toString(), filter.max.toString());
+    }
+  }
+
+  if (options?.GEOFILTER) {
+    const geofilters = Array.isArray(options.GEOFILTER) ? options.GEOFILTER : [options.GEOFILTER];
+    for (const geo of geofilters) {
+      parser.push('GEOFILTER', geo.field, geo.lon.toString(), geo.lat.toString(), geo.radius.toString(), geo.unit);
+    }
   }
 
   parseOptionalVariadicArgument(parser, 'INKEYS', options?.INKEYS);
@@ -137,6 +194,10 @@ export function parseSearchOptions(parser: CommandParser, options?: FtSearchOpti
     parser.push('SCORER', options.SCORER);
   }
 
+  if (options?.PAYLOAD) {
+    parser.push('PAYLOAD', options.PAYLOAD);
+  }
+
   if (options?.SORTBY) {
     parser.push('SORTBY');
 
@@ -168,23 +229,57 @@ function transformSearchReplyResp2(
   reply: SearchRawReply,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
   _preserve?: any,
-  _typeMapping?: TypeMapping
+  _typeMapping?: TypeMapping,
+  options?: FtSearchOptions
 ): SearchReply {
-  // if reply[2] is array, then we have content/documents. Otherwise, only ids
-  const withoutDocuments = reply.length > 2 && !Array.isArray(reply[2]);
-
   const documents: SearchReply['documents'] = [];
+  
+  const hasScores = Boolean(options?.WITHSCORES);
+  const hasExplain = Boolean(options?.EXPLAINSCORE);
+  const hasPayloads = Boolean(options?.WITHPAYLOADS);
+  const hasSortKeys = Boolean(options?.WITHSORTKEYS);
+  const noContent = Boolean(options?.NOCONTENT);
+
   let i = 1;
   while (i < reply.length) {
-    let score: number | undefined;
+  
+    const id = reply[i++] as string;
 
-    if(typeof reply[i] === 'number' || (typeof reply[i] === 'string' && !isNaN(Number(reply[i])) && Array.isArray(reply[i + 1]))){
-      score = Number(reply[i++]);
+    let score: number | undefined;
+    let scoreExplain: Array<string> | undefined;
+
+    if (hasScores) {
+      if (hasExplain && Array.isArray(reply[i])) {
+        const tuple = reply[i++] as [string | number, Array<string>];
+        score = Number(tuple[0]);
+        scoreExplain = tuple[1];
+      } else {
+        score = Number(reply[i++]);
+      }
     }
+
+    let payload: string | undefined;
+    if (hasPayloads){
+      payload = reply[i++] as string;
+    }
+
+    let sortKey: string | undefined;
+    if (hasSortKeys) {
+      sortKey = reply[i++] as string;
+    }
+
+    let value: SearchDocumentValue = {};
+    if (!noContent) {
+      value = documentValue(reply[i++]) as SearchDocumentValue;
+    }
+
     documents.push({
-      id: reply[i++] as string,
-      ...(score !== undefined ? {score} : {}),
-      value: (withoutDocuments ? {} : documentValue(reply[i++])) as SearchDocumentValue
+      id,
+      ...(score !== undefined && !isNaN(score) ? {score} : {}),
+      ...(scoreExplain !== undefined ? {scoreExplain} : {}),
+      ...(payload !== undefined ? {payload} : {}),
+      ...(sortKey !== undefined ? {sortKey} : {}),
+      value,
     });
   }
 
@@ -200,10 +295,11 @@ function transformSearchReplyResp3(
   rawReply: ReplyUnion,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
   preserve?: any,
-  typeMapping?: TypeMapping
+  typeMapping?: TypeMapping,
+  options?: FtSearchOptions
 ): SearchReply {
   if (Array.isArray(rawReply)) {
-    return transformSearchReplyResp2(rawReply as SearchRawReply, preserve, typeMapping);
+    return transformSearchReplyResp2(rawReply as SearchRawReply, preserve, typeMapping,options);
   }
 
   const reply = mapLikeToObject(rawReply);
@@ -218,11 +314,27 @@ function transformSearchReplyResp3(
     const { id, value } = parseSearchResultRow(result);
     
     const rawScore = getMapValue(resultMap,['score']);
-    const score = rawScore !== undefined ? Number(rawScore) : undefined;
+    const rawPayload = getMapValue(resultMap, ['payload']);
+    const rawSortKey = getMapValue(resultMap, ['sortkey']);
+
+    let score: number | undefined
+    let scoreExplain: Array<string> | undefined;
+
+    if (Array.isArray(rawScore)){
+      score = Number(rawScore[0]);
+      if (Array.isArray(rawScore[1])){
+        scoreExplain = rawScore[1].map(String);
+      }
+    } else if (rawScore !== undefined && rawScore !== null){
+      score = typeof rawScore === 'number' ? rawScore : Number(rawScore);
+    }
 
     return {
       id: String((id as { toString?(): string })?.toString?.() ?? id ?? ''),
       ...(score !== undefined && !isNaN(score) ? {score} : {}),
+      ...(scoreExplain !== undefined ? {scoreExplain} : {}),
+      ...(rawPayload !== undefined ? {payload: String(rawPayload)} : {}),
+      ...(rawSortKey !== undefined ? {sortKey: String(rawSortKey)} : {}),
       value: value as SearchDocumentValue
     };
   });
@@ -261,6 +373,9 @@ export interface SearchReply {
   documents: Array<{
       id: string;
       score?: number;
+      scoreExplain?: Array<string>;
+      payload?: string;
+      sortKey?: string;
       value: SearchDocumentValue;
   }>;
   /**
