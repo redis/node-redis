@@ -5,5 +5,6 @@ export default {
   parseCommand(parser: CommandParser) {
     parser.push('CLUSTER', 'BUMPEPOCH');
   },
-  transformReply: undefined as unknown as () => SimpleStringReply<'BUMPED' | 'STILL'>
+  // the reply is "BUMPED <epoch>" or "STILL <epoch>", not a bare literal
+  transformReply: undefined as unknown as () => SimpleStringReply
 } as const satisfies Command;

@@ -33,10 +33,11 @@ describe('XADD NOMKSTREAM', () => {
           field: 'value'
         }, {
           TRIM: {
-            threshold: 1000
+            strategy: 'MINID',
+            threshold: 5
           }
         }),
-        ['XADD', 'key', 'NOMKSTREAM', '1000', '*', 'field', 'value']
+        ['XADD', 'key', 'NOMKSTREAM', 'MINID', '5', '*', 'field', 'value']
       );
     });
 
@@ -60,11 +61,12 @@ describe('XADD NOMKSTREAM', () => {
           field: 'value'
         }, {
           TRIM: {
+            strategy: 'MAXLEN',
             strategyModifier: '=',
             threshold: 1000
           }
         }),
-        ['XADD', 'key', 'NOMKSTREAM', '=', '1000', '*', 'field', 'value']
+        ['XADD', 'key', 'NOMKSTREAM', 'MAXLEN', '=', '1000', '*', 'field', 'value']
       );
     });
 
@@ -74,11 +76,12 @@ describe('XADD NOMKSTREAM', () => {
           field: 'value'
         }, {
           TRIM: {
+            strategy: 'MAXLEN',
             threshold: 1000,
             limit: 1
           }
         }),
-        ['XADD', 'key', 'NOMKSTREAM', '1000', 'LIMIT', '1', '*', 'field', 'value']
+        ['XADD', 'key', 'NOMKSTREAM', 'MAXLEN', '1000', 'LIMIT', '1', '*', 'field', 'value']
       );
     });
 
@@ -88,11 +91,12 @@ describe('XADD NOMKSTREAM', () => {
           field: 'value'
         }, {
           TRIM: {
+            strategy: 'MAXLEN',
             threshold: 1000,
             policy: STREAM_DELETION_POLICY.DELREF
           }
         }),
-        ['XADD', 'key', 'NOMKSTREAM', '1000', 'DELREF', '*', 'field', 'value']
+        ['XADD', 'key', 'NOMKSTREAM', 'MAXLEN', '1000', 'DELREF', '*', 'field', 'value']
       );
     });
 

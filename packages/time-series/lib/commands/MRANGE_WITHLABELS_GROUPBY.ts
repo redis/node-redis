@@ -57,7 +57,7 @@ export default {
   transformReply: {
     2(reply: TsMRangeWithLabelsGroupByRawReply2, _?: unknown, typeMapping?: TypeMapping) {
       return resp2MapToValue(reply, ([_key, labels, samples]) => {
-        const transformed = transformRESP2LabelsWithSources(labels);
+        const transformed = transformRESP2LabelsWithSources(labels, typeMapping);
         return {
           labels: transformed.labels,
           sources: transformed.sources,

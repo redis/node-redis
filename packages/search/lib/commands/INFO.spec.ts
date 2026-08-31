@@ -12,6 +12,34 @@ describe('INFO', () => {
     );
   });
 
+  it('transformReply parses dialect_stats and Index Errors', () => {
+    const ret = INFO.transformReply[2]([
+      'index_name', 'index',
+      'num_docs', 0,
+      'dialect_stats', [
+        'dialect_1', 4,
+        'dialect_2', 1
+      ],
+      'Index Errors', [
+        'indexing failures', 0,
+        'last indexing error', '',
+        'last indexing error key', '',
+        'background indexing status', 'ok'
+      ]
+    ] as unknown as Parameters<typeof INFO.transformReply[2]>[0]);
+
+    assert.deepStrictEqual(ret.dialect_stats, {
+      dialect_1: 4,
+      dialect_2: 1
+    });
+    assert.deepStrictEqual(ret['Index Errors'], {
+      'indexing failures': 0,
+      'last indexing error': '',
+      'last indexing error key': '',
+      'background indexing status': 'ok'
+    });
+  });
+
   testUtils.testWithClientIfVersionWithinRange([[8], 'LATEST'], 'client.ft.info', async client => {
     await client.ft.create('index', {
       field: SCHEMA_FIELD_TYPE.TEXT
