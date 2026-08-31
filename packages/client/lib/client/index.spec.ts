@@ -1551,6 +1551,26 @@ describe('Client', () => {
 
   describe("socket errors during handshake", () => {
 
+    it("should re-emit terminated from the socket", async () => {
+      const client = createClient({
+        socket: {
+          host: "error",
+          connectTimeout: 1,
+          reconnectStrategy: false
+        }
+      });
+      client.on("error", () => {});
+
+      const terminated = new Promise<Error>(resolve => {
+        client.once("terminated", resolve);
+      });
+      await assert.rejects(client.connect());
+
+      const cause = await terminated;
+      assert.ok(cause instanceof Error);
+      client.destroy();
+    });
+
     it("should successfully connect when server accepts connection immediately", async () => {
       const { log, client, teardown } = await setup({}, 0);
       await client.connect();

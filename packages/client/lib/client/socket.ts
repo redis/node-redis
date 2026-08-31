@@ -205,6 +205,13 @@ const retryIn = strategy(retries, cause);
     };
   }
 
+  /**
+   * The single choke point where `reconnectStrategy` giving up (`false` or an
+   * `Error`) is handled: closes the socket for good and emits `'terminated'`
+   * so a caller reacting only to `'error'` — which also fires on every
+   * *retried* disconnect — can tell "still retrying" apart from "reconnection
+   * has permanently stopped, the client is unusable from here on".
+   */
   #shouldReconnect(retries: number, cause: Error) {
     const retryIn = this.#reconnectStrategy(retries, cause);
     if (retryIn === false) {
@@ -216,6 +223,7 @@ const retryIn = strategy(retries, cause);
         clientId: this.#clientId
       }));
       this.emit('error', cause);
+      this.emit('terminated', cause);
       return cause;
     } else if (retryIn instanceof Error) {
       this.#isOpen = false;
@@ -226,7 +234,9 @@ const retryIn = strategy(retries, cause);
         clientId: this.#clientId
       }));
       this.emit('error', cause);
-      return new ReconnectStrategyError(retryIn, cause);
+      const terminatedBy = new ReconnectStrategyError(retryIn, cause);
+      this.emit('terminated', terminatedBy);
+      return terminatedBy;
     }
 
     return retryIn;
