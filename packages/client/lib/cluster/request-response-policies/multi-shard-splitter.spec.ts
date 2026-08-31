@@ -1,5 +1,5 @@
 import { strict as assert } from 'node:assert';
-import calculateSlot from 'cluster-key-slot';
+import calculateSlot from '../../utils/calculate-slot';
 import type { KeySpec } from '../../commands/generic-transformers';
 import { splitMultiShardCommand } from './multi-shard-splitter';
 

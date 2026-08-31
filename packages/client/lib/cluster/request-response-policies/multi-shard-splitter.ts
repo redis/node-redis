@@ -1,4 +1,4 @@
-import calculateSlot from 'cluster-key-slot';
+import calculateSlot from '../../utils/calculate-slot';
 import type { RedisArgument } from '../../RESP/types';
 import type { KeySpec } from '../../commands/generic-transformers';
 

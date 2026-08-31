@@ -19,7 +19,7 @@ import { DEFAULT_COMMAND_TIMEOUT } from '../defaults';
 import { FieldsetRegistry } from '../himport/registry';
 import { defaultCommandMetadata, defaultCommandPolicies, isReplicaSafe, PolicyResolver, REQUEST_POLICIES_WITH_DEFAULTS, RESPONSE_POLICIES_WITH_DEFAULTS, type CommandMetadata } from '../command-metadata';
 import { REQUEST_ROUTERS, RESPONSE_REDUCERS, NUMERIC_AGG_POLICIES, remapAggregateReply } from './request-response-policies/dispatch';
-import calculateSlot from 'cluster-key-slot';
+import calculateSlot from '../utils/calculate-slot';
 import { finalizeFtCursor } from './request-response-policies/ft-cursor';
 import { finalizeScanCursor } from './request-response-policies/scan-cursor';
 

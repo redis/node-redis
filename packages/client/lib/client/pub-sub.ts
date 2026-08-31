@@ -1,6 +1,6 @@
 import { RedisArgument } from '../RESP/types';
 import { CommandToWrite } from './commands-queue';
-import calculateSlot from 'cluster-key-slot';
+import calculateSlot from '../utils/calculate-slot';
 import { publish, CHANNELS } from './tracing';
 
 export const PUBSUB_TYPE = {

@@ -43,5 +43,8 @@
     "typedoc": "^0.25.7",
     "typescript": "^5.3.3",
     "typescript-eslint": "^8.59.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true
   }
 }

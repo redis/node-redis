@@ -5,7 +5,7 @@ import type { CommandToWrite } from '../client/commands-queue';
 import { EventEmitter } from 'node:stream';
 import { ChannelListeners, PUBSUB_TYPE, PubSubListeners, PubSubTypeListeners } from '../client/pub-sub';
 import { RedisArgument, RedisFunctions, RedisModules, RedisScripts, RespVersions, TypeMapping, DEFAULT_RESP } from '../RESP/types';
-import calculateSlot from 'cluster-key-slot';
+import calculateSlot from '../utils/calculate-slot';
 import { RedisSocketOptions } from '../client/socket';
 import { BasicPooledClientSideCache, PooledClientSideCacheProvider } from '../client/cache';
 import { SMIGRATED_EVENT, SMigratedEvent, dbgMaintenance } from '../client/enterprise-maintenance-manager';
