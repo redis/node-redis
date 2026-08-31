@@ -67,7 +67,7 @@ An `'error'` event fires on every disconnect, including ones the client is about
 ```javascript
 client.on('terminated', cause => {
   console.error('client will not reconnect:', cause);
-  client.destroy();
+  queueMicrotask(() => client.destroy());
 });
 ```
 

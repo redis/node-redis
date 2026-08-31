@@ -201,6 +201,67 @@ describe('Socket', () => {
 
       socket.destroy();
     });
+
+    it('should not reconnect when an error listener destroys the socket', async () => {
+      const connections: net.Socket[] = [];
+      const server = net.createServer(conn => {
+        conn.on('error', () => { /* ignore */ });
+        connections.push(conn);
+      });
+      await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+      const { port } = server.address() as net.AddressInfo;
+      const firstConnection = once(server, 'connection') as Promise<[net.Socket]>;
+
+      try {
+        const socket = createSocket({
+          host: '127.0.0.1',
+          port,
+          reconnectStrategy: 0
+        });
+        socket.on('error', () => socket.destroy());
+
+        await socket.connect();
+        const [conn] = await firstConnection;
+        conn.destroy();
+        await once(socket, 'end');
+        await setTimeout(10);
+
+        assert.equal(connections.length, 1, 'destroyed socket must not reconnect');
+        assert.equal(socket.isOpen, false, 'socket.isOpen');
+      } finally {
+        for (const conn of connections) conn.destroy();
+        await new Promise<void>(resolve => server.close(() => resolve()));
+      }
+    });
+
+    it('should emit `terminated` before `error` when the handshake fails', async () => {
+      const connections: net.Socket[] = [];
+      const server = net.createServer(conn => {
+        conn.on('error', () => { /* ignore */ });
+        connections.push(conn);
+        setImmediate(() => conn.destroy());
+      });
+      await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+      const { port } = server.address() as net.AddressInfo;
+
+      try {
+        const socket = new RedisSocket(() => new Promise(() => { /* wait for socket failure */ }), CLIENT_ID, {
+          host: '127.0.0.1',
+          port,
+          reconnectStrategy: false
+        });
+        const events: string[] = [];
+        socket.on('terminated', () => events.push('terminated'));
+        socket.on('error', () => events.push('error'));
+
+        await assert.rejects(socket.connect());
+
+        assert.deepEqual(events, ['terminated', 'error']);
+      } finally {
+        for (const conn of connections) conn.destroy();
+        await new Promise<void>(resolve => server.close(() => resolve()));
+      }
+    });
   });
 
   describe('initiator interruption (#3346)', () => {
