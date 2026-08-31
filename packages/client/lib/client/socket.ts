@@ -13,6 +13,10 @@ type NetOptions = {
 };
 
 type ReconnectStrategyFunction = (retries: number, cause: Error) => false | Error | number;
+type ReconnectStrategyResult = {
+  retryIn: false | Error | number;
+  error?: Error;
+};
 
 type RedisSocketOptionsCommon = {
   /**
@@ -111,34 +115,30 @@ export default class RedisSocket extends EventEmitter {
     this.#clientId = clientId;
   }
 
-  #createReconnectStrategy(options?: RedisSocketOptions): ReconnectStrategyFunction {
+  #createReconnectStrategy(options?: RedisSocketOptions): (retries: number, cause: Error) => ReconnectStrategyResult {
     const strategy = options?.reconnectStrategy;
     if (strategy === false || typeof strategy === 'number') {
-      return () => strategy;
+      return () => ({ retryIn: strategy });
     }
 
     if (strategy) {
       return (retries, cause) => {
         try {
-const retryIn = strategy(retries, cause);
+          const retryIn = strategy(retries, cause);
           if (retryIn !== false && !(retryIn instanceof Error) && typeof retryIn !== 'number') {
             throw new TypeError(`Reconnect strategy should return \`false | Error | number\`, got ${retryIn} instead`);
           }
-          return retryIn;
+          return { retryIn };
         } catch (err) {
-          publish(CHANNELS.ERROR, () => ({
-            error: err as Error,
-            origin: 'client',
-            internal: false,
-            clientId: this.#clientId
-          }));
-          this.emit('error', err);
-          return this.defaultReconnectStrategy(retries, err);
+          return {
+            retryIn: this.defaultReconnectStrategy(retries, err),
+            error: err as Error
+          };
         }
       };
     }
 
-    return this.defaultReconnectStrategy;
+    return (retries, cause) => ({ retryIn: this.defaultReconnectStrategy(retries, cause) });
   }
 
   #createSocketFactory(options?: RedisSocketOptions) {
@@ -213,33 +213,31 @@ const retryIn = strategy(retries, cause);
    * has permanently stopped, the client is unusable from here on".
    */
   #shouldReconnect(retries: number, cause: Error) {
-    const retryIn = this.#reconnectStrategy(retries, cause);
+    const { retryIn, error: strategyError } = this.#reconnectStrategy(retries, cause);
     if (retryIn === false) {
       this.#isOpen = false;
-      publish(CHANNELS.ERROR, () => ({
-        error: cause,
-        origin: 'client',
-        internal: false,
-        clientId: this.#clientId
-      }));
       this.emit('terminated', cause);
-      this.emit('error', cause);
-      return cause;
+      this.#emitError(cause);
+      return { retryIn: cause, strategyError };
     } else if (retryIn instanceof Error) {
       this.#isOpen = false;
-      publish(CHANNELS.ERROR, () => ({
-        error: cause,
-        origin: 'client',
-        internal: false,
-        clientId: this.#clientId
-      }));
       const terminatedBy = new ReconnectStrategyError(retryIn, cause);
       this.emit('terminated', terminatedBy);
-      this.emit('error', cause);
-      return terminatedBy;
+      this.#emitError(cause);
+      return { retryIn: terminatedBy, strategyError };
     }
 
-    return retryIn;
+    return { retryIn, strategyError };
+  }
+
+  #emitError(err: Error) {
+    publish(CHANNELS.ERROR, () => ({
+      error: err,
+      origin: 'client',
+      internal: false,
+      clientId: this.#clientId
+    }));
+    this.emit('error', err);
   }
 
   async connect(): Promise<void> {
@@ -264,9 +262,14 @@ const retryIn = strategy(retries, cause);
 
           // Check if socket was closed/destroyed during initiator execution
           if (!this.#socket || this.#socket.destroyed || !this.#socket.readable || !this.#socket.writable) {
-            const retryIn = this.#shouldReconnect(retries++, new SocketClosedUnexpectedlyError());
+            const error = new SocketClosedUnexpectedlyError();
+            const { retryIn, strategyError } = this.#shouldReconnect(retries++, error);
             if (typeof retryIn !== 'number') { throw retryIn; }
+            this.#emitError(error);
+            if (strategyError) this.#emitError(strategyError);
+            if (!this.#isOpen) throw new ClientClosedError();
             await setTimeout(retryIn);
+            if (!this.#isOpen) throw new ClientClosedError();
             this.emit('reconnecting');
             continue;
           }
@@ -292,19 +295,16 @@ const retryIn = strategy(retries, cause);
         // reconnecting or scheduling a retry — the shutdown is intentional.
         if (!this.#isOpen) throw err;
 
-        const retryIn = this.#shouldReconnect(retries++, err as Error);
+        const { retryIn, strategyError } = this.#shouldReconnect(retries++, err as Error);
         if (typeof retryIn !== 'number') {
           throw retryIn;
         }
 
-        publish(CHANNELS.ERROR, () => ({
-          error: err as Error,
-          origin: 'client',
-          internal: false,
-          clientId: this.#clientId
-        }));
-        this.emit('error', err);
+        this.#emitError(err as Error);
+        if (strategyError) this.#emitError(strategyError);
+        if (!this.#isOpen) throw err;
         await setTimeout(retryIn);
+        if (!this.#isOpen) throw err;
         this.emit('reconnecting');
       }
     } while (this.#isOpen && !this.#isReady);
@@ -416,38 +416,21 @@ const retryIn = strategy(retries, cause);
 
     if (!wasReady) {
       if (!this.#isOpen) {
-        publish(CHANNELS.ERROR, () => ({
-          error: err,
-          origin: 'client',
-          internal: false,
-          clientId: this.#clientId
-        }));
-        this.emit('error', err);
+        this.#emitError(err);
       }
       return;
     }
 
     if (!this.#isOpen) {
-      publish(CHANNELS.ERROR, () => ({
-        error: err,
-        origin: 'client',
-        internal: false,
-        clientId: this.#clientId
-      }));
-      this.emit('error', err);
+      this.#emitError(err);
       return;
     }
 
-    const retryIn = this.#shouldReconnect(0, err);
+    const { retryIn, strategyError } = this.#shouldReconnect(0, err);
     if (typeof retryIn !== 'number') return;
 
-    publish(CHANNELS.ERROR, () => ({
-      error: err,
-      origin: 'client',
-      internal: false,
-      clientId: this.#clientId
-    }));
-    this.emit('error', err);
+    this.#emitError(err);
+    if (strategyError) this.#emitError(strategyError);
     if (!this.#isOpen) return;
 
     this.emit('reconnecting');
