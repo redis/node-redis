@@ -163,15 +163,20 @@ describe('Socket', () => {
         await socket.connect();
         assert.equal(socket.isReady, true, 'socket.isReady');
 
-        const terminatedCauses: Error[] = [];
-        socket.on('terminated', cause => terminatedCauses.push(cause));
+        const events: string[] = [];
+        let terminatedCause: Error | undefined;
+        socket.on('terminated', cause => {
+          events.push('terminated');
+          terminatedCause = cause;
+        });
+        socket.on('error', () => events.push('error'));
 
         const [conn] = await firstConnection;
         conn.destroy();
         const [errCause] = await once(socket, 'error') as [Error];
 
-        assert.equal(terminatedCauses.length, 1, 'terminated should have fired exactly once');
-        assert.equal(terminatedCauses[0], errCause, 'terminated should carry the same cause as error');
+        assert.deepEqual(events, ['terminated', 'error']);
+        assert.equal(terminatedCause, errCause, 'terminated should carry the same cause as error');
         assert.equal(socket.isOpen, false, 'socket.isOpen');
       } finally {
         for (const conn of connections) conn.destroy();

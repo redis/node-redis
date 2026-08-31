@@ -407,14 +407,6 @@ const retryIn = strategy(retries, cause);
     this.#isReady = false;
     const socket = this.#socket;
     this.#socket = undefined;
-    publish(CHANNELS.ERROR, () => ({
-      error: err,
-      origin: 'client',
-      internal: false,
-      clientId: this.#clientId
-    }));
-    this.emit('error', err);
-
     socket?.removeAllListeners('data');
     socket?.destroy();
 
@@ -422,7 +414,27 @@ const retryIn = strategy(retries, cause);
       publish(CHANNELS.CONNECTION_CLOSED, () => ({ clientId: this.#clientId, reason: 'error', wasConnected: true }));
     }
 
-    if (!wasReady || !this.#isOpen || typeof this.#shouldReconnect(0, err) !== 'number') return;
+    if (!wasReady || !this.#isOpen) {
+      publish(CHANNELS.ERROR, () => ({
+        error: err,
+        origin: 'client',
+        internal: false,
+        clientId: this.#clientId
+      }));
+      this.emit('error', err);
+      return;
+    }
+
+    const retryIn = this.#shouldReconnect(0, err);
+    if (typeof retryIn !== 'number') return;
+
+    publish(CHANNELS.ERROR, () => ({
+      error: err,
+      origin: 'client',
+      internal: false,
+      clientId: this.#clientId
+    }));
+    this.emit('error', err);
 
     this.emit('reconnecting');
     this.#connect().catch(() => {
