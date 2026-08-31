@@ -4,6 +4,7 @@ import type { MultiDbManager } from './manager';
 import type { Database } from './database';
 import type { DatabaseRole } from './database';
 import type { CircuitState } from './circuit';
+import type { PoolDatabaseConfig } from './config';
 
 export type FailoverReason = 'failure-detector' | 'health-check' | 'forced' | 'active-removed';
 
@@ -97,6 +98,38 @@ export class MultiDbController<C extends AnyRedisClientType> extends EventEmitte
   /** all managed members, in config order */
   getDatabases(): ReadonlyArray<DatabaseDescriptor> {
     return this.#mgr.databases.map(describe);
+  }
+
+  /**
+   * Add a member database at runtime. `options` must match the factory this
+   * client was created with (`poolOptions` applies to pool members only).
+   * Resolves to the member's id once it is connected and — unless
+   * `skipInitialHealthCheck` — health-checked; a member that fails to
+   * establish stays in the set with an OPEN circuit. Throws `TypeError` on a
+   * duplicate id or a weight outside [0, 1].
+   */
+  addDatabase(config: PoolDatabaseConfig<unknown>): Promise<string> {
+    return this.#mgr.addDatabase(config);
+  }
+
+  /**
+   * Remove a member database. Removing the active member first fails over to
+   * the highest-weight healthy replacement. Throws `TypeError` for an unknown
+   * id; throws `Error` when removing the last member or when the active
+   * member has no healthy replacement — state conditions that may clear after
+   * recovery.
+   */
+  removeDatabase(id: string): Promise<void> {
+    return this.#mgr.removeDatabase(id);
+  }
+
+  /**
+   * Change a member's selection weight, within [0, 1]. Takes effect on the
+   * next selection (failover, fallback, removal) — it does not switch the
+   * active member by itself.
+   */
+  setWeight(id: string, weight: number): void {
+    this.#mgr.setWeight(id, weight);
   }
 }
 

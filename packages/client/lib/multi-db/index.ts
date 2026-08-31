@@ -4,7 +4,8 @@ import RedisCluster, { RedisClusterType, RedisClusterOptions } from '../cluster'
 import RedisSentinel from '../sentinel';
 import { RedisSentinelType, RedisSentinelOptions } from '../sentinel/types';
 import { RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
-import { MultiDbManager, MemberSpec } from './manager';
+import { MultiDbManager } from './manager';
+import type { MemberAdapter, ResolvedMemberConfig } from './manager';
 import { MultiDbController } from './controller';
 import { resolveMultiDbConfig } from './config';
 import type { DatabaseConfig, PoolDatabaseConfig, MultiDbConfig, ResolvedMultiDbConfig } from './config';
@@ -142,10 +143,11 @@ function makeClient<C extends AnyRedisClientType>(mgr: MultiDbManager<C>): C {
 /* -------------------------------------------------------------------------- */
 
 function assemble<C extends AnyRedisClientType>(
-  members: Array<MemberSpec<C>>,
-  config: ResolvedMultiDbConfig
+  members: Array<ResolvedMemberConfig>,
+  config: ResolvedMultiDbConfig,
+  adapter: MemberAdapter<C>
 ): MultiDbResult<C> {
-  const mgr = new MultiDbManager(members, config);
+  const mgr = new MultiDbManager(members, config, adapter);
   return { client: makeClient(mgr), controller: new MultiDbController(mgr) };
 }
 
@@ -169,7 +171,11 @@ export function createMultiDbClient<
   databases: Array<DatabaseConfig<RedisClientOptions<M, F, S, RESP, T>>>;
 } & MultiDbConfig): MultiDbResult<RedisClientType<M, F, S, RESP, T>> {
   const { databases, config } = resolveMultiDbConfig(options.databases, options);
-  return assemble(databases.map(db => ({ ...db, client: RedisClient.create(db.options) })), config);
+  const adapter: MemberAdapter<RedisClientType<M, F, S, RESP, T>> = {
+    create: db => RedisClient.create(db.options as RedisClientOptions<M, F, S, RESP, T>),
+    sendCommand: (client, args) => client.sendCommand(args)
+  };
+  return assemble(databases, config, adapter);
 }
 
 /** As {@link createMultiDbClient}, over pooled (`RedisClientPool`) members. @experimental */
@@ -183,7 +189,11 @@ export function createMultiDbClientPool<
   databases: Array<PoolDatabaseConfig<RedisClientOptions<M, F, S, RESP, T>>>;
 } & MultiDbConfig): MultiDbResult<RedisClientPoolType<M, F, S, RESP, T>> {
   const { databases, config } = resolveMultiDbConfig(options.databases, options);
-  return assemble(databases.map(db => ({ ...db, client: RedisClientPool.create(db.options, db.poolOptions) })), config);
+  const adapter: MemberAdapter<RedisClientPoolType<M, F, S, RESP, T>> = {
+    create: db => RedisClientPool.create(db.options as RedisClientOptions<M, F, S, RESP, T>, db.poolOptions),
+    sendCommand: (client, args) => client.sendCommand(args)
+  };
+  return assemble(databases, config, adapter);
 }
 
 /** As {@link createMultiDbClient}, over `RedisCluster` members. @experimental */
@@ -197,7 +207,12 @@ export function createMultiDbCluster<
   databases: Array<DatabaseConfig<RedisClusterOptions<M, F, S, RESP, T>>>;
 } & MultiDbConfig): MultiDbResult<RedisClusterType<M, F, S, RESP, T>> {
   const { databases, config } = resolveMultiDbConfig(options.databases, options);
-  return assemble(databases.map(db => ({ ...db, client: RedisCluster.create(db.options) })), config);
+  const adapter: MemberAdapter<RedisClusterType<M, F, S, RESP, T>> = {
+    create: db => RedisCluster.create(db.options as RedisClusterOptions<M, F, S, RESP, T>),
+    // keyless dispatch — the cluster routes it to an arbitrary node
+    sendCommand: (client, args) => client.sendCommand(undefined, undefined, args)
+  };
+  return assemble(databases, config, adapter);
 }
 
 /** As {@link createMultiDbClient}, over `RedisSentinel` members. @experimental */
@@ -211,7 +226,11 @@ export function createMultiDbSentinel<
   databases: Array<DatabaseConfig<RedisSentinelOptions<M, F, S, RESP, T>>>;
 } & MultiDbConfig): MultiDbResult<RedisSentinelType<M, F, S, RESP, T>> {
   const { databases, config } = resolveMultiDbConfig(options.databases, options);
-  return assemble(databases.map(db => ({ ...db, client: RedisSentinel.create(db.options) })), config);
+  const adapter: MemberAdapter<RedisSentinelType<M, F, S, RESP, T>> = {
+    create: db => RedisSentinel.create(db.options as RedisSentinelOptions<M, F, S, RESP, T>),
+    sendCommand: (client, args) => client.sendCommand(undefined, args)
+  };
+  return assemble(databases, config, adapter);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -241,6 +260,6 @@ export type {
   InitialAvailability
 } from './config';
 export type { FailureDetector } from './failure-detector';
-export type { HealthCheck, HealthCheckTarget } from './health-check';
+export { DefaultHealthCheck, type HealthCheck, type HealthCheckTarget } from './health-check';
 export type { FailoverStrategy } from './failover-strategy';
 export type { CircuitState } from './circuit';

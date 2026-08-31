@@ -127,6 +127,17 @@ describe('resolveMultiDbConfig', () => {
         /timeout.*must be less than/
       );
     });
+
+    it('rejects non-positive or non-integer probe knobs', () => {
+      assert.throws(() => resolveMultiDbConfig([DB], { healthCheck: { numProbes: 0 } }), /numProbes/);
+      assert.throws(() => resolveMultiDbConfig([DB], { healthCheck: { numProbes: 1.5 } }), /numProbes/);
+      assert.throws(() => resolveMultiDbConfig([DB], { healthCheck: { timeout: 0 } }), /timeout/);
+      assert.throws(() => resolveMultiDbConfig([DB], { healthCheck: { delayBetweenProbes: -1 } }), /delayBetweenProbes/);
+    });
+
+    it('rejects an empty healthChecks chain', () => {
+      assert.throws(() => resolveMultiDbConfig([DB], { healthChecks: [] }), /healthChecks must not be empty/);
+    });
   });
 
   it('pins the defaults table', () => {
