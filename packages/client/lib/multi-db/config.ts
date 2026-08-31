@@ -140,6 +140,29 @@ function isFailureDetector(
 }
 
 /**
+ * Resolve one member's identity: apply `fallbackId` when no id is given,
+ * default the weight to 1 and validate it is within [0, 1]. Uniqueness is the
+ * caller's concern.
+ */
+export function resolveDatabaseIdentity<DB extends DatabaseConfig<unknown>>(
+  db: DB,
+  fallbackId: string
+): DB & ResolvedDatabaseIdentity {
+  const weight = db.weight ?? 1;
+  // negated form also rejects NaN
+  if (!(weight >= 0 && weight <= 1)) {
+    throw new TypeError(`MultiDb: database "${db.id ?? fallbackId}" weight must be within [0, 1], got ${weight}`);
+  }
+
+  return {
+    ...db,
+    id: db.id ?? fallbackId,
+    weight,
+    skipInitialHealthCheck: db.skipInitialHealthCheck ?? false
+  };
+}
+
+/**
  * Apply the defaults table and validate: ≥1 database,
  * weights within [0, 1], unique ids (generated per `DatabaseConfig.id` when
  * omitted), health-check timeout below the check interval.
@@ -157,31 +180,33 @@ export function resolveMultiDbConfig<DB extends DatabaseConfig<unknown>>(
 
   const seen = new Set<string>();
   const resolvedDatabases = databases.map((db, index) => {
-    const id = db.id ?? `db-${index}`;
-    if (seen.has(id)) {
-      throw new TypeError(`MultiDb: duplicate database id "${id}"`);
+    const resolved = resolveDatabaseIdentity(db, `db-${index}`);
+    if (seen.has(resolved.id)) {
+      throw new TypeError(`MultiDb: duplicate database id "${resolved.id}"`);
     }
-    seen.add(id);
-
-    const weight = db.weight ?? 1;
-    // negated form also rejects NaN
-    if (!(weight >= 0 && weight <= 1)) {
-      throw new TypeError(`MultiDb: database "${id}" weight must be within [0, 1], got ${weight}`);
-    }
-
-    return {
-      ...db,
-      id,
-      weight,
-      skipInitialHealthCheck: db.skipInitialHealthCheck ?? false
-    };
+    seen.add(resolved.id);
+    return resolved;
   });
 
   const healthCheck = { ...MULTI_DB_DEFAULTS.healthCheck, ...config.healthCheck };
+  // negated comparisons also reject NaN; interval > 0 follows from these two
+  if (!(healthCheck.timeout > 0)) {
+    throw new TypeError(`MultiDb: healthCheck.timeout must be greater than 0, got ${healthCheck.timeout}`);
+  }
   if (!(healthCheck.timeout < healthCheck.interval)) {
     throw new TypeError(
       `MultiDb: healthCheck.timeout (${healthCheck.timeout}) must be less than healthCheck.interval (${healthCheck.interval})`
     );
+  }
+  if (!(Number.isInteger(healthCheck.numProbes) && healthCheck.numProbes >= 1)) {
+    throw new TypeError(`MultiDb: healthCheck.numProbes must be an integer >= 1, got ${healthCheck.numProbes}`);
+  }
+  if (!(healthCheck.delayBetweenProbes >= 0)) {
+    throw new TypeError(`MultiDb: healthCheck.delayBetweenProbes must be >= 0, got ${healthCheck.delayBetweenProbes}`);
+  }
+  // an empty array would silently disable probing instead of falling back to the default check
+  if (config.healthChecks !== undefined && config.healthChecks.length === 0) {
+    throw new TypeError('MultiDb: healthChecks must not be empty; omit it to use the default PING check');
   }
 
   const failureDetector = config.failureDetector !== undefined && isFailureDetector(config.failureDetector)

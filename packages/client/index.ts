@@ -79,6 +79,7 @@ export {
   type ProbePolicy,
   type InitialAvailability,
   type FailureDetector,
+  DefaultHealthCheck,
   type HealthCheck,
   type HealthCheckTarget,
   type FailoverStrategy,
