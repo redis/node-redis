@@ -62,11 +62,12 @@ createClient({
 });
 ```
 
-An `'error'` event fires on every disconnect, including ones the client is about to retry, so it can't tell you whether reconnection is still in progress. Once `reconnectStrategy` gives up (returns `false` or an `Error`), the client also emits a `'terminated'` event with the reason — that's the signal that reconnection has permanently stopped and the client needs to be recreated:
+An `'error'` event fires on every disconnect, including ones the client is about to retry, so it can't tell you whether reconnection is still in progress. Once `reconnectStrategy` gives up (returns `false` or an `Error`), the client also emits a `'terminated'` event with the reason — that's the signal that reconnection has permanently stopped. Call `destroy()` before replacing the client so its resources are released:
 
 ```javascript
 client.on('terminated', cause => {
   console.error('client will not reconnect:', cause);
+  client.destroy();
 });
 ```
 
