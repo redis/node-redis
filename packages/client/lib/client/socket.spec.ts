@@ -96,16 +96,18 @@ describe('Socket', () => {
         reconnectStrategy: false
       });
 
-      // `node:events`' `once()` special-cases `'error'` — it resolves/rejects
-      // as soon as *either* the awaited event or an `'error'` fires, so it
-      // can't be used to await `'terminated'` here without racing the
-      // `'error'` this same give-up also emits. A plain listener sidesteps that.
+      const events: string[] = [];
       let terminatedCause: Error | undefined;
-      socket.on('terminated', cause => { terminatedCause = cause; });
+      socket.on('terminated', cause => {
+        events.push('terminated');
+        terminatedCause = cause;
+      });
+      socket.on('error', () => events.push('error'));
 
       await assert.rejects(socket.connect());
 
       assert.ok(terminatedCause instanceof Error);
+      assert.deepEqual(events.slice(-2), ['terminated', 'error']);
       assert.equal(socket.isOpen, false);
     });
 
@@ -121,12 +123,18 @@ describe('Socket', () => {
         reconnectStrategy
       });
 
+      const events: string[] = [];
       let terminatedCause: Error | undefined;
-      socket.on('terminated', cause => { terminatedCause = cause; });
+      socket.on('terminated', cause => {
+        events.push('terminated');
+        terminatedCause = cause;
+      });
+      socket.on('error', () => events.push('error'));
 
       await assert.rejects(socket.connect());
 
       assert.ok(terminatedCause instanceof ReconnectStrategyError, 'terminated cause should be a ReconnectStrategyError');
+      assert.deepEqual(events.slice(-2), ['terminated', 'error']);
     });
 
     it('should emit `terminated` — not just `error` — when the connection is lost after being ready', async () => {

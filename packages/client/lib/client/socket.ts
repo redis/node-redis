@@ -222,8 +222,8 @@ const retryIn = strategy(retries, cause);
         internal: false,
         clientId: this.#clientId
       }));
-      this.emit('error', cause);
       this.emit('terminated', cause);
+      this.emit('error', cause);
       return cause;
     } else if (retryIn instanceof Error) {
       this.#isOpen = false;
@@ -233,9 +233,9 @@ const retryIn = strategy(retries, cause);
         internal: false,
         clientId: this.#clientId
       }));
-      this.emit('error', cause);
       const terminatedBy = new ReconnectStrategyError(retryIn, cause);
       this.emit('terminated', terminatedBy);
+      this.emit('error', cause);
       return terminatedBy;
     }
 
