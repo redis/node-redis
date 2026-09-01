@@ -1,6 +1,8 @@
 import { strict as assert } from 'node:assert';
 import { once } from 'node:events';
 import { setTimeout } from 'node:timers/promises';
+import sinon from 'sinon';
+import RedisClient from '../client';
 import testUtils, { GLOBAL } from '../test-utils';
 
 // `disableClientSetup` hands us an un-connected sentinel so we can attach
@@ -191,5 +193,58 @@ describe('RedisSentinel lifecycle events', () => {
     assert.ok(errors.some(err => /ready boom/.test(String(err))), `errors: ${errors}`);
 
     await sentinel.destroy();
+  }, OPEN);
+
+  // With no `error` listener the routed emit re-throws; emitted synchronously it would
+  // land in #connect()'s retry try and be swallowed (plus a spurious rediscovery). The
+  // fix defers it to a microtask, so it surfaces as an unhandled `error` instead.
+  testUtils.testWithClientSentinel('surfaces a throwing ready listener with no error listener', async sentinel => {
+    sentinel.once('ready', () => { throw new Error('ready boom'); });
+
+    const prior = process.listeners('uncaughtException');
+    process.removeAllListeners('uncaughtException');
+    const captured: Array<unknown> = [];
+    const onUncaught = (err: unknown) => { captured.push(err); };
+    process.on('uncaughtException', onUncaught);
+
+    try {
+      await sentinel.connect();
+      await setTimeout(50); // let the deferred emit fire
+    } finally {
+      process.removeListener('uncaughtException', onUncaught);
+      for (const listener of prior) process.on('uncaughtException', listener as (err: Error) => void);
+    }
+
+    assert.equal(sentinel.isReady, true);
+    assert.ok(captured.some(err => /ready boom/.test(String(err))), `captured: ${captured}`);
+
+    sentinel.on('error', () => { });
+    await sentinel.destroy();
+  }, OPEN);
+
+  // A graceful close() waits for each client's command queue to drain; a stuck queue
+  // would stall it forever. A concurrent destroy() must preempt that drain and terminate
+  // now, instead of joining and inheriting the hang. Modeled by stubbing the underlying
+  // RedisClient.close() to never settle, so only a force-destroy can unblock teardown.
+  testUtils.testWithClientSentinel('destroy() preempts a close() blocked on a draining client', async sentinel => {
+    sentinel.on('error', () => { });
+    await sentinel.connect();
+
+    const closeStub = sinon.stub(RedisClient.prototype, 'close').returns(new Promise<void>(() => { }));
+    try {
+      const closing = sentinel.close(); // stuck on the drain
+      let closeSettled = false;
+      closing.then(() => { closeSettled = true; }, () => { closeSettled = true; });
+
+      await sentinel.destroy(); // must preempt rather than inherit the hang
+
+      assert.equal(sentinel.isOpen, false);
+      assert.equal(sentinel.isReady, false);
+
+      await closing; // shares the teardown — the preempting destroy() settles it too
+      assert.equal(closeSettled, true);
+    } finally {
+      closeStub.restore();
+    }
   }, OPEN);
 });

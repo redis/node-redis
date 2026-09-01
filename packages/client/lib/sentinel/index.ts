@@ -831,9 +831,11 @@ export class RedisSentinelInternal<
     // emit `ready` after `end`.
     if (value && this.#destroy) return;
     this.#isReady = value;
-    // Route listener exceptions to `error`: these emits fire inside #connect()'s
-    // topology-retry loop, where a throwing listener would otherwise be mistaken
-    // for a discovery failure and silently swallowed by the retry.
+    // Route listener exceptions to `error`, but on a fresh microtask: these emits fire
+    // inside #connect()'s topology-retry loop, so emitting `error` synchronously here
+    // would re-throw when there is no `error` listener and be caught by the retry —
+    // mistaken for a discovery failure and silently swallowed. Deferring escapes that
+    // boundary, so the failure surfaces (or crashes on an unhandled `error`) as documented.
     try {
       if (value) {
         this.emit('ready');
@@ -841,7 +843,7 @@ export class RedisSentinelInternal<
         this.emit('reconnecting');
       }
     } catch (err) {
-      this.emit('error', err);
+      queueMicrotask(() => this.emit('error', err));
     }
   }
 
@@ -884,6 +886,12 @@ export class RedisSentinelInternal<
 
   #connectPromise?: Promise<void>;
   #teardownPromise?: Promise<void>;
+  // Kind of the in-flight teardown, so a destroy() can tell whether it is overlapping a
+  // graceful close() (which it must preempt) or another destroy() (which it just joins).
+  #teardownKind?: 'close' | 'destroy';
+  // Set by #doClose() while it waits for command queues to drain; a preempting destroy()
+  // calls it to abandon the drain and force-destroy the clients immediately.
+  #escalateToDestroy?: () => void;
   #maxCommandRediscovers: number;
   readonly #pubSubProxy: PubSubProxy;
 
@@ -1266,21 +1274,51 @@ export class RedisSentinelInternal<
   }
 
   /**
-   * Serializes teardown: overlapping close()/destroy() calls join the in-flight
-   * teardown instead of running a second pass over already-emptied client arrays —
-   * a second pass would emit `end` early and let the tail of the first pass kill a
-   * sentinel that a listener has since reopened.
+   * Gracefully close the sentinel, waiting for pending commands to drain.
+   *
+   * Serializes with any in-flight teardown: overlapping close()/destroy() calls join it
+   * instead of running a second pass over already-emptied client arrays — a second pass
+   * would emit `end` early and let the tail of the first pass kill a sentinel that a
+   * listener has since reopened.
    */
   async close() {
+    return this.#teardown('close');
+  }
+
+  /**
+   * Forcefully destroy the sentinel, rejecting pending commands immediately.
+   *
+   * Coalesces with an in-flight teardown, but a destroy() that overlaps a graceful
+   * close() preempts it: close() can block indefinitely on a draining command queue,
+   * whereas destroy() must terminate now.
+   */
+  async destroy() {
+    return this.#teardown('destroy');
+  }
+
+  #teardown(kind: 'close' | 'destroy') {
     if (this.#teardownPromise === undefined) {
-      const teardown: Promise<void> = this.#doClose().finally(() => {
+      const run = kind === 'destroy' ? this.#doDestroy() : this.#doClose();
+      const teardown: Promise<void> = run.finally(() => {
         // Guarded like #connectPromise in connect(): an `end` listener may have
         // started a new teardown generation that must not be wiped.
         if (this.#teardownPromise === teardown) {
           this.#teardownPromise = undefined;
+          this.#teardownKind = undefined;
         }
       });
+      this.#teardownKind = kind;
       this.#teardownPromise = teardown;
+      return teardown;
+    }
+
+    // A destroy() overlapping an in-flight graceful close() must preempt it rather than
+    // joining: force-destroy the draining clients so close() stops waiting. Recording
+    // 'destroy' also covers the window before #doClose() reaches its drain — it will see
+    // the flag and force immediately instead of awaiting.
+    if (kind === 'destroy' && this.#teardownKind === 'close') {
+      this.#teardownKind = 'destroy';
+      this.#escalateToDestroy?.();
     }
     return this.#teardownPromise;
   }
@@ -1301,18 +1339,21 @@ export class RedisSentinelInternal<
       this.#scanTimer = undefined;
     }
 
-    const promises = [];
+    const clients: Array<RedisClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>> = [];
+    const gracefulClosePromises: Array<Promise<void>> = [];
 
     if (this.#sentinelClient !== undefined) {
       if (this.#sentinelClient.isOpen) {
-        promises.push(this.#sentinelClient.close());
+        clients.push(this.#sentinelClient);
+        gracefulClosePromises.push(this.#sentinelClient.close());
       }
       this.#sentinelClient = undefined;
     }
 
     for (const client of this.#masterClients) {
       if (client.isOpen) {
-        promises.push(client.close());
+        clients.push(client);
+        gracefulClosePromises.push(client.close());
       }
     }
 
@@ -1320,13 +1361,41 @@ export class RedisSentinelInternal<
 
     for (const client of this.#replicaClients) {
       if (client.isOpen) {
-        promises.push(client.close());
+        clients.push(client);
+        gracefulClosePromises.push(client.close());
       }
     }
 
     this.#replicaClients = [];
 
-    await Promise.all(promises);
+    // Wait for the graceful drain, but let a preempting destroy() abandon it: RedisClient
+    // .close() never settles once the client is destroyed, so we cannot rely on the drain
+    // promises after a force-destroy — race them against an escalation signal instead.
+    await new Promise<void>(resolve => {
+      let settled = false;
+      const forceDestroy = () => {
+        if (settled) return;
+        settled = true;
+        this.#escalateToDestroy = undefined;
+        for (const client of clients) {
+          if (client.isOpen) client.destroy();
+        }
+        resolve();
+      };
+      // A destroy() may have already preempted while we were setting up (e.g. during the
+      // #connectPromise await above); honor it without waiting on the drain.
+      if (this.#teardownKind === 'destroy') {
+        forceDestroy();
+        return;
+      }
+      this.#escalateToDestroy = forceDestroy;
+      Promise.allSettled(gracefulClosePromises).then(() => {
+        if (settled) return;
+        settled = true;
+        this.#escalateToDestroy = undefined;
+        resolve();
+      });
+    });
 
     this.#pubSubProxy.destroy();
 
@@ -1337,20 +1406,8 @@ export class RedisSentinelInternal<
     // reentrantly reopened sentinel, not join this already-finished pass.
     this.#destroy = false;
     this.#teardownPromise = undefined;
+    this.#teardownKind = undefined;
     this.#setOpen(false);
-  }
-
-  // Coalesces with an in-flight close()/destroy() — see close() above.
-  async destroy() {
-    if (this.#teardownPromise === undefined) {
-      const teardown: Promise<void> = this.#doDestroy().finally(() => {
-        if (this.#teardownPromise === teardown) {
-          this.#teardownPromise = undefined;
-        }
-      });
-      this.#teardownPromise = teardown;
-    }
-    return this.#teardownPromise;
   }
 
   // destroy has to be async because its stopping others async events, timers and the like
@@ -1399,6 +1456,7 @@ export class RedisSentinelInternal<
     // start a new teardown generation — see #doClose().
     this.#destroy = false;
     this.#teardownPromise = undefined;
+    this.#teardownKind = undefined;
     this.#setOpen(false);
   }
 
