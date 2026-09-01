@@ -485,13 +485,16 @@ export default class RedisSocket extends EventEmitter {
   }
 
   destroy() {
-    // Idempotent: return instead of throwing when already closed. A terminal
-    // connect failure (reconnectStrategy gave up) leaves #isOpen === false, and
-    // the owning client still needs to dispose itself (unregister metrics,
-    // dispose credentials) — throwing here would abort that cleanup. Returning
-    // also means a repeated destroy() won't re-run destroySocket() and
-    // republish CONNECTION_CLOSED / re-emit 'end'.
-    if (!this.#isOpen) return;
+    // Idempotent: return instead of throwing when there is nothing left to tear down.
+    // A terminal connect failure (reconnectStrategy gave up) leaves #isOpen === false, and
+    // the owning client still needs to dispose itself (unregister metrics, dispose
+    // credentials) — throwing here would abort that cleanup. Returning also means a
+    // repeated destroy() won't re-run destroySocket() and republish CONNECTION_CLOSED /
+    // re-emit 'end'. But a graceful close() also leaves #isOpen === false while keeping the
+    // socket alive to drain, so key the guard on the socket too: while one remains, destroy()
+    // must still force-terminate it (e.g. when a caller escalates close() to destroy()).
+    if (!this.#isOpen && !this.#socket) return;
+
     this.#isOpen = false;
     this.destroySocket();
   }

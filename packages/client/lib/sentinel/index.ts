@@ -1377,8 +1377,16 @@ export class RedisSentinelInternal<
         if (settled) return;
         settled = true;
         this.#escalateToDestroy = undefined;
+        // close() already flipped each client to isOpen === false while leaving the socket
+        // draining, so an isOpen guard would skip exactly the clients we must terminate.
+        // destroy() force-kills a closing socket; a client whose drain already finished is
+        // fully torn down and throws ClientClosedError — harmless, so swallow it.
         for (const client of clients) {
-          if (client.isOpen) client.destroy();
+          try {
+            client.destroy();
+          } catch {
+            // already fully closed
+          }
         }
         resolve();
       };

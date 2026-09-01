@@ -1,8 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { once } from 'node:events';
 import { setTimeout } from 'node:timers/promises';
-import sinon from 'sinon';
-import RedisClient from '../client';
 import testUtils, { GLOBAL } from '../test-utils';
 
 // `disableClientSetup` hands us an un-connected sentinel so we can attach
@@ -222,29 +220,24 @@ describe('RedisSentinel lifecycle events', () => {
     await sentinel.destroy();
   }, OPEN);
 
-  // A graceful close() waits for each client's command queue to drain; a stuck queue
-  // would stall it forever. A concurrent destroy() must preempt that drain and terminate
-  // now, instead of joining and inheriting the hang. Modeled by stubbing the underlying
-  // RedisClient.close() to never settle, so only a force-destroy can unblock teardown.
+  // A graceful close() waits for each client's command queue to drain; a blocking command
+  // stalls it. A concurrent destroy() must preempt that drain and terminate now — actually
+  // force-killing the draining socket so the pending command is rejected — instead of
+  // joining close() and inheriting the hang.
   testUtils.testWithClientSentinel('destroy() preempts a close() blocked on a draining client', async sentinel => {
     sentinel.on('error', () => { });
     await sentinel.connect();
 
-    const closeStub = sinon.stub(RedisClient.prototype, 'close').returns(new Promise<void>(() => { }));
-    try {
-      const closing = sentinel.close(); // stuck on the drain
-      let closeSettled = false;
-      closing.then(() => { closeSettled = true; }, () => { closeSettled = true; });
+    // Occupy a master client's queue with a command that never returns on its own.
+    const blocked = sentinel.blPop('lifecycle-block-key', 0).then(() => 'resolved', () => 'rejected');
+    await setTimeout(50); // let BLPOP reach the wire
 
-      await sentinel.destroy(); // must preempt rather than inherit the hang
+    const closing = sentinel.close(); // stuck on the drain
+    await sentinel.destroy(); // must preempt and force-terminate the draining client
 
-      assert.equal(sentinel.isOpen, false);
-      assert.equal(sentinel.isReady, false);
-
-      await closing; // shares the teardown — the preempting destroy() settles it too
-      assert.equal(closeSettled, true);
-    } finally {
-      closeStub.restore();
-    }
+    assert.equal(sentinel.isOpen, false);
+    assert.equal(sentinel.isReady, false);
+    assert.equal(await blocked, 'rejected'); // the blocking command was actually terminated
+    await closing;
   }, OPEN);
 });
