@@ -5,6 +5,7 @@ import net from 'node:net';
 import RedisSocket, { RedisSocketOptions } from './socket';
 import testUtils, { GLOBAL } from '../test-utils';
 import { setTimeout } from 'timers/promises';
+import { ReconnectStrategyError } from '../errors';
 
 describe('Socket', () => {
   const CLIENT_ID = 'test-client-id';
@@ -84,6 +85,182 @@ describe('Socket', () => {
       await assert.rejects(socket.connect());
 
       assert.equal(socket.isOpen, false);
+    });
+  });
+
+  describe('terminated event (#2948)', () => {
+    it('should emit `terminated` when reconnectStrategy gives up on the initial connection', async () => {
+      const socket = createSocket({
+        host: 'error',
+        connectTimeout: 1,
+        reconnectStrategy: false
+      });
+
+      const events: string[] = [];
+      let terminatedCause: Error | undefined;
+      socket.on('terminated', cause => {
+        events.push('terminated');
+        terminatedCause = cause;
+      });
+      socket.on('error', () => events.push('error'));
+
+      await assert.rejects(socket.connect());
+
+      assert.ok(terminatedCause instanceof Error);
+      assert.deepEqual(events.slice(-2), ['terminated', 'error']);
+      assert.equal(socket.isOpen, false);
+    });
+
+    it('should emit `terminated` with the wrapped error when a custom reconnectStrategy gives up', async () => {
+      const reconnectStrategy = spy((retries: number) => {
+        if (retries === 1) return new Error('done');
+        return 0;
+      });
+
+      const socket = createSocket({
+        host: 'error',
+        connectTimeout: 1,
+        reconnectStrategy
+      });
+
+      const events: string[] = [];
+      let terminatedCause: Error | undefined;
+      socket.on('terminated', cause => {
+        events.push('terminated');
+        terminatedCause = cause;
+      });
+      socket.on('error', () => events.push('error'));
+
+      await assert.rejects(socket.connect());
+
+      assert.ok(terminatedCause instanceof ReconnectStrategyError, 'terminated cause should be a ReconnectStrategyError');
+      assert.deepEqual(events.slice(-2), ['terminated', 'error']);
+    });
+
+    it('should emit `terminated` — not just `error` — when the connection is lost after being ready', async () => {
+      // This is the scenario from #2948: `error` fires on *every* disconnect,
+      // including ones the client is about to retry, so a listener can't tell
+      // "still retrying" apart from "reconnectStrategy gave up, this client
+      // is dead". Before this fix, losing an already-ready connection only
+      // ever emitted `error`, indistinguishable from a transient one.
+      const connections: net.Socket[] = [];
+      const server = net.createServer(conn => {
+        conn.on('error', () => { /* ignore */ });
+        connections.push(conn);
+      });
+      await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+      const { port } = server.address() as net.AddressInfo;
+      const firstConnection = once(server, 'connection') as Promise<[net.Socket]>;
+
+      try {
+        const socket = createSocket({
+          host: '127.0.0.1',
+          port,
+          // Give up as soon as the live connection dies, instead of retrying.
+          reconnectStrategy: false
+        });
+
+        await socket.connect();
+        assert.equal(socket.isReady, true, 'socket.isReady');
+
+        const events: string[] = [];
+        let terminatedCause: Error | undefined;
+        socket.on('terminated', cause => {
+          events.push('terminated');
+          terminatedCause = cause;
+        });
+        socket.on('error', () => events.push('error'));
+
+        const [conn] = await firstConnection;
+        conn.destroy();
+        const [errCause] = await once(socket, 'error') as [Error];
+
+        assert.deepEqual(events, ['terminated', 'error']);
+        assert.equal(terminatedCause, errCause, 'terminated should carry the same cause as error');
+        assert.equal(socket.isOpen, false, 'socket.isOpen');
+      } finally {
+        for (const conn of connections) conn.destroy();
+        await new Promise<void>(resolve => server.close(() => resolve()));
+      }
+    });
+
+    it('should not emit `terminated` when the reconnectStrategy schedules a retry', async () => {
+      const socket = createSocket({
+        host: 'error',
+        connectTimeout: 1,
+        reconnectStrategy: 0
+      });
+
+      let terminatedCount = 0;
+      socket.on('terminated', () => terminatedCount++);
+
+      socket.connect();
+      await once(socket, 'error');
+      assert.equal(socket.isOpen, true);
+      assert.equal(terminatedCount, 0, 'terminated must not fire while still retrying');
+
+      socket.destroy();
+    });
+
+    it('should not reconnect when an error listener destroys the socket', async () => {
+      const connections: net.Socket[] = [];
+      const server = net.createServer(conn => {
+        conn.on('error', () => { /* ignore */ });
+        connections.push(conn);
+      });
+      await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+      const { port } = server.address() as net.AddressInfo;
+      const firstConnection = once(server, 'connection') as Promise<[net.Socket]>;
+
+      try {
+        const socket = createSocket({
+          host: '127.0.0.1',
+          port,
+          reconnectStrategy: 0
+        });
+        socket.on('error', () => socket.destroy());
+
+        await socket.connect();
+        const [conn] = await firstConnection;
+        conn.destroy();
+        await once(socket, 'end');
+        await setTimeout(10);
+
+        assert.equal(connections.length, 1, 'destroyed socket must not reconnect');
+        assert.equal(socket.isOpen, false, 'socket.isOpen');
+      } finally {
+        for (const conn of connections) conn.destroy();
+        await new Promise<void>(resolve => server.close(() => resolve()));
+      }
+    });
+
+    it('should emit `terminated` before `error` when the handshake fails', async () => {
+      const connections: net.Socket[] = [];
+      const server = net.createServer(conn => {
+        conn.on('error', () => { /* ignore */ });
+        connections.push(conn);
+        setImmediate(() => conn.destroy());
+      });
+      await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+      const { port } = server.address() as net.AddressInfo;
+
+      try {
+        const socket = new RedisSocket(() => new Promise(() => { /* wait for socket failure */ }), CLIENT_ID, {
+          host: '127.0.0.1',
+          port,
+          reconnectStrategy: false
+        });
+        const events: string[] = [];
+        socket.on('terminated', () => events.push('terminated'));
+        socket.on('error', () => events.push('error'));
+
+        await assert.rejects(socket.connect());
+
+        assert.deepEqual(events, ['terminated', 'error']);
+      } finally {
+        for (const conn of connections) conn.destroy();
+        await new Promise<void>(resolve => server.close(() => resolve()));
+      }
     });
   });
 

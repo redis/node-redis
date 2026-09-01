@@ -1053,6 +1053,7 @@ export default class RedisClient<
       this.#maybeScheduleWrite();
     })
     .on('reconnecting', () => this.emit('reconnecting'))
+    .on('terminated', cause => this.emit('terminated', cause))
     .on('drain', () => this.#maybeScheduleWrite())
     .on('end', () => this.emit('end'));
   }

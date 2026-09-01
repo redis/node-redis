@@ -302,6 +302,7 @@ The Node Redis client class is an Nodejs EventEmitter and it emits an event each
 | `end`                   | Connection has been closed (via `.disconnect()`)                                   | _No arguments_                                            |
 | `error`                 | An error has occurred—usually a network issue such as "Socket closed unexpectedly" | `(error: Error)`                                          |
 | `reconnecting`          | Client is trying to reconnect to the server                                        | _No arguments_                                            |
+| `terminated`             | Reconnection has stopped because `reconnectStrategy` returned `false` or an `Error`; emitted before the companion `error` | `(cause: Error)`                                           |
 | `sharded-channel-moved` | See [here](https://github.com/redis/node-redis/blob/master/docs/pub-sub.md#sharded-channel-moved-event)                          | See [here](https://github.com/redis/node-redis/blob/master/docs/pub-sub.md#sharded-channel-moved-event) |
 
 > :warning: You **MUST** listen to `error` events. If a client doesn't have at least one `error` listener registered and
