@@ -172,6 +172,11 @@ advantage of auto-pipelining and handle your Promises, use <code>Promise.all()</
 <td><em>No arguments</em></td>
 </tr>
 <tr>
+<td><code>terminated</code></td>
+<td>Reconnection has stopped because <code>reconnectStrategy</code> returned <code>false</code> or an <code>Error</code>; emitted before the companion <code>error</code></td>
+<td><code>(cause: Error)</code></td>
+</tr>
+<tr>
 <td><code>sharded-channel-moved</code></td>
 <td>See <a href="https://github.com/redis/node-redis/blob/master/docs/pub-sub.md#sharded-channel-moved-event">here</a></td>
 <td>See <a href="https://github.com/redis/node-redis/blob/master/docs/pub-sub.md#sharded-channel-moved-event">here</a></td>
