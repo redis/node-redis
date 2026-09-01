@@ -1298,8 +1298,7 @@ export class RedisSentinelInternal<
 
   #teardown(kind: 'close' | 'destroy') {
     if (this.#teardownPromise === undefined) {
-      const run = kind === 'destroy' ? this.#doDestroy() : this.#doClose();
-      const teardown: Promise<void> = run.finally(() => {
+      const teardown: Promise<void> = (kind === 'destroy' ? this.#doDestroy() : this.#doClose()).finally(() => {
         // Guarded like #connectPromise in connect(): an `end` listener may have
         // started a new teardown generation that must not be wiped.
         if (this.#teardownPromise === teardown) {
@@ -1307,8 +1306,15 @@ export class RedisSentinelInternal<
           this.#teardownKind = undefined;
         }
       });
-      this.#teardownKind = kind;
-      this.#teardownPromise = teardown;
+      // #doDestroy()/#doClose() can emit `end` synchronously (an established sentinel with
+      // no in-flight connect runs #doDestroy() to completion before we get here), and an
+      // `end` listener may start a new teardown generation that has already claimed these
+      // fields. Only register ours if nothing newer did — otherwise we would untrack the
+      // reentrant teardown and let a later close()/destroy() race it.
+      if (this.#teardownPromise === undefined) {
+        this.#teardownKind = kind;
+        this.#teardownPromise = teardown;
+      }
       return teardown;
     }
 

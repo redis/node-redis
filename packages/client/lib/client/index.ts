@@ -2206,15 +2206,26 @@ export default class RedisClient<
         return resolve();
       }
 
+      // A concurrent destroy() can force-kill the draining socket; it tears the socket down
+      // itself and emits `end`, so settle then too — otherwise we would wait forever for a
+      // `data` event that a destroyed socket never delivers, leaking this promise and its
+      // listeners.
+      const onEnd = () => {
+        this._self.#socket.off('data', maybeClose);
+        this._self.#unregisterFromMetrics();
+        resolve();
+      };
       const maybeClose = () => {
         if (!this._self.#queue.isEmpty()) return;
 
         this._self.#socket.off('data', maybeClose);
+        this._self.#socket.off('end', onEnd);
         this._self.#unregisterFromMetrics();
         this._self.#socket.destroySocket();
         resolve();
       };
       this._self.#socket.on('data', maybeClose);
+      this._self.#socket.once('end', onEnd);
     });
   }
 
