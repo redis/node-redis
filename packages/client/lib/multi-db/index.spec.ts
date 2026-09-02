@@ -2,9 +2,11 @@ import { strict as assert } from 'node:assert';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import testUtils from '../test-utils';
-import { createMultiDbClient, MultiDbResult } from '.';
+import { createMultiDbClient, DefaultHealthCheck, MultiDbResult } from '.';
+import type { FailureDetector } from '.';
 import type { FailoverEvent } from './controller';
 import RedisClient, { RedisClientType } from '../client';
+import { ErrorReply } from '../errors';
 import type { RedisServerDocker } from '@redis/test-utils';
 
 const execFileAsync = promisify(execFile);
@@ -254,6 +256,69 @@ describe('multi-db', function () {
         controller.setWeight('db-0', 0.25);
         assert.equal(controller.getDatabases()[0].weight, 0.25);
       })
+    );
+  });
+
+  describe('extension points', () => {
+    it('the error filter keeps chosen error types from tripping the detector', () =>
+      withMultiDb(
+        {
+          databases: [memberOf(serverA), memberOf(serverB)],
+          failureDetector: {
+            minNumOfFailures: 1,
+            failureRateThreshold: 0,
+            windowSize: 5000,
+            errorFilter: err => !(err instanceof ErrorReply)
+          }
+        },
+        async ({ client, controller }) => {
+          for (let i = 0; i < 3; i++) {
+            await assert.rejects(client.sendCommand(['NOSUCHCOMMAND']), ErrorReply);
+          }
+          assert.equal(controller.getActiveDatabase().id, 'db-0');
+        }
+      )
+    );
+
+    it('a custom failure detector drives the failover decision', () => {
+      let faulty = false;
+      const detector: FailureDetector = {
+        onCommandResult(ok) {
+          if (!ok) faulty = true;
+        },
+        isFaulty: () => faulty,
+        reset() {
+          faulty = false;
+        }
+      };
+      return withMultiDb(
+        { databases: [memberOf(serverA), memberOf(serverB)], failureDetector: detector },
+        async ({ client, controller }) => {
+          const failover = new Promise(resolve => {
+            controller.once('failover', resolve);
+          });
+          await assert.rejects(client.sendCommand(['NOSUCHCOMMAND']));
+          assert.deepEqual(await failover, { from: 'db-0', to: 'db-1', reason: 'failure-detector' });
+          assert.equal(faulty, false, 'the switch must reset the detector');
+        }
+      );
+    });
+
+    it('chained health checks must all pass for a member to establish', () =>
+      withMultiDb(
+        {
+          databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })],
+          initialAvailability: 'one',
+          healthChecks: [new DefaultHealthCheck(), { probe: async target => target.id !== 'db-0' }]
+        },
+        async ({ controller }) => {
+          assert.equal(controller.getActiveDatabase().id, 'db-1');
+          assert.deepEqual(
+            controller.getDatabases().map(db => db.circuitState),
+            ['OPEN', 'CLOSED']
+          );
+        }
+      )
     );
   });
 
