@@ -1,5 +1,6 @@
 import type { HealthCheck, HealthCheckTarget } from './health-check';
 
+/** @experimental */
 export interface LagAwareHealthCheckOptions {
   /**
    * Redis Enterprise REST API origin (e.g. `https://cluster1.example:9443`) —

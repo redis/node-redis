@@ -6,6 +6,7 @@ import type { Database } from './database';
  * member set; implementations must return only a member whose circuit is
  * CLOSED. Returning `undefined` means no candidate exists and the
  * caller escalates.
+ * @experimental
  */
 export interface FailoverStrategy {
   select<C extends AnyRedisClientType>(

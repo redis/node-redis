@@ -1,3 +1,4 @@
+/** @experimental */
 export type CircuitState = 'CLOSED' | 'OPEN' | 'HALF_OPEN';
 
 /** Injectable time source so the state machine is testable without timers. */
