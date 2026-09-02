@@ -141,6 +141,23 @@ export class MultiDbController<C extends AnyRedisClientType> extends EventEmitte
   setAutoFallback(intervalMs: number | false): void {
     this.#mgr.setAutoFallback(intervalMs);
   }
+
+  /**
+   * Force the active member and pin it. The target must pass a health-check
+   * round first; a verified-healthy target's OPEN circuit is closed (operator
+   * override). While pinned, auto-fallback is suspended — automatic failover
+   * still runs if the pinned member fails, clearing the pin. Throws
+   * `TypeError` for an unknown id; throws `Error` when the target fails its
+   * health check or the client is permanently unavailable.
+   */
+  setActiveDatabase(id: string): Promise<void> {
+    return this.#mgr.setActiveDatabase(id);
+  }
+
+  /** Resume automatic weight-based fallback after a forced pin. */
+  releasePin(): void {
+    this.#mgr.releasePin();
+  }
 }
 
 function describe<C extends AnyRedisClientType>(db: Database<C>): DatabaseDescriptor {

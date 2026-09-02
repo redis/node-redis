@@ -62,6 +62,8 @@ export class MultiDbManager<C extends AnyRedisClientType> {
   #unavailable: 'searching' | 'failed' | null = null;
   /** single-winner guard: one failover procedure at a time */
   #failoverInFlight = false;
+  /** forced selection: suspends auto-fallback until released or the member fails */
+  #pinnedTo: Database<C> | null = null;
   readonly #teardown = new AbortController();
   #events?: Pick<MultiDbController<C>, 'emit'>;
   readonly #healthTimers = new Map<Database<C>, NodeJS.Timeout>();
@@ -160,6 +162,12 @@ export class MultiDbManager<C extends AnyRedisClientType> {
     const from = this.#active;
     if (target === from) return;
 
+    // any switch away from the pin means automatic behavior took over —
+    // a pin never traps traffic on a failed member
+    if (this.#pinnedTo !== null && target !== this.#pinnedTo) {
+      this.#pinnedTo = null;
+    }
+
     this.#active = target;
     // an ended member is already DISCONNECTED — don't demote it to PASSIVE
     if (from.role === 'ACTIVE') {
@@ -218,6 +226,9 @@ export class MultiDbManager<C extends AnyRedisClientType> {
         await delay(delayBetweenFailoverAttempts, undefined, { signal: this.#teardown.signal });
       } catch {
         return; // torn down mid-search
+      }
+      if (this.#unavailable !== 'searching') {
+        return; // rescued mid-delay by a forced switch
       }
       // background recovery probing keeps running during the search — a member
       // whose circuit closes here is what makes an attempt succeed
@@ -324,12 +335,46 @@ export class MultiDbManager<C extends AnyRedisClientType> {
   }
 
   #maybeFallback(): void {
-    if (this.#unavailable !== null) return;
+    if (this.#unavailable !== null || this.#pinnedTo !== null) return;
     const candidate = this.#strategy.select(this.#databases);
     // strictly higher weight only: equal-weight members must not ping-pong
     if (candidate && candidate !== this.#active && candidate.weight > this.#active.weight) {
       this.switchTo(candidate, 'fallback');
     }
+  }
+
+  /**
+   * Force the active member: the target must pass a health-check round now —
+   * present reality overrides a stale OPEN circuit, so a verified target is
+   * closed (and announced recovered) before the switch. The forced selection
+   * pins until releasePin() or until automatic failover moves off the failed
+   * pinned member. A successful force also rescues a client searching for a
+   * healthy member.
+   */
+  async setActiveDatabase(id: string): Promise<void> {
+    const target = this.#requireDatabase(id);
+    if (this.#unavailable === 'failed') {
+      throw new Error('MultiDb: the client is permanently unavailable');
+    }
+    if (!await runProbeRound(this.#targetFor(target), this.#healthChecks, this.#config.healthCheck)) {
+      throw new Error(`MultiDb: cannot force database "${id}", it failed its health check`);
+    }
+
+    if (target.circuit.close()) {
+      this.#events?.emit('database-recovered', { id: target.id });
+    }
+    if (this.#unavailable === 'searching') {
+      this.#unavailable = null;
+      this.#failoverInFlight = false;
+    }
+    this.switchTo(target, 'forced');
+    // after the switch: switching itself clears a previous pin
+    this.#pinnedTo = target;
+  }
+
+  /** Resume automatic weight-based behavior after a forced pin. */
+  releasePin(): void {
+    this.#pinnedTo = null;
   }
 
   /**
