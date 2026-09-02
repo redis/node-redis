@@ -5,6 +5,7 @@ import type { ProbePolicy } from './config';
 /**
  * Narrow handle a health check probes through — pins the probe to one
  * specific member and keeps the raw member client internal.
+ * @experimental
  */
 export interface HealthCheckTarget {
   id: string;

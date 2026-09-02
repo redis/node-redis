@@ -6,6 +6,7 @@ import type { Circuit } from './circuit';
  * ACTIVE receives all forwarded traffic; PASSIVE is a standby not selected
  * for traffic (possibly still connecting — health is the circuit's concern,
  * not the role's); DISCONNECTED means the member's client has ended.
+ * @experimental
  */
 export type DatabaseRole = 'ACTIVE' | 'PASSIVE' | 'DISCONNECTED';
 

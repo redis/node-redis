@@ -3,7 +3,10 @@ import type { FailureDetector } from './failure-detector';
 import type { HealthCheck } from './health-check';
 import type { FailoverStrategy } from './failover-strategy';
 
-/** Identity + connection options for one member database. */
+/**
+ * Identity + connection options for one member database.
+ * @experimental
+ */
 export interface DatabaseConfig<OPTIONS> {
   /**
    * Stable identifier used across controller methods, descriptors and event
@@ -22,16 +25,24 @@ export interface DatabaseConfig<OPTIONS> {
   skipInitialHealthCheck?: boolean;
 }
 
+/** @experimental */
 export interface PoolDatabaseConfig<OPTIONS> extends DatabaseConfig<OPTIONS> {
   poolOptions?: Partial<RedisPoolOptions>;
 }
 
-/** Aggregation of one round of health-check probes, evaluated with early exit. */
+/**
+ * Aggregation of one round of health-check probes, evaluated with early exit.
+ * @experimental
+ */
 export type ProbePolicy = 'ALL' | 'MAJORITY' | 'ANY';
 
-/** Members that must pass the initial health check for `connect()` to resolve. */
+/**
+ * Members that must pass the initial health check for `connect()` to resolve.
+ * @experimental
+ */
 export type InitialAvailability = 'all' | 'majority' | 'one';
 
+/** @experimental */
 export interface HealthCheckConfig {
   /** ms between background health-check rounds per member. Default 5000. */
   interval?: number;
@@ -45,7 +56,10 @@ export interface HealthCheckConfig {
   policy?: ProbePolicy;
 }
 
-/** Thresholds for the default sliding-window failure detector. */
+/**
+ * Thresholds for the default sliding-window failure detector.
+ * @experimental
+ */
 export interface FailureDetectorConfig {
   /** minimum failures within the window; 0 = rate-only. Default 1000. */
   minNumOfFailures?: number;
@@ -57,7 +71,10 @@ export interface FailureDetectorConfig {
   errorFilter?: (err: Error) => boolean;
 }
 
-/** Flat multi-db options accepted by every factory alongside `databases`. */
+/**
+ * Flat multi-db options accepted by every factory alongside `databases`.
+ * @experimental
+ */
 export interface MultiDbConfig {
   /** ms an OPEN circuit waits before HALF_OPEN recovery probing. Default 60_000. */
   gracePeriod?: number;

@@ -22,7 +22,10 @@ import type { DatabaseConfig, PoolDatabaseConfig, MultiDbConfig, ResolvedMultiDb
 /* Types                                                                      */
 /* -------------------------------------------------------------------------- */
 
-/** Every client shape the multi-db layer can wrap. */
+/**
+ * Every client shape the multi-db layer can wrap.
+ * @experimental
+ */
 /* eslint-disable @typescript-eslint/no-explicit-any -- any parametrization of each client kind */
 export type AnyRedisClientType =
   | RedisClientType<any, any, any, any, any>
@@ -39,6 +42,10 @@ export type AnyRedisClientType =
  */
 const INTERCEPTED = new Set<PropertyKey>(['connect', 'close', 'destroy', 'quit']);
 
+/**
+ * What every factory returns: the drop-in client plus the multi-db admin surface.
+ * @experimental
+ */
 export interface MultiDbResult<C extends AnyRedisClientType> {
   /** drop-in: exactly the base client type */
   client: C;
