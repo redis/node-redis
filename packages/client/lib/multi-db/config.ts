@@ -133,7 +133,7 @@ export interface ResolvedDatabaseIdentity {
   skipInitialHealthCheck: boolean;
 }
 
-function isFailureDetector(
+export function isFailureDetector(
   detector: FailureDetector | FailureDetectorConfig
 ): detector is FailureDetector {
   return typeof (detector as FailureDetector).isFaulty === 'function';

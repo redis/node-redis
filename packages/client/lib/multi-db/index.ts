@@ -4,6 +4,7 @@ import RedisCluster, { RedisClusterType, RedisClusterOptions } from '../cluster'
 import RedisSentinel from '../sentinel';
 import { RedisSentinelType, RedisSentinelOptions } from '../sentinel/types';
 import { RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
+import { PUBSUB_TYPE } from '../client/pub-sub';
 import { MultiDbManager } from './manager';
 import type { MemberAdapter, ResolvedMemberConfig } from './manager';
 import { MultiDbController } from './controller';
@@ -111,16 +112,23 @@ function attachForwarders<C extends AnyRedisClientType>(
         // command / script method → call active's own method (this = active);
         // settled outcomes must reach `manager.ts:onCommandResult` — the detector feed
         dst[name] = (...args: Array<unknown>) => {
+          // all members down: fail fast instead of queueing on a dead member
+          // (sync throw, matching the base client's closed-client behavior)
+          const unavailable = mgr.unavailableError;
+          if (unavailable) throw unavailable;
+          // capture the serving member for outcome attribution: a settlement
+          // arriving after a switch must not count against the new active
+          const active = mgr.activeDatabase;
           // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic
-          const result = (mgr.active as any)[name](...args);
+          const result = (active.client as any)[name](...args);
           if (result instanceof Promise) {
             return result.then(
               (reply: unknown) => {
-                mgr.onCommandResult(true);
+                mgr.onCommandResult(true, undefined, active);
                 return reply;
               },
               (err: unknown) => {
-                mgr.onCommandResult(false, err as Error);
+                mgr.onCommandResult(false, err as Error, active);
                 throw err;
               }
             );
@@ -173,7 +181,17 @@ export function createMultiDbClient<
   const { databases, config } = resolveMultiDbConfig(options.databases, options);
   const adapter: MemberAdapter<RedisClientType<M, F, S, RESP, T>> = {
     create: db => RedisClient.create(db.options as RedisClientOptions<M, F, S, RESP, T>),
-    sendCommand: (client, args) => client.sendCommand(args)
+    sendCommand: (client, args) => client.sendCommand(args),
+    movePubSub: async (from, to) => {
+      // removal (not a copy) keeps a recovering old member from re-subscribing
+      // server-side and double-delivering to the same listener functions
+      const listeners = from._getQueue().removeAllPubSubListeners();
+      await Promise.all([
+        to.extendPubSubListeners(PUBSUB_TYPE.CHANNELS, listeners[PUBSUB_TYPE.CHANNELS]),
+        to.extendPubSubListeners(PUBSUB_TYPE.PATTERNS, listeners[PUBSUB_TYPE.PATTERNS]),
+        to.extendPubSubListeners(PUBSUB_TYPE.SHARDED, listeners[PUBSUB_TYPE.SHARDED])
+      ]);
+    }
   };
   return assemble(databases, config, adapter);
 }
@@ -259,7 +277,11 @@ export type {
   ProbePolicy,
   InitialAvailability
 } from './config';
-export type { FailureDetector } from './failure-detector';
+export {
+  DefaultFailureDetector,
+  type FailureDetector,
+  type DefaultFailureDetectorOptions
+} from './failure-detector';
 export { DefaultHealthCheck, type HealthCheck, type HealthCheckTarget } from './health-check';
-export type { FailoverStrategy } from './failover-strategy';
+export { WeightBasedStrategy, type FailoverStrategy } from './failover-strategy';
 export type { CircuitState } from './circuit';
