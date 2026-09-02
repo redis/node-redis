@@ -283,5 +283,6 @@ export {
   type DefaultFailureDetectorOptions
 } from './failure-detector';
 export { DefaultHealthCheck, type HealthCheck, type HealthCheckTarget } from './health-check';
+export { LagAwareHealthCheck, type LagAwareHealthCheckOptions } from './lag-aware-health-check';
 export { WeightBasedStrategy, type FailoverStrategy } from './failover-strategy';
 export type { CircuitState } from './circuit';
