@@ -19,10 +19,10 @@ export interface DatabaseOptions<C extends AnyRedisClientType> {
 
 /**
  * Manager-side observation points for member lifecycle signals — the failure
- * detector feed and failover triggers attach here (US1).
+ * detector feed and failover triggers attach here.
  */
 export interface DatabaseHooks<C extends AnyRedisClientType> {
-  /** client-level `error` event (socket/decoder errors, reconnects included) */
+  /** client-level error (socket/decoder errors, reconnects, per-node errors) */
   onError?: (db: Database<C>, err: Error) => void;
   /** client permanently ended — circuit already opened, role already DISCONNECTED */
   onDown?: (db: Database<C>) => void;
@@ -32,9 +32,16 @@ export interface DatabaseHooks<C extends AnyRedisClientType> {
 
 /**
  * One member database: the underlying client bound to its stable id, weight,
- * circuit and role. Listens to the client's lifecycle events and feeds
- * circuit/role; per-topology signal mapping (cluster/sentinel nuances) lands
- * with US1 (T039).
+ * circuit and role, feeding the client's lifecycle events into both.
+ *
+ * Signal mapping per member kind: standalone and pool clients re-emit socket
+ * errors as `error`; cluster clients aggregate node errors into `error`, so a
+ * single unreachable shard surfaces as command failures and opens the member
+ * circuit only at detector thresholds; sentinel clients report per-node
+ * errors as `client-error` and handle their own master changes internally —
+ * the default detector thresholds absorb that transient blip, so a
+ * sentinel-internal failover does not open the member circuit. `end` means
+ * the client gave up reconnecting.
  */
 export class Database<C extends AnyRedisClientType> {
   readonly id: string;
@@ -51,6 +58,10 @@ export class Database<C extends AnyRedisClientType> {
   // whole lifetime.
   readonly #onError = (err: Error) => {
     this.#hooks.onError?.(this, err);
+  };
+
+  readonly #onClientError = (event: { error: Error }) => {
+    this.#hooks.onError?.(this, event.error);
   };
 
   readonly #onReady = () => {
@@ -76,6 +87,7 @@ export class Database<C extends AnyRedisClientType> {
 
     (this.client as unknown as EventEmitter)
       .on('error', this.#onError)
+      .on('client-error', this.#onClientError)
       .on('ready', this.#onReady)
       .on('end', this.#onEnd);
   }
@@ -89,6 +101,7 @@ export class Database<C extends AnyRedisClientType> {
   dispose(): void {
     (this.client as unknown as EventEmitter)
       .off('error', this.#onError)
+      .off('client-error', this.#onClientError)
       .off('ready', this.#onReady)
       .off('end', this.#onEnd);
   }
