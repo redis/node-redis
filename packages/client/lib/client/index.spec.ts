@@ -1698,6 +1698,20 @@ describe('Client', () => {
 
       server.close();
     });
+
+    // A blocking command keeps the queue from draining, so close() waits; a concurrent
+    // destroy() force-kills the socket, and close() must settle instead of hanging forever
+    // on a `data` event a destroyed socket never delivers.
+    testUtils.testWithClient('settles when a concurrent destroy() force-kills the draining socket', async client => {
+      const blocked = client.blPop('close-destroy-block-key', 0).then(() => 'resolved', () => 'rejected');
+      await new Promise<void>(resolve => { globalThis.setTimeout(resolve, 50); }); // let BLPOP reach the wire
+
+      const closing = client.close();
+      client.destroy();
+
+      await closing; // hangs (test times out) if close() never settles
+      assert.equal(await blocked, 'rejected');
+    }, GLOBAL.SERVERS.OPEN);
   });
 });
 

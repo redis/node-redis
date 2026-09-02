@@ -367,6 +367,13 @@ export default class RedisSentinel<
     this.#internal = new RedisSentinelInternal<M, F, S, RESP, TYPE_MAPPING>(options, this.#identity.id);
     this.#internal.on('error', err => this.emit('error', err));
 
+    /* forward the lifecycle events the internal emits from its open/ready transitions */
+    this.#internal
+      .on('connect', () => this.emit('connect'))
+      .on('ready', () => this.emit('ready'))
+      .on('reconnecting', () => this.emit('reconnecting'))
+      .on('end', () => this.emit('end'));
+
     /* pass through underling events */
     /* TODO: perhaps make this a struct and one vent, instead of multiple events */
     this.#internal.on('topology-change', (event: RedisSentinelEvent) => {
@@ -564,11 +571,31 @@ export default class RedisSentinel<
   multi = this.MULTI;
 
   async close() {
-    return this._self.#internal.close();
+    try {
+      await this._self.#internal.close();
+    } finally {
+      // In a finally: internal teardown completes even when an `end` listener
+      // throws, and the lease must not be stranded in that case either.
+      this._self.#releaseReservedLease();
+    }
   }
 
-  destroy() {
-    return this._self.#internal.destroy();
+  async destroy() {
+    try {
+      await this._self.#internal.destroy();
+    } finally {
+      this._self.#releaseReservedLease();
+    }
+  }
+
+  // The reserved lease's slot must go back to the pool queue (it is only filled at
+  // construction), otherwise a reopening connect() with reserveClient waits forever
+  // for a free client.
+  #releaseReservedLease() {
+    if (this.#reservedClientInfo) {
+      this.#internal.releaseClientLease(this.#reservedClientInfo);
+      this.#reservedClientInfo = undefined;
+    }
   }
 
   async SUBSCRIBE<T extends boolean = false>(
@@ -780,6 +807,46 @@ export class RedisSentinelInternal<
     return this.#isReady;
   }
 
+  /**
+   * Single source of truth for the `#isOpen` transition. Emits `connect` when the
+   * sentinel opens and `end` when it closes, once per real transition, so repeated
+   * `close()`/`destroy()` calls fire `end` at most once.
+   */
+  #setOpen(value: boolean) {
+    if (this.#isOpen === value) return;
+    this.#isOpen = value;
+    this.emit(value ? 'connect' : 'end');
+  }
+
+  /**
+   * Single source of truth for the `#isReady` transition. Emits `ready` when the
+   * sentinel becomes ready. A readiness drop while still open and not tearing down
+   * (an actual topology reconfigure — see `transform()`) emits `reconnecting`; a
+   * drop from `close()`/`destroy()` is silent because `#destroy` is set first.
+   */
+  #setReady(value: boolean) {
+    if (this.#isReady === value) return;
+    // Never flip to ready while tearing down: close()/destroy() set #destroy first,
+    // so an in-flight connect that resolves afterwards stays not-ready and does not
+    // emit `ready` after `end`.
+    if (value && this.#destroy) return;
+    this.#isReady = value;
+    // Route listener exceptions to `error`, but on a fresh microtask: these emits fire
+    // inside #connect()'s topology-retry loop, so emitting `error` synchronously here
+    // would re-throw when there is no `error` listener and be caught by the retry —
+    // mistaken for a discovery failure and silently swallowed. Deferring escapes that
+    // boundary, so the failure surfaces (or crashes on an unhandled `error`) as documented.
+    try {
+      if (value) {
+        this.emit('ready');
+      } else if (this.#isOpen && !this.#destroy) {
+        this.emit('reconnecting');
+      }
+    } catch (err) {
+      queueMicrotask(() => this.emit('error', err));
+    }
+  }
+
   readonly #name: string;
   readonly #sentinelClientId: string;
   readonly #nodeClientOptions: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING, RedisTcpSocketOptions>;
@@ -818,6 +885,13 @@ export class RedisSentinelInternal<
   }
 
   #connectPromise?: Promise<void>;
+  #teardownPromise?: Promise<void>;
+  // Kind of the in-flight teardown, so a destroy() can tell whether it is overlapping a
+  // graceful close() (which it must preempt) or another destroy() (which it just joins).
+  #teardownKind?: 'close' | 'destroy';
+  // Set by #doClose() while it waits for command queues to drain; a preempting destroy()
+  // calls it to abandon the drain and force-destroy the clients immediately.
+  #escalateToDestroy?: () => void;
   #maxCommandRediscovers: number;
   readonly #pubSubProxy: PubSubProxy;
 
@@ -988,22 +1062,29 @@ export class RedisSentinelInternal<
       throw new Error("already attempting to open")
     }
 
+    // Assign #connectPromise before emitting `connect`, so a listener that calls
+    // close()/destroy() from within the event awaits the in-flight attempt instead
+    // of tearing down before it starts. Readiness (and `ready`) is set by #connect().
+    const connectPromise = this.#connect();
     try {
-      this.#isOpen = true;
-
-      this.#connectPromise = this.#connect();
-      await this.#connectPromise;
-      this.#isReady = true;
+      this.#connectPromise = connectPromise;
+      this.#setOpen(true);
+      await connectPromise;
     } catch (err) {
       // The initial connect gave up. Tear down whatever was created along the
       // way: clients whose first connection attempt failed keep reconnecting
       // per their `reconnectStrategy`, and would otherwise stay alive in the
       // background (holding sockets and timers) after `connect()` rejected.
-      this.#connectPromise = undefined;
+      // Keep #connectPromise assigned so destroy() awaits the attempt — it is
+      // still in flight when a `connect` listener threw; the finally clears it.
       await this.destroy();
       throw err;
     } finally {
-      this.#connectPromise = undefined;
+      // Clear only if still ours: an `end` listener may have started a reentrant
+      // connect() whose in-flight promise must stay tracked for close()/destroy().
+      if (this.#connectPromise === connectPromise) {
+        this.#connectPromise = undefined;
+      }
       if (this.#isReady && this.#scanInterval > 0) {
         this.#scanTimer = setInterval(this.#resetInBackground.bind(this), this.#scanInterval);
       }
@@ -1026,6 +1107,11 @@ export class RedisSentinelInternal<
           this.#trace("#connect: anotherReset is true, so continuing");
           continue;
         }
+
+        // Topology is connected: (re)assert readiness. Emits `ready` only on a real
+        // transition, so an initial connect and the tail of a failover both emit it,
+        // while a healthy periodic scan that changed nothing stays silent.
+        this.#setReady(true);
 
         this.#trace("#connect: returning");
         return;
@@ -1127,22 +1213,35 @@ export class RedisSentinelInternal<
 
   async #reset() {
     /* closing / don't reset */
-    if (this.#isReady == false || this.#destroy == true) {
+    if (this.#destroy == true) {
       return;
     }
 
-    // already in #connect()
+    // Coalesce with an in-flight connect/reset BEFORE the gate below, so a control
+    // event arriving mid-reconfigure still registers via `#anotherReset` and the
+    // running `#connect()` re-observes the newest topology.
     if (this.#connectPromise !== undefined) {
       this.#anotherReset = true;
       return await this.#connectPromise;
     }
 
+    // Gate on #isOpen, not #isReady: a failover (or a failed one) may have left
+    // readiness false, and later control events must still be able to retry and
+    // eventually re-emit `ready`. #isReady is owned by #connect()/transform(), so a
+    // failed reconfigure honestly stays not-ready rather than falsely reporting ready.
+    if (this.#isOpen == false) {
+      return;
+    }
+
+    const connectPromise = this.#connect();
     try {
-      this.#connectPromise = this.#connect();
-      return await this.#connectPromise;
+      this.#connectPromise = connectPromise;
+      return await connectPromise;
     } finally {
       this.#trace("finished reconfgure");
-      this.#connectPromise = undefined;
+      if (this.#connectPromise === connectPromise) {
+        this.#connectPromise = undefined;
+      }
     }
   }
 
@@ -1174,14 +1273,70 @@ export class RedisSentinelInternal<
     this.#resetInBackground();
   }
 
+  /**
+   * Gracefully close the sentinel, waiting for pending commands to drain.
+   *
+   * Serializes with any in-flight teardown: overlapping close()/destroy() calls join it
+   * instead of running a second pass over already-emptied client arrays — a second pass
+   * would emit `end` early and let the tail of the first pass kill a sentinel that a
+   * listener has since reopened.
+   */
   async close() {
+    return this.#teardown('close');
+  }
+
+  /**
+   * Forcefully destroy the sentinel, rejecting pending commands immediately.
+   *
+   * Coalesces with an in-flight teardown, but a destroy() that overlaps a graceful
+   * close() preempts it: close() can block indefinitely on a draining command queue,
+   * whereas destroy() must terminate now.
+   */
+  async destroy() {
+    return this.#teardown('destroy');
+  }
+
+  #teardown(kind: 'close' | 'destroy') {
+    if (this.#teardownPromise === undefined) {
+      const teardown: Promise<void> = (kind === 'destroy' ? this.#doDestroy() : this.#doClose()).finally(() => {
+        // Guarded like #connectPromise in connect(): an `end` listener may have
+        // started a new teardown generation that must not be wiped.
+        if (this.#teardownPromise === teardown) {
+          this.#teardownPromise = undefined;
+          this.#teardownKind = undefined;
+        }
+      });
+      // #doDestroy()/#doClose() can emit `end` synchronously (an established sentinel with
+      // no in-flight connect runs #doDestroy() to completion before we get here), and an
+      // `end` listener may start a new teardown generation that has already claimed these
+      // fields. Only register ours if nothing newer did — otherwise we would untrack the
+      // reentrant teardown and let a later close()/destroy() race it.
+      if (this.#teardownPromise === undefined) {
+        this.#teardownKind = kind;
+        this.#teardownPromise = teardown;
+      }
+      return teardown;
+    }
+
+    // A destroy() overlapping an in-flight graceful close() must preempt it rather than
+    // joining: force-destroy the draining clients so close() stops waiting. Recording
+    // 'destroy' also covers the window before #doClose() reaches its drain — it will see
+    // the flag and force immediately instead of awaiting.
+    if (kind === 'destroy' && this.#teardownKind === 'close') {
+      this.#teardownKind = 'destroy';
+      this.#escalateToDestroy?.();
+    }
+    return this.#teardownPromise;
+  }
+
+  async #doClose() {
     this.#destroy = true;
 
     if (this.#connectPromise != undefined) {
       await this.#connectPromise.catch(() => undefined);
     }
 
-    this.#isReady = false;
+    this.#setReady(false);
 
     this.#clientSideCache?.onPoolClose();
 
@@ -1190,18 +1345,21 @@ export class RedisSentinelInternal<
       this.#scanTimer = undefined;
     }
 
-    const promises = [];
+    const clients: Array<RedisClientType<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>> = [];
+    const gracefulClosePromises: Array<Promise<void>> = [];
 
     if (this.#sentinelClient !== undefined) {
       if (this.#sentinelClient.isOpen) {
-        promises.push(this.#sentinelClient.close());
+        clients.push(this.#sentinelClient);
+        gracefulClosePromises.push(this.#sentinelClient.close());
       }
       this.#sentinelClient = undefined;
     }
 
     for (const client of this.#masterClients) {
       if (client.isOpen) {
-        promises.push(client.close());
+        clients.push(client);
+        gracefulClosePromises.push(client.close());
       }
     }
 
@@ -1209,29 +1367,73 @@ export class RedisSentinelInternal<
 
     for (const client of this.#replicaClients) {
       if (client.isOpen) {
-        promises.push(client.close());
+        clients.push(client);
+        gracefulClosePromises.push(client.close());
       }
     }
 
     this.#replicaClients = [];
 
-    await Promise.all(promises);
+    // Wait for the graceful drain, but let a preempting destroy() abandon it: RedisClient
+    // .close() never settles once the client is destroyed, so we cannot rely on the drain
+    // promises after a force-destroy — race them against an escalation signal instead.
+    await new Promise<void>(resolve => {
+      let settled = false;
+      const forceDestroy = () => {
+        if (settled) return;
+        settled = true;
+        this.#escalateToDestroy = undefined;
+        // close() already flipped each client to isOpen === false while leaving the socket
+        // draining, so an isOpen guard would skip exactly the clients we must terminate.
+        // destroy() force-kills a closing socket; a client whose drain already finished is
+        // fully torn down and throws ClientClosedError — harmless, so swallow it.
+        for (const client of clients) {
+          try {
+            client.destroy();
+          } catch {
+            // already fully closed
+          }
+        }
+        resolve();
+      };
+      // A destroy() may have already preempted while we were setting up (e.g. during the
+      // #connectPromise await above); honor it without waiting on the drain.
+      if (this.#teardownKind === 'destroy') {
+        forceDestroy();
+        return;
+      }
+      this.#escalateToDestroy = forceDestroy;
+      Promise.allSettled(gracefulClosePromises).then(() => {
+        if (settled) return;
+        settled = true;
+        this.#escalateToDestroy = undefined;
+        resolve();
+      });
+    });
 
     this.#pubSubProxy.destroy();
 
-    this.#isOpen = false;
+    // Clear #destroy before emitting `end` (via #setOpen) and before returning, so a
+    // later connect() — or a reentrant connect() from an `end` listener — is not left
+    // half-open by #connect()'s teardown guard. Mirrors destroy(). Also start a new
+    // teardown generation: a close()/destroy() from inside the emit must tear down a
+    // reentrantly reopened sentinel, not join this already-finished pass.
+    this.#destroy = false;
+    this.#teardownPromise = undefined;
+    this.#teardownKind = undefined;
+    this.#setOpen(false);
   }
 
   // destroy has to be async because its stopping others async events, timers and the like
   // and shouldn't return until its finished.
-  async destroy() {
+  async #doDestroy() {
     this.#destroy = true;
 
     if (this.#connectPromise != undefined) {
       await this.#connectPromise.catch(() => undefined);
     }
 
-    this.#isReady = false;
+    this.#setReady(false);
 
     this.#clientSideCache?.onPoolClose();
 
@@ -1263,8 +1465,13 @@ export class RedisSentinelInternal<
 
     this.#pubSubProxy.destroy();
 
-    this.#isOpen = false
+    // Clear #destroy before emitting `end` (via #setOpen), so a reentrant connect()
+    // from an `end` listener sees teardown finalized and can reopen cleanly. Also
+    // start a new teardown generation — see #doClose().
     this.#destroy = false;
+    this.#teardownPromise = undefined;
+    this.#teardownKind = undefined;
+    this.#setOpen(false);
   }
 
   async subscribe<T extends boolean = false>(
@@ -1482,6 +1689,12 @@ export class RedisSentinelInternal<
 
     if (analyzed.masterToOpen) {
       this.#trace(`transform: opening a new master`);
+      // The master actually changed (analyze() leaves masterToOpen undefined otherwise).
+      // If the sentinel was already running and ready, it is now reconfiguring: drop
+      // readiness (emits `reconnecting`). #connect() re-asserts readiness (emits `ready`)
+      // once the new topology is connected. On the initial connect `#isReady` is still
+      // false, so this is a no-op and no `reconnecting` is emitted.
+      this.#setReady(false);
       const masterPromises = [];
       const masterWatches: Array<boolean> = [];
 

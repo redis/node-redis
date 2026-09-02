@@ -966,6 +966,33 @@ describe('legacy tests', () => {
       assert.notEqual(masterNode!.port, newMaster.port);
     });
 
+    // a failover drops readiness while reconfiguring (emits `reconnecting`) and
+    // restores it once the new topology is connected (re-emits `ready`)
+    it('emits reconnecting then ready across a failover', async function () {
+      this.timeout(60000);
+
+      sentinel = frame.getSentinelClient();
+      sentinel.setTracer(tracer);
+      sentinel.on('error', () => { });
+      await sentinel.connect();
+
+      let sawReconnecting = false;
+      let readyAfterReconnectResolve: () => void;
+      const readyAfterReconnect = new Promise<void>(res => { readyAfterReconnectResolve = res; });
+      sentinel
+        .on('reconnecting', () => { sawReconnecting = true; })
+        .on('ready', () => { if (sawReconnecting) readyAfterReconnectResolve(); });
+
+      const masterNode = sentinel.getMasterNode();
+      tracer.push(`stopping master node`);
+      await frame.stopNode(masterNode!.port.toString());
+
+      // resolves only after a `reconnecting` followed by a `ready`; otherwise the
+      // test times out, which is the failure signal we want
+      await readyAfterReconnect;
+      assert.ok(sawReconnecting);
+    });
+
     // if master changes, client should make sure user knows watches are invalid
     it('watch across master change', async function () {
       this.timeout(60000);
