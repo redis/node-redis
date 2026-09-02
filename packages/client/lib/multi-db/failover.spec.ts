@@ -165,6 +165,42 @@ describe('multi-db failover', function () {
     }
   });
 
+  it('client-side caching serves no stale reads across a switch, without a flush', async () => {
+    const withCache = (server: RedisServerDocker) => ({
+      options: {
+        socket: { host: '127.0.0.1', port: server.port },
+        clientSideCache: { maxEntries: 100, ttl: 0 }
+      }
+    });
+    const direct = RedisClient.create({ socket: { host: '127.0.0.1', port: serverB.port } });
+    await direct.connect();
+    const { client, controller } = createMultiDbClient({
+      ...FAST_FAILOVER,
+      databases: [withCache(serverA), withCache(serverB)]
+    });
+    await client.connect();
+    controller.on('error', () => {});
+    const traffic = startTraffic(client);
+    try {
+      await direct.set('cached-key', 'value-on-b');
+      await client.set('cached-key', 'value-on-a');
+      // two reads: the second is served from the old member's local cache
+      assert.equal(await client.get('cached-key'), 'value-on-a');
+      assert.equal(await client.get('cached-key'), 'value-on-a');
+
+      const failover = once(controller, 'failover' as never);
+      await kill(serverA);
+      await failover;
+
+      // caches are per member: the new active answers with its own value
+      assert.equal(await client.get('cached-key'), 'value-on-b');
+    } finally {
+      traffic.stop();
+      direct.destroy();
+      client.destroy();
+    }
+  });
+
   it('escalates to permanently unavailable when every member is down', async () => {
     const { client, controller } = createMultiDbClient({
       ...FAST_FAILOVER,

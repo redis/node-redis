@@ -6,6 +6,7 @@ import { MULTI_DB_DEFAULTS } from './config';
  * forwarded command's outcome by the forwarding layer plus member `error`
  * events; a custom implementation can be supplied via
  * `MultiDbConfig.failureDetector`.
+ * @experimental
  */
 export interface FailureDetector {
   onCommandResult(ok: boolean, err?: Error): void;
@@ -15,6 +16,7 @@ export interface FailureDetector {
   reset(): void;
 }
 
+/** @experimental */
 export interface DefaultFailureDetectorOptions extends FailureDetectorConfig {
   /** injectable time source so the window is testable without timers */
   clock?: () => number;
