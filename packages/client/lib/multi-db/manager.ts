@@ -1,12 +1,18 @@
+import { setTimeout as delay } from 'node:timers/promises';
 import type { RedisArgument, ReplyUnion } from '../RESP/types';
 import type { AnyRedisClientType } from './index';
 import type { MultiDbController, FailoverReason } from './controller';
 import type { ResolvedMultiDbConfig, ResolvedDatabaseIdentity, PoolDatabaseConfig, InitialAvailability } from './config';
-import { resolveDatabaseIdentity } from './config';
+import { resolveDatabaseIdentity, isFailureDetector } from './config';
 import { Circuit } from './circuit';
 import { Database } from './database';
 import type { HealthCheck, HealthCheckTarget } from './health-check';
 import { DefaultHealthCheck, runProbeRound, probeRoundBudget, withTimeout } from './health-check';
+import type { FailureDetector } from './failure-detector';
+import { DefaultFailureDetector } from './failure-detector';
+import type { FailoverStrategy } from './failover-strategy';
+import { WeightBasedStrategy } from './failover-strategy';
+import { TemporarilyUnavailableError, PermanentlyUnavailableError } from './errors';
 
 /**
  * Topology-specific hooks the manager needs for each member kind; each factory
@@ -17,6 +23,14 @@ export interface MemberAdapter<C extends AnyRedisClientType> {
   create(config: PoolDatabaseConfig<unknown>): C;
   /** keyless command dispatch — health-check probes route through this */
   sendCommand(client: C, args: Array<RedisArgument>): Promise<ReplyUnion>;
+  /**
+   * Move pub/sub subscriptions from the old to the new active member after a
+   * switch: detach every listener from `from` (so a recovering old member does
+   * not double-deliver) and re-subscribe them on `to`. Omit when the topology
+   * does not support cross-member transfer — the switch then leaves
+   * subscriptions behind instead of duplicating deliveries.
+   */
+  movePubSub?(from: C, to: C): Promise<void>;
 }
 
 /** One member's resolved config as the manager consumes it. */
@@ -42,6 +56,13 @@ export class MultiDbManager<C extends AnyRedisClientType> {
   readonly #config: ResolvedMultiDbConfig;
   readonly #adapter: MemberAdapter<C>;
   readonly #healthChecks: ReadonlyArray<HealthCheck>;
+  readonly #detector: FailureDetector;
+  readonly #strategy: FailoverStrategy;
+  /** non-null while no healthy member can serve traffic; 'failed' is terminal */
+  #unavailable: 'searching' | 'failed' | null = null;
+  /** single-winner guard: one failover procedure at a time */
+  #failoverInFlight = false;
+  readonly #teardown = new AbortController();
   #events?: Pick<MultiDbController<C>, 'emit'>;
 
   constructor(
@@ -52,6 +73,10 @@ export class MultiDbManager<C extends AnyRedisClientType> {
     this.#config = config;
     this.#adapter = adapter;
     this.#healthChecks = config.healthChecks ?? [new DefaultHealthCheck()];
+    this.#detector = isFailureDetector(config.failureDetector)
+      ? config.failureDetector
+      : new DefaultFailureDetector(config.failureDetector);
+    this.#strategy = config.failoverStrategy ?? new WeightBasedStrategy();
     this.#databases = members.map(member => this.#wrapMember(member));
     // provisional until connect() selects by weight among healthy members
     this.#active = this.#databases[0];
@@ -79,6 +104,18 @@ export class MultiDbManager<C extends AnyRedisClientType> {
     return this.#config;
   }
 
+  /**
+   * Non-null while no healthy member can serve traffic. Read by every
+   * forwarder closure (`index.ts:attachForwarders`) before dispatch; a fresh
+   * error per read keeps stack traces meaningful.
+   */
+  get unavailableError(): Error | undefined {
+    if (this.#unavailable === null) return undefined;
+    return this.#unavailable === 'failed'
+      ? new PermanentlyUnavailableError(this.#config.maxFailoverAttempts)
+      : new TemporarilyUnavailableError();
+  }
+
   /** @internal the controller registers itself as the manager's event outlet
    * from its constructor (`controller.ts:MultiDbController`). Anything emitted
    * before that is silently dropped — don't emit from the manager constructor.
@@ -88,13 +125,20 @@ export class MultiDbManager<C extends AnyRedisClientType> {
   }
 
   /**
-   * Hook point on the command hot path: `index.ts:attachForwarders` reports
-   * the settled outcome of each promise-returning forwarded method call here.
-   * Getter-forwarded namespaces (`json.*`) and non-promise returns (`multi()`)
-   * bypass this feed. The default failure detector consumes it (US1).
+   * Command hot path: `index.ts:attachForwarders` reports the settled outcome
+   * of each promise-returning forwarded method call here, and member lifecycle
+   * errors arrive through the same feed. Getter-forwarded namespaces (`json.*`)
+   * and non-promise returns (`multi()`) bypass it. Outcomes attributed to a
+   * member that is no longer active are dropped — in-flight commands rejecting
+   * after a switch must not count against the new active member. Trips the
+   * failover procedure when the detector declares the active member faulty.
    */
-  onCommandResult(_ok: boolean, _err?: Error): void {
-    // detector wiring lands with US1 (T018/T020)
+  onCommandResult(ok: boolean, err?: Error, source?: Database<C>): void {
+    if (source !== undefined && source !== this.#active) return;
+    this.#detector.onCommandResult(ok, err);
+    if (!ok && this.#detector.isFaulty()) {
+      this.#handleActiveFailure(err ?? new Error('MultiDb: active database declared faulty'), 'failure-detector');
+    }
   }
 
   /**
@@ -115,6 +159,9 @@ export class MultiDbManager<C extends AnyRedisClientType> {
     }
     target.role = 'ACTIVE';
 
+    // detector observations must never span members
+    this.#detector.reset();
+
     if (reason === 'fallback') {
       this.#events?.emit('fallback', { from: from.id, to: target.id });
     } else {
@@ -124,8 +171,56 @@ export class MultiDbManager<C extends AnyRedisClientType> {
     this.#afterSwitch(from, target).catch(err => this.#events?.emit('error', err));
   }
 
-  async #afterSwitch(_from: Database<C>, _to: Database<C>): Promise<void> {
-    // pub/sub transfer (T021) and OPEN-member teardown policy land with US1+
+  async #afterSwitch(from: Database<C>, to: Database<C>): Promise<void> {
+    // subscriptions move with the traffic; messages published between the
+    // repoint and the re-subscribe completing are lost
+    await this.#adapter.movePubSub?.(from.client, to.client);
+  }
+
+  /**
+   * Failover procedure: open the failed active's circuit, switch to the
+   * strategy's pick, or — with no eligible member — gate all traffic behind
+   * `unavailableError` and retry selection every
+   * `delayBetweenFailoverAttempts` up to `maxFailoverAttempts` times before
+   * going permanently unavailable.
+   */
+  #handleActiveFailure(cause: Error, reason: 'failure-detector' | 'health-check'): void {
+    if (this.#failoverInFlight || this.#unavailable === 'failed' || this.#teardown.signal.aborted) return;
+
+    const failed = this.#active;
+    failed.circuit.open();
+    this.#events?.emit('database-unhealthy', { id: failed.id, cause });
+
+    const target = this.#strategy.select(this.#databases);
+    if (target) {
+      this.switchTo(target, reason);
+      return;
+    }
+
+    this.#failoverInFlight = true;
+    this.#unavailable = 'searching';
+    void this.#searchLoop(reason);
+  }
+
+  async #searchLoop(reason: 'failure-detector' | 'health-check'): Promise<void> {
+    const { maxFailoverAttempts, delayBetweenFailoverAttempts } = this.#config;
+    for (let attempt = 1; attempt <= maxFailoverAttempts; attempt++) {
+      this.#events?.emit('all-databases-down', { attempt, maxAttempts: maxFailoverAttempts });
+      try {
+        await delay(delayBetweenFailoverAttempts, undefined, { signal: this.#teardown.signal });
+      } catch {
+        return; // torn down mid-search
+      }
+      const target = this.#strategy.select(this.#databases);
+      if (target) {
+        this.#unavailable = null;
+        this.#failoverInFlight = false;
+        this.switchTo(target, reason);
+        return;
+      }
+    }
+    this.#unavailable = 'failed';
+    this.#failoverInFlight = false;
   }
 
   /**
@@ -154,7 +249,7 @@ export class MultiDbManager<C extends AnyRedisClientType> {
       );
     }
 
-    const target = this.#selectByWeight(healthy)!;
+    const target = this.#strategy.select(healthy)!;
     if (this.#active !== target) {
       // an ended member is already DISCONNECTED — don't demote it to PASSIVE
       if (this.#active.role === 'ACTIVE') {
@@ -202,8 +297,7 @@ export class MultiDbManager<C extends AnyRedisClientType> {
     }
 
     if (member === this.#active) {
-      const candidates = this.#databases.filter(db => db !== member && db.circuit.state === 'CLOSED');
-      const target = this.#selectByWeight(candidates);
+      const target = this.#strategy.select(this.#databases.filter(db => db !== member));
       if (!target) {
         throw new Error(`MultiDb: cannot remove active database "${id}", no healthy replacement`);
       }
@@ -232,6 +326,8 @@ export class MultiDbManager<C extends AnyRedisClientType> {
   }
 
   async close(): Promise<void> {
+    // stop the search loop and mute failure handling before members start ending
+    this.#teardown.abort();
     await Promise.all(this.#databases.map(async db => {
       try {
         await db.client.close();
@@ -243,6 +339,7 @@ export class MultiDbManager<C extends AnyRedisClientType> {
   }
 
   destroy(): void {
+    this.#teardown.abort();
     for (const db of this.#databases) {
       try {
         db.client.destroy();
@@ -267,6 +364,16 @@ export class MultiDbManager<C extends AnyRedisClientType> {
         gracePeriod: this.#config.gracePeriod,
         numProbes: this.#config.healthCheck.numProbes
       })
+    }, {
+      // source attribution in onCommandResult keeps passive members' lifecycle
+      // noise out of the detector; passives are the background checks' concern
+      onError: (db, err) => this.onCommandResult(false, err, db),
+      onDown: db => {
+        // a definitive end (reconnection given up) fails the active immediately
+        if (db === this.#active) {
+          this.#handleActiveFailure(new Error(`MultiDb: database "${db.id}" connection ended`), 'failure-detector');
+        }
+      }
     });
   }
 
@@ -283,17 +390,6 @@ export class MultiDbManager<C extends AnyRedisClientType> {
       throw new TypeError(`MultiDb: no database with id "${id}"`);
     }
     return member;
-  }
-
-  /** highest weight wins, earlier config position breaks ties (strict `>` keeps the first) */
-  #selectByWeight(candidates: ReadonlyArray<Database<C>>): Database<C> | undefined {
-    let best: Database<C> | undefined;
-    for (const db of candidates) {
-      if (!best || db.weight > best.weight) {
-        best = db;
-      }
-    }
-    return best;
   }
 
   #targetFor(db: Database<C>): HealthCheckTarget {
