@@ -7,7 +7,7 @@ import { resolveDatabaseIdentity, isFailureDetector } from './config';
 import { Circuit } from './circuit';
 import { Database } from './database';
 import type { HealthCheck, HealthCheckTarget } from './health-check';
-import { DefaultHealthCheck, runProbeRound, probeRoundBudget, withTimeout } from './health-check';
+import { DefaultHealthCheck, runProbeRound, runSingleProbe, probeRoundBudget, withTimeout } from './health-check';
 import type { FailureDetector } from './failure-detector';
 import { DefaultFailureDetector } from './failure-detector';
 import type { FailoverStrategy } from './failover-strategy';
@@ -64,6 +64,13 @@ export class MultiDbManager<C extends AnyRedisClientType> {
   #failoverInFlight = false;
   readonly #teardown = new AbortController();
   #events?: Pick<MultiDbController<C>, 'emit'>;
+  readonly #healthTimers = new Map<Database<C>, NodeJS.Timeout>();
+  /** per-member overlap guard: a probe round may outlast the check interval */
+  readonly #probing = new Set<Database<C>>();
+  #fallbackTimer?: NodeJS.Timeout;
+  #autoFallbackInterval: number;
+  /** background checks start with the first successful connect() */
+  #schedulerRunning = false;
 
   constructor(
     members: Array<ResolvedMemberConfig>,
@@ -77,6 +84,7 @@ export class MultiDbManager<C extends AnyRedisClientType> {
       ? config.failureDetector
       : new DefaultFailureDetector(config.failureDetector);
     this.#strategy = config.failoverStrategy ?? new WeightBasedStrategy();
+    this.#autoFallbackInterval = config.autoFallbackInterval;
     this.#databases = members.map(member => this.#wrapMember(member));
     // provisional until connect() selects by weight among healthy members
     this.#active = this.#databases[0];
@@ -211,6 +219,8 @@ export class MultiDbManager<C extends AnyRedisClientType> {
       } catch {
         return; // torn down mid-search
       }
+      // background recovery probing keeps running during the search — a member
+      // whose circuit closes here is what makes an attempt succeed
       const target = this.#strategy.select(this.#databases);
       if (target) {
         this.#unavailable = null;
@@ -219,8 +229,129 @@ export class MultiDbManager<C extends AnyRedisClientType> {
         return;
       }
     }
+    // terminal: the client gave up, so background checking stops too
     this.#unavailable = 'failed';
     this.#failoverInFlight = false;
+    this.#stopTimers();
+  }
+
+  /**
+   * Background health scheduler: one unref'd interval per member, the active
+   * one included — under zero traffic the organic detector sees nothing, so
+   * this is what catches a silently dead active member.
+   */
+  #startScheduler(): void {
+    this.#schedulerRunning = true;
+    for (const db of this.#databases) {
+      this.#startMemberChecks(db);
+    }
+    this.#startFallbackTimer(this.#autoFallbackInterval);
+  }
+
+  #startMemberChecks(db: Database<C>): void {
+    if (!this.#schedulerRunning || this.#healthTimers.has(db) || this.#teardown.signal.aborted) return;
+    const timer = setInterval(() => {
+      void this.#checkMember(db);
+    }, this.#config.healthCheck.interval);
+    timer.unref();
+    this.#healthTimers.set(db, timer);
+  }
+
+  async #checkMember(db: Database<C>): Promise<void> {
+    if (this.#probing.has(db) || this.#unavailable === 'failed' || this.#teardown.signal.aborted) return;
+    this.#probing.add(db);
+    try {
+      switch (db.circuit.state) {
+        case 'OPEN':
+          return; // grace period: leave the member alone
+        case 'HALF_OPEN':
+          await this.#recoveryProbe(db);
+          return;
+        case 'CLOSED':
+          if (!await runProbeRound(this.#targetFor(db), this.#healthChecks, this.#config.healthCheck)) {
+            const cause = new Error(`MultiDb: database "${db.id}" failed its health check`);
+            if (db === this.#active) {
+              this.#handleActiveFailure(cause, 'health-check');
+            } else if (db.circuit.open()) {
+              this.#events?.emit('database-unhealthy', { id: db.id, cause });
+            }
+          }
+          return;
+      }
+    } catch (err) {
+      this.#events?.emit('error', err as Error);
+    } finally {
+      this.#probing.delete(db);
+    }
+  }
+
+  /**
+   * Recovery probing for a HALF_OPEN member: feed up to `numProbes` single
+   * probes into the circuit — it closes on the last consecutive success, any
+   * failure reopens it with a fresh grace period.
+   */
+  async #recoveryProbe(db: Database<C>): Promise<void> {
+    const { numProbes, delayBetweenProbes, timeout } = this.#config.healthCheck;
+    for (let i = 0; i < numProbes; i++) {
+      if (i > 0 && delayBetweenProbes > 0) {
+        await delay(delayBetweenProbes);
+      }
+      if (this.#teardown.signal.aborted || db.circuit.state !== 'HALF_OPEN') return;
+      if (await runSingleProbe(this.#targetFor(db), this.#healthChecks, timeout)) {
+        if (db.circuit.probeSucceeded()) {
+          this.#events?.emit('database-recovered', { id: db.id });
+          return;
+        }
+      } else {
+        db.circuit.probeFailed();
+        return;
+      }
+    }
+  }
+
+  #startFallbackTimer(intervalMs: number): void {
+    this.#stopFallbackTimer();
+    if (!this.#schedulerRunning || intervalMs <= 0 || this.#teardown.signal.aborted) return;
+    this.#fallbackTimer = setInterval(() => this.#maybeFallback(), intervalMs);
+    this.#fallbackTimer.unref();
+  }
+
+  #stopFallbackTimer(): void {
+    if (this.#fallbackTimer) {
+      clearInterval(this.#fallbackTimer);
+      this.#fallbackTimer = undefined;
+    }
+  }
+
+  #maybeFallback(): void {
+    if (this.#unavailable !== null) return;
+    const candidate = this.#strategy.select(this.#databases);
+    // strictly higher weight only: equal-weight members must not ping-pong
+    if (candidate && candidate !== this.#active && candidate.weight > this.#active.weight) {
+      this.switchTo(candidate, 'fallback');
+    }
+  }
+
+  /**
+   * Enable, retune or disable (`false` or a non-positive interval) the
+   * auto-fallback loop at runtime.
+   */
+  setAutoFallback(intervalMs: number | false): void {
+    const interval = intervalMs === false ? -1 : intervalMs;
+    // negated form also rejects NaN
+    if (!(interval >= -1)) {
+      throw new TypeError(`MultiDb: autoFallbackInterval must be a number or false, got ${intervalMs}`);
+    }
+    this.#autoFallbackInterval = interval;
+    this.#startFallbackTimer(interval);
+  }
+
+  #stopTimers(): void {
+    for (const timer of this.#healthTimers.values()) {
+      clearInterval(timer);
+    }
+    this.#healthTimers.clear();
+    this.#stopFallbackTimer();
   }
 
   /**
@@ -258,6 +389,8 @@ export class MultiDbManager<C extends AnyRedisClientType> {
       this.#active = target;
       target.role = 'ACTIVE';
     }
+
+    this.#startScheduler();
   }
 
   /**
@@ -280,6 +413,7 @@ export class MultiDbManager<C extends AnyRedisClientType> {
     if (await this.#establishMember(member, member.skipInitialHealthCheck)) {
       member.circuit.close();
     }
+    this.#startMemberChecks(member);
     return member.id;
   }
 
@@ -304,6 +438,11 @@ export class MultiDbManager<C extends AnyRedisClientType> {
       this.switchTo(target, 'active-removed');
     }
 
+    const timer = this.#healthTimers.get(member);
+    if (timer) {
+      clearInterval(timer);
+      this.#healthTimers.delete(member);
+    }
     this.#databases.splice(this.#databases.indexOf(member), 1);
     try {
       if (member.circuit.state === 'CLOSED') {
@@ -328,6 +467,7 @@ export class MultiDbManager<C extends AnyRedisClientType> {
   async close(): Promise<void> {
     // stop the search loop and mute failure handling before members start ending
     this.#teardown.abort();
+    this.#stopTimers();
     await Promise.all(this.#databases.map(async db => {
       try {
         await db.client.close();
@@ -340,6 +480,7 @@ export class MultiDbManager<C extends AnyRedisClientType> {
 
   destroy(): void {
     this.#teardown.abort();
+    this.#stopTimers();
     for (const db of this.#databases) {
       try {
         db.client.destroy();
@@ -372,6 +513,12 @@ export class MultiDbManager<C extends AnyRedisClientType> {
         // a definitive end (reconnection given up) fails the active immediately
         if (db === this.#active) {
           this.#handleActiveFailure(new Error(`MultiDb: database "${db.id}" connection ended`), 'failure-detector');
+        } else if (!this.#teardown.signal.aborted && this.#databases.includes(db)) {
+          // deliberate removals are spliced out first and must not announce
+          this.#events?.emit('database-unhealthy', {
+            id: db.id,
+            cause: new Error(`MultiDb: database "${db.id}" connection ended`)
+          });
         }
       }
     });

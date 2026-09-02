@@ -83,9 +83,10 @@ async function runCheckChain(
 /**
  * One probe = every check in the chain passes, evaluated in order with early
  * exit; `timeout` bounds the whole chain and a rejection or overrun fails the
- * probe.
+ * probe. Exported for the recovery path, which feeds probe outcomes into the
+ * circuit one at a time instead of aggregating a round.
  */
-async function runSingleProbe(
+export async function runSingleProbe(
   target: HealthCheckTarget,
   checks: ReadonlyArray<HealthCheck>,
   timeout: number
