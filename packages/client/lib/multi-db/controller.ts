@@ -131,6 +131,16 @@ export class MultiDbController<C extends AnyRedisClientType> extends EventEmitte
   setWeight(id: string, weight: number): void {
     this.#mgr.setWeight(id, weight);
   }
+
+  /**
+   * Enable or retune the auto-fallback loop: every `intervalMs` the client
+   * returns to the highest-weight healthy member when it outweighs the active
+   * one, emitting `fallback`. `false` (or a non-positive interval) disables
+   * the loop — the default.
+   */
+  setAutoFallback(intervalMs: number | false): void {
+    this.#mgr.setAutoFallback(intervalMs);
+  }
 }
 
 function describe<C extends AnyRedisClientType>(db: Database<C>): DatabaseDescriptor {
