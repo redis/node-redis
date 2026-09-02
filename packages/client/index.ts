@@ -82,6 +82,8 @@ export {
   DefaultFailureDetector,
   type DefaultFailureDetectorOptions,
   DefaultHealthCheck,
+  LagAwareHealthCheck,
+  type LagAwareHealthCheckOptions,
   type HealthCheck,
   type HealthCheckTarget,
   type FailoverStrategy,
