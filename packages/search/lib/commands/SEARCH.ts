@@ -104,7 +104,7 @@ export function parseSearchOptions(parser: CommandParser, options?: FtSearchOpti
     parser.push('NOCONTENT');
   }
 
-  if (options?.WITHSCORES) {
+  if (options?.WITHSCORES || options?.EXPLAINSCORE) {
     parser.push('WITHSCORES');
   }
 
@@ -333,8 +333,8 @@ function transformSearchReplyResp3(
       id: String((id as { toString?(): string })?.toString?.() ?? id ?? ''),
       ...(score !== undefined && !isNaN(score) ? {score} : {}),
       ...(scoreExplain !== undefined ? {scoreExplain} : {}),
-      ...(rawPayload !== undefined ? {payload: String(rawPayload)} : {}),
-      ...(rawSortKey !== undefined ? {sortKey: String(rawSortKey)} : {}),
+      ...(rawPayload !== undefined && rawPayload !== null? {payload: String(rawPayload)} : {}),
+      ...(rawSortKey !== undefined && rawSortKey !== null ? {sortKey: String(rawSortKey)} : {}),
       value: value as SearchDocumentValue
     };
   });

@@ -535,8 +535,7 @@ describe('FT.SEARCH', () => {
     assert.strictEqual(res.total, 1);
     assert.strictEqual(res.documents.length, 1);
     assert.strictEqual(res.documents[0].id, '1');
-    console.log(res.documents[0].payload);
-    assert.strictEqual(res.documents[0].payload, 'null');
+    assert.strictEqual(res.documents[0].payload, undefined);
     assert.deepStrictEqual(res.documents[0].value, { field: 'hello world' });
   }, GLOBAL.SERVERS.OPEN);
 

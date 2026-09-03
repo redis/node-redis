@@ -1,10 +1,18 @@
 import { Command, ReplyUnion, TypeMapping } from '@redis/client/dist/lib/RESP/types';
-import SEARCH, { SearchRawReply } from './SEARCH';
+import SEARCH, { FtSearchOptions, SearchRawReply } from './SEARCH';
+
+type SearchNoContentOptions = Omit<FtSearchOptions,
+  'NOCONTENT' | 'WITHSCORES' | 'EXPLAINSCORE' | 'WITHPAYLOADS' | 'WITHSORTKEYS'
+>;
 
 export default {
-  parseCommand(...args: Parameters<typeof SEARCH.parseCommand>) {
-    SEARCH.parseCommand(...args);
-    args[0].push('NOCONTENT');
+  parseCommand(
+    parser: Parameters<typeof SEARCH.parseCommand>[0],
+    index: Parameters<typeof SEARCH.parseCommand>[1],
+    query: Parameters<typeof SEARCH.parseCommand>[2],
+    options?: SearchNoContentOptions) {
+   SEARCH.parseCommand(parser, index, query, options as FtSearchOptions);
+    parser.push('NOCONTENT');
   },
   transformReply: {
     2: (reply: SearchRawReply): SearchNoContentReply => {
