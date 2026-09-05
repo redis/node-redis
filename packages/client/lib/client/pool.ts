@@ -267,13 +267,11 @@ export class RedisClientPool<
     return this._self.#isOpen;
   }
 
-  #isClosing = false;
-
   /**
    * Whether the pool is closing (*not* closed).
    */
   get isClosing() {
-    return this._self.#isClosing;
+    return this._self.#closePromise !== undefined;
   }
 
   /**
@@ -457,7 +455,7 @@ export class RedisClientPool<
       this._self.#clientsInUse.remove(node);
       // Closing with no client left: `#returnClient()`, the only other place that signals the
       // drain, will not run again, and nothing can pick up the queued tasks either
-      if (this._self.#isClosing && this._self.#clientsInUse.length === 0) {
+      if (this._self.isClosing && this._self.#clientsInUse.length === 0) {
         let task;
         while ((task = this._self.#tasksQueue.shift())) {
           clearTimeout(task.timeout);
@@ -473,7 +471,7 @@ export class RedisClientPool<
 
   execute<T>(fn: PoolTask<M, F, S, RESP, TYPE_MAPPING, T>) {
     return new Promise<Awaited<T>>((resolve, reject) => {
-      if (this._self.#isClosing || !this._self.#isOpen) {
+      if (this._self.isClosing || !this._self.#isOpen) {
         return reject(new ClientClosedError());
       }
 
@@ -572,7 +570,7 @@ export class RedisClientPool<
     this.#idleClients.push(node.value);
 
     // If closing and all tasks are done, signal the drain is complete
-    if (this.#isClosing && this.#clientsInUse.length === 0) {
+    if (this.isClosing && this.#clientsInUse.length === 0) {
       this.#drainResolve?.();
       return;
     }
@@ -621,12 +619,11 @@ export class RedisClientPool<
   multi = this.MULTI;
 
   async close() {
-    if (this._self.#isClosing) return this._self.#closePromise; // TODO: throw err?
+    if (this._self.isClosing) return this._self.#closePromise; // TODO: throw err?
     if (!this._self.#isOpen) return; // TODO: throw err?
 
-    this._self.#isClosing = true;
     clearTimeout(this._self.cleanupTimeout);
-    this._self.#closePromise = this._self.#doClose();
+    this._self.#closePromise = Promise.resolve().then(() => this._self.#doClose());
     return this._self.#closePromise;
   }
 
@@ -661,13 +658,19 @@ export class RedisClientPool<
         if (result.status === 'rejected') throw result.reason;
       }
     } finally {
+      try {
+        // A throw here would replace a pending client close error, since a
+        // throw inside `finally` overrides the exception already in flight.
+        this._self.#clientSideCache?.onPoolClose();
+      } catch {
+        // Preserve the client close error even if cache cleanup also fails.
+      }
+
       this._self.#idleClients.reset();
       this._self.#clientsInUse.reset();
       this._self.#drainResolve = undefined;
-      this._self.#isClosing = false;
       this._self.#isOpen = false;
       this._self.#closePromise = undefined;
-      this._self.#clientSideCache?.onPoolClose();
     }
   }
 

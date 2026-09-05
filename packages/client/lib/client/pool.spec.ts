@@ -136,6 +136,25 @@ describe('RedisClientPool', () => {
     }
   });
 
+  testUtils.testWithClientPool('close keeps the client close error when cache cleanup also fails', async pool => {
+    pool.clientSideCache!.onPoolClose = () => {
+      throw new Error('cache cleanup failed');
+    };
+
+    await pool.execute(client => client.destroy());
+
+    await assert.rejects(pool.close(), ClientClosedError);
+    assert.equal(pool.totalClients, 0);
+    assert.equal(pool.isOpen, false);
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    poolOptions: {
+      minimum: 1,
+      maximum: 1,
+      clientSideCache: new BasicPooledClientSideCache({})
+    }
+  });
+
   testUtils.testWithClientPool('close waits for the remaining clients after a close rejection', async pool => {
     const clients = await Promise.all([
       pool.execute(async client => client),
@@ -242,6 +261,42 @@ describe('RedisClientPool', () => {
   }, {
     ...GLOBAL.SERVERS.OPEN,
     poolOptions: { minimum: 1, maximum: 1 }
+  });
+
+  testUtils.testWithClientPool('close rejects work started from a client close hook', async pool => {
+    const client = await pool.execute(client => client);
+    const originalClose = client.close.bind(client);
+    let reentrantTask!: Promise<unknown>;
+    client.close = () => {
+      reentrantTask = pool.execute(() => 'reentrant');
+      return originalClose();
+    };
+
+    await pool.close();
+    await assert.rejects(reentrantTask, { message: /closed/i });
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    poolOptions: { minimum: 1, maximum: 1 }
+  });
+
+  testUtils.testWithClientPool('close keeps the pool closing during cache cleanup', async pool => {
+    let reconnect: Promise<unknown> | undefined;
+    pool.clientSideCache!.onPoolClose = () => {
+      reconnect = pool.connect();
+    };
+
+    await pool.close();
+    assert.ok(reconnect);
+    await reconnect;
+    assert.equal(pool.totalClients, 0);
+    assert.equal(pool.isOpen, false);
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    poolOptions: {
+      minimum: 1,
+      maximum: 1,
+      clientSideCache: new BasicPooledClientSideCache({})
+    }
   });
 
   testUtils.testWithClientPool('close waits for in-flight and queued tasks', async pool => {
