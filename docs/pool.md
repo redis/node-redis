@@ -46,6 +46,20 @@ await client.withTypeMapping({
 }).ping(); // Buffer
 ```
 
+## Closing a pool
+
+Use `await pool.close()` to wait for in-flight and queued tasks to finish before closing the connections. Once closing starts, new tasks are rejected with `ClientClosedError`.
+
+If a client's `close()` rejects, the pool attempts to destroy that client and still waits for the remaining clients to finish closing. The pool clears its client lists and cache and marks itself closed, then rejects with a client close error. Handle this rejection at the call site:
+
+```javascript
+try {
+  await pool.close();
+} catch (err) {
+  console.error('Failed to close a pooled client', err);
+}
+```
+
 ## Transactions
 
 Things get a little more complex with transactions. Here we are `.watch()`ing some keys. If the keys change during the transaction, a `WatchError` is thrown when `.exec()` is called:
