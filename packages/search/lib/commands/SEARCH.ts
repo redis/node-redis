@@ -6,6 +6,7 @@ import { DEFAULT_DIALECT } from '../dialect/default';
 import { getMapValue, mapLikeToObject, mapLikeValues, parseDocumentValue, parseSearchResultRow, parseWarnings } from './reply-transformers';
 
 export type FtSearchParams = Record<string, RedisArgument | number>;
+export type ScoreExplain = string | [string, Array<ScoreExplain>];
 
 export function parseParamsArgument(parser: CommandParser, params?: FtSearchParams) {
   if (params) {
@@ -33,6 +34,14 @@ function numericFilterBound(value:number | RedisArgument):RedisArgument{
     return value.toString();
   }
   return value;
+}
+
+function normalizeScoreExplain(raw: unknown): ScoreExplain {
+  if (Array.isArray(raw)) {
+    const [summary, children] = raw;
+    return [String(summary), Array.isArray(children) ? children.map(normalizeScoreExplain) : []];
+  }
+  return String(raw);
 }
 
 export interface FtSearchOptions {
@@ -203,7 +212,7 @@ export function parseSearchOptions(parser: CommandParser, options?: FtSearchOpti
     parser.push('SCORER', options.SCORER);
   }
 
-  if (options?.PAYLOAD) {
+  if (options?.PAYLOAD != undefined) {
     parser.push('PAYLOAD', options.PAYLOAD);
   }
 
@@ -243,11 +252,12 @@ function transformSearchReplyResp2(
   const options = _preserve as FtSearchOptions | undefined;
   const documents: SearchReply['documents'] = [];
   
-  const hasScores = Boolean(options?.WITHSCORES);
-  const hasExplain = Boolean(options?.EXPLAINSCORE) || Boolean(options?.EXPLAINSCORE);
+  const hasScores = Boolean(options?.WITHSCORES) || Boolean(options?.EXPLAINSCORE);
+  const hasExplain = Boolean(options?.EXPLAINSCORE); 
   const hasPayloads = Boolean(options?.WITHPAYLOADS);
   const hasSortKeys = Boolean(options?.WITHSORTKEYS);
-  const noContent = Boolean(options?.NOCONTENT);
+  const noContent = Boolean(options?.NOCONTENT) ||
+    (Array.isArray(options?.RETURN) && options.RETURN.length === 0);
 
   let i = 1;
   while (i < reply.length) {
@@ -255,26 +265,26 @@ function transformSearchReplyResp2(
     const id = reply[i++] as string;
 
     let score: number | undefined;
-    let scoreExplain: Array<string> | undefined;
+    let scoreExplain: Array<ScoreExplain> | undefined;
 
     if (hasScores) {
       if (hasExplain && Array.isArray(reply[i])) {
-        const tuple = reply[i++] as [string | number, Array<string>];
+        const tuple = reply[i++] as [string | number, unknown];
         score = Number(tuple[0]);
-        scoreExplain = tuple[1];
+        scoreExplain = Array.isArray(tuple[1]) ? tuple[1].map(normalizeScoreExplain) : undefined;
       } else {
         score = Number(reply[i++]);
       }
     }
 
-    let payload: string | undefined;
+    let payload: string |Buffer | undefined;
     if (hasPayloads){
-      payload = reply[i++] as string;
+      payload = reply[i++] as string | Buffer;
     }
 
-    let sortKey: string | undefined;
+    let sortKey: string | Buffer | undefined;
     if (hasSortKeys) {
-      sortKey = reply[i++] as string;
+      sortKey = reply[i++] as string | Buffer;
     }
 
     let value: SearchDocumentValue = {};
@@ -326,12 +336,12 @@ function transformSearchReplyResp3(
     const rawSortKey = getMapValue(resultMap, ['sortkey']);
 
     let score: number | undefined
-    let scoreExplain: Array<string> | undefined;
+    let scoreExplain: Array<ScoreExplain> | undefined;
 
     if (Array.isArray(rawScore)){
       score = Number(rawScore[0]);
       if (Array.isArray(rawScore[1])){
-        scoreExplain = rawScore[1].map(String);
+        scoreExplain = rawScore[1].map(normalizeScoreExplain);
       }
     } else if (rawScore !== undefined && rawScore !== null){
       score = typeof rawScore === 'number' ? rawScore : Number(rawScore);
@@ -341,8 +351,8 @@ function transformSearchReplyResp3(
       id: String((id as { toString?(): string })?.toString?.() ?? id ?? ''),
       ...(score !== undefined && !isNaN(score) ? {score} : {}),
       ...(scoreExplain !== undefined ? {scoreExplain} : {}),
-      ...(rawPayload !== undefined && rawPayload !== null? {payload: String(rawPayload)} : {}),
-      ...(rawSortKey !== undefined && rawSortKey !== null ? {sortKey: String(rawSortKey)} : {}),
+      ...(rawPayload !== undefined && rawPayload !== null? {payload: rawPayload as string | Buffer} : {}),
+      ...(rawSortKey !== undefined && rawSortKey !== null ? {sortKey: rawSortKey as string | Buffer}: {}),
       value: value as SearchDocumentValue
     };
   });
@@ -382,9 +392,9 @@ export interface SearchReply {
   documents: Array<{
       id: string;
       score?: number;
-      scoreExplain?: Array<string>;
-      payload?: string;
-      sortKey?: string;
+      scoreExplain?: Array<ScoreExplain>;
+      payload?: string | Buffer;
+      sortKey?: string | Buffer;
       value: SearchDocumentValue;
   }>;
   /**

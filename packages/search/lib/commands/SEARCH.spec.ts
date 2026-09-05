@@ -4,7 +4,7 @@ import SEARCH from './SEARCH';
 import { SCHEMA_FIELD_TYPE, REDISEARCH_LANGUAGE } from './CREATE';
 import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 import { DEFAULT_DIALECT } from '../dialect/default';
-
+import { RESP_TYPES } from '@redis/client';
 
 describe('FT.SEARCH', () => {
   describe('transformArguments', () => {
@@ -750,6 +750,31 @@ describe('FT.SEARCH', () => {
 
 
     }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('NOCONTENT takes precedence over a conflicting RETURN', async client => {
+  await Promise.all([
+    client.ft.create('index', { title: 'TEXT', price: 'NUMERIC' }),
+    client.hSet('1', { title: 'Widget', price: '9.99' })
+  ]);
+  const res = await client.ft.search('index', '*', {
+    NOCONTENT: true,
+    RETURN: ['title', 'price']
+  });
+  assert.strictEqual(res.total, 1);
+  assert.deepStrictEqual(res.documents[0].value, {});
+}, GLOBAL.SERVERS.OPEN);
+
+  
+  testUtils.testWithClient('WITHSORTKEYS honors BLOB_STRING', async client => {
+  await Promise.all([
+    client.ft.create('index', { field: { type: 'TEXT', SORTABLE: true } }),
+    client.hSet('1', 'field', 'hello world')
+  ]);
+  const res = await client
+    .withTypeMapping({ [RESP_TYPES.BLOB_STRING]: Buffer })
+    .ft.search('index', '*', { SORTBY: 'field', WITHSORTKEYS: true });
+  assert.ok(Buffer.isBuffer(res.documents[0].sortKey));
+}, GLOBAL.SERVERS.OPEN);
 
   });
 

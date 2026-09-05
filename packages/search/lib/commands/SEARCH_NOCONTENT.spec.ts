@@ -3,12 +3,14 @@ import testUtils, { GLOBAL } from '../test-utils';
 import SEARCH_NOCONTENT from './SEARCH_NOCONTENT';
 import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 import { DEFAULT_DIALECT } from '../dialect/default';
+import { ReplyUnion } from '@redis/client/dist/lib/RESP/types';
+import { BasicCommandParser} from '@redis/client/lib/client/parser.ts';
 
 describe('FT.SEARCH NOCONTENT', () => {
   describe('transformArguments', () => {
     it('without options', () => {
       assert.deepEqual(
-        parseArgs(SEARCH_NOCONTENT, 'index', 'query'),
+        Array.from(parseArgs(SEARCH_NOCONTENT, 'index', 'query')),
         ['FT.SEARCH', 'index', 'query', 'DIALECT', DEFAULT_DIALECT, 'NOCONTENT']
       );
     });
@@ -38,6 +40,35 @@ describe('FT.SEARCH NOCONTENT', () => {
         ['FT.SEARCH', 'index', 'query', 'SORTBY', '@field', 'DESC', 'DIALECT', DEFAULT_DIALECT, 'NOCONTENT']
       );
     });
+
+    it('legacy array-shaped RESP3', () => {
+    const legacyArrayReply = [2, '1', '2'];
+    const result = SEARCH_NOCONTENT.transformReply[3](
+    legacyArrayReply as unknown as ReplyUnion,
+    { FILTER: { field: 'x', min: 0, max: 1 },NOCONTENT:true }
+  );
+  assert.deepStrictEqual(result, {
+    total: 2,
+    documents: ['1', '2'],
+    warnings: []
+      });
+    });
+
+    it('parseCommand injects NOCONTENT', () => {
+    const parser = new BasicCommandParser();
+    SEARCH_NOCONTENT.parseCommand(
+      parser,
+      'index',
+      'query',
+      { FILTER: { field: 'x', min: 0, max: 1 } }
+    );
+
+    assert.deepStrictEqual(parser.preserve, {
+      FILTER: { field: 'x', min: 0, max: 1 },
+      NOCONTENT: true
+    });
+  });
+
   });
 
   describe('client.ft.searchNoContent', () => {
@@ -125,4 +156,6 @@ describe('FT.SEARCH NOCONTENT', () => {
       assert.deepStrictEqual(reply.warnings, []);
     }, GLOBAL.SERVERS.OPEN);
   });
+
+
 });

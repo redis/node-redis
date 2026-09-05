@@ -13,6 +13,7 @@ export default {
     options?: SearchNoContentOptions) {
    SEARCH.parseCommand(parser, index, query, options as FtSearchOptions);
     parser.push('NOCONTENT');
+    parser.preserve = { ...(options ?? {}), NOCONTENT: true };
   },
   transformReply: {
     2: (reply: SearchRawReply): SearchNoContentReply => {
