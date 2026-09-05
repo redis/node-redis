@@ -2,7 +2,8 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import { RESP_TYPES } from '../RESP/decoder';
 import { RedisClientPool } from './pool';
-import { TimeoutError } from '../errors';
+import { ClientClosedError, TimeoutError } from '../errors';
+import { BasicPooledClientSideCache } from './cache';
 
 describe('RedisClientPool', () => {
   it('chained withCommandOptions(...).withTypeMapping(...) preserves earlier overrides at dispatch', () => {
@@ -112,6 +113,120 @@ describe('RedisClientPool', () => {
     assert.equal(pool.totalClients, 0, 'totalClients should be 0 after destroy');
     assert.equal(pool.isOpen, false, 'isOpen should be false after destroy');
   }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClientPool('close rejects and clears the pool when a client is already closed', async pool => {
+    let cacheClosed = false;
+    pool.clientSideCache!.onPoolClose = () => {
+      cacheClosed = true;
+    };
+
+    await pool.execute(client => client.destroy());
+
+    await assert.rejects(pool.close(), ClientClosedError);
+    assert.equal(pool.totalClients, 0);
+    assert.equal(pool.isOpen, false);
+    assert.equal(pool.isClosing, false);
+    assert.equal(cacheClosed, true);
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    poolOptions: {
+      minimum: 1,
+      maximum: 1,
+      clientSideCache: new BasicPooledClientSideCache({})
+    }
+  });
+
+  testUtils.testWithClientPool('close waits for the remaining clients after a close rejection', async pool => {
+    const clients = await Promise.all([
+      pool.execute(async client => client),
+      pool.execute(async client => client)
+    ]);
+    assert.notEqual(clients[0], clients[1]);
+    clients[0].destroy();
+
+    let finishClose!: () => void;
+    const pendingClose = new Promise<void>(resolve => { finishClose = resolve; });
+    const originalClose = clients[1].close.bind(clients[1]);
+    clients[1].close = async () => {
+      await pendingClose;
+      await originalClose();
+    };
+
+    let settled = false;
+    const closeResult = pool.close().then(
+      () => { settled = true; return undefined; },
+      error => { settled = true; return error; }
+    );
+
+    try {
+      await new Promise(resolve => setImmediate(resolve));
+      assert.equal(settled, false);
+      assert.equal(pool.isClosing, true);
+    } finally {
+      finishClose();
+      await closeResult;
+    }
+
+    assert.ok(await closeResult instanceof ClientClosedError);
+    assert.equal(clients[1].isOpen, false);
+    assert.equal(pool.totalClients, 0);
+    assert.equal(pool.isOpen, false);
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    poolOptions: { minimum: 2, maximum: 2 }
+  });
+
+  for (const failDestroy of [false, true]) {
+    testUtils.testWithClientPool(`close destroys failed clients when credential disposal ${failDestroy ? 'always fails' : 'fails once'}`, async pool => {
+      const clients = await Promise.all([
+        pool.execute(async client => client),
+        pool.execute(async client => client)
+      ]);
+      assert.notEqual(clients[0], clients[1]);
+
+      try {
+        await assert.rejects(pool.close(), { message: 'close failed' });
+        for (const client of clients) {
+          assert.equal(client.isReady, false);
+          assert.equal(client.isOpen, false);
+        }
+        assert.equal(pool.totalClients, 0);
+        assert.equal(pool.isOpen, false);
+        assert.equal(pool.isClosing, false);
+      } finally {
+        for (const client of clients) {
+          if (!client.isReady) continue;
+          try {
+            client.destroy();
+          } catch {
+            // The test provider can throw again after destroy tears down the socket.
+          }
+        }
+      }
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      clientOptions: {
+        ...GLOBAL.SERVERS.OPEN.clientOptions,
+        credentialsProvider: {
+          type: 'streaming-credentials-provider',
+          subscribe: async () => {
+            let disposed = false;
+            return [{}, {
+              dispose() {
+                if (!disposed) {
+                  disposed = true;
+                  throw new Error('close failed');
+                }
+                if (failDestroy) throw new Error('destroy failed');
+              }
+            }];
+          },
+          onReAuthenticationError: () => {}
+        }
+      },
+      poolOptions: { minimum: 2, maximum: 2 }
+    });
+  }
 
   testUtils.testWithClientPool('close waits for in-flight and queued tasks', async pool => {
     const events: string[] = [];

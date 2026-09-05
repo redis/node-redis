@@ -632,21 +632,31 @@ export class RedisClientPool<
       // Now all tasks are done, close all clients (which are now idle)
       const promises = [];
       for (const client of this._self.#idleClients) {
-        promises.push(client.close());
+        promises.push(client.close().catch(err => {
+          try {
+            // close() can reject before the socket is destroyed, for example
+            // when disposing a credentials subscription throws.
+            client.destroy();
+          } catch {
+            // Preserve the close error even if forced cleanup also fails.
+          }
+          throw err;
+        }));
       }
 
-      await Promise.all(promises);
-
-      this._self.#clientSideCache?.onPoolClose();
-
+      // A failed close must not let the pool finish closing while other clients
+      // are still draining their pending commands.
+      const results = await Promise.allSettled(promises);
+      for (const result of results) {
+        if (result.status === 'rejected') throw result.reason;
+      }
+    } finally {
       this._self.#idleClients.reset();
       this._self.#clientsInUse.reset();
-    } catch {
-
-    } finally {
       this._self.#drainResolve = undefined;
       this._self.#isClosing = false;
       this._self.#isOpen = false;
+      this._self.#clientSideCache?.onPoolClose();
     }
   }
 
