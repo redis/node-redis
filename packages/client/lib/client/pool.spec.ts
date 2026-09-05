@@ -228,6 +228,22 @@ describe('RedisClientPool', () => {
     });
   }
 
+  testUtils.testWithClientPool('close shares its outcome with a concurrent caller', async pool => {
+    await pool.execute(client => client.destroy());
+
+    const [first, second] = await Promise.allSettled([pool.close(), pool.close()]);
+
+    assert.equal(first.status, 'rejected');
+    assert.equal(second.status, 'rejected');
+    assert.equal((first as PromiseRejectedResult).reason, (second as PromiseRejectedResult).reason);
+    assert.equal(pool.totalClients, 0);
+    assert.equal(pool.isOpen, false);
+    assert.equal(pool.isClosing, false);
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    poolOptions: { minimum: 1, maximum: 1 }
+  });
+
   testUtils.testWithClientPool('close waits for in-flight and queued tasks', async pool => {
     const events: string[] = [];
 

@@ -282,6 +282,12 @@ export class RedisClientPool<
    */
   #drainResolve?: () => void;
 
+  /**
+   * The in-flight close() promise, shared with any concurrent caller so they
+   * observe the same outcome instead of an early, unconditional resolve.
+   */
+  #closePromise?: Promise<void>;
+
   #clientSideCache?: PooledClientSideCacheProvider;
   get clientSideCache() {
     return this._self.#clientSideCache;
@@ -615,12 +621,16 @@ export class RedisClientPool<
   multi = this.MULTI;
 
   async close() {
-    if (this._self.#isClosing) return; // TODO: throw err?
+    if (this._self.#isClosing) return this._self.#closePromise; // TODO: throw err?
     if (!this._self.#isOpen) return; // TODO: throw err?
 
     this._self.#isClosing = true;
     clearTimeout(this._self.cleanupTimeout);
+    this._self.#closePromise = this._self.#doClose();
+    return this._self.#closePromise;
+  }
 
+  async #doClose() {
     try {
       // Wait for all in-flight and queued tasks to complete
       if (this._self.#clientsInUse.length > 0) {
@@ -656,6 +666,7 @@ export class RedisClientPool<
       this._self.#drainResolve = undefined;
       this._self.#isClosing = false;
       this._self.#isOpen = false;
+      this._self.#closePromise = undefined;
       this._self.#clientSideCache?.onPoolClose();
     }
   }
