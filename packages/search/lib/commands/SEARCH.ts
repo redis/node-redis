@@ -26,6 +26,15 @@ export function parseParamsArgument(parser: CommandParser, params?: FtSearchPara
   }
 }
 
+function numericFilterBound(value:number | RedisArgument):RedisArgument{
+  if (typeof value === 'number'){
+    if (value === Infinity) return '+inf';
+    if (value === -Infinity) return '-inf';
+    return value.toString();
+  }
+  return value;
+}
+
 export interface FtSearchOptions {
   VERBATIM?: boolean;
   NOSTOPWORDS?: boolean;
@@ -123,7 +132,7 @@ export function parseSearchOptions(parser: CommandParser, options?: FtSearchOpti
   if (options?.FILTER) {
     const filters = Array.isArray(options.FILTER) ? options.FILTER : [options.FILTER];
     for (const filter of filters) {
-      parser.push('FILTER', filter.field, filter.min.toString(), filter.max.toString());
+      parser.push('FILTER', filter.field, numericFilterBound(filter.min), numericFilterBound(filter.max));
     }
   }
 
@@ -228,14 +237,14 @@ export function parseSearchOptions(parser: CommandParser, options?: FtSearchOpti
 function transformSearchReplyResp2(
   reply: SearchRawReply,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
-  _preserve?: any,
+  _preserve?: unknown,
   _typeMapping?: TypeMapping,
-  options?: FtSearchOptions
 ): SearchReply {
+  const options = _preserve as FtSearchOptions | undefined;
   const documents: SearchReply['documents'] = [];
   
   const hasScores = Boolean(options?.WITHSCORES);
-  const hasExplain = Boolean(options?.EXPLAINSCORE);
+  const hasExplain = Boolean(options?.EXPLAINSCORE) || Boolean(options?.EXPLAINSCORE);
   const hasPayloads = Boolean(options?.WITHPAYLOADS);
   const hasSortKeys = Boolean(options?.WITHSORTKEYS);
   const noContent = Boolean(options?.NOCONTENT);
@@ -296,10 +305,9 @@ function transformSearchReplyResp3(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
   preserve?: any,
   typeMapping?: TypeMapping,
-  options?: FtSearchOptions
 ): SearchReply {
   if (Array.isArray(rawReply)) {
-    return transformSearchReplyResp2(rawReply as SearchRawReply, preserve, typeMapping,options);
+    return transformSearchReplyResp2(rawReply as SearchRawReply, preserve, typeMapping);
   }
 
   const reply = mapLikeToObject(rawReply);
@@ -355,6 +363,7 @@ export default {
     parser.push('FT.SEARCH', index, query);
 
     parseSearchOptions(parser, options);
+    parser.preserve = options;
   },
   transformReply: {
     2: transformSearchReplyResp2,

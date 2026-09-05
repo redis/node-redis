@@ -17,54 +17,54 @@ describe('FT.SEARCH', () => {
 
     it('with VERBATIM', () => {
       assert.deepEqual(
-        parseArgs(SEARCH, 'index', 'query', {
+        Array.from(parseArgs(SEARCH, 'index', 'query', {
           VERBATIM: true
-        }),
+        })),
         ['FT.SEARCH', 'index', 'query', 'VERBATIM', 'DIALECT', DEFAULT_DIALECT]
       );
     });
 
     it('with NOSTOPWORDS', () => {
       assert.deepEqual(
-        parseArgs(SEARCH, 'index', 'query', {
+        Array.from(parseArgs(SEARCH, 'index', 'query', {
           NOSTOPWORDS: true
-        }),
+        })),
         ['FT.SEARCH', 'index', 'query', 'NOSTOPWORDS', 'DIALECT', DEFAULT_DIALECT]
       );
     });
 
     it('with WITHSCORES',() => {
       assert.deepEqual(
-        parseArgs(SEARCH,'index','query',{
+        Array.from(parseArgs(SEARCH,'index','query',{
           WITHSCORES:true
-        }),
+        })),
         ['FT.SEARCH','index','query','WITHSCORES','DIALECT',DEFAULT_DIALECT]
       )
     })
 
      it('with NOCONTENT',() => {
       assert.deepEqual(
-        parseArgs(SEARCH,'index','query',{
+        Array.from(parseArgs(SEARCH,'index','query',{
           NOCONTENT:true
-        }),
+        })),
         ['FT.SEARCH','index','query','NOCONTENT','DIALECT',DEFAULT_DIALECT]
       )
     })
 
      it('with WITHPAYLOADS',() => {
       assert.deepEqual(
-        parseArgs(SEARCH,'index','query',{
+        Array.from(parseArgs(SEARCH,'index','query',{
           WITHPAYLOADS:true
-        }),
+        })),
         ['FT.SEARCH','index','query','WITHPAYLOADS','DIALECT',DEFAULT_DIALECT]
       )
     })
 
      it('with WITHSORTKEYS',() => {
       assert.deepEqual(
-        parseArgs(SEARCH,'index','query',{
+        Array.from(parseArgs(SEARCH,'index','query',{
           WITHSORTKEYS:true
-        }),
+        })),
         ['FT.SEARCH','index','query','WITHSORTKEYS','DIALECT',DEFAULT_DIALECT]
       )
     })
@@ -72,20 +72,20 @@ describe('FT.SEARCH', () => {
       it('with FILTER (single and array)', () => {
     
     assert.deepStrictEqual(
-      parseArgs(SEARCH, 'index', 'query', {
+      Array.from(parseArgs(SEARCH, 'index', 'query', {
         FILTER: { field: 'price', min: 10, max: 100 }
-      }),
+      })),
       ['FT.SEARCH', 'index', 'query', 'FILTER', 'price', '10', '100', 'DIALECT', DEFAULT_DIALECT]
     );
 
     
     assert.deepStrictEqual(
-      parseArgs(SEARCH, 'index', 'query', {
+      Array.from(parseArgs(SEARCH, 'index', 'query', {
         FILTER: [
           { field: 'price', min: 10, max: 100 },
           { field: 'age', min: 18, max: 65 }
         ]
-      }),
+      })),
       [
         'FT.SEARCH', 'index', 'query',
         'FILTER', 'price', '10', '100',
@@ -95,23 +95,32 @@ describe('FT.SEARCH', () => {
     );
   });
 
+  it('with FILTER using Infinity bounds', () => {
+  assert.deepStrictEqual(
+    Array.from(parseArgs(SEARCH, 'index', 'query', {
+      FILTER: { field: 'price', min: -Infinity, max: Infinity }
+    })),
+    ['FT.SEARCH', 'index', 'query', 'FILTER', 'price', '-inf', '+inf', 'DIALECT', DEFAULT_DIALECT]
+  );
+});
+
   it('with GEOFILTER (single and array with units)', () => {
     
     assert.deepStrictEqual(
-      parseArgs(SEARCH, 'index', 'query', {
+      Array.from(parseArgs(SEARCH, 'index', 'query', {
         GEOFILTER: { field: 'location', lon: -122.4194, lat: 37.7749, radius: 10, unit: 'km' }
-      }),
+      })),
       ['FT.SEARCH', 'index', 'query', 'GEOFILTER', 'location', '-122.4194', '37.7749', '10', 'km', 'DIALECT', DEFAULT_DIALECT]
     );
 
     
     assert.deepStrictEqual(
-      parseArgs(SEARCH, 'index', 'query', {
+      Array.from(parseArgs(SEARCH, 'index', 'query', {
         GEOFILTER: [
           { field: 'loc1', lon: 10, lat: 20, radius: 500, unit: 'm' },
           { field: 'loc2', lon: 30, lat: 40, radius: 50, unit: 'mi' }
         ]
-      }),
+      })),
       [
         'FT.SEARCH', 'index', 'query',
         'GEOFILTER', 'loc1', '10', '20', '500', 'm',
@@ -123,27 +132,27 @@ describe('FT.SEARCH', () => {
 
     it('with INKEYS', () => {
       assert.deepEqual(
-        parseArgs(SEARCH, 'index', 'query', {
+        Array.from(parseArgs(SEARCH, 'index', 'query', {
           INKEYS: 'key'
-        }),
+        })),
         ['FT.SEARCH', 'index', 'query', 'INKEYS', '1', 'key', 'DIALECT', DEFAULT_DIALECT]
       );
     });
 
     it('with INFIELDS', () => {
       assert.deepEqual(
-        parseArgs(SEARCH, 'index', 'query', {
+        Array.from(parseArgs(SEARCH, 'index', 'query', {
           INFIELDS: 'field'
-        }),
+        })),
         ['FT.SEARCH', 'index', 'query', 'INFIELDS', '1', 'field', 'DIALECT', DEFAULT_DIALECT]
       );
     });
 
     it('with RETURN', () => {
       assert.deepEqual(
-        parseArgs(SEARCH, 'index', 'query', {
+        Array.from(parseArgs(SEARCH, 'index', 'query', {
           RETURN: 'return'
-        }),
+        })),
         ['FT.SEARCH', 'index', 'query', 'RETURN', '1', 'return', 'DIALECT', DEFAULT_DIALECT]
       );
     });
@@ -151,9 +160,9 @@ describe('FT.SEARCH', () => {
     describe('with SUMMARIZE', () => {
       it('true', () => {
         assert.deepEqual(
-          parseArgs(SEARCH, 'index', 'query', {
+          Array.from(parseArgs(SEARCH, 'index', 'query', {
             SUMMARIZE: true
-          }),
+          })),
           ['FT.SEARCH', 'index', 'query', 'SUMMARIZE', 'DIALECT', DEFAULT_DIALECT]
         );
       });
@@ -161,22 +170,22 @@ describe('FT.SEARCH', () => {
       describe('with FIELDS', () => {
         it('string', () => {
           assert.deepEqual(
-            parseArgs(SEARCH, 'index', 'query', {
+            Array.from(parseArgs(SEARCH, 'index', 'query', {
               SUMMARIZE: {
                 FIELDS: '@field'
               }
-            }),
+            })),
             ['FT.SEARCH', 'index', 'query', 'SUMMARIZE', 'FIELDS', '1', '@field', 'DIALECT', DEFAULT_DIALECT]
           );
         });
 
         it('Array', () => {
           assert.deepEqual(
-            parseArgs(SEARCH, 'index', 'query', {
+            Array.from(parseArgs(SEARCH, 'index', 'query', {
               SUMMARIZE: {
                 FIELDS: ['@1', '@2']
               }
-            }),
+            })),
             ['FT.SEARCH', 'index', 'query', 'SUMMARIZE', 'FIELDS', '2', '@1', '@2', 'DIALECT', DEFAULT_DIALECT]
           );
         });
@@ -184,33 +193,33 @@ describe('FT.SEARCH', () => {
 
       it('with FRAGS', () => {
         assert.deepEqual(
-          parseArgs(SEARCH, 'index', 'query', {
+          Array.from(parseArgs(SEARCH, 'index', 'query', {
             SUMMARIZE: {
               FRAGS: 1
             }
-          }),
+          })),
           ['FT.SEARCH', 'index', 'query', 'SUMMARIZE', 'FRAGS', '1', 'DIALECT', DEFAULT_DIALECT]
         );
       });
 
       it('with LEN', () => {
         assert.deepEqual(
-          parseArgs(SEARCH, 'index', 'query', {
+          Array.from(parseArgs(SEARCH, 'index', 'query', {
             SUMMARIZE: {
               LEN: 1
             }
-          }),
+          })),
           ['FT.SEARCH', 'index', 'query', 'SUMMARIZE', 'LEN', '1', 'DIALECT', DEFAULT_DIALECT]
         );
       });
 
       it('with SEPARATOR', () => {
         assert.deepEqual(
-          parseArgs(SEARCH, 'index', 'query', {
+          Array.from(parseArgs(SEARCH, 'index', 'query', {
             SUMMARIZE: {
               SEPARATOR: 'separator'
             }
-          }),
+          })),
           ['FT.SEARCH', 'index', 'query', 'SUMMARIZE', 'SEPARATOR', 'separator', 'DIALECT', DEFAULT_DIALECT]
         );
       });
@@ -219,9 +228,9 @@ describe('FT.SEARCH', () => {
     describe('with HIGHLIGHT', () => {
       it('true', () => {
         assert.deepEqual(
-          parseArgs(SEARCH, 'index', 'query', {
+          Array.from(parseArgs(SEARCH, 'index', 'query', {
             HIGHLIGHT: true
-          }),
+          })),
           ['FT.SEARCH', 'index', 'query', 'HIGHLIGHT', 'DIALECT', DEFAULT_DIALECT]
         );
       });
@@ -229,22 +238,22 @@ describe('FT.SEARCH', () => {
       describe('with FIELDS', () => {
         it('string', () => {
           assert.deepEqual(
-            parseArgs(SEARCH, 'index', 'query', {
+            Array.from(parseArgs(SEARCH, 'index', 'query', {
               HIGHLIGHT: {
                 FIELDS: ['@field']
               }
-            }),
+            })),
             ['FT.SEARCH', 'index', 'query', 'HIGHLIGHT', 'FIELDS', '1', '@field', 'DIALECT', DEFAULT_DIALECT]
           );
         });
 
         it('Array', () => {
           assert.deepEqual(
-            parseArgs(SEARCH, 'index', 'query', {
+            Array.from(parseArgs(SEARCH, 'index', 'query', {
               HIGHLIGHT: {
                 FIELDS: ['@1', '@2']
               }
-            }),
+            })),
             ['FT.SEARCH', 'index', 'query', 'HIGHLIGHT', 'FIELDS', '2', '@1', '@2', 'DIALECT', DEFAULT_DIALECT]
           );
         });
@@ -252,14 +261,14 @@ describe('FT.SEARCH', () => {
 
       it('with TAGS', () => {
         assert.deepEqual(
-          parseArgs(SEARCH, 'index', 'query', {
+          Array.from(parseArgs(SEARCH, 'index', 'query', {
             HIGHLIGHT: {
               TAGS: {
                 open: 'open',
                 close: 'close'
               }
             }
-          }),
+          })),
           ['FT.SEARCH', 'index', 'query', 'HIGHLIGHT', 'TAGS', 'open', 'close', 'DIALECT', DEFAULT_DIALECT]
         );
       });
@@ -267,64 +276,64 @@ describe('FT.SEARCH', () => {
 
     it('with SLOP', () => {
       assert.deepEqual(
-        parseArgs(SEARCH, 'index', 'query', {
+        Array.from(parseArgs(SEARCH, 'index', 'query', {
           SLOP: 1
-        }),
+        })),
         ['FT.SEARCH', 'index', 'query', 'SLOP', '1', 'DIALECT', DEFAULT_DIALECT]
       );
     });
 
     it('with TIMEOUT', () => {
       assert.deepEqual(
-        parseArgs(SEARCH, 'index', 'query', {
+        Array.from(parseArgs(SEARCH, 'index', 'query', {
           TIMEOUT: 1
-        }),
+        })),
         ['FT.SEARCH', 'index', 'query', 'TIMEOUT', '1', 'DIALECT', DEFAULT_DIALECT]
       );
     });
 
     it('with INORDER', () => {
       assert.deepEqual(
-        parseArgs(SEARCH, 'index', 'query', {
+        Array.from(parseArgs(SEARCH, 'index', 'query', {
           INORDER: true
-        }),
+        })),
         ['FT.SEARCH', 'index', 'query', 'INORDER', 'DIALECT', DEFAULT_DIALECT]
       );
     });
 
     it('with LANGUAGE', () => {
       assert.deepEqual(
-        parseArgs(SEARCH, 'index', 'query', {
+        Array.from(parseArgs(SEARCH, 'index', 'query', {
           LANGUAGE: 'Arabic'
-        }),
+        })),
         ['FT.SEARCH', 'index', 'query', 'LANGUAGE', 'Arabic', 'DIALECT', DEFAULT_DIALECT]
       );
     });
 
     it('with EXPANDER', () => {
       assert.deepEqual(
-        parseArgs(SEARCH, 'index', 'query', {
+        Array.from(parseArgs(SEARCH, 'index', 'query', {
           EXPANDER: 'expender'
-        }),
+        })),
         ['FT.SEARCH', 'index', 'query', 'EXPANDER', 'expender', 'DIALECT', DEFAULT_DIALECT]
       );
     });
 
     it('with SCORER', () => {
       assert.deepEqual(
-        parseArgs(SEARCH, 'index', 'query', {
+        Array.from(parseArgs(SEARCH, 'index', 'query', {
           SCORER: 'scorer'
-        }),
+        })),
         ['FT.SEARCH', 'index', 'query', 'SCORER', 'scorer', 'DIALECT', DEFAULT_DIALECT]
       );
     });
 
     it('with EXPLAINSCORE', () => {
     assert.deepStrictEqual(
-      parseArgs(SEARCH, 'index', 'query', {
+      Array.from(parseArgs(SEARCH, 'index', 'query', {
         WITHSCORES: true,
         EXPLAINSCORE: true
-      }),
+      })),
       ['FT.SEARCH', 'index', 'query', 'WITHSCORES', 'EXPLAINSCORE', 'DIALECT', DEFAULT_DIALECT]
     );
     });
@@ -332,55 +341,61 @@ describe('FT.SEARCH', () => {
 
     it('with PAYLOAD', () => {
     assert.deepStrictEqual(
-      parseArgs(SEARCH, 'index', 'query', {
+      Array.from(parseArgs(SEARCH, 'index', 'query', {
         PAYLOAD: 'evaluation-payload-string'
-      }),
+      })),
       ['FT.SEARCH', 'index', 'query', 'PAYLOAD', 'evaluation-payload-string', 'DIALECT', DEFAULT_DIALECT]
     );
   });
 
     it('with SORTBY', () => {
       assert.deepEqual(
-        parseArgs(SEARCH, 'index', 'query', {
+        Array.from(parseArgs(SEARCH, 'index', 'query', {
           SORTBY: '@by'
-        }),
+        })),
         ['FT.SEARCH', 'index', 'query', 'SORTBY', '@by', 'DIALECT', DEFAULT_DIALECT]
       );
     });
 
     it('with LIMIT', () => {
       assert.deepEqual(
-        parseArgs(SEARCH, 'index', 'query', {
+        Array.from(parseArgs(SEARCH, 'index', 'query', {
           LIMIT: {
             from: 0,
             size: 1
           }
-        }),
+        })),
         ['FT.SEARCH', 'index', 'query', 'LIMIT', '0', '1', 'DIALECT', DEFAULT_DIALECT]
       );
     });
 
     it('with PARAMS', () => {
       assert.deepEqual(
-        parseArgs(SEARCH, 'index', 'query', {
+        Array.from(parseArgs(SEARCH, 'index', 'query', {
           PARAMS: {
             string: 'string',
             buffer: Buffer.from('buffer'),
             number: 1
           }
-        }),
+        })),
         ['FT.SEARCH', 'index', 'query', 'PARAMS', '6', 'string', 'string', 'buffer', Buffer.from('buffer'), 'number', '1', 'DIALECT', DEFAULT_DIALECT]
       );
     });
 
     it('with DIALECT', () => {
       assert.deepEqual(
-        parseArgs(SEARCH, 'index', 'query', {
+        Array.from(parseArgs(SEARCH, 'index', 'query', {
           DIALECT: 1
-        }),
+        })),
         ['FT.SEARCH', 'index', 'query', 'DIALECT', '1']
       );
     });
+
+    it('stores the options for use by transformReply', () => {
+    const options = { WITHSCORES: true, NOCONTENT: true };
+    const args = parseArgs(SEARCH, 'index', 'query', options);
+    assert.deepEqual(args.preserve, options);
+  });
   });
 
   describe('transformReply', () => {

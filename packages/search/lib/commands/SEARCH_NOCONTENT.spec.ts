@@ -14,27 +14,27 @@ describe('FT.SEARCH NOCONTENT', () => {
     });
     it('with a permitted option (FILTER)', () => {
       assert.deepEqual(
-        parseArgs(SEARCH_NOCONTENT, 'index', 'query', {
+        Array.from(parseArgs(SEARCH_NOCONTENT, 'index', 'query', {
           FILTER: { field: 'price', min: 10, max: 100 }
-        }),
+        })),
         ['FT.SEARCH', 'index', 'query', 'FILTER', 'price', '10', '100', 'DIALECT', DEFAULT_DIALECT, 'NOCONTENT']
       );
     });
 
     it('with LIMIT', () => {
       assert.deepEqual(
-        parseArgs(SEARCH_NOCONTENT, 'index', 'query', {
+        Array.from(parseArgs(SEARCH_NOCONTENT, 'index', 'query', {
           LIMIT: { from: 0, size: 5 }
-        }),
+        })),
         ['FT.SEARCH', 'index', 'query', 'LIMIT', '0', '5', 'DIALECT', DEFAULT_DIALECT, 'NOCONTENT']
       );
     });
 
     it('with SORTBY', () => {
       assert.deepEqual(
-        parseArgs(SEARCH_NOCONTENT, 'index', 'query', {
+        Array.from(parseArgs(SEARCH_NOCONTENT, 'index', 'query', {
           SORTBY: { BY: '@field', DIRECTION: 'DESC' }
-        }),
+        })),
         ['FT.SEARCH', 'index', 'query', 'SORTBY', '@field', 'DESC', 'DIALECT', DEFAULT_DIALECT, 'NOCONTENT']
       );
     });
