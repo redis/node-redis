@@ -789,8 +789,8 @@ export default class RedisClusterSlots<
         wasReady = true;
         this.#reconnectionTracker.removeClient(client._clientId);
       })
-      .once('ready', () => emit('node-ready', clientInfo))
-      .once('connect', () => emit('node-connect', clientInfo))
+      .on('ready', () => emit('node-ready', clientInfo))
+      .on('connect', () => emit('node-connect', clientInfo))
       .once('end', () => {
         this.#reconnectionTracker.removeClient(client._clientId);
         emit('node-disconnect', clientInfo);
