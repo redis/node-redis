@@ -5,13 +5,15 @@ import { transformInfoV2Reply } from '../bloom';
 export type CmsInfoReplyMap = TuplesToMapReply<[
   [SimpleStringReply<'width'>, NumberReply],
   [SimpleStringReply<'depth'>, NumberReply],
-  [SimpleStringReply<'count'>, NumberReply]
+  [SimpleStringReply<'count'>, NumberReply],
+  [SimpleStringReply<'cell size'>, NumberReply]
 ]>;
 
 export interface CmsInfoReply {
   width: NumberReply;
   depth: NumberReply;
   count: NumberReply;
+  'cell size'?: NumberReply;
 }
  
 export default {

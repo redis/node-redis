@@ -19,11 +19,13 @@ describe('CMS.INFO', () => {
         client.cms.info('key')
       ]);
 
-    const expected = {};
-    expected['width'] = width;
-    expected['depth'] = depth;
-    expected['count'] = 0;
-
-    assert.deepEqual(reply, expected);
+    assert.equal(reply.width, width);
+    assert.equal(reply.depth, depth);
+    assert.equal(reply.count, 0);
+    // Newer server builds also report the counter byte width (uint32 => 4);
+    // older builds omit the field entirely.
+    if ('cell size' in reply) {
+      assert.equal(reply['cell size'], 4);
+    }
   }, GLOBAL.SERVERS.OPEN);
 });
