@@ -6,7 +6,7 @@ import { DEFAULT_DIALECT } from '../dialect/default';
 import { getMapValue, mapLikeToObject, mapLikeValues, parseDocumentValue, parseSearchResultRow, parseWarnings } from './reply-transformers';
 
 export type FtSearchParams = Record<string, RedisArgument | number>;
-export type ScoreExplain = string | [string, Array<ScoreExplain>];
+export type ScoreExplain = string  | Buffer| [string | Buffer, Array<ScoreExplain>];
 
 export function parseParamsArgument(parser: CommandParser, params?: FtSearchParams) {
   if (params) {
@@ -39,9 +39,11 @@ function numericFilterBound(value:number | RedisArgument):RedisArgument{
 function normalizeScoreExplain(raw: unknown): ScoreExplain {
   if (Array.isArray(raw)) {
     const [summary, children] = raw;
-    return [String(summary), Array.isArray(children) ? children.map(normalizeScoreExplain) : []];
+    const normalizedSummary = Buffer.isBuffer(summary) ? summary : String(summary);
+    return [
+      normalizedSummary, Array.isArray(children) ? children.map(normalizeScoreExplain) : []];
   }
-  return String(raw);
+  return Buffer.isBuffer(raw) ? raw: String(raw);
 }
 
 export interface FtSearchOptions {
@@ -279,12 +281,18 @@ function transformSearchReplyResp2(
 
     let payload: string |Buffer | undefined;
     if (hasPayloads){
-      payload = reply[i++] as string | Buffer;
+      const rawpayload = reply[i++];
+      if (rawpayload !== undefined && rawpayload !== null){
+        payload = rawpayload as string | Buffer;
+      }
     }
 
     let sortKey: string | Buffer | undefined;
     if (hasSortKeys) {
-      sortKey = reply[i++] as string | Buffer;
+      const rawSortKey = reply[i++];
+      if(rawSortKey !== null && rawSortKey !== undefined){
+        sortKey = rawSortKey as string | Buffer;
+      }
     }
 
     let value: SearchDocumentValue = {};
@@ -373,7 +381,15 @@ export default {
     parser.push('FT.SEARCH', index, query);
 
     parseSearchOptions(parser, options);
-    parser.preserve = options;
+    parser.preserve = Object.freeze({
+    WITHSCORES: Boolean(options?.WITHSCORES),
+    EXPLAINSCORE: Boolean(options?.EXPLAINSCORE),
+    NOCONTENT: Boolean(options?.NOCONTENT),
+    WITHPAYLOADS: Boolean(options?.WITHPAYLOADS),
+    WITHSORTKEYS: Boolean(options?.WITHSORTKEYS),
+    RETURN: Array.isArray(options?.RETURN) ?
+            [...options.RETURN]:options?.RETURN
+});
   },
   transformReply: {
     2: transformSearchReplyResp2,
