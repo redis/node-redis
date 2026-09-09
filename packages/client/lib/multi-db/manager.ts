@@ -65,7 +65,7 @@ export class MultiDbManager<C extends AnyRedisClientType> {
   /** forced selection: suspends auto-fallback until released or the member fails */
   #pinnedTo: Database<C> | null = null;
   readonly #teardown = new AbortController();
-  #events?: Pick<MultiDbController<C>, 'emit'>;
+  #events?: Pick<MultiDbController<C>, 'emit' | 'listenerCount'>;
   readonly #healthTimers = new Map<Database<C>, NodeJS.Timeout>();
   /** per-member overlap guard: a probe round may outlast the check interval */
   readonly #probing = new Set<Database<C>>();
@@ -130,8 +130,20 @@ export class MultiDbManager<C extends AnyRedisClientType> {
    * from its constructor (`controller.ts:MultiDbController`). Anything emitted
    * before that is silently dropped — don't emit from the manager constructor.
    */
-  bindEvents(events: Pick<MultiDbController<C>, 'emit'>): void {
+  bindEvents(events: Pick<MultiDbController<C>, 'emit' | 'listenerCount'>): void {
     this.#events = events;
+  }
+
+  /**
+   * Background-error outlet: EventEmitter throws on 'error' with zero
+   * listeners, and these emits run inside promise handlers where the throw
+   * would become an unhandled rejection and kill the process. Housekeeping
+   * failures degrade to silence instead — an 'error' listener is optional.
+   */
+  #emitError(err: Error): void {
+    if (this.#events && this.#events.listenerCount('error') > 0) {
+      this.#events.emit('error', err);
+    }
   }
 
   /**
@@ -184,7 +196,7 @@ export class MultiDbManager<C extends AnyRedisClientType> {
       this.#events?.emit('failover', { from: from.id, to: target.id, reason });
     }
 
-    this.#afterSwitch(from, target).catch(err => this.#events?.emit('error', err));
+    this.#afterSwitch(from, target).catch(err => this.#emitError(err as Error));
   }
 
   async #afterSwitch(from: Database<C>, to: Database<C>): Promise<void> {
@@ -290,7 +302,7 @@ export class MultiDbManager<C extends AnyRedisClientType> {
           return;
       }
     } catch (err) {
-      this.#events?.emit('error', err as Error);
+      this.#emitError(err as Error);
     } finally {
       this.#probing.delete(db);
     }
