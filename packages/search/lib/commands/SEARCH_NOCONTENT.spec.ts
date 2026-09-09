@@ -14,6 +14,7 @@ describe('FT.SEARCH NOCONTENT', () => {
         ['FT.SEARCH', 'index', 'query', 'DIALECT', DEFAULT_DIALECT, 'NOCONTENT']
       );
     });
+
     it('with a permitted option (FILTER)', () => {
       assert.deepEqual(
         Array.from(parseArgs(SEARCH_NOCONTENT, 'index', 'query', {
@@ -41,38 +42,40 @@ describe('FT.SEARCH NOCONTENT', () => {
       );
     });
 
-    it('legacy array-shaped RESP3', () => {
-    const legacyArrayReply = [2, '1', '2'];
-    const result = SEARCH_NOCONTENT.transformReply[3](
-    legacyArrayReply as unknown as ReplyUnion,
-    { FILTER: { field: 'x', min: 0, max: 1 },NOCONTENT:true }
-  );
-  assert.deepStrictEqual(result, {
-    total: 2,
-    documents: ['1', '2'],
-    warnings: []
-      });
-    });
-
     it('parseCommand injects NOCONTENT and preserves an ID-only layout', () => {
-    const parser = new BasicCommandParser();
-    SEARCH_NOCONTENT.parseCommand(
-      parser,
-      'index',
-      'query',
-      { FILTER: { field: 'x', min: 0, max: 1 } }
-    );
+      const parser = new BasicCommandParser();
+      SEARCH_NOCONTENT.parseCommand(
+        parser,
+        'index',
+        'query',
+        { FILTER: { field: 'x', min: 0, max: 1 } }
+      );
 
-    assert.deepStrictEqual(parser.preserve, {
-      WITHSCORES: false,
-      EXPLAINSCORE: false,
-      NOCONTENT: true,
-      WITHPAYLOADS: false,
-      WITHSORTKEYS: false,
-      RETURN: undefined
+      assert.deepStrictEqual(parser.preserve, {
+        WITHSCORES: false,
+        EXPLAINSCORE: false,
+        NOCONTENT: true,
+        WITHPAYLOADS: false,
+        WITHSORTKEYS: false,
+        RETURN: undefined
+      });
     });
   });
 
+  describe('transformReply', () => {
+    it('legacy array-shaped RESP3', () => {
+      const legacyArrayReply = [2, '1', '2'];
+      const result = SEARCH_NOCONTENT.transformReply[3](
+        legacyArrayReply as unknown as ReplyUnion,
+        { FILTER: { field: 'x', min: 0, max: 1 }, NOCONTENT: true }
+      );
+
+      assert.deepStrictEqual(result, {
+        total: 2,
+        documents: ['1', '2'],
+        warnings: []
+      });
+    });
   });
 
   describe('client.ft.searchNoContent', () => {
@@ -113,7 +116,7 @@ describe('FT.SEARCH NOCONTENT', () => {
       assert.ok(Array.isArray(reply.documents));
       assert.equal(reply.documents.length, 2);
     }, GLOBAL.SERVERS.OPEN);
-  
+
     testUtils.testWithClient('documents are plain string IDs, not objects', async client => {
       await Promise.all([
         client.ft.create('index', { field: 'TEXT' }),

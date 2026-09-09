@@ -1,12 +1,12 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument, Command, ReplyUnion, TypeMapping, DoubleReply, BlobStringReply } from '@redis/client/dist/lib/RESP/types';
-import { RedisVariadicArgument, parseOptionalVariadicArgument, transformDoubleReply } from '@redis/client/dist/lib/commands/generic-transformers';
+import { RedisVariadicArgument, parseOptionalVariadicArgument, transformDoubleReply, transformStringDoubleArgument } from '@redis/client/dist/lib/commands/generic-transformers';
 import { RediSearchLanguage } from './CREATE';
 import { DEFAULT_DIALECT } from '../dialect/default';
 import { getMapValue, mapLikeToObject, mapLikeValues, parseDocumentValue, parseSearchResultRow, parseWarnings } from './reply-transformers';
 
 export type FtSearchParams = Record<string, RedisArgument | number>;
-export type ScoreExplain = string  | Buffer| [string | Buffer, Array<ScoreExplain>];
+export type ScoreExplain = string | Buffer | [string | Buffer, Array<ScoreExplain>];
 
 export function parseParamsArgument(parser: CommandParser, params?: FtSearchParams) {
   if (params) {
@@ -27,15 +27,6 @@ export function parseParamsArgument(parser: CommandParser, params?: FtSearchPara
   }
 }
 
-function numericFilterBound(value:number | RedisArgument):RedisArgument{
-  if (typeof value === 'number'){
-    if (value === Infinity) return '+inf';
-    if (value === -Infinity) return '-inf';
-    return value.toString();
-  }
-  return value;
-}
-
 function normalizeScoreExplain(raw: unknown): ScoreExplain {
   if (Array.isArray(raw)) {
     const [summary, children] = raw;
@@ -46,36 +37,60 @@ function normalizeScoreExplain(raw: unknown): ScoreExplain {
   return Buffer.isBuffer(raw) ? raw: String(raw);
 }
 
+export interface SearchNumericFilter {
+  field: RedisArgument;
+  /**
+   * Inclusive lower bound. Use `-Infinity` for an open bound, or a string
+   * such as `'(10'` for an exclusive bound.
+   */
+  min: number | RedisArgument;
+  /**
+   * Inclusive upper bound. Use `Infinity` for an open bound, or a string
+   * such as `'(100'` for an exclusive bound.
+   */
+  max: number | RedisArgument;
+}
+
+export interface SearchGeoFilter {
+  field: RedisArgument;
+  lon: number;
+  lat: number;
+  radius: number;
+  unit: 'm' | 'km' | 'mi' | 'ft';
+}
+
 export interface FtSearchOptions {
   VERBATIM?: boolean;
   NOSTOPWORDS?: boolean;
   INKEYS?: RedisVariadicArgument;
+  /**
+   * Also return the relevance score of each document, exposed as `score` on
+   * each reply document.
+   */
   WITHSCORES?: boolean;
+  /**
+   * Return a textual explanation of how each score was computed, exposed as
+   * `scoreExplain` on each reply document. Implies `WITHSCORES`.
+   */
   EXPLAINSCORE?: boolean;
+  /**
+   * Also return each document's payload (set at indexing time), exposed as
+   * `payload` on each reply document.
+   */
   WITHPAYLOADS?: boolean;
+  /**
+   * Also return the value of the sorting key, exposed as `sortKey` on each
+   * reply document. Only relevant together with `SORTBY`.
+   */
   WITHSORTKEYS?: boolean;
-  FILTER?: {
-    field: RedisArgument;
-    min: number | RedisArgument;
-    max: number | RedisArgument;
-  } | Array<{
-    field: RedisArgument;
-    min: number | RedisArgument;
-    max: number | RedisArgument;
-  }>;
-  GEOFILTER?: {
-    field: RedisArgument;
-    lon: number;
-    lat: number;
-    radius: number;
-    unit: 'm' | 'km' | 'mi' | 'ft';
-  } | Array<{
-    field: RedisArgument;
-    lon: number;
-    lat: number;
-    radius: number;
-    unit: 'm' | 'km' | 'mi' | 'ft';
-  }>;
+  /**
+   * Limit results to a numeric range on one or more numeric fields.
+   */
+  FILTER?: SearchNumericFilter | Array<SearchNumericFilter>;
+  /**
+   * Limit results to a geographic radius on one or more geo fields.
+   */
+  GEOFILTER?: SearchGeoFilter | Array<SearchGeoFilter>;
   INFIELDS?: RedisVariadicArgument;
   RETURN?: RedisVariadicArgument;
   SUMMARIZE?: boolean | {
@@ -97,6 +112,10 @@ export interface FtSearchOptions {
   LANGUAGE?: RediSearchLanguage;
   EXPANDER?: RedisArgument;
   SCORER?: RedisArgument;
+  /**
+   * An arbitrary payload passed to the scoring function (see `SCORER`).
+   * Not returned in the reply.
+   */
   PAYLOAD?: RedisArgument;
   SORTBY?: RedisArgument | {
     BY: RedisArgument;
@@ -127,18 +146,18 @@ export function parseSearchOptions(parser: CommandParser, options?: FtSearchOpti
     parser.push('EXPLAINSCORE');
   }
 
-  if(options?.WITHPAYLOADS) {
+  if (options?.WITHPAYLOADS) {
     parser.push('WITHPAYLOADS');
   }
 
-  if(options?.WITHSORTKEYS) {
+  if (options?.WITHSORTKEYS) {
     parser.push('WITHSORTKEYS');
   }
 
   if (options?.FILTER) {
     const filters = Array.isArray(options.FILTER) ? options.FILTER : [options.FILTER];
     for (const filter of filters) {
-      parser.push('FILTER', filter.field, numericFilterBound(filter.min), numericFilterBound(filter.max));
+      parser.push('FILTER', filter.field, transformStringDoubleArgument(filter.min), transformStringDoubleArgument(filter.max));
     }
   }
 
@@ -269,7 +288,7 @@ function transformSearchReplyResp2(
   reply: SearchRawReply,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
   preserve?: any,
-  typeMapping?: TypeMapping,
+  typeMapping?: TypeMapping
 ): SearchReply {
   const options = preserve as Partial<SearchLayoutOptions> | undefined;
   const documents: SearchReply['documents'] = [];
@@ -327,7 +346,7 @@ function transformSearchReplyResp2(
       ...(scoreExplain !== undefined ? { scoreExplain } : {}),
       ...(payload !== undefined ? { payload } : {}),
       ...(sortKey !== undefined ? { sortKey } : {}),
-      value,
+      value
     });
   }
 
@@ -343,7 +362,7 @@ function transformSearchReplyResp3(
   rawReply: ReplyUnion,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
   preserve?: any,
-  typeMapping?: TypeMapping,
+  typeMapping?: TypeMapping
 ): SearchReply {
   if (Array.isArray(rawReply)) {
     return transformSearchReplyResp2(rawReply as SearchRawReply, preserve, typeMapping);
@@ -359,8 +378,8 @@ function transformSearchReplyResp3(
   const documents: SearchReply['documents'] = results.map(result => {
     const resultMap = mapLikeToObject(result);
     const { id, value } = parseSearchResultRow(result);
-    
-    const rawScore = getMapValue(resultMap,['score']);
+
+    const rawScore = getMapValue(resultMap, ['score']);
     const rawPayload = getMapValue(resultMap, ['payload']);
     const rawSortKey = getMapValue(resultMap, ['sortkey']);
 
@@ -382,10 +401,10 @@ function transformSearchReplyResp3(
 
     return {
       id: String((id as { toString?(): string })?.toString?.() ?? id ?? ''),
-      ...(score !== undefined && score !== null ? {score} : {}),
-      ...(scoreExplain !== undefined ? {scoreExplain} : {}),
-      ...(rawPayload !== undefined && rawPayload !== null? {payload: rawPayload as string | Buffer} : {}),
-      ...(rawSortKey !== undefined && rawSortKey !== null ? {sortKey: rawSortKey as string | Buffer}: {}),
+      ...(score !== undefined && score !== null ? { score } : {}),
+      ...(scoreExplain !== undefined ? { scoreExplain } : {}),
+      ...(rawPayload !== undefined && rawPayload !== null ? { payload: rawPayload as string | Buffer } : {}),
+      ...(rawSortKey !== undefined && rawSortKey !== null ? { sortKey: rawSortKey as string | Buffer } : {}),
       value: value as SearchDocumentValue
     };
   });
@@ -423,9 +442,24 @@ export interface SearchReply {
   total: number;
   documents: Array<{
       id: string;
+      /**
+       * Relevance score; present when `WITHSCORES` or `EXPLAINSCORE` was set.
+       * A number by default; follows the client's `DOUBLE` type mapping.
+       */
       score?: DoubleReply;
+      /**
+       * Score explanation tree; present when `EXPLAINSCORE` was set.
+       */
       scoreExplain?: ScoreExplain;
+      /**
+       * Document payload; present when `WITHPAYLOADS` was set and the
+       * document has a payload.
+       */
       payload?: string | Buffer;
+      /**
+       * Sorting-key value; present when `WITHSORTKEYS` was set and the
+       * document has one (see `SORTBY`).
+       */
       sortKey?: string | Buffer;
       value: SearchDocumentValue;
   }>;
