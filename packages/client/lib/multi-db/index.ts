@@ -198,6 +198,18 @@ export function createMultiDbClient<
         to.extendPubSubListeners(PUBSUB_TYPE.PATTERNS, listeners[PUBSUB_TYPE.PATTERNS]),
         to.extendPubSubListeners(PUBSUB_TYPE.SHARDED, listeners[PUBSUB_TYPE.SHARDED])
       ]);
+      // subscriber state survives server-side on the old member's live main
+      // connection; left in place, a RESP2 member rejects every regular command
+      // when traffic later returns to it. Best-effort: a member that is down
+      // reconnects with a fresh connection and empty maps, so there is nothing
+      // to clean.
+      if (from.isReady) {
+        await Promise.allSettled([
+          listeners[PUBSUB_TYPE.CHANNELS].size ? from.unsubscribe() : undefined,
+          listeners[PUBSUB_TYPE.PATTERNS].size ? from.pUnsubscribe() : undefined,
+          listeners[PUBSUB_TYPE.SHARDED].size ? from.sUnsubscribe() : undefined
+        ]);
+      }
     }
   };
   return assemble(databases, config, adapter);
