@@ -975,6 +975,16 @@ export default class RedisCluster<
   sUnsubscribe = this.SUNSUBSCRIBE;
 
   /**
+   * @internal
+   * Detach and return every pub/sub listener across the cluster. Paired with
+   * {@link resubscribeAllPubSubListeners} so the multi-database client can move
+   * subscriptions to another cluster on failover.
+   */
+  _removeAllPubSubListeners() {
+    return this._self._slots.removeAllPubSubListeners();
+  }
+
+  /**
    * @deprecated Use `close` instead.
    */
   quit() {

@@ -170,10 +170,12 @@ a `CLOSED` circuit, or `undefined` to escalate.
 - **Eventual consistency.** Members are assumed to be asynchronously replicated. A switch
   offers no read-your-writes guarantee: a write acknowledged by the old member may not be
   visible on the new one.
-- **Pub/sub.** On a switch between standalone members, subscriptions move to the new member
-  and are removed from the old one (so its recovery cannot double-deliver). Messages
-  published between the switch and the re-subscribe completing are lost. Cluster, sentinel
-  and pool members do not transfer subscriptions across a switch yet.
+- **Pub/sub.** On a switch, active subscriptions (channels, patterns, and sharded channels)
+  move to the new member and are removed from the old one (so its recovery cannot
+  double-deliver). Messages published between the switch and the re-subscribe completing are
+  lost. This applies to standalone, cluster, and sentinel members. Pool members have no
+  pub/sub surface (subscriptions need a dedicated connection the pool does not expose), so
+  there is nothing to transfer.
 - **Client-side caching** works per member and needs no flush on switch: each member client
   maintains its own tracked cache, so reads after a failover are served by the new member.
 - **Resource overhead.** N member connections are live the whole time (each kind's usual

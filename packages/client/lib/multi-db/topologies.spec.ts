@@ -175,6 +175,42 @@ describe('multi-db topologies', function () {
       }
     });
 
+    // forced (non-destructive) switch: keeps both clusters alive for the kill
+    // test below while exercising the same `movePubSub` transfer path
+    it('moves pub/sub subscriptions to the new cluster on a switch', async () => {
+      const { client, controller } = createMultiDbCluster({
+        ...FAST_FAILOVER,
+        autoFallbackInterval: -1,
+        databases: [
+          { ...memberOf(clusterA), weight: 1 },
+          { ...memberOf(clusterB), weight: 0.5 }
+        ]
+      });
+      const typed: RedisClusterType = client;
+      await typed.connect();
+      controller.on('error', () => {});
+      try {
+        const received: Array<string> = [];
+        await typed.subscribe('news', message => {
+          received.push(message.toString());
+        });
+
+        const forced = once(controller, 'failover');
+        await controller.setActiveDatabase('db-1');
+        await forced;
+
+        // the re-subscribe on the new cluster races the switch: publish until heard
+        const deadline = Date.now() + 10_000;
+        while (received.length === 0 && Date.now() < deadline) {
+          await typed.publish('news', 'delivered');
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        assert.ok(received.includes('delivered'), 'subscription must be live on the new active cluster');
+      } finally {
+        client.destroy();
+      }
+    });
+
     it('fails over from one cluster to the other when the whole cluster dies', async () => {
       const { client, controller } = createMultiDbCluster({
         ...FAST_FAILOVER,
@@ -288,6 +324,42 @@ describe('multi-db topologies', function () {
         const fallback = once<{ from: string; to: string }>(controller, 'fallback');
         controller.releasePin();
         assert.deepEqual(await fallback, { from: 'db-1', to: 'db-0' });
+      } finally {
+        client.destroy();
+      }
+    });
+
+    // forced (non-destructive) switch: keeps both deployments alive while
+    // exercising the same `movePubSub` transfer path
+    it('moves pub/sub subscriptions to the new deployment on a switch', async () => {
+      const { client, controller } = createMultiDbSentinel({
+        ...FAST_FAILOVER,
+        autoFallbackInterval: -1,
+        databases: [
+          { ...memberOf(frameA), weight: 1 },
+          { ...memberOf(frameB), weight: 0.5 }
+        ]
+      });
+      const typed: RedisSentinelType = client;
+      await typed.connect();
+      controller.on('error', () => {});
+      try {
+        const received: Array<string> = [];
+        await typed.subscribe('news', message => {
+          received.push(message.toString());
+        });
+
+        const forced = once(controller, 'failover');
+        await controller.setActiveDatabase('db-1');
+        await forced;
+
+        // the re-subscribe on the new deployment races the switch: publish until heard
+        const deadline = Date.now() + 10_000;
+        while (received.length === 0 && Date.now() < deadline) {
+          await typed.publish('news', 'delivered');
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        assert.ok(received.includes('delivered'), 'subscription must be live on the new active deployment');
       } finally {
         client.destroy();
       }
