@@ -282,6 +282,36 @@ describe('multi-db failover', function () {
     }
   });
 
+  it('background errors without an error listener do not crash the process', async () => {
+    const { client, controller } = createMultiDbClient({
+      ...FAST_FAILOVER,
+      databases: [memberOf(serverA), memberOf(serverB)]
+    });
+    await client.connect();
+    // outside a test runner an unhandled rejection kills the process; capture
+    // it here so the crash is assertable instead of runner-dependent
+    const rejections: Array<unknown> = [];
+    const onRejection = (err: unknown) => rejections.push(err);
+    process.on('unhandledRejection', onRejection);
+    // deliberately NO controller.on('error', ...): the guarded emit must drop
+    // the background error instead of throwing inside a promise handler
+    const unhealthy = once<{ id: string }>(controller, 'database-unhealthy' as never);
+    controller.on('database-unhealthy', () => {
+      throw new Error('listener explosion');
+    });
+    try {
+      await kill(serverB); // passive member: only the background check sees it
+      assert.equal((await unhealthy).id, 'db-1');
+      // give the interval's promise chain a beat to surface the rejection
+      await new Promise(resolve => setTimeout(resolve, 500));
+      assert.deepEqual(rejections, []);
+      assert.equal(await (client as { ping(): Promise<string> }).ping(), 'PONG');
+    } finally {
+      process.off('unhandledRejection', onRejection);
+      client.destroy();
+    }
+  });
+
   it('a repeat connect() recovers a permanently unavailable client', async function () {
     this.timeout(90_000);
     const { client, controller } = createMultiDbClient({

@@ -128,7 +128,10 @@ and clears the pin.
 | `database-unhealthy` | `{ id, cause }` | a member's circuit opened |
 | `database-recovered` | `{ id }` | a member's circuit closed again |
 | `all-databases-down` | `{ attempt, maxAttempts }` | one failed selection attempt with no healthy member |
-| `error` | `Error` | a background task failed |
+| `error` | `Error` | a background task failed (pub/sub move, health-check round) |
+
+An `error` listener is optional: with none attached, background errors are dropped instead of
+crashing the process the way an unhandled EventEmitter `error` normally would.
 
 ## Custom health checks and detectors
 
