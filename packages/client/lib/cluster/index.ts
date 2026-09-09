@@ -410,7 +410,9 @@ export default class RedisCluster<
     };
     this._options = options;
     this._slots = new RedisClusterSlots(options, this.emit.bind(this), this.#identity.id);
-    this.on(RESUBSCRIBE_LISTENERS_EVENT, this.resubscribeAllPubSubListeners.bind(this));
+    this.on(RESUBSCRIBE_LISTENERS_EVENT, (listeners: Partial<PubSubListeners>) => {
+      this.resubscribeAllPubSubListeners(listeners).catch(err => this.emit('error', err));
+    });
 
     this._commandOptions = { timeout: DEFAULT_COMMAND_TIMEOUT, ...options?.commandOptions };
 
@@ -937,14 +939,16 @@ export default class RedisCluster<
     );
   }
 
-  resubscribeAllPubSubListeners(allListeners: Partial<PubSubListeners>) {
+  resubscribeAllPubSubListeners(allListeners: Partial<PubSubListeners>): Promise<unknown> {
+    const promises: Array<Promise<unknown>> = [];
+
     if (allListeners.CHANNELS) {
       for(const [channel, listeners] of allListeners.CHANNELS) {
         listeners.buffers.forEach(bufListener => {
-          this.subscribe(channel, bufListener, true);
+          promises.push(this.subscribe(channel, bufListener, true));
         });
         listeners.strings.forEach(strListener => {
-          this.subscribe(channel, strListener);
+          promises.push(this.subscribe(channel, strListener));
         });
       }
     }
@@ -952,10 +956,10 @@ export default class RedisCluster<
     if (allListeners.PATTERNS) {
       for (const [channel, listeners] of allListeners.PATTERNS) {
         listeners.buffers.forEach(bufListener => {
-          this.pSubscribe(channel, bufListener, true);
+          promises.push(this.pSubscribe(channel, bufListener, true));
         });
         listeners.strings.forEach(strListener => {
-          this.pSubscribe(channel, strListener);
+          promises.push(this.pSubscribe(channel, strListener));
         });
       }
     }
@@ -963,13 +967,17 @@ export default class RedisCluster<
     if (allListeners.SHARDED) {
       for (const [channel, listeners] of allListeners.SHARDED) {
         listeners.buffers.forEach(bufListener => {
-          this.sSubscribe(channel, bufListener, true);
+          promises.push(this.sSubscribe(channel, bufListener, true));
         });
         listeners.strings.forEach(strListener => {
-          this.sSubscribe(channel, strListener);
+          promises.push(this.sSubscribe(channel, strListener));
         });
       }
     }
+
+    // Promise.all attaches a handler to every promise, so a failed subscribe
+    // can never become an unhandled rejection; callers observe the first error.
+    return Promise.all(promises);
   }
 
   sUnsubscribe = this.SUNSUBSCRIBE;
