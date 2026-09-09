@@ -243,7 +243,7 @@ export function createMultiDbCluster<
       // detach on the old cluster (channels/patterns on its pub/sub node,
       // sharded per shard) so a recovering member can't double-deliver, then
       // re-subscribe across the new cluster's nodes
-      to.resubscribeAllPubSubListeners(from._removeAllPubSubListeners());
+      await to.resubscribeAllPubSubListeners(from._removeAllPubSubListeners());
     }
   };
   return assemble(databases, config, adapter);
