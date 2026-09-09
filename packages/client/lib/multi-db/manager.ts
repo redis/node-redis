@@ -425,7 +425,13 @@ export class MultiDbManager<C extends AnyRedisClientType> {
       );
     }
 
-    const target = this.#strategy.select(healthy)!;
+    const target = this.#strategy.select(healthy);
+    if (target === undefined) {
+      // a detector trip racing the probe round can re-open a circuit between
+      // establish and selection — reject per the contract above, don't crash
+      this.destroy();
+      throw new Error('MultiDb: no healthy database is selectable');
+    }
     if (this.#active !== target) {
       // an ended member is already DISCONNECTED — don't demote it to PASSIVE
       if (this.#active.role === 'ACTIVE') {
@@ -434,6 +440,11 @@ export class MultiDbManager<C extends AnyRedisClientType> {
       this.#active = target;
       target.role = 'ACTIVE';
     }
+
+    // a repeat connect() that succeeds lifts the all-down gate — a search loop
+    // still mid-delay observes the state change as a rescue and exits
+    this.#unavailable = null;
+    this.#failoverInFlight = false;
 
     this.#startScheduler();
   }
@@ -455,9 +466,8 @@ export class MultiDbManager<C extends AnyRedisClientType> {
     // be selectable as a failover/removal replacement nor report healthy
     member.circuit.open();
     this.#databases.push(member);
-    if (await this.#establishMember(member, member.skipInitialHealthCheck)) {
-      member.circuit.close();
-    }
+    // #establishMember closes the circuit once the member establishes
+    await this.#establishMember(member, member.skipInitialHealthCheck);
     this.#startMemberChecks(member);
     return member.id;
   }
@@ -617,6 +627,10 @@ export class MultiDbManager<C extends AnyRedisClientType> {
       db.circuit.open();
       return false;
     }
+    // a probe-verified member must be selectable — without this, a member that
+    // failed an earlier connect() keeps its OPEN circuit and the strategy can
+    // never pick it on a repeat connect()
+    db.circuit.close();
     return true;
   }
 }
