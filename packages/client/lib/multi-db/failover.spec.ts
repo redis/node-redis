@@ -165,6 +165,47 @@ describe('multi-db failover', function () {
     }
   });
 
+  it('a RESP2 member serves commands again after its subscriptions move away', async () => {
+    const { client, controller } = createMultiDbClient<{}, {}, {}, 2>({
+      ...FAST_FAILOVER,
+      databases: [
+        { weight: 1, options: { RESP: 2, socket: { host: '127.0.0.1', port: serverA.port } } },
+        { weight: 0.5, options: { RESP: 2, socket: { host: '127.0.0.1', port: serverB.port } } }
+      ]
+    });
+    await client.connect();
+    controller.on('error', () => {});
+    // a RESP2 subscriber-mode connection cannot publish — use a direct client
+    const publisher = RedisClient.create({ socket: { host: '127.0.0.1', port: serverB.port } });
+    await publisher.connect();
+    try {
+      const received: Array<string> = [];
+      await client.subscribe('news', message => {
+        received.push(String(message));
+      });
+
+      await controller.setActiveDatabase('db-1');
+      // the move is asynchronous: wait until the subscription serves on db-1
+      const deadline = Date.now() + 10_000;
+      while (received.length === 0 && Date.now() < deadline) {
+        await publisher.publish('news', 'delivered');
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      assert.ok(received.length > 0, 'subscription must be live on the new active member');
+
+      // drop the subscription on the active member, then return to db-0: its
+      // main connection must have left server-side subscriber mode at the move
+      await client.unsubscribe('news');
+      await controller.setActiveDatabase('db-0');
+
+      await client.set('resp2-back', 'ok');
+      assert.equal(await client.get('resp2-back'), 'ok');
+    } finally {
+      publisher.destroy();
+      client.destroy();
+    }
+  });
+
   it('client-side caching serves no stale reads across a switch, without a flush', async () => {
     const withCache = (server: RedisServerDocker) => ({
       options: {
