@@ -963,10 +963,19 @@ export default class RedisClusterSlots<
 
     if (this.pubSubNode) {
       drain(this.pubSubNode.client);
+      // server-side subscriber state is per-connection: destroy the drained
+      // connection or the server keeps pushing every publish to a client with
+      // zero listeners; a later subscribe recreates the node lazily
+      this.#reconnectionTracker.removeClient(this.pubSubNode.client._clientId);
+      this.pubSubNode.client.destroy();
+      this.pubSubNode = undefined;
     }
     for (const master of this.masters) {
       if (master.pubSub) {
         drain(master.pubSub.client);
+        this.#reconnectionTracker.removeClient(master.pubSub.client._clientId);
+        master.pubSub.client.destroy();
+        master.pubSub = undefined;
       }
     }
 

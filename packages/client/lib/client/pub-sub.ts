@@ -439,11 +439,13 @@ export class PubSub {
       [PUBSUB_TYPE.SHARDED]: this.listeners[PUBSUB_TYPE.SHARDED]
     }
 
-    this.#updateIsActive();
-
     this.listeners[PUBSUB_TYPE.CHANNELS] = new Map();
     this.listeners[PUBSUB_TYPE.PATTERNS] = new Map();
     this.listeners[PUBSUB_TYPE.SHARDED] = new Map();
+
+    // after the reset — `result` aliases the old maps, so updating first would
+    // still see them as populated and leave `isActive` stuck on true
+    this.#updateIsActive();
 
     return result;
   }
