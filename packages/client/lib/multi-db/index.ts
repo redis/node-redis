@@ -217,6 +217,9 @@ export function createMultiDbClientPool<
   const adapter: MemberAdapter<RedisClientPoolType<M, F, S, RESP, T>> = {
     create: db => RedisClientPool.create(db.options as RedisClientOptions<M, F, S, RESP, T>, db.poolOptions),
     sendCommand: (client, args) => client.sendCommand(args)
+    // no movePubSub: a pool has no pub/sub surface (subscriptions need a
+    // dedicated connection, which the pool does not expose), so there is
+    // nothing to transfer on failover
   };
   return assemble(databases, config, adapter);
 }
@@ -235,7 +238,13 @@ export function createMultiDbCluster<
   const adapter: MemberAdapter<RedisClusterType<M, F, S, RESP, T>> = {
     create: db => RedisCluster.create(db.options as RedisClusterOptions<M, F, S, RESP, T>),
     // keyless dispatch — the cluster routes it to an arbitrary node
-    sendCommand: (client, args) => client.sendCommand(undefined, undefined, args)
+    sendCommand: (client, args) => client.sendCommand(undefined, undefined, args),
+    movePubSub: async (from, to) => {
+      // detach on the old cluster (channels/patterns on its pub/sub node,
+      // sharded per shard) so a recovering member can't double-deliver, then
+      // re-subscribe across the new cluster's nodes
+      to.resubscribeAllPubSubListeners(from._removeAllPubSubListeners());
+    }
   };
   return assemble(databases, config, adapter);
 }
@@ -253,7 +262,12 @@ export function createMultiDbSentinel<
   const { databases, config } = resolveMultiDbConfig(options.databases, options);
   const adapter: MemberAdapter<RedisSentinelType<M, F, S, RESP, T>> = {
     create: db => RedisSentinel.create(db.options as RedisSentinelOptions<M, F, S, RESP, T>),
-    sendCommand: (client, args) => client.sendCommand(undefined, args)
+    sendCommand: (client, args) => client.sendCommand(undefined, args),
+    movePubSub: async (from, to) => {
+      // detach from the old member's pub/sub proxy (so a recovering member
+      // can't double-deliver) and re-establish against the new member's master
+      await to._adoptPubSubListeners(from._extractPubSubListeners());
+    }
   };
   return assemble(databases, config, adapter);
 }
