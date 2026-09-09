@@ -1,6 +1,6 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
-import { RedisArgument, Command, ReplyUnion, TypeMapping } from '@redis/client/dist/lib/RESP/types';
-import { RedisVariadicArgument, parseOptionalVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
+import { RedisArgument, Command, ReplyUnion, TypeMapping, DoubleReply, BlobStringReply } from '@redis/client/dist/lib/RESP/types';
+import { RedisVariadicArgument, parseOptionalVariadicArgument, transformDoubleReply } from '@redis/client/dist/lib/commands/generic-transformers';
 import { RediSearchLanguage } from './CREATE';
 import { DEFAULT_DIALECT } from '../dialect/default';
 import { getMapValue, mapLikeToObject, mapLikeValues, parseDocumentValue, parseSearchResultRow, parseWarnings } from './reply-transformers';
@@ -52,7 +52,6 @@ export interface FtSearchOptions {
   INKEYS?: RedisVariadicArgument;
   WITHSCORES?: boolean;
   EXPLAINSCORE?: boolean;
-  NOCONTENT?: boolean;
   WITHPAYLOADS?: boolean;
   WITHSORTKEYS?: boolean;
   FILTER?: {
@@ -118,10 +117,6 @@ export function parseSearchOptions(parser: CommandParser, options?: FtSearchOpti
 
   if (options?.NOSTOPWORDS) {
     parser.push('NOSTOPWORDS');
-  }
-
-  if(options?.NOCONTENT) {
-    parser.push('NOCONTENT');
   }
 
   if (options?.WITHSCORES || options?.EXPLAINSCORE) {
@@ -243,19 +238,44 @@ export function parseSearchOptions(parser: CommandParser, options?: FtSearchOpti
   } else {
     parser.push('DIALECT', DEFAULT_DIALECT);
   }
+
+  // Snapshot only the options that drive RESP2 reply layout, so the transformer
+  // reads a stable copy even if the caller mutates `options` before the reply
+  // arrives. Shared by FT.SEARCH and FT.PROFILE SEARCH (both call this).
+  parser.preserve = preserveSearchLayout(options);
+}
+
+export type SearchLayoutOptions = {
+  WITHSCORES: boolean;
+  EXPLAINSCORE: boolean;
+  NOCONTENT: boolean;
+  WITHPAYLOADS: boolean;
+  WITHSORTKEYS: boolean;
+  RETURN?: RedisVariadicArgument;
+};
+
+export function preserveSearchLayout(options?: FtSearchOptions): Readonly<SearchLayoutOptions> {
+  return Object.freeze({
+    WITHSCORES: Boolean(options?.WITHSCORES),
+    EXPLAINSCORE: Boolean(options?.EXPLAINSCORE),
+    NOCONTENT: false,
+    WITHPAYLOADS: Boolean(options?.WITHPAYLOADS),
+    WITHSORTKEYS: Boolean(options?.WITHSORTKEYS),
+    RETURN: Array.isArray(options?.RETURN) ? [...options.RETURN] : options?.RETURN
+  });
 }
 
 function transformSearchReplyResp2(
   reply: SearchRawReply,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
-  _preserve?: unknown,
-  _typeMapping?: TypeMapping,
+  preserve?: any,
+  typeMapping?: TypeMapping,
 ): SearchReply {
-  const options = _preserve as FtSearchOptions | undefined;
+  const options = preserve as Partial<SearchLayoutOptions> | undefined;
   const documents: SearchReply['documents'] = [];
-  
+
   const hasScores = Boolean(options?.WITHSCORES) || Boolean(options?.EXPLAINSCORE);
-  const hasExplain = Boolean(options?.EXPLAINSCORE); 
+  const hasExplain = Boolean(options?.EXPLAINSCORE);
   const hasPayloads = Boolean(options?.WITHPAYLOADS);
   const hasSortKeys = Boolean(options?.WITHSORTKEYS);
   const noContent = Boolean(options?.NOCONTENT) ||
@@ -263,34 +283,35 @@ function transformSearchReplyResp2(
 
   let i = 1;
   while (i < reply.length) {
-  
     const id = reply[i++] as string;
 
-    let score: number | undefined;
-    let scoreExplain: Array<ScoreExplain> | undefined;
+    let score: DoubleReply | undefined;
+    let scoreExplain: ScoreExplain | undefined;
 
     if (hasScores) {
       if (hasExplain && Array.isArray(reply[i])) {
-        const tuple = reply[i++] as [string | number, unknown];
-        score = Number(tuple[0]);
-        scoreExplain = Array.isArray(tuple[1]) ? tuple[1].map(normalizeScoreExplain) : undefined;
+        // EXPLAINSCORE row is `[score, explanationNode]`; the explanation is a
+        // single recursive `[summary, children]` node, so normalize it whole.
+        const tuple = reply[i++] as [BlobStringReply, unknown];
+        score = transformDoubleReply[2](tuple[0], undefined, typeMapping);
+        scoreExplain = tuple[1] !== undefined ? normalizeScoreExplain(tuple[1]) : undefined;
       } else {
-        score = Number(reply[i++]);
+        score = transformDoubleReply[2](reply[i++] as BlobStringReply, undefined, typeMapping);
       }
     }
 
-    let payload: string |Buffer | undefined;
-    if (hasPayloads){
-      const rawpayload = reply[i++];
-      if (rawpayload !== undefined && rawpayload !== null){
-        payload = rawpayload as string | Buffer;
+    let payload: string | Buffer | undefined;
+    if (hasPayloads) {
+      const rawPayload = reply[i++];
+      if (rawPayload !== undefined && rawPayload !== null) {
+        payload = rawPayload as string | Buffer;
       }
     }
 
     let sortKey: string | Buffer | undefined;
     if (hasSortKeys) {
       const rawSortKey = reply[i++];
-      if(rawSortKey !== null && rawSortKey !== undefined){
+      if (rawSortKey !== null && rawSortKey !== undefined) {
         sortKey = rawSortKey as string | Buffer;
       }
     }
@@ -302,10 +323,10 @@ function transformSearchReplyResp2(
 
     documents.push({
       id,
-      ...(score !== undefined && !isNaN(score) ? {score} : {}),
-      ...(scoreExplain !== undefined ? {scoreExplain} : {}),
-      ...(payload !== undefined ? {payload} : {}),
-      ...(sortKey !== undefined ? {sortKey} : {}),
+      ...(score !== undefined ? { score } : {}),
+      ...(scoreExplain !== undefined ? { scoreExplain } : {}),
+      ...(payload !== undefined ? { payload } : {}),
+      ...(sortKey !== undefined ? { sortKey } : {}),
       value,
     });
   }
@@ -343,21 +364,25 @@ function transformSearchReplyResp3(
     const rawPayload = getMapValue(resultMap, ['payload']);
     const rawSortKey = getMapValue(resultMap, ['sortkey']);
 
-    let score: number | undefined
-    let scoreExplain: Array<ScoreExplain> | undefined;
+    // On RESP3 the score is already decoded per the client's type mapping
+    // (a number by default, or a string under `{ DOUBLE: String }`), so pass
+    // it through rather than re-coercing it and discarding that mapping.
+    let score: DoubleReply | undefined;
+    let scoreExplain: ScoreExplain | undefined;
 
-    if (Array.isArray(rawScore)){
-      score = Number(rawScore[0]);
-      if (Array.isArray(rawScore[1])){
-        scoreExplain = rawScore[1].map(normalizeScoreExplain);
+    if (Array.isArray(rawScore)) {
+      // `[score, explanationNode]` — normalize the explanation node as a whole.
+      score = rawScore[0] as DoubleReply;
+      if (rawScore[1] !== undefined) {
+        scoreExplain = normalizeScoreExplain(rawScore[1]);
       }
-    } else if (rawScore !== undefined && rawScore !== null){
-      score = typeof rawScore === 'number' ? rawScore : Number(rawScore);
+    } else if (rawScore !== undefined && rawScore !== null) {
+      score = rawScore as DoubleReply;
     }
 
     return {
       id: String((id as { toString?(): string })?.toString?.() ?? id ?? ''),
-      ...(score !== undefined && !isNaN(score) ? {score} : {}),
+      ...(score !== undefined && score !== null ? {score} : {}),
       ...(scoreExplain !== undefined ? {scoreExplain} : {}),
       ...(rawPayload !== undefined && rawPayload !== null? {payload: rawPayload as string | Buffer} : {}),
       ...(rawSortKey !== undefined && rawSortKey !== null ? {sortKey: rawSortKey as string | Buffer}: {}),
@@ -381,15 +406,6 @@ export default {
     parser.push('FT.SEARCH', index, query);
 
     parseSearchOptions(parser, options);
-    parser.preserve = Object.freeze({
-    WITHSCORES: Boolean(options?.WITHSCORES),
-    EXPLAINSCORE: Boolean(options?.EXPLAINSCORE),
-    NOCONTENT: Boolean(options?.NOCONTENT),
-    WITHPAYLOADS: Boolean(options?.WITHPAYLOADS),
-    WITHSORTKEYS: Boolean(options?.WITHSORTKEYS),
-    RETURN: Array.isArray(options?.RETURN) ?
-            [...options.RETURN]:options?.RETURN
-});
   },
   transformReply: {
     2: transformSearchReplyResp2,
@@ -407,8 +423,8 @@ export interface SearchReply {
   total: number;
   documents: Array<{
       id: string;
-      score?: number;
-      scoreExplain?: Array<ScoreExplain>;
+      score?: DoubleReply;
+      scoreExplain?: ScoreExplain;
       payload?: string | Buffer;
       sortKey?: string | Buffer;
       value: SearchDocumentValue;

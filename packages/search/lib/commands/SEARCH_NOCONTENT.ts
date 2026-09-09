@@ -1,8 +1,10 @@
 import { Command, ReplyUnion, TypeMapping } from '@redis/client/dist/lib/RESP/types';
 import SEARCH, { FtSearchOptions, SearchRawReply } from './SEARCH';
 
+// Reply-shape options make no sense for an ID-only reply, so exclude them here.
+// NOCONTENT is the command itself, so it is not a caller-supplied option either.
 type SearchNoContentOptions = Omit<FtSearchOptions,
-  'NOCONTENT' | 'WITHSCORES' | 'EXPLAINSCORE' | 'WITHPAYLOADS' | 'WITHSORTKEYS'
+  'WITHSCORES' | 'EXPLAINSCORE' | 'WITHPAYLOADS' | 'WITHSORTKEYS'
 >;
 
 export default {
@@ -11,9 +13,12 @@ export default {
     index: Parameters<typeof SEARCH.parseCommand>[1],
     query: Parameters<typeof SEARCH.parseCommand>[2],
     options?: SearchNoContentOptions) {
-   SEARCH.parseCommand(parser, index, query, options as FtSearchOptions);
+    SEARCH.parseCommand(parser, index, query, options as FtSearchOptions);
     parser.push('NOCONTENT');
-    parser.preserve = { ...(options ?? {}), NOCONTENT: true };
+    // parseSearchOptions already set a frozen layout snapshot; layer NOCONTENT
+    // on top so the shared RESP3 transformer treats the reply as ID-only when a
+    // legacy array-shaped reply falls through to it.
+    parser.preserve = Object.freeze({ ...(parser.preserve as object), NOCONTENT: true });
   },
   transformReply: {
     2: (reply: SearchRawReply): SearchNoContentReply => {

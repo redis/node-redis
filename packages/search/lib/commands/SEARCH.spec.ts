@@ -10,7 +10,7 @@ describe('FT.SEARCH', () => {
   describe('transformArguments', () => {
     it('without options', () => {
       assert.deepEqual(
-        parseArgs(SEARCH, 'index', 'query'),
+        Array.from(parseArgs(SEARCH, 'index', 'query')),
         ['FT.SEARCH', 'index', 'query', 'DIALECT', DEFAULT_DIALECT]
       );
     });
@@ -39,15 +39,6 @@ describe('FT.SEARCH', () => {
           WITHSCORES:true
         })),
         ['FT.SEARCH','index','query','WITHSCORES','DIALECT',DEFAULT_DIALECT]
-      )
-    })
-
-     it('with NOCONTENT',() => {
-      assert.deepEqual(
-        Array.from(parseArgs(SEARCH,'index','query',{
-          NOCONTENT:true
-        })),
-        ['FT.SEARCH','index','query','NOCONTENT','DIALECT',DEFAULT_DIALECT]
       )
     })
 
@@ -391,11 +382,18 @@ describe('FT.SEARCH', () => {
       );
     });
 
-    it('stores the options for use by transformReply', () => {
-    const options = { WITHSCORES: true, NOCONTENT: true };
-    const args = parseArgs(SEARCH, 'index', 'query', options);
-    assert.deepEqual(args.preserve, options);
-  });
+    it('preserves a frozen layout snapshot for transformReply', () => {
+      const args = parseArgs(SEARCH, 'index', 'query', { WITHSCORES: true, RETURN: ['a'] });
+      assert.deepEqual(args.preserve, {
+        WITHSCORES: true,
+        EXPLAINSCORE: false,
+        NOCONTENT: false,
+        WITHPAYLOADS: false,
+        WITHSORTKEYS: false,
+        RETURN: ['a']
+      });
+      assert.ok(Object.isFrozen(args.preserve));
+    });
   });
 
   describe('transformReply', () => {
@@ -502,8 +500,11 @@ describe('FT.SEARCH', () => {
     assert.strictEqual(res.documents.length, 1);
     assert.strictEqual(res.documents[0].id, '1');
     assert.strictEqual(typeof res.documents[0].score, 'number');
-    assert.ok(Array.isArray(res.documents[0].scoreExplain));
-    assert.ok(res.documents[0].scoreExplain.length > 0);
+    // scoreExplain is a single recursive `[summary, children]` node.
+    const explain = res.documents[0].scoreExplain;
+    assert.ok(Array.isArray(explain), 'scoreExplain is a [summary, children] node');
+    assert.strictEqual(typeof explain[0], 'string');
+    assert.ok(Array.isArray(explain[1]));
   }, GLOBAL.SERVERS.OPEN);
 
      testUtils.testWithClient('WITHSCORES', async client => {
@@ -523,19 +524,18 @@ describe('FT.SEARCH', () => {
       
     }, GLOBAL.SERVERS.OPEN);
 
-    testUtils.testWithClient('NOCONTENT', async client => {
-    await Promise.all([
-      client.ft.create('index', { field: 'TEXT' }),
-      client.hSet('1', 'field', 'hello world')
-    ]);
+    testUtils.testWithClient('WITHSCORES honors the DOUBLE type mapping', async client => {
+      await Promise.all([
+        client.ft.create('index', { field: 'TEXT' }),
+        client.hSet('1', 'field', 'hello world')
+      ]);
 
-    const res = await client.ft.search('index', '*', { NOCONTENT: true });
+      const res = await client
+        .withTypeMapping({ [RESP_TYPES.DOUBLE]: String })
+        .ft.search('index', 'hello', { WITHSCORES: true });
 
-    assert.strictEqual(res.total, 1);
-    assert.strictEqual(res.documents.length, 1);
-    assert.strictEqual(res.documents[0].id, '1');
-    assert.deepStrictEqual(res.documents[0].value, {});
-  }, GLOBAL.SERVERS.OPEN);
+      assert.strictEqual(typeof res.documents[0].score, 'string');
+    }, GLOBAL.SERVERS.OPEN);
 
     testUtils.testWithClient('WITHPAYLOADS', async client => {
     await Promise.all([
@@ -575,22 +575,19 @@ describe('FT.SEARCH', () => {
     assert.deepStrictEqual(res.documents[0].value, { field: 'hello world' });
   }, GLOBAL.SERVERS.OPEN);
 
-  testUtils.testWithClient('WITHSCORES + NOCONTENT', async client => {
+  testUtils.testWithClient('WITHSCORES keeps a numeric id out of the score slot', async client => {
     await Promise.all([
       client.ft.create('index', { field: 'TEXT' }),
       client.hSet('101', 'field', 'numeric id test')
     ]);
 
-    const res = await client.ft.search('index', '*', {
-      WITHSCORES: true,
-      NOCONTENT: true
-    });
+    const res = await client.ft.search('index', '*', { WITHSCORES: true });
 
     assert.strictEqual(res.total, 1);
     assert.strictEqual(res.documents.length, 1);
     assert.strictEqual(res.documents[0].id, '101');
     assert.strictEqual(typeof res.documents[0].score, 'number');
-    assert.deepStrictEqual(res.documents[0].value, {});
+    assert.deepStrictEqual(res.documents[0].value, { field: 'numeric id test' });
   }, GLOBAL.SERVERS.OPEN);
 
     testUtils.testWithClient('FILTER', async client => {
@@ -751,20 +748,6 @@ describe('FT.SEARCH', () => {
 
     }, GLOBAL.SERVERS.OPEN);
 
-  testUtils.testWithClient('NOCONTENT takes precedence over a conflicting RETURN', async client => {
-  await Promise.all([
-    client.ft.create('index', { title: 'TEXT', price: 'NUMERIC' }),
-    client.hSet('1', { title: 'Widget', price: '9.99' })
-  ]);
-  const res = await client.ft.search('index', '*', {
-    NOCONTENT: true,
-    RETURN: ['title', 'price']
-  });
-  assert.strictEqual(res.total, 1);
-  assert.deepStrictEqual(res.documents[0].value, {});
-}, GLOBAL.SERVERS.OPEN);
-
-  
   testUtils.testWithClient('WITHSORTKEYS honors BLOB_STRING', async client => {
   await Promise.all([
     client.ft.create('index', { field: { type: 'TEXT', SORTABLE: true } }),

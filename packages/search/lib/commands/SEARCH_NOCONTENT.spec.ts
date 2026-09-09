@@ -4,7 +4,7 @@ import SEARCH_NOCONTENT from './SEARCH_NOCONTENT';
 import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 import { DEFAULT_DIALECT } from '../dialect/default';
 import { ReplyUnion } from '@redis/client/dist/lib/RESP/types';
-import { BasicCommandParser} from '@redis/client/lib/client/parser.ts';
+import { BasicCommandParser } from '@redis/client/lib/client/parser';
 
 describe('FT.SEARCH NOCONTENT', () => {
   describe('transformArguments', () => {
@@ -54,7 +54,7 @@ describe('FT.SEARCH NOCONTENT', () => {
       });
     });
 
-    it('parseCommand injects NOCONTENT', () => {
+    it('parseCommand injects NOCONTENT and preserves an ID-only layout', () => {
     const parser = new BasicCommandParser();
     SEARCH_NOCONTENT.parseCommand(
       parser,
@@ -64,8 +64,12 @@ describe('FT.SEARCH NOCONTENT', () => {
     );
 
     assert.deepStrictEqual(parser.preserve, {
-      FILTER: { field: 'x', min: 0, max: 1 },
-      NOCONTENT: true
+      WITHSCORES: false,
+      EXPLAINSCORE: false,
+      NOCONTENT: true,
+      WITHPAYLOADS: false,
+      WITHSORTKEYS: false,
+      RETURN: undefined
     });
   });
 
@@ -156,6 +160,4 @@ describe('FT.SEARCH NOCONTENT', () => {
       assert.deepStrictEqual(reply.warnings, []);
     }, GLOBAL.SERVERS.OPEN);
   });
-
-
 });
