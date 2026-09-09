@@ -138,15 +138,19 @@ export class PubSubProxy extends EventEmitter {
    * re-delivering to the same listeners after it recovers.
    */
   extractListeners(): Subscriptions {
-    const subscriptions: Subscriptions = this.#subscriptions ?? (this.#state ? {
+    // Same precedence as `changeNode`: once `connectPromise` settles the live
+    // client's listener maps are authoritative (user subscribe/unsubscribe only
+    // mutate those); the `#subscriptions` snapshot is trustworthy only while a
+    // connect with a pending re-subscribe is in flight.
+    const subscriptions: Subscriptions = (this.#state && this.#state.connectPromise === undefined) ? {
       [PUBSUB_TYPE.CHANNELS]: this.#state.client.getPubSubListeners(PUBSUB_TYPE.CHANNELS),
       [PUBSUB_TYPE.PATTERNS]: this.#state.client.getPubSubListeners(PUBSUB_TYPE.PATTERNS),
       [PUBSUB_TYPE.SHARDED]: this.#state.client.getPubSubListeners(PUBSUB_TYPE.SHARDED)
-    } : {
+    } : this.#subscriptions ?? {
       [PUBSUB_TYPE.CHANNELS]: new Map(),
       [PUBSUB_TYPE.PATTERNS]: new Map(),
       [PUBSUB_TYPE.SHARDED]: new Map()
-    });
+    };
 
     this.destroy();
     return subscriptions;

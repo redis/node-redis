@@ -360,6 +360,27 @@ describe('multi-db topologies', function () {
           await new Promise(resolve => setTimeout(resolve, 100));
         }
         assert.ok(received.includes('delivered'), 'subscription must be live on the new active deployment');
+
+        // subscriptions changed AFTER a move must survive the next move:
+        // subscribe on the new member, then switch back
+        const updates: Array<string> = [];
+        await typed.subscribe('updates', message => {
+          updates.push(message.toString());
+        });
+
+        const back = once(controller, 'failover');
+        await controller.setActiveDatabase('db-0');
+        await back;
+
+        received.length = 0;
+        const backDeadline = Date.now() + 10_000;
+        while ((updates.length === 0 || received.length === 0) && Date.now() < backDeadline) {
+          await typed.publish('updates', 'kept');
+          await typed.publish('news', 'kept');
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        assert.ok(updates.includes('kept'), 'a subscription added after the first move must survive the move back');
+        assert.ok(received.includes('kept'), 'the original subscription must survive the move back');
       } finally {
         client.destroy();
       }
