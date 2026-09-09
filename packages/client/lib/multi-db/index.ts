@@ -97,6 +97,15 @@ class MultiDbClientBase<C extends AnyRedisClientType> {
  * `manager.ts:MultiDbManager.switchTo`'s single-assignment repoint relies on
  * these reads staying uncached.
  */
+// forwarded methods that return synchronously (builders, derived handles,
+// iterators) — the all-down gate throws for these; a rejected promise would
+// TypeError at the first chained call instead of failing meaningfully
+const SYNC_RETURNING = new Set<string>([
+  'multi', 'MULTI', 'duplicate', 'legacy',
+  'withTypeMapping', 'withCommandOptions', 'withAbortSignal',
+  'scanIterator', 'hScanIterator', 'sScanIterator', 'zScanIterator'
+]);
+
 function attachForwarders<C extends AnyRedisClientType>(
   target: MultiDbClientBase<C>,
   mgr: MultiDbManager<C>
@@ -119,10 +128,15 @@ function attachForwarders<C extends AnyRedisClientType>(
         // command / script method → call active's own method (this = active);
         // settled outcomes must reach `manager.ts:onCommandResult` — the detector feed
         dst[name] = (...args: Array<unknown>) => {
-          // all members down: fail fast instead of queueing on a dead member
-          // (sync throw, matching the base client's closed-client behavior)
+          // all members down: fail fast instead of queueing on a dead member.
+          // Command methods reject (the base client's closed-client path also
+          // rejects, so caller .catch chains keep working); sync-returning
+          // methods have no promise to reject through and throw instead.
           const unavailable = mgr.unavailableError;
-          if (unavailable) throw unavailable;
+          if (unavailable) {
+            if (SYNC_RETURNING.has(name)) throw unavailable;
+            return Promise.reject(unavailable);
+          }
           // capture the serving member for outcome attribution: a settlement
           // arriving after a switch must not count against the new active
           const active = mgr.activeDatabase;

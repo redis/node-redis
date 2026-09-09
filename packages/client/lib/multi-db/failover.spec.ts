@@ -271,7 +271,12 @@ describe('multi-db failover', function () {
 
       // the searching window rejects with the temporary error, exhaustion with the permanent one
       await new Promise(resolve => setTimeout(resolve, 300));
-      assert.throws(() => (client as { get(key: string): unknown }).get('x'), PermanentlyUnavailableError);
+      await assert.rejects(
+        (client as { get(key: string): Promise<unknown> }).get('x'),
+        PermanentlyUnavailableError
+      );
+      // sync-returning methods have no promise to reject through — they throw
+      assert.throws(() => (client as { multi(): unknown }).multi(), PermanentlyUnavailableError);
       assert.ok(
         traffic.errors.some(err => err instanceof TemporarilyUnavailableError),
         'commands during the search window must fail fast with TemporarilyUnavailableError'
@@ -331,7 +336,12 @@ describe('multi-db failover', function () {
         await new Promise(resolve => setTimeout(resolve, 100));
       }
       await new Promise(resolve => setTimeout(resolve, 300));
-      assert.throws(() => (client as { get(key: string): unknown }).get('x'), PermanentlyUnavailableError);
+      await assert.rejects(
+        (client as { get(key: string): Promise<unknown> }).get('x'),
+        PermanentlyUnavailableError
+      );
+      // sync-returning methods have no promise to reject through — they throw
+      assert.throws(() => (client as { multi(): unknown }).multi(), PermanentlyUnavailableError);
       traffic.stop();
 
       // both members return; wait until they accept connections again
