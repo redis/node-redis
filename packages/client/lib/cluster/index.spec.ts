@@ -878,6 +878,54 @@ describe('Cluster', () => {
         minimizeConnections: false
       }
     });
+
+    testUtils.testWithCluster('should fire node-connect and node-ready again after a node reconnects', async cluster => {
+      const master = cluster.masters[0],
+        log: Array<string> = [];
+
+      cluster
+        .on('node-reconnecting', () => log.push('node-reconnecting'))
+        .on('node-connect', () => log.push('node-connect'))
+        .on('node-ready', () => log.push('node-ready'));
+
+      // Drop the server side of exactly the cluster's own connection to this
+      // node: ask that node client for its CLIENT ID, then kill that id from a
+      // separate connection so nothing else on the node is affected.
+      const nodeClientId = await master.client!.sendCommand(['CLIENT', 'ID']),
+        killer = RedisClient.create({
+          socket: { host: master.host, port: master.port }
+        });
+
+      await killer.connect();
+      try {
+        await killer.sendCommand(['CLIENT', 'KILL', 'ID', String(nodeClientId)]);
+      } finally {
+        killer.destroy();
+      }
+
+      // The node client reconnects on its own; wait for the events rather than
+      // for a fixed delay. The budget here (5s) must stay well inside
+      // `testTimeout` below, which has to be raised because Mocha's default is
+      // 2s. Without the fix `node-reconnecting` is the only one that ever
+      // arrives and the loop exhausts -> assertion fails.
+      for (let i = 0; i < 100 && !log.includes('node-ready'); i++) {
+        await setTimeout(50);
+      }
+
+      assert.deepEqual(log, [
+        'node-reconnecting',
+        'node-connect',
+        'node-ready'
+      ]);
+    }, {
+      ...GLOBAL.CLUSTERS.OPEN,
+      numberOfMasters: 2,
+      numberOfReplicas: 0,
+      testTimeout: 30000,
+      clusterConfiguration: {
+        minimizeConnections: false
+      }
+    });
   });
 
 });

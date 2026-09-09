@@ -152,10 +152,10 @@ The Node Redis Cluster class extends Node.js’s EventEmitter and emits the foll
 | `connect`               | The cluster has successfully connected and is ready to us                          | _No arguments_                                            |
 | `disconnect`            | The cluster has disconnected                                                       | _No arguments_                                            |
 | `error`                 | The cluster has errored                                                            | `(error: Error)`                                          |
-| `node-ready`            | A cluster node is ready to establish a connection                                  | `(node: { host: string, port: number })`                  |
-| `node-connect`          | A cluster node has connected                                                       | `(node: { host: string, port: number })`                  |
+| `node-ready`            | A cluster node is ready to use, on its first connection and on every reconnection  | `(node: { host: string, port: number })`                  |
+| `node-connect`          | A cluster node's socket has connected, before its handshake — on the first connection and on every reconnection | `(node: { host: string, port: number })` |
 | `node-reconnecting`     | A cluster node is attempting to reconnect after an error                           | `(node: { host: string, port: number })`                  |
-| `node-disconnect`       | A cluster node has disconnected                                                    | `(node: { host: string, port: number })`                  |
+| `node-disconnect`       | A cluster node has disconnected (via `close()` or `destroy()`)                      | `(node: { host: string, port: number })`                  |
 | `node-error`            | A cluster node has has errored (usually during TCP connection)                     | `(error: Error, node: { host: string, port: number })`    |
 
 > :warning: You **MUST** listen to `error` events. If a cluster doesn't have at least one `error` listener registered and
