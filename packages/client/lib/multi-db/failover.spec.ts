@@ -240,4 +240,58 @@ describe('multi-db failover', function () {
       client.destroy();
     }
   });
+
+  it('a repeat connect() recovers a permanently unavailable client', async function () {
+    this.timeout(90_000);
+    const { client, controller } = createMultiDbClient({
+      ...FAST_FAILOVER,
+      databases: [memberOf(serverA), memberOf(serverB)]
+    });
+    await client.connect();
+    controller.on('error', () => {});
+    const attempts: Array<unknown> = [];
+    controller.on('all-databases-down', event => attempts.push(event));
+    const traffic = startTraffic(client);
+    try {
+      await Promise.all([kill(serverA), kill(serverB)]);
+
+      const deadline = Date.now() + 20_000;
+      while (attempts.length < 2 && Date.now() < deadline) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      await new Promise(resolve => setTimeout(resolve, 300));
+      assert.throws(() => (client as { get(key: string): unknown }).get('x'), PermanentlyUnavailableError);
+      traffic.stop();
+
+      // both members return; wait until they accept connections again
+      await Promise.all([serverA, serverB].map(server =>
+        execFileAsync('docker', ['start', server.dockerId])
+      ));
+      for (const server of [serverA, serverB]) {
+        const probeDeadline = Date.now() + 15_000;
+        while (Date.now() < probeDeadline) {
+          const probe = RedisClient.create({
+            socket: { host: '127.0.0.1', port: server.port, reconnectStrategy: false }
+          });
+          try {
+            await probe.connect();
+            probe.destroy();
+            break;
+          } catch {
+            await new Promise(resolve => setTimeout(resolve, 200));
+          }
+        }
+      }
+      // the member clients reconnect on their own backoff — give them a beat
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // re-probes, re-selects, and lifts the permanent-unavailability gate
+      await client.connect();
+      assert.equal(controller.getActiveDatabase().id, 'db-0');
+      assert.equal(await (client as { ping(): Promise<string> }).ping(), 'PONG');
+    } finally {
+      traffic.stop();
+      client.destroy();
+    }
+  });
 });
