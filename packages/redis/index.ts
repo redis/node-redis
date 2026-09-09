@@ -84,19 +84,26 @@ export function createMultiDbClient<
   databases: Array<DatabaseConfig<RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>>>;
 } & MultiDbConfig): MultiDbResult<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {
   const { databases, ...multiDbOptions } = options;
-  return genericCreateMultiDbClient({
+  const withModules = (dbOptions?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>) => ({
+    ...dbOptions,
+    modules: {
+      ...modules,
+      ...(dbOptions?.modules as M)
+    }
+  });
+  const result = genericCreateMultiDbClient({
     ...multiDbOptions,
-    databases: databases.map(db => ({
-      ...db,
-      options: {
-        ...db.options,
-        modules: {
-          ...modules,
-          ...(db.options?.modules as M)
-        }
-      }
-    }))
-  }) as unknown as MultiDbResult<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>;
+    databases: databases.map(db => ({ ...db, options: withModules(db.options) }))
+  });
+  // the manager creates runtime-added members from the config verbatim — they
+  // must get the same module merge, or the client's json/ft/ts namespaces
+  // break after a failover to such a member
+  const addDatabase = result.controller.addDatabase.bind(result.controller);
+  result.controller.addDatabase = config => addDatabase({
+    ...config,
+    options: withModules(config.options as RedisClientOptions<M, F, S, RESP, TYPE_MAPPING> | undefined)
+  });
+  return result as unknown as MultiDbResult<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>;
 }
 
 export function createClientPool<
