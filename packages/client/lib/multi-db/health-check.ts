@@ -17,6 +17,7 @@ export interface HealthCheckTarget {
  * `false` if not. A rejected promise counts as a failed probe. Scheduling,
  * probe counts and the ALL/MAJORITY/ANY aggregation policy are owned by the
  * probe runner, not the check itself.
+ * @experimental
  */
 export interface HealthCheck {
   probe(target: HealthCheckTarget): Promise<boolean>;

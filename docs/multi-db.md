@@ -96,7 +96,7 @@ All other options are flat on the factory call:
 | `maxFailoverAttempts` | `10` | selection retries before permanent unavailability |
 | `delayBetweenFailoverAttempts` | `12000` | ms between selection retries |
 | `autoFallbackInterval` | `-1` (off) | ms between fallback evaluations |
-| `initialAvailability` | `'majority'` | members that must pass the initial check: `all`, `majority` or `one` |
+| `initialAvailability` | `'majority'` | members that must pass the initial check: `all`, `majority` or `one`. Majority is `floor(n/2)+1`, so with the common **two-member** setup it means **both** — pick `one` for a setup that should start degraded |
 
 `connect()` resolves only when `initialAvailability` is satisfied and an active member is
 selected; otherwise it rejects **and destroys every member** — a rejected instance must not
