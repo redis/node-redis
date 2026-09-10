@@ -148,12 +148,14 @@ export class MultiDbManager<C extends AnyRedisClientType> {
 
   /**
    * Command hot path: `index.ts:attachForwarders` reports the settled outcome
-   * of each promise-returning forwarded method call here, and member lifecycle
-   * errors arrive through the same feed. Getter-forwarded namespaces (`json.*`)
-   * and non-promise returns (`multi()`) bypass it. Outcomes attributed to a
-   * member that is no longer active are dropped — in-flight commands rejecting
-   * after a switch must not count against the new active member. Trips the
-   * failover procedure when the detector declares the active member faulty.
+   * of each promise-returning forwarded method call here — plain commands and
+   * namespace commands (`json.*`, wrapped per `index.ts:wrapNamespace`) alike —
+   * and member lifecycle errors arrive through the same feed. Non-promise
+   * returns (`multi()`, scan iterators) still bypass it. Outcomes attributed
+   * to a member that is no longer active are dropped — in-flight commands
+   * rejecting after a switch must not count against the new active member.
+   * Trips the failover procedure when the detector declares the active member
+   * faulty.
    */
   onCommandResult(ok: boolean, err?: Error, source?: Database<C>): void {
     if (source !== undefined && source !== this.#active) return;
