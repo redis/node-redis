@@ -1,3 +1,4 @@
+import { EventEmitter } from 'node:events';
 import RedisClient, { RedisClientType, RedisClientOptions } from '../client';
 import { RedisClientPool, RedisClientPoolType } from '../client/pool';
 import RedisCluster, { RedisClusterType, RedisClusterOptions } from '../cluster';
@@ -59,13 +60,17 @@ export interface MultiDbResult<C extends AnyRedisClientType> {
 
 /**
  * Lifecycle base: implements each `INTERCEPTED` member as a real fan-out
- * method. Everything else is patched on by `attachForwarders`.
+ * method. Everything else is patched on by `attachForwarders`. Extends
+ * `EventEmitter` because the wrapper is the multi-db event surface — its
+ * emitter methods are inherited (never forwarded to a member, never refused
+ * while members are down).
  */
-class MultiDbClientBase<C extends AnyRedisClientType> {
+class MultiDbClientBase<C extends AnyRedisClientType> extends EventEmitter {
   /** @internal read by the forwarders patched below */
   readonly _mgr: MultiDbManager<C>;
 
   constructor(mgr: MultiDbManager<C>) {
+    super();
     this._mgr = mgr;
   }
 
@@ -97,10 +102,11 @@ class MultiDbClientBase<C extends AnyRedisClientType> {
  * `manager.ts:MultiDbManager.switchTo`'s single-assignment repoint relies on
  * these reads staying uncached.
  */
-// forwarded methods that return synchronously (builders, derived handles,
-// iterators) — the all-down gate throws for these; a rejected promise would
-// TypeError at the first chained call instead of failing meaningfully
-const SYNC_RETURNING = new Set<string>([
+// pinned, synchronously-returning surfaces (builders, derived handles,
+// iterators) — while every member is down these throw at creation; a rejected
+// promise would TypeError at the first chained call instead of failing
+// meaningfully
+const PINNED_SYNC = new Set<string>([
   'multi', 'MULTI', 'duplicate', 'legacy',
   'withTypeMapping', 'withCommandOptions', 'withAbortSignal',
   'scanIterator', 'hScanIterator', 'sScanIterator', 'zScanIterator'
@@ -114,7 +120,16 @@ function attachForwarders<C extends AnyRedisClientType>(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic patching
   const dst = target as any;
 
-  for (let proto = Object.getPrototypeOf(mgr.active); proto && proto !== Object.prototype; proto = Object.getPrototypeOf(proto)) {
+  // The walk covers exactly the client API — aliases, registry commands and
+  // namespaces, then the hand-written kind API — and stops at the event
+  // machinery: emitter methods belong to the wrapper's own EventEmitter (the
+  // multi-db event surface), never to a member. The Object.prototype check is
+  // a backstop for a member kind that does not extend EventEmitter.
+  for (
+    let proto = Object.getPrototypeOf(mgr.active);
+    proto && proto !== EventEmitter.prototype && proto !== Object.prototype;
+    proto = Object.getPrototypeOf(proto)
+  ) {
     for (const name of Object.getOwnPropertyNames(proto)) {
       if (skip.has(name)) continue;
       skip.add(name); // most-derived wins; don't reattach shadowed base members
@@ -128,13 +143,13 @@ function attachForwarders<C extends AnyRedisClientType>(
         // command / script method → call active's own method (this = active);
         // settled outcomes must reach `manager.ts:onCommandResult` — the detector feed
         dst[name] = (...args: Array<unknown>) => {
-          // all members down: fail fast instead of queueing on a dead member.
+          // every member down: fail fast instead of queueing on a dead member.
           // Command methods reject (the base client's closed-client path also
-          // rejects, so caller .catch chains keep working); sync-returning
-          // methods have no promise to reject through and throw instead.
+          // rejects, so caller .catch chains keep working); pinned sync
+          // surfaces have no promise to reject through and throw instead.
           const unavailable = mgr.unavailableError;
           if (unavailable) {
-            if (SYNC_RETURNING.has(name)) throw unavailable;
+            if (PINNED_SYNC.has(name)) throw unavailable;
             return Promise.reject(unavailable);
           }
           // capture the serving member for outcome attribution: a settlement
