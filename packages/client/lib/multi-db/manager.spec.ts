@@ -274,6 +274,33 @@ describe('multi-db manager (unit)', function () {
     mgr.destroy();
   });
 
+  it('a force finishing after search exhaustion rejects instead of half-succeeding', async () => {
+    const { mgr, fakes, received } = makeHarness(2, {
+      maxFailoverAttempts: 2,
+      delayBetweenFailoverAttempts: 10,
+      healthCheck: { interval: 200, timeout: 150, numProbes: 1, delayBetweenProbes: 0 }
+    });
+    await mgr.connect();
+
+    // the force target answers slowly: its verification probe outlives the search
+    fakes.get('db-1')!.onCommand = async () => {
+      await tick(100);
+      return 'PONG';
+    };
+    mgr.databases[1].circuit.open(); // no replacement available
+    fakes.get('db-0')!.end();        // search starts, exhausts at ~20ms
+
+    await assert.rejects(mgr.setActiveDatabase('db-1'), /permanently unavailable/);
+
+    assert.ok(mgr.unavailableError instanceof PermanentlyUnavailableError);
+    assert.equal(mgr.activeDatabase.id, 'db-0');
+    assert.ok(
+      !received.some(r => r.event === 'failover' && (r.payload as { reason: string }).reason === 'forced'),
+      'the half-succeeded force must not announce a switch'
+    );
+    mgr.destroy();
+  });
+
   it('addDatabase after permanent failure joins the set but does not lift the gate', async () => {
     const { mgr } = makeHarness(2, {
       maxFailoverAttempts: 2,
