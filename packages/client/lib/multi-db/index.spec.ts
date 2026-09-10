@@ -9,6 +9,7 @@ import type { FailoverEvent } from './controller';
 import RedisClient, { RedisClientType } from '../client';
 import { ErrorReply } from '../errors';
 import type { CommandParser } from '../client/parser';
+import { RESP_TYPES } from '../RESP/decoder';
 import type { RedisServerDocker } from '@redis/test-utils';
 
 const execFileAsync = promisify(execFile);
@@ -366,6 +367,57 @@ describe('multi-db', function () {
         }
       )
     );
+  });
+
+  describe('derived views', () => {
+    it('a view keeps serving across three consecutive forced switches', () =>
+      withMultiDb(
+        { databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })] },
+        async ({ client, controller }) => {
+          const view = client.withTypeMapping({ [RESP_TYPES.BLOB_STRING]: Buffer });
+          await view.set('view-key', 'v0');
+
+          const targets = ['db-1', 'db-0', 'db-1'];
+          for (let i = 0; i < targets.length; i++) {
+            await controller.setActiveDatabase(targets[i]);
+            await view.set('view-key', `v${i + 1}`);
+            const reply = await view.get('view-key');
+            assert.ok(Buffer.isBuffer(reply), 'the view type mapping must apply after a switch');
+            assert.equal(reply.toString(), `v${i + 1}`);
+          }
+
+          // the last write landed on the member active at call time (db-1)
+          const direct = RedisClient.create({ socket: { host: '127.0.0.1', port: serverB.port } });
+          await direct.connect();
+          try {
+            assert.equal(await direct.get('view-key'), 'v3', 'view writes must follow the active member');
+          } finally {
+            direct.destroy();
+          }
+        }
+      )
+    );
+
+    it('two views with different mappings apply their own options concurrently', () =>
+      withMultiDb({ databases: [memberOf(serverA)] }, async ({ client }) => {
+        const asBuffer = client.withTypeMapping({ [RESP_TYPES.BLOB_STRING]: Buffer });
+        await client.set('view-two', 'x');
+        const [buf, str] = await Promise.all([asBuffer.get('view-two'), client.get('view-two')]);
+        assert.ok(Buffer.isBuffer(buf));
+        assert.equal(str, 'x');
+      })
+    );
+
+    it('a view created before connect() serves once connected', async () => {
+      const { client } = createMultiDbClient({ ...FAST, databases: [memberOf(serverA)] });
+      const view = client.withTypeMapping({ [RESP_TYPES.BLOB_STRING]: Buffer });
+      await client.connect();
+      try {
+        assert.equal(await view.ping(), 'PONG');
+      } finally {
+        client.destroy();
+      }
+    });
   });
 
   describe('drop-in contract', () => {
