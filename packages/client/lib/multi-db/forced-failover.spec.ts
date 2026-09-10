@@ -3,7 +3,6 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import testUtils from '../test-utils';
 import { createMultiDbClient } from '.';
-import type { AnyRedisClientType } from '.';
 import type { RedisServerDocker } from '@redis/test-utils';
 
 const execFileAsync = promisify(execFile);
@@ -78,7 +77,7 @@ describe('multi-db forced failover', function () {
       databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })]
     });
     await client.connect();
-    (client as any).on('error', () => {});
+    client.on('error', () => {});
     try {
       const forced = once<{ from: string; to: string; reason: string }>(client, 'failover');
       await controller.setActiveDatabase('db-1');
@@ -104,7 +103,7 @@ describe('multi-db forced failover', function () {
       databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })]
     });
     await client.connect();
-    (client as any).on('error', () => {});
+    client.on('error', () => {});
     try {
       await kill(serverB);
       await assert.rejects(controller.setActiveDatabase('db-1'), /failed its health check/);
@@ -122,7 +121,7 @@ describe('multi-db forced failover', function () {
       databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })]
     });
     await client.connect();
-    (client as any).on('error', () => {});
+    client.on('error', () => {});
     try {
       await controller.setActiveDatabase('db-1');
 
@@ -151,10 +150,10 @@ describe('multi-db forced failover', function () {
       databases: [memberOf(serverA), memberOf(serverB)]
     });
     await client.connect();
-    (client as any).on('error', () => {});
+    client.on('error', () => {});
     try {
       const failovers: Array<unknown> = [];
-      (client as any).on('failover', event => {
+      client.on('failover', event => {
         failovers.push(event);
       });
       await controller.setActiveDatabase('db-0');
@@ -171,7 +170,7 @@ describe('multi-db forced failover', function () {
       databases: [memberOf(serverA), memberOf(serverB)]
     });
     await client.connect();
-    (client as any).on('error', () => {});
+    client.on('error', () => {});
     try {
       const searching = once(client, 'all-databases-down');
       await Promise.all([kill(serverA), kill(serverB)]);

@@ -232,7 +232,7 @@ describe('multi-db', function () {
         { databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })] },
         async ({ client, controller }) => {
           const events: Array<FailoverEvent> = [];
-          (client as any).on('failover', event => {
+          client.on('failover', event => {
             events.push(event);
           });
 
@@ -296,7 +296,7 @@ describe('multi-db', function () {
       };
       return withMultiDb(
         { databases: [memberOf(serverA), memberOf(serverB)], failureDetector: detector },
-        async ({ client, controller }) => {
+        async ({ client }) => {
           const failover = new Promise(resolve => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any -- multi-db events are untyped on the generic wrapper
             (client as any).once('failover', resolve);
@@ -348,8 +348,9 @@ describe('multi-db', function () {
         { databases: [memberWithModule(serverA, { weight: 1 }), memberWithModule(serverB, { weight: 0.5 })] },
         async ({ client, controller }) => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any -- module surface is untyped on the generic wrapper
-          const ns = (client as any).mymod;
-          assert.equal(ns, (client as any).mymod, 'namespace reference must be stable');
+          const namespaceOf = (c: unknown) => (c as any).mymod;
+          const ns = namespaceOf(client);
+          assert.equal(ns, namespaceOf(client), 'namespace reference must be stable');
 
           await ns.bump('mymod-counter');
           await controller.setActiveDatabase('db-1');
@@ -430,8 +431,8 @@ describe('multi-db', function () {
         },
         async ({ client, controller }) => {
           const failovers: Array<{ reason: string }> = [];
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- multi-db events are untyped on the generic wrapper
-          (client as any).on('failover', (event: { reason: string }) => failovers.push(event));
+           
+          client.on('failover', (event: { reason: string }) => failovers.push(event));
 
           // the transaction pins to db-0; the switch must not move it
           const tx = client.multi().set('pinned-tx', 'on-a');

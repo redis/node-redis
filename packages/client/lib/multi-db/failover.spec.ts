@@ -133,7 +133,7 @@ describe('multi-db failover', function () {
   });
 
   it('moves pub/sub subscriptions to the new active member', async () => {
-    const { client, controller } = createMultiDbClient({
+    const { client } = createMultiDbClient({
       ...FAST_FAILOVER,
       databases: [memberOf(serverA), memberOf(serverB)]
     });
@@ -174,7 +174,7 @@ describe('multi-db failover', function () {
       ]
     });
     await client.connect();
-    (client as any).on('error', () => {});
+    client.on('error', () => {});
     // a RESP2 subscriber-mode connection cannot publish — use a direct client
     const publisher = RedisClient.create({ socket: { host: '127.0.0.1', port: serverB.port } });
     await publisher.connect();
@@ -215,12 +215,12 @@ describe('multi-db failover', function () {
     });
     const direct = RedisClient.create({ socket: { host: '127.0.0.1', port: serverB.port } });
     await direct.connect();
-    const { client, controller } = createMultiDbClient({
+    const { client } = createMultiDbClient({
       ...FAST_FAILOVER,
       databases: [withCache(serverA), withCache(serverB)]
     });
     await client.connect();
-    (client as any).on('error', () => {});
+    client.on('error', () => {});
     const traffic = startTraffic(client);
     try {
       await direct.set('cached-key', 'value-on-b');
@@ -243,16 +243,16 @@ describe('multi-db failover', function () {
   });
 
   it('escalates to permanently unavailable when every member is down', async () => {
-    const { client, controller } = createMultiDbClient({
+    const { client } = createMultiDbClient({
       ...FAST_FAILOVER,
       databases: [memberOf(serverA), memberOf(serverB)]
     });
     await client.connect();
-    (client as any).on('error', () => {
+    client.on('error', () => {
       // background housekeeping may report the dying members; irrelevant here
     });
     const attempts: Array<{ attempt: number; maxAttempts: number }> = [];
-    (client as any).on('all-databases-down', event => {
+    client.on('all-databases-down', event => {
       attempts.push(event);
     });
     const traffic = startTraffic(client);
@@ -291,7 +291,7 @@ describe('multi-db failover', function () {
   });
 
   it('background errors without an error listener do not crash the process', async () => {
-    const { client, controller } = createMultiDbClient({
+    const { client } = createMultiDbClient({
       ...FAST_FAILOVER,
       databases: [memberOf(serverA), memberOf(serverB)]
     });
@@ -301,10 +301,10 @@ describe('multi-db failover', function () {
     const rejections: Array<unknown> = [];
     const onRejection = (err: unknown) => rejections.push(err);
     process.on('unhandledRejection', onRejection);
-    // deliberately NO (client as any).on('error', ...): the guarded emit must drop
+    // deliberately NO client.on('error', ...): the guarded emit must drop
     // the background error instead of throwing inside a promise handler
     const unhealthy = once<{ id: string }>(client, 'database-unhealthy' as never);
-    (client as any).on('database-unhealthy', () => {
+    client.on('database-unhealthy', () => {
       throw new Error('listener explosion');
     });
     try {
@@ -352,11 +352,11 @@ describe('multi-db failover', function () {
       databases: [memberWithModule(serverA, { weight: 1 }), memberWithModule(serverB, { weight: 0.5 })]
     });
     await client.connect();
-    (client as any).on('error', () => {});
+    client.on('error', () => {});
     const failovers: Array<unknown> = [];
-    (client as any).on('failover', event => failovers.push(event));
+    client.on('failover', event => failovers.push(event));
     const attempts: Array<unknown> = [];
-    (client as any).on('all-databases-down', event => attempts.push(event));
+    client.on('all-databases-down', event => attempts.push(event));
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- module surface is untyped on the generic wrapper
     const ns = (client as any).mymod;
     try {
@@ -395,11 +395,11 @@ describe('multi-db failover', function () {
       databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })]
     });
     await client.connect();
-    (client as any).on('error', () => {});
+    client.on('error', () => {});
     const failovers: Array<unknown> = [];
-    (client as any).on('failover', event => failovers.push(event));
+    client.on('failover', event => failovers.push(event));
     const attempts: Array<unknown> = [];
-    (client as any).on('all-databases-down', event => attempts.push(event));
+    client.on('all-databases-down', event => attempts.push(event));
     const view = client.withTypeMapping({});
     try {
       assert.equal(await view.ping(), 'PONG');
@@ -482,9 +482,9 @@ describe('multi-db failover', function () {
       databases: [memberOf(serverA), memberOf(serverB)]
     });
     await client.connect();
-    (client as any).on('error', () => {});
+    client.on('error', () => {});
     const attempts: Array<unknown> = [];
-    (client as any).on('all-databases-down', event => attempts.push(event));
+    client.on('all-databases-down', event => attempts.push(event));
     const traffic = startTraffic(client);
     try {
       await Promise.all([kill(serverA), kill(serverB)]);

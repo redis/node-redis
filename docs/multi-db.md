@@ -18,7 +18,7 @@ const { client, controller } = createMultiDbClient({
   ]
 });
 
-controller.on('failover', ({ from, to, reason }) => console.log(`failover ${from} -> ${to} (${reason})`));
+client.on('failover', ({ from, to, reason }) => console.log(`failover ${from} -> ${to} (${reason})`));
 
 await client.connect();
 await client.set('key', 'value'); // served by 'east' until it fails
@@ -26,13 +26,14 @@ await client.set('key', 'value'); // served by 'east' until it fails
 
 Every factory returns `{ client, controller }`:
 
-- `client` is typed **exactly** as the corresponding base client (`RedisClientType`,
-  `RedisClientPoolType`, `RedisClusterType`, `RedisSentinelType`) — a true drop-in. Command
-  methods forward to the active member; `connect`/`close`/`destroy`/`quit` fan out across all
-  members.
-- `controller` carries everything multi-db-specific: inspection, weights, runtime add/remove,
-  forced failover, and events. It is a separate object so `client`'s type stays identical to
-  the base client.
+- `client` is the corresponding base client type (`RedisClientType`, `RedisClientPoolType`,
+  `RedisClusterType`, `RedisSentinelType`) plus a typed event surface
+  (`MultiDbClientType`) — a drop-in. Command methods, module namespaces
+  (`client.json.*`), and derived views forward to the active member;
+  `connect`/`close`/`destroy`/`quit` fan out across all members; every event fires here (see
+  Events).
+- `controller` is the admin surface: inspection, weights, runtime add/remove, forced
+  failover. It emits nothing — the client is the event surface.
 
 Factories: `createMultiDbClient`, `createMultiDbClientPool`, `createMultiDbCluster`,
 `createMultiDbSentinel` (from `@redis/client`; the `redis` package's `createMultiDbClient`
@@ -44,8 +45,10 @@ Each member carries a weight in `[0, 1]` (default 1) and a circuit breaker
 (`CLOSED` → `OPEN` → `HALF_OPEN`). The active member is always the highest-weight member with
 a `CLOSED` circuit; ties go to the earlier-configured member.
 
-- **Failure detection.** Every forwarded command's outcome plus the active member's
-  connection errors feed a sliding-window failure detector. It trips when, within
+- **Failure detection.** Every command outcome on the non-pinned surfaces — plain commands,
+  module/function/script namespaces, derived views, and transaction executions — plus the
+  active member's connection errors feed a sliding-window failure detector. Only the pinned
+  surfaces listed under caveats (scan iterators, `legacy()`) bypass it. It trips when, within
   `windowSize`, the failure count reaches `minNumOfFailures` **and** the failure rate reaches
   `failureRateThreshold` percent (setting either to `0` disables that condition). A trip
   opens the active member's circuit and fails over.
@@ -79,7 +82,7 @@ All other options are flat on the factory call:
 | --- | --- | --- |
 | `gracePeriod` | `60000` | ms an `OPEN` circuit rests before recovery probing |
 | `healthCheck.interval` | `5000` | ms between background check rounds per member |
-| `healthCheck.timeout` | `3000` | ms per probe (must be < `interval`); bounds member connects too |
+| `healthCheck.timeout` | `3000` | ms per probe (must be < `interval`); member connects are bounded by the whole probe-round budget (`numProbes` × `timeout` + inter-probe delays) |
 | `healthCheck.numProbes` | `3` | probes per round / consecutive successes to close a circuit |
 | `healthCheck.delayBetweenProbes` | `500` | ms between probes within a round |
 | `healthCheck.policy` | `'ALL'` | round aggregation: `ALL`, `MAJORITY` or `ANY` (early exit) |
@@ -121,17 +124,30 @@ and clears the pin.
 
 ### Events
 
+The **client** is the single event surface (the controller emits nothing). Lifecycle events
+describe the multi-db client as a whole, not any one connection:
+
 | Event | Payload | Fired when |
 | --- | --- | --- |
+| `connect` | — | `connect()` started establishing the members |
+| `ready` | — | the availability policy is met and an active member serves (initial and recovery connects) |
+| `end` | — | a user-initiated `close()`/`destroy()` completed |
+| `terminated` | `{ attempts }` | the client went permanently unavailable; only `connect()` recovers it |
+| `error` | `Error` | a background task failed (pub/sub move, health-check round) |
 | `failover` | `{ from, to, reason }` | the active member switched (`failure-detector`, `health-check`, `forced`, `active-removed`) |
 | `fallback` | `{ from, to }` | auto-fallback returned to a higher-weight member |
 | `database-unhealthy` | `{ id, cause }` | a member's circuit opened |
 | `database-recovered` | `{ id }` | a member's circuit closed again |
 | `all-databases-down` | `{ attempt, maxAttempts }` | one failed selection attempt with no healthy member |
-| `error` | `Error` | a background task failed (pub/sub move, health-check round) |
+| `member-error` | `{ id, error }` | one member's client reported an error |
+| `member-ready` | `{ id }` | one member's client (re)connected |
+| `member-end` | `{ id }` | one member's client gave up reconnecting |
 
-An `error` listener is optional: with none attached, background errors are dropped instead of
-crashing the process the way an unhandled EventEmitter `error` normally would.
+Listener registration and removal work in every client state, including while every member is
+down. An `error` listener is optional: with none attached, background errors are dropped
+instead of crashing the process the way an unhandled EventEmitter `error` normally would.
+`member-*` payloads carry the member id — ids can be reused after a remove/add, so read the
+id per event rather than binding logic to a name captured long ago.
 
 ## Custom health checks and detectors
 
@@ -184,4 +200,18 @@ a `CLOSED` circuit, or `undefined` to escalate.
 - **Resource overhead.** N member connections are live the whole time (each kind's usual
   connection count), plus one background health-check timer per member and the detector's
   sliding window on the command path. The command hot path adds one indirection per call.
+- **Pinned surfaces.** A few handles bind to the member that was active when they were
+  created and never follow a failover — create them per use, not at startup:
+  - `multi()` — a transaction executes wholly on its pinned member; `exec()` rejects while
+    every member is down and its outcome feeds the detector.
+  - scan iterators (`scanIterator` and friends) — SCAN cursors are member-specific, so an
+    iterator finishes its member's keyspace and fails with that member's error if it dies.
+    While every member is down, creating one throws.
+  - `legacy()` — the callback-style surface stays on its creation member; creating it while
+    every member is down throws.
+
+  Derived views (`withTypeMapping`, `withCommandOptions`, `withAbortSignal`) are NOT pinned:
+  they follow the active member per call, feed the detector, and reject while every member is
+  down. `duplicate(overrides?)` returns a new unconnected `{ client, controller }` pair over
+  the current live member set (a deliberate signature difference from the base client).
 - **Homogeneous members only.** One factory per topology; mixing kinds is not supported.
