@@ -3,7 +3,6 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import testUtils from '../test-utils';
 import { createMultiDbClient } from '.';
-import type { AnyRedisClientType } from '.';
 import type { RedisServerDocker } from '@redis/test-utils';
 
 const execFileAsync = promisify(execFile);
@@ -81,11 +80,11 @@ describe('multi-db recovery and fallback', function () {
       databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })]
     });
     await client.connect();
-    (client as any).on('error', () => {});
+    client.on('error', () => {});
     try {
       let unhealthyAt = 0;
       let recoveredAt = 0;
-      (client as any).on('database-unhealthy', event => {
+      client.on('database-unhealthy', event => {
         if (event.id === 'db-0' && unhealthyAt === 0) unhealthyAt = Date.now();
       });
 
@@ -125,7 +124,7 @@ describe('multi-db recovery and fallback', function () {
       databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })]
     });
     await client.connect();
-    (client as any).on('error', () => {});
+    client.on('error', () => {});
     try {
       const failover = once(client, 'failover');
       await kill(serverA);
@@ -150,7 +149,7 @@ describe('multi-db recovery and fallback', function () {
       databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })]
     });
     await client.connect();
-    (client as any).on('error', () => {});
+    client.on('error', () => {});
     try {
       const failover = once(client, 'failover');
       await kill(serverA);
@@ -181,10 +180,10 @@ describe('multi-db recovery and fallback', function () {
       databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })]
     });
     await client.connect();
-    (client as any).on('error', () => {});
+    client.on('error', () => {});
     try {
       const failovers: Array<unknown> = [];
-      (client as any).on('failover', event => {
+      client.on('failover', event => {
         failovers.push(event);
       });
 
