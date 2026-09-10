@@ -141,7 +141,30 @@ describe('multi-db topologies', function () {
     // no after() here: spawnRedisCluster registers the containers for the
     // docker harness's global cleanup — removing them twice fails the run
 
-    // runs before the kill test below: both clusters must still be healthy
+    afterEach(async function () {
+      // every test owns a healthy fixture: restart whatever the previous test
+      // killed and wait for both clusters to reform (their state persists in
+      // the container filesystem across docker start)
+      this.timeout(120_000);
+      await Promise.all([...clusterA, ...clusterB].map(({ dockerId }) =>
+        execFileAsync('docker', ['start', dockerId]).catch(() => {})
+      ));
+      for (const { dockerId, port } of [...clusterA, ...clusterB]) {
+        const deadline = Date.now() + 60_000;
+        while (Date.now() < deadline) {
+          try {
+            const { stdout } = await execFileAsync(
+              'docker', ['exec', dockerId, 'redis-cli', '-p', String(port), 'cluster', 'info']
+            );
+            if (stdout.includes('cluster_state:ok')) break;
+          } catch {
+            // container still starting
+          }
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      }
+    });
+
     it('forced failover pins a cluster member and releases back', async () => {
       const { client, controller } = createMultiDbCluster({
         ...FAST_FAILOVER,
@@ -260,6 +283,13 @@ describe('multi-db topologies', function () {
     after(async function () {
       this.timeout(120_000);
       await Promise.all([frameA.cleanup(), frameB.cleanup()]);
+    });
+
+    afterEach(async function () {
+      // every test owns a healthy fixture: restart whatever the previous test
+      // stopped, nodes and sentinels alike
+      this.timeout(120_000);
+      await Promise.all([frameA.getAllRunning(), frameB.getAllRunning()]);
     });
 
     it("the sentinel's own master change does not fail the member over", async function () {
