@@ -232,6 +232,51 @@ describe('multi-db topologies', function () {
       }
     });
 
+    it('a single dead shard fails commands but opens the member circuit only at detector thresholds', async function () {
+      this.timeout(60_000);
+      const { client, controller } = createMultiDbCluster({
+        failureDetector: { minNumOfFailures: 5, failureRateThreshold: 0, windowSize: 10_000 },
+        // health checks parked: only command outcomes may drive the failover
+        healthCheck: { interval: 30_000, timeout: 1_000, numProbes: 1, delayBetweenProbes: 0 },
+        maxFailoverAttempts: 2,
+        delayBetweenFailoverAttempts: 200,
+        databases: [
+          { ...memberOf(clusterA), weight: 1 },
+          { ...memberOf(clusterB), weight: 0.5 }
+        ]
+      });
+      await client.connect();
+      client.on('error', () => {});
+      const failovers: Array<unknown> = [];
+      client.on('failover', event => failovers.push(event));
+      try {
+        // spread keys over the slot space so some live on the doomed shard
+        const keys = Array.from({ length: 30 }, (_, i) => `shard-mix:${i}`);
+        await Promise.all(keys.map(key => client.set(key, 'x')));
+
+        await kill(clusterA[0].dockerId);
+
+        // partial availability: keys on surviving shards still serve while
+        // failures on the dead shard accumulate toward the threshold
+        let successes = 0;
+        const deadline = Date.now() + 20_000;
+        while (failovers.length === 0 && Date.now() < deadline) {
+          await Promise.all(keys.map(key =>
+            client.get(key).then(() => successes++, () => {})
+          ));
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        assert.ok(successes > 0, 'surviving shards must keep serving before the trip');
+        assert.equal(failovers.length >= 1, true, 'accumulated shard failures must trip the detector');
+        assert.deepEqual(failovers[0], { from: 'db-0', to: 'db-1', reason: 'failure-detector' });
+
+        // the whole keyspace serves from the new member
+        await Promise.all(keys.map(key => client.set(key, 'y')));
+      } finally {
+        client.destroy();
+      }
+    });
+
     it('fails over from one cluster to the other when the whole cluster dies', async () => {
       const { client, controller } = createMultiDbCluster({
         ...FAST_FAILOVER,

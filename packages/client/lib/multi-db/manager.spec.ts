@@ -474,6 +474,22 @@ describe('multi-db manager (unit)', function () {
     mgr.destroy();
   });
 
+  it('close() gracefully closes every member and announces end exactly once', async () => {
+    const { mgr, fakes, received } = makeHarness(3);
+    await mgr.connect();
+
+    await mgr.close();
+    for (const id of ['db-0', 'db-1', 'db-2']) {
+      assert.equal(fakes.get(id)!.closed, true, `member ${id} must be closed`);
+      assert.equal(fakes.get(id)!.destroyed, false, 'close() must be graceful, not destroy');
+    }
+    assert.equal(received.filter(r => r.event === 'end').length, 1);
+
+    // a second teardown stays silent
+    await mgr.close();
+    assert.equal(received.filter(r => r.event === 'end').length, 1);
+  });
+
   it('a force finishing after search exhaustion rejects instead of half-succeeding', async () => {
     const { mgr, fakes, received } = makeHarness(2, {
       maxFailoverAttempts: 2,
