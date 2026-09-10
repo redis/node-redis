@@ -275,8 +275,11 @@ describe('multi-db failover', function () {
         (client as { get(key: string): Promise<unknown> }).get('x'),
         PermanentlyUnavailableError
       );
-      // sync-returning methods have no promise to reject through — they throw
-      assert.throws(() => (client as { multi(): unknown }).multi(), PermanentlyUnavailableError);
+      // multi() stays creation-safe: the builder works, the rejection surfaces at exec
+      const tx = (client as { multi(): { exec(): Promise<unknown> } }).multi();
+      await assert.rejects(tx.exec(), PermanentlyUnavailableError);
+      // pinned sync surfaces still throw at creation
+      assert.throws(() => (client as { scanIterator(): unknown }).scanIterator(), PermanentlyUnavailableError);
       assert.ok(
         traffic.errors.some(err => err instanceof TemporarilyUnavailableError),
         'commands during the search window must fail fast with TemporarilyUnavailableError'
@@ -495,8 +498,11 @@ describe('multi-db failover', function () {
         (client as { get(key: string): Promise<unknown> }).get('x'),
         PermanentlyUnavailableError
       );
-      // sync-returning methods have no promise to reject through — they throw
-      assert.throws(() => (client as { multi(): unknown }).multi(), PermanentlyUnavailableError);
+      // multi() stays creation-safe; the rejection surfaces at exec
+      await assert.rejects(
+        (client as { multi(): { exec(): Promise<unknown> } }).multi().exec(),
+        PermanentlyUnavailableError
+      );
       traffic.stop();
 
       // both members return; wait until they accept connections again

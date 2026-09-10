@@ -421,6 +421,90 @@ describe('multi-db', function () {
     });
   });
 
+  describe('pinned surfaces', () => {
+    it('multi() executes on the member captured at creation, and its outcome never trips the new active', () =>
+      withMultiDb(
+        {
+          failureDetector: { minNumOfFailures: 1, failureRateThreshold: 0, windowSize: 60_000 },
+          databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })]
+        },
+        async ({ client, controller }) => {
+          const failovers: Array<{ reason: string }> = [];
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- multi-db events are untyped on the generic wrapper
+          (client as any).on('failover', (event: { reason: string }) => failovers.push(event));
+
+          // the transaction pins to db-0; the switch must not move it
+          const tx = client.multi().set('pinned-tx', 'on-a');
+          await controller.setActiveDatabase('db-1');
+          assert.ok(await tx.exec());
+
+          const directA = RedisClient.create({ socket: { host: '127.0.0.1', port: serverA.port } });
+          const directB = RedisClient.create({ socket: { host: '127.0.0.1', port: serverB.port } });
+          await Promise.all([directA.connect(), directB.connect()]);
+          try {
+            assert.equal(await directA.get('pinned-tx'), 'on-a', 'the transaction must execute on its pinned member');
+            assert.equal(await directB.get('pinned-tx'), null);
+          } finally {
+            directA.destroy();
+            directB.destroy();
+          }
+
+          // a failing exec attributed to a DEMOTED member must not trip the
+          // active one (detector threshold is 1 — any misattribution fails over)
+          const staleTx = client.multi().addCommand(['NOSUCHCOMMAND']);
+          await controller.setActiveDatabase('db-0');
+          await assert.rejects(staleTx.exec());
+          await new Promise(resolve => setTimeout(resolve, 200));
+          assert.ok(
+            failovers.every(event => event.reason === 'forced'),
+            'a demoted member\u2019s exec failure must not cause an automatic failover'
+          );
+
+          // …while a failing exec on the ACTIVE pinned member must feed the
+          // detector like any other command outcome
+          const activeTx = client.multi().addCommand(['NOSUCHCOMMAND']);
+          await assert.rejects(activeTx.exec());
+          const deadline = Date.now() + 2_000;
+          while (!failovers.some(event => event.reason === 'failure-detector') && Date.now() < deadline) {
+            await new Promise(resolve => setTimeout(resolve, 50));
+          }
+          assert.ok(
+            failovers.some(event => event.reason === 'failure-detector'),
+            'an active member\u2019s exec failure must count toward the detector'
+          );
+        }
+      )
+    );
+
+    it('a scan iterator stays pinned to its member and fails if that member is removed', () =>
+      withMultiDb(
+        { databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })] },
+        async ({ client, controller }) => {
+          for (let i = 0; i < 10; i++) {
+            await client.set(`scan-pin:${i}`, 'x');
+          }
+          const iterator = client.scanIterator({ MATCH: 'scan-pin:*', COUNT: 3 });
+          const seen: Array<string> = [];
+          const first = await iterator.next();
+          assert.equal(first.done, false);
+          seen.push(...(first.value as Array<string>));
+
+          // the switch must not redirect the cursor to another member
+          await controller.setActiveDatabase('db-1');
+          for await (const keys of { [Symbol.asyncIterator]: () => iterator }) {
+            seen.push(...(keys as Array<string>));
+          }
+          assert.equal(new Set(seen).size, 10, 'the iterator must finish its pinned member\u2019s keyspace');
+
+          // an iterator whose pinned member is removed fails with that member's error
+          const pinnedToB = client.scanIterator();
+          await controller.removeDatabase('db-1'); // active removal: switches back to db-0, destroys db-1
+          await assert.rejects(pinnedToB.next());
+        }
+      )
+    );
+  });
+
   describe('drop-in contract', () => {
     it('client is assignable to the base client type and behaves like one', () =>
       withMultiDb({ databases: [memberOf(serverA)] }, async ({ client }) => {
