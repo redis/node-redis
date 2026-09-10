@@ -41,7 +41,10 @@ export type AnyRedisClientType =
  * (`constructor` aside) — forwarders are installed as own properties and
  * would silently shadow an unlisted one.
  */
-const INTERCEPTED = new Set<PropertyKey>(['connect', 'close', 'destroy', 'quit']);
+const INTERCEPTED = new Set<PropertyKey>([
+  'connect', 'close', 'destroy', 'quit',
+  'withTypeMapping', 'withCommandOptions', 'withAbortSignal'
+]);
 
 /**
  * What every factory returns: the drop-in client plus the multi-db admin surface.
@@ -89,6 +92,61 @@ class MultiDbClientBase<C extends AnyRedisClientType> extends EventEmitter {
   quit() {
     return this._mgr.quit();
   }
+
+  /**
+   * Derived view with the given type mapping: commands issued through it apply
+   * the mapping to whichever member is ACTIVE at each call — the view follows
+   * failover, feeds the failure detector, and rejects while every member is
+   * down, exactly like the wrapper itself.
+   * @experimental
+   */
+  withTypeMapping(mapping: unknown) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- member kinds type withX themselves
+    return makeDerived(this._mgr, client => (client as any).withTypeMapping(mapping));
+  }
+
+  /**
+   * As {@link withTypeMapping}, over full command options.
+   * @experimental
+   */
+  withCommandOptions(options: unknown) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- member kinds type withX themselves
+    return makeDerived(this._mgr, client => (client as any).withCommandOptions(options));
+  }
+
+  /**
+   * As {@link withTypeMapping}, over an abort signal.
+   * @experimental
+   */
+  withAbortSignal(signal: AbortSignal) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- member kinds type withX themselves
+    return makeDerived(this._mgr, client => (client as any).withAbortSignal(signal));
+  }
+}
+
+/**
+ * Build a derived view: the wrapper's classified surface with `resolve`
+ * applied to the active member at every command call. Views chain — a view of
+ * a view composes both option sets in creation order.
+ */
+function makeDerived<C extends AnyRedisClientType>(
+  mgr: MultiDbManager<C>,
+  resolve: ResolveClient<C>
+): C {
+  const view = new MultiDbClientBase(mgr);
+  attachForwarders(view, mgr, resolve);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic patching
+  const dst = view as any;
+  dst.withTypeMapping = (mapping: unknown) =>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- member kinds type withX themselves
+    makeDerived(mgr, client => (resolve(client) as any).withTypeMapping(mapping));
+  dst.withCommandOptions = (options: unknown) =>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- member kinds type withX themselves
+    makeDerived(mgr, client => (resolve(client) as any).withCommandOptions(options));
+  dst.withAbortSignal = (signal: AbortSignal) =>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- member kinds type withX themselves
+    makeDerived(mgr, client => (resolve(client) as any).withAbortSignal(signal));
+  return view as unknown as C;
 }
 
 /**
@@ -108,9 +166,15 @@ class MultiDbClientBase<C extends AnyRedisClientType> extends EventEmitter {
 // meaningfully
 const PINNED_SYNC = new Set<string>([
   'multi', 'MULTI', 'duplicate', 'legacy',
-  'withTypeMapping', 'withCommandOptions', 'withAbortSignal',
   'scanIterator', 'hScanIterator', 'sScanIterator', 'zScanIterator'
 ]);
+
+/**
+ * A member-client transformation a derived view applies at every command call
+ * — e.g. `client => client.withTypeMapping(mapping)`. Identity for the root
+ * wrapper.
+ */
+type ResolveClient<C extends AnyRedisClientType> = (client: C) => C;
 
 /**
  * Wrap one module/function/script namespace: same failover contract as a plain
@@ -123,7 +187,8 @@ const PINNED_SYNC = new Set<string>([
 function wrapNamespace<C extends AnyRedisClientType>(
   name: string,
   sample: object,
-  mgr: MultiDbManager<C>
+  mgr: MultiDbManager<C>,
+  resolve: ResolveClient<C>
 ): object {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic namespace shape
   const wrapped: any = {};
@@ -137,7 +202,7 @@ function wrapNamespace<C extends AnyRedisClientType>(
       if (unavailable) return Promise.reject(unavailable);
       const active = mgr.activeDatabase;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic dispatch
-      const result = ((active.client as any)[name])[fnName](...args) as Promise<unknown>;
+      const result = ((resolve(active.client) as any)[name])[fnName](...args) as Promise<unknown>;
       return result.then(
         (reply: unknown) => {
           mgr.onCommandResult(true, undefined, active);
@@ -155,7 +220,8 @@ function wrapNamespace<C extends AnyRedisClientType>(
 
 function attachForwarders<C extends AnyRedisClientType>(
   target: MultiDbClientBase<C>,
-  mgr: MultiDbManager<C>
+  mgr: MultiDbManager<C>,
+  resolve: ResolveClient<C> = client => client
 ): void {
   const skip = new Set<PropertyKey>([...INTERCEPTED, 'constructor']);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic patching
@@ -187,13 +253,13 @@ function attachForwarders<C extends AnyRedisClientType>(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any -- lazy cache
           let cached: any;
           Object.defineProperty(dst, name, {
-            get: () => (cached ??= wrapNamespace(name, sample, mgr)),
+            get: () => (cached ??= wrapNamespace(name, sample, mgr, resolve)),
             enumerable: false
           });
         } else {
           // computed prop (`isOpen`, `options`) → live read from the active member
           // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic
-          Object.defineProperty(dst, name, { get: () => (mgr.active as any)[name], enumerable: false });
+          Object.defineProperty(dst, name, { get: () => (resolve(mgr.active) as any)[name], enumerable: false });
         }
       } else if (typeof desc.value === 'function') {
         // command / script method → call active's own method (this = active);
@@ -212,7 +278,7 @@ function attachForwarders<C extends AnyRedisClientType>(
           // arriving after a switch must not count against the new active
           const active = mgr.activeDatabase;
           // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic
-          const result = (active.client as any)[name](...args);
+          const result = (resolve(active.client) as any)[name](...args);
           if (result instanceof Promise) {
             return result.then(
               (reply: unknown) => {

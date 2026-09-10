@@ -384,6 +384,47 @@ describe('multi-db failover', function () {
     }
   });
 
+  it('view command failures alone trip the detector; while every member is down view calls reject', async function () {
+    this.timeout(90_000);
+    const { client, controller } = createMultiDbClient({
+      ...FAST_FAILOVER,
+      // health checks slow enough that only the detector can drive the failover
+      healthCheck: { interval: 30_000, timeout: 1_000, numProbes: 1, delayBetweenProbes: 0 },
+      databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })]
+    });
+    await client.connect();
+    controller.on('error', () => {});
+    const failovers: Array<unknown> = [];
+    controller.on('failover', event => failovers.push(event));
+    const attempts: Array<unknown> = [];
+    controller.on('all-databases-down', event => attempts.push(event));
+    const view = client.withTypeMapping({});
+    try {
+      assert.equal(await view.ping(), 'PONG');
+
+      // server-side failures on a healthy connection: only view outcomes can trip it
+      for (let i = 0; i < 3; i++) {
+        await view.sendCommand(['NOSUCHCOMMAND']).catch(() => {});
+      }
+      assert.deepEqual(
+        failovers,
+        [{ from: 'db-0', to: 'db-1', reason: 'failure-detector' }],
+        'view outcomes alone must drive the failover'
+      );
+      assert.equal(controller.getActiveDatabase().id, 'db-1');
+
+      await Promise.all([kill(serverA), kill(serverB)]);
+      const exhausted = Date.now() + 20_000;
+      while (attempts.length < 2 && Date.now() < exhausted) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      await new Promise(resolve => setTimeout(resolve, 300));
+      await assert.rejects(view.get('view-x'), PermanentlyUnavailableError);
+    } finally {
+      client.destroy();
+    }
+  });
+
   it('a repeat connect() recovers a permanently unavailable client', async function () {
     this.timeout(90_000);
     const { client, controller } = createMultiDbClient({
