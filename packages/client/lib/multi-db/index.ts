@@ -44,7 +44,8 @@ export type AnyRedisClientType =
  */
 const INTERCEPTED = new Set<PropertyKey>([
   'connect', 'close', 'destroy', 'quit',
-  'withTypeMapping', 'withCommandOptions', 'withAbortSignal'
+  'withTypeMapping', 'withCommandOptions', 'withAbortSignal',
+  'multi', 'MULTI'
 ]);
 
 /**
@@ -123,6 +124,57 @@ class MultiDbClientBase<C extends AnyRedisClientType> extends EventEmitter {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- member kinds type withX themselves
     return makeDerived(this._mgr, client => (client as any).withAbortSignal(signal));
   }
+
+  /**
+   * Transaction builder PINNED to the member active at creation — a
+   * transaction must execute wholly on one member, so it never follows a
+   * failover. Its execution methods reject while every member is down and
+   * report their outcome to the failure detector, attributed to the pinned
+   * member. Create transactions per use, not at startup.
+   * @experimental
+   */
+  multi() {
+    return makePinnedMulti(this._mgr, client => client);
+  }
+
+  /** Raw-command spelling of {@link multi}. @experimental */
+  MULTI() {
+    return this.multi();
+  }
+}
+
+/**
+ * Build a member's multi and patch its execution methods in place: the builder
+ * methods chain on the same instance, so wrapping via a separate object would
+ * be bypassed by the first chained call. `exec`/`execAsPipeline` gain the
+ * fail-fast check and outcome reporting (the typed variants delegate to them).
+ */
+function makePinnedMulti<C extends AnyRedisClientType>(
+  mgr: MultiDbManager<C>,
+  resolve: ResolveClient<C>
+): unknown {
+  const member = mgr.activeDatabase;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic patching
+  const inner = (resolve(member.client) as any).multi();
+
+  for (const method of ['exec', 'execAsPipeline'] as const) {
+    const original = inner[method].bind(inner);
+    inner[method] = (...args: Array<unknown>) => {
+      const unavailable = mgr.unavailableError;
+      if (unavailable) return Promise.reject(unavailable);
+      return original(...args).then(
+        (reply: unknown) => {
+          mgr.onCommandResult(true, undefined, member);
+          return reply;
+        },
+        (err: unknown) => {
+          mgr.onCommandResult(false, err as Error, member);
+          throw err;
+        }
+      );
+    };
+  }
+  return inner;
 }
 
 /**
@@ -147,6 +199,8 @@ function makeDerived<C extends AnyRedisClientType>(
   dst.withAbortSignal = (signal: AbortSignal) =>
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- member kinds type withX themselves
     makeDerived(mgr, client => (resolve(client) as any).withAbortSignal(signal));
+  dst.multi = () => makePinnedMulti(mgr, resolve);
+  dst.MULTI = dst.multi;
   return view as unknown as C;
 }
 
@@ -166,7 +220,7 @@ function makeDerived<C extends AnyRedisClientType>(
 // promise would TypeError at the first chained call instead of failing
 // meaningfully
 const PINNED_SYNC = new Set<string>([
-  'multi', 'MULTI', 'duplicate', 'legacy',
+  'duplicate', 'legacy',
   'scanIterator', 'hScanIterator', 'sScanIterator', 'zScanIterator'
 ]);
 
