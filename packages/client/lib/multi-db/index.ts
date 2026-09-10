@@ -52,11 +52,14 @@ const INTERCEPTED = new Set<PropertyKey>([
  * What every factory returns: the drop-in client plus the multi-db admin surface.
  * @experimental
  */
-export interface MultiDbResult<C extends AnyRedisClientType> {
+export interface MultiDbResult<
+  C extends AnyRedisClientType,
+  CONFIG extends DatabaseConfig<unknown> = PoolDatabaseConfig<unknown>
+> {
   /** drop-in: the base client type plus the typed multi-db event surface */
   client: MultiDbClientType<C>;
   /** multi-db admin surface (no events — the client is the event surface) */
-  controller: MultiDbController<C>;
+  controller: MultiDbController<C, CONFIG>;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -380,13 +383,16 @@ function makeClient<C extends AnyRedisClientType>(mgr: MultiDbManager<C>): Multi
 /* Dedicated factories                                                        */
 /* -------------------------------------------------------------------------- */
 
-function assemble<C extends AnyRedisClientType>(
+function assemble<
+  C extends AnyRedisClientType,
+  CONFIG extends DatabaseConfig<unknown> = PoolDatabaseConfig<unknown>
+>(
   members: Array<ResolvedMemberConfig>,
   config: ResolvedMultiDbConfig,
   adapter: MemberAdapter<C>
-): MultiDbResult<C> {
+): MultiDbResult<C, CONFIG> {
   const mgr = new MultiDbManager(members, config, adapter);
-  return { client: makeClient(mgr), controller: new MultiDbController(mgr) };
+  return { client: makeClient(mgr), controller: new MultiDbController<C, CONFIG>(mgr) };
 }
 
 /**
@@ -407,7 +413,7 @@ export function createMultiDbClient<
   T extends TypeMapping = {}
 >(options: {
   databases: Array<DatabaseConfig<RedisClientOptions<M, F, S, RESP, T>>>;
-} & MultiDbConfig): MultiDbResult<RedisClientType<M, F, S, RESP, T>> {
+} & MultiDbConfig): MultiDbResult<RedisClientType<M, F, S, RESP, T>, DatabaseConfig<RedisClientOptions<M, F, S, RESP, T>>> {
   const { databases, config } = resolveMultiDbConfig(options.databases, options);
   const adapter: MemberAdapter<RedisClientType<M, F, S, RESP, T>> = {
     create: db => RedisClient.create(db.options as RedisClientOptions<M, F, S, RESP, T>),
@@ -447,7 +453,7 @@ export function createMultiDbClientPool<
   T extends TypeMapping = {}
 >(options: {
   databases: Array<PoolDatabaseConfig<RedisClientOptions<M, F, S, RESP, T>>>;
-} & MultiDbConfig): MultiDbResult<RedisClientPoolType<M, F, S, RESP, T>> {
+} & MultiDbConfig): MultiDbResult<RedisClientPoolType<M, F, S, RESP, T>, PoolDatabaseConfig<RedisClientOptions<M, F, S, RESP, T>>> {
   const { databases, config } = resolveMultiDbConfig(options.databases, options);
   const adapter: MemberAdapter<RedisClientPoolType<M, F, S, RESP, T>> = {
     create: db => RedisClientPool.create(db.options as RedisClientOptions<M, F, S, RESP, T>, db.poolOptions),
@@ -468,7 +474,7 @@ export function createMultiDbCluster<
   T extends TypeMapping = {}
 >(options: {
   databases: Array<DatabaseConfig<RedisClusterOptions<M, F, S, RESP, T>>>;
-} & MultiDbConfig): MultiDbResult<RedisClusterType<M, F, S, RESP, T>> {
+} & MultiDbConfig): MultiDbResult<RedisClusterType<M, F, S, RESP, T>, DatabaseConfig<RedisClusterOptions<M, F, S, RESP, T>>> {
   const { databases, config } = resolveMultiDbConfig(options.databases, options);
   const adapter: MemberAdapter<RedisClusterType<M, F, S, RESP, T>> = {
     create: db => RedisCluster.create(db.options as RedisClusterOptions<M, F, S, RESP, T>),
@@ -493,7 +499,7 @@ export function createMultiDbSentinel<
   T extends TypeMapping = {}
 >(options: {
   databases: Array<DatabaseConfig<RedisSentinelOptions<M, F, S, RESP, T>>>;
-} & MultiDbConfig): MultiDbResult<RedisSentinelType<M, F, S, RESP, T>> {
+} & MultiDbConfig): MultiDbResult<RedisSentinelType<M, F, S, RESP, T>, DatabaseConfig<RedisSentinelOptions<M, F, S, RESP, T>>> {
   const { databases, config } = resolveMultiDbConfig(options.databases, options);
   const adapter: MemberAdapter<RedisSentinelType<M, F, S, RESP, T>> = {
     create: db => RedisSentinel.create(db.options as RedisSentinelOptions<M, F, S, RESP, T>),
