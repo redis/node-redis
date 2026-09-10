@@ -309,7 +309,7 @@ export class MultiDbManager<C extends AnyRedisClientType> {
           await this.#recoveryProbe(db);
           return;
         case 'CLOSED':
-          if (!await runProbeRound(this.#targetFor(db), this.#healthChecks, this.#config.healthCheck)) {
+          if (!await runProbeRound(this.#targetFor(db), this.#healthChecks, this.#config.healthCheck, this.#teardown.signal)) {
             const cause = new Error(`MultiDb: database "${db.id}" failed its health check`);
             if (db === this.#active) {
               this.#handleActiveFailure(cause, 'health-check');
@@ -337,7 +337,11 @@ export class MultiDbManager<C extends AnyRedisClientType> {
     const { numProbes, delayBetweenProbes, timeout } = this.#config.healthCheck;
     for (let i = 0; i < numProbes; i++) {
       if (i > 0 && delayBetweenProbes > 0) {
-        await delay(delayBetweenProbes);
+        try {
+          await delay(delayBetweenProbes, undefined, { signal: this.#teardown.signal });
+        } catch {
+          return; // torn down mid-round: don't hold the event loop on a dead timer
+        }
       }
       if (this.#teardown.signal.aborted || db.circuit.state !== 'HALF_OPEN') return;
       if (await runSingleProbe(this.#targetFor(db), this.#healthChecks, timeout)) {
