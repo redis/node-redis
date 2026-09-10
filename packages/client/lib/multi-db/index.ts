@@ -449,6 +449,14 @@ export function createMultiDbClient<
           listeners[PUBSUB_TYPE.SHARDED].size ? from.sUnsubscribe() : undefined
         ]);
       }
+    },
+    rejectQueued: (from, error) => {
+      // ready members drain their queue immediately — only a down member's
+      // unsent commands would otherwise survive to replay on reconnect. Its
+      // in-flight commands were already rejected by the socket-error path, so
+      // this clears exactly the unsent backlog.
+      if (from.isReady) return;
+      from._getQueue().flushAll(error);
     }
   };
   return assemble(databases, config, adapter);
@@ -546,7 +554,7 @@ export type {
   MultiDbEventEmitter,
   MultiDbClientType
 } from './events';
-export { TemporarilyUnavailableError, PermanentlyUnavailableError } from './errors';
+export { TemporarilyUnavailableError, PermanentlyUnavailableError, CommandAbandonedError } from './errors';
 export type { DatabaseRole } from './database';
 export type {
   MultiDbConfig,
