@@ -589,19 +589,26 @@ export class MultiDbManager<C extends AnyRedisClientType> {
     if (firstTeardown) this.#events?.emit('end');
   }
 
-  destroy(): void {
+  destroy(): Promise<void> {
     const firstTeardown = !this.#teardown.signal.aborted;
     this.#teardown.abort();
     this.#stopTimers();
-    for (const db of this.#databases) {
+    // per-member, awaited: some kinds tear down asynchronously (sentinel) and
+    // a rejection must never escape as an unhandled rejection; dispose only
+    // after the member settles — it removes the member's only 'error'
+    // listener, and detaching from a still-live client lets a late error
+    // crash the process
+    const done = Promise.all(this.#databases.map(async db => {
       try {
-        db.client.destroy();
+        await db.client.destroy();
       } catch {
         // best-effort teardown: the member may have never connected
       }
       db.dispose();
-    }
-    if (firstTeardown) this.#events?.emit('end');
+    })).then(() => {
+      if (firstTeardown) this.#events?.emit('end');
+    });
+    return done;
   }
 
   async quit(): Promise<void> {

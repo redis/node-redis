@@ -310,7 +310,7 @@ describe('multi-db manager (unit)', function () {
     await mgr.connect();
     assert.deepEqual(lifecycle(), ['connect', 'ready', 'terminated', 'connect', 'ready']);
 
-    mgr.destroy();
+    await mgr.destroy();
     assert.deepEqual(lifecycle(), ['connect', 'ready', 'terminated', 'connect', 'ready', 'end']);
   });
 
@@ -400,6 +400,33 @@ describe('multi-db manager (unit)', function () {
     await assert.rejects(mgr.addDatabase({ options: {} }), /the client is closed/);
     assert.equal(fakes.has('db-2'), false, 'no member client may be created after teardown');
     await assert.rejects(mgr.setActiveDatabase('db-1'), /the client is closed/);
+  });
+
+  it('destroy() awaits async member teardown and never leaks a rejection', async () => {
+    const { mgr, fakes } = makeHarness(2);
+    await mgr.connect();
+
+    const rejections: Array<unknown> = [];
+    const onRejection = (err: unknown) => rejections.push(err);
+    process.on('unhandledRejection', onRejection);
+    try {
+      let settledLate = false;
+      const failing = fakes.get('db-1')!;
+      // an async, REJECTING teardown (the sentinel shape, worst case)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- overriding the fake's sync signature
+      (failing as any).destroy = async () => {
+        await tick(30);
+        settledLate = true;
+        throw new Error('teardown exploded');
+      };
+
+      await mgr.destroy();
+      assert.equal(settledLate, true, 'destroy() must await the member teardown');
+      await tick(20);
+      assert.deepEqual(rejections, []);
+    } finally {
+      process.off('unhandledRejection', onRejection);
+    }
   });
 
   it('a force finishing after search exhaustion rejects instead of half-succeeding', async () => {
