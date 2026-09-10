@@ -1,9 +1,9 @@
 import { strict as assert } from 'node:assert';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import testUtils from '../test-utils';
 import { createMultiDbClient } from '.';
 import type { RedisServerDocker } from '@redis/test-utils';
+import { once, spawnServerPair, killServer, startServer } from './test-util';
 
 const execFileAsync = promisify(execFile);
 
@@ -28,14 +28,10 @@ describe('multi-db forced failover', function () {
 
   before(async function () {
     this.timeout(120_000);
-    const results = await Promise.allSettled([
-      testUtils.spawnRedisServer({ serverArguments: [] }),
-      testUtils.spawnRedisServer({ serverArguments: [] })
-    ]);
-    if (results[0].status === 'fulfilled') serverA = results[0].value;
-    if (results[1].status === 'fulfilled') serverB = results[1].value;
-    const rejected = results.find(result => result.status === 'rejected');
-    if (rejected) throw (rejected as PromiseRejectedResult).reason;
+    const spawned = await spawnServerPair();
+    serverA = spawned.serverA!;
+    serverB = spawned.serverB!;
+    if (spawned.error) throw spawned.error;
   });
 
   after(async () => {
@@ -47,28 +43,11 @@ describe('multi-db forced failover', function () {
   });
 
   afterEach(async () => {
-    await Promise.all(
-      [serverA, serverB].map(server =>
-        execFileAsync('docker', ['start', server.dockerId]).catch(() => {})
-      )
-    );
+    await Promise.all([serverA, serverB].map(startServer));
   });
 
-  const kill = (server: RedisServerDocker) => execFileAsync('docker', ['kill', server.dockerId]);
-  const start = (server: RedisServerDocker) => execFileAsync('docker', ['start', server.dockerId]);
-
-  function once<T>(emitter: unknown, event: string, timeoutMs = 20_000): Promise<T> {
-    return new Promise<T>((resolve, reject) => {
-      const timer = setTimeout(
-        () => reject(new Error(`timed out waiting for '${event}' after ${timeoutMs}ms`)),
-        timeoutMs
-      );
-      (emitter as { once(event: string, listener: (payload: T) => void): void }).once(event, payload => {
-        clearTimeout(timer);
-        resolve(payload);
-      });
-    });
-  }
+  const kill = killServer;
+  const start = startServer;
 
   it('forces a healthy standby and the pin holds against auto-fallback until released', async () => {
     const { client, controller } = createMultiDbClient({
@@ -79,7 +58,7 @@ describe('multi-db forced failover', function () {
     await client.connect();
     client.on('error', () => {});
     try {
-      const forced = once<{ from: string; to: string; reason: string }>(client, 'failover');
+      const forced = once(client, 'failover');
       await controller.setActiveDatabase('db-1');
       assert.deepEqual(await forced, { from: 'db-0', to: 'db-1', reason: 'forced' });
       assert.equal(controller.getActiveDatabase().id, 'db-1');
@@ -88,7 +67,7 @@ describe('multi-db forced failover', function () {
       await new Promise(resolve => setTimeout(resolve, 1000));
       assert.equal(controller.getActiveDatabase().id, 'db-1');
 
-      const fallback = once<{ from: string; to: string }>(client, 'fallback');
+      const fallback = once(client, 'fallback');
       controller.releasePin();
       assert.deepEqual(await fallback, { from: 'db-1', to: 'db-0' });
       assert.equal(await client.ping(), 'PONG');
@@ -125,7 +104,7 @@ describe('multi-db forced failover', function () {
     try {
       await controller.setActiveDatabase('db-1');
 
-      const failover = once<{ from: string; to: string; reason: string }>(client, 'failover');
+      const failover = once(client, 'failover');
       await kill(serverB);
       assert.equal((await failover).to, 'db-0');
       assert.equal(controller.getActiveDatabase().id, 'db-0');
@@ -137,7 +116,7 @@ describe('multi-db forced failover', function () {
       await recovered;
       controller.setWeight('db-0', 0.2);
 
-      const fallback = once<{ from: string; to: string }>(client, 'fallback');
+      const fallback = once(client, 'fallback');
       assert.deepEqual(await fallback, { from: 'db-0', to: 'db-1' });
     } finally {
       client.destroy();

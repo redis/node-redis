@@ -22,6 +22,7 @@ import {
 } from '@redis/client/index';
 import { RedisNode } from '@redis/client/lib/sentinel/types'
 import { spawnRedisServer, spawnRedisCluster, spawnRedisSentinel, RedisServerDockerOptions, RedisServerDocker, spawnSentinelNode, spawnRedisServerDocker, spawnTlsRedisServer, TlsConfig, spawnProxiedRedisServer } from './dockers';
+export { spawnRedisCluster } from './dockers';
 import { isReCluster, loadREConnection } from './re-cluster';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
