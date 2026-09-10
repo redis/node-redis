@@ -505,6 +505,69 @@ describe('multi-db', function () {
     );
   });
 
+  describe('duplicate()', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- duplicate's multi-db result shape is asserted at runtime
+    type DupResult = { client: any; controller: any };
+
+    it('returns an independent, unconnected multi-db pair over the live member set', () =>
+      withMultiDb(
+        { databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })] },
+        async ({ client, controller }) => {
+          const dup = (client.duplicate() as unknown) as DupResult;
+          assert.equal(typeof dup.client.connect, 'function');
+          assert.deepEqual(
+            dup.controller.getDatabases().map((db: { id: string }) => db.id),
+            ['db-0', 'db-1']
+          );
+
+          await dup.client.connect();
+          try {
+            await dup.client.set('dup-key', '1');
+
+            // independent selection: forcing the original must not move the duplicate
+            await controller.setActiveDatabase('db-1');
+            assert.equal(controller.getActiveDatabase().id, 'db-1');
+            assert.equal(dup.controller.getActiveDatabase().id, 'db-0');
+
+            // destroying the original leaves the duplicate serving
+            client.destroy();
+            assert.equal(await dup.client.get('dup-key'), '1');
+          } finally {
+            dup.client.destroy();
+          }
+        }
+      )
+    );
+
+    it('clones runtime-added members and merges overrides into every member', () =>
+      withMultiDb({ databases: [memberOf(serverA)] }, async ({ client, controller }) => {
+        await controller.addDatabase({ options: { socket: { host: '127.0.0.1', port: serverB.port } } });
+
+        const dup = (client.duplicate({ database: 1 }) as unknown) as DupResult;
+        assert.deepEqual(
+          dup.controller.getDatabases().map((db: { id: string }) => db.id),
+          ['db-0', 'db-1'],
+          'the duplicate must reflect the current live member set'
+        );
+
+        await dup.client.connect();
+        try {
+          await dup.client.set('dup-override', 'yes');
+          // the override must reach the member the duplicate serves from
+          const direct = RedisClient.create({ socket: { host: '127.0.0.1', port: serverA.port }, database: 1 });
+          await direct.connect();
+          try {
+            assert.equal(await direct.get('dup-override'), 'yes', 'overrides must merge into every member');
+          } finally {
+            direct.destroy();
+          }
+        } finally {
+          dup.client.destroy();
+        }
+      })
+    );
+  });
+
   describe('drop-in contract', () => {
     it('client is assignable to the base client type and behaves like one', () =>
       withMultiDb({ databases: [memberOf(serverA)] }, async ({ client }) => {
