@@ -313,7 +313,9 @@ export class MultiDbManager<C extends AnyRedisClientType> {
             const cause = new Error(`MultiDb: database "${db.id}" failed its health check`);
             if (db === this.#active) {
               this.#handleActiveFailure(cause, 'health-check');
-            } else if (db.circuit.open()) {
+            } else if (db.circuit.open() && this.#databases.includes(db)) {
+              // no announcement for a member removed while its round was in
+              // flight — its id may already belong to a new member
               this.#events?.emit('database-unhealthy', { id: db.id, cause });
             }
           }
@@ -340,7 +342,9 @@ export class MultiDbManager<C extends AnyRedisClientType> {
       if (this.#teardown.signal.aborted || db.circuit.state !== 'HALF_OPEN') return;
       if (await runSingleProbe(this.#targetFor(db), this.#healthChecks, timeout)) {
         if (db.circuit.probeSucceeded()) {
-          this.#events?.emit('database-recovered', { id: db.id });
+          if (this.#databases.includes(db)) {
+            this.#events?.emit('database-recovered', { id: db.id });
+          }
           return;
         }
       } else {
@@ -382,6 +386,9 @@ export class MultiDbManager<C extends AnyRedisClientType> {
    * healthy member.
    */
   async setActiveDatabase(id: string): Promise<void> {
+    if (this.#teardown.signal.aborted) {
+      throw new Error('MultiDb: the client is closed');
+    }
     const target = this.#requireDatabase(id);
     if (this.#unavailable === 'failed') {
       throw new Error('MultiDb: the client is permanently unavailable');
@@ -498,6 +505,10 @@ export class MultiDbManager<C extends AnyRedisClientType> {
    * stays in the set that way.
    */
   async addDatabase(config: PoolDatabaseConfig<unknown>): Promise<string> {
+    // after close()/destroy() nothing would ever tear a new member down again
+    if (this.#teardown.signal.aborted) {
+      throw new Error('MultiDb: the client is closed');
+    }
     const resolved = resolveDatabaseIdentity(config, this.#generateId());
     if (this.#databases.some(db => db.id === resolved.id)) {
       throw new TypeError(`MultiDb: duplicate database id "${resolved.id}"`);
