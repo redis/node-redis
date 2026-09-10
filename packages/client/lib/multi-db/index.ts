@@ -112,6 +112,47 @@ const PINNED_SYNC = new Set<string>([
   'scanIterator', 'hScanIterator', 'sScanIterator', 'zScanIterator'
 ]);
 
+/**
+ * Wrap one module/function/script namespace: same failover contract as a plain
+ * command forwarder, per function. Each call rejects while every member is
+ * down, reads the active member at CALL time, dispatches through the member's
+ * own namespace (so `_self` binding and command options stay the member's),
+ * and reports the settled outcome to `manager.ts:onCommandResult` attributed
+ * to the member that served it.
+ */
+function wrapNamespace<C extends AnyRedisClientType>(
+  name: string,
+  sample: object,
+  mgr: MultiDbManager<C>
+): object {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic namespace shape
+  const wrapped: any = {};
+  // the function bag is the namespace object's prototype
+  // (`commander.ts:attachNamespace` builds it as Object.create(fns))
+  const fns = Object.getPrototypeOf(sample) as Record<string, unknown>;
+  for (const fnName of Object.keys(fns)) {
+    if (typeof fns[fnName] !== 'function') continue;
+    wrapped[fnName] = (...args: Array<unknown>) => {
+      const unavailable = mgr.unavailableError;
+      if (unavailable) return Promise.reject(unavailable);
+      const active = mgr.activeDatabase;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic dispatch
+      const result = ((active.client as any)[name])[fnName](...args) as Promise<unknown>;
+      return result.then(
+        (reply: unknown) => {
+          mgr.onCommandResult(true, undefined, active);
+          return reply;
+        },
+        (err: unknown) => {
+          mgr.onCommandResult(false, err as Error, active);
+          throw err;
+        }
+      );
+    };
+  }
+  return wrapped;
+}
+
 function attachForwarders<C extends AnyRedisClientType>(
   target: MultiDbClientBase<C>,
   mgr: MultiDbManager<C>
@@ -136,9 +177,24 @@ function attachForwarders<C extends AnyRedisClientType>(
 
       const desc = Object.getOwnPropertyDescriptor(proto, name)!;
       if (desc.get) {
-        // namespace (`json`, `ts`) or computed prop (`isOpen`) → read from active
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic
-        Object.defineProperty(dst, name, { get: () => (mgr.active as any)[name], enumerable: false });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic probe
+        const sample = (mgr.active as any)[name];
+        if (sample !== null && typeof sample === 'object' && '_self' in sample) {
+          // module/function/script namespace (`json`, `ft`, a library):
+          // `commander.ts:attachNamespace` marks them with `_self`. Wrapped
+          // once, cached — `client.json` stays reference-stable while every
+          // call inside resolves the active member.
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- lazy cache
+          let cached: any;
+          Object.defineProperty(dst, name, {
+            get: () => (cached ??= wrapNamespace(name, sample, mgr)),
+            enumerable: false
+          });
+        } else {
+          // computed prop (`isOpen`, `options`) → live read from the active member
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic
+          Object.defineProperty(dst, name, { get: () => (mgr.active as any)[name], enumerable: false });
+        }
       } else if (typeof desc.value === 'function') {
         // command / script method → call active's own method (this = active);
         // settled outcomes must reach `manager.ts:onCommandResult` — the detector feed

@@ -8,6 +8,7 @@ import type { FailureDetector } from '.';
 import type { FailoverEvent } from './controller';
 import RedisClient, { RedisClientType } from '../client';
 import { ErrorReply } from '../errors';
+import type { CommandParser } from '../client/parser';
 import type { RedisServerDocker } from '@redis/test-utils';
 
 const execFileAsync = promisify(execFile);
@@ -318,6 +319,50 @@ describe('multi-db', function () {
             controller.getDatabases().map(db => db.circuitState),
             ['OPEN', 'CLOSED']
           );
+        }
+      )
+    );
+  });
+
+  describe('module namespaces', () => {
+    const nsModule = {
+      bump: {
+        parseCommand(parser: CommandParser, key: string) {
+          parser.push('INCR', key);
+        },
+        transformReply: undefined as unknown as () => unknown
+      }
+    };
+    const memberWithModule = (server: RedisServerDocker, extra?: { weight?: number }) => ({
+      ...extra,
+      options: {
+        socket: { host: '127.0.0.1', port: server.port },
+        modules: { mymod: nsModule }
+      }
+    });
+
+    it('a namespace reference is stable and follows the active member across a forced switch', () =>
+      withMultiDb(
+        { databases: [memberWithModule(serverA, { weight: 1 }), memberWithModule(serverB, { weight: 0.5 })] },
+        async ({ client, controller }) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- module surface is untyped on the generic wrapper
+          const ns = (client as any).mymod;
+          assert.equal(ns, (client as any).mymod, 'namespace reference must be stable');
+
+          await ns.bump('mymod-counter');
+          await controller.setActiveDatabase('db-1');
+          await ns.bump('mymod-counter');
+
+          const direct = RedisClient.create({ socket: { host: '127.0.0.1', port: serverB.port } });
+          await direct.connect();
+          try {
+            assert.equal(
+              await direct.get('mymod-counter'), '1',
+              'the captured reference must serve from the new active member'
+            );
+          } finally {
+            direct.destroy();
+          }
         }
       )
     );

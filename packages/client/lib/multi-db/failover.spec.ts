@@ -8,6 +8,7 @@ import type { AnyRedisClientType } from '.';
 import RedisClient from '../client';
 import { TemporarilyUnavailableError, PermanentlyUnavailableError } from './errors';
 import type { RedisServerDocker } from '@redis/test-utils';
+import type { CommandParser } from '../client/parser';
 
 const execFileAsync = promisify(execFile);
 
@@ -313,6 +314,72 @@ describe('multi-db failover', function () {
       assert.equal(await (client as { ping(): Promise<string> }).ping(), 'PONG');
     } finally {
       process.off('unhandledRejection', onRejection);
+      client.destroy();
+    }
+  });
+
+  it('namespace command failures alone trip the detector; while every member is down namespace calls reject', async function () {
+    this.timeout(90_000);
+    const nsModule = {
+      bump: {
+        parseCommand(parser: CommandParser, key: string) {
+          parser.push('INCR', key);
+        },
+        transformReply: undefined as unknown as () => unknown
+      },
+      // fails server-side on a healthy connection: the only detector feed is
+      // the command outcome itself, never socket noise
+      boom: {
+        parseCommand(parser: CommandParser) {
+          parser.push('NOSUCHCOMMAND');
+        },
+        transformReply: undefined as unknown as () => unknown
+      }
+    };
+    const memberWithModule = (server: RedisServerDocker, extra?: { weight?: number }) => ({
+      ...extra,
+      options: {
+        socket: { host: '127.0.0.1', port: server.port },
+        modules: { mymod: nsModule }
+      }
+    });
+    const { client, controller } = createMultiDbClient({
+      ...FAST_FAILOVER,
+      // health checks slow enough that only the detector can drive the failover
+      healthCheck: { interval: 30_000, timeout: 1_000, numProbes: 1, delayBetweenProbes: 0 },
+      databases: [memberWithModule(serverA, { weight: 1 }), memberWithModule(serverB, { weight: 0.5 })]
+    });
+    await client.connect();
+    controller.on('error', () => {});
+    const failovers: Array<unknown> = [];
+    controller.on('failover', event => failovers.push(event));
+    const attempts: Array<unknown> = [];
+    controller.on('all-databases-down', event => attempts.push(event));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- module surface is untyped on the generic wrapper
+    const ns = (client as any).mymod;
+    try {
+      await ns.bump('mymod-traffic'); // sanity: the namespace serves
+
+      // detector: minNumOfFailures 3, rate 0 — three failed outcomes must trip it
+      for (let i = 0; i < 3; i++) {
+        await ns.boom().catch(() => {});
+      }
+      assert.deepEqual(
+        failovers,
+        [{ from: 'db-0', to: 'db-1', reason: 'failure-detector' }],
+        'namespace outcomes alone must drive the failover'
+      );
+      assert.equal(controller.getActiveDatabase().id, 'db-1');
+
+      // while every member is down, namespace calls reject like plain commands
+      await Promise.all([kill(serverA), kill(serverB)]);
+      const exhausted = Date.now() + 20_000;
+      while (attempts.length < 2 && Date.now() < exhausted) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      await new Promise(resolve => setTimeout(resolve, 300));
+      await assert.rejects(ns.bump('mymod-x'), PermanentlyUnavailableError);
+    } finally {
       client.destroy();
     }
   });
