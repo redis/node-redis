@@ -6,7 +6,7 @@ import { resolveMultiDbConfig } from './config';
 import type { MultiDbConfig } from './config';
 import type { MultiDbEventOutlet } from './manager';
 import type { AnyRedisClientType } from './index';
-import { PermanentlyUnavailableError } from './errors';
+import { PermanentlyUnavailableError, TemporarilyUnavailableError } from './errors';
 
 /**
  * Unit coverage for the manager's decision paths through a stub adapter —
@@ -488,6 +488,31 @@ describe('multi-db manager (unit)', function () {
     // a second teardown stays silent
     await mgr.close();
     assert.equal(received.filter(r => r.event === 'end').length, 1);
+  });
+
+  it('unavailability errors carry their names; setAutoFallback after failure schedules nothing', async () => {
+    assert.equal(new PermanentlyUnavailableError(3).name, 'PermanentlyUnavailableError');
+    assert.equal(new TemporarilyUnavailableError().name, 'TemporarilyUnavailableError');
+
+    const { mgr, fakes, received } = makeHarness(2, {
+      maxFailoverAttempts: 2,
+      delayBetweenFailoverAttempts: 10
+    });
+    await mgr.connect();
+    mgr.databases[1].circuit.open();
+    fakes.get('db-0')!.end();
+    const deadline = Date.now() + 1_000;
+    while (!(mgr.unavailableError instanceof PermanentlyUnavailableError) && Date.now() < deadline) {
+      await tick(10);
+    }
+    assert.ok(mgr.unavailableError instanceof PermanentlyUnavailableError);
+
+    // permanently failed: retuning auto-fallback must not restart the loop
+    received.length = 0;
+    mgr.setAutoFallback(20);
+    await tick(150);
+    assert.deepEqual(received.filter(r => r.event === 'fallback'), []);
+    mgr.destroy();
   });
 
   it('a force finishing after search exhaustion rejects instead of half-succeeding', async () => {

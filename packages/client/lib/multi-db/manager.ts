@@ -446,6 +446,9 @@ export class MultiDbManager<C extends AnyRedisClientType> {
     }
     this.#healthTimers.clear();
     this.#stopFallbackTimer();
+    // stopped means stopped: without this, setAutoFallback() after permanent
+    // failure or teardown would happily schedule a useless ticking timer
+    this.#schedulerRunning = false;
   }
 
   /**
