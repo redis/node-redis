@@ -366,6 +366,42 @@ describe('multi-db manager (unit)', function () {
     assert.equal(added.commandCount, 0, 'a removed member must receive no background probes');
   });
 
+  it('a member removed while its check round is in flight announces nothing', async () => {
+    const { mgr, fakes, received } = makeHarness(2, {
+      healthCheck: { interval: 100, timeout: 90, numProbes: 1, delayBetweenProbes: 0 }
+    });
+    await mgr.connect();
+    received.length = 0;
+
+    // the passive member's probe hangs past its timeout — the removal lands
+    // mid-round, the probe then fails and the round finishes after removal
+    const passive = fakes.get('db-1')!;
+    passive.onCommand = async () => {
+      await tick(300);
+      return 'PONG';
+    };
+    await tick(130); // the round started at ~100ms is now in flight
+    await mgr.removeDatabase('db-1');
+    await tick(150); // the probe times out at ~190ms and the round finishes
+
+    assert.deepEqual(
+      received.filter(r => r.event === 'database-unhealthy'),
+      [],
+      'a removed member must not be announced unhealthy'
+    );
+    mgr.destroy();
+  });
+
+  it('addDatabase and setActiveDatabase reject on a closed client without touching members', async () => {
+    const { mgr, fakes } = makeHarness(2);
+    await mgr.connect();
+    mgr.destroy();
+
+    await assert.rejects(mgr.addDatabase({ options: {} }), /the client is closed/);
+    assert.equal(fakes.has('db-2'), false, 'no member client may be created after teardown');
+    await assert.rejects(mgr.setActiveDatabase('db-1'), /the client is closed/);
+  });
+
   it('a force finishing after search exhaustion rejects instead of half-succeeding', async () => {
     const { mgr, fakes, received } = makeHarness(2, {
       maxFailoverAttempts: 2,
