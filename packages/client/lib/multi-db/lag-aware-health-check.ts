@@ -27,6 +27,14 @@ export interface LagAwareHealthCheckOptions {
    * basic-auth header and the timeout signal are owned by the check.
    */
   requestOptions?: RequestInit;
+  /**
+   * Called with every probe failure's underlying error (network failure,
+   * timeout, endpoint/URL misconfiguration) before the probe reports
+   * unhealthy. Without it a permanently misconfigured check is
+   * indistinguishable from an unhealthy database — the member just keeps
+   * reporting unhealthy with no diagnostics. The callback must not throw.
+   */
+  onProbeError?: (error: unknown, databaseId: string) => void;
 }
 
 /**
@@ -44,6 +52,7 @@ export class LagAwareHealthCheck implements HealthCheck {
   readonly #requestTimeout: number;
   readonly #requestOptions?: RequestInit;
   readonly #authorization?: string;
+  readonly #onProbeError?: (error: unknown, databaseId: string) => void;
 
   constructor(options: LagAwareHealthCheckOptions) {
     this.#restEndpoint = options.restEndpoint;
@@ -51,6 +60,7 @@ export class LagAwareHealthCheck implements HealthCheck {
     this.#lagTolerance = options.lagTolerance ?? 5000;
     this.#requestTimeout = options.requestTimeout ?? 3000;
     this.#requestOptions = options.requestOptions;
+    this.#onProbeError = options.onProbeError;
     if (options.credentials) {
       const { username, password } = options.credentials;
       this.#authorization = `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`;
@@ -58,18 +68,20 @@ export class LagAwareHealthCheck implements HealthCheck {
   }
 
   async probe(target: HealthCheckTarget): Promise<boolean> {
-    const endpoint = typeof this.#restEndpoint === 'function'
-      ? this.#restEndpoint(target.id)
-      : this.#restEndpoint;
-    const uid = typeof this.#bdbUid === 'function'
-      ? this.#bdbUid(target.id)
-      : this.#bdbUid;
-
-    const url = new URL(`/v1/bdbs/${uid}/availability`, endpoint);
-    url.searchParams.set('extend_check', 'lag');
-    url.searchParams.set('availability_lag_tolerance_ms', String(this.#lagTolerance));
-
     try {
+      const endpoint = typeof this.#restEndpoint === 'function'
+        ? this.#restEndpoint(target.id)
+        : this.#restEndpoint;
+      const uid = typeof this.#bdbUid === 'function'
+        ? this.#bdbUid(target.id)
+        : this.#bdbUid;
+
+      // inside the try: a bad endpoint (URL parse) or a throwing resolver is a
+      // probe failure the onProbeError callback must see, not an escaped throw
+      const url = new URL(`/v1/bdbs/${uid}/availability`, endpoint);
+      url.searchParams.set('extend_check', 'lag');
+      url.searchParams.set('availability_lag_tolerance_ms', String(this.#lagTolerance));
+
       const response = await fetch(url, {
         ...this.#requestOptions,
         method: 'GET',
@@ -79,9 +91,13 @@ export class LagAwareHealthCheck implements HealthCheck {
         },
         signal: AbortSignal.timeout(this.#requestTimeout)
       });
-      // availability is the status code alone; the body carries no further signal
+      // availability is the status code alone; the body carries no further
+      // signal — but it must be drained, or undici holds the connection until
+      // GC (one leaked socket per probe, every interval, forever)
+      await response.body?.cancel();
       return response.ok;
-    } catch {
+    } catch (err) {
+      this.#onProbeError?.(err, target.id);
       return false;
     }
   }

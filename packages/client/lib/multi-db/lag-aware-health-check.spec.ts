@@ -113,4 +113,29 @@ describe('LagAwareHealthCheck', () => {
     assert.equal(await check.probe(TARGET), true);
     assert.match(requests[0].url, /^\/v1\/bdbs\/uid-of-db-0\/availability/);
   });
+
+  it('reports the underlying error through onProbeError and still probes unhealthy', async () => {
+    const errors: Array<{ error: unknown; id: string }> = [];
+    const check = new LagAwareHealthCheck({
+      restEndpoint: 'not a url',
+      bdbUid: 1,
+      onProbeError: (error, databaseId) => errors.push({ error, id: databaseId })
+    });
+    assert.equal(await check.probe(TARGET), false);
+    assert.equal(errors.length, 1);
+    assert.equal(errors[0].id, 'db-0');
+    assert.ok(errors[0].error instanceof TypeError, 'the URL parse failure must reach the callback');
+  });
+
+  it('reports network failures through onProbeError', async () => {
+    const errors: Array<unknown> = [];
+    const check = new LagAwareHealthCheck({
+      restEndpoint: 'http://127.0.0.1:1',
+      bdbUid: 1,
+      requestTimeout: 500,
+      onProbeError: error => errors.push(error)
+    });
+    assert.equal(await check.probe(TARGET), false);
+    assert.equal(errors.length, 1);
+  });
 });
