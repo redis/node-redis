@@ -4,7 +4,7 @@ import { promisify } from 'node:util';
 import { createMultiDbClient } from '.';
 import type { AnyRedisClientType } from '.';
 import RedisClient from '../client';
-import { TemporarilyUnavailableError, PermanentlyUnavailableError } from './errors';
+import { TemporarilyUnavailableError, PermanentlyUnavailableError, CommandAbandonedError } from './errors';
 import type { RedisServerDocker } from '@redis/test-utils';
 import { once, startTraffic as startOps, spawnServerPair, killServer, startServer } from './test-util';
 import type { CommandParser } from '../client/parser';
@@ -435,6 +435,56 @@ describe('multi-db failover', function () {
       }
       const terminated = events.find(e => e.event === 'terminated');
       assert.deepEqual(terminated?.payload, { attempts: 2 }, 'terminated must report the exhausted attempts');
+    } finally {
+      client.destroy();
+    }
+  });
+
+  it('a write queued on the dying member rejects at the switch and never replays', async function () {
+    this.timeout(60_000);
+    const { client, controller } = createMultiDbClient({
+      ...FAST_FAILOVER,
+      // an untrippable detector: the switch below is forced, so the write
+      // deterministically sits unsent on the dying member until it happens
+      failureDetector: { minNumOfFailures: 1_000, failureRateThreshold: 0, windowSize: 2_000 },
+      databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })]
+    });
+    await client.connect();
+    client.on('error', () => {});
+    try {
+      await kill(serverA);
+      // the socket is down and nothing trips the detector: this write lands
+      // unsent in the dying member's reconnect queue
+      const orphan = client.set('orphan-write', 'stale');
+      orphan.catch(() => {});
+
+      await controller.setActiveDatabase('db-1');
+      await assert.rejects(orphan, CommandAbandonedError);
+
+      // the stale write must not execute when the old member recovers
+      await execFileAsync('docker', ['start', serverA.dockerId]);
+      let direct: ReturnType<typeof RedisClient.create> | undefined;
+      const deadline = Date.now() + 15_000;
+      while (direct === undefined) {
+        const probe = RedisClient.create({
+          socket: { host: '127.0.0.1', port: serverA.port, reconnectStrategy: false }
+        });
+        try {
+          await probe.connect();
+          direct = probe;
+        } catch {
+          probe.destroy();
+          if (Date.now() > deadline) throw new Error('old member never came back');
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      }
+      try {
+        // give a hypothetical replay a moment to land before checking
+        await new Promise(resolve => setTimeout(resolve, 1_000));
+        assert.equal(await direct.get('orphan-write'), null, 'the abandoned write must never land');
+      } finally {
+        direct.destroy();
+      }
     } finally {
       client.destroy();
     }

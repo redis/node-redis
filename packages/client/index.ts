@@ -69,6 +69,7 @@ export {
   MultiDbController,
   TemporarilyUnavailableError,
   PermanentlyUnavailableError,
+  CommandAbandonedError,
   type MultiDbResult,
   type AnyRedisClientType,
   type MultiDbConfig,
