@@ -77,6 +77,8 @@ export class MultiDbManager<C extends AnyRedisClientType> {
   readonly #teardown = new AbortController();
   #events?: MultiDbEventOutlet;
   readonly #healthTimers = new Map<Database<C>, NodeJS.Timeout>();
+  /** originating config per live member — the source of truth for duplicate() */
+  readonly #memberConfigs = new Map<Database<C>, ResolvedMemberConfig>();
   /** per-member overlap guard: a probe round may outlast the check interval */
   readonly #probing = new Set<Database<C>>();
   #fallbackTimer?: NodeJS.Timeout;
@@ -536,6 +538,7 @@ export class MultiDbManager<C extends AnyRedisClientType> {
       this.#healthTimers.delete(member);
     }
     this.#databases.splice(this.#databases.indexOf(member), 1);
+    this.#memberConfigs.delete(member);
     try {
       if (member.circuit.state === 'CLOSED') {
         await member.client.close();
@@ -592,7 +595,7 @@ export class MultiDbManager<C extends AnyRedisClientType> {
   }
 
   #wrapMember(config: ResolvedMemberConfig): Database<C> {
-    return new Database<C>({
+    const member = new Database<C>({
       id: config.id,
       client: this.#adapter.create(config),
       weight: config.weight,
@@ -628,6 +631,30 @@ export class MultiDbManager<C extends AnyRedisClientType> {
         }
       }
     });
+    this.#memberConfigs.set(member, config);
+    return member;
+  }
+
+  /**
+   * @internal New manager over the CURRENT live member set (runtime adds and
+   * removes included, current weights) and the same resolved config and
+   * adapter. Runtime state — circuit states, the active selection, a forced
+   * pin — is deliberately not copied: the duplicate starts fresh and
+   * unconnected. `overrides` merge shallowly into every member's options, so
+   * the clone stays homogeneous.
+   */
+  duplicate(overrides?: object): MultiDbManager<C> {
+    const members = this.#databases.map(db => {
+      const config = this.#memberConfigs.get(db)!;
+      return {
+        ...config,
+        weight: db.weight,
+        options: overrides === undefined
+          ? config.options
+          : { ...(config.options as object | undefined), ...overrides }
+      };
+    });
+    return new MultiDbManager(members, this.#config, this.#adapter);
   }
 
   /** next free generated id — gaps from removals may be reused, ids stay unique within the live set */
