@@ -153,7 +153,18 @@ export interface ResolvedDatabaseIdentity {
 export function isFailureDetector(
   detector: FailureDetector | FailureDetectorConfig
 ): detector is FailureDetector {
-  return typeof (detector as FailureDetector).isFaulty === 'function';
+  const candidate = detector as FailureDetector;
+  const methods = [candidate.isFaulty, candidate.onCommandResult, candidate.reset];
+  const present = methods.filter(method => typeof method === 'function').length;
+  if (present === methods.length) return true;
+  if (present > 0) {
+    // half a detector would be accepted as a thresholds object and silently
+    // replaced by the default detector — or worse, break on the command path
+    throw new TypeError(
+      'MultiDb: a custom failure detector must implement isFaulty, onCommandResult and reset'
+    );
+  }
+  return false;
 }
 
 /**
