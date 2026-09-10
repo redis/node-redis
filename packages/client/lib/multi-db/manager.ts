@@ -371,6 +371,14 @@ export class MultiDbManager<C extends AnyRedisClientType> {
     if (!await runProbeRound(this.#targetFor(target), this.#healthChecks, this.#config.healthCheck)) {
       throw new Error(`MultiDb: cannot force database "${id}", it failed its health check`);
     }
+    // the probe round takes seconds — a search exhausting meanwhile must fail
+    // the force, not let it half-succeed against stopped schedulers; recovery
+    // from 'failed' is connect()'s job. (The assertion defeats the narrowing
+    // from the entry check — the await above lets the search loop mutate this.)
+    const afterProbe = this.#unavailable as 'searching' | 'failed' | null;
+    if (afterProbe === 'failed') {
+      throw new Error('MultiDb: the client is permanently unavailable');
+    }
 
     if (target.circuit.close()) {
       this.#events?.emit('database-recovered', { id: target.id });
