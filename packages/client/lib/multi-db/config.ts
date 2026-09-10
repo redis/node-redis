@@ -234,19 +234,56 @@ export function resolveMultiDbConfig<DB extends DatabaseConfig<unknown>>(
         ...MULTI_DB_DEFAULTS.failureDetector,
         ...config.failureDetector
       };
+  if (!isFailureDetector(failureDetector)) {
+    // negated comparisons also reject NaN, here and below
+    if (!(failureDetector.minNumOfFailures >= 0)) {
+      throw new TypeError(`MultiDb: failureDetector.minNumOfFailures must be >= 0, got ${failureDetector.minNumOfFailures}`);
+    }
+    if (!(failureDetector.failureRateThreshold >= 0 && failureDetector.failureRateThreshold <= 100)) {
+      throw new TypeError(`MultiDb: failureDetector.failureRateThreshold must be within [0, 100], got ${failureDetector.failureRateThreshold}`);
+    }
+    // windowSize <= 0 would evict every outcome immediately — organic
+    // detection silently off
+    if (!(failureDetector.windowSize > 0)) {
+      throw new TypeError(`MultiDb: failureDetector.windowSize must be greater than 0, got ${failureDetector.windowSize}`);
+    }
+  }
+
+  const gracePeriod = config.gracePeriod ?? MULTI_DB_DEFAULTS.gracePeriod;
+  // NaN would keep an OPEN circuit from ever reaching HALF_OPEN — a tripped
+  // member could never recover
+  if (!(gracePeriod >= 0)) {
+    throw new TypeError(`MultiDb: gracePeriod must be >= 0, got ${gracePeriod}`);
+  }
+  const maxFailoverAttempts = config.maxFailoverAttempts ?? MULTI_DB_DEFAULTS.maxFailoverAttempts;
+  // 0, negative or NaN would skip the search loop entirely: permanently
+  // unavailable without a single retry
+  if (!(Number.isInteger(maxFailoverAttempts) && maxFailoverAttempts >= 1)) {
+    throw new TypeError(`MultiDb: maxFailoverAttempts must be an integer >= 1, got ${maxFailoverAttempts}`);
+  }
+  const delayBetweenFailoverAttempts =
+    config.delayBetweenFailoverAttempts ?? MULTI_DB_DEFAULTS.delayBetweenFailoverAttempts;
+  if (!(delayBetweenFailoverAttempts >= 0)) {
+    throw new TypeError(`MultiDb: delayBetweenFailoverAttempts must be >= 0, got ${delayBetweenFailoverAttempts}`);
+  }
+  const autoFallbackInterval = config.autoFallbackInterval ?? MULTI_DB_DEFAULTS.autoFallbackInterval;
+  // NaN would slip past the "<= 0 disables" check and setInterval(NaN)
+  // coerces to a 1ms hot loop; -1 is the documented disabled value
+  if (!(autoFallbackInterval >= -1)) {
+    throw new TypeError(`MultiDb: autoFallbackInterval must be >= -1, got ${autoFallbackInterval}`);
+  }
 
   return {
     databases: resolvedDatabases,
     config: {
-      gracePeriod: config.gracePeriod ?? MULTI_DB_DEFAULTS.gracePeriod,
+      gracePeriod,
       healthCheck,
       healthChecks: config.healthChecks,
       failureDetector,
       failoverStrategy: config.failoverStrategy,
-      maxFailoverAttempts: config.maxFailoverAttempts ?? MULTI_DB_DEFAULTS.maxFailoverAttempts,
-      delayBetweenFailoverAttempts:
-        config.delayBetweenFailoverAttempts ?? MULTI_DB_DEFAULTS.delayBetweenFailoverAttempts,
-      autoFallbackInterval: config.autoFallbackInterval ?? MULTI_DB_DEFAULTS.autoFallbackInterval,
+      maxFailoverAttempts,
+      delayBetweenFailoverAttempts,
+      autoFallbackInterval,
       initialAvailability: config.initialAvailability ?? MULTI_DB_DEFAULTS.initialAvailability
     }
   };
