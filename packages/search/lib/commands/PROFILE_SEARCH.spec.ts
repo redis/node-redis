@@ -9,18 +9,18 @@ describe('PROFILE SEARCH', () => {
   describe('transformArguments', () => {
     it('without options', () => {
       assert.deepEqual(
-        parseArgs(PROFILE_SEARCH, 'index', 'query'),
+        Array.from(parseArgs(PROFILE_SEARCH, 'index', 'query')),
         ['FT.PROFILE', 'index', 'SEARCH', 'QUERY', 'query', 'DIALECT', DEFAULT_DIALECT]
       );
     });
 
     it('with options', () => {
       assert.deepEqual(
-        parseArgs(PROFILE_SEARCH, 'index', 'query', {
+        Array.from(parseArgs(PROFILE_SEARCH, 'index', 'query', {
           LIMITED: true,
           VERBATIM: true,
           INKEYS: 'key'
-        }),
+        })),
         ['FT.PROFILE', 'index', 'SEARCH', 'LIMITED', 'QUERY', 'query',
           'VERBATIM', 'INKEYS', '1', 'key', 'DIALECT', DEFAULT_DIALECT]
       );
@@ -109,6 +109,22 @@ describe('PROFILE SEARCH', () => {
     const keys = Object.keys(res as Record<string, unknown>);
     assert.ok(keys.includes('results'), `Expected 'results' key in response, got keys: ${keys}`);
     assert.ok(keys.includes('profile'), `Expected 'profile' key in response, got keys: ${keys}`);
+  }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClientIfVersionWithinRange([[8], 'LATEST'], 'client.ft.profileSearch preserves WITHSCORES layout', async client => {
+    await Promise.all([
+      client.ft.create('index', { field: SCHEMA_FIELD_TYPE.TEXT }),
+      client.hSet('1', 'field', 'hello world')
+    ]);
+
+    // profileSearch shares SEARCH's reply transformer; WITHSCORES must parse the
+    // score without shifting id/value (regression: preserve was never set here).
+    const res = await client.ft.profileSearch('index', 'hello', { WITHSCORES: true });
+    const { results } = res as { results: { total: number; documents: Array<{ id: string; score?: number; value: unknown }> } };
+
+    assert.strictEqual(results.total, 1);
+    assert.strictEqual(results.documents[0].id, '1');
+    assert.strictEqual(typeof results.documents[0].score, 'number');
   }, GLOBAL.SERVERS.OPEN);
 
 });
