@@ -5,7 +5,6 @@ import { spawnRedisCluster } from '../../../test-utils/lib/dockers';
 import type { RedisServerDocker } from '@redis/test-utils';
 import testUtils from '../test-utils';
 import { createMultiDbCluster, createMultiDbSentinel, createMultiDbClientPool } from '.';
-import type { AnyRedisClientType } from '.';
 import type { RedisClusterType } from '../cluster';
 import type { RedisSentinelType } from '../sentinel/types';
 import type { RedisClientPoolType } from '../client/pool';
@@ -102,7 +101,7 @@ describe('multi-db topologies', function () {
       });
       const typed: RedisClientPoolType = client;
       await typed.connect();
-      (client as any).on('error', () => {});
+      client.on('error', () => {});
       const traffic = startTraffic(() => client.incr('counter'));
       try {
         assert.equal(controller.getActiveDatabase().id, 'db-0');
@@ -154,7 +153,7 @@ describe('multi-db topologies', function () {
       });
       const typed: RedisClusterType = client;
       await typed.connect();
-      (client as any).on('error', () => {});
+      client.on('error', () => {});
       try {
         const forced = once<{ from: string; to: string; reason: string }>(client, 'failover');
         await controller.setActiveDatabase('db-1');
@@ -187,7 +186,7 @@ describe('multi-db topologies', function () {
       });
       const typed: RedisClusterType = client;
       await typed.connect();
-      (client as any).on('error', () => {});
+      client.on('error', () => {});
       try {
         const received: Array<string> = [];
         await typed.subscribe('news', message => {
@@ -216,7 +215,7 @@ describe('multi-db topologies', function () {
         databases: [memberOf(clusterA), memberOf(clusterB)]
       });
       await client.connect();
-      (client as any).on('error', () => {
+      client.on('error', () => {
         // the dying cluster's teardown noise is not what this test asserts
       });
       const traffic = startTraffic(() => client.incr('counter'));
@@ -270,11 +269,11 @@ describe('multi-db topologies', function () {
         databases: [memberOf(frameA), memberOf(frameB)]
       });
       await client.connect();
-      (client as any).on('error', () => {
+      client.on('error', () => {
         // node errors during the sentinel-internal promotion are expected
       });
       const failovers: Array<unknown> = [];
-      (client as any).on('failover', event => {
+      client.on('failover', event => {
         failovers.push(event);
       });
       const traffic = startTraffic(() => client.incr('counter'));
@@ -311,7 +310,7 @@ describe('multi-db topologies', function () {
       });
       const typed: RedisSentinelType = client;
       await typed.connect();
-      (client as any).on('error', () => {});
+      client.on('error', () => {});
       try {
         const forced = once<{ from: string; to: string; reason: string }>(client, 'failover');
         await controller.setActiveDatabase('db-1');
@@ -341,7 +340,7 @@ describe('multi-db topologies', function () {
       });
       const typed: RedisSentinelType = client;
       await typed.connect();
-      (client as any).on('error', () => {});
+      client.on('error', () => {});
       try {
         const received: Array<string> = [];
         await typed.subscribe('news', message => {
@@ -387,7 +386,7 @@ describe('multi-db topologies', function () {
 
     it('auto-fallback returns to a recovered sentinel deployment', async function () {
       this.timeout(90_000);
-      const { client, controller } = createMultiDbSentinel({
+      const { client } = createMultiDbSentinel({
         ...FAST_FAILOVER,
         gracePeriod: 1500,
         autoFallbackInterval: 400,
@@ -397,7 +396,7 @@ describe('multi-db topologies', function () {
         ]
       });
       await client.connect();
-      (client as any).on('error', () => {});
+      client.on('error', () => {});
       const traffic = startTraffic(() => client.incr('counter'));
       const nodePorts = frameA.getAllNodesPort();
       try {
@@ -429,7 +428,7 @@ describe('multi-db topologies', function () {
         databases: [memberOf(frameA), memberOf(frameB)]
       });
       await client.connect();
-      (client as any).on('error', () => {
+      client.on('error', () => {
         // the dying deployment's teardown noise is not what this test asserts
       });
       const traffic = startTraffic(() => client.incr('counter'));
