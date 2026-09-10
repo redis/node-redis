@@ -1,4 +1,5 @@
 import { strict as assert } from 'node:assert';
+import { EventEmitter } from 'node:events';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import testUtils from '../test-utils';
@@ -329,6 +330,28 @@ describe('multi-db', function () {
         await base.set('drop-in', '1');
         assert.equal(await base.get('drop-in'), '1');
         assert.equal(typeof client.multi, 'function');
+      })
+    );
+
+    it('mirrors the full member API and owns its event emitter', () =>
+      withMultiDb({ databases: [memberOf(serverA)] }, async ({ client }) => {
+        const direct = RedisClient.create({ socket: { host: '127.0.0.1', port: serverA.port } });
+        const missing: Array<string> = [];
+        for (
+          let proto = Object.getPrototypeOf(direct);
+          proto && proto !== EventEmitter.prototype && proto !== Object.prototype;
+          proto = Object.getPrototypeOf(proto)
+        ) {
+          for (const name of Object.getOwnPropertyNames(proto)) {
+            if (name === 'constructor') continue;
+            if (name.startsWith('_')) continue; // internal plumbing, not user surface
+            if (!(name in client)) missing.push(name);
+          }
+        }
+        assert.deepEqual(missing, [], 'every member API surface must exist on the wrapper');
+        // emitter methods are the wrapper's own, never forwarders to a member
+        assert.equal(client.on, EventEmitter.prototype.on);
+        assert.equal(client.emit, EventEmitter.prototype.emit);
       })
     );
   });
