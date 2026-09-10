@@ -429,6 +429,51 @@ describe('multi-db manager (unit)', function () {
     }
   });
 
+  it('MAJORITY policy reaches the background rounds; recovery still demands consecutive successes', async () => {
+    const { mgr, fakes, received } = makeHarness(2, {
+      gracePeriod: 40,
+      healthCheck: { interval: 60, timeout: 50, numProbes: 3, delayBetweenProbes: 0, policy: 'MAJORITY' }
+    });
+    await mgr.connect();
+    received.length = 0;
+
+    // deterministic flap: the first probe of every round of three fails —
+    // a MAJORITY round (2 of 3) passes, three-consecutive can never
+    const passive = mgr.databases[1];
+    const flapping = fakes.get('db-1')!;
+    let calls = 0;
+    flapping.onCommand = async () => {
+      calls++;
+      if (calls % 3 === 1) throw new Error('flap');
+      return 'PONG';
+    };
+
+    // wiring: several background rounds under the flap keep the circuit CLOSED
+    await tick(220);
+    assert.equal(passive.circuit.state, 'CLOSED', 'a MAJORITY round must tolerate 1-of-3 failures');
+    assert.deepEqual(received.filter(r => r.event === 'database-unhealthy'), []);
+
+    // asymmetry: once OPEN, recovery ignores the policy — it needs numProbes
+    // CONSECUTIVE successes, which the same flap pattern can never produce
+    calls = 0;
+    passive.circuit.open();
+    await tick(400); // several grace+recovery cycles
+    assert.notEqual(passive.circuit.state, 'CLOSED', 'a flapping member must not recover under MAJORITY semantics');
+    assert.deepEqual(received.filter(r => r.event === 'database-recovered'), []);
+
+    // a fully healthy member recovers
+    flapping.onCommand = async () => 'PONG';
+    const deadline = Date.now() + 1_000;
+    while (passive.circuit.state !== 'CLOSED' && Date.now() < deadline) {
+      await tick(20);
+    }
+    assert.equal(passive.circuit.state, 'CLOSED');
+    assert.deepEqual(received.filter(r => r.event === 'database-recovered'), [
+      { event: 'database-recovered', payload: { id: 'db-1' } }
+    ]);
+    mgr.destroy();
+  });
+
   it('a force finishing after search exhaustion rejects instead of half-succeeding', async () => {
     const { mgr, fakes, received } = makeHarness(2, {
       maxFailoverAttempts: 2,
