@@ -3,7 +3,6 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import testUtils from '../test-utils';
 import { createMultiDbClient } from '.';
-import type { MultiDbController } from './controller';
 import type { AnyRedisClientType } from '.';
 import type { RedisServerDocker } from '@redis/test-utils';
 
@@ -63,13 +62,13 @@ describe('multi-db recovery and fallback', function () {
   const kill = (server: RedisServerDocker) => execFileAsync('docker', ['kill', server.dockerId]);
   const start = (server: RedisServerDocker) => execFileAsync('docker', ['start', server.dockerId]);
 
-  function once<T>(controller: MultiDbController<AnyRedisClientType>, event: string, timeoutMs = 20_000): Promise<T> {
+  function once<T>(emitter: unknown, event: string, timeoutMs = 20_000): Promise<T> {
     return new Promise<T>((resolve, reject) => {
       const timer = setTimeout(
         () => reject(new Error(`timed out waiting for '${event}' after ${timeoutMs}ms`)),
         timeoutMs
       );
-      (controller as { once(event: string, listener: (payload: T) => void): void }).once(event, payload => {
+      (emitter as { once(event: string, listener: (payload: T) => void): void }).once(event, payload => {
         clearTimeout(timer);
         resolve(payload);
       });
@@ -82,19 +81,19 @@ describe('multi-db recovery and fallback', function () {
       databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })]
     });
     await client.connect();
-    controller.on('error', () => {});
+    (client as any).on('error', () => {});
     try {
       let unhealthyAt = 0;
       let recoveredAt = 0;
-      controller.on('database-unhealthy', event => {
+      (client as any).on('database-unhealthy', event => {
         if (event.id === 'db-0' && unhealthyAt === 0) unhealthyAt = Date.now();
       });
 
-      const failover = once(controller, 'failover');
+      const failover = once(client, 'failover');
       await kill(serverA);
       await failover;
 
-      const recovered = once<{ id: string }>(controller, 'database-recovered');
+      const recovered = once<{ id: string }>(client, 'database-recovered');
       await start(serverA);
       assert.deepEqual(await recovered, { id: 'db-0' });
       recoveredAt = Date.now();
@@ -126,14 +125,14 @@ describe('multi-db recovery and fallback', function () {
       databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })]
     });
     await client.connect();
-    controller.on('error', () => {});
+    (client as any).on('error', () => {});
     try {
-      const failover = once(controller, 'failover');
+      const failover = once(client, 'failover');
       await kill(serverA);
       await failover;
       assert.equal(controller.getActiveDatabase().id, 'db-1');
 
-      const fallback = once<{ from: string; to: string }>(controller, 'fallback');
+      const fallback = once<{ from: string; to: string }>(client, 'fallback');
       await start(serverA);
       assert.deepEqual(await fallback, { from: 'db-1', to: 'db-0' });
 
@@ -151,13 +150,13 @@ describe('multi-db recovery and fallback', function () {
       databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })]
     });
     await client.connect();
-    controller.on('error', () => {});
+    (client as any).on('error', () => {});
     try {
-      const failover = once(controller, 'failover');
+      const failover = once(client, 'failover');
       await kill(serverA);
       await failover;
 
-      const recovered = once(controller, 'database-recovered');
+      const recovered = once(client, 'database-recovered');
       await start(serverA);
       await recovered;
 
@@ -165,7 +164,7 @@ describe('multi-db recovery and fallback', function () {
       await new Promise(resolve => setTimeout(resolve, 1200));
       assert.equal(controller.getActiveDatabase().id, 'db-1');
 
-      const fallback = once<{ from: string; to: string }>(controller, 'fallback');
+      const fallback = once<{ from: string; to: string }>(client, 'fallback');
       controller.setAutoFallback(300);
       assert.deepEqual(await fallback, { from: 'db-1', to: 'db-0' });
 
@@ -182,14 +181,14 @@ describe('multi-db recovery and fallback', function () {
       databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })]
     });
     await client.connect();
-    controller.on('error', () => {});
+    (client as any).on('error', () => {});
     try {
       const failovers: Array<unknown> = [];
-      controller.on('failover', event => {
+      (client as any).on('failover', event => {
         failovers.push(event);
       });
 
-      const unhealthy = once<{ id: string }>(controller, 'database-unhealthy');
+      const unhealthy = once<{ id: string }>(client, 'database-unhealthy');
       await kill(serverB);
       assert.equal((await unhealthy).id, 'db-1');
 
@@ -197,7 +196,7 @@ describe('multi-db recovery and fallback', function () {
       assert.equal(controller.getActiveDatabase().id, 'db-0');
       assert.equal(await client.ping(), 'PONG');
 
-      const recovered = once<{ id: string }>(controller, 'database-recovered');
+      const recovered = once<{ id: string }>(client, 'database-recovered');
       await start(serverB);
       assert.equal((await recovered).id, 'db-1');
     } finally {

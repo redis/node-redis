@@ -11,6 +11,7 @@ import type { MemberAdapter, ResolvedMemberConfig } from './manager';
 import { MultiDbController } from './controller';
 import { resolveMultiDbConfig } from './config';
 import type { DatabaseConfig, PoolDatabaseConfig, MultiDbConfig, ResolvedMultiDbConfig } from './config';
+import type { MultiDbClientType } from './events';
 
 /**
  * Multi-database client: N homogeneous member databases behind one drop-in
@@ -51,9 +52,9 @@ const INTERCEPTED = new Set<PropertyKey>([
  * @experimental
  */
 export interface MultiDbResult<C extends AnyRedisClientType> {
-  /** drop-in: exactly the base client type */
-  client: C;
-  /** multi-db admin surface */
+  /** drop-in: the base client type plus the typed multi-db event surface */
+  client: MultiDbClientType<C>;
+  /** multi-db admin surface (no events — the client is the event surface) */
   controller: MultiDbController<C>;
 }
 
@@ -298,10 +299,12 @@ function attachForwarders<C extends AnyRedisClientType>(
   }
 }
 
-function makeClient<C extends AnyRedisClientType>(mgr: MultiDbManager<C>): C {
+function makeClient<C extends AnyRedisClientType>(mgr: MultiDbManager<C>): MultiDbClientType<C> {
   const client = new MultiDbClientBase(mgr);
   attachForwarders(client, mgr);
-  return client as unknown as C;
+  // the wrapper is the single event surface: the manager emits through it
+  mgr.bindEvents(client);
+  return client as unknown as MultiDbClientType<C>;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -441,15 +444,23 @@ export function createMultiDbSentinel<
 
 export {
   MultiDbController,
-  type DatabaseDescriptor,
-  type FailoverReason,
-  type FailoverEvent,
-  type FallbackEvent,
-  type DatabaseUnhealthyEvent,
-  type DatabaseRecoveredEvent,
-  type AllDatabasesDownEvent,
-  type MultiDbControllerEvents
+  type DatabaseDescriptor
 } from './controller';
+export type {
+  FailoverReason,
+  FailoverEvent,
+  FallbackEvent,
+  DatabaseUnhealthyEvent,
+  DatabaseRecoveredEvent,
+  AllDatabasesDownEvent,
+  TerminatedEvent,
+  MemberErrorEvent,
+  MemberReadyEvent,
+  MemberEndEvent,
+  MultiDbClientEvents,
+  MultiDbEventEmitter,
+  MultiDbClientType
+} from './events';
 export { TemporarilyUnavailableError, PermanentlyUnavailableError } from './errors';
 export type { DatabaseRole } from './database';
 export type {
