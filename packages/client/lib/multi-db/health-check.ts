@@ -107,7 +107,8 @@ export async function runSingleProbe(
 export async function runProbeRound(
   target: HealthCheckTarget,
   checks: ReadonlyArray<HealthCheck>,
-  options: ProbeRoundOptions
+  options: ProbeRoundOptions,
+  signal?: AbortSignal
 ): Promise<boolean> {
   const { numProbes, delayBetweenProbes, policy } = options;
   const majority = Math.floor(numProbes / 2) + 1;
@@ -116,7 +117,11 @@ export async function runProbeRound(
 
   for (let i = 0; i < numProbes; i++) {
     if (i > 0 && delayBetweenProbes > 0) {
-      await delay(delayBetweenProbes);
+      try {
+        await delay(delayBetweenProbes, undefined, { signal });
+      } catch {
+        return false; // aborted mid-round: don't hold the event loop on a dead timer
+      }
     }
 
     if (await runSingleProbe(target, checks, options.timeout)) passed++;
