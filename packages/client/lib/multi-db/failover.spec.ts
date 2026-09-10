@@ -1,12 +1,12 @@
 import { strict as assert } from 'node:assert';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import testUtils from '../test-utils';
 import { createMultiDbClient } from '.';
 import type { AnyRedisClientType } from '.';
 import RedisClient from '../client';
 import { TemporarilyUnavailableError, PermanentlyUnavailableError } from './errors';
 import type { RedisServerDocker } from '@redis/test-utils';
+import { once, startTraffic as startOps, spawnServerPair, killServer, startServer } from './test-util';
 import type { CommandParser } from '../client/parser';
 
 const execFileAsync = promisify(execFile);
@@ -34,14 +34,10 @@ describe('multi-db failover', function () {
 
   before(async function () {
     this.timeout(120_000);
-    const results = await Promise.allSettled([
-      testUtils.spawnRedisServer({ serverArguments: [] }),
-      testUtils.spawnRedisServer({ serverArguments: [] })
-    ]);
-    if (results[0].status === 'fulfilled') serverA = results[0].value;
-    if (results[1].status === 'fulfilled') serverB = results[1].value;
-    const rejected = results.find(result => result.status === 'rejected');
-    if (rejected) throw (rejected as PromiseRejectedResult).reason;
+    const spawned = await spawnServerPair();
+    serverA = spawned.serverA!;
+    serverB = spawned.serverB!;
+    if (spawned.error) throw spawned.error;
   });
 
   after(async () => {
@@ -54,45 +50,14 @@ describe('multi-db failover', function () {
 
   afterEach(async () => {
     // revive whatever the test killed so the shared servers serve the next one
-    await Promise.all(
-      [serverA, serverB].map(server =>
-        execFileAsync('docker', ['start', server.dockerId]).catch(() => {})
-      )
-    );
+    await Promise.all([serverA, serverB].map(startServer));
   });
 
-  function kill(server: RedisServerDocker) {
-    return execFileAsync('docker', ['kill', server.dockerId]);
-  }
+  const kill = killServer;
 
-  /** issue a command every `intervalMs`, collecting outcomes without ever throwing */
+  /** shared 50ms incr traffic against the wrapper */
   function startTraffic(client: AnyRedisClientType, intervalMs = 50) {
-    const errors: Array<Error> = [];
-    let successes = 0;
-    const timer = setInterval(() => {
-      try {
-        (client as { incr(key: string): Promise<number> }).incr('traffic').then(
-          () => successes++,
-          (err: Error) => errors.push(err)
-        );
-      } catch (err) {
-        errors.push(err as Error);
-      }
-    }, intervalMs);
-    return { errors, successes: () => successes, stop: () => clearInterval(timer) };
-  }
-
-  function once<T>(emitter: unknown, event: never, timeoutMs = 15_000): Promise<T> {
-    return new Promise<T>((resolve, reject) => {
-      const timer = setTimeout(
-        () => reject(new Error(`timed out waiting for '${event}' after ${timeoutMs}ms`)),
-        timeoutMs
-      );
-      (emitter as { once(event: string, listener: (payload: T) => void): void }).once(event, payload => {
-        clearTimeout(timer);
-        resolve(payload);
-      });
-    });
+    return startOps(() => (client as { incr(key: string): Promise<number> }).incr('traffic'), intervalMs);
   }
 
   it('kills the active member: failover event fires and traffic continues', async () => {
@@ -109,7 +74,7 @@ describe('multi-db failover', function () {
       const inFlight = client.blPop('no-such-key', 3);
       inFlight.catch(() => {});
 
-      const failover = once<{ from: string; to: string; reason: string }>(client, 'failover' as never);
+      const failover = once(client, 'failover');
       await kill(serverA);
 
       assert.deepEqual(await failover, { from: 'db-0', to: 'db-1', reason: 'failure-detector' });
@@ -147,7 +112,7 @@ describe('multi-db failover', function () {
         received.push(message);
       });
 
-      const failover = once(client, 'failover' as never);
+      const failover = once(client, 'failover');
       await kill(serverA);
       await failover;
 
@@ -229,7 +194,7 @@ describe('multi-db failover', function () {
       assert.equal(await client.get('cached-key'), 'value-on-a');
       assert.equal(await client.get('cached-key'), 'value-on-a');
 
-      const failover = once(client, 'failover' as never);
+      const failover = once(client, 'failover');
       await kill(serverA);
       await failover;
 
@@ -303,7 +268,7 @@ describe('multi-db failover', function () {
     process.on('unhandledRejection', onRejection);
     // deliberately NO client.on('error', ...): the guarded emit must drop
     // the background error instead of throwing inside a promise handler
-    const unhealthy = once<{ id: string }>(client, 'database-unhealthy' as never);
+    const unhealthy = once(client, 'database-unhealthy');
     client.on('database-unhealthy', () => {
       throw new Error('listener explosion');
     });

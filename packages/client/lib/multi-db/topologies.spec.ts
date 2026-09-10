@@ -1,7 +1,8 @@
 import { strict as assert } from 'node:assert';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { spawnRedisCluster } from '../../../test-utils/lib/dockers';
+import { spawnRedisCluster } from '@redis/test-utils';
+import { once, startTraffic, DOCKER_IMAGE } from './test-util';
 import type { RedisServerDocker } from '@redis/test-utils';
 import testUtils from '../test-utils';
 import { createMultiDbCluster, createMultiDbSentinel, createMultiDbClientPool } from '.';
@@ -12,11 +13,7 @@ import { SentinelFramework } from '../sentinel/test-util';
 
 const execFileAsync = promisify(execFile);
 
-const DOCKER_IMAGE = {
-  image: 'redislabs/client-libs-test',
-  version: 'custom-30445126297-debian',
-  mode: 'server' as const
-};
+
 
 // count-only detection, as in failover.spec.ts: pre-failure successes in the
 // window must not dilute a rate threshold
@@ -31,35 +28,9 @@ function kill(dockerId: string) {
   return execFileAsync('docker', ['kill', dockerId]);
 }
 
-function once<T>(emitter: unknown, event: string, timeoutMs = 20_000): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(
-      () => reject(new Error(`timed out waiting for '${event}' after ${timeoutMs}ms`)),
-      timeoutMs
-    );
-    (emitter as { once(event: string, listener: (payload: T) => void): void }).once(event, payload => {
-      clearTimeout(timer);
-      resolve(payload);
-    });
-  });
-}
 
-/** issue a command every `intervalMs`, collecting outcomes without ever throwing */
-function startTraffic(run: () => Promise<unknown>, intervalMs = 50) {
-  const errors: Array<Error> = [];
-  let successes = 0;
-  const timer = setInterval(() => {
-    try {
-      run().then(
-        () => successes++,
-        (err: Error) => errors.push(err)
-      );
-    } catch (err) {
-      errors.push(err as Error);
-    }
-  }, intervalMs);
-  return { errors, successes: () => successes, stop: () => clearInterval(timer) };
-}
+
+
 
 describe('multi-db topologies', function () {
   this.timeout(120_000);
@@ -106,7 +77,7 @@ describe('multi-db topologies', function () {
       try {
         assert.equal(controller.getActiveDatabase().id, 'db-0');
 
-        const failover = once<{ from: string; to: string; reason: string }>(client, 'failover');
+        const failover = once(client, 'failover');
         await kill(serverA.dockerId);
         assert.deepEqual(await failover, { from: 'db-0', to: 'db-1', reason: 'failure-detector' });
 
@@ -178,7 +149,7 @@ describe('multi-db topologies', function () {
       await typed.connect();
       client.on('error', () => {});
       try {
-        const forced = once<{ from: string; to: string; reason: string }>(client, 'failover');
+        const forced = once(client, 'failover');
         await controller.setActiveDatabase('db-1');
         assert.deepEqual(await forced, { from: 'db-0', to: 'db-1', reason: 'forced' });
 
@@ -186,7 +157,7 @@ describe('multi-db topologies', function () {
         await new Promise(resolve => setTimeout(resolve, 800));
         assert.equal(controller.getActiveDatabase().id, 'db-1');
 
-        const fallback = once<{ from: string; to: string }>(client, 'fallback');
+        const fallback = once(client, 'fallback');
         controller.releasePin();
         assert.deepEqual(await fallback, { from: 'db-1', to: 'db-0' });
         await client.set('forced-smoke', 'ok');
@@ -234,7 +205,7 @@ describe('multi-db topologies', function () {
 
     it('a single dead shard fails commands but opens the member circuit only at detector thresholds', async function () {
       this.timeout(60_000);
-      const { client, controller } = createMultiDbCluster({
+      const { client } = createMultiDbCluster({
         failureDetector: { minNumOfFailures: 5, failureRateThreshold: 0, windowSize: 10_000 },
         // health checks parked: only command outcomes may drive the failover
         healthCheck: { interval: 30_000, timeout: 1_000, numProbes: 1, delayBetweenProbes: 0 },
@@ -290,7 +261,7 @@ describe('multi-db topologies', function () {
       try {
         assert.equal(controller.getActiveDatabase().id, 'db-0');
 
-        const failover = once<{ from: string; to: string; reason: string }>(client, 'failover');
+        const failover = once(client, 'failover');
         await Promise.all(clusterA.map(({ dockerId }) => kill(dockerId)));
         const event = await failover;
         assert.equal(event.from, 'db-0');
@@ -392,14 +363,14 @@ describe('multi-db topologies', function () {
       await typed.connect();
       client.on('error', () => {});
       try {
-        const forced = once<{ from: string; to: string; reason: string }>(client, 'failover');
+        const forced = once(client, 'failover');
         await controller.setActiveDatabase('db-1');
         assert.deepEqual(await forced, { from: 'db-0', to: 'db-1', reason: 'forced' });
 
         await new Promise(resolve => setTimeout(resolve, 800));
         assert.equal(controller.getActiveDatabase().id, 'db-1');
 
-        const fallback = once<{ from: string; to: string }>(client, 'fallback');
+        const fallback = once(client, 'fallback');
         controller.releasePin();
         assert.deepEqual(await fallback, { from: 'db-1', to: 'db-0' });
       } finally {
@@ -480,19 +451,19 @@ describe('multi-db topologies', function () {
       const traffic = startTraffic(() => client.incr('counter'));
       const nodePorts = frameA.getAllNodesPort();
       try {
-        const failover = once<{ from: string; to: string }>(client, 'failover');
+        const failover = once(client, 'failover');
         for (const port of nodePorts) {
           await frameA.stopNode(port.toString());
         }
         assert.equal((await failover).to, 'db-1');
 
-        const recovered = once<{ id: string }>(client, 'database-recovered', 60_000);
+        const recovered = once(client, 'database-recovered', 60_000);
         for (const port of nodePorts) {
           await frameA.restartNode(port.toString());
         }
         assert.equal((await recovered).id, 'db-0');
 
-        const fallback = await once<{ from: string; to: string }>(client, 'fallback');
+        const fallback = await once(client, 'fallback');
         assert.deepEqual(fallback, { from: 'db-1', to: 'db-0' });
         await client.set('fallback-smoke', 'ok');
         assert.equal(await client.get('fallback-smoke'), 'ok');
@@ -515,7 +486,7 @@ describe('multi-db topologies', function () {
       try {
         assert.equal(controller.getActiveDatabase().id, 'db-0');
 
-        const failover = once<{ from: string; to: string; reason: string }>(client, 'failover');
+        const failover = once(client, 'failover');
         // killing every data node leaves the deployment without a servable
         // master; one node may already be down from the previous test
         await Promise.all([...frameA.getAllDockerIds().keys()].map(id => kill(id).catch(() => {})));
