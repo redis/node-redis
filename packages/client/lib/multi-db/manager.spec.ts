@@ -68,14 +68,19 @@ interface Harness {
   fakes: Map<string, FakeClient>;
   events: EventEmitter;
   received: Array<{ event: string; payload: unknown }>;
+  /** configure a fake before the manager sees it (runtime adds) */
+  onCreate?: (fake: FakeClient, id: string) => void;
 }
 
 function makeHarness(memberCount: number, overrides: MultiDbConfig = {}): Harness {
+  const harness = {} as Harness;
   const fakes = new Map<string, FakeClient>();
   const adapter: MemberAdapter<AnyRedisClientType> = {
     create: config => {
       const fake = new FakeClient();
-      fakes.set((config as ResolvedMemberConfig).id, fake);
+      const id = (config as ResolvedMemberConfig).id;
+      fakes.set(id, fake);
+      harness.onCreate?.(fake, id);
       return fake as unknown as AnyRedisClientType;
     },
     sendCommand: client => (client as unknown as FakeClient).handleCommand()
@@ -92,7 +97,11 @@ function makeHarness(memberCount: number, overrides: MultiDbConfig = {}): Harnes
     events.on(name, payload => received.push({ event: name, payload }));
   }
   mgr.bindEvents(events as unknown as MultiDbEventOutlet);
-  return { mgr, fakes, events, received };
+  harness.mgr = mgr;
+  harness.fakes = fakes;
+  harness.events = events;
+  harness.received = received;
+  return harness;
 }
 
 const tick = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -324,6 +333,37 @@ describe('multi-db manager (unit)', function () {
       ]
     );
     mgr.destroy();
+  });
+
+  it('removing a member while addDatabase is still establishing leaks no health timer', async () => {
+    const harness = makeHarness(1, {
+      // tiny grace: a leaked interval becomes visible as recovery probes
+      gracePeriod: 40,
+      healthCheck: { interval: 25, timeout: 20, numProbes: 1, delayBetweenProbes: 0 }
+    });
+    const { mgr, fakes } = harness;
+    await mgr.connect();
+
+    // the new member connects slower than the probe budget — the removal
+    // lands while addDatabase is still establishing
+    harness.onCreate = (fake, id) => {
+      if (id === 'db-1') {
+        fake.onConnect = async () => {
+          await tick(50);
+        };
+      }
+    };
+    const adding = mgr.addDatabase({ options: {} });
+    await tick(10);
+    await mgr.removeDatabase('db-1');
+    await adding;
+
+    // past the grace period a leaked interval would fire recovery probes
+    const added = fakes.get('db-1')!;
+    added.commandCount = 0;
+    await tick(200);
+    mgr.destroy();
+    assert.equal(added.commandCount, 0, 'a removed member must receive no background probes');
   });
 
   it('a force finishing after search exhaustion rejects instead of half-succeeding', async () => {

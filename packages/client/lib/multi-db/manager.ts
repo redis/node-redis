@@ -287,6 +287,9 @@ export class MultiDbManager<C extends AnyRedisClientType> {
   }
 
   #startMemberChecks(db: Database<C>): void {
+    // membership check: a removeDatabase completing while addDatabase was
+    // still establishing must not leave the removed member with a live timer
+    if (!this.#databases.includes(db)) return;
     if (!this.#schedulerRunning || this.#healthTimers.has(db) || this.#teardown.signal.aborted) return;
     const timer = setInterval(() => {
       void this.#checkMember(db);
