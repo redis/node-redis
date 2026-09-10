@@ -3,7 +3,7 @@ import { EventEmitter } from 'node:events';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import testUtils from '../test-utils';
-import { createMultiDbClient, DefaultHealthCheck, MultiDbResult } from '.';
+import { createMultiDbClient, createMultiDbClientPool, DefaultHealthCheck, MultiDbResult } from '.';
 import type { FailureDetector } from '.';
 import type { FailoverEvent } from './controller';
 import RedisClient, { RedisClientType } from '../client';
@@ -567,6 +567,40 @@ describe('multi-db', function () {
         }
       })
     );
+  });
+
+  describe('pool members', () => {
+    it('poolOptions reach the pool and a saturated pool still serves across a switch', async () => {
+      const { client, controller } = createMultiDbClientPool({
+        ...FAST,
+        databases: [
+          { weight: 1, poolOptions: { minimum: 1, maximum: 2 }, options: { socket: { host: '127.0.0.1', port: serverA.port } } },
+          { weight: 0.5, poolOptions: { minimum: 1, maximum: 2 }, options: { socket: { host: '127.0.0.1', port: serverB.port } } }
+        ]
+      });
+      await client.connect();
+      try {
+        // the sizing must actually reach the member pool (forwarded getters)
+        assert.equal(client.totalClients, 1, 'minimum must apply');
+
+        // saturate beyond maximum: all commands must still complete (queued),
+        // and the pool must never exceed its maximum
+        const results = await Promise.all(
+          Array.from({ length: 10 }, (_, i) => client.set(`pool-sat:${i}`, String(i)))
+        );
+        assert.equal(results.length, 10);
+        assert.ok(client.totalClients <= 2, `maximum must cap the pool, got ${client.totalClients}`);
+
+        // the pool member keeps serving after a forced switch
+        await controller.setActiveDatabase('db-1');
+        await Promise.all(
+          Array.from({ length: 5 }, (_, i) => client.set(`pool-sat-b:${i}`, String(i)))
+        );
+        assert.ok(client.totalClients <= 2);
+      } finally {
+        client.destroy();
+      }
+    });
   });
 
   describe('drop-in contract', () => {
