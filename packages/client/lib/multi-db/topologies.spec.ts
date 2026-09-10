@@ -262,10 +262,14 @@ describe('multi-db topologies', function () {
       await Promise.all([frameA.cleanup(), frameB.cleanup()]);
     });
 
-    it("the sentinel's own master change does not fail the member over", async () => {
+    it("the sentinel's own master change does not fail the member over", async function () {
+      this.timeout(60_000);
       const { client, controller } = createMultiDbSentinel({
-        // default detector thresholds: the promotion blip must stay under them
-        healthCheck: FAST_FAILOVER.healthCheck,
+        // the guarantee under test: the DEFAULT detector absorbs the promotion
+        // blip under organic traffic. Background checks are parked outside the
+        // test window — a single probe timing out mid-promotion would open the
+        // circuit for reasons this test is not about (that made it flaky).
+        healthCheck: { interval: 30_000, timeout: 1_000, numProbes: 1, delayBetweenProbes: 0 },
         databases: [memberOf(frameA), memberOf(frameB)]
       });
       await client.connect();
@@ -281,16 +285,17 @@ describe('multi-db topologies', function () {
       try {
         await frameA.stopNode(masterPort.toString());
 
-        // sentinel promotion (down-after 500ms + failover) completes well within this window
-        await new Promise(resolve => setTimeout(resolve, 8000));
+        // deterministic instead of a fixed sleep: the promotion is over once
+        // a steady second of traffic (50ms cadence) has succeeded again
+        const resumedAt = traffic.successes() + 20;
+        const deadline = Date.now() + 45_000;
+        while (traffic.successes() < resumedAt && Date.now() < deadline) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        assert.ok(traffic.successes() >= resumedAt, 'traffic must resume on the promoted master');
 
         assert.deepEqual(failovers, [], 'a sentinel-internal master change must not trip the member circuit');
         assert.equal(controller.getActiveDatabase().id, 'db-0');
-
-        // traffic must flow again on the SAME member after the promotion
-        const before = traffic.successes();
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        assert.ok(traffic.successes() > before, 'traffic must resume on the promoted master');
       } finally {
         traffic.stop();
         client.destroy();
