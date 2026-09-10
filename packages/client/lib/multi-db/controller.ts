@@ -3,7 +3,7 @@ import type { MultiDbManager } from './manager';
 import type { Database } from './database';
 import type { DatabaseRole } from './database';
 import type { CircuitState } from './circuit';
-import type { PoolDatabaseConfig } from './config';
+import type { DatabaseConfig, PoolDatabaseConfig } from './config';
 
 // event payload types live with the event surface — the wrapper client
 export type {
@@ -34,7 +34,13 @@ export interface DatabaseDescriptor {
  * exactly the base client type.
  * @experimental
  */
-export class MultiDbController<C extends AnyRedisClientType> {
+export class MultiDbController<
+  C extends AnyRedisClientType,
+  // the member-config shape this client kind accepts at runtime adds — the
+  // pool factory takes PoolDatabaseConfig (poolOptions), every other kind a
+  // plain DatabaseConfig of its own options type
+  CONFIG extends DatabaseConfig<unknown> = PoolDatabaseConfig<unknown>
+> {
   #mgr: MultiDbManager<C>;
 
   /** @internal */
@@ -60,7 +66,7 @@ export class MultiDbController<C extends AnyRedisClientType> {
    * establish stays in the set with an OPEN circuit. Throws `TypeError` on a
    * duplicate id or a weight outside [0, 1].
    */
-  addDatabase(config: PoolDatabaseConfig<unknown>): Promise<string> {
+  addDatabase(config: CONFIG): Promise<string> {
     return this.#mgr.addDatabase(config);
   }
 
