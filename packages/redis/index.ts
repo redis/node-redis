@@ -17,9 +17,13 @@ import {
   RedisClientPoolType as GenericRedisClientPoolType,
   RedisPoolOptions,
   createMultiDbClient as genericCreateMultiDbClient,
+  createMultiDbClientPool as genericCreateMultiDbClientPool,
+  createMultiDbCluster as genericCreateMultiDbCluster,
+  createMultiDbSentinel as genericCreateMultiDbSentinel,
   MultiDbResult,
   MultiDbConfig,
   DatabaseConfig,
+  PoolDatabaseConfig,
 } from '@redis/client';
 import RedisBloomModules from '@redis/bloom';
 import RedisJSON from '@redis/json';
@@ -74,6 +78,34 @@ export function createClient<
  * is a drop-in {@link RedisClientType}.
  * @experimental
  */
+/**
+ * Merge the Stack default modules into one member's options. Type-preserving:
+ * the merged modules surface only at runtime — the callers' final result cast
+ * carries the Stack typing (mirroring `createClient` and friends).
+ */
+function withStackModules<OPTIONS extends { modules?: unknown } | undefined>(dbOptions: OPTIONS): OPTIONS {
+  return {
+    ...(dbOptions as object | undefined),
+    modules: {
+      ...modules,
+      ...((dbOptions as { modules?: unknown } | undefined)?.modules as object | undefined)
+    }
+  } as OPTIONS;
+}
+
+/**
+ * The manager creates runtime-added members from the config verbatim — they
+ * must get the same module merge as the initial members, or the client's
+ * json/ft/ts namespaces break after a failover to such a member.
+ */
+function mergeModulesOnAdd(controller: { addDatabase(config: PoolDatabaseConfig<unknown>): Promise<string> }): void {
+  const addDatabase = controller.addDatabase.bind(controller);
+  controller.addDatabase = config => addDatabase({
+    ...config,
+    options: withStackModules(config.options as { modules?: unknown } | undefined)
+  });
+}
+
 export function createMultiDbClient<
   M extends RedisModules = {},
   F extends RedisFunctions = {},
@@ -84,26 +116,81 @@ export function createMultiDbClient<
   databases: Array<DatabaseConfig<RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>>>;
 } & MultiDbConfig): MultiDbResult<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {
   const { databases, ...multiDbOptions } = options;
-  const withModules = (dbOptions?: RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>) => ({
-    ...dbOptions,
-    modules: {
-      ...modules,
-      ...(dbOptions?.modules as M)
-    }
-  });
   const result = genericCreateMultiDbClient({
     ...multiDbOptions,
-    databases: databases.map(db => ({ ...db, options: withModules(db.options) }))
+    databases: databases.map(db => ({ ...db, options: withStackModules(db.options) }))
   });
-  // the manager creates runtime-added members from the config verbatim — they
-  // must get the same module merge, or the client's json/ft/ts namespaces
-  // break after a failover to such a member
-  const addDatabase = result.controller.addDatabase.bind(result.controller);
-  result.controller.addDatabase = config => addDatabase({
-    ...config,
-    options: withModules(config.options as RedisClientOptions<M, F, S, RESP, TYPE_MAPPING> | undefined)
-  });
+  mergeModulesOnAdd(result.controller);
   return result as unknown as MultiDbResult<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>;
+}
+
+/**
+ * As {@link createMultiDbClient}, over pooled members — the Stack default
+ * modules are pre-registered on every member, initial and runtime-added.
+ * @experimental
+ */
+export function createMultiDbClientPool<
+  M extends RedisModules = {},
+  F extends RedisFunctions = {},
+  S extends RedisScripts = {},
+  RESP extends RespVersions = 3,
+  TYPE_MAPPING extends TypeMapping = {}
+>(options: {
+  databases: Array<PoolDatabaseConfig<RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>>>;
+} & MultiDbConfig): MultiDbResult<RedisClientPoolType<M, F, S, RESP, TYPE_MAPPING>> {
+  const { databases, ...multiDbOptions } = options;
+  const result = genericCreateMultiDbClientPool({
+    ...multiDbOptions,
+    databases: databases.map(db => ({ ...db, options: withStackModules(db.options) }))
+  });
+  mergeModulesOnAdd(result.controller);
+  return result as unknown as MultiDbResult<RedisClientPoolType<M, F, S, RESP, TYPE_MAPPING>>;
+}
+
+/**
+ * As {@link createMultiDbClient}, over cluster members — the Stack default
+ * modules are pre-registered on every member, initial and runtime-added.
+ * @experimental
+ */
+export function createMultiDbCluster<
+  M extends RedisModules = {},
+  F extends RedisFunctions = {},
+  S extends RedisScripts = {},
+  RESP extends RespVersions = 3,
+  TYPE_MAPPING extends TypeMapping = {}
+>(options: {
+  databases: Array<DatabaseConfig<RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING>>>;
+} & MultiDbConfig): MultiDbResult<RedisClusterType<M, F, S, RESP, TYPE_MAPPING>> {
+  const { databases, ...multiDbOptions } = options;
+  const result = genericCreateMultiDbCluster({
+    ...multiDbOptions,
+    databases: databases.map(db => ({ ...db, options: withStackModules(db.options) }))
+  });
+  mergeModulesOnAdd(result.controller);
+  return result as unknown as MultiDbResult<RedisClusterType<M, F, S, RESP, TYPE_MAPPING>>;
+}
+
+/**
+ * As {@link createMultiDbClient}, over sentinel members — the Stack default
+ * modules are pre-registered on every member, initial and runtime-added.
+ * @experimental
+ */
+export function createMultiDbSentinel<
+  M extends RedisModules = {},
+  F extends RedisFunctions = {},
+  S extends RedisScripts = {},
+  RESP extends RespVersions = 3,
+  TYPE_MAPPING extends TypeMapping = {}
+>(options: {
+  databases: Array<DatabaseConfig<RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>>>;
+} & MultiDbConfig): MultiDbResult<RedisSentinelType<M, F, S, RESP, TYPE_MAPPING>> {
+  const { databases, ...multiDbOptions } = options;
+  const result = genericCreateMultiDbSentinel({
+    ...multiDbOptions,
+    databases: databases.map(db => ({ ...db, options: withStackModules(db.options) }))
+  });
+  mergeModulesOnAdd(result.controller);
+  return result as unknown as MultiDbResult<RedisSentinelType<M, F, S, RESP, TYPE_MAPPING>>;
 }
 
 export function createClientPool<
