@@ -90,10 +90,20 @@ class MultiDbClientBase<C extends AnyRedisClientType> extends EventEmitter {
     return this._mgr.close();
   }
 
+  /**
+   * Fan-out teardown; resolves once every member finished. Standalone members
+   * destroy synchronously — awaiting matters for kinds with asynchronous
+   * teardown (sentinel).
+   */
   destroy() {
-    this._mgr.destroy();
+    return this._mgr.destroy();
   }
 
+  /**
+   * Alias for {@link close}: fans out a graceful close across all members and
+   * resolves `undefined` — unlike the base client's `quit()`, no server reply
+   * is surfaced.
+   */
   quit() {
     return this._mgr.quit();
   }
