@@ -232,7 +232,7 @@ describe('multi-db', function () {
         { databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })] },
         async ({ client, controller }) => {
           const events: Array<FailoverEvent> = [];
-          controller.on('failover', event => {
+          (client as any).on('failover', event => {
             events.push(event);
           });
 
@@ -298,7 +298,8 @@ describe('multi-db', function () {
         { databases: [memberOf(serverA), memberOf(serverB)], failureDetector: detector },
         async ({ client, controller }) => {
           const failover = new Promise(resolve => {
-            controller.once('failover', resolve);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- multi-db events are untyped on the generic wrapper
+            (client as any).once('failover', resolve);
           });
           await assert.rejects(client.sendCommand(['NOSUCHCOMMAND']));
           assert.deepEqual(await failover, { from: 'db-0', to: 'db-1', reason: 'failure-detector' });

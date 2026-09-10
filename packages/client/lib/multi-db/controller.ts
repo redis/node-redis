@@ -1,4 +1,3 @@
-import { EventEmitter } from 'node:events';
 import type { AnyRedisClientType } from './index';
 import type { MultiDbManager } from './manager';
 import type { Database } from './database';
@@ -6,63 +5,15 @@ import type { DatabaseRole } from './database';
 import type { CircuitState } from './circuit';
 import type { PoolDatabaseConfig } from './config';
 
-/** @experimental */
-export type FailoverReason = 'failure-detector' | 'health-check' | 'forced' | 'active-removed';
-
-/**
- * Active switched `from` → `to` (database ids) because the active member failed, was removed, or was forced.
- * @experimental
- */
-export interface FailoverEvent {
-  from: string;
-  to: string;
-  reason: FailoverReason;
-}
-
-/**
- * Auto-fallback returned traffic to a higher-weight healthy member.
- * @experimental
- */
-export interface FallbackEvent {
-  from: string;
-  to: string;
-}
-
-/**
- * A member's circuit opened; `cause` is the error that tripped it.
- * @experimental
- */
-export interface DatabaseUnhealthyEvent {
-  id: string;
-  cause: Error;
-}
-
-/**
- * A member's circuit closed again after recovery probing.
- * @experimental
- */
-export interface DatabaseRecoveredEvent {
-  id: string;
-}
-
-/**
- * One failed failover attempt while no eligible member exists; `attempt` counts toward `maxFailoverAttempts`.
- * @experimental
- */
-export interface AllDatabasesDownEvent {
-  attempt: number;
-  maxAttempts: number;
-}
-
-/** @experimental */
-export interface MultiDbControllerEvents {
-  'failover': [FailoverEvent];
-  'fallback': [FallbackEvent];
-  'database-unhealthy': [DatabaseUnhealthyEvent];
-  'database-recovered': [DatabaseRecoveredEvent];
-  'all-databases-down': [AllDatabasesDownEvent];
-  'error': [Error];
-}
+// event payload types live with the event surface — the wrapper client
+export type {
+  FailoverReason,
+  FailoverEvent,
+  FallbackEvent,
+  DatabaseUnhealthyEvent,
+  DatabaseRecoveredEvent,
+  AllDatabasesDownEvent
+} from './events';
 
 /**
  * Point-in-time view of one member; raw member clients stay internal.
@@ -77,38 +28,18 @@ export interface DatabaseDescriptor {
 
 /**
  * The multi-db-only admin surface: topology inspection, weights, active-DB
- * selection, failover events. Kept OFF `client` so `client` stays
+ * selection, forced failover. A pure admin handle — it emits nothing; every
+ * event (lifecycle, failover, member-*) fires on the wrapper client
+ * (`events.ts:MultiDbClientEvents`). Kept OFF `client` so `client` stays
  * exactly the base client type.
  * @experimental
  */
-export class MultiDbController<C extends AnyRedisClientType> extends EventEmitter {
-  // typed event surface — @types/node 20.11 has no generic EventEmitter, so
-  // narrow the inherited signatures to the multi-db event map (`declare`
-  // emits no code)
-  declare on: <E extends keyof MultiDbControllerEvents>(
-    event: E,
-    listener: (...args: MultiDbControllerEvents[E]) => void
-  ) => this;
-  declare once: <E extends keyof MultiDbControllerEvents>(
-    event: E,
-    listener: (...args: MultiDbControllerEvents[E]) => void
-  ) => this;
-  declare off: <E extends keyof MultiDbControllerEvents>(
-    event: E,
-    listener: (...args: MultiDbControllerEvents[E]) => void
-  ) => this;
-  declare emit: <E extends keyof MultiDbControllerEvents>(
-    event: E,
-    ...args: MultiDbControllerEvents[E]
-  ) => boolean;
-
+export class MultiDbController<C extends AnyRedisClientType> {
   #mgr: MultiDbManager<C>;
 
   /** @internal */
   constructor(mgr: MultiDbManager<C>) {
-    super();
     this.#mgr = mgr;
-    mgr.bindEvents(this);
   }
 
   /** descriptor of the member currently receiving commands */

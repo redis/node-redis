@@ -1,7 +1,7 @@
 import { setTimeout as delay } from 'node:timers/promises';
 import type { RedisArgument, ReplyUnion } from '../RESP/types';
 import type { AnyRedisClientType } from './index';
-import type { MultiDbController, FailoverReason } from './controller';
+import type { FailoverReason } from './events';
 import type { ResolvedMultiDbConfig, ResolvedDatabaseIdentity, PoolDatabaseConfig, InitialAvailability } from './config';
 import { resolveDatabaseIdentity, isFailureDetector } from './config';
 import { Circuit } from './circuit';
@@ -36,6 +36,16 @@ export interface MemberAdapter<C extends AnyRedisClientType> {
 /** One member's resolved config as the manager consumes it. */
 export type ResolvedMemberConfig = PoolDatabaseConfig<unknown> & ResolvedDatabaseIdentity;
 
+/**
+ * Where the manager's events land — the wrapper client
+ * (`index.ts:makeClient` binds it). `listenerCount` backs the guarded
+ * 'error' emit: EventEmitter throws on 'error' with zero listeners.
+ */
+export interface MultiDbEventOutlet {
+  emit(event: string, ...args: Array<unknown>): boolean;
+  listenerCount(event: string): number;
+}
+
 export type SwitchReason = FailoverReason | 'fallback';
 
 function requiredHealthy(policy: InitialAvailability, total: number): number {
@@ -65,7 +75,7 @@ export class MultiDbManager<C extends AnyRedisClientType> {
   /** forced selection: suspends auto-fallback until released or the member fails */
   #pinnedTo: Database<C> | null = null;
   readonly #teardown = new AbortController();
-  #events?: Pick<MultiDbController<C>, 'emit' | 'listenerCount'>;
+  #events?: MultiDbEventOutlet;
   readonly #healthTimers = new Map<Database<C>, NodeJS.Timeout>();
   /** per-member overlap guard: a probe round may outlast the check interval */
   readonly #probing = new Set<Database<C>>();
@@ -126,11 +136,11 @@ export class MultiDbManager<C extends AnyRedisClientType> {
       : new TemporarilyUnavailableError();
   }
 
-  /** @internal the controller registers itself as the manager's event outlet
-   * from its constructor (`controller.ts:MultiDbController`). Anything emitted
-   * before that is silently dropped — don't emit from the manager constructor.
+  /** @internal the wrapper client registers itself as the manager's event
+   * outlet at construction (`index.ts:makeClient`). Anything emitted before
+   * that is silently dropped — don't emit from the manager constructor.
    */
-  bindEvents(events: Pick<MultiDbController<C>, 'emit' | 'listenerCount'>): void {
+  bindEvents(events: MultiDbEventOutlet): void {
     this.#events = events;
   }
 
@@ -258,6 +268,7 @@ export class MultiDbManager<C extends AnyRedisClientType> {
     this.#unavailable = 'failed';
     this.#failoverInFlight = false;
     this.#stopTimers();
+    this.#events?.emit('terminated', { attempts: maxFailoverAttempts });
   }
 
   /**
@@ -430,6 +441,7 @@ export class MultiDbManager<C extends AnyRedisClientType> {
    * again re-probes and re-selects; already-open members are not reconnected.
    */
   async connect(): Promise<void> {
+    this.#events?.emit('connect');
     // skipInitialHealthCheck is honored only on runtime add — every member is
     // probed at initial connect
     const results = await Promise.all(
@@ -469,6 +481,9 @@ export class MultiDbManager<C extends AnyRedisClientType> {
     this.#failoverInFlight = false;
 
     this.#startScheduler();
+    // the logical readiness signal: policy met, an active member is serving —
+    // fires on the initial connect and again on a recovery re-connect
+    this.#events?.emit('ready');
   }
 
   /**
@@ -542,6 +557,7 @@ export class MultiDbManager<C extends AnyRedisClientType> {
   }
 
   async close(): Promise<void> {
+    const firstTeardown = !this.#teardown.signal.aborted;
     // stop the search loop and mute failure handling before members start ending
     this.#teardown.abort();
     this.#stopTimers();
@@ -553,9 +569,11 @@ export class MultiDbManager<C extends AnyRedisClientType> {
       }
       db.dispose();
     }));
+    if (firstTeardown) this.#events?.emit('end');
   }
 
   destroy(): void {
+    const firstTeardown = !this.#teardown.signal.aborted;
     this.#teardown.abort();
     this.#stopTimers();
     for (const db of this.#databases) {
@@ -566,6 +584,7 @@ export class MultiDbManager<C extends AnyRedisClientType> {
       }
       db.dispose();
     }
+    if (firstTeardown) this.#events?.emit('end');
   }
 
   async quit(): Promise<void> {
@@ -584,9 +603,19 @@ export class MultiDbManager<C extends AnyRedisClientType> {
       })
     }, {
       // source attribution in onCommandResult keeps passive members' lifecycle
-      // noise out of the detector; passives are the background checks' concern
-      onError: (db, err) => this.onCommandResult(false, err, db),
+      // noise out of the detector; passives are the background checks' concern.
+      // Every hook also re-emits as a member-* event with the id in the
+      // payload (`events.ts:MultiDbClientEvents`) — ids may be reused after a
+      // remove/add, so they never go into event names.
+      onError: (db, err) => {
+        this.onCommandResult(false, err, db);
+        this.#events?.emit('member-error', { id: db.id, error: err });
+      },
+      onReady: db => {
+        this.#events?.emit('member-ready', { id: db.id });
+      },
       onDown: db => {
+        this.#events?.emit('member-end', { id: db.id });
         // a definitive end (reconnection given up) fails the active immediately
         if (db === this.#active) {
           this.#handleActiveFailure(new Error(`MultiDb: database "${db.id}" connection ended`), 'failure-detector');

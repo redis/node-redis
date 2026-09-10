@@ -97,5 +97,11 @@ export {
   type DatabaseUnhealthyEvent,
   type DatabaseRecoveredEvent,
   type AllDatabasesDownEvent,
-  type MultiDbControllerEvents
+  type TerminatedEvent,
+  type MemberErrorEvent,
+  type MemberReadyEvent,
+  type MemberEndEvent,
+  type MultiDbClientEvents,
+  type MultiDbEventEmitter,
+  type MultiDbClientType
 } from './lib/multi-db';
