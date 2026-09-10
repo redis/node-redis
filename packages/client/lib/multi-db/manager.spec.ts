@@ -4,7 +4,7 @@ import { MultiDbManager } from './manager';
 import type { MemberAdapter, ResolvedMemberConfig } from './manager';
 import { resolveMultiDbConfig } from './config';
 import type { MultiDbConfig } from './config';
-import type { MultiDbController } from './controller';
+import type { MultiDbEventOutlet } from './manager';
 import type { AnyRedisClientType } from './index';
 import { PermanentlyUnavailableError } from './errors';
 
@@ -87,10 +87,11 @@ function makeHarness(memberCount: number, overrides: MultiDbConfig = {}): Harnes
   const mgr = new MultiDbManager(databases, config, adapter);
   const events = new EventEmitter();
   const received: Array<{ event: string; payload: unknown }> = [];
-  for (const name of ['failover', 'fallback', 'database-unhealthy', 'database-recovered', 'all-databases-down', 'error']) {
+  for (const name of ['failover', 'fallback', 'database-unhealthy', 'database-recovered', 'all-databases-down', 'error',
+    'connect', 'ready', 'terminated', 'end', 'member-error', 'member-ready', 'member-end']) {
     events.on(name, payload => received.push({ event: name, payload }));
   }
-  mgr.bindEvents(events as unknown as Pick<MultiDbController<AnyRedisClientType>, 'emit' | 'listenerCount'>);
+  mgr.bindEvents(events as unknown as MultiDbEventOutlet);
   return { mgr, fakes, events, received };
 }
 
@@ -271,6 +272,57 @@ describe('multi-db manager (unit)', function () {
     assert.equal(mgr.unavailableError, undefined, 'the rescue must lift the gate');
     assert.equal(mgr.activeDatabase.id, id);
     assert.ok(received.some(r => r.event === 'failover' && (r.payload as { to: string }).to === id));
+    mgr.destroy();
+  });
+
+  it('emits the logical lifecycle: connect, ready, terminated, ready again after recovery, end', async () => {
+    const { mgr, fakes, received } = makeHarness(2, {
+      maxFailoverAttempts: 2,
+      delayBetweenFailoverAttempts: 10
+    });
+    const lifecycle = () => received
+      .map(r => r.event)
+      .filter(e => e === 'connect' || e === 'ready' || e === 'terminated' || e === 'end');
+
+    await mgr.connect();
+    assert.deepEqual(lifecycle(), ['connect', 'ready']);
+
+    mgr.databases[1].circuit.open(); // no replacement: the search must exhaust
+    fakes.get('db-0')!.end();
+    const deadline = Date.now() + 1_000;
+    while (!lifecycle().includes('terminated') && Date.now() < deadline) {
+      await tick(10);
+    }
+    assert.deepEqual(lifecycle(), ['connect', 'ready', 'terminated']);
+    const terminated = received.find(r => r.event === 'terminated');
+    assert.deepEqual(terminated?.payload, { attempts: 2 });
+
+    // recovery is connect()'s job — and it must announce readiness again
+    await mgr.connect();
+    assert.deepEqual(lifecycle(), ['connect', 'ready', 'terminated', 'connect', 'ready']);
+
+    mgr.destroy();
+    assert.deepEqual(lifecycle(), ['connect', 'ready', 'terminated', 'connect', 'ready', 'end']);
+  });
+
+  it('re-emits member lifecycle as member-* events with ids in the payload', async () => {
+    const { mgr, fakes, received } = makeHarness(2);
+    await mgr.connect();
+    received.length = 0;
+
+    const boom = new Error('member exploded');
+    fakes.get('db-1')!.emit('error', boom);
+    fakes.get('db-1')!.emit('ready');
+    fakes.get('db-1')!.end();
+
+    assert.deepEqual(
+      received.filter(r => r.event.startsWith('member-')),
+      [
+        { event: 'member-error', payload: { id: 'db-1', error: boom } },
+        { event: 'member-ready', payload: { id: 'db-1' } },
+        { event: 'member-end', payload: { id: 'db-1' } }
+      ]
+    );
     mgr.destroy();
   });
 

@@ -23,12 +23,12 @@ const { client, controller } = createMultiDbClient({
   autoFallbackInterval: 2000
 });
 
-controller.on('failover', (event) => console.log('failover:', event));
-controller.on('fallback', (event) => console.log('fallback:', event));
-controller.on('database-unhealthy', (event) => console.log('unhealthy:', event.id, `(${event.cause.message})`));
-controller.on('database-recovered', (event) => console.log('recovered:', event.id));
-controller.on('all-databases-down', (event) => console.log('all down, attempt', event.attempt, 'of', event.maxAttempts));
-controller.on('error', () => {
+client.on('failover', (event) => console.log('failover:', event));
+client.on('fallback', (event) => console.log('fallback:', event));
+client.on('database-unhealthy', (event) => console.log('unhealthy:', event.id, `(${event.cause.message})`));
+client.on('database-recovered', (event) => console.log('recovered:', event.id));
+client.on('all-databases-down', (event) => console.log('all down, attempt', event.attempt, 'of', event.maxAttempts));
+client.on('error', () => {
   // background noise from failing members while they are down
 });
 

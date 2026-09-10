@@ -5,7 +5,6 @@ import { spawnRedisCluster } from '../../../test-utils/lib/dockers';
 import type { RedisServerDocker } from '@redis/test-utils';
 import testUtils from '../test-utils';
 import { createMultiDbCluster, createMultiDbSentinel, createMultiDbClientPool } from '.';
-import type { MultiDbController } from './controller';
 import type { AnyRedisClientType } from '.';
 import type { RedisClusterType } from '../cluster';
 import type { RedisSentinelType } from '../sentinel/types';
@@ -33,13 +32,13 @@ function kill(dockerId: string) {
   return execFileAsync('docker', ['kill', dockerId]);
 }
 
-function once<T>(controller: MultiDbController<AnyRedisClientType>, event: string, timeoutMs = 20_000): Promise<T> {
+function once<T>(emitter: unknown, event: string, timeoutMs = 20_000): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(
       () => reject(new Error(`timed out waiting for '${event}' after ${timeoutMs}ms`)),
       timeoutMs
     );
-    (controller as { once(event: string, listener: (payload: T) => void): void }).once(event, payload => {
+    (emitter as { once(event: string, listener: (payload: T) => void): void }).once(event, payload => {
       clearTimeout(timer);
       resolve(payload);
     });
@@ -103,12 +102,12 @@ describe('multi-db topologies', function () {
       });
       const typed: RedisClientPoolType = client;
       await typed.connect();
-      controller.on('error', () => {});
+      (client as any).on('error', () => {});
       const traffic = startTraffic(() => client.incr('counter'));
       try {
         assert.equal(controller.getActiveDatabase().id, 'db-0');
 
-        const failover = once<{ from: string; to: string; reason: string }>(controller, 'failover');
+        const failover = once<{ from: string; to: string; reason: string }>(client, 'failover');
         await kill(serverA.dockerId);
         assert.deepEqual(await failover, { from: 'db-0', to: 'db-1', reason: 'failure-detector' });
 
@@ -155,9 +154,9 @@ describe('multi-db topologies', function () {
       });
       const typed: RedisClusterType = client;
       await typed.connect();
-      controller.on('error', () => {});
+      (client as any).on('error', () => {});
       try {
-        const forced = once<{ from: string; to: string; reason: string }>(controller, 'failover');
+        const forced = once<{ from: string; to: string; reason: string }>(client, 'failover');
         await controller.setActiveDatabase('db-1');
         assert.deepEqual(await forced, { from: 'db-0', to: 'db-1', reason: 'forced' });
 
@@ -165,7 +164,7 @@ describe('multi-db topologies', function () {
         await new Promise(resolve => setTimeout(resolve, 800));
         assert.equal(controller.getActiveDatabase().id, 'db-1');
 
-        const fallback = once<{ from: string; to: string }>(controller, 'fallback');
+        const fallback = once<{ from: string; to: string }>(client, 'fallback');
         controller.releasePin();
         assert.deepEqual(await fallback, { from: 'db-1', to: 'db-0' });
         await client.set('forced-smoke', 'ok');
@@ -188,14 +187,14 @@ describe('multi-db topologies', function () {
       });
       const typed: RedisClusterType = client;
       await typed.connect();
-      controller.on('error', () => {});
+      (client as any).on('error', () => {});
       try {
         const received: Array<string> = [];
         await typed.subscribe('news', message => {
           received.push(message.toString());
         });
 
-        const forced = once(controller, 'failover');
+        const forced = once(client, 'failover');
         await controller.setActiveDatabase('db-1');
         await forced;
 
@@ -217,14 +216,14 @@ describe('multi-db topologies', function () {
         databases: [memberOf(clusterA), memberOf(clusterB)]
       });
       await client.connect();
-      controller.on('error', () => {
+      (client as any).on('error', () => {
         // the dying cluster's teardown noise is not what this test asserts
       });
       const traffic = startTraffic(() => client.incr('counter'));
       try {
         assert.equal(controller.getActiveDatabase().id, 'db-0');
 
-        const failover = once<{ from: string; to: string; reason: string }>(controller, 'failover');
+        const failover = once<{ from: string; to: string; reason: string }>(client, 'failover');
         await Promise.all(clusterA.map(({ dockerId }) => kill(dockerId)));
         const event = await failover;
         assert.equal(event.from, 'db-0');
@@ -271,11 +270,11 @@ describe('multi-db topologies', function () {
         databases: [memberOf(frameA), memberOf(frameB)]
       });
       await client.connect();
-      controller.on('error', () => {
+      (client as any).on('error', () => {
         // node errors during the sentinel-internal promotion are expected
       });
       const failovers: Array<unknown> = [];
-      controller.on('failover', event => {
+      (client as any).on('failover', event => {
         failovers.push(event);
       });
       const traffic = startTraffic(() => client.incr('counter'));
@@ -312,16 +311,16 @@ describe('multi-db topologies', function () {
       });
       const typed: RedisSentinelType = client;
       await typed.connect();
-      controller.on('error', () => {});
+      (client as any).on('error', () => {});
       try {
-        const forced = once<{ from: string; to: string; reason: string }>(controller, 'failover');
+        const forced = once<{ from: string; to: string; reason: string }>(client, 'failover');
         await controller.setActiveDatabase('db-1');
         assert.deepEqual(await forced, { from: 'db-0', to: 'db-1', reason: 'forced' });
 
         await new Promise(resolve => setTimeout(resolve, 800));
         assert.equal(controller.getActiveDatabase().id, 'db-1');
 
-        const fallback = once<{ from: string; to: string }>(controller, 'fallback');
+        const fallback = once<{ from: string; to: string }>(client, 'fallback');
         controller.releasePin();
         assert.deepEqual(await fallback, { from: 'db-1', to: 'db-0' });
       } finally {
@@ -342,14 +341,14 @@ describe('multi-db topologies', function () {
       });
       const typed: RedisSentinelType = client;
       await typed.connect();
-      controller.on('error', () => {});
+      (client as any).on('error', () => {});
       try {
         const received: Array<string> = [];
         await typed.subscribe('news', message => {
           received.push(message.toString());
         });
 
-        const forced = once(controller, 'failover');
+        const forced = once(client, 'failover');
         await controller.setActiveDatabase('db-1');
         await forced;
 
@@ -368,7 +367,7 @@ describe('multi-db topologies', function () {
           updates.push(message.toString());
         });
 
-        const back = once(controller, 'failover');
+        const back = once(client, 'failover');
         await controller.setActiveDatabase('db-0');
         await back;
 
@@ -398,23 +397,23 @@ describe('multi-db topologies', function () {
         ]
       });
       await client.connect();
-      controller.on('error', () => {});
+      (client as any).on('error', () => {});
       const traffic = startTraffic(() => client.incr('counter'));
       const nodePorts = frameA.getAllNodesPort();
       try {
-        const failover = once<{ from: string; to: string }>(controller, 'failover');
+        const failover = once<{ from: string; to: string }>(client, 'failover');
         for (const port of nodePorts) {
           await frameA.stopNode(port.toString());
         }
         assert.equal((await failover).to, 'db-1');
 
-        const recovered = once<{ id: string }>(controller, 'database-recovered', 60_000);
+        const recovered = once<{ id: string }>(client, 'database-recovered', 60_000);
         for (const port of nodePorts) {
           await frameA.restartNode(port.toString());
         }
         assert.equal((await recovered).id, 'db-0');
 
-        const fallback = await once<{ from: string; to: string }>(controller, 'fallback');
+        const fallback = await once<{ from: string; to: string }>(client, 'fallback');
         assert.deepEqual(fallback, { from: 'db-1', to: 'db-0' });
         await client.set('fallback-smoke', 'ok');
         assert.equal(await client.get('fallback-smoke'), 'ok');
@@ -430,14 +429,14 @@ describe('multi-db topologies', function () {
         databases: [memberOf(frameA), memberOf(frameB)]
       });
       await client.connect();
-      controller.on('error', () => {
+      (client as any).on('error', () => {
         // the dying deployment's teardown noise is not what this test asserts
       });
       const traffic = startTraffic(() => client.incr('counter'));
       try {
         assert.equal(controller.getActiveDatabase().id, 'db-0');
 
-        const failover = once<{ from: string; to: string; reason: string }>(controller, 'failover');
+        const failover = once<{ from: string; to: string; reason: string }>(client, 'failover');
         // killing every data node leaves the deployment without a servable
         // master; one node may already be down from the previous test
         await Promise.all([...frameA.getAllDockerIds().keys()].map(id => kill(id).catch(() => {})));
