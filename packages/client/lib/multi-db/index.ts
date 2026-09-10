@@ -45,7 +45,7 @@ export type AnyRedisClientType =
 const INTERCEPTED = new Set<PropertyKey>([
   'connect', 'close', 'destroy', 'quit',
   'withTypeMapping', 'withCommandOptions', 'withAbortSignal',
-  'multi', 'MULTI'
+  'multi', 'MULTI', 'duplicate'
 ]);
 
 /**
@@ -141,6 +141,21 @@ class MultiDbClientBase<C extends AnyRedisClientType> extends EventEmitter {
   MULTI() {
     return this.multi();
   }
+
+  /**
+   * A NEW, unconnected multi-db client over the CURRENT live member set
+   * (runtime adds/removes and weight changes included) and the same
+   * configuration — returned as the `{ client, controller }` pair the
+   * factories produce, deliberately different from the base client's
+   * `duplicate()` signature. `overrides` merge into every member's options
+   * identically, so the clone stays homogeneous. Runtime state (circuit
+   * states, active selection, a forced pin) is not copied.
+   * @experimental
+   */
+  duplicate(overrides?: object): MultiDbResult<C> {
+    const mgr = this._mgr.duplicate(overrides);
+    return { client: makeClient(mgr), controller: new MultiDbController(mgr) };
+  }
 }
 
 /**
@@ -220,7 +235,7 @@ function makeDerived<C extends AnyRedisClientType>(
 // promise would TypeError at the first chained call instead of failing
 // meaningfully
 const PINNED_SYNC = new Set<string>([
-  'duplicate', 'legacy',
+  'legacy',
   'scanIterator', 'hScanIterator', 'sScanIterator', 'zScanIterator'
 ]);
 
