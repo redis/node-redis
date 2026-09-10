@@ -161,4 +161,39 @@ describe('resolveMultiDbConfig', () => {
       initialAvailability: 'majority'
     });
   });
+
+  describe('numeric option validation', () => {
+    const databases = [{ options: {} }];
+    const cases: Array<[string, object]> = [
+      ['gracePeriod NaN', { gracePeriod: NaN }],
+      ['gracePeriod negative', { gracePeriod: -1 }],
+      ['maxFailoverAttempts zero', { maxFailoverAttempts: 0 }],
+      ['maxFailoverAttempts NaN', { maxFailoverAttempts: NaN }],
+      ['maxFailoverAttempts fractional', { maxFailoverAttempts: 1.5 }],
+      ['delayBetweenFailoverAttempts negative', { delayBetweenFailoverAttempts: -5 }],
+      ['autoFallbackInterval NaN', { autoFallbackInterval: NaN }],
+      ['autoFallbackInterval below -1', { autoFallbackInterval: -2 }],
+      ['failureDetector.minNumOfFailures negative', { failureDetector: { minNumOfFailures: -1 } }],
+      ['failureDetector.failureRateThreshold above 100', { failureDetector: { failureRateThreshold: 101 } }],
+      ['failureDetector.windowSize zero', { failureDetector: { windowSize: 0 } }]
+    ];
+    for (const [name, config] of cases) {
+      it(`rejects ${name}`, () => {
+        assert.throws(() => resolveMultiDbConfig(databases, config), TypeError);
+      });
+    }
+
+    it('accepts the boundary values', () => {
+      const { config } = resolveMultiDbConfig(databases, {
+        gracePeriod: 0,
+        maxFailoverAttempts: 1,
+        delayBetweenFailoverAttempts: 0,
+        autoFallbackInterval: -1,
+        failureDetector: { minNumOfFailures: 0, failureRateThreshold: 0, windowSize: 1 }
+      });
+      assert.equal(config.gracePeriod, 0);
+      assert.equal(config.maxFailoverAttempts, 1);
+      assert.equal(config.autoFallbackInterval, -1);
+    });
+  });
 });
