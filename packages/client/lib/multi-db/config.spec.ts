@@ -196,4 +196,21 @@ describe('resolveMultiDbConfig', () => {
       assert.equal(config.autoFallbackInterval, -1);
     });
   });
+
+  describe('custom failure detector shape', () => {
+    const databases = [{ options: {} }];
+
+    it('rejects a detector missing methods instead of silently ignoring it', () => {
+      assert.throws(
+        () => resolveMultiDbConfig(databases, { failureDetector: { isFaulty: () => false } as never }),
+        /must implement isFaulty, onCommandResult and reset/
+      );
+    });
+
+    it('accepts a complete detector instance', () => {
+      const detector = { isFaulty: () => false, onCommandResult: () => {}, reset: () => {} };
+      const { config } = resolveMultiDbConfig(databases, { failureDetector: detector });
+      assert.equal(config.failureDetector, detector);
+    });
+  });
 });
