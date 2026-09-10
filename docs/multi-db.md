@@ -181,11 +181,15 @@ a `CLOSED` circuit, or `undefined` to escalate.
 
 ## Behavior contracts and caveats
 
-- **In-flight commands are rejected on failure**, exactly like a single client's reconnect:
-  commands awaiting a reply on the failing member reject with that member's error. Commands
-  issued after the switch go to the new member (riding its offline queue if it is
-  mid-reconnect). Unsent commands queued on the *old* member follow its own reconnect
-  lifecycle — they are not migrated.
+- **Commands are rejected on failover, never retried or replayed.** Commands awaiting a
+  reply on the failing member reject with that member's error, exactly like a single
+  client's reconnect. For standalone members, commands still queued *unsent* on the dead
+  member are rejected at the switch with `CommandAbandonedError` — without that, they would
+  execute on the demoted member when it reconnects minutes later. Cluster and sentinel
+  members keep their own queue lifecycles (unsent commands there follow the member's
+  reconnect, unmigrated). Commands issued after the switch go to the new member, riding its
+  offline queue if it is mid-reconnect. There is no automatic retry on the new member —
+  surface the rejection to the application and let it decide.
 - **Eventual consistency.** Members are assumed to be asynchronously replicated. A switch
   offers no read-your-writes guarantee: a write acknowledged by the old member may not be
   visible on the new one.

@@ -12,7 +12,7 @@ import type { FailureDetector } from './failure-detector';
 import { DefaultFailureDetector } from './failure-detector';
 import type { FailoverStrategy } from './failover-strategy';
 import { WeightBasedStrategy } from './failover-strategy';
-import { TemporarilyUnavailableError, PermanentlyUnavailableError } from './errors';
+import { TemporarilyUnavailableError, PermanentlyUnavailableError, CommandAbandonedError } from './errors';
 
 /**
  * Topology-specific hooks the manager needs for each member kind; each factory
@@ -31,6 +31,14 @@ export interface MemberAdapter<C extends AnyRedisClientType> {
    * subscriptions behind instead of duplicating deliveries.
    */
   movePubSub?(from: C, to: C): Promise<void>;
+  /**
+   * Called synchronously when traffic switches away from `from`: reject
+   * commands still queued UNSENT on it when its connection is down, so they
+   * fail to their callers now instead of replaying on the demoted member when
+   * it reconnects. A ready member's queue drains normally — leave it alone.
+   * Omit when the kind has no reachable unsent queue.
+   */
+  rejectQueued?(from: C, error: Error): void;
 }
 
 /** One member's resolved config as the manager consumes it. */
@@ -203,6 +211,10 @@ export class MultiDbManager<C extends AnyRedisClientType> {
 
     // detector observations must never span members
     this.#detector.reset();
+
+    // a dead member's unsent queue must fail now, to its callers — never
+    // replay on the demoted member when it reconnects
+    this.#adapter.rejectQueued?.(from.client, new CommandAbandonedError());
 
     if (reason === 'fallback') {
       this.#events?.emit('fallback', { from: from.id, to: target.id });
