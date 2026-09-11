@@ -10,6 +10,7 @@
   ],
   "scripts": {
     "test": "npm run test:types && nyc -r text-summary -r lcov mocha -r tsx --reporter mocha-multi-reporters --reporter-options configFile=mocha-multi-reporter-config.json --exit './lib/**/*.spec.ts'",
+    "test:external-cluster": "npm run test:types && nyc -r text-summary -r lcov mocha --config .mocharc-external-cluster.cjs -r tsx --reporter mocha-multi-reporters --reporter-options configFile=mocha-multi-reporter-config.json --exit",
     "test:types": "tsc -p tsconfig.types-test.json",
     "generate:metadata": "tsx ./scripts/generate-command-metadata-data.ts",
     "release": "release-it"
