@@ -139,7 +139,7 @@ describe the multi-db client as a whole, not any one connection:
 | `end` | — | a user-initiated `close()`/`destroy()` completed |
 | `terminated` | `{ attempts }` | the client went permanently unavailable; only `connect()` recovers it |
 | `error` | `Error` | a background task failed (pub/sub move, health-check round) |
-| `failover` | `{ from, to, reason }` | the active member switched (`failure-detector`, `health-check`, `forced`, `active-removed`) |
+| `failover` | `{ from, to, reason }` | the active member switched (`failure-detector`, `health-check`, `connection-ended`, `forced`, `active-removed`) |
 | `fallback` | `{ from, to }` | auto-fallback returned to a higher-weight member |
 | `database-unhealthy` | `{ id, cause }` | a member's circuit opened |
 | `database-recovered` | `{ id }` | a member's circuit closed again |

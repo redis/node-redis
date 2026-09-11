@@ -253,7 +253,7 @@ export class MultiDbManager<C extends AnyRedisClientType> {
    * `delayBetweenFailoverAttempts` up to `maxFailoverAttempts` times before
    * going permanently unavailable.
    */
-  #handleActiveFailure(cause: Error, reason: 'failure-detector' | 'health-check'): void {
+  #handleActiveFailure(cause: Error, reason: 'failure-detector' | 'health-check' | 'connection-ended'): void {
     if (this.#failoverInFlight || this.#unavailable === 'failed' || this.#teardown.signal.aborted) return;
 
     const failed = this.#active;
@@ -271,7 +271,7 @@ export class MultiDbManager<C extends AnyRedisClientType> {
     void this.#searchLoop(reason);
   }
 
-  async #searchLoop(reason: 'failure-detector' | 'health-check'): Promise<void> {
+  async #searchLoop(reason: 'failure-detector' | 'health-check' | 'connection-ended'): Promise<void> {
     const { maxFailoverAttempts, delayBetweenFailoverAttempts } = this.#config;
     for (let attempt = 1; attempt <= maxFailoverAttempts; attempt++) {
       this.#events?.emit('all-databases-down', { attempt, maxAttempts: maxFailoverAttempts });
@@ -682,7 +682,7 @@ export class MultiDbManager<C extends AnyRedisClientType> {
         this.#events?.emit('member-end', { id: db.id });
         // a definitive end (reconnection given up) fails the active immediately
         if (db === this.#active) {
-          this.#handleActiveFailure(new Error(`MultiDb: database "${db.id}" connection ended`), 'failure-detector');
+          this.#handleActiveFailure(new Error(`MultiDb: database "${db.id}" connection ended`), 'connection-ended');
         } else if (!this.#teardown.signal.aborted && this.#databases.includes(db)) {
           // deliberate removals are spliced out first and must not announce
           this.#events?.emit('database-unhealthy', {
