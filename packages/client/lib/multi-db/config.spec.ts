@@ -19,7 +19,7 @@ describe('resolveMultiDbConfig', () => {
       assert.equal(config.maxFailoverAttempts, 10);
       assert.equal(config.delayBetweenFailoverAttempts, 12_000);
       assert.equal(config.autoFallbackInterval, -1);
-      assert.equal(config.initialAvailability, 'majority');
+      assert.equal(config.initialAvailability, 'MAJORITY');
       assert.equal(config.healthChecks, undefined);
       assert.equal(config.failoverStrategy, undefined);
     });
@@ -158,7 +158,7 @@ describe('resolveMultiDbConfig', () => {
       maxFailoverAttempts: 10,
       delayBetweenFailoverAttempts: 12_000,
       autoFallbackInterval: -1,
-      initialAvailability: 'majority'
+      initialAvailability: 'MAJORITY'
     });
   });
 
