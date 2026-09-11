@@ -88,6 +88,7 @@ export {
   type HealthCheck,
   type HealthCheckTarget,
   type FailoverStrategy,
+  type FailoverCandidate,
   WeightBasedStrategy,
   type CircuitState,
   type DatabaseRole,

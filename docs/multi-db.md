@@ -178,8 +178,10 @@ reports unhealthy even while it still answers commands. It uses Node's built-in 
 a custom CA, pass an undici dispatcher through `requestOptions` or use `NODE_EXTRA_CA_CERTS`.
 
 A custom `FailureDetector` implements `onCommandResult(ok, err?)`, `isFaulty()` and
-`reset()`; a custom `FailoverStrategy` implements `select(databases)` returning a member with
-a `CLOSED` circuit, or `undefined` to escalate.
+`reset()`. A custom `FailoverStrategy` implements `select(candidates)` over the exported
+read-only `FailoverCandidate` view (`{ id, weight, role, circuit: { state } }`), returning
+one of the given candidates with a `CLOSED` circuit — always a candidate it was given,
+never a copy — or `undefined` to escalate.
 
 ## Behavior contracts and caveats
 

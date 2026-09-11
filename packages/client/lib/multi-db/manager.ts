@@ -167,6 +167,21 @@ export class MultiDbManager<C extends AnyRedisClientType> {
   }
 
   /**
+   * Strategy dispatch: strategies see the narrow FailoverCandidate view and
+   * must return one of the given candidates by contract — identity in,
+   * identity out — so the result widens back to the live member safely. A
+   * foreign object would corrupt the active selection, hence the check.
+   */
+  #select(candidates: ReadonlyArray<Database<C>>): Database<C> | undefined {
+    const picked = this.#strategy.select(candidates);
+    if (picked === undefined) return undefined;
+    if (!candidates.includes(picked as Database<C>)) {
+      throw new TypeError('MultiDb: a failover strategy must return one of the given candidates');
+    }
+    return picked as Database<C>;
+  }
+
+  /**
    * Command hot path: `index.ts:attachForwarders` reports the settled outcome
    * of each promise-returning forwarded method call here — plain commands and
    * namespace commands (`json.*`, wrapped per `index.ts:wrapNamespace`) alike —
@@ -245,7 +260,7 @@ export class MultiDbManager<C extends AnyRedisClientType> {
     failed.circuit.open();
     this.#events?.emit('database-unhealthy', { id: failed.id, cause });
 
-    const target = this.#strategy.select(this.#databases);
+    const target = this.#select(this.#databases);
     if (target) {
       this.switchTo(target, reason);
       return;
@@ -270,7 +285,7 @@ export class MultiDbManager<C extends AnyRedisClientType> {
       }
       // background recovery probing keeps running during the search — a member
       // whose circuit closes here is what makes an attempt succeed
-      const target = this.#strategy.select(this.#databases);
+      const target = this.#select(this.#databases);
       if (target) {
         this.#unavailable = null;
         this.#failoverInFlight = false;
@@ -386,7 +401,7 @@ export class MultiDbManager<C extends AnyRedisClientType> {
 
   #maybeFallback(): void {
     if (this.#unavailable !== null || this.#pinnedTo !== null) return;
-    const candidate = this.#strategy.select(this.#databases);
+    const candidate = this.#select(this.#databases);
     // strictly higher weight only: equal-weight members must not ping-pong
     if (candidate && candidate !== this.#active && candidate.weight > this.#active.weight) {
       this.switchTo(candidate, 'fallback');
@@ -496,7 +511,7 @@ export class MultiDbManager<C extends AnyRedisClientType> {
       );
     }
 
-    const target = this.#strategy.select(healthy);
+    const target = this.#select(healthy);
     if (target === undefined) {
       // a detector trip racing the probe round can re-open a circuit between
       // establish and selection — reject per the contract above, don't crash
@@ -564,7 +579,7 @@ export class MultiDbManager<C extends AnyRedisClientType> {
     }
 
     if (member === this.#active) {
-      const target = this.#strategy.select(this.#databases.filter(db => db !== member));
+      const target = this.#select(this.#databases.filter(db => db !== member));
       if (!target) {
         throw new Error(`MultiDb: cannot remove active database "${id}", no healthy replacement`);
       }
