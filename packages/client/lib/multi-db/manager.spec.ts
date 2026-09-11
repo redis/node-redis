@@ -400,6 +400,8 @@ describe('multi-db manager (unit)', function () {
     await assert.rejects(mgr.addDatabase({ options: {} }), /the client is closed/);
     assert.equal(fakes.has('db-2'), false, 'no member client may be created after teardown');
     await assert.rejects(mgr.setActiveDatabase('db-1'), /the client is closed/);
+    // closed is terminal: no half-revived client without failover machinery
+    await assert.rejects(mgr.connect(), /the client is closed/);
   });
 
   it('destroy() awaits async member teardown and never leaks a rejection', async () => {
