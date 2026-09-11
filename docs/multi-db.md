@@ -119,7 +119,10 @@ await controller.setActiveDatabase('west'); // forced failover: health-checked, 
 controller.releasePin();                    // resume automatic behavior
 ```
 
-Forcing a member health-checks it first and rejects if the check fails. A verified-healthy
+Forcing a member health-checks it first and rejects if the check fails. Automatic failover
+does NOT re-probe its target — it trusts the circuit state from the last background round,
+trading certainty for switch speed. A standby that died since its last check produces one
+quick secondary failover once the detector trips on it. A verified-healthy
 target's `OPEN` circuit is closed — the operator's knowledge overrides a stale state. While
 pinned, auto-fallback is suspended; automatic failover still runs if the pinned member fails,
 and clears the pin.
