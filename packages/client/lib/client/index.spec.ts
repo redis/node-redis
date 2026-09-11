@@ -227,6 +227,13 @@ describe('Client', () => {
 
     })
 
+    it('Invalid URL', () => {
+      assert.throws(
+        () => RedisClient.parseURL('random-string'),
+        TypeError
+      );
+    });
+
     it('Invalid protocol', () => {
       assert.throws(
         () => RedisClient.parseURL('redi://user:secret@localhost:6379/0'),
