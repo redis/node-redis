@@ -121,10 +121,10 @@ describe('multi-db', function () {
       const { client } = createMultiDbClient({
         ...FAST,
         databases: [memberOf(serverA), DEAD_MEMBER],
-        initialAvailability: 'all'
+        initialAvailability: 'ALL'
       });
       try {
-        await assert.rejects(client.connect(), /initial availability 'all'/);
+        await assert.rejects(client.connect(), /initial availability .ALL./);
       } finally {
         client.destroy();
       }
@@ -134,7 +134,7 @@ describe('multi-db', function () {
       withMultiDb(
         {
           databases: [memberOf(serverA), memberOf(serverB), DEAD_MEMBER],
-          initialAvailability: 'majority'
+          initialAvailability: 'MAJORITY'
         },
         async ({ controller }) => {
           assert.equal(controller.getActiveDatabase().id, 'db-0');
@@ -147,10 +147,10 @@ describe('multi-db', function () {
       const { client } = createMultiDbClient({
         ...FAST,
         databases: [memberOf(serverA), DEAD_MEMBER, { options: { ...DEAD_MEMBER.options, socket: { ...DEAD_MEMBER.options.socket, port: 65_433 } } }],
-        initialAvailability: 'majority'
+        initialAvailability: 'MAJORITY'
       });
       try {
-        await assert.rejects(client.connect(), /initial availability 'majority'/);
+        await assert.rejects(client.connect(), /initial availability .MAJORITY./);
       } finally {
         client.destroy();
       }
@@ -160,7 +160,7 @@ describe('multi-db', function () {
       withMultiDb(
         {
           databases: [{ ...DEAD_MEMBER, weight: 1 }, memberOf(serverA, { weight: 0.5 })],
-          initialAvailability: 'one'
+          initialAvailability: 'ONE'
         },
         async ({ client, controller }) => {
           assert.equal(controller.getActiveDatabase().id, 'db-1');
@@ -312,7 +312,7 @@ describe('multi-db', function () {
       withMultiDb(
         {
           databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })],
-          initialAvailability: 'one',
+          initialAvailability: 'ONE',
           healthChecks: [new DefaultHealthCheck(), { probe: async target => target.id !== 'db-0' }]
         },
         async ({ controller }) => {

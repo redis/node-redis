@@ -58,9 +58,9 @@ export type SwitchReason = FailoverReason | 'fallback';
 
 function requiredHealthy(policy: InitialAvailability, total: number): number {
   switch (policy) {
-    case 'all': return total;
-    case 'majority': return Math.floor(total / 2) + 1;
-    case 'one': return 1;
+    case 'ALL': return total;
+    case 'MAJORITY': return Math.floor(total / 2) + 1;
+    case 'ONE': return 1;
   }
 }
 
