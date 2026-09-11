@@ -517,6 +517,28 @@ describe('multi-db manager (unit)', function () {
     mgr.destroy();
   });
 
+  it('replaceDatabase adds first for a new id, removes first for the same id', async () => {
+    const { mgr, fakes } = makeHarness(2);
+    await mgr.connect();
+
+    // new id: the replacement joins before the old member leaves
+    const replaced = fakes.get('db-1')!;
+    const newId = await mgr.replaceDatabase('db-1', { options: {} });
+    assert.equal(newId, 'db-2');
+    assert.deepEqual(mgr.databases.map(db => db.id), ['db-0', 'db-2']);
+    assert.equal(replaced.destroyed || replaced.closed, true, 'the replaced member must be torn down');
+
+    // same id: remove-then-add under the unique-id constraint
+    const sameId = await mgr.replaceDatabase('db-2', { id: 'db-2', options: {} });
+    assert.equal(sameId, 'db-2');
+    assert.deepEqual(mgr.databases.map(db => db.id), ['db-0', 'db-2']);
+
+    // unknown ids fail before any mutation; closed clients refuse entirely
+    await assert.rejects(mgr.replaceDatabase('nope', { options: {} }), TypeError);
+    mgr.destroy();
+    await assert.rejects(mgr.replaceDatabase('db-0', { options: {} }), /the client is closed/);
+  });
+
   it('a force finishing after search exhaustion rejects instead of half-succeeding', async () => {
     const { mgr, fakes, received } = makeHarness(2, {
       maxFailoverAttempts: 2,
