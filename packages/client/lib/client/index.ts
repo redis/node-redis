@@ -490,7 +490,7 @@ export default class RedisClient<
       };
 
     if (protocol !== 'redis:' && protocol !== 'rediss:') {
-      throw new TypeError('Invalid protocol');
+      throw new TypeError(`Protocol - ${protocol} - is not a valid Redis protocol. Expected redis: or rediss:`);
     }
 
     parsed.socket.tls = protocol === 'rediss:';
