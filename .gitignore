@@ -9,4 +9,6 @@ dump.rdb
 documentation/
 tsconfig.tsbuildinfo
 junit-results/
+out/
+external-servers.json
 *.log

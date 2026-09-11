@@ -53,6 +53,26 @@ Note that the test suite assumes that [`docker`](https://www.docker.com/) is ins
 
 The test suite starts its Redis containers with `--network host`, which requires host networking support. On macOS and Windows this needs Docker Desktop 4.34 or newer with host networking enabled: **Settings → Resources → Network → Enable host networking**. Without it, the spawned containers are not reachable from the host and the dockerized tests will hang or time out.
 
+#### Running cluster command tests against external servers
+
+The existing endpoint configuration can also be used for a pre-provisioned Redis cluster. Set `REDIS_EXTERNAL_CLUSTER=true`, point `REDIS_ENDPOINTS_CONFIG_PATH` at the configuration file, and select the database with `RE_DB_NAME` when needed. The selected entry must include every cluster root endpoint and the server version used for version-gated tests:
+
+```json
+{
+  "cluster": {
+    "tls": false,
+    "version": "7.2.0",
+    "RESP": 2,
+    "raw_endpoints": [
+      { "dns_name": "127.0.0.1", "port": 6379 },
+      { "dns_name": "127.0.0.1", "port": 6380 }
+    ]
+  }
+}
+```
+
+Run the safe command suite with `npm run test:external-cluster -w @redis/client`. This mode does not create Docker fixtures, Sentinel or proxy fixtures, replicas, or tests that change cluster topology or persistent server state. Use a dedicated test cluster because the harness flushes data on every cluster master before and after each test. Without `REDIS_EXTERNAL_CLUSTER=true`, the Docker test path is unchanged.
+
 ### Submitting Code for Review
 
 The bigger the pull request, the longer it will take to review and merge. Where possible try to break down large pull requests into smaller chunks that are easier to review and merge. It is also always helpful to have some context for your pull request. What was the purpose? Why does it matter to you? What problem are you trying to solve? Tag in any relevant issues.
