@@ -469,10 +469,6 @@ export default class RedisClient<
       tls: boolean
     }
   } {
-    if(!URL.canParse(url)){
-      throw new TypeError(`URL supplied - ${url} - is not a valid URL`);
-    }
-
     // unix:// URIs use a non-special scheme; WHATWG URL refuses to parse an
     // authority (e.g. `user:pass@`) without a host, so handle it separately.
     if (url.startsWith('unix:')) {
