@@ -130,6 +130,51 @@ export class PubSubProxy extends EventEmitter {
     await this.#initiatePubSubClient(true);
   }
 
+  /**
+   * @internal
+   * Snapshot the current subscriptions and tear down the local pub/sub client.
+   * The multi-database client uses this to move subscriptions to another
+   * sentinel member on failover; detaching here stops the old member
+   * re-delivering to the same listeners after it recovers.
+   */
+  extractListeners(): Subscriptions {
+    // Same precedence as `changeNode`: once `connectPromise` settles the live
+    // client's listener maps are authoritative (user subscribe/unsubscribe only
+    // mutate those); the `#subscriptions` snapshot is trustworthy only while a
+    // connect with a pending re-subscribe is in flight.
+    const subscriptions: Subscriptions = (this.#state && this.#state.connectPromise === undefined) ? {
+      [PUBSUB_TYPE.CHANNELS]: this.#state.client.getPubSubListeners(PUBSUB_TYPE.CHANNELS),
+      [PUBSUB_TYPE.PATTERNS]: this.#state.client.getPubSubListeners(PUBSUB_TYPE.PATTERNS),
+      [PUBSUB_TYPE.SHARDED]: this.#state.client.getPubSubListeners(PUBSUB_TYPE.SHARDED)
+    } : this.#subscriptions ?? {
+      [PUBSUB_TYPE.CHANNELS]: new Map(),
+      [PUBSUB_TYPE.PATTERNS]: new Map(),
+      [PUBSUB_TYPE.SHARDED]: new Map()
+    };
+
+    this.destroy();
+    return subscriptions;
+  }
+
+  /**
+   * @internal
+   * Adopt subscriptions captured from another member's {@link extractListeners}
+   * and re-establish them against this member's current master. No-op when
+   * there is nothing to move.
+   */
+  async adoptListeners(subscriptions: Subscriptions): Promise<void> {
+    if (
+      subscriptions[PUBSUB_TYPE.CHANNELS].size === 0 &&
+      subscriptions[PUBSUB_TYPE.PATTERNS].size === 0 &&
+      subscriptions[PUBSUB_TYPE.SHARDED].size === 0
+    ) {
+      return;
+    }
+
+    this.#subscriptions = subscriptions;
+    await this.#initiatePubSubClient(true);
+  }
+
   #executeCommand<T>(fn: (client: Client) => T) {
     const client = this.#getPubSubClient();
     if (client instanceof RedisClient) {

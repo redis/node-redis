@@ -1,0 +1,508 @@
+import { strict as assert } from 'node:assert';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { spawnRedisCluster } from '@redis/test-utils';
+import { once, startTraffic, DOCKER_IMAGE } from './test-util';
+import type { RedisServerDocker } from '@redis/test-utils';
+import testUtils from '../test-utils';
+import { createMultiDbCluster, createMultiDbSentinel, createMultiDbClientPool } from '.';
+import type { RedisClusterType } from '../cluster';
+import type { RedisSentinelType } from '../sentinel/types';
+import type { RedisClientPoolType } from '../client/pool';
+import { SentinelFramework } from '../sentinel/test-util';
+
+const execFileAsync = promisify(execFile);
+
+
+
+// count-only detection, as in failover.spec.ts: pre-failure successes in the
+// window must not dilute a rate threshold
+const FAST_FAILOVER = {
+  failureDetector: { minNumOfFailures: 3, failureRateThreshold: 0, windowSize: 10_000 },
+  healthCheck: { interval: 3000, timeout: 1000, numProbes: 1, delayBetweenProbes: 0 },
+  maxFailoverAttempts: 2,
+  delayBetweenFailoverAttempts: 200
+};
+
+function kill(dockerId: string) {
+  return execFileAsync('docker', ['kill', dockerId]);
+}
+
+
+
+
+
+describe('multi-db topologies', function () {
+  this.timeout(120_000);
+
+  describe('pool members', () => {
+    let serverA: RedisServerDocker;
+    let serverB: RedisServerDocker;
+
+    const memberOf = (server: RedisServerDocker, extra?: { weight?: number }) => ({
+      ...extra,
+      options: { socket: { host: '127.0.0.1', port: server.port } },
+      poolOptions: { minimum: 1, maximum: 2 }
+    });
+
+    before(async function () {
+      this.timeout(120_000);
+      const results = await Promise.allSettled([
+        testUtils.spawnRedisServer({ serverArguments: [] }),
+        testUtils.spawnRedisServer({ serverArguments: [] })
+      ]);
+      if (results[0].status === 'fulfilled') serverA = results[0].value;
+      if (results[1].status === 'fulfilled') serverB = results[1].value;
+      const rejected = results.find(result => result.status === 'rejected');
+      if (rejected) throw (rejected as PromiseRejectedResult).reason;
+    });
+
+    after(async () => {
+      await Promise.all(
+        [serverA, serverB]
+          .filter(Boolean)
+          .map(server => execFileAsync('docker', ['rm', '-f', server.dockerId]).catch(() => {}))
+      );
+    });
+
+    it('fails over between pooled members when the active pool dies', async () => {
+      const { client, controller } = createMultiDbClientPool({
+        ...FAST_FAILOVER,
+        databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })]
+      });
+      const typed: RedisClientPoolType = client;
+      await typed.connect();
+      client.on('error', () => {});
+      const traffic = startTraffic(() => client.incr('counter'));
+      try {
+        assert.equal(controller.getActiveDatabase().id, 'db-0');
+
+        const failover = once(client, 'failover');
+        await kill(serverA.dockerId);
+        assert.deepEqual(await failover, { from: 'db-0', to: 'db-1', reason: 'failure-detector' });
+
+        await client.set('pool-smoke', 'ok');
+        assert.equal(await client.get('pool-smoke'), 'ok');
+      } finally {
+        traffic.stop();
+        client.destroy();
+      }
+    });
+  });
+
+  describe('cluster members', () => {
+    let clusterA: Array<RedisServerDocker>;
+    let clusterB: Array<RedisServerDocker>;
+
+    const memberOf = (cluster: Array<RedisServerDocker>) => ({
+      options: {
+        rootNodes: cluster.map(({ port }) => ({ socket: { host: '127.0.0.1', port } }))
+      }
+    });
+
+    before(async function () {
+      this.timeout(240_000);
+      // distinct serverArguments identities → two independent clusters
+      [clusterA, clusterB] = await Promise.all([
+        spawnRedisCluster({ ...DOCKER_IMAGE, numberOfMasters: 3 }, []),
+        spawnRedisCluster({ ...DOCKER_IMAGE, numberOfMasters: 3 }, [])
+      ]);
+    });
+
+    // no after() here: spawnRedisCluster registers the containers for the
+    // docker harness's global cleanup — removing them twice fails the run
+
+    afterEach(async function () {
+      // every test owns a healthy fixture: restart whatever the previous test
+      // killed and wait for both clusters to reform (their state persists in
+      // the container filesystem across docker start)
+      this.timeout(120_000);
+      await Promise.all([...clusterA, ...clusterB].map(({ dockerId }) =>
+        execFileAsync('docker', ['start', dockerId]).catch(() => {})
+      ));
+      for (const { dockerId, port } of [...clusterA, ...clusterB]) {
+        const deadline = Date.now() + 60_000;
+        while (Date.now() < deadline) {
+          try {
+            const { stdout } = await execFileAsync(
+              'docker', ['exec', dockerId, 'redis-cli', '-p', String(port), 'cluster', 'info']
+            );
+            if (stdout.includes('cluster_state:ok')) break;
+          } catch {
+            // container still starting
+          }
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      }
+    });
+
+    it('forced failover pins a cluster member and releases back', async () => {
+      const { client, controller } = createMultiDbCluster({
+        ...FAST_FAILOVER,
+        autoFallbackInterval: 300,
+        databases: [
+          { ...memberOf(clusterA), weight: 1 },
+          { ...memberOf(clusterB), weight: 0.5 }
+        ]
+      });
+      const typed: RedisClusterType = client;
+      await typed.connect();
+      client.on('error', () => {});
+      try {
+        const forced = once(client, 'failover');
+        await controller.setActiveDatabase('db-1');
+        assert.deepEqual(await forced, { from: 'db-0', to: 'db-1', reason: 'forced' });
+
+        // several fallback ticks: the pin must hold against the heavier member
+        await new Promise(resolve => setTimeout(resolve, 800));
+        assert.equal(controller.getActiveDatabase().id, 'db-1');
+
+        const fallback = once(client, 'fallback');
+        controller.releasePin();
+        assert.deepEqual(await fallback, { from: 'db-1', to: 'db-0' });
+        await client.set('forced-smoke', 'ok');
+        assert.equal(await client.get('forced-smoke'), 'ok');
+      } finally {
+        client.destroy();
+      }
+    });
+
+    // forced (non-destructive) switch: keeps both clusters alive for the kill
+    // test below while exercising the same `movePubSub` transfer path
+    it('moves pub/sub subscriptions to the new cluster on a switch', async () => {
+      const { client, controller } = createMultiDbCluster({
+        ...FAST_FAILOVER,
+        autoFallbackInterval: -1,
+        databases: [
+          { ...memberOf(clusterA), weight: 1 },
+          { ...memberOf(clusterB), weight: 0.5 }
+        ]
+      });
+      const typed: RedisClusterType = client;
+      await typed.connect();
+      client.on('error', () => {});
+      try {
+        const received: Array<string> = [];
+        await typed.subscribe('news', message => {
+          received.push(message.toString());
+        });
+
+        const forced = once(client, 'failover');
+        await controller.setActiveDatabase('db-1');
+        await forced;
+
+        // the re-subscribe on the new cluster races the switch: publish until heard
+        const deadline = Date.now() + 10_000;
+        while (received.length === 0 && Date.now() < deadline) {
+          await typed.publish('news', 'delivered');
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        assert.ok(received.includes('delivered'), 'subscription must be live on the new active cluster');
+      } finally {
+        client.destroy();
+      }
+    });
+
+    it('a single dead shard fails commands but opens the member circuit only at detector thresholds', async function () {
+      this.timeout(60_000);
+      const { client } = createMultiDbCluster({
+        failureDetector: { minNumOfFailures: 5, failureRateThreshold: 0, windowSize: 10_000 },
+        // health checks parked: only command outcomes may drive the failover
+        healthCheck: { interval: 30_000, timeout: 1_000, numProbes: 1, delayBetweenProbes: 0 },
+        maxFailoverAttempts: 2,
+        delayBetweenFailoverAttempts: 200,
+        databases: [
+          { ...memberOf(clusterA), weight: 1 },
+          { ...memberOf(clusterB), weight: 0.5 }
+        ]
+      });
+      await client.connect();
+      client.on('error', () => {});
+      const failovers: Array<unknown> = [];
+      client.on('failover', event => failovers.push(event));
+      try {
+        // spread keys over the slot space so some live on the doomed shard
+        const keys = Array.from({ length: 30 }, (_, i) => `shard-mix:${i}`);
+        await Promise.all(keys.map(key => client.set(key, 'x')));
+
+        await kill(clusterA[0].dockerId);
+
+        // partial availability: keys on surviving shards still serve while
+        // failures on the dead shard accumulate toward the threshold
+        let successes = 0;
+        const deadline = Date.now() + 20_000;
+        while (failovers.length === 0 && Date.now() < deadline) {
+          await Promise.all(keys.map(key =>
+            client.get(key).then(() => successes++, () => {})
+          ));
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        assert.ok(successes > 0, 'surviving shards must keep serving before the trip');
+        assert.equal(failovers.length >= 1, true, 'accumulated shard failures must trip the detector');
+        assert.deepEqual(failovers[0], { from: 'db-0', to: 'db-1', reason: 'failure-detector' });
+
+        // the whole keyspace serves from the new member
+        await Promise.all(keys.map(key => client.set(key, 'y')));
+      } finally {
+        client.destroy();
+      }
+    });
+
+    it('fails over from one cluster to the other when the whole cluster dies', async () => {
+      const { client, controller } = createMultiDbCluster({
+        ...FAST_FAILOVER,
+        databases: [memberOf(clusterA), memberOf(clusterB)]
+      });
+      await client.connect();
+      client.on('error', () => {
+        // the dying cluster's teardown noise is not what this test asserts
+      });
+      const traffic = startTraffic(() => client.incr('counter'));
+      try {
+        assert.equal(controller.getActiveDatabase().id, 'db-0');
+
+        const failover = once(client, 'failover');
+        await Promise.all(clusterA.map(({ dockerId }) => kill(dockerId)));
+        const event = await failover;
+        assert.equal(event.from, 'db-0');
+        assert.equal(event.to, 'db-1');
+        // the organic detector and the background health check race on a
+        // slow-to-reject topology — either automatic path is correct
+        assert.ok(['failure-detector', 'health-check'].includes(event.reason), event.reason);
+
+        await client.set('after-failover', 'served');
+        assert.equal(await client.get('after-failover'), 'served');
+      } finally {
+        traffic.stop();
+        client.destroy();
+      }
+    });
+  });
+
+  describe('sentinel members', () => {
+    const frameA = new SentinelFramework({ sentinelName: 'mymaster' });
+    const frameB = new SentinelFramework({ sentinelName: 'mymaster' });
+
+    const memberOf = (frame: SentinelFramework) => ({
+      options: {
+        name: 'mymaster',
+        sentinelRootNodes: frame.getAllSentinelsPort().map(port => ({ host: '127.0.0.1', port }))
+      }
+    });
+
+    before(async function () {
+      this.timeout(240_000);
+      await Promise.all([frameA.spawnRedisSentinel(), frameB.spawnRedisSentinel()]);
+      await Promise.all([frameA.getAllRunning(), frameB.getAllRunning()]);
+    });
+
+    after(async function () {
+      this.timeout(120_000);
+      await Promise.all([frameA.cleanup(), frameB.cleanup()]);
+    });
+
+    afterEach(async function () {
+      // every test owns a healthy fixture: restart whatever the previous test
+      // stopped, nodes and sentinels alike
+      this.timeout(120_000);
+      await Promise.all([frameA.getAllRunning(), frameB.getAllRunning()]);
+    });
+
+    it("the sentinel's own master change does not fail the member over", async function () {
+      this.timeout(60_000);
+      const { client, controller } = createMultiDbSentinel({
+        // the guarantee under test: the DEFAULT detector absorbs the promotion
+        // blip under organic traffic. Background checks are parked outside the
+        // test window — a single probe timing out mid-promotion would open the
+        // circuit for reasons this test is not about (that made it flaky).
+        healthCheck: { interval: 30_000, timeout: 1_000, numProbes: 1, delayBetweenProbes: 0 },
+        databases: [memberOf(frameA), memberOf(frameB)]
+      });
+      await client.connect();
+      client.on('error', () => {
+        // node errors during the sentinel-internal promotion are expected
+      });
+      const failovers: Array<unknown> = [];
+      client.on('failover', event => {
+        failovers.push(event);
+      });
+      const traffic = startTraffic(() => client.incr('counter'));
+      const masterPort = await frameA.getMasterPort();
+      try {
+        await frameA.stopNode(masterPort.toString());
+
+        // deterministic instead of a fixed sleep: the promotion is over once
+        // a steady second of traffic (50ms cadence) has succeeded again
+        const resumedAt = traffic.successes() + 20;
+        const deadline = Date.now() + 45_000;
+        while (traffic.successes() < resumedAt && Date.now() < deadline) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        assert.ok(traffic.successes() >= resumedAt, 'traffic must resume on the promoted master');
+
+        assert.deepEqual(failovers, [], 'a sentinel-internal master change must not trip the member circuit');
+        assert.equal(controller.getActiveDatabase().id, 'db-0');
+      } finally {
+        traffic.stop();
+        client.destroy();
+        // the stopped ex-master rejoins as a replica for the following tests
+        await frameA.restartNode(masterPort.toString());
+      }
+    });
+
+    it('forced failover pins a sentinel member and releases back', async () => {
+      const { client, controller } = createMultiDbSentinel({
+        ...FAST_FAILOVER,
+        autoFallbackInterval: 300,
+        databases: [
+          { ...memberOf(frameA), weight: 1 },
+          { ...memberOf(frameB), weight: 0.5 }
+        ]
+      });
+      const typed: RedisSentinelType = client;
+      await typed.connect();
+      client.on('error', () => {});
+      try {
+        const forced = once(client, 'failover');
+        await controller.setActiveDatabase('db-1');
+        assert.deepEqual(await forced, { from: 'db-0', to: 'db-1', reason: 'forced' });
+
+        await new Promise(resolve => setTimeout(resolve, 800));
+        assert.equal(controller.getActiveDatabase().id, 'db-1');
+
+        const fallback = once(client, 'fallback');
+        controller.releasePin();
+        assert.deepEqual(await fallback, { from: 'db-1', to: 'db-0' });
+      } finally {
+        client.destroy();
+      }
+    });
+
+    // forced (non-destructive) switch: keeps both deployments alive while
+    // exercising the same `movePubSub` transfer path
+    it('moves pub/sub subscriptions to the new deployment on a switch', async () => {
+      const { client, controller } = createMultiDbSentinel({
+        ...FAST_FAILOVER,
+        autoFallbackInterval: -1,
+        databases: [
+          { ...memberOf(frameA), weight: 1 },
+          { ...memberOf(frameB), weight: 0.5 }
+        ]
+      });
+      const typed: RedisSentinelType = client;
+      await typed.connect();
+      client.on('error', () => {});
+      try {
+        const received: Array<string> = [];
+        await typed.subscribe('news', message => {
+          received.push(message.toString());
+        });
+
+        const forced = once(client, 'failover');
+        await controller.setActiveDatabase('db-1');
+        await forced;
+
+        // the re-subscribe on the new deployment races the switch: publish until heard
+        const deadline = Date.now() + 10_000;
+        while (received.length === 0 && Date.now() < deadline) {
+          await typed.publish('news', 'delivered');
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        assert.ok(received.includes('delivered'), 'subscription must be live on the new active deployment');
+
+        // subscriptions changed AFTER a move must survive the next move:
+        // subscribe on the new member, then switch back
+        const updates: Array<string> = [];
+        await typed.subscribe('updates', message => {
+          updates.push(message.toString());
+        });
+
+        const back = once(client, 'failover');
+        await controller.setActiveDatabase('db-0');
+        await back;
+
+        received.length = 0;
+        const backDeadline = Date.now() + 10_000;
+        while ((updates.length === 0 || received.length === 0) && Date.now() < backDeadline) {
+          await typed.publish('updates', 'kept');
+          await typed.publish('news', 'kept');
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        assert.ok(updates.includes('kept'), 'a subscription added after the first move must survive the move back');
+        assert.ok(received.includes('kept'), 'the original subscription must survive the move back');
+      } finally {
+        client.destroy();
+      }
+    });
+
+    it('auto-fallback returns to a recovered sentinel deployment', async function () {
+      this.timeout(90_000);
+      const { client } = createMultiDbSentinel({
+        ...FAST_FAILOVER,
+        gracePeriod: 1500,
+        autoFallbackInterval: 400,
+        databases: [
+          { ...memberOf(frameA), weight: 1 },
+          { ...memberOf(frameB), weight: 0.5 }
+        ]
+      });
+      await client.connect();
+      client.on('error', () => {});
+      const traffic = startTraffic(() => client.incr('counter'));
+      const nodePorts = frameA.getAllNodesPort();
+      try {
+        const failover = once(client, 'failover');
+        for (const port of nodePorts) {
+          await frameA.stopNode(port.toString());
+        }
+        assert.equal((await failover).to, 'db-1');
+
+        const recovered = once(client, 'database-recovered', 60_000);
+        for (const port of nodePorts) {
+          await frameA.restartNode(port.toString());
+        }
+        assert.equal((await recovered).id, 'db-0');
+
+        const fallback = await once(client, 'fallback');
+        assert.deepEqual(fallback, { from: 'db-1', to: 'db-0' });
+        await client.set('fallback-smoke', 'ok');
+        assert.equal(await client.get('fallback-smoke'), 'ok');
+      } finally {
+        traffic.stop();
+        client.destroy();
+      }
+    });
+
+    it('fails over to the other deployment when the whole deployment dies', async () => {
+      const { client, controller } = createMultiDbSentinel({
+        ...FAST_FAILOVER,
+        databases: [memberOf(frameA), memberOf(frameB)]
+      });
+      await client.connect();
+      client.on('error', () => {
+        // the dying deployment's teardown noise is not what this test asserts
+      });
+      const traffic = startTraffic(() => client.incr('counter'));
+      try {
+        assert.equal(controller.getActiveDatabase().id, 'db-0');
+
+        const failover = once(client, 'failover');
+        // killing every data node leaves the deployment without a servable
+        // master; one node may already be down from the previous test
+        await Promise.all([...frameA.getAllDockerIds().keys()].map(id => kill(id).catch(() => {})));
+        const event = await failover;
+        assert.equal(event.from, 'db-0');
+        assert.equal(event.to, 'db-1');
+        // the organic detector and the background health check race on a
+        // slow-to-reject topology — either automatic path is correct
+        assert.ok(['failure-detector', 'health-check'].includes(event.reason), event.reason);
+
+        await client.set('after-failover', 'served');
+        assert.equal(await client.get('after-failover'), 'served');
+      } finally {
+        traffic.stop();
+        client.destroy();
+      }
+    });
+  });
+});

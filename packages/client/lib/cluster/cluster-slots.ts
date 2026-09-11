@@ -937,6 +937,51 @@ export default class RedisClusterSlots<
     return this.#destroy(client => client.close());
   }
 
+  /**
+   * @internal
+   * Detach and return every pub/sub listener across the cluster: channels and
+   * patterns live on the dedicated pub/sub node, sharded listeners on each
+   * shard's pub/sub connection. Used by the multi-database client to hand
+   * subscriptions to another cluster on failover — removal (not a copy) stops a
+   * recovering old cluster re-delivering to the same listeners.
+   */
+  removeAllPubSubListeners(): PubSubListeners {
+    const merged: PubSubListeners = {
+      [PUBSUB_TYPE.CHANNELS]: new Map(),
+      [PUBSUB_TYPE.PATTERNS]: new Map(),
+      [PUBSUB_TYPE.SHARDED]: new Map()
+    };
+
+    const drain = (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>) => {
+      const listeners = client._getQueue().removeAllPubSubListeners();
+      for (const type of [PUBSUB_TYPE.CHANNELS, PUBSUB_TYPE.PATTERNS, PUBSUB_TYPE.SHARDED] as const) {
+        for (const [channel, channelListeners] of listeners[type]) {
+          merged[type].set(channel, channelListeners);
+        }
+      }
+    };
+
+    if (this.pubSubNode) {
+      drain(this.pubSubNode.client);
+      // server-side subscriber state is per-connection: destroy the drained
+      // connection or the server keeps pushing every publish to a client with
+      // zero listeners; a later subscribe recreates the node lazily
+      this.#reconnectionTracker.removeClient(this.pubSubNode.client._clientId);
+      this.pubSubNode.client.destroy();
+      this.pubSubNode = undefined;
+    }
+    for (const master of this.masters) {
+      if (master.pubSub) {
+        drain(master.pubSub.client);
+        this.#reconnectionTracker.removeClient(master.pubSub.client._clientId);
+        master.pubSub.client.destroy();
+        master.pubSub = undefined;
+      }
+    }
+
+    return merged;
+  }
+
   destroy() {
     this.#isOpen = false;
     this.#isReady = false;

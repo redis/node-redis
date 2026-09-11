@@ -659,6 +659,20 @@ export default class RedisSentinel<
   sUnsubscribe = this.SUNSUBSCRIBE;
 
   /**
+   * @internal
+   * Move pub/sub subscriptions between sentinel members on multi-database
+   * failover: {@link _extractPubSubListeners} detaches them from the old
+   * member, {@link _adoptPubSubListeners} re-establishes them on the new one.
+   */
+  _extractPubSubListeners() {
+    return this._self.#internal._extractPubSubListeners();
+  }
+
+  _adoptPubSubListeners(listeners: ReturnType<RedisSentinelInternal<M, F, S, RESP, TYPE_MAPPING>['_extractPubSubListeners']>) {
+    return this._self.#internal._adoptPubSubListeners(listeners);
+  }
+
+  /**
    * Acquires a master client lease for exclusive operations
    *
    * Used when multiple commands need to run on an exclusive client (for example, using `WATCH/MULTI/EXEC`).
@@ -1520,6 +1534,20 @@ export class RedisSentinelInternal<
     bufferMode?: T
   ) {
     return this.#pubSubProxy.sUnsubscribe(channels, listener, bufferMode);
+  }
+
+  /**
+   * @internal
+   * Move pub/sub subscriptions between sentinel members on multi-database
+   * failover: {@link _extractPubSubListeners} detaches them from the old
+   * member, {@link _adoptPubSubListeners} re-establishes them on the new one.
+   */
+  _extractPubSubListeners() {
+    return this.#pubSubProxy.extractListeners();
+  }
+
+  _adoptPubSubListeners(listeners: ReturnType<PubSubProxy['extractListeners']>) {
+    return this.#pubSubProxy.adoptListeners(listeners);
   }
 
   // observe/analyze/transform remediation functions
