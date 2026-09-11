@@ -100,7 +100,9 @@ All other options are flat on the factory call:
 
 `connect()` resolves only when `initialAvailability` is satisfied and an active member is
 selected; otherwise it rejects **and destroys every member** — a rejected instance must not
-be reused.
+be reused. A permanently unavailable client can be recovered with another `connect()`;
+`close()`/`destroy()` are terminal — `connect()` afterwards rejects, and a fresh start is
+`duplicate()` or a new factory call.
 
 ## Controller
 

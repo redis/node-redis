@@ -469,9 +469,15 @@ export class MultiDbManager<C extends AnyRedisClientType> {
    * member is active; rejects otherwise, destroying every member — a rejected
    * instance must not be reused. On success, members that failed to establish
    * keep reconnecting per their own strategy with an OPEN circuit. Calling it
-   * again re-probes and re-selects; already-open members are not reconnected.
+   * again re-probes and re-selects (the recovery path from permanent
+   * unavailability); already-open members are not reconnected. Closed is
+   * terminal: after close()/destroy() it rejects — a fresh start is
+   * duplicate() or a new factory call.
    */
   async connect(): Promise<void> {
+    if (this.#teardown.signal.aborted) {
+      throw new Error('MultiDb: the client is closed');
+    }
     this.#events?.emit('connect');
     // skipInitialHealthCheck is honored only on runtime add — every member is
     // probed at initial connect
