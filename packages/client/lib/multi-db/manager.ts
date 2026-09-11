@@ -605,6 +605,29 @@ export class MultiDbManager<C extends AnyRedisClientType> {
     member.dispose();
   }
 
+  /**
+   * Replace one member in a single call; resolves to the new member's id.
+   * With a different (or generated) id the new member is added FIRST and the
+   * old one removed after — redundancy never drops. With the SAME id the old
+   * member must go first (ids are unique), so the set transiently runs one
+   * member short, and the same constraints as removeDatabase apply: not the
+   * last member, and an active member needs a healthy replacement. If the
+   * removal half fails after an add, both members remain — remove manually.
+   */
+  async replaceDatabase(id: string, config: PoolDatabaseConfig<unknown>): Promise<string> {
+    if (this.#teardown.signal.aborted) {
+      throw new Error('MultiDb: the client is closed');
+    }
+    this.#requireDatabase(id); // unknown ids fail before any mutation
+    if (config.id === id) {
+      await this.removeDatabase(id);
+      return this.addDatabase(config);
+    }
+    const added = await this.addDatabase(config);
+    await this.removeDatabase(id);
+    return added;
+  }
+
   setWeight(id: string, weight: number): void {
     // negated form also rejects NaN
     if (!(weight >= 0 && weight <= 1)) {

@@ -112,6 +112,9 @@ controller.getDatabases();      // all members, in config order
 
 await controller.addDatabase({ id: 'south', options: { url: '...' }, weight: 0.6 });
 await controller.removeDatabase('south'); // removing the active member switches first
+await controller.replaceDatabase('west', { id: 'west-2', options: { url: '...' } });
+// new id: joins first, old leaves after — redundancy never drops. Same id:
+// the old member leaves first, so the set transiently runs one member short.
 controller.setWeight('west', 0.9);
 controller.setAutoFallback(120_000);      // or false to disable
 

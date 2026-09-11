@@ -73,12 +73,6 @@ export function createClient<
 }
 
 /**
- * Multi-database client with the Redis Stack default modules pre-registered
- * (mirrors {@link createClient}). Returns `{ client, controller }`; `client`
- * is a drop-in {@link RedisClientType}.
- * @experimental
- */
-/**
  * Merge the Stack default modules into one member's options. Type-preserving:
  * the merged modules surface only at runtime — the callers' final result cast
  * carries the Stack typing (mirroring `createClient` and friends).
@@ -98,14 +92,29 @@ function withStackModules<OPTIONS extends { modules?: unknown } | undefined>(dbO
  * must get the same module merge as the initial members, or the client's
  * json/ft/ts namespaces break after a failover to such a member.
  */
-function mergeModulesOnAdd(controller: { addDatabase(config: PoolDatabaseConfig<unknown>): Promise<string> }): void {
+function mergeModulesOnAdd(controller: {
+  addDatabase(config: PoolDatabaseConfig<unknown>): Promise<string>;
+  replaceDatabase(id: string, config: PoolDatabaseConfig<unknown>): Promise<string>;
+}): void {
   const addDatabase = controller.addDatabase.bind(controller);
   controller.addDatabase = config => addDatabase({
     ...config,
     options: withStackModules(config.options as { modules?: unknown } | undefined)
   });
+  const replaceDatabase = controller.replaceDatabase.bind(controller);
+  controller.replaceDatabase = (id, config) => replaceDatabase(id, {
+    ...config,
+    options: withStackModules(config.options as { modules?: unknown } | undefined)
+  });
 }
 
+/**
+ * Multi-database client with the Redis Stack default modules pre-registered
+ * (mirrors {@link createClient}) on every member, initial and runtime-added.
+ * Returns `{ client, controller }`; `client` is a drop-in
+ * {@link RedisClientType} and the event surface.
+ * @experimental
+ */
 export function createMultiDbClient<
   M extends RedisModules = {},
   F extends RedisFunctions = {},

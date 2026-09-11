@@ -82,6 +82,18 @@ export class MultiDbController<
   }
 
   /**
+   * Replace one member in a single call; resolves to the new member's id.
+   * With a different (or generated) id the new member joins first and the old
+   * one leaves after — redundancy never drops. With the SAME id the old member
+   * must leave first, so the set transiently runs one member short and
+   * removeDatabase's constraints apply (not the last member; an active member
+   * needs a healthy replacement).
+   */
+  replaceDatabase(id: string, config: CONFIG): Promise<string> {
+    return this.#mgr.replaceDatabase(id, config);
+  }
+
+  /**
    * Change a member's selection weight, within [0, 1]. Takes effect on the
    * next selection (failover, fallback, removal) — it does not switch the
    * active member by itself.
