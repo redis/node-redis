@@ -6,7 +6,7 @@
  */
 
 /** @experimental why an automatic switch happened */
-export type FailoverReason = 'failure-detector' | 'health-check' | 'forced' | 'active-removed';
+export type FailoverReason = 'failure-detector' | 'health-check' | 'connection-ended' | 'forced' | 'active-removed';
 
 /**
  * Active switched `from` → `to` (database ids) because the active member

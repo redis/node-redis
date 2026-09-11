@@ -117,7 +117,7 @@ describe('multi-db manager (unit)', function () {
     fakes.get('db-0')!.end();
 
     assert.deepEqual(received.filter(r => r.event === 'failover'), [
-      { event: 'failover', payload: { from: 'db-0', to: 'db-1', reason: 'failure-detector' } }
+      { event: 'failover', payload: { from: 'db-0', to: 'db-1', reason: 'connection-ended' } }
     ]);
     assert.equal(mgr.activeDatabase.id, 'db-1');
     // an ended member reports DISCONNECTED, not PASSIVE
