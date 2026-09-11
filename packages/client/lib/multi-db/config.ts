@@ -40,7 +40,7 @@ export type ProbePolicy = 'ALL' | 'MAJORITY' | 'ANY';
  * Members that must pass the initial health check for `connect()` to resolve.
  * @experimental
  */
-export type InitialAvailability = 'all' | 'majority' | 'one';
+export type InitialAvailability = 'ALL' | 'MAJORITY' | 'ONE';
 
 /** @experimental */
 export interface HealthCheckConfig {
@@ -90,7 +90,7 @@ export interface MultiDbConfig {
   delayBetweenFailoverAttempts?: number;
   /** ms between auto-fallback evaluations; -1 disables (default). */
   autoFallbackInterval?: number;
-  /** initial health-check gate for `connect()`. Default 'majority'. */
+  /** initial health-check gate for `connect()`. Default 'MAJORITY'. */
   initialAvailability?: InitialAvailability;
 }
 
@@ -120,7 +120,7 @@ export const MULTI_DB_DEFAULTS = {
   maxFailoverAttempts: 10,
   delayBetweenFailoverAttempts: 12_000,
   autoFallbackInterval: -1,
-  initialAvailability: 'majority'
+  initialAvailability: 'MAJORITY'
 } as const satisfies MultiDbConfig;
 
 export type ResolvedHealthCheckConfig = Required<HealthCheckConfig>;
