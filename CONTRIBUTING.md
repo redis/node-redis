@@ -39,13 +39,58 @@ A huge thank you to the original author of Node Redis, [Matthew Ranney](https://
 
 ---
 
+## Using GitHub Issues
+
+We track bugs and feature requests in GitHub issues. Search the existing issues before you open a new one. Open a new issue instead of commenting on a closed one, where your report may go unnoticed. Link any related issues.
+
+Report security vulnerabilities as described in [SECURITY.md](SECURITY.md), not in a public issue.
+
+### Bug Reports
+
+If no open issue covers the problem, create a new one with the bug report template. Use a concise title and include:
+
+- Your Node-Redis, Node.js, and Redis server versions, and your platform.
+- What you were trying to do, including whether you use a standalone server, Sentinel, or Cluster.
+- Expected and actual behavior, with relevant errors and logs.
+- The smallest complete example that reproduces the problem and the steps to run it. A failing test is welcome but not required.
+
+Remove credentials and private data from examples and logs.
+
+### Feature Requests
+
+For new features and public API changes, open a GitHub issue before you write code or create a pull request. Explain your use cases so maintainers can discuss whether the proposal is a good fit for Node Redis.
+
+When you request a feature, use the feature request template and include:
+
+- What you want to achieve.
+- What you were trying to do with Node Redis and why the existing functionality does not meet your needs.
+- Optionally, your ideas for how to implement the feature, for example a sketch of the API you imagine.
+
+---
+
 ## Code Guidelines
+
+### Before Starting Work
+
+Before you start work, share your proposed change with the maintainers so we can agree on the scope and approach. This reduces the need for substantial revisions during review.
+
+For most changes, find an existing GitHub issue or open one that describes the problem and your proposed approach. Before you write code, wait for a maintainer to comment on the issue and confirm that you can proceed. The pull request will still need to pass code review.
+
+You can submit a pull request directly for:
+
+- Spelling or grammar corrections in documentation or comments.
+- Brief documentation updates that clarify existing behavior.
+- Small, isolated bug fixes where the cause and solution are clear and a focused test demonstrates the fix.
+
+New features, API changes, refactors, performance improvements, and broader behavior changes need an issue discussion first. If you are unsure whether your change needs discussion, open an issue and we can help define the scope.
+
+For changes that need prior discussion, we may pause review if the pull request has no linked issue with a maintainer's go-ahead. We will ask you to discuss the approach in an issue before continuing.
 
 ### Testing Code
 
 Node Redis has a full test suite with coverage setup.
 
-To run the tests, run `npm install` to install dependencies, then run `npm run build:tests-tools && npm test`.
+To run the tests, run `npm install` to install dependencies, then run `npm run build && npm test`. The tests import the workspace packages from their built `dist/` output, so they fail with `MODULE_NOT_FOUND` errors if you skip the build step.
 
 Note that the test suite assumes that [`docker`](https://www.docker.com/) is installed in your environment.
 
