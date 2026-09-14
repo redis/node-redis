@@ -6,6 +6,7 @@ import RedisSentinel from '../sentinel';
 import { RedisSentinelType, RedisSentinelOptions } from '../sentinel/types';
 import { RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
 import { PUBSUB_TYPE } from '../client/pub-sub';
+import { WatchError } from '../errors';
 import { MultiDbManager } from './manager';
 import type { MemberAdapter, ResolvedMemberConfig } from './manager';
 import { MultiDbController } from './controller';
@@ -150,13 +151,12 @@ class MultiDbClientBase<C extends AnyRedisClientType> extends EventEmitter {
   }
 
   /**
-   * Transaction builder PINNED to one member — a transaction must execute
-   * wholly on one member, so it never follows a failover. It pins to the
-   * member serving an outstanding WATCH (watch state is connection-scoped),
-   * otherwise to the member active at creation. Its execution methods reject
-   * while every member is down and report their outcome to the failure
-   * detector, attributed to the pinned member. Create transactions per use,
-   * not at startup.
+   * Transaction builder PINNED to the member active at creation — a
+   * transaction must execute wholly on one member, so it never follows a
+   * failover. Its execution methods reject while every member is down and
+   * report their outcome to the failure detector, attributed to the pinned
+   * member; an EXEC whose watch session was invalidated by a switch rejects
+   * with WatchError. Create transactions per use, not at startup.
    * @experimental
    */
   multi() {
@@ -196,10 +196,7 @@ function makePinnedMulti<C extends AnyRedisClientType>(
   mgr: MultiDbManager<C>,
   resolve: ResolveClient<C>
 ): unknown {
-  // an outstanding WATCH binds the transaction to the watching member — its
-  // connection holds the watch state, and an EXEC anywhere else would commit
-  // silently unguarded
-  const member = mgr.watchedMember ?? mgr.activeDatabase;
+  const member = mgr.activeDatabase;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic patching
   const inner = (resolve(member.client) as any).multi();
 
@@ -212,17 +209,24 @@ function makePinnedMulti<C extends AnyRedisClientType>(
       // through the original it re-enters via `this` and BOTH wrappers would
       // report the one call to the detector
       if (method === 'exec' && args[0]) return inner.execAsPipeline();
-      // a real EXEC settles the watch session: the server consumes watches on
-      // delivery, and a failed EXEC means the watching connection is gone anyway
+      // a switch invalidated the watch session: commit nothing — the app's
+      // standard WatchError retry loop re-runs on the new active member
+      if (method === 'exec' && mgr.watchDirty) {
+        mgr.clearWatchSession();
+        return Promise.reject(new WatchError('MultiDb: the active database changed after WATCH'));
+      }
+      // a real EXEC settles a session held by this member: the server consumes
+      // its watches on delivery, and a failed EXEC means the watching
+      // connection is gone anyway
       const settlesWatch = method === 'exec' && mgr.watchedMember === member;
       return original(...args).then(
         (reply: unknown) => {
-          if (settlesWatch && mgr.watchedMember === member) mgr.watchedMember = null;
+          if (settlesWatch) mgr.clearWatchSession();
           mgr.onCommandResult(true, undefined, member);
           return reply;
         },
         (err: unknown) => {
-          if (settlesWatch && mgr.watchedMember === member) mgr.watchedMember = null;
+          if (settlesWatch) mgr.clearWatchSession();
           mgr.onCommandResult(false, err as Error, member);
           throw err;
         }
@@ -247,13 +251,15 @@ function makePinnedMulti<C extends AnyRedisClientType>(
 }
 
 /**
- * WATCH is connection-scoped server state: the first WATCH binds the session
- * to the member that served it, and every later WATCH/UNWATCH call and
- * `multi()` routes there even across a failover (`makePinnedMulti`). The
- * optimistic lock then either keeps its guarantees on the live watching member
- * or fails loudly through that member's own machinery (WatchError, connection
- * error) — never a silent unguarded EXEC on a member that watches nothing.
- * UNWATCH and a settled EXEC release the binding.
+ * WATCH is connection-scoped server state that cannot follow a failover. The
+ * first WATCH anchors the session to the member that served it; a switch
+ * invalidates the session (`manager.ts:switchTo` sets `watchDirty`) and the
+ * next EXEC rejects with WatchError (`makePinnedMulti`) — the same retryable
+ * error a conflict or a base-client reconnect produces — so the app's
+ * standard retry loop re-runs the whole cycle on the new active member. A
+ * later WATCH never re-anchors an existing session (mirroring the base
+ * client, where a post-reconnect WATCH does not heal the stale epoch); EXEC
+ * and UNWATCH clear it.
  */
 function makeWatchForwarder<C extends AnyRedisClientType>(
   mgr: MultiDbManager<C>,
@@ -263,29 +269,27 @@ function makeWatchForwarder<C extends AnyRedisClientType>(
   return (...args) => {
     const unavailable = mgr.unavailableError;
     if (unavailable) return Promise.reject(unavailable);
+    const active = mgr.activeDatabase;
     const firstWatch = mgr.watchedMember === null;
-    const member = mgr.watchedMember ?? mgr.activeDatabase;
-    mgr.watchedMember = member;
+    if (firstWatch) mgr.watchedMember = active;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic dispatch
-    return ((resolve(member.client) as any)[name](...args) as Promise<unknown>).then(
+    return ((resolve(active.client) as any)[name](...args) as Promise<unknown>).then(
       (reply: unknown) => {
-        mgr.onCommandResult(true, undefined, member);
+        mgr.onCommandResult(true, undefined, active);
         return reply;
       },
       (err: unknown) => {
-        // a rejected FIRST watch never started a session — don't trap later
-        // sessions on this member
-        if (firstWatch && mgr.watchedMember === member) mgr.watchedMember = null;
-        mgr.onCommandResult(false, err as Error, member);
+        // a rejected FIRST watch never started a session
+        if (firstWatch) mgr.clearWatchSession();
+        mgr.onCommandResult(false, err as Error, active);
         throw err;
       }
     );
   };
 }
 
-/** See {@link makeWatchForwarder}: routes to the watching member and releases
- * the binding on settle — stale watch state on an abandoned member can only
- * affect EXECs routed there, so a fresh session must start clean. */
+/** See {@link makeWatchForwarder}: UNWATCH settles the session on the active
+ * member, dirty or not — a fresh session must start clean. */
 function makeUnwatchForwarder<C extends AnyRedisClientType>(
   mgr: MultiDbManager<C>,
   resolve: ResolveClient<C>,
@@ -294,17 +298,17 @@ function makeUnwatchForwarder<C extends AnyRedisClientType>(
   return (...args) => {
     const unavailable = mgr.unavailableError;
     if (unavailable) return Promise.reject(unavailable);
-    const member = mgr.watchedMember ?? mgr.activeDatabase;
+    const active = mgr.activeDatabase;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic dispatch
-    return ((resolve(member.client) as any)[name](...args) as Promise<unknown>).then(
+    return ((resolve(active.client) as any)[name](...args) as Promise<unknown>).then(
       (reply: unknown) => {
-        if (mgr.watchedMember === member) mgr.watchedMember = null;
-        mgr.onCommandResult(true, undefined, member);
+        mgr.clearWatchSession();
+        mgr.onCommandResult(true, undefined, active);
         return reply;
       },
       (err: unknown) => {
-        if (mgr.watchedMember === member) mgr.watchedMember = null;
-        mgr.onCommandResult(false, err as Error, member);
+        mgr.clearWatchSession();
+        mgr.onCommandResult(false, err as Error, active);
         throw err;
       }
     );

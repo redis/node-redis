@@ -86,12 +86,16 @@ export class MultiDbManager<C extends AnyRedisClientType> {
   /** forced selection: suspends auto-fallback until released or the member fails */
   #pinnedTo: Database<C> | null = null;
   /**
-   * Member serving an outstanding WATCH. Watch state is connection-scoped, so
-   * the whole session — later WATCH/UNWATCH calls and `multi()` — routes here
-   * (`index.ts` watch forwarders): the optimistic lock either keeps its member
-   * or fails loudly through that member's own epoch machinery, never silently.
+   * Watch session: the member that served the first WATCH, and whether a
+   * switch has invalidated it. Watch state is connection-scoped and cannot
+   * follow a failover, so a switch marks the session dirty and the next EXEC
+   * rejects with WatchError (`index.ts:makePinnedMulti`) — mirroring the base
+   * client's reconnect semantics and sentinel's dirty-watch on master change.
+   * The app's standard retry loop then re-runs wholly on the new active
+   * member. EXEC and UNWATCH clear the session.
    */
   watchedMember: Database<C> | null = null;
+  watchDirty = false;
   /**
    * Sticky ref/unref intent, set by the wrapper's fan-out (`index.ts`): a
    * member added later must match — one ref'd socket would keep a process
@@ -254,6 +258,12 @@ export class MultiDbManager<C extends AnyRedisClientType> {
 
     // detector observations must never span members
     this.#detector.reset();
+
+    // watch state cannot follow the switch: invalidate the session so the
+    // next EXEC fails with WatchError instead of committing unguarded
+    if (this.watchedMember !== null && this.watchedMember !== target) {
+      this.watchDirty = true;
+    }
 
     // a dead member's unsent queue must fail now, to its callers — never
     // replay on the demoted member when it reconnects
@@ -489,6 +499,12 @@ export class MultiDbManager<C extends AnyRedisClientType> {
     this.#pinnedTo = null;
   }
 
+  /** @internal EXEC and UNWATCH settle the watch session (`index.ts`). */
+  clearWatchSession(): void {
+    this.watchedMember = null;
+    this.watchDirty = false;
+  }
+
   /**
    * Enable, retune or disable (`false` or a non-positive interval) the
    * auto-fallback loop at runtime.
@@ -570,6 +586,10 @@ export class MultiDbManager<C extends AnyRedisClientType> {
       }
       this.#active = target;
       target.role = 'ACTIVE';
+      // a re-selection is a switch for watch purposes too (see switchTo)
+      if (this.watchedMember !== null && this.watchedMember !== target) {
+        this.watchDirty = true;
+      }
     }
 
     // a repeat connect() that succeeds lifts the all-down gate — a search loop
