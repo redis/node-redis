@@ -610,6 +610,17 @@ describe('multi-db manager (unit)', function () {
     await assert.rejects(force, /the client is closed/);
   });
 
+  it('a throwing failover strategy still destroys every member on connect()', async () => {
+    const { mgr, fakes } = makeHarness(2, {
+      failoverStrategy: { select: () => { throw new Error('strategy boom'); } }
+    });
+    await assert.rejects(mgr.connect(), /strategy boom/);
+    assert.ok(
+      [...fakes.values()].every(fake => fake.destroyed),
+      'a rejected connect() must not leave live members behind'
+    );
+  });
+
   it('duplicate() invokes a failure-detector factory per manager and refuses a shared instance', async () => {
     const created: Array<object> = [];
     const factory = () => {

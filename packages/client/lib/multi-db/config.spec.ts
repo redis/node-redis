@@ -175,7 +175,19 @@ describe('resolveMultiDbConfig', () => {
       ['autoFallbackInterval below -1', { autoFallbackInterval: -2 }],
       ['failureDetector.minNumOfFailures negative', { failureDetector: { minNumOfFailures: -1 } }],
       ['failureDetector.failureRateThreshold above 100', { failureDetector: { failureRateThreshold: 101 } }],
-      ['failureDetector.windowSize zero', { failureDetector: { windowSize: 0 } }]
+      ['failureDetector.windowSize zero', { failureDetector: { windowSize: 0 } }],
+      // Node clamps timer delays above 2^31-1 (and Infinity) to 1ms — a
+      // "never" value must be rejected, not turned into a hot loop
+      ['gracePeriod Infinity', { gracePeriod: Infinity }],
+      ['healthCheck.interval Infinity', { healthCheck: { interval: Infinity } }],
+      ['healthCheck.interval above the timer range', { healthCheck: { interval: 2 ** 31 } }],
+      ['healthCheck.delayBetweenProbes Infinity', { healthCheck: { delayBetweenProbes: Infinity } }],
+      ['delayBetweenFailoverAttempts Infinity', { delayBetweenFailoverAttempts: Infinity }],
+      ['autoFallbackInterval Infinity', { autoFallbackInterval: Infinity }],
+      // unknown enum values fail silently downstream: probe rounds fail closed,
+      // the initial-availability gate degrades to ONE
+      ['healthCheck.policy unknown', { healthCheck: { policy: 'SOMETIMES' } }],
+      ['initialAvailability unknown', { initialAvailability: 'ANY' }]
     ];
     for (const [name, config] of cases) {
       it(`rejects ${name}`, () => {
@@ -184,16 +196,19 @@ describe('resolveMultiDbConfig', () => {
     }
 
     it('accepts the boundary values', () => {
+      const maxTimer = 2 ** 31 - 1;
       const { config } = resolveMultiDbConfig(databases, {
         gracePeriod: 0,
         maxFailoverAttempts: 1,
         delayBetweenFailoverAttempts: 0,
         autoFallbackInterval: -1,
+        healthCheck: { interval: maxTimer },
         failureDetector: { minNumOfFailures: 0, failureRateThreshold: 0, windowSize: 1 }
       });
       assert.equal(config.gracePeriod, 0);
       assert.equal(config.maxFailoverAttempts, 1);
       assert.equal(config.autoFallbackInterval, -1);
+      assert.equal(config.healthCheck.interval, maxTimer);
     });
   });
 

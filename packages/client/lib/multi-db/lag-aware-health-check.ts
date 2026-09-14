@@ -82,13 +82,16 @@ export class LagAwareHealthCheck implements HealthCheck {
       url.searchParams.set('extend_check', 'lag');
       url.searchParams.set('availability_lag_tolerance_ms', String(this.#lagTolerance));
 
+      // HeadersInit allows a Headers instance and tuple arrays too — an object
+      // spread silently drops both forms; Headers() normalizes them all
+      const headers = new Headers(this.#requestOptions?.headers);
+      if (this.#authorization) {
+        headers.set('authorization', this.#authorization);
+      }
       const response = await fetch(url, {
         ...this.#requestOptions,
         method: 'GET',
-        headers: {
-          ...(this.#requestOptions?.headers as Record<string, string> | undefined),
-          ...(this.#authorization ? { authorization: this.#authorization } : {})
-        },
+        headers,
         signal: AbortSignal.timeout(this.#requestTimeout)
       });
       // availability is the status code alone; the body carries no further
