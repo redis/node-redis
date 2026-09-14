@@ -759,8 +759,10 @@ export class MultiDbManager<C extends AnyRedisClientType> {
       // Every hook also re-emits as a member-* event with the id in the
       // payload (`events.ts:MultiDbClientEvents`) — ids may be reused after a
       // remove/add, so they never go into event names.
-      onError: (db, err) => {
-        this.onCommandResult(false, err, db);
+      onError: (db, err, countsAsFault) => {
+        if (countsAsFault) {
+          this.onCommandResult(false, err, db);
+        }
         this.#events?.emit('member-error', { id: db.id, error: err });
       },
       onReady: db => {
