@@ -225,6 +225,13 @@ never a copy — or `undefined` to escalate.
   there is nothing to transfer.
 - **Client-side caching** works per member and needs no flush on switch: each member client
   maintains its own tracked cache, so reads after a failover are served by the new member.
+- **What counts as fault evidence.** The failure detector is fed by forwarded command
+  outcomes and by data-path connection errors of the active member (a standalone/pool
+  socket error, a cluster node error, a sentinel MASTER connection error). Sentinel
+  replica, sentinel-node and pub/sub-proxy errors are tolerated by a healthy deployment
+  and are never counted — they surface only as `member-error`. Hard-down members with the
+  default offline queue are detected by health-check probe timeouts and `end` events, not
+  by command outcomes (queued commands do not reject until the switch abandons them).
 - **Resource overhead.** N member connections are live the whole time (each kind's usual
   connection count), plus one background health-check timer per member and the detector's
   sliding window on the command path. The command hot path adds one indirection per call.

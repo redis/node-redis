@@ -23,8 +23,13 @@ export interface DatabaseOptions<C extends AnyRedisClientType> {
  * detector feed and failover triggers attach here.
  */
 export interface DatabaseHooks<C extends AnyRedisClientType> {
-  /** client-level error (socket/decoder errors, reconnects, per-node errors) */
-  onError?: (db: Database<C>, err: Error) => void;
+  /**
+   * Client-level error (socket/decoder errors, reconnects, per-node errors).
+   * `countsAsFault` separates fault EVIDENCE from observability: only
+   * data-path errors may feed the failure detector, while every error is
+   * still re-emitted as `member-error`.
+   */
+  onError?: (db: Database<C>, err: Error, countsAsFault: boolean) => void;
   /** client permanently ended — circuit already opened, role already DISCONNECTED */
   onDown?: (db: Database<C>) => void;
   /** client (re-)ready */
@@ -39,10 +44,12 @@ export interface DatabaseHooks<C extends AnyRedisClientType> {
  * errors as `error`; cluster clients aggregate node errors into `error`, so a
  * single unreachable shard surfaces as command failures and opens the member
  * circuit only at detector thresholds; sentinel clients report per-node
- * errors as `client-error` and handle their own master changes internally —
- * the default detector thresholds absorb that transient blip, so a
- * sentinel-internal failover does not open the member circuit. `end` means
- * the client gave up reconnecting.
+ * errors as `client-error`, of which only MASTER connectivity counts as fault
+ * evidence (replica/sentinel-node/pub-sub-proxy errors are tolerated by a
+ * healthy deployment and surface as `member-error` only). Sentinels handle
+ * their own master changes internally — the default detector thresholds
+ * absorb that transient blip, so a sentinel-internal failover does not open
+ * the member circuit. `end` means the client gave up reconnecting.
  */
 export class Database<C extends AnyRedisClientType> {
   readonly id: string;
@@ -58,11 +65,17 @@ export class Database<C extends AnyRedisClientType> {
   // would crash the process — this listener must exist for the member's
   // whole lifetime.
   readonly #onError = (err: Error) => {
-    this.#hooks.onError?.(this, err);
+    // the client's own 'error' IS the data path (standalone/pool socket,
+    // cluster node aggregate) — always fault evidence
+    this.#hooks.onError?.(this, err, true);
   };
 
-  readonly #onClientError = (event: { error: Error }) => {
-    this.#hooks.onError?.(this, event.error);
+  readonly #onClientError = (event: { type?: string; error: Error }) => {
+    // sentinel per-node errors: only MASTER connectivity is the data path.
+    // A healthy deployment tolerates dead replicas, lost sentinel nodes and
+    // pub/sub-proxy reconnects by design — those must never accumulate into
+    // a failover, but they still surface as member-error.
+    this.#hooks.onError?.(this, event.error, event.type === 'MASTER');
   };
 
   readonly #onReady = () => {

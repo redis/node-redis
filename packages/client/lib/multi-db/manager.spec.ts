@@ -610,6 +610,33 @@ describe('multi-db manager (unit)', function () {
     await assert.rejects(force, /the client is closed/);
   });
 
+  it('only MASTER-type client-errors count as fault evidence; every type stays observable', async () => {
+    const counted: Array<Error | undefined> = [];
+    const detector = {
+      onCommandResult: (ok: boolean, err?: Error) => { if (!ok) counted.push(err); },
+      isFaulty: () => false,
+      reset: () => {}
+    };
+    const { mgr, fakes, received } = makeHarness(2, { failureDetector: detector });
+    await mgr.connect();
+
+    const active = fakes.get('db-0')!;
+    const replicaErr = new Error('replica down');
+    const sentinelErr = new Error('sentinel node down');
+    const masterErr = new Error('master down');
+    active.emit('client-error', { type: 'REPLICA', error: replicaErr });
+    active.emit('client-error', { type: 'SENTINEL', error: sentinelErr });
+    active.emit('client-error', { type: 'MASTER', error: masterErr });
+
+    assert.deepEqual(counted, [masterErr], 'only master connectivity is fault evidence');
+    assert.deepEqual(
+      received.filter(r => r.event === 'member-error').map(r => (r.payload as { error: Error }).error),
+      [replicaErr, sentinelErr, masterErr],
+      'observability keeps every type'
+    );
+    mgr.destroy();
+  });
+
   it('a throwing failover strategy still destroys every member on connect()', async () => {
     const { mgr, fakes } = makeHarness(2, {
       failoverStrategy: { select: () => { throw new Error('strategy boom'); } }
