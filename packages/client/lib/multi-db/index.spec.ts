@@ -500,23 +500,30 @@ describe('multi-db', function () {
       )
     );
 
-    it('a watch transaction with no conflict commits on the watching member after a switch', () =>
+    it('a switch invalidates an outstanding WATCH — EXEC rejects and the retry lands on the new member', () =>
       withMultiDb(
         { databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })] },
         async ({ client, controller }) => {
-          await client.set('watch-ok', 'initial');
-          await client.watch('watch-ok');
-          // the switch must not move the watch session off db-0
+          await client.set('watch-switch', 'initial');
+          await client.watch('watch-switch');
           await controller.setActiveDatabase('db-1');
 
-          assert.ok(await client.multi().set('watch-ok', 'committed').exec());
+          // the session is dirty: nothing may commit unguarded anywhere
+          await assert.rejects(
+            client.multi().set('watch-switch', 'tx-write').exec(),
+            WatchError
+          );
+
+          // the standard WatchError retry loop re-runs wholly on the new active
+          await client.watch('watch-switch');
+          assert.ok(await client.multi().set('watch-switch', 'retried').exec());
 
           const directA = RedisClient.create({ socket: { host: '127.0.0.1', port: serverA.port } });
           const directB = RedisClient.create({ socket: { host: '127.0.0.1', port: serverB.port } });
           await Promise.all([directA.connect(), directB.connect()]);
           try {
-            assert.equal(await directA.get('watch-ok'), 'committed', 'the guarded transaction must execute where the watch lives');
-            assert.equal(await directB.get('watch-ok'), null);
+            assert.equal(await directB.get('watch-switch'), 'retried', 'the retried transaction must run on the new member');
+            assert.equal(await directA.get('watch-switch'), 'initial', 'nothing may commit on the demoted member');
           } finally {
             directA.destroy();
             directB.destroy();
@@ -525,47 +532,38 @@ describe('multi-db', function () {
       )
     );
 
-    it('a conflicting write on the watching member aborts EXEC after a switch, and EXEC settles the session', () =>
+    it('without a switch, a conflicting write still aborts EXEC and EXEC settles the session', () =>
       withMultiDb(
         { databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })] },
-        async ({ client, controller }) => {
-          await client.set('watch-pin', 'initial');
-          await client.watch('watch-pin');
-          await controller.setActiveDatabase('db-1');
+        async ({ client }) => {
+          await client.set('watch-conflict', 'initial');
+          await client.watch('watch-conflict');
 
-          // conflict on the WATCHING member (db-0): executed anywhere else the
-          // transaction would commit unguarded
+          // conflicting write on the watched key through a separate connection
           const directA = RedisClient.create({ socket: { host: '127.0.0.1', port: serverA.port } });
           await directA.connect();
           try {
-            await directA.set('watch-pin', 'conflict');
+            await directA.set('watch-conflict', 'conflict');
           } finally {
             directA.destroy();
           }
-          await assert.rejects(client.multi().set('watch-pin', 'tx-write').exec(), WatchError);
+          await assert.rejects(client.multi().set('watch-conflict', 'tx-write').exec(), WatchError);
 
-          // the settled EXEC released the binding: the next multi() pins to the
-          // CURRENT active member (db-1)
-          await client.multi().set('watch-settled', 'on-b').exec();
-          const directB = RedisClient.create({ socket: { host: '127.0.0.1', port: serverB.port } });
-          await directB.connect();
-          try {
-            assert.equal(await directB.get('watch-settled'), 'on-b');
-          } finally {
-            directB.destroy();
-          }
+          // the settled EXEC cleared the session: the next transaction commits
+          assert.ok(await client.multi().set('watch-conflict', 'after').exec());
+          assert.equal(await client.get('watch-conflict'), 'after');
         }
       )
     );
 
-    it('UNWATCH releases the watch binding — the next multi() follows the active member', () =>
+    it('UNWATCH clears the watch session — the next multi() commits on the active member', () =>
       withMultiDb(
         { databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })] },
         async ({ client, controller }) => {
           await client.set('unwatch-key', 'x');
           await client.watch('unwatch-key');
           await controller.setActiveDatabase('db-1');
-          await client.unwatch(); // routes to the watching member and releases
+          await client.unwatch(); // clears the (dirty) session
 
           await client.multi().set('unwatch-after', 'on-b').exec();
           const directA = RedisClient.create({ socket: { host: '127.0.0.1', port: serverA.port } });

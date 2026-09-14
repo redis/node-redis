@@ -203,12 +203,13 @@ never a copy — or `undefined` to escalate.
 - **Eventual consistency.** Members are assumed to be asynchronously replicated. A switch
   offers no read-your-writes guarantee: a write acknowledged by the old member may not be
   visible on the new one.
-- **WATCH binds its session to one member.** Watch state lives on a connection, so the first
-  `WATCH` binds the whole session — later `WATCH`/`UNWATCH` calls and `multi()` — to the
-  member that served it, even across a failover. The optimistic lock either keeps its
-  guarantees (the watching member is alive, `EXEC` runs there guarded) or fails loudly with
-  `WatchError` or a connection error — never a silent unguarded commit. `UNWATCH` and a
-  settled `EXEC` release the binding.
+- **A failover invalidates outstanding WATCHes.** Watch state lives on one member's
+  connection and cannot follow a switch, so a switch marks the session dirty: the next
+  `EXEC` rejects with `WatchError` — the same retryable error a conflict or the base
+  client's own reconnect produces — and the standard retry loop re-runs the whole
+  watch/read/`EXEC` cycle on the new active member. `UNWATCH` and a settled `EXEC` clear
+  the session. Nothing ever commits unguarded, and no transaction traffic continues on a
+  demoted member.
 - **Connection session state does not follow a failover.** Runtime `SELECT` is rejected with
   an error — set `database` per member in its options instead; each member re-applies it on
   every reconnect. `emitInvalidate` on member options is rejected at configuration time:
@@ -230,8 +231,8 @@ never a copy — or `undefined` to escalate.
 - **Pinned surfaces.** A few handles bind to the member that was active when they were
   created and never follow a failover — create them per use, not at startup:
   - `multi()` — a transaction executes wholly on its pinned member; `exec()` rejects while
-    every member is down and its outcome feeds the detector. With a WATCH outstanding it
-    pins to the watching member (see the WATCH caveat above), not the active one.
+    every member is down and its outcome feeds the detector. An `EXEC` whose watch session
+    was invalidated by a switch rejects with `WatchError` (see the WATCH caveat above).
   - scan iterators (`scanIterator` and friends) — SCAN cursors are member-specific, so an
     iterator finishes its member's keyspace and fails with that member's error if it dies.
     While every member is down, creating one throws.
