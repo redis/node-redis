@@ -3,7 +3,7 @@ import type { RedisArgument, ReplyUnion } from '../RESP/types';
 import type { AnyRedisClientType } from './index';
 import type { FailoverReason } from './events';
 import type { ResolvedMultiDbConfig, ResolvedDatabaseIdentity, PoolDatabaseConfig, InitialAvailability } from './config';
-import { resolveDatabaseIdentity, isFailureDetector } from './config';
+import { resolveDatabaseIdentity, isFailureDetector, MAX_TIMER_MS } from './config';
 import { Circuit } from './circuit';
 import { Database } from './database';
 import type { HealthCheck, HealthCheckTarget } from './health-check';
@@ -495,9 +495,10 @@ export class MultiDbManager<C extends AnyRedisClientType> {
    */
   setAutoFallback(intervalMs: number | false): void {
     const interval = intervalMs === false ? -1 : intervalMs;
-    // negated form also rejects NaN
-    if (!(interval >= -1)) {
-      throw new TypeError(`MultiDb: autoFallbackInterval must be a number or false, got ${intervalMs}`);
+    // negated form also rejects NaN and Infinity — Node clamps out-of-range
+    // interval delays to a 1ms hot loop (same bound as config resolution)
+    if (!(interval >= -1 && interval <= MAX_TIMER_MS)) {
+      throw new TypeError(`MultiDb: autoFallbackInterval must be a number within [-1, ${MAX_TIMER_MS}] or false, got ${intervalMs}`);
     }
     this.#autoFallbackInterval = interval;
     this.#startFallbackTimer(interval);
@@ -547,7 +548,15 @@ export class MultiDbManager<C extends AnyRedisClientType> {
       );
     }
 
-    const target = this.#select(healthy);
+    let target: Database<C> | undefined;
+    try {
+      target = this.#select(healthy);
+    } catch (err) {
+      // user strategy code throwing (or returning a foreign object) must keep
+      // the contract above too: a rejected connect() leaves no live members
+      this.destroy();
+      throw err;
+    }
     if (target === undefined) {
       // a detector trip racing the probe round can re-open a circuit between
       // establish and selection — reject per the contract above, don't crash

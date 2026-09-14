@@ -128,6 +128,13 @@ export const MULTI_DB_DEFAULTS = {
   initialAvailability: 'MAJORITY'
 } as const satisfies MultiDbConfig;
 
+/**
+ * Node clamps setTimeout/setInterval delays above 2^31-1 (and Infinity) to
+ * 1 ms — an accidental "never" would turn into a hot loop, so every duration
+ * option is bounded by this.
+ */
+export const MAX_TIMER_MS = 2 ** 31 - 1;
+
 export type ResolvedHealthCheckConfig = Required<HealthCheckConfig>;
 
 export interface ResolvedFailureDetectorConfig extends Required<Omit<FailureDetectorConfig, 'errorFilter'>> {
@@ -231,11 +238,22 @@ export function resolveMultiDbConfig<DB extends DatabaseConfig<unknown>>(
       `MultiDb: healthCheck.timeout (${healthCheck.timeout}) must be less than healthCheck.interval (${healthCheck.interval})`
     );
   }
+  // the negated form also rejects Infinity (timeout is bounded by interval)
+  if (!(healthCheck.interval <= MAX_TIMER_MS)) {
+    throw new TypeError(`MultiDb: healthCheck.interval must be <= ${MAX_TIMER_MS}, got ${healthCheck.interval}`);
+  }
   if (!(Number.isInteger(healthCheck.numProbes) && healthCheck.numProbes >= 1)) {
     throw new TypeError(`MultiDb: healthCheck.numProbes must be an integer >= 1, got ${healthCheck.numProbes}`);
   }
-  if (!(healthCheck.delayBetweenProbes >= 0)) {
-    throw new TypeError(`MultiDb: healthCheck.delayBetweenProbes must be >= 0, got ${healthCheck.delayBetweenProbes}`);
+  if (!(healthCheck.delayBetweenProbes >= 0 && healthCheck.delayBetweenProbes <= MAX_TIMER_MS)) {
+    throw new TypeError(
+      `MultiDb: healthCheck.delayBetweenProbes must be within [0, ${MAX_TIMER_MS}], got ${healthCheck.delayBetweenProbes}`
+    );
+  }
+  if (!(['ALL', 'MAJORITY', 'ANY'] as Array<string>).includes(healthCheck.policy)) {
+    // an unknown policy fails every probe round (fail-closed) with nothing
+    // pointing at the typo
+    throw new TypeError(`MultiDb: healthCheck.policy must be one of ALL | MAJORITY | ANY, got ${healthCheck.policy}`);
   }
   // an empty array would silently disable probing instead of falling back to the default check
   if (config.healthChecks !== undefined && config.healthChecks.length === 0) {
@@ -271,9 +289,9 @@ export function resolveMultiDbConfig<DB extends DatabaseConfig<unknown>>(
 
   const gracePeriod = config.gracePeriod ?? MULTI_DB_DEFAULTS.gracePeriod;
   // NaN would keep an OPEN circuit from ever reaching HALF_OPEN — a tripped
-  // member could never recover
-  if (!(gracePeriod >= 0)) {
-    throw new TypeError(`MultiDb: gracePeriod must be >= 0, got ${gracePeriod}`);
+  // member could never recover; Infinity means the same thing, spelled nicer
+  if (!(gracePeriod >= 0 && gracePeriod <= MAX_TIMER_MS)) {
+    throw new TypeError(`MultiDb: gracePeriod must be within [0, ${MAX_TIMER_MS}], got ${gracePeriod}`);
   }
   const maxFailoverAttempts = config.maxFailoverAttempts ?? MULTI_DB_DEFAULTS.maxFailoverAttempts;
   // 0, negative or NaN would skip the search loop entirely: permanently
@@ -283,14 +301,24 @@ export function resolveMultiDbConfig<DB extends DatabaseConfig<unknown>>(
   }
   const delayBetweenFailoverAttempts =
     config.delayBetweenFailoverAttempts ?? MULTI_DB_DEFAULTS.delayBetweenFailoverAttempts;
-  if (!(delayBetweenFailoverAttempts >= 0)) {
-    throw new TypeError(`MultiDb: delayBetweenFailoverAttempts must be >= 0, got ${delayBetweenFailoverAttempts}`);
+  if (!(delayBetweenFailoverAttempts >= 0 && delayBetweenFailoverAttempts <= MAX_TIMER_MS)) {
+    throw new TypeError(
+      `MultiDb: delayBetweenFailoverAttempts must be within [0, ${MAX_TIMER_MS}], got ${delayBetweenFailoverAttempts}`
+    );
   }
   const autoFallbackInterval = config.autoFallbackInterval ?? MULTI_DB_DEFAULTS.autoFallbackInterval;
   // NaN would slip past the "<= 0 disables" check and setInterval(NaN)
-  // coerces to a 1ms hot loop; -1 is the documented disabled value
-  if (!(autoFallbackInterval >= -1)) {
-    throw new TypeError(`MultiDb: autoFallbackInterval must be >= -1, got ${autoFallbackInterval}`);
+  // coerces to a 1ms hot loop — as does Infinity; -1 is the documented
+  // disabled value
+  if (!(autoFallbackInterval >= -1 && autoFallbackInterval <= MAX_TIMER_MS)) {
+    throw new TypeError(`MultiDb: autoFallbackInterval must be within [-1, ${MAX_TIMER_MS}], got ${autoFallbackInterval}`);
+  }
+  const initialAvailability = config.initialAvailability ?? MULTI_DB_DEFAULTS.initialAvailability;
+  // an unknown value would make requiredHealthy() return undefined and the
+  // connect() gate (healthy.length < undefined is false) silently degrade to
+  // "one healthy member is enough"
+  if (!(['ALL', 'MAJORITY', 'ONE'] as Array<string>).includes(initialAvailability)) {
+    throw new TypeError(`MultiDb: initialAvailability must be one of ALL | MAJORITY | ONE, got ${initialAvailability}`);
   }
 
   return {
@@ -304,7 +332,7 @@ export function resolveMultiDbConfig<DB extends DatabaseConfig<unknown>>(
       maxFailoverAttempts,
       delayBetweenFailoverAttempts,
       autoFallbackInterval,
-      initialAvailability: config.initialAvailability ?? MULTI_DB_DEFAULTS.initialAvailability
+      initialAvailability
     }
   };
 }
