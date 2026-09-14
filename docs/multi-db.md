@@ -203,6 +203,19 @@ never a copy — or `undefined` to escalate.
 - **Eventual consistency.** Members are assumed to be asynchronously replicated. A switch
   offers no read-your-writes guarantee: a write acknowledged by the old member may not be
   visible on the new one.
+- **WATCH binds its session to one member.** Watch state lives on a connection, so the first
+  `WATCH` binds the whole session — later `WATCH`/`UNWATCH` calls and `multi()` — to the
+  member that served it, even across a failover. The optimistic lock either keeps its
+  guarantees (the watching member is alive, `EXEC` runs there guarded) or fails loudly with
+  `WatchError` or a connection error — never a silent unguarded commit. `UNWATCH` and a
+  settled `EXEC` release the binding.
+- **Connection session state does not follow a failover.** Runtime `SELECT` is rejected with
+  an error — set `database` per member in its options instead; each member re-applies it on
+  every reconnect. `emitInvalidate` on member options is rejected at configuration time:
+  invalidation events fire on hidden member clients and cannot be forwarded soundly across a
+  switch — use per-member `clientSideCache` (below).
+- **`ref()` / `unref()` fan out** over every member's socket (member kinds that expose
+  them), and the intent is sticky: members added later come up matching it.
 - **Pub/sub.** On a switch, active subscriptions (channels, patterns, and sharded channels)
   move to the new member and are removed from the old one (so its recovery cannot
   double-deliver). Messages published between the switch and the re-subscribe completing are
@@ -217,15 +230,18 @@ never a copy — or `undefined` to escalate.
 - **Pinned surfaces.** A few handles bind to the member that was active when they were
   created and never follow a failover — create them per use, not at startup:
   - `multi()` — a transaction executes wholly on its pinned member; `exec()` rejects while
-    every member is down and its outcome feeds the detector.
+    every member is down and its outcome feeds the detector. With a WATCH outstanding it
+    pins to the watching member (see the WATCH caveat above), not the active one.
   - scan iterators (`scanIterator` and friends) — SCAN cursors are member-specific, so an
     iterator finishes its member's keyspace and fails with that member's error if it dies.
     While every member is down, creating one throws.
   - `legacy()` — the callback-style surface stays on its creation member; creating it while
     every member is down throws.
 
-  Derived views (`withTypeMapping`, `withCommandOptions`, `withAbortSignal`) are NOT pinned:
-  they follow the active member per call, feed the detector, and reject while every member is
-  down. `duplicate(overrides?)` returns a new unconnected `{ client, controller }` pair over
-  the current live member set (a deliberate signature difference from the base client).
+  Derived views (`withTypeMapping`, `withCommandOptions`, `withAbortSignal`, `asap`) are NOT
+  pinned: they follow the active member per call, feed the detector, and reject while every
+  member is down. `duplicate(overrides?)` returns a new unconnected `{ client, controller }`
+  pair over the current live member set (a deliberate signature difference from the base
+  client, mirrored by the type). With a custom failure detector, pass a factory
+  (`failureDetector: () => new MyDetector()`) — `duplicate()` refuses a shared instance.
 - **Homogeneous members only.** One factory per topology; mixing kinds is not supported.
