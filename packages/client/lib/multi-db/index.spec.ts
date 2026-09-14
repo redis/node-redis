@@ -7,7 +7,7 @@ import { createMultiDbClient, createMultiDbClientPool, DefaultHealthCheck, Multi
 import type { FailureDetector } from '.';
 import type { FailoverEvent } from './controller';
 import RedisClient, { RedisClientType } from '../client';
-import { ErrorReply } from '../errors';
+import { ErrorReply, WatchError } from '../errors';
 import type { CommandParser } from '../client/parser';
 import { RESP_TYPES } from '../RESP/decoder';
 import type { RedisServerDocker } from '@redis/test-utils';
@@ -475,6 +475,109 @@ describe('multi-db', function () {
           );
         }
       )
+    );
+
+    it('a watch transaction with no conflict commits on the watching member after a switch', () =>
+      withMultiDb(
+        { databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })] },
+        async ({ client, controller }) => {
+          await client.set('watch-ok', 'initial');
+          await client.watch('watch-ok');
+          // the switch must not move the watch session off db-0
+          await controller.setActiveDatabase('db-1');
+
+          assert.ok(await client.multi().set('watch-ok', 'committed').exec());
+
+          const directA = RedisClient.create({ socket: { host: '127.0.0.1', port: serverA.port } });
+          const directB = RedisClient.create({ socket: { host: '127.0.0.1', port: serverB.port } });
+          await Promise.all([directA.connect(), directB.connect()]);
+          try {
+            assert.equal(await directA.get('watch-ok'), 'committed', 'the guarded transaction must execute where the watch lives');
+            assert.equal(await directB.get('watch-ok'), null);
+          } finally {
+            directA.destroy();
+            directB.destroy();
+          }
+        }
+      )
+    );
+
+    it('a conflicting write on the watching member aborts EXEC after a switch, and EXEC settles the session', () =>
+      withMultiDb(
+        { databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })] },
+        async ({ client, controller }) => {
+          await client.set('watch-pin', 'initial');
+          await client.watch('watch-pin');
+          await controller.setActiveDatabase('db-1');
+
+          // conflict on the WATCHING member (db-0): executed anywhere else the
+          // transaction would commit unguarded
+          const directA = RedisClient.create({ socket: { host: '127.0.0.1', port: serverA.port } });
+          await directA.connect();
+          try {
+            await directA.set('watch-pin', 'conflict');
+          } finally {
+            directA.destroy();
+          }
+          await assert.rejects(client.multi().set('watch-pin', 'tx-write').exec(), WatchError);
+
+          // the settled EXEC released the binding: the next multi() pins to the
+          // CURRENT active member (db-1)
+          await client.multi().set('watch-settled', 'on-b').exec();
+          const directB = RedisClient.create({ socket: { host: '127.0.0.1', port: serverB.port } });
+          await directB.connect();
+          try {
+            assert.equal(await directB.get('watch-settled'), 'on-b');
+          } finally {
+            directB.destroy();
+          }
+        }
+      )
+    );
+
+    it('UNWATCH releases the watch binding — the next multi() follows the active member', () =>
+      withMultiDb(
+        { databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })] },
+        async ({ client, controller }) => {
+          await client.set('unwatch-key', 'x');
+          await client.watch('unwatch-key');
+          await controller.setActiveDatabase('db-1');
+          await client.unwatch(); // routes to the watching member and releases
+
+          await client.multi().set('unwatch-after', 'on-b').exec();
+          const directA = RedisClient.create({ socket: { host: '127.0.0.1', port: serverA.port } });
+          const directB = RedisClient.create({ socket: { host: '127.0.0.1', port: serverB.port } });
+          await Promise.all([directA.connect(), directB.connect()]);
+          try {
+            assert.equal(await directB.get('unwatch-after'), 'on-b');
+            assert.equal(await directA.get('unwatch-after'), null);
+          } finally {
+            directA.destroy();
+            directB.destroy();
+          }
+        }
+      )
+    );
+
+    it('exec(true) and the EXEC alias each report exactly one outcome to the detector', () =>
+      (async () => {
+        const outcomes: Array<boolean> = [];
+        const detector = {
+          onCommandResult: (ok: boolean) => { outcomes.push(ok); },
+          isFaulty: () => false,
+          reset: () => {}
+        };
+        await withMultiDb(
+          { databases: [memberOf(serverA)], failureDetector: detector },
+          async ({ client }) => {
+            outcomes.length = 0; // drop connect-time noise, count only the execs
+            await client.multi().set('exec-count', '1').exec(true);
+            assert.equal(outcomes.length, 1, 'exec(true) must not double-report through execAsPipeline');
+            await client.multi().set('exec-count', '2').EXEC();
+            assert.equal(outcomes.length, 2, 'the EXEC alias must report like exec');
+          }
+        );
+      })()
     );
 
     it('a scan iterator stays pinned to its member and fails if that member is removed', () =>
