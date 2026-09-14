@@ -193,6 +193,17 @@ export function resolveDatabaseIdentity<DB extends DatabaseConfig<unknown>>(
   if (!(weight >= 0 && weight <= 1)) {
     throw new TypeError(`MultiDb: database "${db.id ?? fallbackId}" weight must be within [0, 1], got ${weight}`);
   }
+  // invalidation pushes fire on the hidden member client and cannot be
+  // forwarded soundly across a switch (the new member has no server-side
+  // tracking for keys cached via the old one) — reject instead of silently
+  // dropping them; per-member clientSideCache is the supported mode. Checked
+  // here so runtime adds get the same guard as initial members.
+  if ((db.options as { emitInvalidate?: boolean } | undefined)?.emitInvalidate) {
+    throw new TypeError(
+      `MultiDb: database "${db.id ?? fallbackId}" sets emitInvalidate, which is not supported on ` +
+      'multi-db members — use clientSideCache per member instead'
+    );
+  }
 
   return {
     ...db,
