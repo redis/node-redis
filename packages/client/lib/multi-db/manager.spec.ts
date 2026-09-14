@@ -610,6 +610,27 @@ describe('multi-db manager (unit)', function () {
     await assert.rejects(force, /the client is closed/);
   });
 
+  it('duplicate() invokes a failure-detector factory per manager and refuses a shared instance', async () => {
+    const created: Array<object> = [];
+    const factory = () => {
+      const detector = { onCommandResult: () => {}, isFaulty: () => false, reset: () => {} };
+      created.push(detector);
+      return detector;
+    };
+    const { mgr } = makeHarness(2, { failureDetector: factory });
+    await mgr.connect();
+    const dup = mgr.duplicate();
+    assert.equal(created.length, 2, 'original and duplicate must each build their own detector');
+    dup.destroy();
+    mgr.destroy();
+
+    const instance = { onCommandResult: () => {}, isFaulty: () => false, reset: () => {} };
+    const shared = makeHarness(2, { failureDetector: instance });
+    await shared.mgr.connect();
+    assert.throws(() => shared.mgr.duplicate(), /pass a factory/);
+    shared.mgr.destroy();
+  });
+
   it('addDatabase after permanent failure joins the set but does not lift the gate', async () => {
     const { mgr } = makeHarness(2, {
       maxFailoverAttempts: 2,

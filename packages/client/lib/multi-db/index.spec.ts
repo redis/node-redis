@@ -659,14 +659,12 @@ describe('multi-db', function () {
   });
 
   describe('duplicate()', () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- duplicate's multi-db result shape is asserted at runtime
-    type DupResult = { client: any; controller: any };
-
     it('returns an independent, unconnected multi-db pair over the live member set', () =>
       withMultiDb(
         { databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })] },
         async ({ client, controller }) => {
-          const dup = (client.duplicate() as unknown) as DupResult;
+          // no cast: the public type must expose duplicate() as the pair
+          const dup = client.duplicate();
           assert.equal(typeof dup.client.connect, 'function');
           assert.deepEqual(
             dup.controller.getDatabases().map((db: { id: string }) => db.id),
@@ -696,7 +694,7 @@ describe('multi-db', function () {
       withMultiDb({ databases: [memberOf(serverA)] }, async ({ client, controller }) => {
         await controller.addDatabase({ options: { socket: { host: '127.0.0.1', port: serverB.port } } });
 
-        const dup = (client.duplicate({ database: 1 }) as unknown) as DupResult;
+        const dup = client.duplicate({ database: 1 });
         assert.deepEqual(
           dup.controller.getDatabases().map((db: { id: string }) => db.id),
           ['db-0', 'db-1'],

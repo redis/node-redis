@@ -175,7 +175,9 @@ class MultiDbClientBase<C extends AnyRedisClientType> extends EventEmitter {
    * factories produce, deliberately different from the base client's
    * `duplicate()` signature. `overrides` merge into every member's options
    * identically, so the clone stays homogeneous. Runtime state (circuit
-   * states, active selection, a forced pin) is not copied.
+   * states, active selection, a forced pin) is not copied. Throws TypeError
+   * when the config holds a custom failure-detector INSTANCE — its state
+   * cannot be shared across clients; pass a factory instead.
    * @experimental
    */
   duplicate(overrides?: object): MultiDbResult<C> {

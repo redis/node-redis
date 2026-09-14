@@ -119,9 +119,20 @@ export class MultiDbManager<C extends AnyRedisClientType> {
     this.#config = config;
     this.#adapter = adapter;
     this.#healthChecks = config.healthChecks ?? [new DefaultHealthCheck()];
-    this.#detector = isFailureDetector(config.failureDetector)
-      ? config.failureDetector
-      : new DefaultFailureDetector(config.failureDetector);
+    const detectorSource = config.failureDetector;
+    if (typeof detectorSource === 'function') {
+      // one fresh instance per manager — this is what makes duplicate() safe
+      // with custom detectors
+      const detector = detectorSource();
+      if (!isFailureDetector(detector)) {
+        throw new TypeError('MultiDb: the failureDetector factory must return a failure detector');
+      }
+      this.#detector = detector;
+    } else {
+      this.#detector = isFailureDetector(detectorSource)
+        ? detectorSource
+        : new DefaultFailureDetector(detectorSource);
+    }
     this.#strategy = config.failoverStrategy ?? new WeightBasedStrategy();
     this.#autoFallbackInterval = config.autoFallbackInterval;
     this.#databases = members.map(member => this.#wrapMember(member));
@@ -758,6 +769,15 @@ export class MultiDbManager<C extends AnyRedisClientType> {
    * the clone stays homogeneous.
    */
   duplicate(overrides?: object): MultiDbManager<C> {
+    const detector = this.#config.failureDetector;
+    if (typeof detector !== 'function' && isFailureDetector(detector)) {
+      // an instance is live shared state: both managers would pump one sliding
+      // window and reset() it on their own switches
+      throw new TypeError(
+        'MultiDb: duplicate() with a custom failure detector instance would share its state across clients — ' +
+        'pass a factory (() => FailureDetector) in failureDetector instead'
+      );
+    }
     const members = this.#databases.map(db => {
       const config = this.#memberConfigs.get(db)!;
       return {
