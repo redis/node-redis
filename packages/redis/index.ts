@@ -109,6 +109,25 @@ function mergeModulesOnAdd(controller: {
 }
 
 /**
+ * Apply {@link mergeModulesOnAdd} to a multi-db pair and keep it applied:
+ * `client.duplicate()` returns a FRESH pair with a fresh controller, so the
+ * wrap must follow every duplicate recursively — a member added through a
+ * duplicate's controller must not come up without the Stack modules.
+ */
+function wrapMultiDbResult<R extends {
+  client: { duplicate(overrides?: object): unknown };
+  controller: {
+    addDatabase(config: PoolDatabaseConfig<unknown>): Promise<string>;
+    replaceDatabase(id: string, config: PoolDatabaseConfig<unknown>): Promise<string>;
+  };
+}>(result: R): R {
+  mergeModulesOnAdd(result.controller);
+  const duplicate = result.client.duplicate.bind(result.client);
+  result.client.duplicate = (overrides?: object) => wrapMultiDbResult(duplicate(overrides) as R);
+  return result;
+}
+
+/**
  * Multi-database client with the Redis Stack default modules pre-registered
  * (mirrors {@link createClient}) on every member, initial and runtime-added.
  * Returns `{ client, controller }`; `client` is a drop-in
@@ -123,14 +142,19 @@ export function createMultiDbClient<
   TYPE_MAPPING extends TypeMapping = {}
 >(options: {
   databases: Array<DatabaseConfig<RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>>>;
-} & MultiDbConfig): MultiDbResult<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {
+} & MultiDbConfig): MultiDbResult<
+  RedisClientType<M, F, S, RESP, TYPE_MAPPING>,
+  DatabaseConfig<RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>>
+> {
   const { databases, ...multiDbOptions } = options;
   const result = genericCreateMultiDbClient({
     ...multiDbOptions,
     databases: databases.map(db => ({ ...db, options: withStackModules(db.options) }))
   });
-  mergeModulesOnAdd(result.controller);
-  return result as unknown as MultiDbResult<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>;
+  return wrapMultiDbResult(result) as unknown as MultiDbResult<
+    RedisClientType<M, F, S, RESP, TYPE_MAPPING>,
+    DatabaseConfig<RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>>
+  >;
 }
 
 /**
@@ -146,14 +170,19 @@ export function createMultiDbClientPool<
   TYPE_MAPPING extends TypeMapping = {}
 >(options: {
   databases: Array<PoolDatabaseConfig<RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>>>;
-} & MultiDbConfig): MultiDbResult<RedisClientPoolType<M, F, S, RESP, TYPE_MAPPING>> {
+} & MultiDbConfig): MultiDbResult<
+  RedisClientPoolType<M, F, S, RESP, TYPE_MAPPING>,
+  PoolDatabaseConfig<RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>>
+> {
   const { databases, ...multiDbOptions } = options;
   const result = genericCreateMultiDbClientPool({
     ...multiDbOptions,
     databases: databases.map(db => ({ ...db, options: withStackModules(db.options) }))
   });
-  mergeModulesOnAdd(result.controller);
-  return result as unknown as MultiDbResult<RedisClientPoolType<M, F, S, RESP, TYPE_MAPPING>>;
+  return wrapMultiDbResult(result) as unknown as MultiDbResult<
+    RedisClientPoolType<M, F, S, RESP, TYPE_MAPPING>,
+    PoolDatabaseConfig<RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>>
+  >;
 }
 
 /**
@@ -169,14 +198,19 @@ export function createMultiDbCluster<
   TYPE_MAPPING extends TypeMapping = {}
 >(options: {
   databases: Array<DatabaseConfig<RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING>>>;
-} & MultiDbConfig): MultiDbResult<RedisClusterType<M, F, S, RESP, TYPE_MAPPING>> {
+} & MultiDbConfig): MultiDbResult<
+  RedisClusterType<M, F, S, RESP, TYPE_MAPPING>,
+  DatabaseConfig<RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING>>
+> {
   const { databases, ...multiDbOptions } = options;
   const result = genericCreateMultiDbCluster({
     ...multiDbOptions,
     databases: databases.map(db => ({ ...db, options: withStackModules(db.options) }))
   });
-  mergeModulesOnAdd(result.controller);
-  return result as unknown as MultiDbResult<RedisClusterType<M, F, S, RESP, TYPE_MAPPING>>;
+  return wrapMultiDbResult(result) as unknown as MultiDbResult<
+    RedisClusterType<M, F, S, RESP, TYPE_MAPPING>,
+    DatabaseConfig<RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING>>
+  >;
 }
 
 /**
@@ -192,14 +226,19 @@ export function createMultiDbSentinel<
   TYPE_MAPPING extends TypeMapping = {}
 >(options: {
   databases: Array<DatabaseConfig<RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>>>;
-} & MultiDbConfig): MultiDbResult<RedisSentinelType<M, F, S, RESP, TYPE_MAPPING>> {
+} & MultiDbConfig): MultiDbResult<
+  RedisSentinelType<M, F, S, RESP, TYPE_MAPPING>,
+  DatabaseConfig<RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>>
+> {
   const { databases, ...multiDbOptions } = options;
   const result = genericCreateMultiDbSentinel({
     ...multiDbOptions,
     databases: databases.map(db => ({ ...db, options: withStackModules(db.options) }))
   });
-  mergeModulesOnAdd(result.controller);
-  return result as unknown as MultiDbResult<RedisSentinelType<M, F, S, RESP, TYPE_MAPPING>>;
+  return wrapMultiDbResult(result) as unknown as MultiDbResult<
+    RedisSentinelType<M, F, S, RESP, TYPE_MAPPING>,
+    DatabaseConfig<RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>>
+  >;
 }
 
 export function createClientPool<

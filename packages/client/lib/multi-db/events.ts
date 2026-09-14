@@ -5,6 +5,8 @@
  * and per-member `member-*` pass-throughs. The controller emits nothing.
  */
 
+import type { AnyRedisClientType, MultiDbResult } from './index';
+
 /** @experimental why an automatic switch happened */
 export type FailoverReason = 'failure-detector' | 'health-check' | 'connection-ended' | 'forced' | 'active-removed';
 
@@ -132,7 +134,20 @@ export interface MultiDbEventEmitter {
 
 /**
  * A multi-db wrapper client: the member kind's full drop-in surface plus the
- * typed multi-db event emitter.
+ * typed multi-db event emitter. One deliberate signature difference:
+ * `duplicate()` returns the factory-shaped `{ client, controller }` pair, not
+ * a bare client — the type must say so, or `duplicate().connect()` compiles
+ * and crashes.
  * @experimental
  */
-export type MultiDbClientType<C> = C & MultiDbEventEmitter;
+export type MultiDbClientType<C extends AnyRedisClientType> =
+  Omit<C, 'duplicate'> &
+  MultiDbEventEmitter &
+  {
+    /**
+     * A NEW, unconnected multi-db pair over the current live member set —
+     * see the runtime contract on the wrapper's `duplicate()`.
+     * @experimental
+     */
+    duplicate(overrides?: object): MultiDbResult<C>;
+  };
