@@ -92,6 +92,13 @@ export class MultiDbManager<C extends AnyRedisClientType> {
    * or fails loudly through that member's own epoch machinery, never silently.
    */
   watchedMember: Database<C> | null = null;
+  /**
+   * Sticky ref/unref intent, set by the wrapper's fan-out (`index.ts`): a
+   * member added later must match — one ref'd socket would keep a process
+   * alive that unref()'d the whole client. Applied only where the member kind
+   * exposes ref/unref; not copied by duplicate() (runtime state).
+   */
+  refState: 'ref' | 'unref' | null = null;
   readonly #teardown = new AbortController();
   #events?: MultiDbEventOutlet;
   readonly #healthTimers = new Map<Database<C>, NodeJS.Timeout>();
@@ -734,6 +741,11 @@ export class MultiDbManager<C extends AnyRedisClientType> {
       }
     });
     this.#memberConfigs.set(member, config);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ref/unref exist only on some member kinds
+    const client = member.client as any;
+    if (this.refState !== null && typeof client[this.refState] === 'function') {
+      client[this.refState]();
+    }
     return member;
   }
 

@@ -366,6 +366,10 @@ export default class RedisSentinel<
 
     this.#internal = new RedisSentinelInternal<M, F, S, RESP, TYPE_MAPPING>(options, this.#identity.id);
     this.#internal.on('error', err => this.emit('error', err));
+    // per-node connection errors (master/replica/sentinel node): without this
+    // re-emit they exist only on the internal, and consumers documented to
+    // observe them — the multi-database failure detector among them — see none
+    this.#internal.on('client-error', (event: ClientErrorEvent) => this.emit('client-error', event));
 
     /* forward the lifecycle events the internal emits from its open/ready transitions */
     this.#internal

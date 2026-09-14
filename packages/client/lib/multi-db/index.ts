@@ -44,7 +44,7 @@ export type AnyRedisClientType =
  */
 const INTERCEPTED = new Set<PropertyKey>([
   'connect', 'close', 'destroy', 'quit',
-  'withTypeMapping', 'withCommandOptions', 'withAbortSignal',
+  'withTypeMapping', 'withCommandOptions', 'withAbortSignal', 'asap',
   'multi', 'MULTI', 'duplicate'
 ]);
 
@@ -139,6 +139,17 @@ class MultiDbClientBase<C extends AnyRedisClientType> extends EventEmitter {
   }
 
   /**
+   * As {@link withTypeMapping}, over the asap flag — commands issued through
+   * the view jump the ACTIVE member's queue at each call. Only member kinds
+   * that expose `asap()` support it.
+   * @experimental
+   */
+  asap() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- member kinds type asap themselves
+    return makeDerived(this._mgr, client => (client as any).asap());
+  }
+
+  /**
    * Transaction builder PINNED to one member — a transaction must execute
    * wholly on one member, so it never follows a failover. It pins to the
    * member serving an outstanding WATCH (watch state is connection-scoped),
@@ -219,6 +230,17 @@ function makePinnedMulti<C extends AnyRedisClientType>(
   // the EXEC class-field alias captured the prototype exec at construction —
   // repoint it or it bypasses the gate, the detector feed and the watch release
   if (typeof inner.EXEC === 'function') inner.EXEC = inner.exec;
+  // same policy as the top-level SELECT forwarder: a transaction-scoped SELECT
+  // still changes one member's connection db, which cannot follow a failover
+  for (const method of ['select', 'SELECT'] as const) {
+    if (typeof inner[method] === 'function') {
+      inner[method] = () => {
+        throw new Error(
+          "MultiDb: SELECT is not supported through the multi-db client — set 'database' per member in its options"
+        );
+      };
+    }
+  }
   return inner;
 }
 
@@ -309,6 +331,8 @@ function makeDerived<C extends AnyRedisClientType>(
   dst.withAbortSignal = (signal: AbortSignal) =>
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- member kinds type withX themselves
     makeDerived(mgr, client => (resolve(client) as any).withAbortSignal(signal));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- member kinds type asap themselves
+  dst.asap = () => makeDerived(mgr, client => (resolve(client) as any).asap());
   dst.multi = () => makePinnedMulti(mgr, resolve);
   dst.MULTI = dst.multi;
   return view as unknown as C;
@@ -434,6 +458,29 @@ function attachForwarders<C extends AnyRedisClientType>(
         }
         if (name === 'UNWATCH' || name === 'unwatch') {
           dst[name] = makeUnwatchForwarder(mgr, resolve, name);
+          continue;
+        }
+        // lifecycle, not a command: fan out over every member — unref'ing only
+        // the active one leaves N-1 passive sockets holding the event loop
+        // open. No availability gate (a down member must not fail it), no
+        // detector feed, void return like the base client's.
+        if (name === 'ref' || name === 'unref') {
+          dst[name] = () => {
+            mgr.refState = name as 'ref' | 'unref';
+            for (const db of mgr.databases) {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic dispatch
+              (db.client as any)[name]();
+            }
+          };
+          continue;
+        }
+        // SELECT mutates connection-scoped session state that cannot follow a
+        // failover — the new member would silently serve a different keyspace.
+        // Per-member 'database' options are the supported way.
+        if (name === 'SELECT' || name === 'select') {
+          dst[name] = () => Promise.reject(new Error(
+            "MultiDb: SELECT is not supported through the multi-db client — set 'database' per member in its options"
+          ));
           continue;
         }
         // command / script method → call active's own method (this = active);
