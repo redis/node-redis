@@ -25,6 +25,16 @@ type PubSubState = {
 
 type OnError = (err: unknown) => unknown;
 
+type PendingSubscribe = {
+  type: keyof Subscriptions;
+  channels: string | Array<string>;
+  listener: PubSubListener<boolean>;
+  bufferMode?: boolean;
+  /** set by extractListeners: the intent moved with the extraction, so the
+   * teardown-caused rejection of this dispatch is not a failure */
+  carried?: boolean;
+};
+
 export class PubSubProxy extends EventEmitter {
   #clientOptions;
   #onError;
@@ -32,6 +42,8 @@ export class PubSubProxy extends EventEmitter {
   #node?: RedisNode;
   #state?: PubSubState;
   #subscriptions?: Subscriptions;
+  /** in-flight subscribes — see {@link PubSubProxy.prototype.extractListeners} */
+  readonly #pendingSubscribes = new Set<PendingSubscribe>();
 
   constructor(
     clientOptions: AnyRedisClientOptions,
@@ -152,6 +164,29 @@ export class PubSubProxy extends EventEmitter {
       [PUBSUB_TYPE.SHARDED]: new Map()
     };
 
+    // an in-flight subscribe lives only in its dispatch closure until the wire
+    // command resolves — and destroy() below silences or rejects that dispatch.
+    // Fold its intent into the snapshot (the listener Sets dedupe one that also
+    // reached the live maps) and mark it carried so its settlement is not
+    // reported as a failure.
+    for (const pending of this.#pendingSubscribes) {
+      pending.carried = true;
+      const { type, channels, listener, bufferMode } = pending;
+      const typeListeners = subscriptions[type];
+      for (const channel of Array.isArray(channels) ? channels : [channels]) {
+        let channelListeners = typeListeners.get(channel);
+        if (!channelListeners) {
+          channelListeners = { unsubscribing: false, buffers: new Set(), strings: new Set() };
+          typeListeners.set(channel, channelListeners);
+        }
+        if (bufferMode) {
+          channelListeners.buffers.add(listener as PubSubListener<true>);
+        } else {
+          channelListeners.strings.add(listener as PubSubListener<false>);
+        }
+      }
+    }
+
     this.destroy();
     return subscriptions;
   }
@@ -196,13 +231,30 @@ export class PubSubProxy extends EventEmitter {
     });
   }
 
+  /** Track an in-flight subscribe for the duration of its dispatch, so
+   * {@link extractListeners} can carry it during that window. */
+  async #trackedSubscribe<T>(pending: PendingSubscribe, execute: () => T): Promise<Awaited<T> | undefined> {
+    this.#pendingSubscribes.add(pending);
+    try {
+      return await execute();
+    } catch (err) {
+      // the extraction that tore this client down carried the intent to the
+      // adopting member — the subscribe semantically succeeded there
+      if (pending.carried) return undefined;
+      throw err;
+    } finally {
+      this.#pendingSubscribes.delete(pending);
+    }
+  }
+
   subscribe<T extends boolean = false>(
     channels: string | Array<string>,
     listener: PubSubListener<T>,
     bufferMode?: T
   ) {
-    return this.#executeCommand(
-      client => client.SUBSCRIBE(channels, listener, bufferMode)
+    return this.#trackedSubscribe(
+      { type: PUBSUB_TYPE.CHANNELS, channels, listener: listener as PubSubListener<boolean>, bufferMode },
+      () => this.#executeCommand(client => client.SUBSCRIBE(channels, listener, bufferMode))
     );
   }
 
@@ -232,8 +284,9 @@ export class PubSubProxy extends EventEmitter {
     listener: PubSubListener<T>,
     bufferMode?: T
   ) {
-    return this.#executeCommand(
-      client => client.PSUBSCRIBE(patterns, listener, bufferMode)
+    return this.#trackedSubscribe(
+      { type: PUBSUB_TYPE.PATTERNS, channels: patterns, listener: listener as PubSubListener<boolean>, bufferMode },
+      () => this.#executeCommand(client => client.PSUBSCRIBE(patterns, listener, bufferMode))
     );
   }
 
@@ -250,8 +303,9 @@ export class PubSubProxy extends EventEmitter {
     listener: PubSubListener<T>,
     bufferMode?: T
   ) {
-    return this.#executeCommand(
-      client => client.SSUBSCRIBE(channels, listener, bufferMode)
+    return this.#trackedSubscribe(
+      { type: PUBSUB_TYPE.SHARDED, channels, listener: listener as PubSubListener<boolean>, bufferMode },
+      () => this.#executeCommand(client => client.SSUBSCRIBE(channels, listener, bufferMode))
     );
   }
 

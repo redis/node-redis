@@ -982,6 +982,59 @@ export default class RedisClusterSlots<
     return merged;
   }
 
+  /**
+   * @internal
+   * Adopt listeners handed over from another cluster (the multi-database
+   * client moves subscriptions with the traffic on failover). Seeds the
+   * target pub/sub clients' listener maps SYNCHRONOUSLY — those maps are what
+   * {@link removeAllPubSubListeners} extracts, so a second failover arriving
+   * mid-adoption still finds every listener; the wire subscribes ride each
+   * client's own connect/handshake replay. Resolves once the wire confirms.
+   */
+  extendAllPubSubListeners(allListeners: PubSubListeners): Promise<unknown> {
+    const promises: Array<Promise<unknown>> = [];
+
+    const channels = allListeners[PUBSUB_TYPE.CHANNELS];
+    const patterns = allListeners[PUBSUB_TYPE.PATTERNS];
+    if (channels.size || patterns.size) {
+      if (!this.pubSubNode) {
+        if (this.masters.length === 0) {
+          promises.push(Promise.reject(new Error('cannot adopt pub/sub listeners: no known cluster nodes')));
+        } else {
+          // sync side-effect: assigns this.pubSubNode with a connecting client
+          promises.push(this.#initiatePubSubClient());
+        }
+      }
+      if (this.pubSubNode) {
+        promises.push(
+          this.pubSubNode.client.extendPubSubListeners(PUBSUB_TYPE.CHANNELS, channels),
+          this.pubSubNode.client.extendPubSubListeners(PUBSUB_TYPE.PATTERNS, patterns)
+        );
+      }
+    }
+
+    for (const [channel, listeners] of allListeners[PUBSUB_TYPE.SHARDED]) {
+      const master = this.slots[calculateSlot(channel)]?.master;
+      if (!master) {
+        promises.push(Promise.reject(
+          new Error(`cannot adopt sharded pub/sub listeners for "${channel}": unknown slot owner`)
+        ));
+        continue;
+      }
+      if (!master.pubSub) {
+        // sync side-effect: assigns master.pubSub with a connecting client
+        promises.push(this.#initiateShardedPubSubClient(master));
+      }
+      promises.push(
+        master.pubSub!.client.extendPubSubChannelListeners(PUBSUB_TYPE.SHARDED, channel, listeners)
+      );
+    }
+
+    // Promise.all attaches a handler to every promise — a failed connect or
+    // subscribe surfaces to the caller instead of as an unhandled rejection
+    return Promise.all(promises);
+  }
+
   destroy() {
     this.#isOpen = false;
     this.#isReady = false;

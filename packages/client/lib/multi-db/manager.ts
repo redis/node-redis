@@ -26,9 +26,12 @@ export interface MemberAdapter<C extends AnyRedisClientType> {
   /**
    * Move pub/sub subscriptions from the old to the new active member after a
    * switch: detach every listener from `from` (so a recovering old member does
-   * not double-deliver) and re-subscribe them on `to`. Omit when the topology
-   * does not support cross-member transfer — the switch then leaves
-   * subscriptions behind instead of duplicating deliveries.
+   * not double-deliver) and re-subscribe them on `to`. Implementations MUST
+   * hand the listeners into `to`'s own extractable state before their first
+   * await — switches don't wait for each other, so a second failover may
+   * re-extract from `to` while this move's wire work is still in flight.
+   * Omit when the topology does not support cross-member transfer — the
+   * switch then leaves subscriptions behind instead of duplicating deliveries.
    */
   movePubSub?(from: C, to: C): Promise<void>;
   /**
@@ -82,6 +85,13 @@ export class MultiDbManager<C extends AnyRedisClientType> {
   #failoverInFlight = false;
   /** forced selection: suspends auto-fallback until released or the member fails */
   #pinnedTo: Database<C> | null = null;
+  /**
+   * Member serving an outstanding WATCH. Watch state is connection-scoped, so
+   * the whole session — later WATCH/UNWATCH calls and `multi()` — routes here
+   * (`index.ts` watch forwarders): the optimistic lock either keeps its member
+   * or fails loudly through that member's own epoch machinery, never silently.
+   */
+  watchedMember: Database<C> | null = null;
   readonly #teardown = new AbortController();
   #events?: MultiDbEventOutlet;
   readonly #healthTimers = new Map<Database<C>, NodeJS.Timeout>();
@@ -434,6 +444,14 @@ export class MultiDbManager<C extends AnyRedisClientType> {
     const afterProbe = this.#unavailable as 'searching' | 'failed' | null;
     if (afterProbe === 'failed') {
       throw new Error('MultiDb: the client is permanently unavailable');
+    }
+    // the same await lets close() or removeDatabase(id) land mid-probe —
+    // forcing a removed member would pin traffic on a client nothing monitors
+    if (this.#teardown.signal.aborted) {
+      throw new Error('MultiDb: the client is closed');
+    }
+    if (!this.#databases.includes(target)) {
+      throw new TypeError(`MultiDb: no database with id "${id}"`);
     }
 
     if (target.circuit.close()) {
