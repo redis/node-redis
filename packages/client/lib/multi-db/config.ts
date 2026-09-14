@@ -81,8 +81,13 @@ export interface MultiDbConfig {
   healthCheck?: HealthCheckConfig;
   /** health-check chain — all checks must pass. Default: the built-in PING check. */
   healthChecks?: Array<HealthCheck>;
-  /** custom detector instance, or thresholds for the default one. */
-  failureDetector?: FailureDetector | FailureDetectorConfig;
+  /**
+   * Custom detector: an instance, a factory, or thresholds for the default
+   * one. Pass a FACTORY when the client will be duplicate()d — the detector is
+   * stateful and each clone must get its own; duplicate() refuses a raw
+   * instance for that reason.
+   */
+  failureDetector?: FailureDetector | (() => FailureDetector) | FailureDetectorConfig;
   failoverStrategy?: FailoverStrategy;
   /** failover attempts before `PermanentlyUnavailableError`. Default 10. */
   maxFailoverAttempts?: number;
@@ -134,7 +139,7 @@ export interface ResolvedMultiDbConfig {
   healthCheck: ResolvedHealthCheckConfig;
   /** undefined = the default PING chain (built by the health-check runner). */
   healthChecks?: Array<HealthCheck>;
-  failureDetector: FailureDetector | ResolvedFailureDetectorConfig;
+  failureDetector: FailureDetector | (() => FailureDetector) | ResolvedFailureDetectorConfig;
   /** undefined = `WeightBasedStrategy`. */
   failoverStrategy?: FailoverStrategy;
   maxFailoverAttempts: number;
@@ -237,15 +242,19 @@ export function resolveMultiDbConfig<DB extends DatabaseConfig<unknown>>(
     throw new TypeError('MultiDb: healthChecks must not be empty; omit it to use the default PING check');
   }
 
-  const failureDetector = config.failureDetector !== undefined && isFailureDetector(config.failureDetector)
+  // a factory passes through untouched — each manager invokes it for its own
+  // instance (duplicate() relies on this)
+  const failureDetector = typeof config.failureDetector === 'function'
     ? config.failureDetector
-    : {
-        // not in MULTI_DB_DEFAULTS — the table stays data-only (deep-equal pinned by config.spec.ts)
-        errorFilter: () => true,
-        ...MULTI_DB_DEFAULTS.failureDetector,
-        ...config.failureDetector
-      };
-  if (!isFailureDetector(failureDetector)) {
+    : config.failureDetector !== undefined && isFailureDetector(config.failureDetector)
+      ? config.failureDetector
+      : {
+          // not in MULTI_DB_DEFAULTS — the table stays data-only (deep-equal pinned by config.spec.ts)
+          errorFilter: () => true,
+          ...MULTI_DB_DEFAULTS.failureDetector,
+          ...config.failureDetector
+        };
+  if (typeof failureDetector !== 'function' && !isFailureDetector(failureDetector)) {
     // negated comparisons also reject NaN, here and below
     if (!(failureDetector.minNumOfFailures >= 0)) {
       throw new TypeError(`MultiDb: failureDetector.minNumOfFailures must be >= 0, got ${failureDetector.minNumOfFailures}`);
