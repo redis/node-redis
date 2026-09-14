@@ -420,6 +420,29 @@ describe('multi-db', function () {
         client.destroy();
       }
     });
+
+    it('an asap() view follows the active member and composes with other views', () =>
+      withMultiDb(
+        { databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })] },
+        async ({ client, controller }) => {
+          const view = client.asap();
+          await view.set('asap-key', 'on-a');
+          await controller.setActiveDatabase('db-1');
+          await view.set('asap-key', 'on-b');
+
+          const directB = RedisClient.create({ socket: { host: '127.0.0.1', port: serverB.port } });
+          await directB.connect();
+          try {
+            assert.equal(await directB.get('asap-key'), 'on-b', 'asap view writes must follow the active member');
+          } finally {
+            directB.destroy();
+          }
+
+          const composed = await client.withTypeMapping({ [RESP_TYPES.BLOB_STRING]: Buffer }).asap().get('asap-key');
+          assert.ok(Buffer.isBuffer(composed), 'asap must compose with other derived views');
+        }
+      )
+    );
   });
 
   describe('pinned surfaces', () => {
@@ -557,6 +580,32 @@ describe('multi-db', function () {
           }
         }
       )
+    );
+
+    it('ref() and unref() fan out across every member', () =>
+      withMultiDb({ databases: [memberOf(serverA), memberOf(serverB)] }, async ({ client }) => {
+        const members = (client as unknown as {
+          _mgr: { databases: ReadonlyArray<{ id: string; client: { unref(): void } }> }
+        })._mgr.databases;
+
+        const calls: Array<string> = [];
+        for (const db of members) {
+          const original = db.client.unref.bind(db.client);
+          db.client.unref = () => { calls.push(db.id); original(); };
+        }
+        client.unref();
+        assert.deepEqual(calls.sort(), ['db-0', 'db-1'], 'unref must reach every member socket');
+        client.ref(); // leave the fixture referenced for the tests that follow
+      })
+    );
+
+    it('runtime SELECT is rejected with guidance, in commands and in the multi builder', () =>
+      withMultiDb({ databases: [memberOf(serverA)] }, async ({ client }) => {
+        await assert.rejects(client.select(1), /SELECT is not supported through the multi-db client/);
+        assert.throws(() => client.multi().select(1), /SELECT is not supported through the multi-db client/);
+        // the client stays usable — only the session-state mutation is refused
+        assert.equal(await client.ping(), 'PONG');
+      })
     );
 
     it('exec(true) and the EXEC alias each report exactly one outcome to the detector', () =>
