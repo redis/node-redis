@@ -566,6 +566,50 @@ describe('multi-db manager (unit)', function () {
     mgr.destroy();
   });
 
+  it('a force whose target is removed during its probe round rejects instead of switching', async () => {
+    const { mgr, fakes, received } = makeHarness(2, {
+      healthCheck: { interval: 1_000, timeout: 500, numProbes: 1, delayBetweenProbes: 0 }
+    });
+    await mgr.connect();
+
+    // the force target's verification probe answers only when released
+    let releaseProbe!: () => void;
+    fakes.get('db-1')!.onCommand = () => new Promise(resolve => {
+      releaseProbe = () => resolve('PONG');
+    });
+
+    const force = mgr.setActiveDatabase('db-1');
+    await mgr.removeDatabase('db-1'); // lands while the probe is in flight
+    releaseProbe();
+
+    await assert.rejects(force, /no database with id "db-1"/);
+    assert.equal(mgr.activeDatabase.id, 'db-0');
+    assert.equal(mgr.databases.length, 1);
+    assert.ok(
+      !received.some(r => r.event === 'failover'),
+      'the stale force must not announce a switch'
+    );
+    mgr.destroy();
+  });
+
+  it("close() during a force's probe round fails the force", async () => {
+    const { mgr, fakes } = makeHarness(2, {
+      healthCheck: { interval: 1_000, timeout: 500, numProbes: 1, delayBetweenProbes: 0 }
+    });
+    await mgr.connect();
+
+    let releaseProbe!: () => void;
+    fakes.get('db-1')!.onCommand = () => new Promise(resolve => {
+      releaseProbe = () => resolve('PONG');
+    });
+
+    const force = mgr.setActiveDatabase('db-1');
+    await mgr.close();
+    releaseProbe();
+
+    await assert.rejects(force, /the client is closed/);
+  });
+
   it('addDatabase after permanent failure joins the set but does not lift the gate', async () => {
     const { mgr } = makeHarness(2, {
       maxFailoverAttempts: 2,

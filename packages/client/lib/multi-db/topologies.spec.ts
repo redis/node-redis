@@ -203,6 +203,41 @@ describe('multi-db topologies', function () {
       }
     });
 
+    it('keeps subscriptions through back-to-back switches (extraction runs mid-adoption)', async () => {
+      const { client, controller } = createMultiDbCluster({
+        ...FAST_FAILOVER,
+        autoFallbackInterval: -1,
+        databases: [
+          { ...memberOf(clusterA), weight: 1 },
+          { ...memberOf(clusterB), weight: 0.5 }
+        ]
+      });
+      const typed: RedisClusterType = client;
+      await typed.connect();
+      client.on('error', () => {});
+      try {
+        const received: Array<string> = [];
+        await typed.subscribe('bouncing-news', message => {
+          received.push(message.toString());
+        });
+
+        // no pause between the forces: the second switch extracts from db-1
+        // while the first move's wire subscribes are typically still in
+        // flight — the synchronously seeded maps must carry the listener
+        await controller.setActiveDatabase('db-1');
+        await controller.setActiveDatabase('db-0');
+
+        const deadline = Date.now() + 10_000;
+        while (received.length === 0 && Date.now() < deadline) {
+          await typed.publish('bouncing-news', 'still-here');
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        assert.ok(received.includes('still-here'), 'subscription must survive back-to-back switches');
+      } finally {
+        client.destroy();
+      }
+    });
+
     it('a single dead shard fails commands but opens the member circuit only at detector thresholds', async function () {
       this.timeout(60_000);
       const { client } = createMultiDbCluster({

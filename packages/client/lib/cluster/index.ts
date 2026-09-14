@@ -985,11 +985,23 @@ export default class RedisCluster<
   /**
    * @internal
    * Detach and return every pub/sub listener across the cluster. Paired with
-   * {@link resubscribeAllPubSubListeners} so the multi-database client can move
-   * subscriptions to another cluster on failover.
+   * {@link RedisCluster.prototype._extendAllPubSubListeners} so the
+   * multi-database client can move subscriptions to another cluster on
+   * failover.
    */
   _removeAllPubSubListeners() {
     return this._self._slots.removeAllPubSubListeners();
+  }
+
+  /**
+   * @internal
+   * Adopt pub/sub listeners extracted from another cluster: seeded into this
+   * cluster's own extractable pub/sub state synchronously, wire-confirmed
+   * asynchronously. Counterpart of
+   * {@link RedisCluster.prototype._removeAllPubSubListeners}.
+   */
+  _extendAllPubSubListeners(allListeners: PubSubListeners) {
+    return this._self._slots.extendAllPubSubListeners(allListeners);
   }
 
   /**
