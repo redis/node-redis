@@ -135,6 +135,13 @@ describe('resolveMultiDbConfig', () => {
       assert.throws(() => resolveMultiDbConfig([DB], { healthCheck: { delayBetweenProbes: -1 } }), /delayBetweenProbes/);
     });
 
+    it('rejects emitInvalidate on member options', () => {
+      assert.throws(
+        () => resolveMultiDbConfig([{ options: { emitInvalidate: true } }]),
+        /emitInvalidate/
+      );
+    });
+
     it('rejects an empty healthChecks chain', () => {
       assert.throws(() => resolveMultiDbConfig([DB], { healthChecks: [] }), /healthChecks must not be empty/);
     });
