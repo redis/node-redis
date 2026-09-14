@@ -10,7 +10,7 @@ const TARGET: HealthCheckTarget = {
 };
 
 describe('LagAwareHealthCheck', () => {
-  const requests: Array<{ url: string; authorization?: string }> = [];
+  const requests: Array<{ url: string; authorization?: string; custom?: string }> = [];
   let server: Server;
   let endpoint: string;
   let status = 200;
@@ -18,7 +18,11 @@ describe('LagAwareHealthCheck', () => {
 
   before(async () => {
     server = createServer((req, res) => {
-      requests.push({ url: req.url!, authorization: req.headers.authorization });
+      requests.push({
+        url: req.url!,
+        authorization: req.headers.authorization,
+        custom: req.headers['x-custom'] as string | undefined
+      });
       if (hang) return; // never respond — the request must time out client-side
       res.statusCode = status;
       res.end('{}');
@@ -59,6 +63,36 @@ describe('LagAwareHealthCheck', () => {
       requests[0].authorization,
       `Basic ${Buffer.from('user:pass').toString('base64')}`
     );
+  });
+
+  it('carries custom headers in every HeadersInit form', async () => {
+    // a Headers instance and tuple pairs are type-legal too — an object
+    // spread used to silently drop both
+    const asInstance = new LagAwareHealthCheck({
+      restEndpoint: endpoint,
+      bdbUid: 1,
+      credentials: { username: 'u', password: 'p' },
+      requestOptions: { headers: new Headers({ 'x-custom': 'from-instance' }) }
+    });
+    assert.equal(await asInstance.probe(TARGET), true);
+
+    const asTuples = new LagAwareHealthCheck({
+      restEndpoint: endpoint,
+      bdbUid: 1,
+      requestOptions: { headers: [['x-custom', 'from-tuples']] }
+    });
+    assert.equal(await asTuples.probe(TARGET), true);
+
+    const asRecord = new LagAwareHealthCheck({
+      restEndpoint: endpoint,
+      bdbUid: 1,
+      requestOptions: { headers: { 'x-custom': 'from-record' } }
+    });
+    assert.equal(await asRecord.probe(TARGET), true);
+
+    assert.deepEqual(requests.map(request => request.custom), ['from-instance', 'from-tuples', 'from-record']);
+    // the check's own authorization still wins over user-supplied headers
+    assert.equal(requests[0].authorization, `Basic ${Buffer.from('u:p').toString('base64')}`);
   });
 
   it('applies the 5s default lag tolerance', async () => {
