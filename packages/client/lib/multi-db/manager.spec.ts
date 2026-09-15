@@ -68,12 +68,18 @@ interface Harness {
   fakes: Map<string, FakeClient>;
   events: EventEmitter;
   received: Array<{ event: string; payload: unknown }>;
+  /** members whose unsent queue the manager abandoned (rejectQueued calls) */
+  rejectedQueues: Array<FakeClient>;
+  /** pub/sub moves the adapter performed, as [from, to] */
+  pubSubMoves: Array<[FakeClient, FakeClient]>;
   /** configure a fake before the manager sees it (runtime adds) */
   onCreate?: (fake: FakeClient, id: string) => void;
 }
 
 function makeHarness(memberCount: number, overrides: MultiDbConfig = {}): Harness {
   const harness = {} as Harness;
+  harness.rejectedQueues = [];
+  harness.pubSubMoves = [];
   const fakes = new Map<string, FakeClient>();
   const adapter: MemberAdapter<AnyRedisClientType> = {
     create: config => {
@@ -83,7 +89,13 @@ function makeHarness(memberCount: number, overrides: MultiDbConfig = {}): Harnes
       harness.onCreate?.(fake, id);
       return fake as unknown as AnyRedisClientType;
     },
-    sendCommand: client => (client as unknown as FakeClient).handleCommand()
+    sendCommand: client => (client as unknown as FakeClient).handleCommand(),
+    movePubSub: async (from, to) => {
+      harness.pubSubMoves.push([from as unknown as FakeClient, to as unknown as FakeClient]);
+    },
+    rejectQueued: from => {
+      harness.rejectedQueues.push(from as unknown as FakeClient);
+    }
   };
   const { databases, config } = resolveMultiDbConfig(
     Array.from({ length: memberCount }, () => ({ options: {} })),
@@ -608,6 +620,45 @@ describe('multi-db manager (unit)', function () {
     releaseProbe();
 
     await assert.rejects(force, /the client is closed/);
+  });
+
+  it('a recovery connect() that re-selects runs the full switch housekeeping', async () => {
+    const { mgr, fakes, received, rejectedQueues, pubSubMoves } = makeHarness(2, {
+      maxFailoverAttempts: 2,
+      delayBetweenFailoverAttempts: 10
+    });
+    await mgr.connect();
+    assert.equal(mgr.activeDatabase.id, 'db-0');
+
+    // drive to permanent unavailability: no replacement, search exhausts
+    mgr.databases[1].circuit.open();
+    fakes.get('db-0')!.end();
+    const deadline = Date.now() + 1_000;
+    while (!(mgr.unavailableError instanceof PermanentlyUnavailableError) && Date.now() < deadline) {
+      await tick(10);
+    }
+    assert.ok(mgr.unavailableError instanceof PermanentlyUnavailableError);
+
+    // recovery: prefer db-1 so the re-selection repoints away from db-0
+    mgr.setWeight('db-0', 0.5);
+    rejectedQueues.length = 0;
+    pubSubMoves.length = 0;
+    await mgr.connect();
+
+    assert.equal(mgr.activeDatabase.id, 'db-1');
+    assert.ok(
+      rejectedQueues.includes(fakes.get('db-0')!),
+      "the demoted member's unsent queue must be abandoned, or it replays on reconnect"
+    );
+    assert.ok(
+      pubSubMoves.some(([from, to]) => from === fakes.get('db-0') && to === fakes.get('db-1')),
+      'subscriptions must move to the re-selected member'
+    );
+    assert.ok(
+      !received.some(r => r.event === 'failover'),
+      "a recovery re-selection announces 'ready', not a failover"
+    );
+    mgr.destroy();
   });
 
   it('only MASTER-type client-errors count as fault evidence; every type stays observable', async () => {
