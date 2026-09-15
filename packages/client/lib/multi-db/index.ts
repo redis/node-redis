@@ -44,7 +44,7 @@ export type AnyRedisClientType =
  * would silently shadow an unlisted one.
  */
 const INTERCEPTED = new Set<PropertyKey>([
-  'connect', 'close', 'destroy', 'quit',
+  'connect', 'close', 'destroy', 'quit', 'QUIT', 'disconnect',
   'withTypeMapping', 'withCommandOptions', 'withAbortSignal', 'asap',
   'multi', 'MULTI', 'duplicate'
 ]);
@@ -107,6 +107,21 @@ class MultiDbClientBase<C extends AnyRedisClientType> extends EventEmitter {
    */
   quit() {
     return this._mgr.quit();
+  }
+
+  /** Deprecated base-client alias of {@link quit} — same graceful fan-out. @experimental */
+  QUIT() {
+    return this.quit();
+  }
+
+  /**
+   * Deprecated base-client alias of {@link destroy} — fans out the forceful
+   * teardown across all members. Forwarded to only the active member it would
+   * read as a member failure and turn shutdown into a failover.
+   * @experimental
+   */
+  disconnect() {
+    return this._mgr.destroy();
   }
 
   /**
