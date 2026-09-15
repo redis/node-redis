@@ -214,6 +214,23 @@ export class MultiDbManager<C extends RedisClientLike> {
   }
 
   /**
+   * #select for the background paths (fallback timer, failure handling, the
+   * all-down search): user strategy code throwing there would surface as an
+   * uncaughtException or unhandled rejection and kill the process — or strand
+   * #failoverInFlight forever. Degrade to "no candidate" and report through
+   * the guarded error outlet instead. connect() and removeDatabase keep the
+   * raw #select: they have callers to reject to.
+   */
+  #trySelect(candidates: ReadonlyArray<Database<C>>): Database<C> | undefined {
+    try {
+      return this.#select(candidates);
+    } catch (err) {
+      this.#emitError(err as Error);
+      return undefined;
+    }
+  }
+
+  /**
    * Command hot path: `index.ts:attachForwarders` reports the settled outcome
    * of each promise-returning forwarded method call here — plain commands and
    * namespace commands (`json.*`, wrapped per `index.ts:wrapNamespace`) alike —
@@ -309,7 +326,7 @@ export class MultiDbManager<C extends RedisClientLike> {
     failed.circuit.open();
     this.#events?.emit('database-unhealthy', { id: failed.id, cause });
 
-    const target = this.#select(this.#databases);
+    const target = this.#trySelect(this.#databases);
     if (target) {
       this.switchTo(target, reason);
       return;
@@ -340,7 +357,7 @@ export class MultiDbManager<C extends RedisClientLike> {
       }
       // background recovery probing keeps running during the search — a member
       // whose circuit closes here is what makes an attempt succeed
-      const target = this.#select(this.#databases);
+      const target = this.#trySelect(this.#databases);
       if (target) {
         this.#unavailable = null;
         this.#failoverInFlight = false;
@@ -456,7 +473,7 @@ export class MultiDbManager<C extends RedisClientLike> {
 
   #maybeFallback(): void {
     if (this.#unavailable !== null || this.#pinnedTo !== null) return;
-    const candidate = this.#select(this.#databases);
+    const candidate = this.#trySelect(this.#databases);
     // strictly higher weight only: equal-weight members must not ping-pong
     if (candidate && candidate !== this.#active && candidate.weight > this.#active.weight) {
       this.switchTo(candidate, 'fallback');
