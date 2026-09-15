@@ -193,6 +193,9 @@ describe('resolveMultiDbConfig', () => {
       ['autoFallbackInterval Infinity', { autoFallbackInterval: Infinity }],
       // unknown enum values fail silently downstream: probe rounds fail closed,
       // the initial-availability gate degrades to ONE
+      // individually bounded durations whose combined round budget overflows
+      // the timer range would clamp every connect attempt to 1ms
+      ['health-check round budget above the timer range', { healthCheck: { numProbes: 2, timeout: 1.5e9, interval: 1.6e9 } }],
       ['healthCheck.policy unknown', { healthCheck: { policy: 'SOMETIMES' } }],
       ['initialAvailability unknown', { initialAvailability: 'ANY' }]
     ];

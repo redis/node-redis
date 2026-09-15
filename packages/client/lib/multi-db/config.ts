@@ -1,6 +1,8 @@
 import type { RedisPoolOptions } from '../client/pool';
 import type { FailureDetector } from './failure-detector';
 import type { HealthCheck } from './health-check';
+// value import, but health-check's own config imports are type-only — no cycle
+import { probeRoundBudget } from './health-check';
 import type { FailoverStrategy } from './failover-strategy';
 
 /**
@@ -265,6 +267,16 @@ export function resolveMultiDbConfig<DB extends DatabaseConfig<unknown>>(
     // an unknown policy fails every probe round (fail-closed) with nothing
     // pointing at the typo
     throw new TypeError(`MultiDb: healthCheck.policy must be one of ALL | MAJORITY | ANY, got ${healthCheck.policy}`);
+  }
+  // each duration is bounded above, but their combination feeds one timer too:
+  // the probe-round budget bounds member connects, and a product past the
+  // timer max would clamp every connect attempt to 1ms
+  const roundBudget = probeRoundBudget(healthCheck);
+  if (!(roundBudget <= MAX_TIMER_MS)) {
+    throw new TypeError(
+      `MultiDb: the health-check round budget (numProbes * timeout + delays between probes = ${roundBudget}) ` +
+      `must be <= ${MAX_TIMER_MS}`
+    );
   }
   // an empty array would silently disable probing instead of falling back to the default check
   if (config.healthChecks !== undefined && config.healthChecks.length === 0) {
