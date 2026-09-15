@@ -297,8 +297,24 @@ export class MultiDbManager<C extends RedisClientLike> {
 
     // watch state cannot follow the switch: invalidate the session so the
     // next EXEC fails with WatchError instead of committing unguarded
-    if (this.watchedMember !== null && this.watchedMember !== target) {
+    if (this.watchedMember !== null && this.watchedMember !== target && !this.watchDirty) {
       this.watchDirty = true;
+      // best-effort: release the abandoned watches on the demoted member —
+      // UNWATCH clears both its server-side watches and its own watch epoch,
+      // so an unrelated transaction after a later fallback to it cannot
+      // spuriously abort. A member that is down cannot be cleaned here:
+      // reconnect drops its server watches, but its client-side epoch
+      // survives, so the first transaction after traffic returns to it may
+      // abort once with a fail-safe WatchError.
+      const abandoned = this.watchedMember.client as unknown as {
+        isReady?: boolean;
+        unwatch?: () => Promise<unknown>;
+      };
+      if (abandoned.isReady && typeof abandoned.unwatch === 'function') {
+        abandoned.unwatch().catch(() => {
+          // the member may drop mid-flight; the epoch guard covers the rest
+        });
+      }
     }
 
     // a dead member's unsent queue must fail now, to its callers — never

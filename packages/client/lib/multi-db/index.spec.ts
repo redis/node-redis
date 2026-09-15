@@ -556,6 +556,34 @@ describe('multi-db', function () {
       )
     );
 
+    it('no spurious abort after traffic returns to the member whose watches were abandoned', () =>
+      withMultiDb(
+        { databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })] },
+        async ({ client, controller }) => {
+          await client.set('stale-watch', 'v');
+          await client.watch('stale-watch');
+          await controller.setActiveDatabase('db-1'); // dirties + releases db-0's watches
+          await assert.rejects(client.multi().set('x', 'y').exec(), WatchError);
+
+          // mutate the previously watched key: with stale watches left behind,
+          // the next transaction on db-0 would abort even though it watches nothing
+          const direct = RedisClient.create({ socket: { host: '127.0.0.1', port: serverA.port } });
+          await direct.connect();
+          try {
+            await direct.set('stale-watch', 'changed');
+          } finally {
+            direct.destroy();
+          }
+
+          await controller.setActiveDatabase('db-0'); // traffic returns
+          assert.ok(
+            await client.multi().set('unrelated', 'ok').exec(),
+            'an unrelated transaction must not abort on abandoned watches'
+          );
+        }
+      )
+    );
+
     it('UNWATCH clears the watch session — the next multi() commits on the active member', () =>
       withMultiDb(
         { databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })] },
