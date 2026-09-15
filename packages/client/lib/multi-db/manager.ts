@@ -243,6 +243,25 @@ export class MultiDbManager<C extends AnyRedisClientType> {
     const from = this.#active;
     if (target === from) return;
 
+    this.#repoint(from, target);
+
+    if (reason === 'fallback') {
+      this.#events?.emit('fallback', { from: from.id, to: target.id });
+    } else {
+      this.#events?.emit('failover', { from: from.id, to: target.id, reason });
+    }
+
+    this.#afterSwitch(from, target).catch(err => this.#emitError(err as Error));
+  }
+
+  /**
+   * The housekeeping every repoint needs — shared by switchTo and connect()'s
+   * recovery re-selection, which must not differ in anything but the
+   * announcement (a recovery announces 'ready', not 'failover'). The pub/sub
+   * move stays with the callers (#afterSwitch): it is the one asynchronous
+   * piece, and each caller owns its error routing.
+   */
+  #repoint(from: Database<C>, target: Database<C>): void {
     // any switch away from the pin means automatic behavior took over —
     // a pin never traps traffic on a failed member
     if (this.#pinnedTo !== null && target !== this.#pinnedTo) {
@@ -268,14 +287,6 @@ export class MultiDbManager<C extends AnyRedisClientType> {
     // a dead member's unsent queue must fail now, to its callers — never
     // replay on the demoted member when it reconnects
     this.#adapter.rejectQueued?.(from.client, new CommandAbandonedError());
-
-    if (reason === 'fallback') {
-      this.#events?.emit('fallback', { from: from.id, to: target.id });
-    } else {
-      this.#events?.emit('failover', { from: from.id, to: target.id, reason });
-    }
-
-    this.#afterSwitch(from, target).catch(err => this.#emitError(err as Error));
   }
 
   async #afterSwitch(from: Database<C>, to: Database<C>): Promise<void> {
@@ -580,16 +591,13 @@ export class MultiDbManager<C extends AnyRedisClientType> {
       throw new Error('MultiDb: no healthy database is selectable');
     }
     if (this.#active !== target) {
-      // an ended member is already DISCONNECTED — don't demote it to PASSIVE
-      if (this.#active.role === 'ACTIVE') {
-        this.#active.role = 'PASSIVE';
-      }
-      this.#active = target;
-      target.role = 'ACTIVE';
-      // a re-selection is a switch for watch purposes too (see switchTo)
-      if (this.watchedMember !== null && this.watchedMember !== target) {
-        this.watchDirty = true;
-      }
+      // a recovery re-selection is a switch in everything but the
+      // announcement — the 'ready' below is its signal, not 'failover'.
+      // Skipping the housekeeping here once replayed a demoted member's
+      // unsent queue and stranded its subscriptions.
+      const from = this.#active;
+      this.#repoint(from, target);
+      this.#afterSwitch(from, target).catch(err => this.#emitError(err as Error));
     }
 
     // a repeat connect() that succeeds lifts the all-down gate — a search loop
