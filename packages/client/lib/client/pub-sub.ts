@@ -48,6 +48,12 @@ export type PubSubListeners = Record<PubSubType, PubSubTypeListeners>;
 export type PubSubCommand = (
   Required<Pick<CommandToWrite, 'args' | 'channelsCounter' | 'resolve'>> & {
     reject: undefined | (() => unknown);
+    /**
+     * True when a teardown carried this subscribe's intent to another client
+     * (multi-db move): the wire rejection is then a SUCCESS for the caller —
+     * the subscription lives on, on the adopting member.
+     */
+    carried?: () => boolean;
   }
 );
 
@@ -104,6 +110,22 @@ export class PubSub {
 
   #subscribing = 0;
 
+  /**
+   * Subscribes whose wire confirm is still in flight: their listeners exist
+   * only in the command closures until the server replies, invisible to
+   * {@link removeAllListeners}. Tracked so a subscription move started
+   * mid-round-trip still carries them; `carried` then makes the late confirm
+   * a no-op (registering would resurrect the subscription on the demoted
+   * client) and the late rejection a caller-visible success.
+   */
+  readonly #pendingSubscribes = new Set<{
+    type: PubSubType;
+    channels: Array<string>;
+    listener: PubSubListener<boolean>;
+    returnBuffers?: boolean;
+    carried: boolean;
+  }>();
+
   #isActive = false;
 
   get isActive() {
@@ -144,11 +166,26 @@ export class PubSub {
 
     this.#isActive = true;
     this.#subscribing++;
+    const pending = {
+      type,
+      channels: channelsArray,
+      listener: listener as PubSubListener<boolean>,
+      returnBuffers: returnBuffers as boolean | undefined,
+      carried: false
+    };
+    this.#pendingSubscribes.add(pending);
     return {
       args,
       channelsCounter: args.length - 1,
       resolve: () => {
         this.#subscribing--;
+        this.#pendingSubscribes.delete(pending);
+        if (pending.carried) {
+          // a move already took this intent to another member — registering
+          // here would resurrect the subscription on the demoted client
+          this.#updateIsActive();
+          return;
+        }
         for (const channel of channelsArray) {
           let listeners = this.listeners[type].get(channel);
           if (!listeners) {
@@ -165,8 +202,10 @@ export class PubSub {
       },
       reject: () => {
         this.#subscribing--;
+        this.#pendingSubscribes.delete(pending);
         this.#updateIsActive();
-      }
+      },
+      carried: () => pending.carried
     } satisfies PubSubCommand;
   }
 
@@ -437,6 +476,23 @@ export class PubSub {
       [PUBSUB_TYPE.CHANNELS]: this.listeners[PUBSUB_TYPE.CHANNELS],
       [PUBSUB_TYPE.PATTERNS]: this.listeners[PUBSUB_TYPE.PATTERNS],
       [PUBSUB_TYPE.SHARDED]: this.listeners[PUBSUB_TYPE.SHARDED]
+    }
+
+    // in-flight subscribes live only in their command closures until the
+    // server confirms — fold their intent into the snapshot (the listener
+    // Sets dedupe one that also landed) and mark them carried so the late
+    // settle neither resurrects the subscription here nor fails its caller
+    for (const pending of this.#pendingSubscribes) {
+      pending.carried = true;
+      const typeListeners = result[pending.type];
+      for (const channel of pending.channels) {
+        let channelListeners = typeListeners.get(channel);
+        if (!channelListeners) {
+          channelListeners = { unsubscribing: false, buffers: new Set(), strings: new Set() };
+          typeListeners.set(channel, channelListeners);
+        }
+        PubSub.#listenersSet(channelListeners, pending.returnBuffers).add(pending.listener);
+      }
     }
 
     this.listeners[PUBSUB_TYPE.CHANNELS] = new Map();
