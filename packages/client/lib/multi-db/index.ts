@@ -374,9 +374,13 @@ function makeDerived<C extends AnyRedisClientType>(
 // iterators) — while every member is down these throw at creation; a rejected
 // promise would TypeError at the first chained call instead of failing
 // meaningfully
+// the gate also treats any '*Iterator' name as pinned-sync structurally —
+// this set once missed two of the six scan iterators, and a new one added to
+// a member kind must not reopen that hole
 const PINNED_SYNC = new Set<string>([
   'legacy',
-  'scanIterator', 'hScanIterator', 'sScanIterator', 'zScanIterator'
+  'scanIterator', 'hScanIterator', 'hScanValuesIterator', 'hScanNoValuesIterator',
+  'sScanIterator', 'zScanIterator'
 ]);
 
 /**
@@ -513,7 +517,7 @@ function attachForwarders<C extends AnyRedisClientType>(
           // surfaces have no promise to reject through and throw instead.
           const unavailable = mgr.unavailableError;
           if (unavailable) {
-            if (PINNED_SYNC.has(name)) throw unavailable;
+            if (PINNED_SYNC.has(name) || name.endsWith('Iterator')) throw unavailable;
             return Promise.reject(unavailable);
           }
           // capture the serving member for outcome attribution: a settlement
