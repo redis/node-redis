@@ -5,7 +5,13 @@
  * and per-member `member-*` pass-throughs. The controller emits nothing.
  */
 
-import type { RedisClientLike, MultiDbResult } from './index';
+import type { MultiDbResult } from './index';
+import type { RedisClientType } from '../client';
+import type { RedisClientPoolType } from '../client/pool';
+import type { RedisClusterType } from '../cluster';
+import type { RedisSentinelType } from '../sentinel/types';
+import type { CommandOptions } from '../client/commands-queue';
+import type { RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
 
 /** @experimental why an automatic switch happened */
 export type FailoverReason = 'failure-detector' | 'health-check' | 'connection-ended' | 'forced' | 'active-removed';
@@ -133,15 +139,60 @@ export interface MultiDbEventEmitter {
 }
 
 /**
- * A multi-db wrapper client: the member kind's full drop-in surface plus the
- * typed multi-db event emitter. One deliberate signature difference:
- * `duplicate()` returns the factory-shaped `{ client, controller }` pair, not
- * a bare client — the type must say so, or `duplicate().connect()` compiles
- * and crashes.
+ * The member kinds the multi-db layer wraps, keyed by name. The key travels
+ * through {@link MultiDbClientType} instead of the client type itself: the
+ * factory always knows its kind statically, so the compiler never has to
+ * infer it by relating a concrete client type against the giant kind shapes —
+ * the exact operation that made the earlier conditional-type design cost
+ * millions of instantiations and collapse cluster views to `never`.
  * @experimental
  */
-export type MultiDbClientType<C extends RedisClientLike> =
-  Omit<C, 'duplicate'> &
+export interface RedisClientKinds<
+  M extends RedisModules,
+  F extends RedisFunctions,
+  S extends RedisScripts,
+  RESP extends RespVersions,
+  TM extends TypeMapping
+> {
+  client: RedisClientType<M, F, S, RESP, TM>;
+  pool: RedisClientPoolType<M, F, S, RESP, TM>;
+  cluster: RedisClusterType<M, F, S, RESP, TM>;
+  sentinel: RedisSentinelType<M, F, S, RESP, TM>;
+}
+
+/** @experimental */
+export type RedisClientKind = keyof RedisClientKinds<
+  RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping
+>;
+
+/**
+ * A multi-db wrapper client: the member kind's full drop-in surface plus the
+ * typed multi-db event emitter. Deliberate signature differences from the
+ * bare member type:
+ * - `duplicate()` returns the factory-shaped `{ client, controller }` pair,
+ *   not a bare client — the type must say so, or `duplicate().connect()`
+ *   compiles and crashes;
+ * - the derived-view members return this same multi-db type, so a view keeps
+ *   the typed event surface and the pair-shaped `duplicate()`, and a mapping
+ *   view keeps reply-type fidelity by pure index substitution (`TM := M2`).
+ * @experimental
+ */
+export type MultiDbClientType<
+  K extends RedisClientKind,
+  M extends RedisModules = {},
+  F extends RedisFunctions = {},
+  S extends RedisScripts = {},
+  RESP extends RespVersions = 3,
+  TM extends TypeMapping = {}
+> =
+  Omit<
+    RedisClientKinds<M, F, S, RESP, TM>[K],
+    // the emitter methods are omitted too: the wrapper's documented event
+    // surface is exactly MultiDbClientEvents, and the kind's untyped
+    // `on(string, ...)` overload would otherwise swallow event-name typos
+    | 'duplicate' | 'withTypeMapping' | 'withCommandOptions' | 'withAbortSignal' | 'asap'
+    | keyof MultiDbEventEmitter
+  > &
   MultiDbEventEmitter &
   {
     /**
@@ -149,5 +200,21 @@ export type MultiDbClientType<C extends RedisClientLike> =
      * see the runtime contract on the wrapper's `duplicate()`.
      * @experimental
      */
-    duplicate(overrides?: object): MultiDbResult<C>;
-  };
+    duplicate(overrides?: object): MultiDbResult<K, M, F, S, RESP, TM>;
+    /** Derived view with the given type mapping — see the wrapper's `withTypeMapping()`. @experimental */
+    withTypeMapping<M2 extends TypeMapping>(typeMapping: M2): MultiDbClientType<K, M, F, S, RESP, M2>;
+    /** Derived view over full command options — see the wrapper's `withCommandOptions()`. @experimental */
+    withCommandOptions<
+      OPTIONS extends CommandOptions<M2>,
+      M2 extends TypeMapping
+    >(options: OPTIONS): MultiDbClientType<K, M, F, S, RESP, M2>;
+  } &
+  // string-literal conditional (free): only the kinds that expose these get them
+  (K extends 'client' | 'pool'
+    ? {
+        /** Derived view over an abort signal. @experimental */
+        withAbortSignal(abortSignal: AbortSignal): MultiDbClientType<K, M, F, S, RESP, TM>;
+        /** Derived view with the asap flag. @experimental */
+        asap(): MultiDbClientType<K, M, F, S, RESP, TM>;
+      }
+    : unknown);

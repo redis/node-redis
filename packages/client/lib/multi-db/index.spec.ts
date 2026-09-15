@@ -62,7 +62,7 @@ describe('multi-db', function () {
   /** run `fn` against a fresh multi-db client, always destroying it afterwards */
   async function withMultiDb(
     options: Parameters<typeof createMultiDbClient>[0],
-    fn: (result: MultiDbResult<RedisClientType>) => Promise<void>
+    fn: (result: MultiDbResult<'client'>) => Promise<void>
   ): Promise<void> {
     const result = createMultiDbClient({ ...FAST, ...options });
     try {
