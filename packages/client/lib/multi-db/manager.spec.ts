@@ -747,6 +747,27 @@ describe('multi-db manager (unit)', function () {
     );
   });
 
+  it('dirtying the watch session releases the demoted member watches, once', async () => {
+    const { mgr, fakes } = makeHarness(3);
+    await mgr.connect();
+    const unwatched: Array<string> = [];
+    for (const [id, fake] of fakes) {
+      const cleanable = fake as unknown as { isReady: boolean; unwatch(): Promise<void> };
+      cleanable.isReady = true;
+      cleanable.unwatch = async () => { unwatched.push(id); };
+    }
+
+    mgr.watchedMember = mgr.databases[0];
+    mgr.switchTo(mgr.databases[1], 'forced');
+    assert.ok(mgr.watchDirty);
+    assert.deepEqual(unwatched, ['db-0'], 'the abandoned watches must be released');
+
+    // a second switch with the session already dirty must not re-fire
+    mgr.switchTo(mgr.databases[2], 'forced');
+    assert.deepEqual(unwatched, ['db-0']);
+    mgr.destroy();
+  });
+
   it('a strategy that starts throwing after connect degrades instead of crashing', async () => {
     let boom = false;
     const strategy = {
