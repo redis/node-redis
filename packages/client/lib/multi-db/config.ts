@@ -183,17 +183,22 @@ export function isFailureDetector(
 
 /**
  * Resolve one member's identity: apply `fallbackId` when no id is given,
- * default the weight to 1 and validate it is within [0, 1]. Uniqueness is the
- * caller's concern.
+ * default the weight to 1 and validate it is within [0, 1]. THE single
+ * source of truth for member-config validation — every path that accepts a
+ * DatabaseConfig from the user (factory databases, addDatabase,
+ * replaceDatabase, duplicate overrides, setWeight) funnels through it.
+ * Pass `existing` to also enforce id uniqueness against a member set.
  */
 export function resolveDatabaseIdentity<DB extends DatabaseConfig<unknown>>(
   db: DB,
-  fallbackId: string
+  fallbackId: string,
+  existing?: Iterable<{ id: string }>
 ): DB & ResolvedDatabaseIdentity {
+  const id = db.id ?? fallbackId;
   const weight = db.weight ?? 1;
   // negated form also rejects NaN
   if (!(weight >= 0 && weight <= 1)) {
-    throw new TypeError(`MultiDb: database "${db.id ?? fallbackId}" weight must be within [0, 1], got ${weight}`);
+    throw new TypeError(`MultiDb: database "${id}" weight must be within [0, 1], got ${weight}`);
   }
   // invalidation pushes fire on the hidden member client and cannot be
   // forwarded soundly across a switch (the new member has no server-side
@@ -202,14 +207,22 @@ export function resolveDatabaseIdentity<DB extends DatabaseConfig<unknown>>(
   // here so runtime adds get the same guard as initial members.
   if ((db.options as { emitInvalidate?: boolean } | undefined)?.emitInvalidate) {
     throw new TypeError(
-      `MultiDb: database "${db.id ?? fallbackId}" sets emitInvalidate, which is not supported on ` +
+      `MultiDb: database "${id}" sets emitInvalidate, which is not supported on ` +
       'multi-db members — use clientSideCache per member instead'
     );
   }
 
+  if (existing) {
+    for (const member of existing) {
+      if (member.id === id) {
+        throw new TypeError(`MultiDb: duplicate database id "${id}"`);
+      }
+    }
+  }
+
   return {
     ...db,
-    id: db.id ?? fallbackId,
+    id,
     weight,
     skipInitialHealthCheck: db.skipInitialHealthCheck ?? false
   };
@@ -231,15 +244,10 @@ export function resolveMultiDbConfig<DB extends DatabaseConfig<unknown>>(
     throw new TypeError('MultiDb: at least one database is required');
   }
 
-  const seen = new Set<string>();
-  const resolvedDatabases = databases.map((db, index) => {
-    const resolved = resolveDatabaseIdentity(db, `db-${index}`);
-    if (seen.has(resolved.id)) {
-      throw new TypeError(`MultiDb: duplicate database id "${resolved.id}"`);
-    }
-    seen.add(resolved.id);
-    return resolved;
-  });
+  const resolvedDatabases: Array<DB & ResolvedDatabaseIdentity> = [];
+  for (const [index, db] of databases.entries()) {
+    resolvedDatabases.push(resolveDatabaseIdentity(db, `db-${index}`, resolvedDatabases));
+  }
 
   const healthCheck = { ...MULTI_DB_DEFAULTS.healthCheck, ...config.healthCheck };
   // negated comparisons also reject NaN; interval > 0 follows from these two

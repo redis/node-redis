@@ -682,10 +682,7 @@ export class MultiDbManager<C extends RedisClientLike> {
     if (this.#teardown.signal.aborted) {
       throw new Error('MultiDb: the client is closed');
     }
-    const resolved = resolveDatabaseIdentity(config, this.#generateId());
-    if (this.#databases.some(db => db.id === resolved.id)) {
-      throw new TypeError(`MultiDb: duplicate database id "${resolved.id}"`);
-    }
+    const resolved = resolveDatabaseIdentity(config, this.#generateId(), this.#databases);
 
     const member = this.#wrapMember(resolved);
     // pre-open: while establishing (an event-loop yield) the member must not
@@ -741,7 +738,8 @@ export class MultiDbManager<C extends RedisClientLike> {
   /**
    * Replace one member in a single call; resolves to the new member's id.
    * With a different (or generated) id the new member is added FIRST and the
-   * old one removed after — redundancy never drops. With the SAME id the old
+   * old one removed after — the member COUNT never drops (the replacement
+ * may still be establishing; its circuit reflects its health). With the SAME id the old
    * member must go first (ids are unique), so the set transiently runs one
    * member short, and the same constraints as removeDatabase apply: not the
    * last member, and an active member needs a healthy replacement. If the
@@ -753,6 +751,9 @@ export class MultiDbManager<C extends RedisClientLike> {
     }
     this.#requireDatabase(id); // unknown ids fail before any mutation
     if (config.id === id) {
+      // the remove-first ordering is forced by id uniqueness — validate the
+      // new config BEFORE the removal, or a malformed one shrinks the set
+      resolveDatabaseIdentity(config, id);
       await this.removeDatabase(id);
       return this.addDatabase(config);
     }
@@ -762,11 +763,10 @@ export class MultiDbManager<C extends RedisClientLike> {
   }
 
   setWeight(id: string, weight: number): void {
-    // negated form also rejects NaN
-    if (!(weight >= 0 && weight <= 1)) {
-      throw new TypeError(`MultiDb: database "${id}" weight must be within [0, 1], got ${weight}`);
-    }
-    this.#requireDatabase(id).weight = weight;
+    const member = this.#requireDatabase(id);
+    // the single validator owns the weight rule
+    resolveDatabaseIdentity({ ...this.#memberConfigs.get(member)!, weight }, id);
+    member.weight = weight;
   }
 
   async close(): Promise<void> {
@@ -880,13 +880,15 @@ export class MultiDbManager<C extends RedisClientLike> {
     }
     const members = this.#databases.map(db => {
       const config = this.#memberConfigs.get(db)!;
-      return {
+      // overrides are user input — the merged member goes through the single
+      // validator like any other config (e.g. emitInvalidate must not sneak in)
+      return resolveDatabaseIdentity({
         ...config,
         weight: db.weight,
         options: overrides === undefined
           ? config.options
           : { ...(config.options as object | undefined), ...overrides }
-      };
+      }, config.id);
     });
     return new MultiDbManager(members, this.#config, this.#adapter);
   }
