@@ -243,8 +243,16 @@ describe('multi-db failover', function () {
       // multi() stays creation-safe: the builder works, the rejection surfaces at exec
       const tx = (client as { multi(): { exec(): Promise<unknown> } }).multi();
       await assert.rejects(tx.exec(), PermanentlyUnavailableError);
-      // pinned sync surfaces still throw at creation
-      assert.throws(() => (client as { scanIterator(): unknown }).scanIterator(), PermanentlyUnavailableError);
+      // pinned sync surfaces still throw at creation — every iterator spelling
+      for (const factory of [
+        'scanIterator', 'hScanIterator', 'hScanValuesIterator', 'hScanNoValuesIterator', 'sScanIterator', 'zScanIterator'
+      ] as const) {
+        assert.throws(
+          () => (client as unknown as Record<string, (arg?: string) => unknown>)[factory]('k'),
+          PermanentlyUnavailableError,
+          `${factory} must throw, not return a rejected promise`
+        );
+      }
       assert.ok(
         traffic.errors.some(err => err instanceof TemporarilyUnavailableError),
         'commands during the search window must fail fast with TemporarilyUnavailableError'
