@@ -830,6 +830,25 @@ describe('multi-db manager (unit)', function () {
     mgr.destroy();
   });
 
+  it('a malformed same-id replacement is rejected before anything is removed', async () => {
+    const { mgr } = makeHarness(2);
+    await mgr.connect();
+    await assert.rejects(
+      mgr.replaceDatabase('db-0', { id: 'db-0', options: {}, weight: 5 }),
+      /weight must be within/
+    );
+    assert.equal(mgr.databases.length, 2, 'the set must be untouched');
+    assert.ok(mgr.databases.some(db => db.id === 'db-0'));
+    mgr.destroy();
+  });
+
+  it('duplicate() validates merged overrides like any other member config', async () => {
+    const { mgr } = makeHarness(1);
+    await mgr.connect();
+    assert.throws(() => mgr.duplicate({ emitInvalidate: true }), /emitInvalidate/);
+    mgr.destroy();
+  });
+
   it('duplicate() invokes a failure-detector factory per manager and refuses a shared instance', async () => {
     const created: Array<object> = [];
     const factory = () => {
