@@ -16,6 +16,8 @@ export interface DatabaseOptions<C extends RedisClientLike> {
   weight: number;
   circuit: Circuit;
   skipInitialHealthCheck?: boolean;
+  /** see MemberAdapter.untypedErrorIsFault - default true */
+  untypedErrorIsFault?: boolean;
 }
 
 /**
@@ -58,6 +60,7 @@ export class Database<C extends RedisClientLike> {
   readonly circuit: Circuit;
   role: DatabaseRole = 'PASSIVE';
   readonly skipInitialHealthCheck: boolean;
+  readonly #untypedErrorIsFault: boolean;
 
   readonly #hooks: DatabaseHooks<C>;
 
@@ -67,7 +70,7 @@ export class Database<C extends RedisClientLike> {
   readonly #onError = (err: Error) => {
     // the client's own 'error' IS the data path (standalone/pool socket,
     // cluster node aggregate) — always fault evidence
-    this.#hooks.onError?.(this, err, true);
+    this.#hooks.onError?.(this, err, this.#untypedErrorIsFault);
   };
 
   readonly #onClientError = (event: { type?: string; error: Error }) => {
@@ -97,6 +100,7 @@ export class Database<C extends RedisClientLike> {
     this.weight = options.weight;
     this.circuit = options.circuit;
     this.skipInitialHealthCheck = options.skipInitialHealthCheck ?? false;
+    this.#untypedErrorIsFault = options.untypedErrorIsFault ?? true;
     this.#hooks = hooks;
 
     (this.client as unknown as EventEmitter)

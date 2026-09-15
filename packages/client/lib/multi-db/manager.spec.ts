@@ -1,6 +1,8 @@
 import { strict as assert } from 'node:assert';
 import { EventEmitter } from 'node:events';
 import { MultiDbManager } from './manager';
+import { Database } from './database';
+import { Circuit } from './circuit';
 import type { MemberAdapter, ResolvedMemberConfig } from './manager';
 import { resolveMultiDbConfig } from './config';
 import type { MultiDbConfig } from './config';
@@ -707,6 +709,29 @@ describe('multi-db manager (unit)', function () {
       "a recovery re-selection announces 'ready', not a failover"
     );
     mgr.destroy();
+  });
+
+  it("a kind whose untyped 'error' channel is noise reports it as non-fault", () => {
+    const calls: Array<{ message: string; counts: boolean }> = [];
+    const fake = new FakeClient();
+    const db = new Database({
+      id: 'sentinel-0',
+      client: fake as unknown as RedisClientLike,
+      weight: 1,
+      circuit: new Circuit({ gracePeriod: 60_000, numProbes: 1 }),
+      untypedErrorIsFault: false // what the sentinel adapter sets
+    }, {
+      onError: (_db, err, counts) => calls.push({ message: err.message, counts })
+    });
+
+    fake.emit('error', new Error('observe loop noise'));
+    fake.emit('client-error', { type: 'MASTER', error: new Error('master down') });
+
+    assert.deepEqual(calls, [
+      { message: 'observe loop noise', counts: false }, // observability only
+      { message: 'master down', counts: true }          // data path still counts
+    ]);
+    db.dispose();
   });
 
   it('only MASTER-type client-errors count as fault evidence; every type stays observable', async () => {

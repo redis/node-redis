@@ -42,6 +42,15 @@ export interface MemberAdapter<C extends RedisClientLike> {
    * Omit when the kind has no reachable unsent queue.
    */
   rejectQueued?(from: C, error: Error): void;
+  /**
+   * Whether the member kind's untyped 'error' events are fault EVIDENCE
+   * (default true — for standalone/pool/cluster the 'error' channel IS the
+   * data path). The sentinel adapter sets false: its public 'error' mixes
+   * node passthrough, observe-loop and pub/sub-proxy noise that a healthy
+   * deployment tolerates; sentinel fault evidence is the MASTER-typed
+   * client-error channel, 'end', command outcomes and health checks.
+   */
+  untypedErrorIsFault?: boolean;
 }
 
 /** One member's resolved config as the manager consumes it. */
@@ -808,6 +817,7 @@ export class MultiDbManager<C extends RedisClientLike> {
       client: this.#adapter.create(config),
       weight: config.weight,
       skipInitialHealthCheck: config.skipInitialHealthCheck,
+      untypedErrorIsFault: this.#adapter.untypedErrorIsFault,
       circuit: new Circuit({
         gracePeriod: this.#config.gracePeriod,
         numProbes: this.#config.healthCheck.numProbes
