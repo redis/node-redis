@@ -315,6 +315,12 @@ export class MultiDbManager<C extends AnyRedisClientType> {
       return;
     }
 
+    // no switch will run rejectQueued for us: abandon the failed member's
+    // unsent queue now, or it replays when the member reconnects — even after
+    // 'terminated'. Covers the same-member recovery too, where switchTo's
+    // target === from early-return would skip it.
+    this.#adapter.rejectQueued?.(failed.client, new CommandAbandonedError());
+
     this.#failoverInFlight = true;
     this.#unavailable = 'searching';
     void this.#searchLoop(reason);

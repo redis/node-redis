@@ -622,6 +622,23 @@ describe('multi-db manager (unit)', function () {
     await assert.rejects(force, /the client is closed/);
   });
 
+  it('the all-down path abandons the failed member queue when the search starts', async () => {
+    const { mgr, fakes, rejectedQueues } = makeHarness(2, {
+      maxFailoverAttempts: 2,
+      delayBetweenFailoverAttempts: 10
+    });
+    await mgr.connect();
+
+    mgr.databases[1].circuit.open(); // no replacement available
+    fakes.get('db-0')!.end();        // active dies → the search loop starts
+
+    assert.ok(
+      rejectedQueues.includes(fakes.get('db-0')!),
+      'the unsent queue must be abandoned when the search starts, not only at a switch'
+    );
+    mgr.destroy();
+  });
+
   it('a recovery connect() that re-selects runs the full switch housekeeping', async () => {
     const { mgr, fakes, received, rejectedQueues, pubSubMoves } = makeHarness(2, {
       maxFailoverAttempts: 2,
