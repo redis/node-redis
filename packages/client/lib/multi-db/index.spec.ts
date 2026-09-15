@@ -657,6 +657,36 @@ describe('multi-db', function () {
       })
     );
 
+    it("a listener's unsubscribe inside the failover event is not undone by the move", () =>
+      withMultiDb(
+        { databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })] },
+        async ({ client, controller }) => {
+          const received: Array<string> = [];
+          await client.subscribe('reactive', message => received.push(message));
+          client.on('failover', () => {
+            // reacting to the switch: by now the new member must hold the
+            // moved subscription state, so this must stick
+            client.unsubscribe('reactive').catch(() => {});
+          });
+
+          await controller.setActiveDatabase('db-1');
+
+          const publisher = RedisClient.create({ socket: { host: '127.0.0.1', port: serverB.port } });
+          await publisher.connect();
+          try {
+            await new Promise(resolve => setTimeout(resolve, 300)); // let the unsubscribe land
+            for (let i = 0; i < 5; i++) {
+              await publisher.publish('reactive', 'zombie');
+              await new Promise(resolve => setTimeout(resolve, 100));
+            }
+          } finally {
+            publisher.destroy();
+          }
+          assert.equal(received.length, 0, 'the unsubscribed channel must stay silent after the move');
+        }
+      )
+    );
+
     it('exec(true) and the EXEC alias each report exactly one outcome to the detector', () =>
       (async () => {
         const outcomes: Array<boolean> = [];

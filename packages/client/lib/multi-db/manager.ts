@@ -262,13 +262,17 @@ export class MultiDbManager<C extends RedisClientLike> {
 
     this.#repoint(from, target);
 
+    // the pub/sub handover runs BEFORE the announcement: adapters seed the
+    // target's listener maps synchronously, so a listener reacting to the
+    // event sees complete subscription state — emitted first, its
+    // unsubscribe would hit an empty map and be resurrected by the move
+    this.#afterSwitch(from, target).catch(err => this.#emitError(err as Error));
+
     if (reason === 'fallback') {
       this.#events?.emit('fallback', { from: from.id, to: target.id });
     } else {
       this.#events?.emit('failover', { from: from.id, to: target.id, reason });
     }
-
-    this.#afterSwitch(from, target).catch(err => this.#emitError(err as Error));
   }
 
   /**
