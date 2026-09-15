@@ -2,7 +2,7 @@ import { strict as assert } from 'node:assert';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createMultiDbClient } from '.';
-import type { AnyRedisClientType } from '.';
+import type { RedisClientLike } from '.';
 import RedisClient from '../client';
 import { TemporarilyUnavailableError, PermanentlyUnavailableError, CommandAbandonedError } from './errors';
 import type { RedisServerDocker } from '@redis/test-utils';
@@ -56,7 +56,7 @@ describe('multi-db failover', function () {
   const kill = killServer;
 
   /** shared 50ms incr traffic against the wrapper */
-  function startTraffic(client: AnyRedisClientType, intervalMs = 50) {
+  function startTraffic(client: RedisClientLike, intervalMs = 50) {
     return startOps(() => (client as { incr(key: string): Promise<number> }).incr('traffic'), intervalMs);
   }
 
