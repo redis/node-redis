@@ -1,5 +1,5 @@
 import { CommandParser } from '../client/parser';
-import { RedisArgument, ArrayReply, UnwrapReply, Command, TypeMapping } from '../RESP/types';
+import { RedisArgument, ArrayReply, NullReply, UnwrapReply, Command, TypeMapping } from '../RESP/types';
 import { StreamMessageRawReply, transformStreamMessageReply } from './generic-transformers';
 
 /**
@@ -26,7 +26,7 @@ export function xRangeArguments(
 ) {
   const args = [start, end];
 
-  if (options?.COUNT) {
+  if (options?.COUNT !== undefined) {
     args.push('COUNT', options.COUNT.toString());
   }
 
@@ -48,10 +48,13 @@ export default {
    * @returns Array of structured message objects
    */
   transformReply(
-    reply: UnwrapReply<ArrayReply<StreamMessageRawReply>>,
+    reply: UnwrapReply<ArrayReply<StreamMessageRawReply> | NullReply>,
     preserve?: unknown,
     typeMapping?: TypeMapping
   ) {
-    return reply.map(transformStreamMessageReply.bind(undefined, typeMapping));
+    if (reply === null) return null as unknown as NullReply;
+
+    return (reply as unknown as UnwrapReply<ArrayReply<StreamMessageRawReply>>)
+      .map(transformStreamMessageReply.bind(undefined, typeMapping));
   }
 } as const satisfies Command;

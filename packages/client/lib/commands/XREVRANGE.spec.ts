@@ -20,6 +20,15 @@ describe('XREVRANGE', () => {
         ['XREVRANGE', 'key', '-', '+', 'COUNT', '1']
       );
     });
+
+    it('with COUNT 0', () => {
+      assert.deepEqual(
+        parseArgs(XREVRANGE, 'key', '-', '+', {
+          COUNT: 0
+        }),
+        ['XREVRANGE', 'key', '-', '+', 'COUNT', '0']
+      );
+    });
   });
 
   testUtils.testAll('xRevRange', async client => {
@@ -39,6 +48,30 @@ describe('XREVRANGE', () => {
       id,
       message
     }]);
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
+
+  testUtils.testAll('xRevRange with COUNT 0', async client => {
+    const message = Object.defineProperties({}, {
+      field: {
+        value: 'value',
+        enumerable: true
+      }
+    });
+
+    const id = await client.xAdd('key', '*', message);
+
+    assert.equal(
+      await client.xRevRange('key', '+', '-', { COUNT: 0 }),
+      null
+    );
+
+    assert.deepEqual(
+      await client.xRevRange('key', '+', '-', { COUNT: 1 }),
+      [{ id, message }]
+    );
   }, {
     client: GLOBAL.SERVERS.OPEN,
     cluster: GLOBAL.CLUSTERS.OPEN
