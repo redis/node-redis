@@ -5,7 +5,7 @@
  * and per-member `member-*` pass-throughs. The controller emits nothing.
  */
 
-import type { AnyRedisClientType, MultiDbResult } from './index';
+import type { RedisClientLike, MultiDbResult } from './index';
 
 /** @experimental why an automatic switch happened */
 export type FailoverReason = 'failure-detector' | 'health-check' | 'connection-ended' | 'forced' | 'active-removed';
@@ -140,7 +140,7 @@ export interface MultiDbEventEmitter {
  * and crashes.
  * @experimental
  */
-export type MultiDbClientType<C extends AnyRedisClientType> =
+export type MultiDbClientType<C extends RedisClientLike> =
   Omit<C, 'duplicate'> &
   MultiDbEventEmitter &
   {

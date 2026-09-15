@@ -3,7 +3,7 @@ import { EventEmitter } from 'node:events';
 import { WeightBasedStrategy } from './failover-strategy';
 import { Database } from './database';
 import { Circuit } from './circuit';
-import type { AnyRedisClientType } from '.';
+import type { RedisClientLike } from '.';
 
 const GRACE_PERIOD = 1000;
 
@@ -12,7 +12,7 @@ function createMember(id: string, weight: number) {
   const db = new Database({
     id,
     weight,
-    client: new EventEmitter() as unknown as AnyRedisClientType,
+    client: new EventEmitter() as unknown as RedisClientLike,
     circuit: new Circuit({ gracePeriod: GRACE_PERIOD, numProbes: 1, clock: () => now })
   });
   return { db, advance: (ms: number) => { now += ms; } };

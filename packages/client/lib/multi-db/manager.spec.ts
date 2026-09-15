@@ -5,7 +5,7 @@ import type { MemberAdapter, ResolvedMemberConfig } from './manager';
 import { resolveMultiDbConfig } from './config';
 import type { MultiDbConfig } from './config';
 import type { MultiDbEventOutlet } from './manager';
-import type { AnyRedisClientType } from './index';
+import type { RedisClientLike } from './index';
 import { PermanentlyUnavailableError, TemporarilyUnavailableError } from './errors';
 
 /**
@@ -64,7 +64,7 @@ const FAST: MultiDbConfig = {
 };
 
 interface Harness {
-  mgr: MultiDbManager<AnyRedisClientType>;
+  mgr: MultiDbManager<RedisClientLike>;
   fakes: Map<string, FakeClient>;
   events: EventEmitter;
   received: Array<{ event: string; payload: unknown }>;
@@ -81,13 +81,13 @@ function makeHarness(memberCount: number, overrides: MultiDbConfig = {}): Harnes
   harness.rejectedQueues = [];
   harness.pubSubMoves = [];
   const fakes = new Map<string, FakeClient>();
-  const adapter: MemberAdapter<AnyRedisClientType> = {
+  const adapter: MemberAdapter<RedisClientLike> = {
     create: config => {
       const fake = new FakeClient();
       const id = (config as ResolvedMemberConfig).id;
       fakes.set(id, fake);
       harness.onCreate?.(fake, id);
-      return fake as unknown as AnyRedisClientType;
+      return fake as unknown as RedisClientLike;
     },
     sendCommand: client => (client as unknown as FakeClient).handleCommand(),
     movePubSub: async (from, to) => {

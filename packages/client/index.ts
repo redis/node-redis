@@ -71,7 +71,7 @@ export {
   PermanentlyUnavailableError,
   CommandAbandonedError,
   type MultiDbResult,
-  type AnyRedisClientType,
+  type RedisClientLike,
   type MultiDbConfig,
   type DatabaseConfig,
   type PoolDatabaseConfig,
