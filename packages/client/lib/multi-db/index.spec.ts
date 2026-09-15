@@ -580,6 +580,29 @@ describe('multi-db', function () {
       )
     );
 
+    it('disconnect() and QUIT() fan out like destroy()/quit() instead of failing over', async () => {
+      type Members = { _mgr: { databases: ReadonlyArray<{ client: { isOpen: boolean } }> } };
+
+      const a = createMultiDbClient({ ...FAST, databases: [memberOf(serverA), memberOf(serverB)] });
+      await a.client.connect();
+      const failovers: Array<unknown> = [];
+      a.client.on('failover', event => failovers.push(event));
+      await a.client.disconnect();
+      assert.equal(failovers.length, 0, 'shutdown must not read as a member failure');
+      assert.ok(
+        (a.client as unknown as Members)._mgr.databases.every(db => !db.client.isOpen),
+        'disconnect() must tear down every member'
+      );
+
+      const b = createMultiDbClient({ ...FAST, databases: [memberOf(serverA), memberOf(serverB)] });
+      await b.client.connect();
+      await b.client.QUIT();
+      assert.ok(
+        (b.client as unknown as Members)._mgr.databases.every(db => !db.client.isOpen),
+        'QUIT() must gracefully close every member'
+      );
+    });
+
     it('ref() and unref() fan out across every member', () =>
       withMultiDb({ databases: [memberOf(serverA), memberOf(serverB)] }, async ({ client }) => {
         const members = (client as unknown as {
