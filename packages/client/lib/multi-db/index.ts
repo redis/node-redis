@@ -698,6 +698,10 @@ export function createMultiDbSentinel<
   const adapter: MemberAdapter<RedisSentinelType<M, F, S, RESP, T>> = {
     create: db => RedisSentinel.create(db.options as RedisSentinelOptions<M, F, S, RESP, T>),
     sendCommand: (client, args) => client.sendCommand(undefined, args),
+    // the sentinel 'error' channel mixes node passthrough, observe-loop and
+    // pub/sub-proxy noise - fault evidence comes from the MASTER-typed
+    // client-error channel instead (see MemberAdapter.untypedErrorIsFault)
+    untypedErrorIsFault: false,
     movePubSub: async (from, to) => {
       // detach from the old member's pub/sub proxy (so a recovering member
       // can't double-deliver) and re-establish against the new member's master
