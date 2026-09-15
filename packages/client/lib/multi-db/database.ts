@@ -1,5 +1,5 @@
 import type { EventEmitter } from 'node:events';
-import type { AnyRedisClientType } from './index';
+import type { RedisClientLike } from './index';
 import type { Circuit } from './circuit';
 
 /**
@@ -10,7 +10,7 @@ import type { Circuit } from './circuit';
  */
 export type DatabaseRole = 'ACTIVE' | 'PASSIVE' | 'DISCONNECTED';
 
-export interface DatabaseOptions<C extends AnyRedisClientType> {
+export interface DatabaseOptions<C extends RedisClientLike> {
   id: string;
   client: C;
   weight: number;
@@ -22,7 +22,7 @@ export interface DatabaseOptions<C extends AnyRedisClientType> {
  * Manager-side observation points for member lifecycle signals — the failure
  * detector feed and failover triggers attach here.
  */
-export interface DatabaseHooks<C extends AnyRedisClientType> {
+export interface DatabaseHooks<C extends RedisClientLike> {
   /**
    * Client-level error (socket/decoder errors, reconnects, per-node errors).
    * `countsAsFault` separates fault EVIDENCE from observability: only
@@ -51,7 +51,7 @@ export interface DatabaseHooks<C extends AnyRedisClientType> {
  * absorb that transient blip, so a sentinel-internal failover does not open
  * the member circuit. `end` means the client gave up reconnecting.
  */
-export class Database<C extends AnyRedisClientType> {
+export class Database<C extends RedisClientLike> {
   readonly id: string;
   readonly client: C;
   weight: number;

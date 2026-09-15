@@ -1,4 +1,4 @@
-import type { AnyRedisClientType } from './index';
+import type { RedisClientLike } from './index';
 import type { MultiDbManager } from './manager';
 import type { Database } from './database';
 import type { DatabaseRole } from './database';
@@ -35,7 +35,7 @@ export interface DatabaseDescriptor {
  * @experimental
  */
 export class MultiDbController<
-  C extends AnyRedisClientType,
+  C extends RedisClientLike,
   // the member-config shape this client kind accepts at runtime adds — the
   // pool factory takes PoolDatabaseConfig (poolOptions), every other kind a
   // plain DatabaseConfig of its own options type
@@ -130,7 +130,7 @@ export class MultiDbController<
   }
 }
 
-function describe<C extends AnyRedisClientType>(db: Database<C>): DatabaseDescriptor {
+function describe<C extends RedisClientLike>(db: Database<C>): DatabaseDescriptor {
   return {
     id: db.id,
     weight: db.weight,

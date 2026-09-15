@@ -1,6 +1,6 @@
 import { setTimeout as delay } from 'node:timers/promises';
 import type { RedisArgument, ReplyUnion } from '../RESP/types';
-import type { AnyRedisClientType } from './index';
+import type { RedisClientLike } from './index';
 import type { FailoverReason } from './events';
 import type { ResolvedMultiDbConfig, ResolvedDatabaseIdentity, PoolDatabaseConfig, InitialAvailability } from './config';
 import { resolveDatabaseIdentity, isFailureDetector, MAX_TIMER_MS } from './config';
@@ -18,7 +18,7 @@ import { TemporarilyUnavailableError, PermanentlyUnavailableError, CommandAbando
  * Topology-specific hooks the manager needs for each member kind; each factory
  * supplies one so the manager stays client-kind agnostic.
  */
-export interface MemberAdapter<C extends AnyRedisClientType> {
+export interface MemberAdapter<C extends RedisClientLike> {
   /** builds one member client from its database config */
   create(config: PoolDatabaseConfig<unknown>): C;
   /** keyless command dispatch — health-check probes route through this */
@@ -71,7 +71,7 @@ function requiredHealthy(policy: InitialAvailability, total: number): number {
  * Owns the member set and the active selection; orchestrates switches.
  * Internal — reached only through the factories and the controller.
  */
-export class MultiDbManager<C extends AnyRedisClientType> {
+export class MultiDbManager<C extends RedisClientLike> {
   readonly #databases: Array<Database<C>>;
   #active: Database<C>;
   readonly #config: ResolvedMultiDbConfig;

@@ -26,16 +26,22 @@ import type { MultiDbClientType } from './events';
 /* -------------------------------------------------------------------------- */
 
 /**
- * Every client shape the multi-db layer can wrap.
+ * Structural stand-in for "some Redis client kind" — the constraint the
+ * multi-db machinery uses. Deliberately minimal: constraining on the full
+ * union of client types forces the compiler to compute variance over the four
+ * complete client surfaces during library check (measured: +1.8M type
+ * instantiations and ~4x check time for a bare `import 'redis'` with
+ * skipLibCheck off), and those relations are unreliable at that type size.
+ * The machinery only ever needs this lifecycle shape; each factory binds the
+ * concrete kind.
  * @experimental
  */
-/* eslint-disable @typescript-eslint/no-explicit-any -- any parametrization of each client kind */
-export type AnyRedisClientType =
-  | RedisClientType<any, any, any, any, any>
-  | RedisClientPoolType<any, any, any, any, any>
-  | RedisClusterType<any, any, any, any, any>
-  | RedisSentinelType<any, any, any, any, any>;
-/* eslint-enable @typescript-eslint/no-explicit-any */
+export interface RedisClientLike {
+  connect(): Promise<unknown>;
+  close(): Promise<void>;
+  destroy(): void | Promise<void>;
+  isOpen: boolean;
+}
 
 /**
  * Lifecycle members the multi-db layer intercepts (fan-out) rather than
@@ -54,7 +60,7 @@ const INTERCEPTED = new Set<PropertyKey>([
  * @experimental
  */
 export interface MultiDbResult<
-  C extends AnyRedisClientType,
+  C extends RedisClientLike,
   CONFIG extends DatabaseConfig<unknown> = PoolDatabaseConfig<unknown>
 > {
   /** drop-in: the base client type plus the typed multi-db event surface */
@@ -74,7 +80,7 @@ export interface MultiDbResult<
  * emitter methods are inherited (never forwarded to a member, never refused
  * while members are down).
  */
-class MultiDbClientBase<C extends AnyRedisClientType> extends EventEmitter {
+class MultiDbClientBase<C extends RedisClientLike> extends EventEmitter {
   /** @internal read by the forwarders patched below */
   readonly _mgr: MultiDbManager<C>;
 
@@ -207,7 +213,7 @@ class MultiDbClientBase<C extends AnyRedisClientType> extends EventEmitter {
  * be bypassed by the first chained call. `exec`/`execAsPipeline` gain the
  * fail-fast check and outcome reporting (the typed variants delegate to them).
  */
-function makePinnedMulti<C extends AnyRedisClientType>(
+function makePinnedMulti<C extends RedisClientLike>(
   mgr: MultiDbManager<C>,
   resolve: ResolveClient<C>
 ): unknown {
@@ -276,7 +282,7 @@ function makePinnedMulti<C extends AnyRedisClientType>(
  * client, where a post-reconnect WATCH does not heal the stale epoch); EXEC
  * and UNWATCH clear it.
  */
-function makeWatchForwarder<C extends AnyRedisClientType>(
+function makeWatchForwarder<C extends RedisClientLike>(
   mgr: MultiDbManager<C>,
   resolve: ResolveClient<C>,
   name: string
@@ -305,7 +311,7 @@ function makeWatchForwarder<C extends AnyRedisClientType>(
 
 /** See {@link makeWatchForwarder}: UNWATCH settles the session on the active
  * member, dirty or not — a fresh session must start clean. */
-function makeUnwatchForwarder<C extends AnyRedisClientType>(
+function makeUnwatchForwarder<C extends RedisClientLike>(
   mgr: MultiDbManager<C>,
   resolve: ResolveClient<C>,
   name: string
@@ -335,7 +341,7 @@ function makeUnwatchForwarder<C extends AnyRedisClientType>(
  * applied to the active member at every command call. Views chain — a view of
  * a view composes both option sets in creation order.
  */
-function makeDerived<C extends AnyRedisClientType>(
+function makeDerived<C extends RedisClientLike>(
   mgr: MultiDbManager<C>,
   resolve: ResolveClient<C>
 ): C {
@@ -388,7 +394,7 @@ const PINNED_SYNC = new Set<string>([
  * — e.g. `client => client.withTypeMapping(mapping)`. Identity for the root
  * wrapper.
  */
-type ResolveClient<C extends AnyRedisClientType> = (client: C) => C;
+type ResolveClient<C extends RedisClientLike> = (client: C) => C;
 
 /**
  * Wrap one module/function/script namespace: same failover contract as a plain
@@ -398,7 +404,7 @@ type ResolveClient<C extends AnyRedisClientType> = (client: C) => C;
  * and reports the settled outcome to `manager.ts:onCommandResult` attributed
  * to the member that served it.
  */
-function wrapNamespace<C extends AnyRedisClientType>(
+function wrapNamespace<C extends RedisClientLike>(
   name: string,
   sample: object,
   mgr: MultiDbManager<C>,
@@ -432,7 +438,7 @@ function wrapNamespace<C extends AnyRedisClientType>(
   return wrapped;
 }
 
-function attachForwarders<C extends AnyRedisClientType>(
+function attachForwarders<C extends RedisClientLike>(
   target: MultiDbClientBase<C>,
   mgr: MultiDbManager<C>,
   resolve: ResolveClient<C> = client => client
@@ -544,7 +550,7 @@ function attachForwarders<C extends AnyRedisClientType>(
   }
 }
 
-function makeClient<C extends AnyRedisClientType>(mgr: MultiDbManager<C>): MultiDbClientType<C> {
+function makeClient<C extends RedisClientLike>(mgr: MultiDbManager<C>): MultiDbClientType<C> {
   const client = new MultiDbClientBase(mgr);
   attachForwarders(client, mgr);
   // the wrapper is the single event surface: the manager emits through it
@@ -557,7 +563,7 @@ function makeClient<C extends AnyRedisClientType>(mgr: MultiDbManager<C>): Multi
 /* -------------------------------------------------------------------------- */
 
 function assemble<
-  C extends AnyRedisClientType,
+  C extends RedisClientLike,
   CONFIG extends DatabaseConfig<unknown> = PoolDatabaseConfig<unknown>
 >(
   members: Array<ResolvedMemberConfig>,
