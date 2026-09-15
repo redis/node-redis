@@ -622,6 +622,37 @@ describe('multi-db manager (unit)', function () {
     await assert.rejects(force, /the client is closed/);
   });
 
+  it('a concurrent addDatabase during connect() does not corrupt the availability gate', async () => {
+    const { mgr, fakes } = makeHarness(2, {
+      initialAvailability: 'ALL',
+      healthCheck: { interval: 1_000, timeout: 500, numProbes: 1, delayBetweenProbes: 0 }
+    });
+    // hold the two initial probes so the membership change lands mid-fan-out
+    const releases: Array<() => void> = [];
+    for (const id of ['db-0', 'db-1']) {
+      fakes.get(id)!.onCommand = () => new Promise(resolve => {
+        releases.push(() => resolve('PONG'));
+      });
+    }
+
+    const connecting = mgr.connect();
+    const deadline = Date.now() + 1_000;
+    while (releases.length < 2 && Date.now() < deadline) await tick(5);
+    assert.equal(releases.length, 2, 'both initial probes must be in flight');
+
+    const addedId = await mgr.addDatabase({ options: {} }); // establishes on its own
+    for (const release of releases) release();
+    await connecting; // the gate reasons over the snapshot it actually probed
+
+    assert.equal(mgr.databases.length, 3);
+    assert.ok(mgr.databases.some(db => db.id === addedId && db.circuit.state === 'CLOSED'));
+    assert.ok(
+      [...fakes.values()].every(fake => !fake.destroyed),
+      'a spuriously failed gate would have destroyed every member'
+    );
+    mgr.destroy();
+  });
+
   it('the all-down path abandons the failed member queue when the search starts', async () => {
     const { mgr, fakes, rejectedQueues } = makeHarness(2, {
       maxFailoverAttempts: 2,

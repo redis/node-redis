@@ -564,20 +564,28 @@ export class MultiDbManager<C extends AnyRedisClientType> {
       throw new Error('MultiDb: the client is closed');
     }
     this.#events?.emit('connect');
+    // snapshot: results pair with THESE members — the controller can add or
+    // remove members while the fan-out is in flight, and index-correlating
+    // against the live array would shift outcomes onto the wrong members.
     // skipInitialHealthCheck is honored only on runtime add — every member is
     // probed at initial connect
+    const members = [...this.#databases];
     const results = await Promise.all(
-      this.#databases.map(db => this.#establishMember(db, false))
+      members.map(db => this.#establishMember(db, false))
     );
-    const healthy = this.#databases.filter((_, index) => results[index]);
+    // reconcile with the live set: members removed mid-connect drop out of
+    // both sides of the availability ratio; members added mid-connect were
+    // established by addDatabase itself and are not this gate's concern
+    const alive = members.filter(db => this.#databases.includes(db));
+    const healthy = members.filter((db, index) => results[index] && this.#databases.includes(db));
 
-    const required = requiredHealthy(this.#config.initialAvailability, this.#databases.length);
+    const required = requiredHealthy(this.#config.initialAvailability, alive.length);
     if (healthy.length < required) {
       // a rejected connect() must not leave live sockets or retry timers behind
       this.destroy();
       throw new Error(
         `MultiDb: initial availability '${this.#config.initialAvailability}' requires ` +
-        `${required}/${this.#databases.length} healthy databases, got ${healthy.length}`
+        `${required}/${alive.length} healthy databases, got ${healthy.length}`
       );
     }
 
