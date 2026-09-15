@@ -391,7 +391,14 @@ export default class RedisCommandsQueue {
           },
           reject(err) {
             command.reject?.();
-            reject(err);
+            // a teardown that carried this subscribe's intent to another
+            // member (multi-db move) is a success for the caller — the
+            // subscription lives on, on the adopting member
+            if (command.carried?.()) {
+              resolve();
+            } else {
+              reject(err);
+            }
           },
           channelsCounter: command.channelsCounter,
           typeMapping: PUSH_TYPE_MAPPING,
