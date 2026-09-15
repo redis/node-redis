@@ -747,6 +747,43 @@ describe('multi-db manager (unit)', function () {
     );
   });
 
+  it('a strategy that starts throwing after connect degrades instead of crashing', async () => {
+    let boom = false;
+    const strategy = {
+      select: (candidates: ReadonlyArray<{ circuit: { state: string } }>) => {
+        if (boom) throw new Error('strategy boom');
+        return candidates.find(candidate => candidate.circuit.state === 'CLOSED');
+      }
+    };
+    const { mgr, fakes, received } = makeHarness(2, {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- narrow test strategy
+      failoverStrategy: strategy as any,
+      maxFailoverAttempts: 2,
+      delayBetweenFailoverAttempts: 10,
+      autoFallbackInterval: 20
+    });
+    await mgr.connect();
+    boom = true;
+
+    // fallback ticks with a throwing strategy: skipped, reported, no crash
+    await tick(60);
+    assert.ok(
+      received.some(r => r.event === 'error' && (r.payload as Error).message === 'strategy boom'),
+      'the strategy failure must surface on the error outlet'
+    );
+
+    // active member ends → failure handling degrades to the search path, the
+    // search attempts keep failing, exhaustion still terminates loudly
+    fakes.get('db-0')!.end();
+    const deadline = Date.now() + 1_000;
+    while (!received.some(r => r.event === 'terminated') && Date.now() < deadline) {
+      await tick(10);
+    }
+    assert.ok(received.some(r => r.event === 'terminated'), 'exhaustion must still terminate');
+    assert.ok(mgr.unavailableError instanceof PermanentlyUnavailableError);
+    mgr.destroy();
+  });
+
   it('duplicate() invokes a failure-detector factory per manager and refuses a shared instance', async () => {
     const created: Array<object> = [];
     const factory = () => {
