@@ -12,7 +12,7 @@ import type { MemberAdapter, ResolvedMemberConfig } from './manager';
 import { MultiDbController } from './controller';
 import { resolveMultiDbConfig } from './config';
 import type { DatabaseConfig, PoolDatabaseConfig, MultiDbConfig, ResolvedMultiDbConfig } from './config';
-import type { MultiDbClientType } from './events';
+import type { MultiDbClientType, RedisClientKind, RedisClientKinds } from './events';
 
 /**
  * Multi-database client: N homogeneous member databases behind one drop-in
@@ -60,13 +60,18 @@ const INTERCEPTED = new Set<PropertyKey>([
  * @experimental
  */
 export interface MultiDbResult<
-  C extends RedisClientLike,
+  K extends RedisClientKind,
+  M extends RedisModules = {},
+  F extends RedisFunctions = {},
+  S extends RedisScripts = {},
+  RESP extends RespVersions = 3,
+  TM extends TypeMapping = {},
   CONFIG extends DatabaseConfig<unknown> = PoolDatabaseConfig<unknown>
 > {
-  /** drop-in: the base client type plus the typed multi-db event surface */
-  client: MultiDbClientType<C>;
+  /** drop-in: the member kind's type plus the typed multi-db event surface */
+  client: MultiDbClientType<K, M, F, S, RESP, TM>;
   /** multi-db admin surface (no events — the client is the event surface) */
-  controller: MultiDbController<C, CONFIG>;
+  controller: MultiDbController<RedisClientKinds<M, F, S, RESP, TM>[K], CONFIG>;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -201,8 +206,9 @@ class MultiDbClientBase<C extends RedisClientLike> extends EventEmitter {
    * cannot be shared across clients; pass a factory instead.
    * @experimental
    */
-  duplicate(overrides?: object): MultiDbResult<C> {
+  duplicate(overrides?: object) {
     const mgr = this._mgr.duplicate(overrides);
+    // internal pair shape; the public signature lives on MultiDbClientType
     return { client: makeClient(mgr), controller: new MultiDbController(mgr) };
   }
 }
@@ -550,28 +556,25 @@ function attachForwarders<C extends RedisClientLike>(
   }
 }
 
-function makeClient<C extends RedisClientLike>(mgr: MultiDbManager<C>): MultiDbClientType<C> {
+function makeClient<C extends RedisClientLike>(mgr: MultiDbManager<C>): MultiDbClientBase<C> {
   const client = new MultiDbClientBase(mgr);
   attachForwarders(client, mgr);
   // the wrapper is the single event surface: the manager emits through it
   mgr.bindEvents(client);
-  return client as unknown as MultiDbClientType<C>;
+  return client;
 }
 
 /* -------------------------------------------------------------------------- */
 /* Dedicated factories                                                        */
 /* -------------------------------------------------------------------------- */
 
-function assemble<
-  C extends RedisClientLike,
-  CONFIG extends DatabaseConfig<unknown> = PoolDatabaseConfig<unknown>
->(
+function assemble<C extends RedisClientLike>(
   members: Array<ResolvedMemberConfig>,
   config: ResolvedMultiDbConfig,
   adapter: MemberAdapter<C>
-): MultiDbResult<C, CONFIG> {
+) {
   const mgr = new MultiDbManager(members, config, adapter);
-  return { client: makeClient(mgr), controller: new MultiDbController<C, CONFIG>(mgr) };
+  return { client: makeClient(mgr), controller: new MultiDbController(mgr) };
 }
 
 /**
@@ -592,7 +595,7 @@ export function createMultiDbClient<
   T extends TypeMapping = {}
 >(options: {
   databases: Array<DatabaseConfig<RedisClientOptions<M, F, S, RESP, T>>>;
-} & MultiDbConfig): MultiDbResult<RedisClientType<M, F, S, RESP, T>, DatabaseConfig<RedisClientOptions<M, F, S, RESP, T>>> {
+} & MultiDbConfig): MultiDbResult<'client', M, F, S, RESP, T, DatabaseConfig<RedisClientOptions<M, F, S, RESP, T>>> {
   const { databases, config } = resolveMultiDbConfig(options.databases, options);
   const adapter: MemberAdapter<RedisClientType<M, F, S, RESP, T>> = {
     create: db => RedisClient.create(db.options as RedisClientOptions<M, F, S, RESP, T>),
@@ -628,7 +631,8 @@ export function createMultiDbClient<
       from._getQueue().flushAll(error);
     }
   };
-  return assemble(databases, config, adapter);
+  return assemble(databases, config, adapter) as unknown as
+    MultiDbResult<'client', M, F, S, RESP, T, DatabaseConfig<RedisClientOptions<M, F, S, RESP, T>>>;
 }
 
 /** As {@link createMultiDbClient}, over pooled (`RedisClientPool`) members. @experimental */
@@ -640,7 +644,7 @@ export function createMultiDbClientPool<
   T extends TypeMapping = {}
 >(options: {
   databases: Array<PoolDatabaseConfig<RedisClientOptions<M, F, S, RESP, T>>>;
-} & MultiDbConfig): MultiDbResult<RedisClientPoolType<M, F, S, RESP, T>, PoolDatabaseConfig<RedisClientOptions<M, F, S, RESP, T>>> {
+} & MultiDbConfig): MultiDbResult<'pool', M, F, S, RESP, T, PoolDatabaseConfig<RedisClientOptions<M, F, S, RESP, T>>> {
   const { databases, config } = resolveMultiDbConfig(options.databases, options);
   const adapter: MemberAdapter<RedisClientPoolType<M, F, S, RESP, T>> = {
     create: db => RedisClientPool.create(db.options as RedisClientOptions<M, F, S, RESP, T>, db.poolOptions),
@@ -649,7 +653,8 @@ export function createMultiDbClientPool<
     // dedicated connection, which the pool does not expose), so there is
     // nothing to transfer on failover
   };
-  return assemble(databases, config, adapter);
+  return assemble(databases, config, adapter) as unknown as
+    MultiDbResult<'pool', M, F, S, RESP, T, PoolDatabaseConfig<RedisClientOptions<M, F, S, RESP, T>>>;
 }
 
 /** As {@link createMultiDbClient}, over `RedisCluster` members. @experimental */
@@ -661,7 +666,7 @@ export function createMultiDbCluster<
   T extends TypeMapping = {}
 >(options: {
   databases: Array<DatabaseConfig<RedisClusterOptions<M, F, S, RESP, T>>>;
-} & MultiDbConfig): MultiDbResult<RedisClusterType<M, F, S, RESP, T>, DatabaseConfig<RedisClusterOptions<M, F, S, RESP, T>>> {
+} & MultiDbConfig): MultiDbResult<'cluster', M, F, S, RESP, T, DatabaseConfig<RedisClusterOptions<M, F, S, RESP, T>>> {
   const { databases, config } = resolveMultiDbConfig(options.databases, options);
   const adapter: MemberAdapter<RedisClusterType<M, F, S, RESP, T>> = {
     create: db => RedisCluster.create(db.options as RedisClusterOptions<M, F, S, RESP, T>),
@@ -675,7 +680,8 @@ export function createMultiDbCluster<
       await to._extendAllPubSubListeners(from._removeAllPubSubListeners());
     }
   };
-  return assemble(databases, config, adapter);
+  return assemble(databases, config, adapter) as unknown as
+    MultiDbResult<'cluster', M, F, S, RESP, T, DatabaseConfig<RedisClusterOptions<M, F, S, RESP, T>>>;
 }
 
 /** As {@link createMultiDbClient}, over `RedisSentinel` members. @experimental */
@@ -687,7 +693,7 @@ export function createMultiDbSentinel<
   T extends TypeMapping = {}
 >(options: {
   databases: Array<DatabaseConfig<RedisSentinelOptions<M, F, S, RESP, T>>>;
-} & MultiDbConfig): MultiDbResult<RedisSentinelType<M, F, S, RESP, T>, DatabaseConfig<RedisSentinelOptions<M, F, S, RESP, T>>> {
+} & MultiDbConfig): MultiDbResult<'sentinel', M, F, S, RESP, T, DatabaseConfig<RedisSentinelOptions<M, F, S, RESP, T>>> {
   const { databases, config } = resolveMultiDbConfig(options.databases, options);
   const adapter: MemberAdapter<RedisSentinelType<M, F, S, RESP, T>> = {
     create: db => RedisSentinel.create(db.options as RedisSentinelOptions<M, F, S, RESP, T>),
@@ -698,7 +704,8 @@ export function createMultiDbSentinel<
       await to._adoptPubSubListeners(from._extractPubSubListeners());
     }
   };
-  return assemble(databases, config, adapter);
+  return assemble(databases, config, adapter) as unknown as
+    MultiDbResult<'sentinel', M, F, S, RESP, T, DatabaseConfig<RedisSentinelOptions<M, F, S, RESP, T>>>;
 }
 
 /* -------------------------------------------------------------------------- */

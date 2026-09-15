@@ -143,7 +143,8 @@ export function createMultiDbClient<
 >(options: {
   databases: Array<DatabaseConfig<RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>>>;
 } & MultiDbConfig): MultiDbResult<
-  RedisClientType<M, F, S, RESP, TYPE_MAPPING>,
+  'client',
+  RedisDefaultModules & M, F, S, RESP, TYPE_MAPPING,
   DatabaseConfig<RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>>
 > {
   const { databases, ...multiDbOptions } = options;
@@ -152,7 +153,8 @@ export function createMultiDbClient<
     databases: databases.map(db => ({ ...db, options: withStackModules(db.options) }))
   });
   return wrapMultiDbResult(result) as unknown as MultiDbResult<
-    RedisClientType<M, F, S, RESP, TYPE_MAPPING>,
+    'client',
+    RedisDefaultModules & M, F, S, RESP, TYPE_MAPPING,
     DatabaseConfig<RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>>
   >;
 }
@@ -171,7 +173,8 @@ export function createMultiDbClientPool<
 >(options: {
   databases: Array<PoolDatabaseConfig<RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>>>;
 } & MultiDbConfig): MultiDbResult<
-  RedisClientPoolType<M, F, S, RESP, TYPE_MAPPING>,
+  'pool',
+  RedisDefaultModules & M, F, S, RESP, TYPE_MAPPING,
   PoolDatabaseConfig<RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>>
 > {
   const { databases, ...multiDbOptions } = options;
@@ -180,7 +183,8 @@ export function createMultiDbClientPool<
     databases: databases.map(db => ({ ...db, options: withStackModules(db.options) }))
   });
   return wrapMultiDbResult(result) as unknown as MultiDbResult<
-    RedisClientPoolType<M, F, S, RESP, TYPE_MAPPING>,
+    'pool',
+    RedisDefaultModules & M, F, S, RESP, TYPE_MAPPING,
     PoolDatabaseConfig<RedisClientOptions<M, F, S, RESP, TYPE_MAPPING>>
   >;
 }
@@ -199,7 +203,8 @@ export function createMultiDbCluster<
 >(options: {
   databases: Array<DatabaseConfig<RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING>>>;
 } & MultiDbConfig): MultiDbResult<
-  RedisClusterType<M, F, S, RESP, TYPE_MAPPING>,
+  'cluster',
+  RedisDefaultModules & M, F, S, RESP, TYPE_MAPPING,
   DatabaseConfig<RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING>>
 > {
   const { databases, ...multiDbOptions } = options;
@@ -208,7 +213,8 @@ export function createMultiDbCluster<
     databases: databases.map(db => ({ ...db, options: withStackModules(db.options) }))
   });
   return wrapMultiDbResult(result) as unknown as MultiDbResult<
-    RedisClusterType<M, F, S, RESP, TYPE_MAPPING>,
+    'cluster',
+    RedisDefaultModules & M, F, S, RESP, TYPE_MAPPING,
     DatabaseConfig<RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING>>
   >;
 }
@@ -227,7 +233,8 @@ export function createMultiDbSentinel<
 >(options: {
   databases: Array<DatabaseConfig<RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>>>;
 } & MultiDbConfig): MultiDbResult<
-  RedisSentinelType<M, F, S, RESP, TYPE_MAPPING>,
+  'sentinel',
+  RedisDefaultModules & M, F, S, RESP, TYPE_MAPPING,
   DatabaseConfig<RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>>
 > {
   const { databases, ...multiDbOptions } = options;
@@ -236,7 +243,8 @@ export function createMultiDbSentinel<
     databases: databases.map(db => ({ ...db, options: withStackModules(db.options) }))
   });
   return wrapMultiDbResult(result) as unknown as MultiDbResult<
-    RedisSentinelType<M, F, S, RESP, TYPE_MAPPING>,
+    'sentinel',
+    RedisDefaultModules & M, F, S, RESP, TYPE_MAPPING,
     DatabaseConfig<RedisSentinelOptions<M, F, S, RESP, TYPE_MAPPING>>
   >;
 }
