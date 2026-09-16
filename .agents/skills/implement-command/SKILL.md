@@ -313,13 +313,20 @@ regenerate:
 npm run generate:metadata --workspace=packages/client -- redis://localhost:6379
 ```
 
-The script dumps `COMMAND` from a live server — reuse the Step 0 instance, and
-make sure the module is loaded or the new command will be missing from the
-dump — then applies the curation in
+The script rebuilds the **entire** table from a single live server's `COMMAND`
+reply and overwrites the file — entries the server doesn't report are silently
+dropped. Run it only against a server with **all** bundled modules loaded and a
+current core command set (e.g. the CI image `redislabs/client-libs-test` or a
+full Redis 8.8+ build); reuse the Step 0 instance only if it meets that bar — a
+server with just the new command's module would wipe every other module's
+metadata. The script then applies the curation in
 `packages/client/scripts/command-metadata-overrides.ts`: hand-curated excludes
 (internal, deprecated and cluster-admin commands) plus per-command routing
 overrides. After regenerating, verify the new command has an entry with the
-expected flags.
+expected flags, **and** check `git diff` on `command-metadata-data.ts`: it must
+contain only the intended additions/changes. Deletions of other modules' or
+core entries mean the source server was incomplete — revert and rerun against
+a full build.
 
 How the table and the command object interact (override-first — see
 `lib/command-metadata/predicates.ts`):
@@ -365,7 +372,7 @@ For module packages, build the client first (or whole repo) — they import from
 - [ ] Every key uses `pushKey`/`pushKeys`; numbers stringified; options behind an exported `interface`.
 - [ ] RESP2/3 divergence handled via keyed `transformReply`: RESP3 is the target shape (usually `3:` pass-through), RESP2 transformed to match it; both shapes verified against the live instance.
 - [ ] Registered in `commands/index.ts`: import + raw entry + camelCase alias, **each with JSDoc** (`@param` per arg; `@since` for the introducing version; `@remarks` for >2^53 precision).
-- [ ] Static command metadata regenerated (`npm run generate:metadata`) and the new command's entry verified (Step 4).
+- [ ] Static command metadata regenerated (`npm run generate:metadata`) against a server with **all** bundled modules; the new command's entry verified and the diff contains no dropped entries (Step 4).
 - [ ] `<NAME>.spec.ts`: `parseArgs` covers all branches; `testUtils.testAll` covers server + cluster; behavior tests gated with `minimumDockerVersion` on both `client` and `cluster`.
 - [ ] `npm run build`, `npm run check:command-jsdoc`, the spec, and `npm run lint` all pass.
 - [ ] Commit message uses Conventional Commits; no company-internal refs.
