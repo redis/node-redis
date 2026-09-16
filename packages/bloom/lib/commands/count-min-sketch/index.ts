@@ -34,6 +34,7 @@ export default {
    * @param key - The name of the sketch
    * @param width - Number of counters in each array (must be a multiple of 2)
    * @param depth - Number of counter arrays (determines accuracy of estimates)
+   * @param cellSize - Optional number of bytes per cell (valid values: 1|2|4|8)
    */
   INITBYDIM,
   /**
@@ -41,6 +42,7 @@ export default {
    * @param key - The name of the sketch
    * @param width - Number of counters in each array (must be a multiple of 2)
    * @param depth - Number of counter arrays (determines accuracy of estimates)
+   * @param cellSize - Optional number of bytes per cell (valid values: 1|2|4|8)
    */
   initByDim: INITBYDIM,
   /**
@@ -48,6 +50,7 @@ export default {
    * @param key - The name of the sketch
    * @param error - Estimate error, as a decimal between 0 and 1
    * @param probability - The desired probability for inflated count, as a decimal between 0 and 1
+   * @param cellSize - Optional number of bytes per cell (valid values: 1|2|4|8)
    */
   INITBYPROB,
   /**
@@ -55,6 +58,7 @@ export default {
    * @param key - The name of the sketch
    * @param error - Estimate error, as a decimal between 0 and 1
    * @param probability - The desired probability for inflated count, as a decimal between 0 and 1
+   * @param cellSize - Optional number of bytes per cell (valid values: 1|2|4|8)
    */
   initByProb: INITBYPROB,
   /**
