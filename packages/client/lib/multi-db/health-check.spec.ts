@@ -49,6 +49,15 @@ describe('DefaultHealthCheck', () => {
     );
   });
 
+  it("accepts the lowercase 'pong' a RESP2 subscribed-mode member replies with", async () => {
+    // in RESP2 subscribe mode PING is allowed but its reply is array-framed and
+    // the queue resolves it to the lowercase verb — a healthy member must pass
+    assert.equal(
+      await new DefaultHealthCheck().probe({ id: 'stub', sendCommand: () => Promise.resolve('pong' as ReplyUnion) }),
+      true
+    );
+  });
+
   it('propagates rejections to the runner', async () => {
     const target: HealthCheckTarget = {
       id: 'stub',
