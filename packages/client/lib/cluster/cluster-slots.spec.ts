@@ -5,6 +5,7 @@ import RedisClusterSlots, { groupCommandsByDestination, splitInFlightChainTail }
 import type { MasterNode, Shard, ShardNode } from './cluster-slots';
 import type { CommandToWrite } from '../client/commands-queue';
 import { ClientClosedError } from '../errors';
+import { SMIGRATED_EVENT, type SMigratedEvent } from '../client/enterprise-maintenance-manager';
 
 describe('RedisClusterSlots', () => {
   function createCommand(slotNumber?: number) {
@@ -219,6 +220,93 @@ describe('RedisClusterSlots', () => {
       // Before the fix it resolved to the cached dead client (no rejection).
       await assert.rejects(slots.nodeClient(node), 'second call must retry, not return the cached dead client');
       assert.equal(node.client, undefined);
+    });
+  });
+
+  describe('#handleSmigrated error recovery', () => {
+    // #handleSmigrated is a private class-field arrow function. RedisClusterSlots
+    // registers it as a SMIGRATED_EVENT listener on every client it creates via
+    // #createClient. #createNodeClient sets node.client synchronously before
+    // connect() is awaited, giving us a one-tick window to retrieve the bound
+    // function via EventEmitter.listeners() before the terminal connect failure
+    // clears it. This avoids any native-private-field access.
+    function createSlots() {
+      return new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: 1 } }],
+        defaults: { socket: { host: '127.0.0.1', port: 1, reconnectStrategy: false, connectTimeout: 100 } },
+      }, () => true, 'test-cluster');
+    }
+
+    function createNode() {
+      return {
+        address: '127.0.0.1:1',
+        host: '127.0.0.1',
+        port: 1,
+        id: 'handler-probe',
+        readonly: false,
+      } as ShardNode<Record<string, never>, Record<string, never>, Record<string, never>, 3, Record<string, never>>;
+    }
+
+    it('unpauses destination nodes when an error is thrown after pausing them', async () => {
+      const slots = createSlots();
+
+      // nodeClient() calls #createNodeClient which sets node.client synchronously
+      // before returning the connect Promise — grab the SMIGRATED listener before
+      // the terminal connect failure clears node.client.
+      const probe = createNode();
+      const connectPromise = slots.nodeClient(probe);
+      const [handler] = (probe.client as any).listeners(SMIGRATED_EVENT) as [(e: SMigratedEvent) => Promise<void>];
+      await assert.rejects(connectPromise as Promise<unknown>);
+
+      // Track pause/unpause calls on a mock destination node.
+      let destPauseCount = 0;
+      let destUnpauseCount = 0;
+      const destNode: any = {
+        address: 'dest:6379',
+        host: 'dest',
+        port: 6379,
+        client: {
+          _pause:   () => { destPauseCount++; },
+          _unpause: () => { destUnpauseCount++; },
+        },
+      };
+
+      // Source node whose _getQueue().extractCommandsForSlots throws, forcing
+      // the catch path after the destination has already been paused (step 4
+      // runs after the step-2 pause but before the step-5 unpause).
+      const sourceNode: any = {
+        address: 'source:6379',
+        client: {
+          _pause:   () => {},
+          _unpause: () => {},
+          _getQueue: () => ({
+            extractCommandsForSlots: () => { throw new Error('forced'); },
+          }),
+        },
+      };
+
+      slots.nodeByAddress.set('source:6379', sourceNode);
+      slots.nodeByAddress.set('dest:6379', destNode);
+      // Fill every slot with the destNode shard so that:
+      //  (a) existingShard lookup succeeds (takes the existing-destination branch
+      //      which pauses destNode before the forced throw), and
+      //  (b) the debug-log line that does [...new Set(this.slots)] does not hit
+      //      undefined.master on the sparse holes of the initial new Array(16384).
+      slots.slots.fill({ master: destNode });
+
+      const event: SMigratedEvent = {
+        seqId: 1,
+        entries: [{
+          source: { host: 'source', port: 6379 },
+          destinations: [{ addr: { host: 'dest', port: 6379 }, slots: [0] }],
+        }],
+      };
+
+      // The handler catches its own errors and re-emits them; it must not throw.
+      await handler(event);
+
+      assert.equal(destPauseCount, 1, 'destination should have been paused during migration');
+      assert.equal(destUnpauseCount, 1, 'destination must be unpaused even when an error aborts the migration');
     });
   });
 });
