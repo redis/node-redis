@@ -75,4 +75,24 @@ describe('sentinel pub-sub-proxy', function () {
     assert.ok(extracted[PUBSUB_TYPE.CHANNELS].get('settled-channel')?.strings.has(settled));
     assert.ok(extracted[PUBSUB_TYPE.PATTERNS].get('flight.*')?.strings.has(inFlight));
   });
+
+  it('unsubscribing everything clears the adopted snapshot — no ghost on the next extract', async () => {
+    const node = { host: '127.0.0.1', port: server.port };
+    const source = new PubSubProxy({}, () => {});
+    await source.changeNode(node);
+    await source.subscribe('adopted', () => {});
+
+    // move the subscription to a second proxy (adopt populates #subscriptions)
+    const adopter = new PubSubProxy({}, () => {});
+    await adopter.changeNode(node);
+    await adopter.adoptListeners(source.extractListeners());
+
+    // the user then unsubscribes everything on the adopter
+    await adopter.unsubscribe();
+
+    // a later move must find nothing to carry — the stale snapshot is gone
+    const extracted = adopter.extractListeners();
+    assert.equal(extracted[PUBSUB_TYPE.CHANNELS].size, 0, 'no ghost channel may survive unsubscribe-all');
+    adopter.destroy();
+  });
 });
