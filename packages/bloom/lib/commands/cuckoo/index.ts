@@ -10,6 +10,7 @@ import INSERTNX from './INSERTNX';
 import LOADCHUNK from './LOADCHUNK';
 import RESERVE from './RESERVE';
 import SCANDUMP from './SCANDUMP';
+import MEXISTS from './MEXISTS';
 
 export default {
   /**
@@ -163,5 +164,17 @@ export default {
    * @param key - The name of the Cuckoo filter to save
    * @param iterator - Iterator value; Start at 0, and use the iterator from the response for the next chunk
    */
-  scanDump: SCANDUMP
+  scanDump: SCANDUMP,
+  /**
+   * Checks if multiple items exist in a Cuckoo Filter in a single call
+   * @param key - The name of the Cuckoo filter
+   * @param items - One or more items to check for existence
+   */
+  MEXISTS,
+  /**
+   * Checks if multiple items exist in a Cuckoo Filter in a single call
+   * @param key - The name of the Cuckoo filter
+   * @param items - One or more items to check for existence
+   */
+  mExists: MEXISTS,
 } as const satisfies RedisCommands;
