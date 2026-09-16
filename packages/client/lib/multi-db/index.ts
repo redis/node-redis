@@ -112,12 +112,14 @@ class MultiDbClientBase<C extends RedisClientLike> extends EventEmitter {
   }
 
   /**
-   * Alias for {@link close}: fans out a graceful close across all members and
-   * resolves `undefined` — unlike the base client's `quit()`, no server reply
-   * is surfaced.
+   * Graceful fan-out close across all members. Resolves the aggregate ack
+   * `'OK'` — the logical client's own acknowledgement, matching the base
+   * client's `quit()` return type (there is no single member reply to
+   * surface, and QUIT itself is server-deprecated with no response policy).
+   * Best-effort per member, like {@link close}.
    */
   quit() {
-    return this._mgr.quit();
+    return this._mgr.quit().then(() => 'OK' as const);
   }
 
   /** Deprecated base-client alias of {@link quit} — same graceful fan-out. @experimental */

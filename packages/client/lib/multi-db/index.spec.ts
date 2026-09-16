@@ -624,7 +624,8 @@ describe('multi-db', function () {
 
       const b = createMultiDbClient({ ...FAST, databases: [memberOf(serverA), memberOf(serverB)] });
       await b.client.connect();
-      await b.client.QUIT();
+      const quitReply = await b.client.QUIT();
+      assert.equal(quitReply, 'OK', 'quit() resolves the aggregate ack, not undefined');
       assert.ok(
         (b.client as unknown as Members)._mgr.databases.every(db => !db.client.isOpen),
         'QUIT() must gracefully close every member'
