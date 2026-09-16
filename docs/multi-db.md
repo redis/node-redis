@@ -212,9 +212,11 @@ never a copy — or `undefined` to escalate.
   demoted member.
 - **Connection session state does not follow a failover.** Runtime `SELECT` is rejected with
   an error — set `database` per member in its options instead; each member re-applies it on
-  every reconnect. `emitInvalidate` on member options is rejected at configuration time:
-  invalidation events fire on hidden member clients and cannot be forwarded soundly across a
-  switch — use per-member `clientSideCache` (below).
+  every reconnect. `MONITOR` is rejected the same way — it puts a connection into a permanent
+  monitoring mode that cannot move with the traffic; attach it to an individual member.
+  `emitInvalidate` on member options is rejected at configuration time: invalidation events
+  fire on hidden member clients and cannot be forwarded soundly across a switch — use
+  per-member `clientSideCache` (below).
 - **`ref()` / `unref()` fan out** over every member's socket (member kinds that expose
   them), and the intent is sticky: members added later come up matching it.
 - **Pub/sub.** On a switch, active subscriptions (channels, patterns, and sharded channels)
