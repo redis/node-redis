@@ -619,6 +619,12 @@ export class MultiDbManager<C extends RedisClientLike> {
     const results = await Promise.all(
       members.map(db => this.#establishMember(db, false))
     );
+    // a close()/destroy() landing during the establish await already tore
+    // everything down — proceeding would emit 'ready' after 'end' and dispatch
+    // repoint/movePubSub against disposed clients. close()/destroy() are terminal.
+    if (this.#teardown.signal.aborted) {
+      throw new Error('MultiDb: the client is closed');
+    }
     // reconcile with the live set: members removed mid-connect drop out of
     // both sides of the availability ratio; members added mid-connect were
     // established by addDatabase itself and are not this gate's concern
@@ -627,8 +633,9 @@ export class MultiDbManager<C extends RedisClientLike> {
 
     const required = requiredHealthy(this.#config.initialAvailability, alive.length);
     if (healthy.length < required) {
-      // a rejected connect() must not leave live sockets or retry timers behind
-      this.destroy();
+      // a rejected connect() must not leave live sockets or retry timers behind;
+      // await so the caller's rejection lands after every member has settled
+      await this.destroy();
       throw new Error(
         `MultiDb: initial availability '${this.#config.initialAvailability}' requires ` +
         `${required}/${alive.length} healthy databases, got ${healthy.length}`
@@ -641,13 +648,13 @@ export class MultiDbManager<C extends RedisClientLike> {
     } catch (err) {
       // user strategy code throwing (or returning a foreign object) must keep
       // the contract above too: a rejected connect() leaves no live members
-      this.destroy();
+      await this.destroy();
       throw err;
     }
     if (target === undefined) {
       // a detector trip racing the probe round can re-open a circuit between
       // establish and selection — reject per the contract above, don't crash
-      this.destroy();
+      await this.destroy();
       throw new Error('MultiDb: no healthy database is selectable');
     }
     if (this.#active !== target) {

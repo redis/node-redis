@@ -672,6 +672,42 @@ describe('multi-db manager (unit)', function () {
     mgr.destroy();
   });
 
+  it('destroy() during the establish await makes connect() reject with no ready-after-end', async () => {
+    const { mgr, fakes, received } = makeHarness(2, {
+      healthCheck: { interval: 1_000, timeout: 500, numProbes: 1, delayBetweenProbes: 0 }
+    });
+    // hold both establish probes in flight
+    const releases: Array<() => void> = [];
+    for (const id of ['db-0', 'db-1']) {
+      fakes.get(id)!.onCommand = () => new Promise(resolve => {
+        releases.push(() => resolve('PONG'));
+      });
+    }
+
+    const connecting = mgr.connect();
+    connecting.catch(() => {});
+    const deadline = Date.now() + 1_000;
+    while (releases.length < 2 && Date.now() < deadline) await tick(5);
+    await mgr.destroy();       // lands while the probes are in flight
+    for (const release of releases) release();
+
+    await assert.rejects(connecting, /the client is closed/);
+    const order = received.map(r => r.event);
+    assert.ok(!order.includes('ready'), "connect() must not emit 'ready' after teardown");
+  });
+
+  it('a rejected connect() awaits member teardown before rejecting', async () => {
+    const { mgr, fakes } = makeHarness(2, { initialAvailability: 'ALL' });
+    // one member fails its probe → the availability gate rejects
+    fakes.get('db-1')!.onCommand = async () => 'NOPONG';
+
+    await assert.rejects(mgr.connect(), /initial availability/);
+    assert.ok(
+      [...fakes.values()].every(fake => fake.destroyed),
+      'every member must be destroyed by the time connect() rejects'
+    );
+  });
+
   it('a recovery connect() that re-selects runs the full switch housekeeping', async () => {
     const { mgr, fakes, received, rejectedQueues, pubSubMoves } = makeHarness(2, {
       maxFailoverAttempts: 2,
