@@ -38,6 +38,11 @@ async function main() {
   stdView.duplicate().connect();
   // @ts-expect-error unknown event names must not compile
   stdView.on('failovr', () => {});
+
+  // quit()/QUIT() resolve the aggregate ack string — the runtime returns 'OK',
+  // so the base client's Promise<string> signature is honest (no override)
+  expectType<string>(await std.client.quit());
+  expectType<string>(await std.client.QUIT());
   // chained views keep the mapping
   expectType<Buffer | null>(await stdView.withAbortSignal(new AbortController().signal).asap().get('k'));
 
