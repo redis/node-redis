@@ -257,6 +257,12 @@ describe('multi-db failover', function () {
         traffic.errors.some(err => err instanceof TemporarilyUnavailableError),
         'commands during the search window must fail fast with TemporarilyUnavailableError'
       );
+      // isReady must agree with dispatch: a gated client is not ready even if
+      // a member socket lingers
+      assert.equal(
+        (client as unknown as { isReady: boolean }).isReady, false,
+        'a permanently unavailable client must report isReady === false'
+      );
     } finally {
       traffic.stop();
       client.destroy();
