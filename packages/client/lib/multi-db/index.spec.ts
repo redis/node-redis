@@ -421,6 +421,24 @@ describe('multi-db', function () {
       }
     });
 
+    it('a listener registered on a derived view fires on manager events', () =>
+      withMultiDb(
+        { databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })] },
+        async ({ client, controller }) => {
+          const view = client.withTypeMapping({ [RESP_TYPES.BLOB_STRING]: Buffer });
+          const failovers: Array<{ from: string; to: string; reason: string }> = [];
+          // the view is not the emitter the manager uses — this must still fire
+          (view as unknown as { on(e: string, l: (p: { from: string; to: string; reason: string }) => void): void })
+            .on('failover', event => failovers.push(event));
+
+          await controller.setActiveDatabase('db-1');
+          await new Promise(resolve => setTimeout(resolve, 50));
+          assert.equal(failovers.length, 1, 'a view listener must observe the manager failover');
+          assert.deepEqual(failovers[0], { from: 'db-0', to: 'db-1', reason: 'forced' });
+        }
+      )
+    );
+
     it('an asap() view follows the active member and composes with other views', () =>
       withMultiDb(
         { databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })] },
