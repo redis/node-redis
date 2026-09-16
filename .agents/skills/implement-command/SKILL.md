@@ -98,7 +98,7 @@ The redis/redis spec drives every part of the `Command` object. Example
 
 | Spec field | Drives |
 | --- | --- |
-| `command_flags` contains `READONLY` (and **not** `WRITE`) | `IS_READ_ONLY: true`. `WRITE` → omit it. Pure read with no side effects → also `CACHEABLE: true`. |
+| `command_flags` contains `READONLY` (and **not** `WRITE`) | `IS_READ_ONLY: true`. `WRITE` → omit it. Pure read with no side effects → also `CACHEABLE: true`. For keyed commands the generated metadata table already implies these defaults, so module packages omit the flags; keyless reads must set `IS_READ_ONLY: true` explicitly (Step 4). |
 | `key_specs` empty / no `key`-type args | `NOT_KEYED_COMMAND: true`. |
 | `arguments[].type: "key"` | `parser.pushKey(...)` (one per key, in spec order). |
 | `type: "pure-token"` + `token` | a literal flag pushed only when its option is set (`parser.push('PERSIST')`). |
@@ -299,7 +299,54 @@ describe('GET', () => {
 - Pick the right `GLOBAL.SERVERS.*` / `GLOBAL.CLUSTERS.*` setup (see `test-utils.ts`); `OPEN` is the default.
 - **Docker is required** — test-utils starts real Redis containers.
 
-## Step 4 — Build, verify, lint
+## Step 4 — Regenerate static command metadata
+
+Cluster/sentinel routing (replica-safety, keyedness, CSC eligibility) is
+resolved from a generated table:
+`packages/client/lib/command-metadata/command-metadata-data.ts`. The file is
+auto-generated — **never edit it manually**. The table lives in
+`@redis/client`, but the `COMMAND` dump includes module commands (`ft`,
+`json`, `bf`, `ts`, ...), so a new command in **any** package needs a
+regenerate:
+
+```bash
+npm run generate:metadata --workspace=packages/client -- redis://localhost:6379
+```
+
+The script rebuilds the **entire** table from a single live server's `COMMAND`
+reply and overwrites the file — entries the server doesn't report are silently
+dropped. Run it only against a server with **all** bundled modules loaded and a
+current core command set (e.g. the CI image `redislabs/client-libs-test` or a
+full Redis 8.8+ build); reuse the Step 0 instance only if it meets that bar — a
+server with just the new command's module would wipe every other module's
+metadata. The script then applies the curation in
+`packages/client/scripts/command-metadata-overrides.ts`: hand-curated excludes
+(internal, deprecated and cluster-admin commands) plus per-command routing
+overrides. After regenerating, verify the new command has an entry with the
+expected flags, **and** check `git diff` on `command-metadata-data.ts`: it must
+contain only the intended additions/changes. Deletions of other modules' or
+core entries mean the source server was incomplete — revert and rerun against
+a full build.
+
+How the table and the command object interact (override-first — see
+`lib/command-metadata/predicates.ts`):
+
+- The table sets **defaults only**, for both replica routing (cluster and
+  sentinel) and client-side caching eligibility. A keyed entry without the
+  `write` flag is already replica-safe, so a keyed read command with a correct
+  table entry needs no `IS_READ_ONLY` on the command object — bloom and json
+  omit it everywhere.
+- `IS_READ_ONLY`/`CACHEABLE` on the command object **win over the table**. Set
+  them as deliberate corrections, not to restate the table. The main case is
+  keyless reads, which default to master routing: `PING`/`INFO` in the client,
+  and module reads whose args are not keys — search and time-series set
+  `IS_READ_ONLY: true` on exactly their keyless commands (`FT.SEARCH` takes an
+  index name, `TS.MGET`/`TS.MRANGE` take filters, ...).
+- Table-shape fixes (wrong, missing or excluded entries, routing policies)
+  belong in `command-metadata-overrides.ts`; value intent (`IS_READ_ONLY`,
+  `CACHEABLE`) belongs in the command definition, never in the overrides file.
+
+## Step 5 — Build, verify, lint
 
 ```bash
 npm run build                                   # tsc --build (project references)
@@ -321,10 +368,11 @@ For module packages, build the client first (or whole repo) — they import from
 
 - [ ] Asked the user for spec, a live instance with the command, and the introducing server version (Step 0); probed real behavior against the live instance.
 - [ ] `<NAME>.ts` created with `parseCommand` + `transformReply`, `as const satisfies Command`.
-- [ ] Flags set correctly (`IS_READ_ONLY` for reads, `CACHEABLE` only for side-effect-free reads, `NOT_KEYED_COMMAND` if no key).
+- [ ] Flags set correctly (`IS_READ_ONLY` for reads, `CACHEABLE` only for side-effect-free reads, `NOT_KEYED_COMMAND` if no key; omit flags the metadata table already implies — Step 4).
 - [ ] Every key uses `pushKey`/`pushKeys`; numbers stringified; options behind an exported `interface`.
 - [ ] RESP2/3 divergence handled via keyed `transformReply`: RESP3 is the target shape (usually `3:` pass-through), RESP2 transformed to match it; both shapes verified against the live instance.
 - [ ] Registered in `commands/index.ts`: import + raw entry + camelCase alias, **each with JSDoc** (`@param` per arg; `@since` for the introducing version; `@remarks` for >2^53 precision).
+- [ ] Static command metadata regenerated (`npm run generate:metadata`) against a server with **all** bundled modules; the new command's entry verified and the diff contains no dropped entries (Step 4).
 - [ ] `<NAME>.spec.ts`: `parseArgs` covers all branches; `testUtils.testAll` covers server + cluster; behavior tests gated with `minimumDockerVersion` on both `client` and `cluster`.
 - [ ] `npm run build`, `npm run check:command-jsdoc`, the spec, and `npm run lint` all pass.
 - [ ] Commit message uses Conventional Commits; no company-internal refs.
