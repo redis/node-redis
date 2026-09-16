@@ -450,6 +450,8 @@ export default class RedisClusterSlots<
 
       // Track all slots being moved for this entry (used for pubsub listener handling)
       const allMovingSlots = new Set<number>();
+      // Destination nodes paused but not yet unpaused — must be flushed in the catch path.
+      const pausedDestNodes = new Set<MasterNode<M, F, S, RESP, TYPE_MAPPING>>();
 
       try {
         // 1. Pausing
@@ -476,6 +478,7 @@ export default class RedisClusterSlots<
             // Pause new destination until migration is complete
             destMasterNode.client?._pause();
             destMasterNode.pubSub?.client._pause();
+            pausedDestNodes.add(destMasterNode);
             // In case destination node didnt exist, this means Shard didnt exist as well, so creating a new Shard is completely fine
             destShard = {
               master: destMasterNode
@@ -494,6 +497,7 @@ export default class RedisClusterSlots<
             // Pause existing destination during command transfer
             destMasterNode.client?._pause();
             destMasterNode.pubSub?.client._pause();
+            pausedDestNodes.add(destMasterNode);
           }
 
           // Track last destination for slotless commands later
@@ -539,6 +543,7 @@ export default class RedisClusterSlots<
           // 5. Unpause destination
           destMasterNode.client?._unpause();
           destMasterNode.pubSub?.client._unpause();
+          pausedDestNodes.delete(destMasterNode);
         }
 
         dbgMaintenance(`[CSlots]: Total ${allMovingSlots.size} slots moved from ${sourceAddress}. Sample: ${Array.from(allMovingSlots).slice(0, 10).join(', ')}${allMovingSlots.size > 10 ? '...' : ''}`);
@@ -657,6 +662,12 @@ export default class RedisClusterSlots<
         sourceNode.client?._unpause();
         if ('pubSub' in sourceNode) {
           sourceNode.pubSub?.client._unpause();
+        }
+        // Unpause any destination nodes that were paused but not yet unpaused.
+        // Without this they would remain frozen indefinitely, blocking all queued commands.
+        for (const node of pausedDestNodes) {
+          node.client?._unpause();
+          node.pubSub?.client._unpause();
         }
         this.#emit('error', err)
       }
