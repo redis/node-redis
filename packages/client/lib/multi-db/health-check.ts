@@ -30,8 +30,10 @@ export interface HealthCheck {
 export class DefaultHealthCheck implements HealthCheck {
   async probe(target: HealthCheckTarget): Promise<boolean> {
     const reply = await target.sendCommand(['PING']);
+    // PING is allowed in RESP2 subscriber mode but its reply comes back
+    // array-framed with a LOWERCASE verb ('pong'), so compare case-insensitively;
     // toString covers both string and Buffer type mappings
-    return reply?.toString() === 'PONG';
+    return reply?.toString().toUpperCase() === 'PONG';
   }
 }
 
