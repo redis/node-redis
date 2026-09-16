@@ -620,7 +620,7 @@ export function createMultiDbClient<
   const adapter: MemberAdapter<RedisClientType<M, F, S, RESP, T>> = {
     create: db => RedisClient.create(db.options as RedisClientOptions<M, F, S, RESP, T>),
     sendCommand: (client, args) => client.sendCommand(args),
-    movePubSub: async (from, to) => {
+    movePubSub: async (from, to, isCurrent) => {
       // removal (not a copy) keeps a recovering old member from re-subscribing
       // server-side and double-delivering to the same listener functions
       const listeners = from._getQueue().removeAllPubSubListeners();
@@ -633,8 +633,10 @@ export function createMultiDbClient<
       // connection; left in place, a RESP2 member rejects every regular command
       // when traffic later returns to it. Best-effort: a member that is down
       // reconnects with a fresh connection and empty maps, so there is nothing
-      // to clean.
-      if (from.isReady) {
+      // to clean. Skip if superseded: a switch-back (A→B→A) may have
+      // re-subscribed `from` while this await was parked — unsubscribing it
+      // now would tear down the subscriptions the newer switch just restored.
+      if (from.isReady && isCurrent()) {
         await Promise.allSettled([
           listeners[PUBSUB_TYPE.CHANNELS].size ? from.unsubscribe() : undefined,
           listeners[PUBSUB_TYPE.PATTERNS].size ? from.pUnsubscribe() : undefined,

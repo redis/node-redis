@@ -74,6 +74,10 @@ interface Harness {
   rejectedQueues: Array<FakeClient>;
   /** pub/sub moves the adapter performed, as [from, to] */
   pubSubMoves: Array<[FakeClient, FakeClient]>;
+  /** isCurrent() verdict captured at the end of each move */
+  moveStillCurrent: Array<boolean>;
+  /** optional gate: return a promise to hold a move open across a second switch */
+  onMovePubSub?: (from: FakeClient, to: FakeClient) => Promise<void> | undefined;
   /** configure a fake before the manager sees it (runtime adds) */
   onCreate?: (fake: FakeClient, id: string) => void;
 }
@@ -82,6 +86,7 @@ function makeHarness(memberCount: number, overrides: MultiDbConfig = {}): Harnes
   const harness = {} as Harness;
   harness.rejectedQueues = [];
   harness.pubSubMoves = [];
+  harness.moveStillCurrent = [];
   const fakes = new Map<string, FakeClient>();
   const adapter: MemberAdapter<RedisClientLike> = {
     create: config => {
@@ -92,8 +97,13 @@ function makeHarness(memberCount: number, overrides: MultiDbConfig = {}): Harnes
       return fake as unknown as RedisClientLike;
     },
     sendCommand: client => (client as unknown as FakeClient).handleCommand(),
-    movePubSub: async (from, to) => {
+    movePubSub: async (from, to, isCurrent) => {
+      // record the move; a scripted fake can await a gate to hold the handover
+      // open across a second switch, then assert isCurrent() flipped
       harness.pubSubMoves.push([from as unknown as FakeClient, to as unknown as FakeClient]);
+      const gate = harness.onMovePubSub?.(from as unknown as FakeClient, to as unknown as FakeClient);
+      if (gate) await gate;
+      harness.moveStillCurrent.push(isCurrent());
     },
     rejectQueued: from => {
       harness.rejectedQueues.push(from as unknown as FakeClient);
@@ -863,6 +873,47 @@ describe('multi-db manager (unit)', function () {
     }
     assert.ok(received.some(r => r.event === 'terminated'), 'exhaustion must still terminate');
     assert.ok(mgr.unavailableError instanceof PermanentlyUnavailableError);
+    mgr.destroy();
+  });
+
+  it('a switch-back while a handover is in flight marks the stale move superseded', async () => {
+    const harness = makeHarness(3);
+    const { mgr } = harness;
+    await mgr.connect();
+
+    // hold the first move (db-0 → db-1) open until we release it
+    let release!: () => void;
+    const held = new Promise<void>(resolve => { release = resolve; });
+    harness.onMovePubSub = (from, to) =>
+      (from === harness.fakes.get('db-0') && to === harness.fakes.get('db-1')) ? held : undefined;
+
+    mgr.switchTo(mgr.databases[1], 'forced');   // A→B, its move parks on the gate
+    mgr.switchTo(mgr.databases[0], 'forced');   // B→A, bumps the generation
+    release();
+    await tick(10);
+
+    // both moves completed; exactly the stale one (A→B) saw isCurrent() false,
+    // the live one (B→A) saw true — order of completion aside
+    assert.equal(harness.moveStillCurrent.length, 2);
+    assert.equal(harness.moveStillCurrent.filter(current => !current).length, 1,
+      'exactly the superseded move must see isCurrent() === false');
+    mgr.destroy();
+  });
+
+  it('setActiveDatabase rejects a second forced switch while one is in progress', async () => {
+    const { mgr, fakes } = makeHarness(2, {
+      healthCheck: { interval: 1_000, timeout: 500, numProbes: 1, delayBetweenProbes: 0 }
+    });
+    await mgr.connect();
+    // hold db-1's verification probe so the first force stays in flight
+    let releaseProbe!: () => void;
+    fakes.get('db-1')!.onCommand = () => new Promise(resolve => { releaseProbe = () => resolve('PONG'); });
+
+    const first = mgr.setActiveDatabase('db-1');
+    await assert.rejects(mgr.setActiveDatabase('db-1'), /a forced switch is already in progress/);
+    releaseProbe();
+    await first;
+    assert.equal(mgr.activeDatabase.id, 'db-1');
     mgr.destroy();
   });
 
