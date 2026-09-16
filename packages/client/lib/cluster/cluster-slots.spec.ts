@@ -255,13 +255,13 @@ describe('RedisClusterSlots', () => {
       // the terminal connect failure clears node.client.
       const probe = createNode();
       const connectPromise = slots.nodeClient(probe);
-      const [handler] = (probe.client as any).listeners(SMIGRATED_EVENT) as [(e: SMigratedEvent) => Promise<void>];
+      const [handler] = (probe.client as EventEmitter).listeners(SMIGRATED_EVENT) as [(e: SMigratedEvent) => Promise<void>];
       await assert.rejects(connectPromise as Promise<unknown>);
 
       // Track pause/unpause calls on a mock destination node.
       let destPauseCount = 0;
       let destUnpauseCount = 0;
-      const destNode: any = {
+      const destNode = {
         address: 'dest:6379',
         host: 'dest',
         port: 6379,
@@ -269,12 +269,12 @@ describe('RedisClusterSlots', () => {
           _pause:   () => { destPauseCount++; },
           _unpause: () => { destUnpauseCount++; },
         },
-      };
+      } as unknown as MasterNode<Record<string, never>, Record<string, never>, Record<string, never>, 3, Record<string, never>>;
 
       // Source node whose _getQueue().extractCommandsForSlots throws, forcing
       // the catch path after the destination has already been paused (step 4
       // runs after the step-2 pause but before the step-5 unpause).
-      const sourceNode: any = {
+      const sourceNode = {
         address: 'source:6379',
         client: {
           _pause:   () => {},
@@ -283,7 +283,7 @@ describe('RedisClusterSlots', () => {
             extractCommandsForSlots: () => { throw new Error('forced'); },
           }),
         },
-      };
+      } as unknown as MasterNode<Record<string, never>, Record<string, never>, Record<string, never>, 3, Record<string, never>>;
 
       slots.nodeByAddress.set('source:6379', sourceNode);
       slots.nodeByAddress.set('dest:6379', destNode);
