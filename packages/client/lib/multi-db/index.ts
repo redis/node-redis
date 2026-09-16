@@ -482,6 +482,17 @@ function attachForwarders<C extends RedisClientLike>(
             get: () => (cached ??= wrapNamespace(name, sample, mgr, resolve)),
             enumerable: false
           });
+        } else if (name === 'isReady') {
+          // isReady is the "can the logical client serve now?" signal, so it
+          // must agree with dispatch: the active member's socket can be up
+          // while the manager gates every command behind unavailableError
+          // (searching, or permanently failed). An app that checks isReady
+          // before sending would otherwise send into a wall.
+          Object.defineProperty(dst, name, {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic
+            get: () => mgr.unavailableError ? false : (resolve(mgr.active) as any).isReady,
+            enumerable: false
+          });
         } else {
           // computed prop (`isOpen`, `options`) → live read from the active member
           // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic
