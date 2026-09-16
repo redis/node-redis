@@ -146,7 +146,7 @@ class MultiDbClientBase<C extends RedisClientLike> extends EventEmitter {
    */
   withTypeMapping(mapping: unknown) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- member kinds type withX themselves
-    return makeDerived(this._mgr, client => (client as any).withTypeMapping(mapping));
+    return makeDerived(this._mgr, client => (client as any).withTypeMapping(mapping), this);
   }
 
   /**
@@ -155,7 +155,7 @@ class MultiDbClientBase<C extends RedisClientLike> extends EventEmitter {
    */
   withCommandOptions(options: unknown) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- member kinds type withX themselves
-    return makeDerived(this._mgr, client => (client as any).withCommandOptions(options));
+    return makeDerived(this._mgr, client => (client as any).withCommandOptions(options), this);
   }
 
   /**
@@ -164,7 +164,7 @@ class MultiDbClientBase<C extends RedisClientLike> extends EventEmitter {
    */
   withAbortSignal(signal: AbortSignal) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- member kinds type withX themselves
-    return makeDerived(this._mgr, client => (client as any).withAbortSignal(signal));
+    return makeDerived(this._mgr, client => (client as any).withAbortSignal(signal), this);
   }
 
   /**
@@ -175,7 +175,7 @@ class MultiDbClientBase<C extends RedisClientLike> extends EventEmitter {
    */
   asap() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- member kinds type asap themselves
-    return makeDerived(this._mgr, client => (client as any).asap());
+    return makeDerived(this._mgr, client => (client as any).asap(), this);
   }
 
   /**
@@ -344,30 +344,54 @@ function makeUnwatchForwarder<C extends RedisClientLike>(
   };
 }
 
+// EventEmitter registration methods a derived view forwards to the root
+// wrapper: they attach to the root (where the manager emits) but return the
+// view for chaining.
+const DELEGATED_EMITTER_METHODS = [
+  'on', 'once', 'off', 'addListener', 'removeListener',
+  'prependListener', 'prependOnceListener'
+] as const;
+
 /**
  * Build a derived view: the wrapper's classified surface with `resolve`
  * applied to the active member at every command call. Views chain — a view of
- * a view composes both option sets in creation order.
+ * a view composes both option sets in creation order. `eventRoot` is the root
+ * wrapper the manager emits through; the view delegates its event surface to
+ * it so listeners registered on a view actually fire.
  */
 function makeDerived<C extends RedisClientLike>(
   mgr: MultiDbManager<C>,
-  resolve: ResolveClient<C>
+  resolve: ResolveClient<C>,
+  eventRoot: EventEmitter
 ): C {
   const view = new MultiDbClientBase(mgr);
   attachForwarders(view, mgr, resolve);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic patching
   const dst = view as any;
+  // the manager emits through the root wrapper only (makeClient binds it), so
+  // a view's own inherited EventEmitter would never fire — delegate the event
+  // surface to the root, keeping the single documented event surface honest
+  for (const method of DELEGATED_EMITTER_METHODS) {
+    dst[method] = (event: string, listener: (...args: Array<unknown>) => void) => {
+      (eventRoot as unknown as Record<string, (...a: Array<unknown>) => unknown>)[method](event, listener);
+      return dst;
+    };
+  }
+  dst.emit = (event: string, ...args: Array<unknown>) => eventRoot.emit(event, ...args);
+  dst.listenerCount = (event: string) => eventRoot.listenerCount(event);
+  dst.listeners = (event: string) => eventRoot.listeners(event);
+  dst.eventNames = () => eventRoot.eventNames();
   dst.withTypeMapping = (mapping: unknown) =>
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- member kinds type withX themselves
-    makeDerived(mgr, client => (resolve(client) as any).withTypeMapping(mapping));
+    makeDerived(mgr, client => (resolve(client) as any).withTypeMapping(mapping), eventRoot);
   dst.withCommandOptions = (options: unknown) =>
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- member kinds type withX themselves
-    makeDerived(mgr, client => (resolve(client) as any).withCommandOptions(options));
+    makeDerived(mgr, client => (resolve(client) as any).withCommandOptions(options), eventRoot);
   dst.withAbortSignal = (signal: AbortSignal) =>
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- member kinds type withX themselves
-    makeDerived(mgr, client => (resolve(client) as any).withAbortSignal(signal));
+    makeDerived(mgr, client => (resolve(client) as any).withAbortSignal(signal), eventRoot);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- member kinds type asap themselves
-  dst.asap = () => makeDerived(mgr, client => (resolve(client) as any).asap());
+  dst.asap = () => makeDerived(mgr, client => (resolve(client) as any).asap(), eventRoot);
   dst.multi = () => makePinnedMulti(mgr, resolve);
   dst.MULTI = dst.multi;
   return view as unknown as C;
