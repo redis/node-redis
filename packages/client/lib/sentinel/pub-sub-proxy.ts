@@ -223,8 +223,10 @@ export class PubSubProxy extends EventEmitter {
       return fn(client);
     }).catch(err => {
       if (this.#state?.client.isPubSubActive) {
-        this.#state.client.destroy();
-        this.#state = undefined;
+        // destroy() clears #state AND the adopted #subscriptions snapshot; a
+        // bare client.destroy() would strand the snapshot for extractListeners
+        // to resurrect on the next move
+        this.destroy();
       }
 
       throw err;
@@ -263,10 +265,12 @@ export class PubSubProxy extends EventEmitter {
       const reply = await fn(client);
 
       if (!client.isPubSubActive) {
-        client.destroy();
-        this.#state = undefined;
+        // destroy() clears #state AND the adopted #subscriptions snapshot; a
+        // bare client.destroy() would leave the snapshot behind for the next
+        // extractListeners to resurrect on another member
+        this.destroy();
       }
-  
+
       return reply;
     });
   }
