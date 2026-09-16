@@ -85,7 +85,7 @@ const client = createClient({
 
 ## ASAP
 
-Commands that are executed in the "asap" mode are added to the beginning of the "to sent" queue.
+Commands that are executed in the "asap" mode are added to the beginning of the "to send" queue.
 
 ```javascript
 const asapClient = client.asap();
@@ -100,6 +100,7 @@ You can set all of the above command options in a single call with the `withComm
 client.withCommandOptions({
   typeMapping: ...,
   abortSignal: ...,
+  timeout: ...,
   asap: ...
 });
 ```
@@ -109,6 +110,7 @@ If any of the above options are omitted, the default value will be used. For exa
 ```javascript
 client.asap().withCommandOptions({
   typeMapping: ...,
-  abortSignal: ...
+  abortSignal: ...,
+  timeout: ...
 });
 ```

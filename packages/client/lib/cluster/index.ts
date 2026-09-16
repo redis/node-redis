@@ -117,23 +117,23 @@ export interface RedisClusterOptions<
    */
   nodeAddressMap?: NodeAddressMap;
   /**
-   * Client Side Caching configuration for the pool.
+   * Client Side Caching configuration for the cluster.
    *
    * Enables Redis Servers and Clients to work together to cache results from commands
    * sent to a server. The server will notify the client when cached results are no longer valid.
-   * In pooled mode, the cache is shared across all clients in the pool.
+   * In cluster mode, the cache is shared across all clients in the cluster.
    *
    * Note: Client Side Caching is only supported with RESP3.
    *
    * @example Anonymous cache configuration
    * ```
-   * const client = createCluster({
+   * const cluster = createCluster({
+   *   rootNodes: [{ url: 'redis://10.0.0.1:30001' }],
    *   clientSideCache: {
    *     ttl: 0,
    *     maxEntries: 0,
    *     evictPolicy: "LRU"
-   *   },
-   *   minimum: 5
+   *   }
    * });
    * ```
    *
@@ -144,9 +144,9 @@ export interface RedisClusterOptions<
    *   maxEntries: 0,
    *   evictPolicy: "LRU"
    * });
-   * const client = createCluster({
-   *   clientSideCache: cache,
-   *   minimum: 5
+   * const cluster = createCluster({
+   *   rootNodes: [{ url: 'redis://10.0.0.1:30001' }],
+   *   clientSideCache: cache
    * });
    * ```
    */

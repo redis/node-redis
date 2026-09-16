@@ -19,7 +19,7 @@ const pool = await createClientPool()
   .on('error', err => console.error('Redis Client Pool Error', err));
 ```
 
-the function accepts two arguments, the client configuration (see [here](./client-configuration.md) for more details), and the pool configuration:
+The function accepts two arguments, the client configuration (see [here](./client-configuration.md) for more details), and the pool configuration:
 
 | Property       | Default | Description                                                                                                                    |
 |----------------|---------|--------------------------------------------------------------------------------------------------------------------------------|
@@ -40,10 +40,7 @@ All the client APIs are exposed on the pool instance directly, and will execute 
 
 ```javascript
 await pool.sendCommand(['PING']); // 'PONG'
-await client.ping(); // 'PONG'
-await client.withTypeMapping({
-  [RESP_TYPES.SIMPLE_STRING]: Buffer
-}).ping(); // Buffer
+await pool.ping(); // 'PONG'
 ```
 
 ## Closing a pool
