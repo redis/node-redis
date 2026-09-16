@@ -30,10 +30,14 @@ export interface MemberAdapter<C extends RedisClientLike> {
    * hand the listeners into `to`'s own extractable state before their first
    * await — switches don't wait for each other, so a second failover may
    * re-extract from `to` while this move's wire work is still in flight.
-   * Omit when the topology does not support cross-member transfer — the
-   * switch then leaves subscriptions behind instead of duplicating deliveries.
+   * `isCurrent()` reports whether this is still the latest switch; any
+   * DESTRUCTIVE cleanup of `from` after an await must be gated on it, or a
+   * rapid switch-back (A→B→A) lets a stale move tear down a re-promoted
+   * member. Omit when the topology does not support cross-member transfer —
+   * the switch then leaves subscriptions behind instead of duplicating
+   * deliveries.
    */
-  movePubSub?(from: C, to: C): Promise<void>;
+  movePubSub?(from: C, to: C, isCurrent: () => boolean): Promise<void>;
   /**
    * Called synchronously when traffic switches away from `from`: reject
    * commands still queued UNSENT on it when its connection is down, so they
@@ -112,6 +116,15 @@ export class MultiDbManager<C extends RedisClientLike> {
    * exposes ref/unref; not copied by duplicate() (runtime state).
    */
   refState: 'ref' | 'unref' | null = null;
+  /**
+   * Monotonic switch counter, bumped on every repoint. A switch's async
+   * pub/sub handover captures it and skips destructive `from` cleanup once a
+   * newer switch has happened — the root guard against a stale move acting on
+   * re-promoted state (e.g. a rapid A→B→A).
+   */
+  #switchGeneration = 0;
+  /** one forced switch at a time — setActiveDatabase rejects re-entry */
+  #forcedSwitchInFlight = false;
   readonly #teardown = new AbortController();
   #events?: MultiDbEventOutlet;
   readonly #healthTimers = new Map<Database<C>, NodeJS.Timeout>();
@@ -292,6 +305,10 @@ export class MultiDbManager<C extends RedisClientLike> {
    * piece, and each caller owns its error routing.
    */
   #repoint(from: Database<C>, target: Database<C>): void {
+    // every repoint advances the generation — a prior switch's in-flight
+    // pub/sub handover reads this to know it has been superseded
+    this.#switchGeneration++;
+
     // any switch away from the pin means automatic behavior took over —
     // a pin never traps traffic on a failed member
     if (this.#pinnedTo !== null && target !== this.#pinnedTo) {
@@ -338,7 +355,12 @@ export class MultiDbManager<C extends RedisClientLike> {
   async #afterSwitch(from: Database<C>, to: Database<C>): Promise<void> {
     // subscriptions move with the traffic; messages published between the
     // repoint and the re-subscribe completing are lost
-    await this.#adapter.movePubSub?.(from.client, to.client);
+    const generation = this.#switchGeneration;
+    await this.#adapter.movePubSub?.(
+      from.client,
+      to.client,
+      () => this.#switchGeneration === generation
+    );
   }
 
   /**
@@ -525,6 +547,20 @@ export class MultiDbManager<C extends RedisClientLike> {
     if (this.#unavailable === 'failed') {
       throw new Error('MultiDb: the client is permanently unavailable');
     }
+    // one forced switch at a time: the probe round below takes seconds, and a
+    // second force racing it would run two switches back to back
+    if (this.#forcedSwitchInFlight) {
+      throw new Error('MultiDb: a forced switch is already in progress');
+    }
+    this.#forcedSwitchInFlight = true;
+    try {
+      await this.#forceActiveDatabase(id, target);
+    } finally {
+      this.#forcedSwitchInFlight = false;
+    }
+  }
+
+  async #forceActiveDatabase(id: string, target: Database<C>): Promise<void> {
     if (!await runProbeRound(this.#targetFor(target), this.#healthChecks, this.#config.healthCheck)) {
       throw new Error(`MultiDb: cannot force database "${id}", it failed its health check`);
     }
