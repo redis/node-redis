@@ -657,6 +657,16 @@ describe('multi-db', function () {
       })
     );
 
+    it('MONITOR is rejected — it cannot follow a failover', () =>
+      withMultiDb({ databases: [memberOf(serverA)] }, async ({ client }) => {
+        await assert.rejects(
+          (client as unknown as { monitor(cb: () => void): Promise<unknown> }).monitor(() => {}),
+          /MONITOR is not supported through the multi-db client/
+        );
+        assert.equal(await client.ping(), 'PONG');
+      })
+    );
+
     it("a listener's unsubscribe inside the failover event is not undone by the move", () =>
       withMultiDb(
         { databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })] },

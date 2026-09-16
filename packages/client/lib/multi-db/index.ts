@@ -520,6 +520,15 @@ function attachForwarders<C extends RedisClientLike>(
           ));
           continue;
         }
+        // MONITOR puts a connection into a permanent monitoring mode (re-applied
+        // on every reconnect) — connection-scoped state like SELECT that cannot
+        // follow a failover. Attach it to an individual member instead.
+        if (name === 'MONITOR' || name === 'monitor') {
+          dst[name] = () => Promise.reject(new Error(
+            'MultiDb: MONITOR is not supported through the multi-db client — attach it to an individual member'
+          ));
+          continue;
+        }
         // command / script method → call active's own method (this = active);
         // settled outcomes must reach `manager.ts:onCommandResult` — the detector feed
         dst[name] = (...args: Array<unknown>) => {
