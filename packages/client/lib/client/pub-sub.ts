@@ -126,6 +126,19 @@ export class PubSub {
     carried: boolean;
   }>();
 
+  /**
+   * Unsubscribes whose wire reply is still pending: the channels/listeners
+   * they will remove are STILL in `listeners` until the reply lands, so a
+   * subscription move started mid-round-trip would capture and resurrect them
+   * on the new member. Each carries the same `removeListeners` thunk the
+   * command settles with, applied to the snapshot instead (the mirror of
+   * {@link PubSub.prototype.subscribe}'s pending tracking).
+   */
+  readonly #pendingUnsubscribes = new Set<{
+    apply: () => void;
+    carried: boolean;
+  }>();
+
   #isActive = false;
 
   get isActive() {
@@ -363,11 +376,16 @@ export class PubSub {
     channelsCounter: number,
     removeListeners: () => void
   ) {
+    const pending = { apply: removeListeners, carried: false };
+    this.#pendingUnsubscribes.add(pending);
     return {
       args,
       channelsCounter,
       resolve: () => {
-        removeListeners();
+        this.#pendingUnsubscribes.delete(pending);
+        // a move already applied this removal to the extracted snapshot —
+        // the live maps are fresh, nothing left to remove here
+        if (!pending.carried) removeListeners();
         this.#updateIsActive();
       },
       reject: undefined
@@ -493,6 +511,15 @@ export class PubSub {
         }
         PubSub.#listenersSet(channelListeners, pending.returnBuffers).add(pending.listener);
       }
+    }
+
+    // in-flight unsubscribes will remove their channels/listeners once the
+    // reply lands, but those are still present in the snapshot above — apply
+    // the removal now (the thunk mutates the same map objects `result`
+    // aliases) so the move does not resurrect a channel the user just left
+    for (const pending of this.#pendingUnsubscribes) {
+      pending.carried = true;
+      pending.apply();
     }
 
     this.listeners[PUBSUB_TYPE.CHANNELS] = new Map();

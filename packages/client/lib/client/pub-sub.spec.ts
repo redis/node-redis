@@ -192,6 +192,40 @@ describe('PubSub', () => {
       assert.equal(pubSub.isActive, false);
       assert.equal(pubSub.removeAllListeners()[TYPE].size, 0);
     });
+
+    it('an in-flight unsubscribe is applied to the snapshot, not resurrected by the move', () => {
+      const pubSub = new PubSub(CLIENT_ID);
+      const listener = () => {};
+      pubSub.subscribe(TYPE, 'leaving', listener)!.resolve();
+
+      // unsubscribe in flight: the channel is still in the live map until reply
+      const unsub = pubSub.unsubscribe(TYPE, 'leaving', listener);
+      assert.ok(unsub);
+
+      // the move snapshots now — the leaving channel must NOT be carried over
+      const snapshot = pubSub.removeAllListeners();
+      assert.equal(snapshot[TYPE].has('leaving'), false, 'a channel being unsubscribed must not move');
+
+      unsub.resolve(); // the late reply — a no-op against the fresh maps
+      assert.equal(pubSub.listeners[TYPE].size, 0);
+    });
+
+    it('per-listener unsubscribe keeps a co-subscribed listener on the same channel', () => {
+      const pubSub = new PubSub(CLIENT_ID);
+      const staying = () => {};
+      const leaving = () => {};
+      pubSub.subscribe(TYPE, 'shared', staying)!.resolve();
+      // second listener on the same channel needs no command (already subscribed)
+      pubSub.subscribe(TYPE, 'shared', leaving);
+
+      // removing one of two co-listeners issues no command — nothing in flight to carry
+      const unsub = pubSub.unsubscribe(TYPE, 'shared', leaving);
+      assert.equal(unsub, undefined);
+
+      const snapshot = pubSub.removeAllListeners();
+      assert.ok(snapshot[TYPE].get('shared')?.strings.has(staying), 'the surviving listener must move');
+      assert.equal(snapshot[TYPE].get('shared')?.strings.has(leaving), false);
+    });
   });
 });
 
