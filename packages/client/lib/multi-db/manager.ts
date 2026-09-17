@@ -136,6 +136,13 @@ export class MultiDbManager<C extends RedisClientLike> {
   #autoFallbackInterval: number;
   /** background checks start with the first successful connect() */
   #schedulerRunning = false;
+  /**
+   * True once connect() has ever reached 'ready'. A rejected INITIAL connect
+   * must destroy every member (documented contract); a rejected REPEAT/recovery
+   * connect on a client that has served must NOT — a failed re-probe cannot be
+   * allowed to tear down members that are currently fine.
+   */
+  #everReady = false;
 
   constructor(
     members: Array<ResolvedMemberConfig>,
@@ -669,29 +676,24 @@ export class MultiDbManager<C extends RedisClientLike> {
 
     const required = requiredHealthy(this.#config.initialAvailability, alive.length);
     if (healthy.length < required) {
-      // a rejected connect() must not leave live sockets or retry timers behind;
-      // await so the caller's rejection lands after every member has settled
-      await this.destroy();
-      throw new Error(
+      throw await this.#failConnect(new Error(
         `MultiDb: initial availability '${this.#config.initialAvailability}' requires ` +
         `${required}/${alive.length} healthy databases, got ${healthy.length}`
-      );
+      ));
     }
 
     let target: Database<C> | undefined;
     try {
       target = this.#select(healthy);
     } catch (err) {
-      // user strategy code throwing (or returning a foreign object) must keep
-      // the contract above too: a rejected connect() leaves no live members
-      await this.destroy();
-      throw err;
+      // user strategy code throwing (or returning a foreign object) fails the
+      // connect through the same contract
+      throw await this.#failConnect(err as Error);
     }
     if (target === undefined) {
       // a detector trip racing the probe round can re-open a circuit between
-      // establish and selection — reject per the contract above, don't crash
-      await this.destroy();
-      throw new Error('MultiDb: no healthy database is selectable');
+      // establish and selection — reject per the contract, don't crash
+      throw await this.#failConnect(new Error('MultiDb: no healthy database is selectable'));
     }
     if (this.#active !== target) {
       // a recovery re-selection is a switch in everything but the
@@ -711,7 +713,22 @@ export class MultiDbManager<C extends RedisClientLike> {
     this.#startScheduler();
     // the logical readiness signal: policy met, an active member is serving —
     // fires on the initial connect and again on a recovery re-connect
+    this.#everReady = true;
     this.#events?.emit('ready');
+  }
+
+  /**
+   * Fail a connect(): destroy every member first ONLY when the client has
+   * never served — an initial (or never-ready) connect that rejects must
+   * leave nothing live, per the documented contract. A repeat/recovery
+   * connect on a client that has already been ready must not be torn down by
+   * a failed re-probe: reject and leave the live members serving.
+   */
+  async #failConnect(error: Error): Promise<Error> {
+    if (!this.#everReady) {
+      await this.destroy();
+    }
+    return error; // callers `throw await this.#failConnect(...)` so control flow narrows
   }
 
   /**
