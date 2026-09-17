@@ -3,10 +3,14 @@
 // make within a given time window using the INCR and EXPIRE commands.
 // This is one of the most common Redis patterns in production systems.
 //
+// For a discussion of the rate-limiter pattern, see:
+// https://redis.io/docs/latest/commands/incr/#pattern-rate-limiter
+//
 // The pattern works as follows:
-//   1. On each request, INCR a key that represents the user + current window.
-//   2. If the key is brand new (count === 1), set its TTL to the window size.
-//   3. If the count exceeds the limit, reject the request.
+//   1. On each request, atomically INCR the window counter and set its EXPIRE
+//      using a MULTI transaction. This prevents key leaks if a crash occurs
+//      between commands.
+//   2. If the count exceeds the limit, reject the request.
 //
 // No setup required — this example creates all data itself.
 
@@ -31,14 +35,12 @@ async function isRequestAllowed(userId) {
   const windowStart = Math.floor(Date.now() / (WINDOW_SIZE_IN_SECONDS * 1000));
   const rateLimitKey = `rate_limit:${userId}:${windowStart}`;
 
-  // Atomically increment the counter for this user in this window
-  const currentCount = await client.incr(rateLimitKey);
-
-  if (currentCount === 1) {
-    // This is the first request in the window — set the key to expire
-    // automatically when the window closes so Redis self-cleans.
-    await client.expire(rateLimitKey, WINDOW_SIZE_IN_SECONDS);
-  }
+  // Atomically increment the counter and set the expiration to prevent
+  // key leaks if a crash occurs between commands.
+  const [currentCount] = await client.multi()
+    .incr(rateLimitKey)
+    .expire(rateLimitKey, WINDOW_SIZE_IN_SECONDS)
+    .exec();
 
   const remaining = Math.max(0, MAX_REQUESTS_PER_WINDOW - currentCount);
   const allowed = currentCount <= MAX_REQUESTS_PER_WINDOW;
@@ -65,4 +67,4 @@ for (let i = 1; i <= 7; i++) {
   }
 }
 
-await client.quit();
+await client.close();
