@@ -14,7 +14,7 @@ describe('CMS.INITBYDIM', () => {
 
     it('with CELL_SIZE', () => {
       assert.deepEqual(
-        parseArgs(INITBYDIM, 'key', 1000, 5, 4),
+        parseArgs(INITBYDIM, 'key', 1000, 5, { CELL_SIZE: 4 }),
         ['CMS.INITBYDIM', 'key', '1000', '5', 'CELL_SIZE', '4']
       );
     });
@@ -29,7 +29,7 @@ describe('CMS.INITBYDIM', () => {
 
   testUtils.testWithClient('client.cms.initByDim with CELL_SIZE', async client => {
     assert.equal(
-      await client.cms.initByDim('key', 1000, 5, 4),
+      await client.cms.initByDim('key', 1000, 5, { CELL_SIZE: 4 }),
       'OK'
     );
   }, {
