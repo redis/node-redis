@@ -151,18 +151,21 @@ export class PubSubProxy extends EventEmitter {
    */
   extractListeners(): Subscriptions {
     // Same precedence as `changeNode`: once `connectPromise` settles the live
-    // client's listener maps are authoritative (user subscribe/unsubscribe only
-    // mutate those); the `#subscriptions` snapshot is trustworthy only while a
-    // connect with a pending re-subscribe is in flight.
-    const subscriptions: Subscriptions = (this.#state && this.#state.connectPromise === undefined) ? {
-      [PUBSUB_TYPE.CHANNELS]: this.#state.client.getPubSubListeners(PUBSUB_TYPE.CHANNELS),
-      [PUBSUB_TYPE.PATTERNS]: this.#state.client.getPubSubListeners(PUBSUB_TYPE.PATTERNS),
-      [PUBSUB_TYPE.SHARDED]: this.#state.client.getPubSubListeners(PUBSUB_TYPE.SHARDED)
-    } : this.#subscriptions ?? {
-      [PUBSUB_TYPE.CHANNELS]: new Map(),
-      [PUBSUB_TYPE.PATTERNS]: new Map(),
-      [PUBSUB_TYPE.SHARDED]: new Map()
-    };
+    // client's listener maps are authoritative. Source the snapshot from the
+    // client's `removeAllPubSubListeners()` (not the raw `getPubSubListeners`
+    // maps): it applies the client's in-flight UNSUBSCRIBEs and carries its
+    // in-flight SUBSCRIBEs, so a failover racing an unsubscribe does not
+    // resurrect a leaving channel on the new member. The client is destroyed
+    // just below, so clearing its maps as a side effect is harmless. The
+    // `#subscriptions` snapshot is used only while a connect with a pending
+    // re-subscribe is in flight.
+    const subscriptions: Subscriptions = (this.#state && this.#state.connectPromise === undefined)
+      ? this.#state.client._getQueue().removeAllPubSubListeners()
+      : this.#subscriptions ?? {
+          [PUBSUB_TYPE.CHANNELS]: new Map(),
+          [PUBSUB_TYPE.PATTERNS]: new Map(),
+          [PUBSUB_TYPE.SHARDED]: new Map()
+        };
 
     // an in-flight subscribe lives only in its dispatch closure until the wire
     // command resolves — and destroy() below silences or rejects that dispatch.

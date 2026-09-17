@@ -76,6 +76,28 @@ describe('sentinel pub-sub-proxy', function () {
     assert.ok(extracted[PUBSUB_TYPE.PATTERNS].get('flight.*')?.strings.has(inFlight));
   });
 
+  it('a subscribe stays but an in-flight unsubscribe is dropped from the extracted snapshot', async () => {
+    const node = { host: '127.0.0.1', port: server.port };
+    const proxy = new PubSubProxy({}, () => {});
+    await proxy.changeNode(node);
+    const stay = () => {};
+    const leave = () => {};
+    await proxy.subscribe('stay', stay);
+    await proxy.subscribe('leave', leave);
+
+    // start the unsubscribe but do NOT await it — its UNSUBSCRIBE is in flight
+    // on the inner client when the failover extract runs
+    const leaving = proxy.unsubscribe('leave', leave);
+    const extracted = proxy.extractListeners();
+
+    assert.ok(extracted[PUBSUB_TYPE.CHANNELS].get('stay')?.strings.has(stay), 'the kept channel must move');
+    assert.equal(
+      extracted[PUBSUB_TYPE.CHANNELS].has('leave'), false,
+      'a channel being unsubscribed must not be resurrected on the new member'
+    );
+    await leaving.catch(() => {}); // the abandoned dispatch settles quietly post-destroy
+  });
+
   it('unsubscribing everything clears the adopted snapshot — no ghost on the next extract', async () => {
     const node = { host: '127.0.0.1', port: server.port };
     const source = new PubSubProxy({}, () => {});
