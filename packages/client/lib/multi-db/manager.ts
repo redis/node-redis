@@ -366,8 +366,27 @@ export class MultiDbManager<C extends RedisClientLike> {
     await this.#adapter.movePubSub?.(
       from.client,
       to.client,
-      () => this.#switchGeneration === generation
+      () => this.#currentSwitch(generation)
     );
+  }
+
+  /**
+   * The two re-validation guards every async manager method must consult after
+   * an await, before mutating state or emitting — the whole point is that the
+   * synchronous switch (`#repoint`), a teardown, or a membership change may
+   * have moved the world while the await was parked. Kept as two distinct
+   * dimensions on purpose: `#memberLive` for per-member work (is this member
+   * still in the set and the client not torn down?), `#currentSwitch` for a
+   * fire-and-forget switch tail (is this still the latest switch?). Folding
+   * teardown into the generation counter would abort unrelated switch tails on
+   * a benign add/remove and make "why did this abort" unreadable.
+   */
+  #memberLive(db: Database<C>): boolean {
+    return !this.#teardown.signal.aborted && this.#databases.includes(db);
+  }
+
+  #currentSwitch(generation: number): boolean {
+    return this.#switchGeneration === generation;
   }
 
   /**
@@ -470,9 +489,9 @@ export class MultiDbManager<C extends RedisClientLike> {
             const cause = new Error(`MultiDb: database "${db.id}" failed its health check`);
             if (db === this.#active) {
               this.#handleActiveFailure(cause, 'health-check');
-            } else if (db.circuit.open() && this.#databases.includes(db)) {
-              // no announcement for a member removed while its round was in
-              // flight — its id may already belong to a new member
+            } else if (db.circuit.open() && this.#memberLive(db)) {
+              // no announcement for a member removed OR torn down while its
+              // round was in flight — its id may already belong to a new member
               this.#events?.emit('database-unhealthy', { id: db.id, cause });
             }
           }
@@ -501,11 +520,15 @@ export class MultiDbManager<C extends RedisClientLike> {
         }
       }
       if (this.#teardown.signal.aborted || db.circuit.state !== 'HALF_OPEN') return;
-      if (await runSingleProbe(this.#targetFor(db), this.#healthChecks, timeout)) {
+      const healthy = await runSingleProbe(this.#targetFor(db), this.#healthChecks, timeout);
+      // re-validate after the probe await: a forced switch/connect may have
+      // closed+activated this member, a teardown may have fired, or it may have
+      // been removed. Acting now would reopen a live member's circuit
+      // (probeFailed) or emit 'database-recovered' after 'end'.
+      if (!this.#memberLive(db) || db.circuit.state !== 'HALF_OPEN') return;
+      if (healthy) {
         if (db.circuit.probeSucceeded()) {
-          if (this.#databases.includes(db)) {
-            this.#events?.emit('database-recovered', { id: db.id });
-          }
+          this.#events?.emit('database-recovered', { id: db.id });
           return;
         }
       } else {
@@ -751,6 +774,14 @@ export class MultiDbManager<C extends RedisClientLike> {
     this.#databases.push(member);
     // #establishMember closes the circuit once the member establishes
     await this.#establishMember(member, member.skipInitialHealthCheck);
+    // re-validate after the establish await: a close()/destroy() landing
+    // meanwhile already tore this member down — don't resolve an id for a dead
+    // member. Teardown-only on purpose: a concurrent removeDatabase(member) is
+    // a legitimate resolve (the member left the set), and #startMemberChecks
+    // below already no-ops for a member no longer in #databases.
+    if (this.#teardown.signal.aborted) {
+      throw new Error('MultiDb: the client is closed');
+    }
     this.#startMemberChecks(member);
     return member.id;
   }
@@ -776,12 +807,17 @@ export class MultiDbManager<C extends RedisClientLike> {
       this.switchTo(target, 'active-removed');
     }
 
+    // switchTo above synchronously emits 'failover'; a listener re-entering
+    // removeDatabase(id) could splice this member out before we do, leaving
+    // indexOf === -1 and splice(-1, 1) deleting the wrong member
+    const index = this.#databases.indexOf(member);
+    if (index === -1) return;
     const timer = this.#healthTimers.get(member);
     if (timer) {
       clearInterval(timer);
       this.#healthTimers.delete(member);
     }
-    this.#databases.splice(this.#databases.indexOf(member), 1);
+    this.#databases.splice(index, 1);
     this.#memberConfigs.delete(member);
     try {
       if (member.circuit.state === 'CLOSED') {
