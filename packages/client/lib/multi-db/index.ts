@@ -394,6 +394,19 @@ function makeDerived<C extends RedisClientLike>(
   dst.asap = () => makeDerived(mgr, client => (resolve(client) as any).asap(), eventRoot);
   dst.multi = () => makePinnedMulti(mgr, resolve);
   dst.MULTI = dst.multi;
+  // duplicate() on a view must carry the view's options: the inherited base
+  // duplicate rebuilds through the identity resolve, silently dropping the
+  // mapping the type promises. Re-derive through this view's `resolve`, over a
+  // FRESH event root bound to the duplicated manager — the clone must not
+  // share the original's event surface.
+  dst.duplicate = (overrides?: object) => {
+    const dupMgr = mgr.duplicate(overrides);
+    const root = makeClient(dupMgr);
+    return {
+      client: makeDerived(dupMgr, resolve, root),
+      controller: new MultiDbController(dupMgr)
+    };
+  };
   return view as unknown as C;
 }
 

@@ -34,6 +34,8 @@ async function main() {
   const stdPair = stdView.duplicate();
   stdPair.controller.getDatabases();
   await stdPair.client.connect();
+  // a view's duplicate keeps the view's mapping (runtime re-derives through it)
+  expectType<Buffer | null>(await stdPair.client.get('k'));
   // @ts-expect-error duplicate() returns the { client, controller } pair, not a client
   stdView.duplicate().connect();
   // @ts-expect-error unknown event names must not compile
