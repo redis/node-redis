@@ -847,6 +847,19 @@ describe('multi-db', function () {
         }
       })
     );
+
+    it('view.removeAllListeners() clears listeners on the root, not the view stub', () =>
+      withMultiDb({ databases: [memberOf(serverA)] }, async ({ client }) => {
+        const view = client.withTypeMapping({ [RESP_TYPES.BLOB_STRING]: Buffer });
+        const fired: Array<unknown> = [];
+        view.on('failover', event => fired.push(event));
+
+        // clearing through the view must reach the root the manager emits through
+        view.removeAllListeners('failover');
+        client.emit('failover', { from: 'x', to: 'y', reason: 'forced' });
+        assert.equal(fired.length, 0, 'removeAllListeners on a view must clear the root listener');
+      })
+    );
   });
 
   describe('pool members', () => {
