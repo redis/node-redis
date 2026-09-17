@@ -718,6 +718,26 @@ describe('multi-db manager (unit)', function () {
     );
   });
 
+  it('a failed repeat connect() on a serving client rejects without destroying it', async () => {
+    const { mgr, fakes } = makeHarness(2, { initialAvailability: 'ALL' });
+    await mgr.connect();
+    assert.equal(mgr.activeDatabase.id, 'db-0');
+
+    // a member blips down, then the app redundantly calls connect() again:
+    // the availability gate now fails, but the live client must survive
+    fakes.get('db-1')!.onCommand = async () => 'NOPONG';
+    await assert.rejects(mgr.connect(), /initial availability/);
+
+    assert.ok(
+      [...fakes.values()].every(fake => !fake.destroyed),
+      'a failed re-probe must not tear down a serving client'
+    );
+    // still usable: db-0 keeps serving
+    assert.equal(mgr.activeDatabase.id, 'db-0');
+    assert.equal(mgr.unavailableError, undefined);
+    mgr.destroy();
+  });
+
   it('a recovery connect() that re-selects runs the full switch housekeeping', async () => {
     const { mgr, fakes, received, rejectedQueues, pubSubMoves } = makeHarness(2, {
       maxFailoverAttempts: 2,
