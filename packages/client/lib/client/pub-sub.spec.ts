@@ -210,6 +210,26 @@ describe('PubSub', () => {
       assert.equal(pubSub.listeners[TYPE].size, 0);
     });
 
+    it('a rejected in-flight unsubscribe does not drop the channel from a later move', () => {
+      const pubSub = new PubSub(CLIENT_ID);
+      const listener = () => {};
+      pubSub.subscribe(TYPE, 'staying', listener)!.resolve();
+
+      // unsubscribe in flight, then its wire command REJECTS (socket drop) —
+      // the channel legitimately stays subscribed
+      const unsub = pubSub.unsubscribe(TYPE, 'staying', listener);
+      assert.ok(unsub);
+      unsub.reject!();
+
+      // a subsequent move must still carry the channel — the stale removal
+      // must not have lingered in the pending set
+      const snapshot = pubSub.removeAllListeners();
+      assert.ok(
+        snapshot[TYPE].get('staying')?.strings.has(listener),
+        'a channel whose unsubscribe failed must still move'
+      );
+    });
+
     it('per-listener unsubscribe keeps a co-subscribed listener on the same channel', () => {
       const pubSub = new PubSub(CLIENT_ID);
       const staying = () => {};

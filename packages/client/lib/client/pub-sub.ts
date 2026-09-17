@@ -388,7 +388,14 @@ export class PubSub {
         if (!pending.carried) removeListeners();
         this.#updateIsActive();
       },
-      reject: undefined
+      reject: () => {
+        // the unsubscribe failed (socket drop / error reply): the channel
+        // legitimately stays subscribed, so drop the pending entry WITHOUT
+        // applying its removal — otherwise a later removeAllListeners would
+        // replay this stale removal and drop a still-live subscription
+        this.#pendingUnsubscribes.delete(pending);
+        this.#updateIsActive();
+      }
     } satisfies PubSubCommand;
   }
 
