@@ -137,6 +137,21 @@ describe('Circuit', () => {
       assert.equal(circuit.probeSucceeded(), true);
       assert.equal(circuit.state, 'CLOSED');
     });
+
+    it('probeFailed is a no-op while CLOSED — a stale probe cannot reopen a recovered circuit', () => {
+      const { circuit } = createCircuit();
+      // a forced switch/connect closed+activated the member; a recovery probe
+      // from the finished round resolves false afterwards
+      assert.equal(circuit.probeFailed(), false);
+      assert.equal(circuit.state, 'CLOSED');
+    });
+
+    it('probeFailed is a no-op while already OPEN', () => {
+      const { circuit } = createCircuit();
+      circuit.open();
+      assert.equal(circuit.probeFailed(), false);
+      assert.equal(circuit.state, 'OPEN');
+    });
   });
 
   describe('close()', () => {

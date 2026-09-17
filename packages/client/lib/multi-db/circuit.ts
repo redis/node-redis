@@ -79,9 +79,14 @@ export class Circuit {
 
   /**
    * Report a failed recovery probe: HALF_OPEN → OPEN with a fresh grace period.
-   * Returns true when the effective state changed.
+   * Counts only while HALF_OPEN, mirroring {@link probeSucceeded} — a probe
+   * that resolves after the circuit already left HALF_OPEN (e.g. a forced
+   * switch or connect closed it) belongs to a finished recovery round and must
+   * not reopen a now-CLOSED, possibly-active member. Returns true when the
+   * effective state changed.
    */
   probeFailed(): boolean {
+    if (this.state !== 'HALF_OPEN') return false;
     return this.open();
   }
 
