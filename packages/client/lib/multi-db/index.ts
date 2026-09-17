@@ -381,6 +381,14 @@ function makeDerived<C extends RedisClientLike>(
   dst.listenerCount = (event: string) => eventRoot.listenerCount(event);
   dst.listeners = (event: string) => eventRoot.listeners(event);
   dst.eventNames = () => eventRoot.eventNames();
+  // the remaining EventEmitter surface must delegate too, or it operates on the
+  // view's own empty emitter: removeAllListeners() would clear nothing while
+  // the root keeps firing; rawListeners()/getMaxListeners() would read the
+  // wrong emitter. Chainable ones return the view, query ones the root's value.
+  dst.removeAllListeners = (event?: string) => { eventRoot.removeAllListeners(event); return dst; };
+  dst.rawListeners = (event: string) => eventRoot.rawListeners(event);
+  dst.setMaxListeners = (n: number) => { eventRoot.setMaxListeners(n); return dst; };
+  dst.getMaxListeners = () => eventRoot.getMaxListeners();
   dst.withTypeMapping = (mapping: unknown) =>
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- member kinds type withX themselves
     makeDerived(mgr, client => (resolve(client) as any).withTypeMapping(mapping), eventRoot);
