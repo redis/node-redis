@@ -131,6 +131,15 @@ In cluster mode the slot is computed from the prefixed key, so routing remains c
 - Pub/Sub channels are **not** prefixed (this includes sharded `SPUBLISH`/`SSUBSCRIBE`), since
   channels are a separate namespace from keys.
 - The deprecated `parseArgs`/`transformArguments` helper does not apply `keyPrefix`.
+- `sendCommand` does **not** apply `keyPrefix`. It sends the argument array as-is, because it
+  cannot tell which positions are keys — `['SET', 'key', 'value']` and `['GET', 'key']` look the
+  same to it. Key positions live in each command's own parser, which the raw path bypasses, and
+  module commands have no key specifications to look up. Include the prefix yourself:
+
+  ```javascript
+  await client.set('key', 'value');                       // stores 'app:key'
+  await client.sendCommand(['SET', 'app:key', 'value']);  // stores 'app:key'
+  ```
 
 `keyPrefix` may be a `string` or a `Buffer`.
 
