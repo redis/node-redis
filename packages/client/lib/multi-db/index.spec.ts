@@ -825,6 +825,28 @@ describe('multi-db', function () {
         }
       })
     );
+
+    it("duplicating a derived view keeps the view's type mapping at runtime", () =>
+      withMultiDb({ databases: [memberOf(serverA)] }, async ({ client }) => {
+        const view = client.withTypeMapping({ [RESP_TYPES.BLOB_STRING]: Buffer });
+        const dup = view.duplicate();
+        await dup.client.connect();
+        try {
+          await dup.client.set('view-dup', 'v');
+          const reply = await dup.client.get('view-dup');
+          assert.ok(Buffer.isBuffer(reply), "the view's mapping must survive duplicate()");
+          assert.equal(reply.toString(), 'v');
+
+          // events on the clone are its own surface, not cross-wired to the original
+          const failovers: Array<unknown> = [];
+          dup.client.on('failover', event => failovers.push(event));
+          client.emit('failover', { from: 'x', to: 'y', reason: 'forced' });
+          assert.equal(failovers.length, 0, "the clone must not receive the original's events");
+        } finally {
+          dup.client.destroy();
+        }
+      })
+    );
   });
 
   describe('pool members', () => {
