@@ -1003,6 +1003,29 @@ describe('multi-db manager (unit)', function () {
   // The enforcement net for the "acted after an await without re-validating"
   // class: for each async operation, move the world at its await boundary and
   // assert no effect leaks onto stale state.
+  it('a same-member recovery restores the ACTIVE role', async () => {
+    const { mgr, fakes } = makeHarness(1, {
+      maxFailoverAttempts: 1,
+      delayBetweenFailoverAttempts: 10
+    });
+    await mgr.connect();
+    assert.equal(mgr.activeDatabase.role, 'ACTIVE');
+
+    // the sole member ends → DISCONNECTED, client goes permanently unavailable
+    fakes.get('db-0')!.end();
+    const deadline = Date.now() + 1_000;
+    while (!(mgr.unavailableError instanceof PermanentlyUnavailableError) && Date.now() < deadline) {
+      await tick(10);
+    }
+    assert.equal(mgr.databases[0].role, 'DISCONNECTED');
+
+    // recovery re-connect re-selects the same member — its role must be ACTIVE again
+    await mgr.connect();
+    assert.equal(mgr.activeDatabase.id, 'db-0');
+    assert.equal(mgr.activeDatabase.role, 'ACTIVE', 'the recovered sole member must be ACTIVE, not PASSIVE');
+    mgr.destroy();
+  });
+
   describe('re-validation after await', () => {
     it('a recovery probe resolving after destroy() emits nothing', async () => {
       // long probe budget (timeout < interval), so the gate — not the timeout —
