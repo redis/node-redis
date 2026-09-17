@@ -999,4 +999,69 @@ describe('multi-db manager (unit)', function () {
     assert.ok(mgr.unavailableError instanceof PermanentlyUnavailableError);
     mgr.destroy();
   });
+
+  // The enforcement net for the "acted after an await without re-validating"
+  // class: for each async operation, move the world at its await boundary and
+  // assert no effect leaks onto stale state.
+  describe('re-validation after await', () => {
+    it('a recovery probe resolving after destroy() emits nothing', async () => {
+      // long probe budget (timeout < interval), so the gate — not the timeout —
+      // controls when the parked probe resolves
+      const { mgr, fakes, received } = makeHarness(2, {
+        gracePeriod: 20,
+        healthCheck: { interval: 1_100, timeout: 1_000, numProbes: 1, delayBetweenProbes: 0 }
+      });
+      await mgr.connect();
+      mgr.databases[1].circuit.open();
+      await tick(30); // reach HALF_OPEN before the first check fires
+
+      let releaseProbe!: () => void;
+      fakes.get('db-1')!.onCommand = () => new Promise(resolve => { releaseProbe = () => resolve('PONG'); });
+      const deadline = Date.now() + 2_000;
+      while (!releaseProbe && Date.now() < deadline) await tick(10); // wait for the recovery round to park
+
+      await mgr.destroy();
+      received.length = 0;
+      releaseProbe(); // the probe resolves healthy, after teardown
+      await tick(20);
+      assert.deepEqual(received, [], "no 'database-recovered' may fire after teardown");
+    });
+
+    it('addDatabase rejects when destroy() lands during establish', async () => {
+      const harness = makeHarness(1);
+      const { mgr } = harness;
+      await mgr.connect();
+
+      // the new member's connect parks until released — destroy() lands while
+      // addDatabase is still establishing
+      let releaseConnect!: () => void;
+      harness.onCreate = (fake, id) => {
+        if (id === 'db-1') fake.onConnect = () => new Promise(resolve => { releaseConnect = resolve; });
+      };
+      const adding = mgr.addDatabase({ options: {} });
+      adding.catch(() => {});
+      const deadline = Date.now() + 500;
+      while (!releaseConnect && Date.now() < deadline) await tick(5);
+
+      await mgr.destroy();
+      releaseConnect();
+      await assert.rejects(adding, /the client is closed/);
+    });
+
+    it('a re-entrant removeDatabase from a failover listener leaves the set coherent', async () => {
+      const { mgr, events } = makeHarness(3);
+      await mgr.connect();
+      // when the active-removed switch fires, re-enter removeDatabase for the
+      // same id synchronously — the splice must not delete the wrong member
+      events.once('failover', (payload: { from: string }) => {
+        void mgr.removeDatabase(payload.from).catch(() => {});
+      });
+      await mgr.removeDatabase('db-0');
+
+      const ids = mgr.databases.map(db => db.id).sort();
+      assert.deepEqual(ids, ['db-1', 'db-2'], 'db-0 removed exactly once, no wrong member deleted');
+      assert.ok(mgr.databases.includes(mgr.activeDatabase), 'the active member must still be in the set');
+      mgr.destroy();
+    });
+  });
 });
