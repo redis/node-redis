@@ -727,6 +727,11 @@ export class MultiDbManager<C extends RedisClientLike> {
       this.#repoint(from, target);
       this.#afterSwitch(from, target).catch(err => this.#emitError(err as Error));
     }
+    // assert the active role even when the selection didn't move: a member that
+    // ended and then recovered as the SAME active is DISCONNECTED→PASSIVE via
+    // its 'ready' handler, and #repoint (the only other ACTIVE setter) is
+    // skipped above — without this, no member would hold the active role.
+    target.role = 'ACTIVE';
 
     // a repeat connect() that succeeds lifts the all-down gate — a search loop
     // still mid-delay observes the state change as a rescue and exits
