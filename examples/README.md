@@ -21,6 +21,7 @@ This folder contains example scripts showing how to use Node Redis in different 
 | `otel-metrics.js`                        | Enable OpenTelemetry metrics for node-redis, generate command and resiliency signals, and export them via OpenTelemetry SDK metrics.                 |
 | `pubsub-publisher.js`                    | Adds multiple messages on 2 different channels messages to Redis.                                                                                    |
 | `pubsub-subscriber.js`                   | Reads messages from channels using `PSUBSCRIBE` command.                                                                                             |
+| `rate-limiter.js`                        | Fixed-window rate limiting using [`INCR`](https://redis.io/commands/incr/) and [`EXPIRE`](https://redis.io/commands/expire/) to cap requests per user per time window. |
 | `search-hashes.js`                       | Uses [RediSearch](https://redisearch.io) to index and search data in hashes.                                                                         |
 | `search-json.js`                         | Uses [RediSearch](https://redisearch.io/) and [RedisJSON](https://redisjson.io/) to index and search JSON data.                                      |
 | `search-knn.js`                          | Uses [RediSearch vector similarity]([https://redisearch.io/](https://redis.io/docs/stack/search/reference/vectors/)) to index and run KNN queries.   |
