@@ -25,6 +25,16 @@ type PubSubState = {
 
 type OnError = (err: unknown) => unknown;
 
+type PendingSubscribe = {
+  type: keyof Subscriptions;
+  channels: string | Array<string>;
+  listener: PubSubListener<boolean>;
+  bufferMode?: boolean;
+  /** set by extractListeners: the intent moved with the extraction, so the
+   * teardown-caused rejection of this dispatch is not a failure */
+  carried?: boolean;
+};
+
 export class PubSubProxy extends EventEmitter {
   #clientOptions;
   #onError;
@@ -32,6 +42,8 @@ export class PubSubProxy extends EventEmitter {
   #node?: RedisNode;
   #state?: PubSubState;
   #subscriptions?: Subscriptions;
+  /** in-flight subscribes — see {@link PubSubProxy.prototype.extractListeners} */
+  readonly #pendingSubscribes = new Set<PendingSubscribe>();
 
   constructor(
     clientOptions: AnyRedisClientOptions,
@@ -130,6 +142,77 @@ export class PubSubProxy extends EventEmitter {
     await this.#initiatePubSubClient(true);
   }
 
+  /**
+   * @internal
+   * Snapshot the current subscriptions and tear down the local pub/sub client.
+   * The multi-database client uses this to move subscriptions to another
+   * sentinel member on failover; detaching here stops the old member
+   * re-delivering to the same listeners after it recovers.
+   */
+  extractListeners(): Subscriptions {
+    // Same precedence as `changeNode`: once `connectPromise` settles the live
+    // client's listener maps are authoritative. Source the snapshot from the
+    // client's `removeAllPubSubListeners()` (not the raw `getPubSubListeners`
+    // maps): it applies the client's in-flight UNSUBSCRIBEs and carries its
+    // in-flight SUBSCRIBEs, so a failover racing an unsubscribe does not
+    // resurrect a leaving channel on the new member. The client is destroyed
+    // just below, so clearing its maps as a side effect is harmless. The
+    // `#subscriptions` snapshot is used only while a connect with a pending
+    // re-subscribe is in flight.
+    const subscriptions: Subscriptions = (this.#state && this.#state.connectPromise === undefined)
+      ? this.#state.client._getQueue().removeAllPubSubListeners()
+      : this.#subscriptions ?? {
+          [PUBSUB_TYPE.CHANNELS]: new Map(),
+          [PUBSUB_TYPE.PATTERNS]: new Map(),
+          [PUBSUB_TYPE.SHARDED]: new Map()
+        };
+
+    // an in-flight subscribe lives only in its dispatch closure until the wire
+    // command resolves — and destroy() below silences or rejects that dispatch.
+    // Fold its intent into the snapshot (the listener Sets dedupe one that also
+    // reached the live maps) and mark it carried so its settlement is not
+    // reported as a failure.
+    for (const pending of this.#pendingSubscribes) {
+      pending.carried = true;
+      const { type, channels, listener, bufferMode } = pending;
+      const typeListeners = subscriptions[type];
+      for (const channel of Array.isArray(channels) ? channels : [channels]) {
+        let channelListeners = typeListeners.get(channel);
+        if (!channelListeners) {
+          channelListeners = { unsubscribing: false, buffers: new Set(), strings: new Set() };
+          typeListeners.set(channel, channelListeners);
+        }
+        if (bufferMode) {
+          channelListeners.buffers.add(listener as PubSubListener<true>);
+        } else {
+          channelListeners.strings.add(listener as PubSubListener<false>);
+        }
+      }
+    }
+
+    this.destroy();
+    return subscriptions;
+  }
+
+  /**
+   * @internal
+   * Adopt subscriptions captured from another member's {@link extractListeners}
+   * and re-establish them against this member's current master. No-op when
+   * there is nothing to move.
+   */
+  async adoptListeners(subscriptions: Subscriptions): Promise<void> {
+    if (
+      subscriptions[PUBSUB_TYPE.CHANNELS].size === 0 &&
+      subscriptions[PUBSUB_TYPE.PATTERNS].size === 0 &&
+      subscriptions[PUBSUB_TYPE.SHARDED].size === 0
+    ) {
+      return;
+    }
+
+    this.#subscriptions = subscriptions;
+    await this.#initiatePubSubClient(true);
+  }
+
   #executeCommand<T>(fn: (client: Client) => T) {
     const client = this.#getPubSubClient();
     if (client instanceof RedisClient) {
@@ -143,12 +226,30 @@ export class PubSubProxy extends EventEmitter {
       return fn(client);
     }).catch(err => {
       if (this.#state?.client.isPubSubActive) {
-        this.#state.client.destroy();
-        this.#state = undefined;
+        // destroy() clears #state AND the adopted #subscriptions snapshot; a
+        // bare client.destroy() would strand the snapshot for extractListeners
+        // to resurrect on the next move
+        this.destroy();
       }
 
       throw err;
     });
+  }
+
+  /** Track an in-flight subscribe for the duration of its dispatch, so
+   * {@link extractListeners} can carry it during that window. */
+  async #trackedSubscribe<T>(pending: PendingSubscribe, execute: () => T): Promise<Awaited<T> | undefined> {
+    this.#pendingSubscribes.add(pending);
+    try {
+      return await execute();
+    } catch (err) {
+      // the extraction that tore this client down carried the intent to the
+      // adopting member — the subscribe semantically succeeded there
+      if (pending.carried) return undefined;
+      throw err;
+    } finally {
+      this.#pendingSubscribes.delete(pending);
+    }
   }
 
   subscribe<T extends boolean = false>(
@@ -156,8 +257,9 @@ export class PubSubProxy extends EventEmitter {
     listener: PubSubListener<T>,
     bufferMode?: T
   ) {
-    return this.#executeCommand(
-      client => client.SUBSCRIBE(channels, listener, bufferMode)
+    return this.#trackedSubscribe(
+      { type: PUBSUB_TYPE.CHANNELS, channels, listener: listener as PubSubListener<boolean>, bufferMode },
+      () => this.#executeCommand(client => client.SUBSCRIBE(channels, listener, bufferMode))
     );
   }
 
@@ -166,10 +268,12 @@ export class PubSubProxy extends EventEmitter {
       const reply = await fn(client);
 
       if (!client.isPubSubActive) {
-        client.destroy();
-        this.#state = undefined;
+        // destroy() clears #state AND the adopted #subscriptions snapshot; a
+        // bare client.destroy() would leave the snapshot behind for the next
+        // extractListeners to resurrect on another member
+        this.destroy();
       }
-  
+
       return reply;
     });
   }
@@ -187,8 +291,9 @@ export class PubSubProxy extends EventEmitter {
     listener: PubSubListener<T>,
     bufferMode?: T
   ) {
-    return this.#executeCommand(
-      client => client.PSUBSCRIBE(patterns, listener, bufferMode)
+    return this.#trackedSubscribe(
+      { type: PUBSUB_TYPE.PATTERNS, channels: patterns, listener: listener as PubSubListener<boolean>, bufferMode },
+      () => this.#executeCommand(client => client.PSUBSCRIBE(patterns, listener, bufferMode))
     );
   }
 
@@ -205,8 +310,9 @@ export class PubSubProxy extends EventEmitter {
     listener: PubSubListener<T>,
     bufferMode?: T
   ) {
-    return this.#executeCommand(
-      client => client.SSUBSCRIBE(channels, listener, bufferMode)
+    return this.#trackedSubscribe(
+      { type: PUBSUB_TYPE.SHARDED, channels, listener: listener as PubSubListener<boolean>, bufferMode },
+      () => this.#executeCommand(client => client.SSUBSCRIBE(channels, listener, bufferMode))
     );
   }
 
