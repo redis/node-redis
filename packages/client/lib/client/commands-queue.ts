@@ -199,11 +199,13 @@ export default class RedisCommandsQueue {
       );
       return true;
     } else if (isShardedUnsubscribe || PubSub.isStatusReply(push)) {
-      const head = this.#waitingForReply.head!.value;
+      const head = this.#waitingForReply.head;
+      if (!head) return false;
+      const value = head.value;
       if (
-        (Number.isNaN(head.channelsCounter!) &&
+        (Number.isNaN(value.channelsCounter!) &&
           push[2] === this.#pubSub.residualAfterUnsubscribeAll(push)) ||
-        --head.channelsCounter! === 0
+        --value.channelsCounter! === 0
       ) {
         this.#waitingForReply.shift()!.resolve();
       }
