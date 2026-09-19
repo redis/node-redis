@@ -440,3 +440,114 @@ describe('RedisCommandsQueue', () => {
     });
   });
 });
+
+
+  describe('#onPush empty queue handling (fix for #3049)', () => {
+    let queue: RedisCommandsQueue: RedisCommandsQueue;
+
+    beforeEach(() => {
+      // Create queue instance
+      queueQueue = new RedisCommandsQueue(3, null, () => {}, 'test-client');
+    });
+
+    // Access the private #onPush method via the decoder
+    const getOnPushHandler = (queue: RedisCommandsQueue) => {
+      // @ts-ignore - accessing private property for testing
+    };
+
+    it('should return true for status reply when queue is empty (does not throw)', () => {
+      const onPush = getOnPushHandler(queueQueue);
+      assert.strictEqual(typeof onPush, 'function');
+
+      // Status reply push (e.g., from subscribe/message)
+      const statusReplyPush = [Buffer.from('message'), Buffer.from('test-channel'), Buffer.from('test-data')];
+
+      // With empty queue, should return true (handled) not throw
+      const result = onPush(statusReplyPush);
+      assert.strictEqual(result, true);
+    });
+
+    it('should return true for sharded unsubscribe when queue is empty (does not throw)', () => {
+      const onPush = getOnPushHandler(queueQueue);
+      assert.strictEqual(typeof onPush, 'function');
+
+      // Sharded unsubscribe push
+      const shardedUnsubscribePush = [Buffer.from('sunsubscribe'), Buffer.from('test-channel')];
+
+      // With empty queue, should return true (handled) not throw
+      const result = onPush(shardedUnsubscribePush);
+      assert.strictEqual(result, true);
+    });
+
+    it('should behave normally when queue is not empty', () => {
+      const onPush = getOnPushHandler(queueQueue);
+      assert.strictEqual(typeof onPush, 'function');
+
+      // Add a command to make queue non-empty
+      queueQueue.addCommand(['PING']).catch(() => {});
+
+      // Status reply push
+      const statusReplyPush = [Buffer.from('message'), Buffer.from('test-channel'), Buffer.from('test-data')];
+
+      // With non-empty queue, should still work (existing behavior)
+      const result = onPush(statusReplyPush);
+      // Should return true or false depending on whether it resolved a waiting command
+      assert.ok([true, false].includes(result));
+    });
+  });
+
+
+  describe('#onPush empty queue handling (fix for #3049)', () => {
+    let queue;
+
+    beforeEach(() => {
+      queue = new RedisCommandsQueue(3, null, () => {}, 'test-client');
+    });
+
+    // Access the private #onPush method via the decoder
+    const getOnPushHandler = (q) => {
+      // @ts-ignore - accessing private property for testing
+      return (q as any)['decoder']?.['onPush'];
+    };
+
+    it('should return true for status reply when queue is empty (does not throw)', () => {
+      const onPush = getOnPushHandler(queue);
+      assert.strictEqual(typeof onPush, 'function');
+
+      // Status reply push (e.g., from subscribe/message)
+      const statusReplyPush = [Buffer.from('message'), Buffer.from('test-channel'), Buffer.from('test-data')];
+
+      // With empty queue, should return true (handled) not throw
+      const result = onPush(statusReplyPush);
+      assert.strictEqual(result, true);
+    });
+
+    it('should return true for sharded unsubscribe when queue is empty (does not throw)', () => {
+      const onPush = getOnPushHandler(queue);
+      assert.strictEqual(typeof onPush, 'function');
+
+      // Sharded unsubscribe push
+      const shardedUnsubscribePush = [Buffer.from('sunsubscribe'), Buffer.from('test-channel')];
+
+      // With empty queue, should return true (handled) not throw
+      const result = onPush(shardedUnsubscribePush);
+      assert.strictEqual(result, true);
+    });
+
+    it('should behave normally when queue is not empty', () => {
+      const onPush = getOnPushHandler(queue);
+      assert.strictEqual(typeof onPush, 'function');
+
+      // Add a command to make queue non-empty
+      queue.addCommand(['PING']).catch(() => {});
+
+      // Status reply push
+      const statusReplyPush = [Buffer.from('message'), Buffer.from('test-channel'), Buffer.from('test-data')];
+
+      // With non-empty queue, should still work (existing behavior)
+      const result = onPush(statusReplyPush);
+      // Should return true or false depending on whether it resolved a waiting command
+      assert.ok([true, false].includes(result));
+    });
+  });
+
