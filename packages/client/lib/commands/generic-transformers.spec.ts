@@ -157,6 +157,13 @@ describe('Generic Transformers', () => {
             );
         });
 
+        it('with an empty MATCH', () => {
+            assert.deepEqual(
+                pushScanArguments([], '0', { MATCH: '' }),
+                ['0', 'MATCH', '']
+            );
+        });
+
         it('with COUNT', () => {
             assert.deepEqual(
                 pushScanArguments([], '0', {

@@ -21,6 +21,13 @@ describe('SCAN', () => {
       );
     });
 
+    it('with an empty MATCH', () => {
+      assert.deepEqual(
+        parseArgs(SCAN, '0', { MATCH: '' }),
+        ['SCAN', '0', 'MATCH', '']
+      );
+    });
+
     it('with COUNT', () => {
       assert.deepEqual(
         parseArgs(SCAN, '0', {
