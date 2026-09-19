@@ -25,7 +25,7 @@ export function parseScanArguments(
   options?: ScanOptions
 ) {
   parser.push(cursor);
-  if (options?.MATCH) {
+  if (options?.MATCH !== undefined) {
     parser.push('MATCH', options.MATCH);
   }
 
@@ -49,7 +49,7 @@ export function pushScanArguments(
 ): CommandArguments {
   args.push(cursor.toString());
 
-  if (options?.MATCH) {
+  if (options?.MATCH !== undefined) {
     args.push('MATCH', options.MATCH);
   }
 
