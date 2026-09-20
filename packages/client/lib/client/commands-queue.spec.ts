@@ -111,7 +111,7 @@ describe('RedisCommandsQueue', () => {
 
       const writer = queue.commandsToWrite();
       writer.next(); // "sends" MULTI
-      writer.next(); // "sends" EXEC - the whole chain is now in #waitingForReply
+      writer.next(); // "sends" EXEC - whole chain is now in #waitingForReply
 
       const extracted = queue.extractCommandsForSlots(new Set([1]));
 
@@ -159,57 +159,65 @@ describe('RedisCommandsQueue', () => {
     });
   });
 
-  describe('#onPush empty queue handling (fix for #3049)', () => {
+  describe('#onPush empty queue handling (regression test for #3049)', () => {
     let queue: RedisCommandsQueue;
 
     beforeEach(() => {
       queue = new RedisCommandsQueue(3, null, () => {}, 'test-client');
     });
 
-    // Access the private #onPush method via the decoder
-    const getOnPushHandler = (q: RedisCommandsQueue) => {
+    // Access decoder.onPush (the actual handler called by the decoder)
+    const getDecoderOnPush = (q: RedisCommandsQueue) => {
       // @ts-ignore - accessing private property for testing
       return (q as any).decoder?.onPush;
     };
 
-    it('should return undefined for message push when queue is empty (decoder.onPush returns undefined)', () => {
-      const onPush = getOnPushHandler(queue);
+    it('should NOT throw TypeError when receiving sharded unsubscribe push with empty queue (#3049)', () => {
+      const onPush = getDecoderOnPush(queue);
       assert.strictEqual(typeof onPush, 'function');
 
-      // Message push (PubSub) - this goes through handleMessageReply first
-      const messagePush = [Buffer.from('message'), Buffer.from('test-channel'), Buffer.from('test-data')];
-
-      // decoder.onPush returns undefined (does not propagate handler return value)
-      const result = onPush(messagePush);
-      assert.strictEqual(result, undefined);
-    });
-
-    it('should return undefined for sharded unsubscribe when queue is empty (decoder.onPush returns undefined)', () => {
-      const onPush = getOnPushHandler(queue);
-      assert.strictEqual(typeof onPush, 'function');
-
-      // Sharded unsubscribe push
+      // Sharded unsubscribe push with empty queue
+      // This previously threw: TypeError: Cannot read properties of undefined (reading 'value')
+      // at commands-queue.ts:202 (this.#waitingForReply.head!.value)
       const shardedUnsubscribePush = [Buffer.from('sunsubscribe'), Buffer.from('test-channel')];
 
-      // decoder.onPush returns undefined (does not propagate handler return value)
-      const result = onPush(shardedUnsubscribePush);
-      assert.strictEqual(result, undefined);
+      // Should not throw - the fix adds empty queue check before accessing head.value
+      assert.doesNotThrow(() => {
+        onPush(shardedUnsubscribePush);
+      });
     });
 
-    it('should return undefined for status reply when queue is empty (decoder.onPush returns undefined)', () => {
-      const onPush = getOnPushHandler(queue);
+    it('should NOT throw TypeError when receiving status reply push with empty queue (#3049)', () => {
+      const onPush = getDecoderOnPush(queue);
       assert.strictEqual(typeof onPush, 'function');
 
-      // Status reply push (e.g., subscribe acknowledgment)
+      // Status reply push (e.g., subscribe acknowledgment) with empty queue
+      // This previously threw: TypeError: Cannot read properties of undefined (reading 'value')
+      // at commands-queue.ts:202 (this.#waitingForReply.head!.value)
       const statusReplyPush = [Buffer.from('subscribe'), Buffer.from('test-channel'), Buffer.from('1')];
 
-      // decoder.onPush returns undefined (does not propagate handler return value)
-      const result = onPush(statusReplyPush);
-      assert.strictEqual(result, undefined);
+      // Should not throw - the fix adds empty queue check before accessing head.value
+      assert.doesNotThrow(() => {
+        onPush(statusReplyPush);
+      });
     });
 
-    it('should return undefined when queue is not empty (decoder.onPush returns undefined)', () => {
-      const onPush = getOnPushHandler(queue);
+    it('should handle message push with empty queue (PubSub path)', () => {
+      const onPush = getDecoderOnPush(queue);
+      assert.strictEqual(typeof onPush, 'function');
+
+      // Message push (PubSub) - goes through handleMessageReply first
+      const messagePush = [Buffer.from('message'), Buffer.from('test-channel'), Buffer.from('test-data')];
+
+      // Should not throw - handleMessageReply returns false (no subscribers),
+      // then continues to other checks which are now guarded
+      assert.doesNotThrow(() => {
+        onPush(messagePush);
+      });
+    });
+
+    it('should work normally when queue is not empty (decoder.onPush returns undefined)', () => {
+      const onPush = getDecoderOnPush(queue);
       assert.strictEqual(typeof onPush, 'function');
 
       // Add a command to make queue non-empty
