@@ -85,6 +85,32 @@ describe('Legacy Mode', () => {
     });
   });
 
+  describe('client.quit', () => {
+    testWithLegacyClient('closes the client without reconnecting', async (legacy, client) => {
+      let reconnecting = 0;
+      client.on('reconnecting', () => reconnecting++);
+
+      await new Promise<void>((resolve, reject) => {
+        legacy.flushAll((err) => {
+          if (err) return reject(err);
+
+          legacy.set('key', 'value', err => {
+            if (err) return reject(err);
+
+            legacy.quit((err, reply) => {
+              if (err) return reject(err);
+              assert.equal(reply, 'OK');
+              resolve();
+            });
+          });
+        });
+      });
+
+      assert.equal(client.isOpen, false);
+      assert.equal(reconnecting, 0);
+    });
+  });
+
   describe('client.multi', () => {
     testWithLegacyClient('resolve', async client => {
       const multi = client.multi().ping().sendCommand('PING');
