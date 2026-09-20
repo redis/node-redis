@@ -18,12 +18,24 @@ describe('PING', () => {
         ['PING', 'message']
       );
     });
+
+    it('with an empty message', () => {
+      assert.deepEqual(
+        parseArgs(PING, ''),
+        ['PING', '']
+      );
+    });
   });
 
   testUtils.testAll('ping', async client => {
     assert.equal(
       await client.ping(),
       'PONG'
+    );
+
+    assert.equal(
+      await client.ping(''),
+      ''
     );
   }, {
     client: GLOBAL.SERVERS.OPEN,
