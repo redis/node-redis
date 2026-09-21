@@ -110,6 +110,19 @@ export class RedisLegacyClient {
       .catch(err => callback(err));
   }
 
+  quit(callback?: (err: ErrorReply | null, reply?: string) => unknown) {
+    const promise = this.#client.quit();
+
+    if (!callback) {
+      promise.catch(err => this.#client.emit('error', err));
+      return;
+    }
+
+    promise
+      .then(reply => callback(null, reply))
+      .catch(err => callback(err));
+  }
+
   multi() {
     return this.#Multi(this.#client);
   }
