@@ -249,8 +249,7 @@ export default class RedisSocket extends EventEmitter {
     return this.#connect();
   }
 
-  async #connect(): Promise<void> {
-    let retries = 0;
+  async #connect(retries = 0): Promise<void> {
     do {
       try {
         const connectStartTime = performance.now();
@@ -434,7 +433,7 @@ export default class RedisSocket extends EventEmitter {
     if (!this.#isOpen) return;
 
     this.emit('reconnecting');
-    this.#connect().catch(() => {
+    this.#connect(1).catch(() => {
       // the error was already emitted, silently ignore it
     });
   }

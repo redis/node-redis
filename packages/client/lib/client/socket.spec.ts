@@ -86,6 +86,44 @@ describe('Socket', () => {
 
       assert.equal(socket.isOpen, false);
     });
+
+    it('retry counter is sequential after a post-ready socket loss', async () => {
+      const connections: net.Socket[] = [];
+      const server = net.createServer(conn => {
+        conn.on('error', () => { /* ignore */ });
+        connections.push(conn);
+      });
+      await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+      const { port } = server.address() as net.AddressInfo;
+
+      try {
+        const retriesSeen: number[] = [];
+        const socket = createSocket({
+          host: '127.0.0.1',
+          port,
+          reconnectStrategy(retries) {
+            retriesSeen.push(retries);
+            if (retries >= 2) return new Error('done');
+            return 0;
+          }
+        });
+
+        await socket.connect();
+        assert.equal(socket.isReady, true, 'socket.isReady');
+
+        // Close before destroying so reconnects fail with ECONNREFUSED rather
+        // than briefly succeeding (initiator microtask beats the server RST).
+        server.close();
+        connections[0].destroy();
+
+        await new Promise<void>(resolve => socket.once('terminated', () => resolve()));
+
+        assert.deepEqual(retriesSeen, [0, 1, 2], 'retry counter must not reset to 0 after a post-ready socket loss');
+      } finally {
+        for (const conn of connections) conn.destroy();
+        await new Promise<void>(resolve => server.close(() => resolve()));
+      }
+    });
   });
 
   describe('terminated event (#2948)', () => {
