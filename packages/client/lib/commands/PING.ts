@@ -5,7 +5,7 @@ export default {
   IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, message?: RedisArgument) {
     parser.push('PING');
-    if (message) {
+    if (message !== undefined) {
       parser.push(message);
     }
   },
