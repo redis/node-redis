@@ -95,6 +95,26 @@ describe('PubSub', () => {
     });
   });
 
+  it('concurrent subscribes to the same channel both register their listeners', () => {
+    const pubSub = new PubSub(CLIENT_ID);
+
+    // Two subscribe() calls before either resolves — both need a SUBSCRIBE command
+    const listener1 = () => {};
+    const listener2 = () => {};
+    const cmd1 = pubSub.subscribe(TYPE, CHANNEL, listener1);
+    const cmd2 = pubSub.subscribe(TYPE, CHANNEL, listener2);
+    assert.ok(cmd1);
+    assert.ok(cmd2);
+
+    cmd1.resolve();
+    cmd2.resolve();
+
+    const ch = pubSub.listeners[TYPE].get(CHANNEL);
+    assert.ok(ch);
+    assert.ok(ch.strings.has(listener1), 'listener1 must be registered after cmd1.resolve()');
+    assert.ok(ch.strings.has(listener2), 'listener2 must be registered after cmd2.resolve()');
+  });
+
   it('mixed subscribe: already-subscribed channel listener survives reject of new channel', () => {
     const pubSub = new PubSub(CLIENT_ID);
 

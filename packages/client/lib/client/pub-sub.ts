@@ -123,11 +123,13 @@ export class PubSub {
     returnBuffers?: T
   ) {
     const args: Array<RedisArgument> = [COMMANDS[type].subscribe],
-      channelsArray = PubSub.#channelsArray(channels);
+      channelsArray = PubSub.#channelsArray(channels),
+      newChannels: Array<string> = [];
     for (const channel of channelsArray) {
       const channelListeners = this.listeners[type].get(channel);
       if (!channelListeners || channelListeners.unsubscribing) {
         args.push(channel);
+        newChannels.push(channel);
       } else {
         PubSub.#listenersSet(channelListeners, returnBuffers).add(listener);
       }
@@ -145,7 +147,7 @@ export class PubSub {
       channelsCounter: args.length - 1,
       resolve: () => {
         this.#subscribing--;
-        for (const channel of channelsArray) {
+        for (const channel of newChannels) {
           let listeners = this.listeners[type].get(channel);
           if (!listeners) {
             listeners = {
@@ -154,8 +156,8 @@ export class PubSub {
               strings: new Set()
             };
             this.listeners[type].set(channel, listeners);
-            PubSub.#listenersSet(listeners, returnBuffers).add(listener);
           }
+          PubSub.#listenersSet(listeners, returnBuffers).add(listener);
         }
       },
       reject: () => {
