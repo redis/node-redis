@@ -39,7 +39,7 @@ export default {
         );
       }
   
-      if (options?.SETNAME) {
+      if (options?.SETNAME !== undefined) {
         parser.push(
           'SETNAME',
           options.SETNAME

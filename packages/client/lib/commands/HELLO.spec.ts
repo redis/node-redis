@@ -43,6 +43,15 @@ describe('HELLO', () => {
       );
     });
 
+    it('with protover, SETNAME empty', () => {
+      assert.deepEqual(
+        parseArgs(HELLO, 3, {
+          SETNAME: ''
+        }),
+        ['HELLO', '3', 'SETNAME', '']
+      );
+    });
+
     it('with protover, AUTH, SETNAME', () => {
       assert.deepEqual(
         parseArgs(HELLO, 3, {
@@ -66,6 +75,19 @@ describe('HELLO', () => {
     assert.equal(reply.mode, 'standalone');
     assert.equal(reply.role, 'master');
     assert.ok(reply.modules instanceof Array);
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    minimumDockerVersion: [6, 2]
+  });
+
+  testUtils.testWithClient('client.hello with an empty SETNAME', async client => {
+    await client.clientSetName('hello-name');
+
+    await client.hello(client.options.RESP ?? DEFAULT_RESP, {
+      SETNAME: ''
+    });
+
+    assert.equal(await client.clientGetName(), null);
   }, {
     ...GLOBAL.SERVERS.OPEN,
     minimumDockerVersion: [6, 2]
