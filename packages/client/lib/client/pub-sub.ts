@@ -128,17 +128,13 @@ export class PubSub {
       const channelListeners = this.listeners[type].get(channel);
       if (!channelListeners || channelListeners.unsubscribing) {
         args.push(channel);
+      } else {
+        PubSub.#listenersSet(channelListeners, returnBuffers).add(listener);
       }
     }
 
     if (args.length === 1) {
-      // all channels are already subscribed, add listeners without issuing a command
-      for (const channel of channelsArray) {
-        PubSub.#listenersSet(
-          this.listeners[type].get(channel)!,
-          returnBuffers
-        ).add(listener);
-      }
+      // all channels are already subscribed, listeners added above
       return;
     }
 
@@ -158,9 +154,8 @@ export class PubSub {
               strings: new Set()
             };
             this.listeners[type].set(channel, listeners);
+            PubSub.#listenersSet(listeners, returnBuffers).add(listener);
           }
-
-          PubSub.#listenersSet(listeners, returnBuffers).add(listener);
         }
       },
       reject: () => {
