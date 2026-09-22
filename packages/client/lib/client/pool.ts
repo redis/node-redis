@@ -610,7 +610,7 @@ export class RedisClientPool<
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- access to dynamic Multi class
     return new ((this as any).Multi as Multi)(
       (commands, selectedDB) => this.execute(client => client._executeMulti(commands, selectedDB)),
-      commands => this.execute(client => client._executePipeline(commands)),
+      (commands, selectedDB) => this.execute(client => client._executePipeline(commands, selectedDB)),
       this._commandOptions?.typeMapping,
       this._self._keyPrefix
     );

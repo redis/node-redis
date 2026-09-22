@@ -4,6 +4,7 @@ import { RESP_TYPES } from '../RESP/decoder';
 import { RedisClientPool } from './pool';
 import { ClientClosedError, TimeoutError } from '../errors';
 import { BasicPooledClientSideCache } from './cache';
+import RedisClient from './index';
 
 describe('RedisClientPool', () => {
   it('chained withCommandOptions(...).withTypeMapping(...) preserves earlier overrides at dispatch', () => {
@@ -98,6 +99,29 @@ describe('RedisClientPool', () => {
         .exec(),
       ['OK', 'value']
     );
+  }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClientPool('execAsPipeline forwards the selected database', async pool => {
+    // Regression: `MULTI()` handed the `selectedDB` argument to `_executeMulti` but
+    // called `_executePipeline` without it, so a `select()` made inside an
+    // `execAsPipeline()` never reached that connection's `#selectedDB`. The handshake
+    // only re-issues `SELECT` while `#selectedDB !== 0`, so once the connection
+    // reconnected it silently fell back to database 0 — while the `exec()` path, which
+    // does receive the argument, stayed on the selected database.
+    const seen: Array<number | undefined> = [],
+      original = RedisClient.prototype._executePipeline;
+    RedisClient.prototype._executePipeline = function (this: RedisClient, commands, selectedDB, slotNumber) {
+      seen.push(selectedDB);
+      return original.call(this, commands, selectedDB, slotNumber);
+    } as typeof original;
+
+    try {
+      await pool.multi().select(2).set('execAsPipeline-database', 'value').execAsPipeline();
+    } finally {
+      RedisClient.prototype._executePipeline = original;
+    }
+
+    assert.deepEqual(seen, [2], 'execAsPipeline must forward the selected database');
   }, GLOBAL.SERVERS.OPEN);
 
   testUtils.testWithClientPool('close', async pool => {
