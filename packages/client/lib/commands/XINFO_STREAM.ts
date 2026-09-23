@@ -1,5 +1,5 @@
 import { CommandParser } from '../client/parser';
-import { RedisArgument, TuplesToMapReply, BlobStringReply, NumberReply, NullReply, TuplesReply, ArrayReply, UnwrapReply, Command } from '../RESP/types';
+import { RedisArgument, TuplesToMapReply, BlobStringReply, NumberReply, NullReply, TuplesReply, ArrayReply, UnwrapReply, Command, TypeMapping } from '../RESP/types';
 import { isNullReply, transformTuplesReply } from './generic-transformers';
 
 /**
@@ -57,14 +57,15 @@ export default {
   },
   transformReply: {
     // TODO: is there a "type safe" way to do it?
-    2(reply: Array<unknown>) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
+    2(reply: Array<unknown>, preserve?: any, typeMapping?: TypeMapping) {
       const parsedReply: Partial<XInfoStreamReply['DEFAULT']> = {};
 
       for (let i = 0; i < reply.length; i += 2) {
         switch (reply[i]) {
           case 'first-entry':
           case 'last-entry':
-            parsedReply[reply[i] as ('first-entry' | 'last-entry')] = transformEntry(reply[i + 1] as RawEntry);
+            parsedReply[reply[i] as ('first-entry' | 'last-entry')] = transformEntry(reply[i + 1] as RawEntry, typeMapping);
             break;
 
           default:
@@ -75,27 +76,28 @@ export default {
 
       return parsedReply as XInfoStreamReply['DEFAULT'];
     },
-    3(reply: Map<string, unknown> | Array<unknown> | Record<string, unknown>) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
+    3(reply: Map<string, unknown> | Array<unknown> | Record<string, unknown>, preserve?: any, typeMapping?: TypeMapping) {
       if (reply instanceof Map) {
         reply.set(
           'first-entry',
-          transformEntry(reply.get('first-entry') as RawEntry)
+          transformEntry(reply.get('first-entry') as RawEntry, typeMapping)
         );
         reply.set(
           'last-entry',
-          transformEntry(reply.get('last-entry') as RawEntry)
+          transformEntry(reply.get('last-entry') as RawEntry, typeMapping)
         );
       } else if (reply instanceof Array) {
         // Find entries by key name to handle different Redis versions
         // (8.6+ has additional idempotency fields that shift the indices)
         for (let i = 0; i < reply.length; i += 2) {
           if (reply[i] === 'first-entry' || reply[i] === 'last-entry') {
-            reply[i + 1] = transformEntry(reply[i + 1] as RawEntry);
+            reply[i + 1] = transformEntry(reply[i + 1] as RawEntry, typeMapping);
           }
         }
       } else {
-        reply['first-entry'] = transformEntry(reply['first-entry'] as RawEntry);
-        reply['last-entry'] = transformEntry(reply['last-entry'] as RawEntry);
+        reply['first-entry'] = transformEntry(reply['first-entry'] as RawEntry, typeMapping);
+        reply['last-entry'] = transformEntry(reply['last-entry'] as RawEntry, typeMapping);
       }
 
       return reply as unknown as XInfoStreamReply;
@@ -115,14 +117,15 @@ type RawEntry = TuplesReply<[
  * Transforms a raw stream entry into a structured object
  * 
  * @param entry - Raw entry from Redis
+ * @param typeMapping - Type mapping to apply to the entry's message
  * @returns Structured object with id and message, or null if entry is null
  */
-function transformEntry(entry: RawEntry) {
+function transformEntry(entry: RawEntry, typeMapping?: TypeMapping) {
   if (isNullReply(entry)) return entry;
 
   const [id, message] = entry as unknown as UnwrapReply<typeof entry>;
   return {
     id,
-    message: transformTuplesReply(message)
+    message: transformTuplesReply(message, undefined, typeMapping)
   };
 }

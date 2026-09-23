@@ -2,6 +2,7 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import VSIM_WITHSCORES from './VSIM_WITHSCORES';
 import { BasicCommandParser } from '../client/parser';
+import { RESP_TYPES } from '../RESP/decoder';
 
 describe('VSIM WITHSCORES', () => {
   it('parseCommand', () => {
@@ -14,6 +15,13 @@ describe('VSIM WITHSCORES', () => {
       'element',
       'WITHSCORES'
     ]);
+  });
+
+  it('honours typeMapping for RESP2 scores', () => {
+    assert.deepEqual(
+      VSIM_WITHSCORES.transformReply[2](['element1', '1.5'], undefined, { [RESP_TYPES.DOUBLE]: String }),
+      { element1: '1.5' }
+    );
   });
 
   testUtils.testAll(

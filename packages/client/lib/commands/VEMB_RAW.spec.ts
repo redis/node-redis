@@ -2,6 +2,7 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import VEMB_RAW from './VEMB_RAW';
 import { BasicCommandParser } from '../client/parser';
+import { RESP_TYPES } from '../RESP/decoder';
 
 describe('VEMB_RAW', () => {
   it('parseCommand', () => {
@@ -10,6 +11,13 @@ describe('VEMB_RAW', () => {
     assert.deepEqual(
       parser.redisArgs,
       ['VEMB', 'key', 'element', 'RAW']
+    );
+  });
+
+  it('honours typeMapping for RESP2 doubles', () => {
+    assert.deepEqual(
+      VEMB_RAW.transformReply[2](['int8', 'raw', '1.5', '0.5'], undefined, { [RESP_TYPES.DOUBLE]: String }),
+      { quantization: 'int8', raw: 'raw', l2Norm: '1.5', quantizationRange: '0.5' }
     );
   });
 
