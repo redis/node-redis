@@ -2,6 +2,7 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import VLINKS_WITHSCORES from './VLINKS_WITHSCORES';
 import { BasicCommandParser } from '../client/parser';
+import { RESP_TYPES } from '../RESP/decoder';
 
 describe('VLINKS WITHSCORES', () => {
   it('parseCommand', () => {
@@ -13,6 +14,13 @@ describe('VLINKS WITHSCORES', () => {
       'element',
       'WITHSCORES'
     ]);
+  });
+
+  it('honours typeMapping for RESP2 scores', () => {
+    assert.deepEqual(
+      VLINKS_WITHSCORES.transformReply[2]([['element1', '1.5']], undefined, { [RESP_TYPES.DOUBLE]: String }),
+      [{ element1: '1.5' }]
+    );
   });
 
   testUtils.testAll(

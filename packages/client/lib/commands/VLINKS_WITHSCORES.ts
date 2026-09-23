@@ -1,9 +1,14 @@
-import { BlobStringReply, Command, DoubleReply, MapReply } from '../RESP/types';
+import { BlobStringReply, Command, DoubleReply, MapReply, TypeMapping } from '../RESP/types';
 import { transformDoubleReply } from './generic-transformers';
 import VLINKS from './VLINKS';
 
 
-function transformVLinksWithScoresReply(reply: Array<Array<BlobStringReply>>): Array<Record<string, DoubleReply>> {
+function transformVLinksWithScoresReply(
+  reply: Array<Array<BlobStringReply>>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
+  preserve?: any,
+  typeMapping?: TypeMapping
+): Array<Record<string, DoubleReply>> {
   const layers: Array<Record<string, DoubleReply>> = [];
 
   for (const layer of reply) {
@@ -12,7 +17,7 @@ function transformVLinksWithScoresReply(reply: Array<Array<BlobStringReply>>): A
     // Each layer contains alternating element names and scores
     for (let i = 0; i < layer.length; i += 2) {
       const element = layer[i];
-      const score = transformDoubleReply[2](layer[i + 1]);
+      const score = transformDoubleReply[2](layer[i + 1], preserve, typeMapping);
       obj[element.toString()] = score;
     }
 

@@ -4,6 +4,7 @@ import {
   Command,
   DoubleReply,
   MapReply,
+  TypeMapping,
   UnwrapReply
 } from '../RESP/types';
 import { transformDoubleReply } from './generic-transformers';
@@ -17,11 +18,12 @@ export default {
     parser.push('WITHSCORES');
   },
   transformReply: {
-    2: (reply: ArrayReply<BlobStringReply>) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
+    2: (reply: ArrayReply<BlobStringReply>, preserve?: any, typeMapping?: TypeMapping) => {
       const inferred = reply as unknown as UnwrapReply<typeof reply>;
       const members: Record<string, DoubleReply> = {};
       for (let i = 0; i < inferred.length; i += 2) {
-        members[inferred[i].toString()] = transformDoubleReply[2](inferred[i + 1]);
+        members[inferred[i].toString()] = transformDoubleReply[2](inferred[i + 1], preserve, typeMapping);
       }
       return members;
     },

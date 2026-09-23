@@ -2,6 +2,7 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import XINFO_STREAM from './XINFO_STREAM';
 import { parseArgs } from './generic-transformers';
+import { RESP_TYPES } from '../RESP/decoder';
 
 describe('XINFO STREAM', () => {
   it('transformArguments', () => {
@@ -9,6 +10,20 @@ describe('XINFO STREAM', () => {
       parseArgs(XINFO_STREAM, 'key'),
       ['XINFO', 'STREAM', 'key']
     );
+  });
+
+  it('honours typeMapping for entry messages', () => {
+    const reply = XINFO_STREAM.transformReply[2](
+      ['length', 1, 'first-entry', ['1-1', ['field', 'value']], 'last-entry', null],
+      undefined,
+      { [RESP_TYPES.MAP]: Map }
+    ) as unknown as Record<string, { message: unknown } | null>;
+
+    const firstEntry = reply['first-entry'];
+    assert.ok(firstEntry !== null);
+    assert.ok(firstEntry.message instanceof Map);
+    assert.deepEqual(firstEntry.message, new Map([['field', 'value']]));
+    assert.equal(reply['last-entry'], null);
   });
 
   testUtils.testAll('xInfoStream', async client => {
