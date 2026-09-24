@@ -444,6 +444,40 @@ export type RedisClusterDockersConfig = RedisServerDockerOptions & {
   numberOfReplicas?: number;
 }
 
+/**
+ * Redis 8.9+ adds `cluster-bus-port-protected-mode`, on by default, which aborts
+ * a cluster-enabled server started without TLS. The test containers run without
+ * TLS, so cluster nodes must turn it off. But the directive does not exist in
+ * every build the CI matrix runs (some report the same version yet predate it),
+ * and an unknown directive is a fatal startup error. So detect support at
+ * runtime — once per image — instead of guessing from the version number.
+ */
+const clusterBusPortProtectedModeArgs = new Map<string, Promise<Array<string>>>();
+
+function clusterNodeExtraArguments(dockersConfig: RedisServerDockerOptions): Promise<Array<string>> {
+  const key = `${dockersConfig.image}:${dockersConfig.version}`;
+  let args = clusterBusPortProtectedModeArgs.get(key);
+  if (!args) {
+    args = (async () => {
+      const probe = await spawnRedisServerDocker(dockersConfig, []),
+        client = createClient({ socket: { port: probe.port } });
+      try {
+        await client.connect();
+        const reply = await client.configGet('cluster-bus-port-protected-mode');
+        return Object.keys(reply).length > 0
+          ? ['--cluster-bus-port-protected-mode', 'no']
+          : [];
+      } finally {
+        if (client.isOpen) client.destroy();
+        await dockerRemove(probe.dockerId);
+      }
+    })();
+    clusterBusPortProtectedModeArgs.set(key, args);
+  }
+
+  return args;
+}
+
 async function spawnRedisClusterNodeDockers(
   dockersConfig: RedisClusterDockersConfig,
   serverArguments: Array<string>,
@@ -513,7 +547,8 @@ async function spawnRedisClusterNodeDocker(
       '--cluster-enabled',
       'yes',
       '--cluster-node-timeout',
-      '5000'
+      '5000',
+      ...await clusterNodeExtraArguments(dockersConfig)
     ]),
     client = createClient({
       socket: {
@@ -580,8 +615,7 @@ async function spawnRedisClusterDockers(
   return nodes.map(({ docker }) => docker);
 }
 
-// TODO: type ClusterSlotsReply
-function totalNodes(slots: any) {
+function totalNodes(slots: Array<{ replicas: Array<unknown> }>) {
   let total = slots.length;
   for (const slot of slots) {
     total += slot.replicas.length;
