@@ -1,6 +1,6 @@
 import assert from "assert";
 import testUtils, { GLOBAL } from "../test-utils"
-import { BasicClientSideCache, BasicPooledClientSideCache, CacheStats, ClientSideCacheProvider } from "./cache"
+import { BasicClientSideCache, BasicPooledClientSideCache, CacheStats } from "./cache"
 import { REDIS_FLUSH_MODES } from "../commands/FLUSHALL";
 import { once } from 'events';
 import RedisClient from "./index";

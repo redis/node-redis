@@ -266,11 +266,11 @@ class DisabledStatsCounter implements StatsCounter {
 
   private constructor() { }
 
-  recordHits(count: number): void { }
-  recordMisses(count: number): void { }
-  recordLoadSuccess(loadTime: number): void { }
-  recordLoadFailure(loadTime: number): void { }
-  recordEvictions(count: number): void { }
+  recordHits(_count: number): void { }
+  recordMisses(_count: number): void { }
+  recordLoadSuccess(_loadTime: number): void { }
+  recordLoadFailure(_loadTime: number): void { }
+  recordEvictions(_count: number): void { }
   snapshot(): CacheStats { return CacheStats.empty(); }
 }
 
@@ -367,6 +367,7 @@ class DefaultStatsCounter implements StatsCounter {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- RedisClient generics are invariant; cache accepts any client shape
 type CachingClient = RedisClient<any, any, any, any, any>;
 type CmdFunc = () => Promise<ReplyUnion>;
 
@@ -477,13 +478,13 @@ abstract class ClientSideCacheEntryBase implements ClientSideCacheEntry {
 }
 
 class ClientSideCacheEntryValue extends ClientSideCacheEntryBase {
-  readonly #value: any;
+  readonly #value: unknown;
 
   get value() {
     return this.#value;
   }
 
-  constructor(ttl: number, value: any) {
+  constructor(ttl: number, value: unknown) {
     super(ttl);
     this.#value = value;
   }
@@ -508,7 +509,7 @@ export abstract class ClientSideCacheProvider extends EventEmitter {
    * `false` means the server did not confirm tracking, so the reply must be returned but
    * not stored. Providers that report `trackingMode = "optin"` must honour it.
    */
-  abstract handleCache(client: CachingClient, parser: BasicCommandParser, fn: CmdFunc, transformReply: TransformReply | undefined, typeMapping: TypeMapping | undefined, isStorable?: () => boolean): Promise<any>;
+  abstract handleCache(client: CachingClient, parser: BasicCommandParser, fn: CmdFunc, transformReply: TransformReply | undefined, typeMapping: TypeMapping | undefined, isStorable?: () => boolean): Promise<unknown>;
   abstract trackingOn(): Array<RedisArgument>;
   abstract invalidate(key: RedisArgument | null): void;
   abstract clear(): void;
@@ -807,7 +808,7 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
     return this.#cacheKeyToEntryMap.size;
   }
 
-  createValueEntry(client: CachingClient, value: any): ClientSideCacheEntryValue {
+  createValueEntry(client: CachingClient, value: unknown): ClientSideCacheEntryValue {
     return new ClientSideCacheEntryValue(this.ttl, value);
   }
 
@@ -905,7 +906,7 @@ export class BasicPooledClientSideCache extends PooledClientSideCacheProvider {
 class PooledClientSideCacheEntryValue extends ClientSideCacheEntryValue {
   #creator: CacheCreator;
 
-  constructor(ttl: number, creator: CacheCreator, value: any) {
+  constructor(ttl: number, creator: CacheCreator, value: unknown) {
     super(ttl, value);
 
     this.#creator = creator;
@@ -931,14 +932,14 @@ class PooledClientSideCacheEntryPromise extends ClientSideCacheEntryPromise {
   }
 
   override validate(): boolean {
-    let ret = super.validate();
+    const ret = super.validate();
 
     return ret && this.#creator.client.isReady && this.#creator.client.socketEpoch == this.#creator.epoch
   }
 }
 
 export class PooledNoRedirectClientSideCache extends BasicPooledClientSideCache {
-  override createValueEntry(client: CachingClient, value: any): ClientSideCacheEntryValue {
+  override createValueEntry(client: CachingClient, value: unknown): ClientSideCacheEntryValue {
     const creator = {
       epoch: client.socketEpoch,
       client: client
