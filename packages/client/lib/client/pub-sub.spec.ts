@@ -56,6 +56,20 @@ describe('PubSub', () => {
     );
   });
 
+  it('removeAllListeners leaves isActive false', () => {
+    const pubSub = new PubSub(CLIENT_ID);
+
+    const subscribe = pubSub.subscribe(TYPE, CHANNEL, LISTENER);
+    assert.ok(subscribe);
+    subscribe.resolve();
+    assert.equal(pubSub.isActive, true);
+
+    pubSub.removeAllListeners();
+
+    assert.equal(pubSub.isActive, false, 'isActive must be false after removeAllListeners()');
+    assert.equal(pubSub.listeners[TYPE].size, 0);
+  });
+
   it('unsubscribe all', () => {
     const pubSub = new PubSub(CLIENT_ID);
 
