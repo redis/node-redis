@@ -436,11 +436,11 @@ export class PubSub {
       [PUBSUB_TYPE.SHARDED]: this.listeners[PUBSUB_TYPE.SHARDED]
     }
 
-    this.#updateIsActive();
-
     this.listeners[PUBSUB_TYPE.CHANNELS] = new Map();
     this.listeners[PUBSUB_TYPE.PATTERNS] = new Map();
     this.listeners[PUBSUB_TYPE.SHARDED] = new Map();
+
+    this.#updateIsActive();
 
     return result;
   }
