@@ -1,9 +1,10 @@
 import assert from "assert";
 import testUtils, { GLOBAL } from "../test-utils"
-import { BasicClientSideCache, BasicPooledClientSideCache, CacheStats } from "./cache"
+import { BasicClientSideCache, BasicPooledClientSideCache, CacheStats, ClientSideCacheProvider } from "./cache"
 import { REDIS_FLUSH_MODES } from "../commands/FLUSHALL";
 import { once } from 'events';
 import RedisClient from "./index";
+import { BasicCommandParser } from "./parser";
 
 describe("Client Side Cache", () => {
   it("destroy() on a never-connected client does not flush a shared pooled cache (#3396)", () => {
@@ -714,6 +715,343 @@ describe("Client Side Cache", () => {
         RESP: 3,
         clientSideCache: csc
       }
+    });
+  });
+
+  describe('Tracking modes', () => {
+    describe('trackingOn()', () => {
+      it('plain by default', () => {
+        assert.deepEqual(new BasicClientSideCache().trackingOn(), ['CLIENT', 'TRACKING', 'ON']);
+      });
+
+      it('optin', () => {
+        assert.deepEqual(
+          new BasicClientSideCache({ trackingMode: 'optin' }).trackingOn(),
+          ['CLIENT', 'TRACKING', 'ON', 'OPTIN']
+        );
+      });
+
+      it('optout', () => {
+        assert.deepEqual(
+          new BasicClientSideCache({ trackingMode: 'optout' }).trackingOn(),
+          ['CLIENT', 'TRACKING', 'ON', 'OPTOUT']
+        );
+      });
+    });
+
+    describe('wantsCache()', () => {
+      const userOnly = (_command: string, keys: ReadonlyArray<unknown>) => String(keys[0]).startsWith('user:');
+
+      it('the mark wins over the predicate', () => {
+        const cache = new BasicClientSideCache({ trackingMode: 'optin', cacheable: userOnly });
+        assert.equal(cache.wantsCache(true, 'GET', ['counter:1']), true);
+        assert.equal(cache.wantsCache(false, 'GET', ['user:1']), false);
+      });
+
+      it('the predicate answers unmarked calls', () => {
+        const cache = new BasicClientSideCache({ trackingMode: 'optin', cacheable: userOnly });
+        assert.equal(cache.wantsCache(undefined, 'GET', ['user:1']), true);
+        assert.equal(cache.wantsCache(undefined, 'GET', ['counter:1']), false);
+      });
+
+      it('without a predicate, the mode decides', () => {
+        assert.equal(new BasicClientSideCache().wantsCache(undefined, 'GET', ['k']), true);
+        assert.equal(new BasicClientSideCache({ trackingMode: 'optin' }).wantsCache(undefined, 'GET', ['k']), false);
+        assert.equal(new BasicClientSideCache({ trackingMode: 'optout' }).wantsCache(undefined, 'GET', ['k']), true);
+      });
+    });
+
+    describe('handleCache() with isStorable() false', () => {
+      function getParser() {
+        const parser = new BasicCommandParser();
+        parser.push('GET');
+        parser.pushKey('k');
+        return parser;
+      }
+
+      it('returns the reply and stores nothing, for the loader and a concurrent waiter', async () => {
+        const cache = new BasicClientSideCache({ trackingMode: 'optin' });
+        let resolve!: (value: string) => void;
+        const loaded = new Promise<string>(r => resolve = r);
+        let calls = 0;
+        const fn = () => {
+          calls++;
+          return loaded;
+        };
+
+        // The loader's own flag says "not tracked"; the waiter's is never set (its fn never
+        // runs), mirroring the client, so the waiter relies on the loader dropping the entry.
+        const first = cache.handleCache({} as never, getParser(), fn as never, undefined, undefined, () => false);
+        const waiter = cache.handleCache({} as never, getParser(), fn as never, undefined, undefined, () => true);
+        resolve('v');
+
+        assert.deepEqual(await Promise.all([first, waiter]), ['v', 'v']);
+        assert.equal(calls, 1, 'the waiter reuses the in-flight load');
+        assert.equal(cache.size(), 0, 'nothing stored');
+      });
+    });
+
+    describe('optin', () => {
+      const csc = new BasicClientSideCache({ trackingMode: 'optin' });
+
+      testUtils.testWithClient('enables OPTIN tracking', async client => {
+        const { flags } = await client.clientTrackingInfo() as unknown as { flags: Array<string> };
+        assert.ok(flags.includes('optin'), `flags: ${flags}`);
+      }, {
+        ...GLOBAL.SERVERS.OPEN,
+        clientOptions: { RESP: 3, clientSideCache: csc }
+      });
+
+      testUtils.testWithClient('an unmarked read is not stored', async client => {
+        csc.clear();
+
+        await client.set('x', 1);
+        assert.equal(await client.get('x'), '1');
+        assert.equal(await client.get('x'), '1');
+
+        assert.equal(csc.stats().hitCount, 0, 'Cache Hits');
+        assert.equal(csc.size(), 0, 'Cache Size');
+      }, {
+        ...GLOBAL.SERVERS.OPEN,
+        clientOptions: { RESP: 3, clientSideCache: csc }
+      });
+
+      testUtils.testWithClient('a read marked cache: true is stored', async client => {
+        csc.clear();
+        const cached = client.withCommandOptions({ cache: true });
+
+        await client.set('x', 1);
+        assert.equal(await cached.get('x'), '1');
+        assert.equal(await cached.get('x'), '1');
+
+        assert.equal(csc.stats().missCount, 1, 'Cache Misses');
+        assert.equal(csc.stats().hitCount, 1, 'Cache Hits');
+      }, {
+        ...GLOBAL.SERVERS.OPEN,
+        clientOptions: { RESP: 3, clientSideCache: csc }
+      });
+
+      testUtils.testWithClient('a stored key modified by another client is invalidated', async client => {
+        csc.clear();
+        const cached = client.withCommandOptions({ cache: true });
+        const writer = client.duplicate({ clientSideCache: undefined });
+        await writer.connect();
+
+        try {
+          await writer.set('x', 1);
+          assert.equal(await cached.get('x'), '1');
+          assert.equal(csc.size(), 1, 'stored');
+
+          const invalidated = once(csc, 'invalidate');
+          await writer.set('x', 2);
+          await invalidated;
+
+          assert.equal(csc.size(), 0, 'invalidated');
+          assert.equal(await cached.get('x'), '2');
+        } finally {
+          writer.destroy();
+        }
+      }, {
+        ...GLOBAL.SERVERS.OPEN,
+        clientOptions: { RESP: 3, clientSideCache: csc }
+      });
+
+      const userOnly = new BasicClientSideCache({
+        trackingMode: 'optin',
+        cacheable: (_command, keys) => keys[0].toString().startsWith('user:')
+      });
+
+      testUtils.testWithClient('the predicate selects what is stored', async client => {
+        userOnly.clear();
+
+        await client.mSet({ 'user:1': 'a', 'counter:1': 'b' });
+        await client.get('user:1');
+        await client.get('counter:1');
+
+        assert.equal(userOnly.size(), 1, 'Cache Size');
+        await client.get('user:1');
+        assert.equal(userOnly.stats().hitCount, 1, 'Cache Hits');
+      }, {
+        ...GLOBAL.SERVERS.OPEN,
+        clientOptions: { RESP: 3, clientSideCache: userOnly }
+      });
+
+      testUtils.testWithClient('a failed read surfaces its error and stores nothing', async client => {
+        csc.clear();
+
+        await client.lPush('list', 'a');
+        await assert.rejects(client.withCommandOptions({ cache: true }).get('list'), /WRONGTYPE/);
+
+        assert.equal(csc.size(), 0, 'Cache Size');
+      }, {
+        ...GLOBAL.SERVERS.OPEN,
+        clientOptions: { RESP: 3, clientSideCache: csc }
+      });
+
+      describe('CLIENT CACHING denied by ACL', () => {
+        testUtils.isVersionGreaterThanHook([7]);
+
+        testUtils.testWithClient('the reply is returned and nothing is stored', async client => {
+          await client.sendCommand([
+            'ACL', 'SETUSER', 'csc-no-caching', 'on', '>password', '~*', '&*', '+@all', '-client|caching'
+          ]);
+
+          const cache = new BasicClientSideCache({ trackingMode: 'optin' });
+          const restricted = client.duplicate({
+            username: 'csc-no-caching',
+            password: 'password',
+            clientSideCache: cache
+          });
+          await restricted.connect();
+
+          try {
+            await restricted.set('x', 1);
+            assert.equal(await restricted.withCommandOptions({ cache: true }).get('x'), '1');
+            assert.equal(cache.size(), 0, 'Cache Size');
+          } finally {
+            restricted.destroy();
+            await client.sendCommand(['ACL', 'DELUSER', 'csc-no-caching']);
+          }
+        }, {
+          ...GLOBAL.SERVERS.OPEN,
+          clientOptions: { RESP: 3 }
+        });
+      });
+    });
+
+    describe('optout', () => {
+      const csc = new BasicClientSideCache({ trackingMode: 'optout' });
+
+      testUtils.testWithClient('enables OPTOUT tracking', async client => {
+        const { flags } = await client.clientTrackingInfo() as unknown as { flags: Array<string> };
+        assert.ok(flags.includes('optout'), `flags: ${flags}`);
+      }, {
+        ...GLOBAL.SERVERS.OPEN,
+        clientOptions: { RESP: 3, clientSideCache: csc }
+      });
+
+      testUtils.testWithClient('an unmarked read is stored', async client => {
+        csc.clear();
+
+        await client.set('x', 1);
+        assert.equal(await client.get('x'), '1');
+        assert.equal(await client.get('x'), '1');
+
+        assert.equal(csc.stats().missCount, 1, 'Cache Misses');
+        assert.equal(csc.stats().hitCount, 1, 'Cache Hits');
+      }, {
+        ...GLOBAL.SERVERS.OPEN,
+        clientOptions: { RESP: 3, clientSideCache: csc }
+      });
+
+      testUtils.testWithClient('a read marked cache: false is not stored', async client => {
+        csc.clear();
+        const fresh = client.withCommandOptions({ cache: false });
+
+        await client.set('x', 1);
+        assert.equal(await fresh.get('x'), '1');
+        assert.equal(await fresh.get('x'), '1');
+
+        assert.equal(csc.stats().hitCount, 0, 'Cache Hits');
+        assert.equal(csc.size(), 0, 'Cache Size');
+      }, {
+        ...GLOBAL.SERVERS.OPEN,
+        clientOptions: { RESP: 3, clientSideCache: csc }
+      });
+
+      // R5: the flag and its read must be admitted together. When the queue has room
+      // for the flag but not the read, a stray CLIENT CACHING NO must not reach the
+      // wire, or it untracks the next read and that read's cached reply goes stale.
+      testUtils.testWithClient('a read rejected by a full queue does not leave CACHING NO for the next read', async client => {
+        csc.clear();
+        const writer = client.duplicate({ clientSideCache: undefined, commandsQueueMaxLength: undefined });
+        await writer.connect();
+
+        try {
+          await client.set('x', '1');
+
+          // 9 pending commands + the flag fill the queue (max 10); the read is rejected.
+          const pending = Array.from({ length: 9 }, () => client.ping());
+          await assert.rejects(
+            client.withCommandOptions({ cache: false }).get('x'),
+            /The queue is full/
+          );
+          await Promise.all(pending);
+
+          // Unmarked read under OPTOUT: stored, and must be tracked.
+          assert.equal(await client.get('x'), '1');
+          assert.equal(csc.size(), 1, 'stored');
+
+          await writer.set('x', '2');
+          // The invalidation push for x is written to this connection before the PING
+          // reply, so once PING resolves, a tracked entry has already been invalidated.
+          await client.ping();
+
+          assert.equal(await client.get('x'), '2', 'the cached reply must not be stale');
+        } finally {
+          writer.destroy();
+        }
+      }, {
+        ...GLOBAL.SERVERS.OPEN,
+        clientOptions: { RESP: 3, clientSideCache: csc, commandsQueueMaxLength: 10 }
+      });
+    });
+
+    testUtils.testWithClient('cache: true on an ineligible command executes, stores nothing, and warns on every call', async client => {
+      const originalWarn = console.warn;
+      const warnings: Array<unknown> = [];
+      console.warn = (...args: Array<unknown>) => { warnings.push(args[0]); };
+
+      try {
+        const cache = client.clientSideCache!;
+        await client.set('x', 1);
+        assert.equal(await client.withCommandOptions({ cache: true }).touch('x'), 1);
+        assert.equal(await client.withCommandOptions({ cache: true }).touch('x'), 1);
+
+        assert.equal(cache.size(), 0, 'Cache Size');
+        assert.equal(warnings.filter(w => String(w).includes('TOUCH')).length, 2, 'warned on each call');
+      } finally {
+        console.warn = originalWarn;
+      }
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      clientOptions: { RESP: 3, clientSideCache: { trackingMode: 'optin' } }
+    });
+
+    describe('cluster', () => {
+      const optin = new BasicPooledClientSideCache({ trackingMode: 'optin' });
+
+      testUtils.testWithCluster('optin: only marked reads are stored', async cluster => {
+        optin.clear();
+
+        await cluster.set('x', 1);
+        await cluster.set('y', 1);
+        await cluster.get('x');
+        assert.equal(await cluster.withCommandOptions({ cache: true }).get('y'), '1');
+        assert.equal(await cluster.withCommandOptions({ cache: true }).get('y'), '1');
+
+        assert.equal(optin.size(), 1, 'Cache Size');
+        assert.equal(optin.stats().hitCount, 1, 'Cache Hits');
+      }, {
+        ...GLOBAL.CLUSTERS.OPEN,
+        clusterConfiguration: { RESP: 3, clientSideCache: optin }
+      });
+
+      const optout = new BasicPooledClientSideCache({ trackingMode: 'optout' });
+
+      testUtils.testWithCluster('optout: reads marked cache: false are not stored', async cluster => {
+        optout.clear();
+
+        await cluster.set('x', 1);
+        await cluster.set('y', 1);
+        await cluster.get('x');
+        assert.equal(await cluster.withCommandOptions({ cache: false }).get('y'), '1');
+
+        assert.equal(optout.size(), 1, 'Cache Size');
+      }, {
+        ...GLOBAL.CLUSTERS.OPEN,
+        clusterConfiguration: { RESP: 3, clientSideCache: optout }
+      });
     });
   });
 });

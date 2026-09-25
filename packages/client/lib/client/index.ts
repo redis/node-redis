@@ -4,7 +4,7 @@ import { BasicAuth, CredentialsError, CredentialsProvider, StreamingCredentialsP
 import RedisCommandsQueue, { CommandOptions } from './commands-queue';
 import { EventEmitter } from 'node:events';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
-import { defaultCommandMetadata, isCacheable } from '../command-metadata';
+import { defaultCommandMetadata, isCacheable, isTrackable } from '../command-metadata';
 import { AbortError, ClientClosedError, ClientOfflineError, DisconnectsClientError, WatchError } from '../errors';
 import { URL } from 'node:url';
 import { TcpSocketConnectOpts } from 'node:net';
@@ -1304,26 +1304,83 @@ export default class RedisClient<
     // Eligibility is only worth computing when caching is enabled — the
     // metadata lookup decodes the command identifier (Buffer args included)
     // and must not tax the common no-CSC path.
+    const meta = csc ? defaultCommandMetadata.lookup(parser.commandIdentifier) : undefined;
+
     if (csc) {
       const defaultTypeMapping = this._self.#options.commandOptions === commandOptions ||
         (this._self.#options.commandOptions?.typeMapping === commandOptions?.typeMapping);
 
       // Override-first: a defined `Command.CACHEABLE` wins; otherwise CSC
       // eligibility derives from the server flags/tips (see `isCacheable`).
-      const cacheable = isCacheable(defaultCommandMetadata.lookup(parser.commandIdentifier), command.CACHEABLE);
+      const eligible = isCacheable(meta, command.CACHEABLE);
+      const mark = commandOptions?.cache;
 
-      if (cacheable && defaultTypeMapping) {
-        return await csc.handleCache(this._self, parser as BasicCommandParser, fn, transformReply, commandOptions?.typeMapping);
+      // The command still executes and nothing is stored; warn on every such call.
+      // TODO: consider removing this warning, or replacing it with a diagnostics channel event.
+      if (!eligible && mark === true) {
+        console.warn(`The "cache" command option has no effect on ${parser.commandIdentifier.command}: its replies are not eligible for client-side caching`);
+      }
+
+      // Intent never makes an ineligible command cacheable. An ASK-redirected
+      // attempt is never stored: ASKING already occupies the one-shot slot the
+      // CLIENT CACHING flag needs.
+      const store = eligible && defaultTypeMapping && !commandOptions?.askRedirect &&
+        csc.wantsCache(mark, parser.commandIdentifier.command, parser.keys);
+
+      if (store) {
+        if (csc.trackingMode !== 'optin') {
+          return await csc.handleCache(this._self, parser as BasicCommandParser, fn, transformReply, commandOptions?.typeMapping);
+        }
+
+        let storable = true;
+        const cmd = async () => {
+          const result = await this._self.#sendWithCaching(this, 'YES', parser, commandOptions);
+          storable = result.storable;
+          return result.reply;
+        };
+        return await csc.handleCache(this._self, parser as BasicCommandParser, cmd, transformReply, commandOptions?.typeMapping, () => storable);
       }
     }
 
-    const reply = await fn();
+    const reply = csc?.trackingMode === 'optout' && isTrackable(meta) && !commandOptions?.askRedirect ?
+      // A failed NO flag only costs wasted tracking; the reply is never stored here.
+      (await this._self.#sendWithCaching(this, 'NO', parser, commandOptions)).reply :
+      await fn();
 
     const finalReply = transformReply ? transformReply(reply, parser.preserve, commandOptions?.typeMapping) : reply;
 
     publish(CHANNELS.COMMAND_REPLY, () => ({ args: sanitizeArgs(parser.redisArgs), reply: finalReply, clientId: this._self._clientId }));
 
     return finalReply;
+  }
+
+  /**
+   * Sends `CLIENT CACHING <flag>` followed by the read (OPTIN/OPTOUT tracking modes).
+   *
+   * The flag rides as the read's queue prelude, so the two are admitted, cancelled,
+   * encoded, and written as one unit, and both fail if the connection dies after the
+   * write — a flag can never reach the wire without its read.
+   *
+   * `storable` is true only when the flag succeeded: an error reply for the flag means
+   * tracking is unconfirmed, so the reply is returned but must not be cached.
+   */
+  async #sendWithCaching(
+    // The proxy-aware caller, needed for `sendCommand` merging and `_commandOptions`.
+    client: RedisClient<M, F, S, RESP, TYPE_MAPPING>,
+    flag: 'YES' | 'NO',
+    parser: CommandParser,
+    commandOptions: CommandOptions<TYPE_MAPPING> | undefined
+  ) {
+    let storable = false;
+    const reply = await client.sendCommand(parser.redisArgs, {
+      ...commandOptions,
+      prelude: {
+        args: ['CLIENT', 'CACHING', flag],
+        // The flag's reply always arrives before the read's.
+        onReply: err => { storable = err === undefined; }
+      }
+    });
+    return { reply, storable };
   }
 
   /**

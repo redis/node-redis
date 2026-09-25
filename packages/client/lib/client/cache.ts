@@ -372,6 +372,8 @@ type CmdFunc = () => Promise<ReplyUnion>;
 
 type EvictionPolicy = "LRU" | "FIFO"
 
+type TrackingMode = "plain" | "optin" | "optout"
+
 /**
  * Configuration options for Client Side Cache
  */
@@ -403,6 +405,27 @@ export interface ClientSideCacheConfig {
    * @default true
    */
   recordStats?: boolean;
+
+  /**
+   * How every connection enables server-side tracking. Applies to new connections only.
+   * - "plain": `CLIENT TRACKING ON` - every eligible read is cached
+   * - "optin": `CLIENT TRACKING ON OPTIN` - only reads the application wants cached are cached and tracked
+   * - "optout": `CLIENT TRACKING ON OPTOUT` - every eligible read is cached, unless the application says otherwise
+   * @default "plain"
+   */
+  trackingMode?: TrackingMode;
+
+  /**
+   * Whether the application wants a reply cached. Called only for reads that are
+   * eligible for caching and not marked with the `cache` command option.
+   * Keys may be `Buffer`s.
+   *
+   * @example Cache only `user:*` keys
+   * ```
+   * cacheable: (command, keys) => keys[0].toString().startsWith('user:')
+   * ```
+   */
+  cacheable?: (command: string, keys: ReadonlyArray<RedisArgument>) => boolean;
 }
 
 interface CacheCreator {
@@ -480,7 +503,12 @@ class ClientSideCacheEntryPromise extends ClientSideCacheEntryBase {
 }
 
 export abstract class ClientSideCacheProvider extends EventEmitter {
-  abstract handleCache(client: CachingClient, parser: BasicCommandParser, fn: CmdFunc, transformReply: TransformReply | undefined, typeMapping: TypeMapping | undefined): Promise<any>;
+  /**
+   * @param isStorable - Set only in the "optin" tracking mode. Called once `fn` resolves;
+   * `false` means the server did not confirm tracking, so the reply must be returned but
+   * not stored. Providers that report `trackingMode = "optin"` must honour it.
+   */
+  abstract handleCache(client: CachingClient, parser: BasicCommandParser, fn: CmdFunc, transformReply: TransformReply | undefined, typeMapping: TypeMapping | undefined, isStorable?: () => boolean): Promise<any>;
   abstract trackingOn(): Array<RedisArgument>;
   abstract invalidate(key: RedisArgument | null): void;
   abstract clear(): void;
@@ -488,6 +516,19 @@ export abstract class ClientSideCacheProvider extends EventEmitter {
   abstract size(): number;
   abstract onError(): void;
   abstract onClose(): void;
+
+  /**
+   * How connections enable tracking. Custom providers default to "plain".
+   */
+  readonly trackingMode: TrackingMode = "plain";
+
+  /**
+   * Whether the application wants an eligible reply cached.
+   * Custom providers default to caching unless the call is marked `cache: false`.
+   */
+  wantsCache(mark: boolean | undefined, _command: string, _keys: ReadonlyArray<RedisArgument>): boolean {
+    return mark ?? true;
+  }
 }
 
 export class BasicClientSideCache extends ClientSideCacheProvider {
@@ -496,6 +537,8 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
   readonly ttl: number;
   readonly maxEntries: number;
   readonly lru: boolean;
+  override readonly trackingMode: TrackingMode;
+  readonly cacheable: ClientSideCacheConfig["cacheable"];
   #statsCounter: StatsCounter;
 
 
@@ -519,6 +562,8 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
     this.ttl = config?.ttl ?? 0;
     this.maxEntries = config?.maxEntries ?? 0;
     this.lru = config?.evictPolicy !== "FIFO";
+    this.trackingMode = config?.trackingMode ?? "plain";
+    this.cacheable = config?.cacheable;
 
     const recordStats = config?.recordStats !== false;
     this.#statsCounter = recordStats ? DefaultStatsCounter.create() : disabledStatsCounter();
@@ -532,12 +577,13 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
       redisKeys - an array of redis keys as strings that if the key is modified, will cause redis to invalidate this result when cached
   2. check if cacheKey is in our cache
     2b1. if its a value cacheEntry - return it
-    2b2. if it's a promise cache entry - wait on promise and then go to 3c.
+    2b2. if it's a promise cache entry - wait on promise and then go to 3b.
   3. if cacheEntry is not in cache
     3a. send the command save the promise into a a cacheEntry and then wait on result
     3b. transform reply (if required) based on transformReply
     3b. check the cacheEntry is still valid - in cache and hasn't been deleted)
     3c. if valid - overwrite with value entry
+        if not storable (tracking not confirmed) - drop the promise entry, don't store
   4. return previously non cached result
   */
   override async handleCache(
@@ -545,7 +591,8 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
     parser: BasicCommandParser,
     fn: CmdFunc,
     transformReply?: TransformReply,
-    typeMapping?: TypeMapping
+    typeMapping?: TypeMapping,
+    isStorable?: () => boolean
   ) {
     let reply: ReplyUnion;
 
@@ -604,7 +651,13 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
     }
 
     // 3c
-    if (cacheEntry.validate()) { // revalidating promise entry (dont save value, if promise entry has been invalidated)
+    if (isStorable && !isStorable()) {
+      // the server did not confirm tracking; deleting invalidates the promise entry, so
+      // waiters on it (which resume after this load) fail validate() and don't store either
+      if (cacheEntry.validate()) {
+        this.delete(cacheKey);
+      }
+    } else if (cacheEntry.validate()) { // revalidating promise entry (dont save value, if promise entry has been invalidated)
       // 3d
       cacheEntry = this.createValueEntry(client, val);
       this.set(cacheKey, cacheEntry, parser.keys);
@@ -617,7 +670,24 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
   }
 
   override trackingOn() {
-    return ['CLIENT', 'TRACKING', 'ON'];
+    switch (this.trackingMode) {
+      case "optin":
+        return ['CLIENT', 'TRACKING', 'ON', 'OPTIN'];
+      case "optout":
+        return ['CLIENT', 'TRACKING', 'ON', 'OPTOUT'];
+      default:
+        return ['CLIENT', 'TRACKING', 'ON'];
+    }
+  }
+
+  /**
+   * Resolves intent in a fixed order: the per-call mark, then the `cacheable`
+   * predicate, then the mode default ("optin" caches nothing unmarked).
+   */
+  override wantsCache(mark: boolean | undefined, command: string, keys: ReadonlyArray<RedisArgument>): boolean {
+    if (mark !== undefined) return mark;
+    if (this.cacheable) return this.cacheable(command, keys);
+    return this.trackingMode !== "optin";
   }
 
   override invalidate(key: RedisArgument | null) {

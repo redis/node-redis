@@ -7,6 +7,20 @@ import { AbortError, ErrorReply, CommandTimeoutDuringMaintenanceError, TimeoutEr
 import { MonitorCallback } from '.';
 import { dbgMaintenance } from './enterprise-maintenance-manager';
 
+/**
+ * @internal
+ * A command written immediately in front of another as one unit: admitted, cancelled,
+ * encoded, and written together, so nothing can land between the two on the wire.
+ */
+export interface CommandPrelude {
+  args: ReadonlyArray<RedisArgument>;
+  /**
+   * Receives the prelude's outcome (`err` is set on an error reply or a failure before
+   * the reply). The prelude never rejects the main command's promise by itself.
+   */
+  onReply(err?: unknown): void;
+}
+
 export interface CommandOptions<T = TypeMapping> {
   chainId?: symbol;
   asap?: boolean;
@@ -20,6 +34,12 @@ export interface CommandOptions<T = TypeMapping> {
    */
   timeout?: number;
   /**
+   * Client-side caching intent for this call: `true` caches the reply if the command is
+   * eligible, `false` never caches it. Overrides the `cacheable` predicate and the tracking
+   * mode default. Has no effect without `clientSideCache`.
+   */
+  cache?: boolean;
+  /**
    * @internal
    * The slot the command is targeted to (if any)
    */
@@ -31,6 +51,11 @@ export interface CommandOptions<T = TypeMapping> {
    * would consume the one-shot ASKING flag — the hook re-issues ASKING right before the main.
    */
   askRedirect?: boolean;
+  /**
+   * @internal
+   * A command to write in front of this one, as one unit (see `CommandPrelude`).
+   */
+  prelude?: CommandPrelude;
 }
 
 export interface CommandToWrite extends CommandWaitingForReply {
@@ -48,7 +73,8 @@ export interface CommandToWrite extends CommandWaitingForReply {
     wasInMaintenance: boolean;
   } | undefined;
   rejected?: boolean;
-  slotNumber?: number
+  slotNumber?: number;
+  prelude?: CommandPrelude;
 }
 
 interface CommandWaitingForReply {
@@ -318,9 +344,11 @@ export default class RedisCommandsQueue {
     args: ReadonlyArray<RedisArgument>,
     options?: CommandOptions,
   ): Promise<T> {
+    // A prelude and its command are admitted together or not at all.
+    const size = options?.prelude ? 2 : 1;
     if (
       this.#maxLength &&
-      this.#toWrite.length + this.#waitingForReply.length >= this.#maxLength
+      this.#toWrite.length + this.#waitingForReply.length + size > this.#maxLength
     ) {
       return Promise.reject(new Error("The queue is full"));
     } else if (options?.abortSignal?.aborted) {
@@ -339,6 +367,7 @@ export default class RedisCommandsQueue {
         typeMapping: options?.typeMapping,
       };
       value.slotNumber = options?.slotNumber;
+      value.prelude = options?.prelude;
 
       const node = this.#toWrite.add(value, options?.asap);
 
@@ -612,6 +641,10 @@ export default class RedisCommandsQueue {
       let encoded: ReadonlyArray<RedisArgument>;
       try {
         encoded = encodeCommand(toSend.args!);
+        // Encode the prelude with its command, so a failure writes neither.
+        if (toSend.prelude) {
+          encoded = [...encodeCommand(toSend.prelude.args), ...encoded];
+        }
       } catch (err) {
         toSend.reject(err);
         toSend = this.#toWrite.shift();
@@ -630,6 +663,17 @@ export default class RedisCommandsQueue {
       }
       this.#chainInExecution = toSend.chainId;
       toSend.chainId = undefined;
+      if (toSend.prelude) {
+        // The prelude's reply arrives first; it is reported, never propagated.
+        const { onReply } = toSend.prelude;
+        toSend.prelude = undefined;
+        this.#waitingForReply.push({
+          resolve: () => onReply(),
+          reject: (err) => onReply(err),
+          channelsCounter: undefined,
+          typeMapping: undefined,
+        });
+      }
       this.#waitingForReply.push(toSend);
 
       yield encoded;
