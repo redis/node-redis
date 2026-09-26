@@ -32,6 +32,7 @@
 | pingInterval                 |                                          | Send `PING` command at interval (in ms). Useful with ["Azure Cache for Redis"](https://learn.microsoft.com/en-us/azure/azure-cache-for-redis/cache-best-practices-connection#idle-timeout)                                                          |
 | disableClientInfo            | `false`                                  | Disables `CLIENT SETINFO LIB-NAME node-redis` and `CLIENT SETINFO LIB-VER X.X.X` commands                                                                                                                                                           |
 | commandOptions.timeout       | `5000`                                   | Default per-command timeout in milliseconds. Set to `undefined` (or `0`) to disable. See [Command Options](./command-options.md).                                                                                                                   |
+| clientSideCache              |                                          | Client Side Caching configuration (`ttl`, `maxEntries`, `evictPolicy`, `recordStats`, `trackingMode`, `cacheable`, `strict`), or a `BasicClientSideCache` instance. RESP3 only. See [Client Side Caching](./client-side-caching.md).               |
 
 ## Reconnect Strategy
 
