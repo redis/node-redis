@@ -147,7 +147,7 @@ OpenTelemetry.init({
 | Metric Group | Metric Name |
 | ------------ | ----------- |
 | command | db.client.operation.duration |
-| connection-basic | db.client.connection.count |
+| connection-basic | redis.client.connection.count |
 | connection-basic | db.client.connection.create_time |
 | connection-basic | redis.client.connection.relaxed_timeout |
 | connection-basic | redis.client.connection.handoff |
@@ -160,7 +160,6 @@ OpenTelemetry.init({
 | client-side-caching | redis.client.csc.requests |
 | client-side-caching | redis.client.csc.items |
 | client-side-caching | redis.client.csc.evictions |
-| client-side-caching | redis.client.csc.network_saved |
 
 ## Notes
 
