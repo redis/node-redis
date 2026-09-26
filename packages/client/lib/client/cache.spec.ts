@@ -5,6 +5,7 @@ import { REDIS_FLUSH_MODES } from "../commands/FLUSHALL";
 import { once } from 'events';
 import RedisClient from "./index";
 import { BasicCommandParser } from "./parser";
+import { ClientSideCacheMarkError } from "../errors";
 
 describe("Client Side Cache", () => {
   it("destroy() on a never-connected client does not flush a shared pooled cache (#3396)", () => {
@@ -739,25 +740,25 @@ describe("Client Side Cache", () => {
       });
     });
 
-    describe('wantsCache()', () => {
+    describe('resolveCacheIntent()', () => {
       const userOnly = (_command: string, keys: ReadonlyArray<unknown>) => String(keys[0]).startsWith('user:');
 
       it('the mark wins over the predicate', () => {
         const cache = new BasicClientSideCache({ trackingMode: 'optin', cacheable: userOnly });
-        assert.equal(cache.wantsCache(true, 'GET', ['counter:1']), true);
-        assert.equal(cache.wantsCache(false, 'GET', ['user:1']), false);
+        assert.equal(cache.resolveCacheIntent(true, 'GET', ['counter:1']), true);
+        assert.equal(cache.resolveCacheIntent(false, 'GET', ['user:1']), false);
       });
 
       it('the predicate answers unmarked calls', () => {
         const cache = new BasicClientSideCache({ trackingMode: 'optin', cacheable: userOnly });
-        assert.equal(cache.wantsCache(undefined, 'GET', ['user:1']), true);
-        assert.equal(cache.wantsCache(undefined, 'GET', ['counter:1']), false);
+        assert.equal(cache.resolveCacheIntent(undefined, 'GET', ['user:1']), true);
+        assert.equal(cache.resolveCacheIntent(undefined, 'GET', ['counter:1']), false);
       });
 
       it('without a predicate, the mode decides', () => {
-        assert.equal(new BasicClientSideCache().wantsCache(undefined, 'GET', ['k']), true);
-        assert.equal(new BasicClientSideCache({ trackingMode: 'optin' }).wantsCache(undefined, 'GET', ['k']), false);
-        assert.equal(new BasicClientSideCache({ trackingMode: 'optout' }).wantsCache(undefined, 'GET', ['k']), true);
+        assert.equal(new BasicClientSideCache().resolveCacheIntent(undefined, 'GET', ['k']), true);
+        assert.equal(new BasicClientSideCache({ trackingMode: 'optin' }).resolveCacheIntent(undefined, 'GET', ['k']), false);
+        assert.equal(new BasicClientSideCache({ trackingMode: 'optout' }).resolveCacheIntent(undefined, 'GET', ['k']), true);
       });
     });
 
@@ -1016,6 +1017,21 @@ describe("Client Side Cache", () => {
     }, {
       ...GLOBAL.SERVERS.OPEN,
       clientOptions: { RESP: 3, clientSideCache: { trackingMode: 'optin' } }
+    });
+
+    testUtils.testWithClient('strict: cache: true on an ineligible command rejects before the command is sent', async client => {
+      await client.set('x', 1);
+      await client.configResetStat();
+
+      await assert.rejects(
+        client.withCommandOptions({ cache: true }).touch('x'),
+        (err: unknown) => err instanceof ClientSideCacheMarkError && err.command === 'TOUCH'
+      );
+
+      assert.equal(await client.touch('x'), 1, 'unmarked calls are unaffected');
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      clientOptions: { RESP: 3, clientSideCache: { trackingMode: 'optin', strict: true } }
     });
 
     describe('cluster', () => {

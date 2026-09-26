@@ -113,3 +113,12 @@ export class MaxCommandRedirectionsError extends Error {
     super('Too many Cluster redirections', cause === undefined ? undefined : { cause });
   }
 }
+
+export class ClientSideCacheMarkError extends Error {
+  readonly command: string;
+
+  constructor(command: string) {
+    super(`The "cache" command option has no effect on ${command}: its replies are not eligible for client-side caching`);
+    this.command = command;
+  }
+}

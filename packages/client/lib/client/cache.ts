@@ -373,7 +373,13 @@ type CmdFunc = () => Promise<ReplyUnion>;
 
 type EvictionPolicy = "LRU" | "FIFO"
 
-type TrackingMode = "plain" | "optin" | "optout"
+export const CLIENT_SIDE_CACHE_TRACKING_MODES = {
+  PLAIN: "plain",
+  OPTIN: "optin",
+  OPTOUT: "optout"
+} as const;
+
+export type ClientSideCacheTrackingMode = typeof CLIENT_SIDE_CACHE_TRACKING_MODES[keyof typeof CLIENT_SIDE_CACHE_TRACKING_MODES];
 
 /**
  * Configuration options for Client Side Cache
@@ -414,7 +420,7 @@ export interface ClientSideCacheConfig {
    * - "optout": `CLIENT TRACKING ON OPTOUT` - every eligible read is cached, unless the application says otherwise
    * @default "plain"
    */
-  trackingMode?: TrackingMode;
+  trackingMode?: ClientSideCacheTrackingMode;
 
   /**
    * Whether the application wants a reply cached. Called only for reads that are
@@ -427,6 +433,15 @@ export interface ClientSideCacheConfig {
    * ```
    */
   cacheable?: (command: string, keys: ReadonlyArray<RedisArgument>) => boolean;
+
+  /**
+   * @experimental
+   * When `true`, a call marked `cache: true` whose command is not eligible for caching
+   * rejects before the command is sent. When `false`, the command executes normally,
+   * nothing is stored, and a warning is logged. Meant for development and tests.
+   * @default false
+   */
+  strict?: boolean;
 }
 
 interface CacheCreator {
@@ -521,13 +536,20 @@ export abstract class ClientSideCacheProvider extends EventEmitter {
   /**
    * How connections enable tracking. Custom providers default to "plain".
    */
-  readonly trackingMode: TrackingMode = "plain";
+  readonly trackingMode: ClientSideCacheTrackingMode = CLIENT_SIDE_CACHE_TRACKING_MODES.PLAIN;
+
+  /**
+   * @experimental
+   * Whether a `cache: true` mark on an ineligible command rejects instead of warning.
+   * Custom providers default to `false`.
+   */
+  readonly strict: boolean = false;
 
   /**
    * Whether the application wants an eligible reply cached.
    * Custom providers default to caching unless the call is marked `cache: false`.
    */
-  wantsCache(mark: boolean | undefined, _command: string, _keys: ReadonlyArray<RedisArgument>): boolean {
+  resolveCacheIntent(mark: boolean | undefined, _command: string, _keys: ReadonlyArray<RedisArgument>): boolean {
     return mark ?? true;
   }
 }
@@ -538,7 +560,8 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
   readonly ttl: number;
   readonly maxEntries: number;
   readonly lru: boolean;
-  override readonly trackingMode: TrackingMode;
+  override readonly trackingMode: ClientSideCacheTrackingMode;
+  override readonly strict: boolean;
   readonly cacheable: ClientSideCacheConfig["cacheable"];
   #statsCounter: StatsCounter;
 
@@ -563,8 +586,9 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
     this.ttl = config?.ttl ?? 0;
     this.maxEntries = config?.maxEntries ?? 0;
     this.lru = config?.evictPolicy !== "FIFO";
-    this.trackingMode = config?.trackingMode ?? "plain";
+    this.trackingMode = config?.trackingMode ?? CLIENT_SIDE_CACHE_TRACKING_MODES.PLAIN;
     this.cacheable = config?.cacheable;
+    this.strict = config?.strict ?? false;
 
     const recordStats = config?.recordStats !== false;
     this.#statsCounter = recordStats ? DefaultStatsCounter.create() : disabledStatsCounter();
@@ -672,9 +696,9 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
 
   override trackingOn() {
     switch (this.trackingMode) {
-      case "optin":
+      case CLIENT_SIDE_CACHE_TRACKING_MODES.OPTIN:
         return ['CLIENT', 'TRACKING', 'ON', 'OPTIN'];
-      case "optout":
+      case CLIENT_SIDE_CACHE_TRACKING_MODES.OPTOUT:
         return ['CLIENT', 'TRACKING', 'ON', 'OPTOUT'];
       default:
         return ['CLIENT', 'TRACKING', 'ON'];
@@ -685,10 +709,10 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
    * Resolves intent in a fixed order: the per-call mark, then the `cacheable`
    * predicate, then the mode default ("optin" caches nothing unmarked).
    */
-  override wantsCache(mark: boolean | undefined, command: string, keys: ReadonlyArray<RedisArgument>): boolean {
+  override resolveCacheIntent(mark: boolean | undefined, command: string, keys: ReadonlyArray<RedisArgument>): boolean {
     if (mark !== undefined) return mark;
     if (this.cacheable) return this.cacheable(command, keys);
-    return this.trackingMode !== "optin";
+    return this.trackingMode !== CLIENT_SIDE_CACHE_TRACKING_MODES.OPTIN;
   }
 
   override invalidate(key: RedisArgument | null) {

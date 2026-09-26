@@ -5,7 +5,7 @@ import RedisCommandsQueue, { CommandOptions } from './commands-queue';
 import { EventEmitter } from 'node:events';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
 import { defaultCommandMetadata, isCacheable, isTrackable } from '../command-metadata';
-import { AbortError, ClientClosedError, ClientOfflineError, DisconnectsClientError, WatchError } from '../errors';
+import { AbortError, ClientClosedError, ClientOfflineError, ClientSideCacheMarkError, DisconnectsClientError, WatchError } from '../errors';
 import { URL } from 'node:url';
 import { TcpSocketConnectOpts } from 'node:net';
 import { PUBSUB_TYPE, PubSubType, PubSubListener, PubSubTypeListeners, ChannelListeners } from './pub-sub';
@@ -17,7 +17,7 @@ import { ScanOptions, ScanCommonOptions } from '../commands/SCAN';
 import { RedisLegacyClient, RedisLegacyClientType } from './legacy-mode';
 import { RedisPoolOptions, RedisClientPool } from './pool';
 import { RedisVariadicArgument, parseArgs } from '../commands/generic-transformers';
-import { BasicClientSideCache, ClientSideCacheConfig, ClientSideCacheProvider } from './cache';
+import { BasicClientSideCache, CLIENT_SIDE_CACHE_TRACKING_MODES, ClientSideCacheConfig, ClientSideCacheProvider } from './cache';
 import { BasicCommandParser, CommandParser, prefixKeys } from './parser';
 import SingleEntryCache from '../single-entry-cache';
 import { version } from '../../package.json'
@@ -1315,20 +1315,25 @@ export default class RedisClient<
       const eligible = isCacheable(meta, command.CACHEABLE);
       const mark = commandOptions?.cache;
 
-      // The command still executes and nothing is stored; warn on every such call.
+      // Strict: reject before the send, so the command leaves no side effects behind.
+      // Otherwise the command still executes and nothing is stored; warn on every such call.
       // TODO: consider removing this warning, or replacing it with a diagnostics channel event.
       if (!eligible && mark === true) {
-        console.warn(`The "cache" command option has no effect on ${parser.commandIdentifier.command}: its replies are not eligible for client-side caching`);
+        const error = new ClientSideCacheMarkError(parser.commandIdentifier.command);
+        if (csc.strict) {
+          throw error;
+        }
+        console.warn(error.message);
       }
 
       // Intent never makes an ineligible command cacheable. An ASK-redirected
       // attempt is never stored: ASKING already occupies the one-shot slot the
       // CLIENT CACHING flag needs.
       const store = eligible && defaultTypeMapping && !commandOptions?.askRedirect &&
-        csc.wantsCache(mark, parser.commandIdentifier.command, parser.keys);
+        csc.resolveCacheIntent(mark, parser.commandIdentifier.command, parser.keys);
 
       if (store) {
-        if (csc.trackingMode !== 'optin') {
+        if (csc.trackingMode !== CLIENT_SIDE_CACHE_TRACKING_MODES.OPTIN) {
           return await csc.handleCache(this._self, parser as BasicCommandParser, fn, transformReply, commandOptions?.typeMapping);
         }
 
@@ -1342,7 +1347,7 @@ export default class RedisClient<
       }
     }
 
-    const reply = csc?.trackingMode === 'optout' && isTrackable(meta) && !commandOptions?.askRedirect ?
+    const reply = csc?.trackingMode === CLIENT_SIDE_CACHE_TRACKING_MODES.OPTOUT && isTrackable(meta) && !commandOptions?.askRedirect ?
       // A failed NO flag only costs wasted tracking; the reply is never stored here.
       (await this._self.#sendWithCaching(this, 'NO', parser, commandOptions)).reply :
       await fn();
