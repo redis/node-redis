@@ -5,7 +5,7 @@ import { REDIS_FLUSH_MODES } from "../commands/FLUSHALL";
 import { once } from 'events';
 import RedisClient from "./index";
 import { BasicCommandParser } from "./parser";
-import { ClientSideCacheMarkError } from "../errors";
+import { ClientSideCacheCommandError, ClientSideCacheMarkError } from "../errors";
 
 describe("Client Side Cache", () => {
   it("destroy() on a never-connected client does not flush a shared pooled cache (#3396)", () => {
@@ -1067,6 +1067,97 @@ describe("Client Side Cache", () => {
       }, {
         ...GLOBAL.CLUSTERS.OPEN,
         clusterConfiguration: { RESP: 3, clientSideCache: optout }
+      });
+    });
+
+    describe('user-sent CLIENT CACHING / CLIENT TRACKING', () => {
+      const isRefused = (command: string) =>
+        (err: unknown) => err instanceof ClientSideCacheCommandError && err.command === command;
+
+      testUtils.testWithClient('CLIENT CACHING is refused', async client => {
+        await assert.rejects(client.clientCaching(true), isRefused('CLIENT CACHING'));
+      }, {
+        ...GLOBAL.SERVERS.OPEN,
+        clientOptions: { RESP: 3, clientSideCache: { trackingMode: 'optin' } }
+      });
+
+      const plain = new BasicClientSideCache();
+
+      testUtils.testWithClient('CLIENT TRACKING is refused in plain mode, and tracking stays on', async client => {
+        plain.clear();
+        const writer = client.duplicate({ clientSideCache: undefined });
+        await writer.connect();
+
+        try {
+          await assert.rejects(client.clientTracking(false), isRefused('CLIENT TRACKING'));
+
+          await writer.set('x', 1);
+          assert.equal(await client.get('x'), '1');
+          assert.equal(plain.size(), 1, 'stored');
+
+          const invalidated = once(plain, 'invalidate');
+          await writer.set('x', 2);
+          await invalidated;
+
+          assert.equal(plain.size(), 0, 'invalidated');
+        } finally {
+          writer.destroy();
+        }
+      }, {
+        ...GLOBAL.SERVERS.OPEN,
+        clientOptions: { RESP: 3, clientSideCache: plain }
+      });
+
+      testUtils.testWithClient('raw sendCommand is refused, in any case and with Buffer arguments', async client => {
+        await assert.rejects(client.sendCommand(['client', 'tracking', 'off']), isRefused('CLIENT TRACKING'));
+        await assert.rejects(
+          client.sendCommand([Buffer.from('CLIENT'), Buffer.from('CACHING'), 'YES']),
+          isRefused('CLIENT CACHING')
+        );
+      }, {
+        ...GLOBAL.SERVERS.OPEN,
+        clientOptions: { RESP: 3, clientSideCache: { trackingMode: 'optout' } }
+      });
+
+      testUtils.testWithClient('MULTI and pipelines are refused before anything is sent', async client => {
+        await assert.rejects(
+          client.multi().set('multi', '1').clientTracking(false).exec(),
+          isRefused('CLIENT TRACKING')
+        );
+        await assert.rejects(
+          client.multi().set('pipeline', '1').clientCaching(true).execAsPipeline(),
+          isRefused('CLIENT CACHING')
+        );
+
+        assert.equal(await client.exists(['multi', 'pipeline']), 0, 'nothing was sent');
+      }, {
+        ...GLOBAL.SERVERS.OPEN,
+        clientOptions: { RESP: 3, clientSideCache: { trackingMode: 'optin' } }
+      });
+
+      testUtils.testWithClient('other CLIENT subcommands are allowed', async client => {
+        const info = await client.clientTrackingInfo();
+        assert.ok(info.flags.includes('optin'));
+      }, {
+        ...GLOBAL.SERVERS.OPEN,
+        clientOptions: { RESP: 3, clientSideCache: { trackingMode: 'optin' } }
+      });
+
+      testUtils.testWithClient('without client-side caching, CLIENT TRACKING is allowed', async client => {
+        assert.equal(await client.clientTracking(true), 'OK');
+      }, {
+        ...GLOBAL.SERVERS.OPEN,
+        clientOptions: { RESP: 3 }
+      });
+
+      testUtils.testWithCluster('cluster: raw sendCommand is refused', async cluster => {
+        await assert.rejects(
+          cluster.sendCommand(undefined, true, ['CLIENT', 'TRACKING', 'OFF']),
+          isRefused('CLIENT TRACKING')
+        );
+      }, {
+        ...GLOBAL.CLUSTERS.OPEN,
+        clusterConfiguration: { RESP: 3, clientSideCache: { trackingMode: 'optin' } }
       });
     });
   });

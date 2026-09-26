@@ -122,3 +122,12 @@ export class ClientSideCacheMarkError extends Error {
     this.command = command;
   }
 }
+
+export class ClientSideCacheCommandError extends Error {
+  readonly command: string;
+
+  constructor(command: string) {
+    super(`${command} is not allowed on a connection managed by client-side caching`);
+    this.command = command;
+  }
+}

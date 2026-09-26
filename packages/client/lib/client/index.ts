@@ -5,7 +5,7 @@ import RedisCommandsQueue, { CommandOptions } from './commands-queue';
 import { EventEmitter } from 'node:events';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
 import { defaultCommandMetadata, isCacheable, isTrackable } from '../command-metadata';
-import { AbortError, ClientClosedError, ClientOfflineError, ClientSideCacheMarkError, DisconnectsClientError, WatchError } from '../errors';
+import { AbortError, ClientClosedError, ClientOfflineError, ClientSideCacheCommandError, ClientSideCacheMarkError, DisconnectsClientError, WatchError } from '../errors';
 import { URL } from 'node:url';
 import { TcpSocketConnectOpts } from 'node:net';
 import { PUBSUB_TYPE, PubSubType, PubSubListener, PubSubTypeListeners, ChannelListeners } from './pub-sub';
@@ -53,6 +53,28 @@ function assertNoHimportSessionCommands(commands: Array<RedisMultiQueuedCommand>
         'HIMPORT PREPARE/DISCARD/DISCARDALL are not supported inside MULTI/pipeline; call them on the client before the transaction'
       );
     }
+  }
+}
+
+const CSC_MANAGED_CLIENT_SUBCOMMANDS = new Set(['CACHING', 'TRACKING']);
+
+/**
+ * With client-side caching on, the client owns the connection's tracking state: a user
+ * `CLIENT TRACKING` can reset the OPTIN/OPTOUT mode or stop invalidations, and a user
+ * `CLIENT CACHING` flag attaches to the wrong read. The handshake's `CLIENT TRACKING` and
+ * the `CLIENT CACHING` preludes go straight to the queue, so they never reach this check.
+ * Returns the refused command name (e.g. `CLIENT TRACKING`), if any.
+ */
+function cscManagedCommand(args: ReadonlyArray<RedisArgument>): string | undefined {
+  if (args.length < 2 || String(args[0]).toUpperCase() !== 'CLIENT') return;
+  const sub = String(args[1]).toUpperCase();
+  return CSC_MANAGED_CLIENT_SUBCOMMANDS.has(sub) ? `CLIENT ${sub}` : undefined;
+}
+
+function assertNoCscManagedCommands(commands: Array<RedisMultiQueuedCommand>) {
+  for (const { args } of commands) {
+    const command = cscManagedCommand(args);
+    if (command) throw new ClientSideCacheCommandError(command);
   }
 }
 
@@ -1694,6 +1716,11 @@ export default class RedisClient<
           return Promise.reject(new ClientOfflineError());
         }
 
+        if (this._self.#clientSideCache) {
+          const command = cscManagedCommand(args);
+          if (command) return Promise.reject(new ClientSideCacheCommandError(command));
+        }
+
         // Merge global options with provided options
         const opts = {
           ...this._commandOptions,
@@ -1920,6 +1947,7 @@ export default class RedisClient<
     slotNumber?: number
   ) {
     assertNoHimportSessionCommands(commands);
+    if (this._self.#clientSideCache) assertNoCscManagedCommands(commands);
 
     if (!this._self.#socket.isOpen) {
       return Promise.reject(new ClientClosedError());
@@ -1981,6 +2009,7 @@ export default class RedisClient<
     chainId = Symbol('MULTI Chain')
   ) {
     assertNoHimportSessionCommands(commands);
+    if (this._self.#clientSideCache) assertNoCscManagedCommands(commands);
 
     const dirtyWatch = this._self.#dirtyWatch;
     this._self.#dirtyWatch = undefined;
