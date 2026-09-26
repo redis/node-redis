@@ -439,4 +439,125 @@ describe('RedisCommandsQueue', () => {
       assert.strictEqual(source.extractAllCommands().length, 0);
     });
   });
+
+  describe('prelude', () => {
+    function prelude() {
+      const outcomes: Array<unknown> = [];
+      return {
+        outcomes,
+        prelude: {
+          args: ['CLIENT', 'CACHING', 'NO'],
+          onReply: (err?: unknown) => { outcomes.push(err ?? 'ok'); }
+        }
+      };
+    }
+
+    function written(queue: RedisCommandsQueue) {
+      return [...queue.commandsToWrite()].map(chunks => chunks.join('')).join('');
+    }
+
+    it('writes the prelude and its command as one chunk, prelude first', () => {
+      const queue = createQueue();
+      const { prelude: p } = prelude();
+      queue.addCommand(['GET', 'k'], { prelude: p }).catch(() => {});
+
+      const chunks = [...queue.commandsToWrite()];
+      assert.strictEqual(chunks.length, 1);
+      assert.strictEqual(
+        chunks[0].join(''),
+        '*3\r\n$6\r\nCLIENT\r\n$7\r\nCACHING\r\n$2\r\nNO\r\n*2\r\n$3\r\nGET\r\n$1\r\nk\r\n'
+      );
+    });
+
+    it('reports the prelude reply and resolves the command with its own reply', async () => {
+      const queue = createQueue();
+      const { prelude: p, outcomes } = prelude();
+      const promise = queue.addCommand(['GET', 'k'], { prelude: p });
+      written(queue);
+
+      queue.decoder.write(Buffer.from('+OK\r\n$1\r\nv\r\n'));
+
+      assert.strictEqual(await promise, 'v');
+      assert.deepStrictEqual(outcomes, ['ok']);
+    });
+
+    it('reports a prelude error reply without rejecting the command', async () => {
+      const queue = createQueue();
+      const { prelude: p, outcomes } = prelude();
+      const promise = queue.addCommand(['GET', 'k'], { prelude: p });
+      written(queue);
+
+      queue.decoder.write(Buffer.from('-ERR denied\r\n$1\r\nv\r\n'));
+
+      assert.strictEqual(await promise, 'v');
+      assert.strictEqual(outcomes.length, 1);
+      assert.match(String(outcomes[0]), /denied/);
+    });
+
+    it('is rejected as a whole when the queue has room for only one of the two', async () => {
+      const queue = new RedisCommandsQueue(3, 2, () => {}, 'test-client');
+      queue.addCommand(['PING']).catch(() => {});
+      const { prelude: p, outcomes } = prelude();
+
+      await assert.rejects(queue.addCommand(['GET', 'k'], { prelude: p }), /The queue is full/);
+
+      assert.strictEqual(written(queue), '*1\r\n$4\r\nPING\r\n', 'the prelude must not be written');
+      assert.deepStrictEqual(outcomes, []);
+    });
+
+    it('writes neither when the command fails to encode', async () => {
+      const queue = createQueue();
+      const { prelude: p } = prelude();
+      const promise = queue.addCommand([1 as never], { prelude: p });
+
+      assert.strictEqual(written(queue), '');
+      await assert.rejects(promise, TypeError);
+    });
+
+    it('is removed as a whole when aborted before it is written', async () => {
+      const queue = createQueue();
+      const controller = new AbortController();
+      const { prelude: p } = prelude();
+      const promise = queue.addCommand(['GET', 'k'], { prelude: p, abortSignal: controller.signal });
+
+      controller.abort();
+
+      await assert.rejects(promise, AbortError);
+      assert.strictEqual(written(queue), '');
+    });
+
+    it('is removed as a whole when it times out before it is written', async () => {
+      const queue = createQueue();
+      const { prelude: p } = prelude();
+      const promise = queue.addCommand(['GET', 'k'], { prelude: p, timeout: 1 });
+
+      await assert.rejects(promise, TimeoutError);
+      assert.strictEqual(written(queue), '');
+    });
+
+    it('fails both when the connection is lost after the write', async () => {
+      const queue = createQueue();
+      const { prelude: p, outcomes } = prelude();
+      const promise = queue.addCommand(['GET', 'k'], { prelude: p });
+      written(queue);
+
+      queue.flushAll(new DisconnectsClientError());
+
+      await assert.rejects(promise, DisconnectsClientError);
+      assert.strictEqual(outcomes.length, 1);
+      assert.ok(outcomes[0] instanceof DisconnectsClientError);
+    });
+
+    it('travels with its command when extracted and prepended to another queue', () => {
+      const source = createQueue();
+      const destination = createQueue();
+      const { prelude: p } = prelude();
+      source.addCommand(['GET', 'k'], { prelude: p }).catch(() => {});
+
+      destination.prependCommandsToWrite(source.extractAllCommands());
+
+      assert.strictEqual(written(source), '');
+      assert.match(written(destination), /^\*3\r\n\$6\r\nCLIENT.*GET/s);
+    });
+  });
 });

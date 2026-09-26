@@ -247,21 +247,24 @@ client.destroy();
 ```
 ### Client Side Caching
 
-Node Redis v5 adds support for [Client Side Caching](https://redis.io/docs/manual/client-side-caching/), which enables clients to cache query results locally. The Redis server will notify the client when cached results are no longer valid.
+[Client Side Caching](https://redis.io/docs/manual/client-side-caching/) keeps command replies in a local cache. The Redis server notifies the client when cached replies are no longer valid. Requires RESP3.
 
 ```typescript
-// Enable client side caching with RESP3
 const client = createClient({
-  RESP: 3, 
   clientSideCache: {
-    ttl: 0,             // Time-to-live (0 = no expiration)
-    maxEntries: 0,      // Maximum entries (0 = unlimited)
-    evictPolicy: "LRU"  // Eviction policy: "LRU" or "FIFO"
+    ttl: 0,                // Time-to-live (0 = no expiration)
+    maxEntries: 0,         // Maximum entries (0 = unlimited)
+    evictPolicy: "LRU",    // Eviction policy: "LRU" or "FIFO"
+    trackingMode: "optin"  // "plain" (default), "optin", or "optout"
   }
 });
+await client.connect();
+
+await client.withCommandOptions({ cache: true }).get("user:42"); // cached
+await client.get("counter:hits");                                // not cached in "optin" mode
 ```
 
-See the [V5 documentation](https://github.com/redis/node-redis/blob/master/docs/v5.md#client-side-caching) for more details and advanced usage.
+See [Client Side Caching](https://github.com/redis/node-redis/blob/master/docs/client-side-caching.md) for tracking modes, choosing what is cached, and more.
 
 ### Auto-Pipelining
 
