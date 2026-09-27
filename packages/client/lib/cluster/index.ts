@@ -767,7 +767,8 @@ export default class RedisCluster<
               clientId: client._clientId,
               retryCount: i,
             }));
-            await this._slots.rediscover(client);
+            const deadAddress = err.message.substring(err.message.lastIndexOf(' ') + 1);
+            await this._slots.rediscover(undefined, new Set([deadAddress]));
             client = (await this._slots.getClientAndSlotNumber(parser.firstKey, isReadonly)).client;
             continue;
           }

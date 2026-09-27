@@ -449,6 +449,46 @@ describe('Cluster', () => {
     }
   }, GLOBAL.CLUSTERS.OPEN);
 
+  testUtils.testWithCluster('should exclude failing node and re-route command on MOVED error', async cluster => {
+    const SLOT = 12182; 
+    const targetKey = 'foo';
+
+    const migrating = cluster.slots[SLOT].master;
+    const importing = cluster.masters.find(m => m.address !== migrating.address)!;
+
+    const [migratingClient, importingClient] = await Promise.all([
+      cluster.nodeClient(migrating),
+      cluster.nodeClient(importing)
+    ]);
+
+    
+    await Promise.all([
+      migratingClient.clusterDelSlots(SLOT),
+      importingClient.clusterDelSlots(SLOT)
+    ]);
+    await importingClient.clusterAddSlots(SLOT);
+
+    
+    await Promise.all([
+      migratingClient.clusterSetSlot(SLOT, 'NODE', importing.id),
+      importingClient.clusterSetSlot(SLOT, 'NODE', importing.id)
+    ]);
+
+    
+    const errorSpy = spy();
+    cluster.on('error', errorSpy);
+
+   
+    await cluster.set(targetKey, 'bar');
+    const value = await cluster.get(targetKey);
+
+    assert.equal(value, 'bar');
+  }, {
+    serverArguments: [],
+    minimumDockerVersion: [7],
+    numberOfMasters: 2
+  });
+
   // One end-to-end assertion per reachable request/response policy type. The
   // multi_shard MGET/DEL scatter, cluster-wide SCAN and RANDOMKEY cases live
   // above; FT.CURSOR (special) is covered in the search package. These fill
