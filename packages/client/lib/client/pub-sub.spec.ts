@@ -70,6 +70,42 @@ describe('PubSub', () => {
     assert.equal(pubSub.listeners[TYPE].size, 0);
   });
 
+  it('isActive false after unsubscribe following double-disconnect resubscribe', () => {
+    const pubSub = new PubSub(CLIENT_ID);
+
+    // Initial subscribe + resolve
+    const sub = pubSub.subscribe(TYPE, CHANNEL, LISTENER);
+    assert.ok(sub);
+    sub.resolve();
+    assert.equal(pubSub.isActive, true);
+
+    // First disconnect: reset() zeros #subscribing, no pending resubscribe commands yet
+    pubSub.reset();
+    assert.equal(pubSub.isActive, false);
+
+    // Reconnect: resubscribe queues a command (#subscribing = 1)
+    const [resubCmd] = pubSub.resubscribe();
+    assert.ok(resubCmd);
+
+    // Second disconnect before the resubscribe reply arrives:
+    // reset() zeros #subscribing to 0, then the pending reject fires and would have
+    // decremented to -1 without the guard, permanently breaking #updateIsActive().
+    pubSub.reset();
+    resubCmd.reject();   // simulates flushWaitingForReply rejecting the in-flight command
+
+    // Third reconnect: resubscribe and resolve
+    const [resubCmd2] = pubSub.resubscribe();
+    assert.ok(resubCmd2);
+    resubCmd2.resolve();
+    assert.equal(pubSub.isActive, true);
+
+    // Unsubscribe all: isActive must reach false
+    const unsub = pubSub.unsubscribe(TYPE);
+    assert.ok(unsub);
+    unsub.resolve();
+    assert.equal(pubSub.isActive, false, 'isActive must be false after unsubscribing all (double-disconnect path)');
+  });
+
   it('unsubscribe all', () => {
     const pubSub = new PubSub(CLIENT_ID);
 
