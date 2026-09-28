@@ -47,7 +47,7 @@ runs:
       run: npm run build
     - name: Run Tests
       shell: bash
-      run: npm run test -ws --if-present -- --forbid-only --redis-tag=${{ inputs.redis-tag }} --redis-version=${{ inputs.redis-version }}
+      run: npm run test --workspaces --if-present -- --forbid-only --redis-tag=${{ inputs.redis-tag }} --redis-version=${{ inputs.redis-version }}
     - name: Upload to Codecov
       if: inputs.run-codecov == 'true'
       uses: codecov/codecov-action@v7

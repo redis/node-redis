@@ -2,7 +2,7 @@ name: "set-get-delete-string-1MB"
 
 clientconfig:
   - command: |
-      npm install -ws
+      npm install
       npm run build:tests-tools
       cd benchmark
       npm install

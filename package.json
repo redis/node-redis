@@ -17,7 +17,7 @@
     "lint": "npm run lint:changed",
     "lint:all": "eslint . --max-warnings=0",
     "lint:changed": "node scripts/lint-changed.mjs",
-    "test": "npm run cleanup && npm run test -ws --if-present",
+    "test": "npm run cleanup && npm run test --workspaces --if-present",
     "build": "tsc --build",
     "check:command-jsdoc": "tsx scripts/check-command-jsdoc.ts",
     "documentation": "typedoc --entryPointStrategy packages --entryPoints ./packages/client ./packages/bloom ./packages/json ./packages/search ./packages/time-series ./packages/entraid ./packages/redis --out ./documentation",
