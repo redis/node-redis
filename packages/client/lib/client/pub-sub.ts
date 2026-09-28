@@ -365,7 +365,7 @@ export class PubSub {
 
   #normalResubscribe(commands: PubSubCommand[], type: string, listeners: PubSubTypeListeners) {
     this.#subscribing++;
-    const callback = () => this.#subscribing--;
+    const callback = () => { if (this.#subscribing > 0) this.#subscribing--; };
     commands.push({
       args: [
         COMMANDS[type as PubSubType].subscribe,
@@ -378,7 +378,7 @@ export class PubSub {
   }
 
   #shardedResubscribe(commands: PubSubCommand[], listeners: PubSubTypeListeners) {
-    const callback = () => this.#subscribing--;
+    const callback = () => { if (this.#subscribing > 0) this.#subscribing--; };
     for(const channel of listeners.keys()) {
       this.#subscribing++;
       commands.push({
