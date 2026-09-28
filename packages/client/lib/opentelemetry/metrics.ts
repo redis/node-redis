@@ -26,7 +26,15 @@ import {
   parseClientAttributes,
 } from "./utils";
 import { OpenTelemetryError } from "../errors";
-import { CHANNELS, getTracingChannel, getChannel } from "../client/tracing";
+import {
+  CHANNELS, getTracingChannel, getChannel,
+  CommandTraceContext, BatchCommandTraceContext, BatchOperationContext,
+  ConnectionReadyEvent, ConnectionClosedEvent,
+  ConnectionRelaxedTimeoutEvent, ConnectionHandoffEvent,
+  ClientErrorEvent, MaintenanceNotificationEvent,
+  PubSubMessageEvent, CacheRequestEvent, CacheEvictionEvent,
+  CommandReplyEvent, PoolConnectionWaitEvent,
+} from "../client/tracing";
 
 function resolveClientAttributes(
   clientId?: string,
@@ -36,10 +44,29 @@ function resolveClientAttributes(
     : undefined;
 }
 
-function subscribeTC(
-  tc: DC.TracingChannel<any>,
-  handlers: Partial<DC.TracingChannelSubscribers<any>>,
+function subscribeCommandTC(
+  tc: DC.TracingChannel<CommandTraceContext | BatchCommandTraceContext>,
+  handlers: {
+    start?: (ctx: CommandTraceContext) => void;
+    asyncEnd?: (ctx: CommandTraceContext) => void;
+    error?: (ctx: CommandTraceContext & { error: Error }) => void;
+  },
 ): () => void {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const h = handlers as DC.TracingChannelSubscribers<any>;
+  tc.subscribe(h);
+  return () => tc.unsubscribe(h);
+}
+
+function subscribeBatchTC(
+  tc: DC.TracingChannel<BatchOperationContext>,
+  handlers: {
+    start?: (ctx: BatchOperationContext) => void;
+    asyncEnd?: (ctx: BatchOperationContext) => void;
+    error?: (ctx: BatchOperationContext & { error: Error }) => void;
+  },
+): () => void {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const h = handlers as DC.TracingChannelSubscribers<any>;
   tc.subscribe(h);
   return () => tc.unsubscribe(h);
@@ -69,7 +96,7 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
     const batchTC = getTracingChannel(CHANNELS.TRACE_BATCH);
     if (!commandTC || !batchTC) return;
 
-    const onStart = (ctx: any) => {
+    const onStart = (ctx: CommandTraceContext) => {
       const commandName = ctx.command?.toString() || "UNKNOWN";
 
       if (this.#isCommandExcluded(commandName)) return;
@@ -81,7 +108,7 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
       });
     };
 
-    const onAsyncEnd = (ctx: any) => {
+    const onAsyncEnd = (ctx: CommandTraceContext) => {
       const state = this.#metricsState.get(ctx);
       if (!state) return;
       this.#metricsState.delete(ctx);
@@ -98,7 +125,7 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
       );
     };
 
-    const onError = (ctx: any) => {
+    const onError = (ctx: CommandTraceContext & { error: Error }) => {
       const state = this.#metricsState.get(ctx);
       if (!state) return;
       this.#metricsState.delete(ctx);
@@ -121,7 +148,7 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
       );
     };
 
-    const onBatchStart = (ctx: any) => {
+    const onBatchStart = (ctx: BatchOperationContext) => {
       this.#metricsState.set(ctx, {
         startTime: performance.now(),
         clientAttributes: resolveClientAttributes(ctx.clientId),
@@ -129,7 +156,7 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
       });
     };
 
-    const onBatchAsyncEnd = (ctx: any) => {
+    const onBatchAsyncEnd = (ctx: BatchOperationContext) => {
       const state = this.#metricsState.get(ctx);
       if (!state) return;
       this.#metricsState.delete(ctx);
@@ -146,7 +173,7 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
       );
     };
 
-    const onBatchError = (ctx: any) => {
+    const onBatchError = (ctx: BatchOperationContext & { error: Error }) => {
       const state = this.#metricsState.get(ctx);
       if (!state) return;
       this.#metricsState.delete(ctx);
@@ -170,8 +197,8 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
     };
 
     this.#unsubscribers.push(
-      subscribeTC(commandTC, { start: onStart, asyncEnd: onAsyncEnd, error: onError }),
-      subscribeTC(batchTC, { start: onBatchStart, asyncEnd: onBatchAsyncEnd, error: onBatchError }),
+      subscribeCommandTC(commandTC, { start: onStart, asyncEnd: onAsyncEnd, error: onError }),
+      subscribeBatchTC(batchTC, { start: onBatchStart, asyncEnd: onBatchAsyncEnd, error: onBatchError }),
     );
   }
 
@@ -213,8 +240,8 @@ class OTelChannelSubscribers {
     if (hasAdvanced) {
       this.#subscribeConnectionAdvanced();
     }
-    if (hasBasic || hasAdvanced) {
-      this.#subscribeConnectionClosed(hasBasic, hasAdvanced);
+    if (hasAdvanced) {
+      this.#subscribeConnectionClosed();
     }
     if (enabledGroups.includes(METRIC_GROUP.RESILIENCY)) {
       this.#subscribeResiliency();
@@ -230,7 +257,10 @@ class OTelChannelSubscribers {
     }
   }
 
-  #sub(name: string, handler: (ctx: any) => void) {
+  #sub<K extends keyof import('../client/tracing').ChannelEvents>(
+    name: K,
+    handler: (ctx: import('../client/tracing').ChannelEvents[K]) => void
+  ) {
     const ch = getChannel(name);
     if (!ch) return;
     ch.subscribe(handler);
@@ -244,7 +274,7 @@ class OTelChannelSubscribers {
   // -- Connection Basic --
 
   #subscribeConnectionBasic() {
-    this.#sub(CHANNELS.CONNECTION_READY, (ctx: any) => {
+    this.#sub(CHANNELS.CONNECTION_READY, (ctx: ConnectionReadyEvent) => {
       const clientAttributes = resolveClientAttributes(ctx.clientId);
       this.#instruments.dbClientConnectionCreateTime.record(
         ctx.createTimeMs / 1000,
@@ -253,14 +283,9 @@ class OTelChannelSubscribers {
           ...parseClientAttributes(clientAttributes),
         },
       );
-      this.#instruments.dbClientConnectionCount.add(1, {
-        ...this.#options.attributes,
-        ...parseClientAttributes(clientAttributes),
-        [OTEL_ATTRIBUTES.dbClientConnectionState]: "used",
-      });
     });
 
-    this.#sub(CHANNELS.CONNECTION_RELAXED_TIMEOUT, (ctx: any) => {
+    this.#sub(CHANNELS.CONNECTION_RELAXED_TIMEOUT, (ctx: ConnectionRelaxedTimeoutEvent) => {
       const clientAttributes = resolveClientAttributes(ctx.clientId);
       this.#instruments.redisClientConnectionRelaxedTimeout.add(ctx.value, {
         ...this.#options.attributes,
@@ -268,7 +293,7 @@ class OTelChannelSubscribers {
       });
     });
 
-    this.#sub(CHANNELS.CONNECTION_HANDOFF, (ctx: any) => {
+    this.#sub(CHANNELS.CONNECTION_HANDOFF, (ctx: ConnectionHandoffEvent) => {
       const clientAttributes = resolveClientAttributes(ctx.clientId);
       this.#instruments.redisClientConnectionHandoff.add(1, {
         ...this.#options.attributes,
@@ -277,32 +302,23 @@ class OTelChannelSubscribers {
     });
   }
 
-  // -- Connection Closed (shared by basic + advanced) --
+  // -- Connection Closed (advanced) --
 
-  #subscribeConnectionClosed(hasBasic: boolean, hasAdvanced: boolean) {
-    this.#sub(CHANNELS.CONNECTION_CLOSED, (ctx: any) => {
+  #subscribeConnectionClosed() {
+    this.#sub(CHANNELS.CONNECTION_CLOSED, (ctx: ConnectionClosedEvent) => {
       const clientAttributes = resolveClientAttributes(ctx.clientId);
-      if (hasBasic && ctx.wasConnected) {
-        this.#instruments.dbClientConnectionCount.add(-1, {
-          ...this.#options.attributes,
-          ...parseClientAttributes(clientAttributes),
-          [OTEL_ATTRIBUTES.dbClientConnectionState]: "used",
-        });
-      }
-      if (hasAdvanced) {
-        this.#instruments.redisClientConnectionClosed.add(1, {
-          ...this.#options.attributes,
-          ...parseClientAttributes(clientAttributes),
-          [OTEL_ATTRIBUTES.redisClientConnectionCloseReason]: ctx.reason,
-        });
-      }
+      this.#instruments.redisClientConnectionClosed.add(1, {
+        ...this.#options.attributes,
+        ...parseClientAttributes(clientAttributes),
+        [OTEL_ATTRIBUTES.redisClientConnectionCloseReason]: ctx.reason,
+      });
     });
   }
 
   // -- Connection Advanced --
 
   #subscribeConnectionAdvanced() {
-    this.#sub(CHANNELS.POOL_CONNECTION_WAIT, (ctx: any) => {
+    this.#sub(CHANNELS.POOL_CONNECTION_WAIT, (ctx: PoolConnectionWaitEvent) => {
       if (!ctx.waitStartTimestamp) return;
 
       const clientAttributes = resolveClientAttributes(ctx.clientId);
@@ -316,7 +332,7 @@ class OTelChannelSubscribers {
     });
   }
 
-  #recordError(error: Error, clientId?: string, extra?: Record<string, any>) {
+  #recordError(error: Error, clientId?: string, extra?: Record<string, unknown>) {
     const clientAttributes = resolveClientAttributes(clientId);
     const errorInfo = getErrorInfo(error);
 
@@ -339,7 +355,7 @@ class OTelChannelSubscribers {
     // Skip client-origin redirections (MOVED/ASK) — these are retried
     // transparently by the cluster client and are not real errors.
     // Cluster-origin redirections are recorded as they indicate slot migration.
-    this.#sub(CHANNELS.ERROR, (ctx: any) => {
+    this.#sub(CHANNELS.ERROR, (ctx: ClientErrorEvent) => {
       if (ctx.origin === 'client' && isRedirectionError(getErrorInfo(ctx.error).statusCode)) return;
       this.#recordError(ctx.error, ctx.clientId, {
         [OTEL_ATTRIBUTES.redisClientErrorsInternal]: ctx.internal,
@@ -352,17 +368,17 @@ class OTelChannelSubscribers {
     // Command-level errors via TracingChannel
     const commandTC = getTracingChannel(CHANNELS.TRACE_COMMAND);
     if (commandTC) {
-      const onError = (ctx: any) => {
+      const onError = (ctx: CommandTraceContext & { error: Error }) => {
         // Command TC errors are always client-origin — skip redirections
         if (isRedirectionError(getErrorInfo(ctx.error).statusCode)) return;
         this.#recordError(ctx.error, ctx.clientId, {
           [OTEL_ATTRIBUTES.redisClientErrorsInternal]: false,
         });
       };
-      this.#unsubscribers.push(subscribeTC(commandTC, { error: onError }));
+      this.#unsubscribers.push(subscribeCommandTC(commandTC, { error: onError }));
     }
 
-    this.#sub(CHANNELS.MAINTENANCE, (ctx: any) => {
+    this.#sub(CHANNELS.MAINTENANCE, (ctx: MaintenanceNotificationEvent) => {
       const clientAttributes = resolveClientAttributes(ctx.clientId);
       this.#instruments.redisClientMaintenanceNotifications.add(1, {
         ...this.#options.attributes,
@@ -375,7 +391,7 @@ class OTelChannelSubscribers {
   // -- Client-Side Cache --
 
   #subscribeClientSideCache() {
-    this.#sub(CHANNELS.CACHE_REQUEST, (ctx: any) => {
+    this.#sub(CHANNELS.CACHE_REQUEST, (ctx: CacheRequestEvent) => {
       const clientAttributes = resolveClientAttributes(ctx.clientId);
       this.#instruments.redisClientCscRequests.add(1, {
         ...this.#options.attributes,
@@ -386,7 +402,7 @@ class OTelChannelSubscribers {
       });
     });
 
-    this.#sub(CHANNELS.CACHE_EVICTION, (ctx: any) => {
+    this.#sub(CHANNELS.CACHE_EVICTION, (ctx: CacheEvictionEvent) => {
       const clientAttributes = resolveClientAttributes(ctx.clientId);
       this.#instruments.redisClientCscEvictions.add(ctx.count ?? 1, {
         ...this.#options.attributes,
@@ -401,14 +417,14 @@ class OTelChannelSubscribers {
   // -- PubSub --
 
   #subscribePubSub() {
-    this.#sub(CHANNELS.PUBSUB, (ctx: any) => {
+    this.#sub(CHANNELS.PUBSUB, (ctx: PubSubMessageEvent) => {
       const clientAttributes = resolveClientAttributes(ctx.clientId);
       this.#instruments.redisClientPubsubMessages.add(1, {
         ...this.#options.attributes,
         ...parseClientAttributes(clientAttributes),
         [OTEL_ATTRIBUTES.redisClientPubSubMessageDirection]: ctx.direction,
         [OTEL_ATTRIBUTES.redisClientPubSubSharded]: ctx.sharded ?? false,
-        ...(ctx.channel !== undefined && !this.#options.hidePubSubChannelNames
+        ...(ctx.channel != null && !this.#options.hidePubSubChannelNames
           ? { [OTEL_ATTRIBUTES.redisClientPubSubChannel]: ctx.channel.toString() }
           : {}),
       });
@@ -422,7 +438,7 @@ class OTelChannelSubscribers {
     const hasPubSub = enabledGroups.includes(METRIC_GROUP.PUBSUB);
     const hasStreaming = enabledGroups.includes(METRIC_GROUP.STREAMING);
 
-    this.#sub(CHANNELS.COMMAND_REPLY, (ctx: any) => {
+    this.#sub(CHANNELS.COMMAND_REPLY, (ctx: CommandReplyEvent) => {
       const commandName = ctx.args[0]?.toString().toUpperCase();
 
       if (hasPubSub && (commandName === 'PUBLISH' || commandName === 'SPUBLISH')) {
@@ -432,7 +448,7 @@ class OTelChannelSubscribers {
           ...parseClientAttributes(clientAttributes),
           [OTEL_ATTRIBUTES.redisClientPubSubMessageDirection]: 'out',
           [OTEL_ATTRIBUTES.redisClientPubSubSharded]: commandName === 'SPUBLISH',
-          ...(ctx.args[1] !== undefined && !this.#options.hidePubSubChannelNames
+          ...(ctx.args[1] != null && !this.#options.hidePubSubChannelNames
             ? { [OTEL_ATTRIBUTES.redisClientPubSubChannel]: ctx.args[1].toString() }
             : {}),
         });
@@ -699,13 +715,28 @@ export class OTelMetrics {
         },
       ),
       // Basic connection
-      dbClientConnectionCount: this.createUpDownCounter(
+      redisClientConnectionCount: this.createObservableGaugeWithCallback(
         meter,
         {
-          name: METRIC_NAMES.dbClientConnectionCount,
+          name: METRIC_NAMES.redisClientConnectionCount,
           unit: "{connection}",
           description: "Current number of active connections",
           metricGroup: METRIC_GROUP.CONNECTION_BASIC,
+        },
+        options,
+        (observableResult, opts) => {
+          for (const handle of ClientRegistry.instance.getAll()) {
+            if (handle.isConnected()) {
+              observableResult.observe(
+                this.#instruments.redisClientConnectionCount,
+                1,
+                {
+                  ...opts.attributes,
+                  ...parseClientAttributes(handle.getAttributes()),
+                },
+              );
+            }
+          }
         },
       ),
       dbClientConnectionCreateTime: this.createHistogram(
@@ -756,32 +787,7 @@ export class OTelMetrics {
       // this disabled for now and may reintroduce it later as an async gauge
       // with a client-specific name.
       // See: https://opentelemetry.io/docs/specs/semconv/db/database-metrics/#connection-pools
-      // dbClientConnectionPendingRequests: this.createObservableGaugeWithCallback(
-      //   meter,
-      //   options.enabledMetricGroups,
-      //   {
-      //     name: METRIC_NAMES.dbClientConnectionPendingRequests,
-      //     unit: "{request}",
-      //     description: "Current number of pending requests per connection",
-      //     metricGroup: METRIC_GROUP.CONNECTION_ADVANCED,
-      //   },
-      //   options,
-      //   (observableResult, opts) => {
-      //     for (const handle of ClientRegistry.instance.getAll()) {
-      //       observableResult.observe(
-      //         this.#instruments.dbClientConnectionPendingRequests,
-      //         handle.getPendingRequests(),
-      //         {
-      //           ...opts.attributes,
-      //           ...parseClientAttributes(handle.getAttributes()),
-      //         },
-      //       );
-      //     }
-      //   },
-      // ),
-      dbClientConnectionPendingRequests: meter.createObservableGauge(
-        METRIC_NAMES.dbClientConnectionPendingRequests,
-      ),
+      // db.client.connection.pending_requests: disabled until naming/behavior is settled.
       redisClientConnectionClosed: this.createCounter(
         meter,
         {
@@ -873,15 +879,7 @@ export class OTelMetrics {
           metricGroup: METRIC_GROUP.CLIENT_SIDE_CACHING,
         },
       ),
-      redisClientCscNetworkSaved: this.createCounter(
-        meter,
-        {
-          name: METRIC_NAMES.redisClientCscNetworkSaved,
-          unit: "By",
-          description: "Estimated bytes saved by client-side cache hits",
-          metricGroup: METRIC_GROUP.CLIENT_SIDE_CACHING,
-        },
-      ),
+      // redis.client.csc.network_saved: disabled until payload size is tracked at the socket layer.
     } as const;
   }
 }

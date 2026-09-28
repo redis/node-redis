@@ -692,7 +692,7 @@ describe("OTel Metrics E2E", function () {
     });
 
     testUtils.testAll(
-      "should record db.client.connection.count",
+      "should record redis.client.connection.count",
       async (client) => {
         try {
           await client.connect();
@@ -705,7 +705,7 @@ describe("OTel Metrics E2E", function () {
           const resourceMetrics = exporter.getMetrics();
           const metricDataPoints = getMetricDataPoints(
             resourceMetrics,
-            METRIC_NAMES.dbClientConnectionCount,
+            METRIC_NAMES.redisClientConnectionCount,
           );
 
           const { value, attributes } = metricDataPoints[0];
@@ -713,10 +713,6 @@ describe("OTel Metrics E2E", function () {
           // Cluster clients should have different ids in the attributes so this should be 1
           assert.strictEqual(value, 1);
 
-          assert.strictEqual(
-            attributes[OTEL_ATTRIBUTES.dbClientConnectionState],
-            "used",
-          );
           assert.ok(attributes[OTEL_ATTRIBUTES.dbClientConnectionPoolName]);
           assert.ok(attributes[OTEL_ATTRIBUTES.dbNamespace]);
           assert.ok(attributes[OTEL_ATTRIBUTES.serverAddress]);
@@ -935,57 +931,7 @@ describe("OTel Metrics E2E", function () {
       });
     });
 
-    testUtils.testAll(
-      "should record db.client.connection.pending_requests",
-      async (client) => {
-        // For standalone client, observable gauges emit with value 0 before any command.
-        // For cluster with minimizeConnections: true, no clients are created until a command is sent,
-        // so the metric may not exist yet. We check this after the command is sent.
 
-        // Clear the exporter so we get fresh metrics after the blocking command
-        exporter.reset();
-
-        // Start a blocking command - this will be pending
-        const blockingPromise = client.blPop("key${tag}", 1);
-
-        // Give a small delay to ensure the command has been sent and connection established
-        await new Promise((resolve) => setTimeout(resolve, 100));
-
-        const metric = await waitForMetrics(
-          meterProvider,
-          exporter,
-          METRIC_NAMES.dbClientConnectionPendingRequests,
-        );
-
-        assert.ok(metric, "expected pending requests metric to be present");
-        assert.strictEqual(
-          metric.dataPoints[0].value,
-          1,
-          "expected 1 pending request while blocking command is in flight",
-        );
-
-        const { attributes } = metric.dataPoints[0];
-
-        assert.ok(attributes[OTEL_ATTRIBUTES.dbSystemName]);
-        assert.ok(attributes[OTEL_ATTRIBUTES.redisClientLibrary]);
-        assert.ok(attributes[OTEL_ATTRIBUTES.dbClientConnectionPoolName]);
-        assert.ok(attributes[OTEL_ATTRIBUTES.serverAddress]);
-        assert.ok(attributes[OTEL_ATTRIBUTES.serverPort]);
-        assert.ok(OTEL_ATTRIBUTES.dbNamespace in attributes);
-
-        await blockingPromise;
-      },
-      {
-        client: {
-          ...GLOBAL.SERVERS.OPEN,
-          skipTest: true,
-        },
-        cluster: {
-          ...GLOBAL.CLUSTERS.OPEN,
-          skipTest: true,
-        },
-      },
-    );
 
     testUtils.testWithClientPool(
       "should record db.client.connection.wait_time",
@@ -1312,50 +1258,6 @@ describe("OTel Metrics E2E", function () {
       },
     );
 
-    testUtils.testWithClient(
-      "should record redis.client.csc.network_saved",
-      async (client) => {
-        await client.ping();
-        await client.set("key", "value");
-        await client.get("key");
-        await client.get("key");
-
-        const metric = await waitForMetrics(
-          meterProvider,
-          exporter,
-          METRIC_NAMES.redisClientCscNetworkSaved,
-        );
-
-        assert.ok(
-          metric,
-          "expected redis.client.csc.network_saved metric to be present",
-        );
-        assert.strictEqual(metric.descriptor.unit, "By");
-
-        const savedBytesPoint = (
-          metric.dataPoints as unknown as DataPoint<api.Counter>[]
-        ).find((dp) => Number(dp.value) > 0);
-        assert.ok(
-          savedBytesPoint,
-          "expected redis.client.csc.network_saved value to be greater than 0",
-        );
-
-        const { attributes } = savedBytesPoint as DataPoint<api.Counter>;
-        assert.ok(attributes[OTEL_ATTRIBUTES.redisClientLibrary]);
-        assert.strictEqual(attributes[OTEL_ATTRIBUTES.dbSystemName], "redis");
-      },
-      {
-        ...GLOBAL.SERVERS.OPEN,
-        skipTest: true,
-        clientOptions: {
-          RESP: 3,
-          clientSideCache: {
-            ttl: 1000,
-            maxEntries: 100,
-          },
-        },
-      },
-    );
   });
 
   describe("PubSub metrics", () => {
