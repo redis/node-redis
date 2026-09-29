@@ -789,6 +789,48 @@ describe('Client', () => {
       minimumDockerVersion: [6, 2] // CLIENT INFO
     });
 
+    testUtils.testWithClient('should remember selected db when a pipelined command fails', async client => {
+      // Regression: the SELECT ran on the server, but the INCR rejected the batch
+      // before the client recorded the database, so the reconnect went back to 0.
+      // The second batch's SELECT is out of range and must not replace the recorded 1.
+      await assert.rejects(
+        client.multi()
+          .select(1)
+          .set('key', 'value')
+          .incr('key')
+          .execAsPipeline()
+      );
+
+      const { databases } = await client.configGet('databases');
+      await assert.rejects(
+        client.multi()
+          .select(Number(databases))
+          .ping()
+          .execAsPipeline()
+      );
+
+      const duplicate = await client.duplicate().connect();
+      try {
+        await Promise.all([
+          once(client, 'error'),
+          duplicate.clientKill({
+            filter: 'ID',
+            id: await client.clientId()
+          })
+        ]);
+      } finally {
+        duplicate.destroy();
+      }
+
+      assert.equal(
+        (await client.clientInfo()).db,
+        1
+      );
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      minimumDockerVersion: [6, 2] // CLIENT INFO
+    });
+
     testUtils.testWithClient('should handle error replies (#2665)', async client => {
       await assert.rejects(
         client.multi()
