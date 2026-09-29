@@ -792,20 +792,15 @@ describe('Client', () => {
     testUtils.testWithClient('should remember selected db when a pipelined command fails', async client => {
       // Regression: the SELECT ran on the server, but the INCR rejected the batch
       // before the client recorded the database, so the reconnect went back to 0.
-      // The second batch's SELECT is out of range and must not replace the recorded 1.
-      await assert.rejects(
-        client.multi()
-          .select(1)
-          .set('key', 'value')
-          .incr('key')
-          .execAsPipeline()
-      );
-
+      // The last of the three SELECTs is out of range, so the server ends on db 1.
       const { databases } = await client.configGet('databases');
       await assert.rejects(
         client.multi()
+          .select(2)
+          .set('key', 'value')
+          .incr('key')
+          .select(1)
           .select(Number(databases))
-          .ping()
           .execAsPipeline()
       );
 

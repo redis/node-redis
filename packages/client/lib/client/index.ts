@@ -1868,9 +1868,8 @@ export default class RedisClient<
     return trace(CHANNELS.TRACE_BATCH,
       async () => {
         const chainId = Symbol('Pipeline Chain');
-        const selectIndex = selectedDB === undefined ? -1 : commands.findLastIndex(({ args }) => args[0] === 'SELECT');
         const promise = Promise.all(
-          commands.map(({ args }, i) => {
+          commands.map(({ args }) => {
             const traced = trace(CHANNELS.TRACE_COMMAND,
               () => this._self.#queue.addCommand(args, {
                 chainId,
@@ -1887,9 +1886,9 @@ export default class RedisClient<
             // rejections are collected by Promise.all, but the tracePromise wrapper
             // is a separate branch that nobody awaits.
             traced.catch(noop);
-            if (i === selectIndex) {
+            if (args[0] === 'SELECT') {
               traced.then(() => {
-                this._self.#selectedDB = selectedDB!;
+                this._self.#selectedDB = Number(args[1]);
               }, noop);
             }
             return traced;
