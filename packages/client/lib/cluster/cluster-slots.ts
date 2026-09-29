@@ -51,18 +51,25 @@ export interface CursorBinding {
 const DEFAULT_CURSOR_MAX_IDLE_MS = 300_000;
 
 /**
- * One in-flight cluster-wide SCAN chain (see
- * `request-response-policies/scan-cursor.ts`). SCAN cursors are per-node
+ * One in-flight cluster-wide SCAN-family chain (see
+ * `request-response-policies/scan-cursor.ts`) — shared by every command with
+ * this per-node-cursor shape (SCAN, BLESS SCAN, ...). Cursors are per-node
  * state, so a cluster-wide iteration walks the masters one at a time: the
  * entry pins the node currently being scanned, the real server cursor to
- * resume it with, and the masters already exhausted (tracked by address so a
- * topology refresh mid-scan doesn't rescan or skip nodes that survived).
+ * resume it with, the masters already exhausted (tracked by address so a
+ * topology refresh mid-scan doesn't rescan or skip nodes that survived), and
+ * the wire label of the command that started the chain — tokens are minted
+ * from one shared counter, so a lookup must reject a token that was minted by
+ * a *different* command instead of resuming its chain with the wrong cursor.
  */
 export interface ScanCursorEntry {
   address: string;
   cursor: string;
   visited: Set<string>;
   createdAt: number;
+  // Wire label ('SCAN', 'BLESS SCAN', ...) of the command that minted this
+  // token
+  label: string;
 }
 
 export interface Node<
@@ -289,7 +296,7 @@ export default class RedisClusterSlots<
         this.clientSideCache = options.clientSideCache;
       } else {
         this.clientSideCache = new BasicPooledClientSideCache(options.clientSideCache)
-      } 
+      }
     }
 
     this.#clientFactory = RedisClient.factory(this.#options);
@@ -429,7 +436,7 @@ export default class RedisClusterSlots<
   #handleSmigrated = async (event: SMigratedEvent) => {
     dbgMaintenance(`[CSlots]: handle smigrated`, JSON.stringify(event, null, 2));
 
-    if(this.smigratedSeqIdsSeen.has(event.seqId)) {
+    if (this.smigratedSeqIdsSeen.has(event.seqId)) {
       dbgMaintenance(`[CSlots]: sequence id ${event.seqId} already seen, abort`)
       return
     }
@@ -779,13 +786,13 @@ export default class RedisClusterSlots<
     const address = node.address;
     const emit = this.#emit;
     let wasReady = false;
-    const client = this.#clientFactory( this.#clientOptionsDefaults({
-        clientSideCache: this.clientSideCache,
-        himportRegistry: this.#himportRegistry,
-        RESP: this.#options.RESP,
-        socket,
-        readonly,
-      }));
+    const client = this.#clientFactory(this.#clientOptionsDefaults({
+      clientSideCache: this.clientSideCache,
+      himportRegistry: this.#himportRegistry,
+      RESP: this.#options.RESP,
+      socket,
+      readonly,
+    }));
     client._setIdentity(ClientRole.CLUSTER_NODE, this.#clusterClientId);
     client
       .on('error', error => emit('node-error', error, clientInfo))
@@ -1082,7 +1089,7 @@ export default class RedisClusterSlots<
   }
 
   *#iterateAllNodes() {
-    if(this.masters.length + this.replicas.length === 0) return
+    if (this.masters.length + this.replicas.length === 0) return
     let i = Math.floor(Math.random() * (this.masters.length + this.replicas.length));
     if (i < this.masters.length) {
       do {
@@ -1216,10 +1223,10 @@ export default class RedisClusterSlots<
     }
   }
 
-  bindScanCursor(token: string, address: string, cursor: string, visited: Set<string>) {
+  bindScanCursor(token: string, address: string, cursor: string, visited: Set<string>, label: string) {
     const now = Date.now();
     this.#sweepStaleScanCursors(now);
-    this.scanCursors.set(token, { address, cursor, visited, createdAt: now });
+    this.scanCursors.set(token, { address, cursor, visited, createdAt: now, label });
   }
 
   lookupScanCursor(token: string): ScanCursorEntry | undefined {

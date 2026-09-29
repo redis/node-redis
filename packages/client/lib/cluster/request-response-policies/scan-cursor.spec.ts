@@ -8,14 +8,14 @@ import { routeScan, finalizeScanCursor } from './scan-cursor';
  * node-advance logic is exercised without spinning a cluster.
  */
 class FakeSlots {
-  scanCursors = new Map<string, { address: string; cursor: string; visited: Set<string>; createdAt: number }>();
+  scanCursors = new Map<string, { address: string; cursor: string; visited: Set<string>; createdAt: number; label: string }>();
   clientsByAddress = new Map<string, object>();
   masterOrder: Array<string> = [];
   #seq = 0;
 
   mintCursorToken() { return String(++this.#seq); }
-  bindScanCursor(token: string, address: string, cursor: string, visited: Set<string>) {
-    this.scanCursors.set(token, { address, cursor, visited, createdAt: 0 });
+  bindScanCursor(token: string, address: string, cursor: string, visited: Set<string>, label: string) {
+    this.scanCursors.set(token, { address, cursor, visited, createdAt: 0, label });
   }
   lookupScanCursor(token: string) { return this.scanCursors.get(token); }
   evictScanCursor(token: string) { this.scanCursors.delete(token); }
@@ -74,7 +74,7 @@ describe('routeScan', () => {
     const slots = new FakeSlots();
     slots.addMaster('a:1');
     const b = slots.addMaster('b:1');
-    slots.bindScanCursor('7', 'b:1', '42', new Set(['a:1']));
+    slots.bindScanCursor('7', 'b:1', '42', new Set(['a:1']), 'SCAN');
 
     const plan = await routeScan(
       asSlots(slots), parserOf('SCAN', '7', 'MATCH', 'user:*', 'COUNT', '100'), undefined, undefined
@@ -96,10 +96,45 @@ describe('routeScan', () => {
   it('throws when the bound node has left the cluster', async () => {
     const slots = new FakeSlots();
     slots.addMaster('a:1');
-    slots.bindScanCursor('7', 'gone:1', '42', new Set());
+    slots.bindScanCursor('7', 'gone:1', '42', new Set(), 'SCAN');
     await assert.rejects(
       routeScan(asSlots(slots), parserOf('SCAN', '7'), undefined, undefined),
       /left the cluster/
+    );
+  });
+
+  it('BLESS SCAN 0 starts on the first master (cursor at index 2)', async () => {
+    const slots = new FakeSlots();
+    const a = slots.addMaster('a:1');
+    slots.addMaster('b:1');
+
+    const plan = await routeScan(asSlots(slots), parserOf('BLESS', 'SCAN', '0', 'NO-EVICT'), undefined, undefined);
+    assert.deepEqual(plan, [{ client: a }]);
+  });
+
+  it('routes a known BLESS SCAN token to its bound node with the cursor substituted at index 2', async () => {
+    const slots = new FakeSlots();
+    slots.addMaster('a:1');
+    const b = slots.addMaster('b:1');
+    slots.bindScanCursor('7', 'b:1', '42', new Set(['a:1']), 'BLESS SCAN');
+
+    const plan = await routeScan(
+      asSlots(slots), parserOf('BLESS', 'SCAN', '7', 'NO-EVICT', 'COUNT', '100'), undefined, undefined
+    );
+    assert.equal(plan.length, 1);
+    assert.equal(plan[0].client, b);
+    assert.deepEqual(plan[0].parser!.redisArgs, ['BLESS', 'SCAN', '42', 'NO-EVICT', 'COUNT', '100']);
+  });
+
+  it('rejects a token minted by a different scan-chained command', async () => {
+    const slots = new FakeSlots();
+    slots.addMaster('a:1');
+    slots.addMaster('b:1');
+    slots.bindScanCursor('7', 'b:1', '42', new Set(['a:1']), 'SCAN');
+
+    await assert.rejects(
+      routeScan(asSlots(slots), parserOf('BLESS', 'SCAN', '7', 'NO-EVICT'), undefined, undefined),
+      /unknown cursor "7"/
     );
   });
 });
@@ -116,14 +151,14 @@ describe('finalizeScanCursor', () => {
     ) as { cursor: string; keys: Array<string> };
     assert.equal(reply.cursor, '1');
     assert.deepEqual(reply.keys, ['k1']);
-    assert.deepEqual(slots.lookupScanCursor('1'), { address: 'a:1', cursor: '5', visited: new Set(), createdAt: 0 });
+    assert.deepEqual(slots.lookupScanCursor('1'), { address: 'a:1', cursor: '5', visited: new Set(), createdAt: 0, label: 'SCAN' });
 
     // node a exhausts → chain advances to node b with a fresh cursor 0.
     reply = finalizeScanCursor(
       asSlots(slots), parserOf('SCAN', '1'), [{ client: a }], { cursor: '0', keys: ['k2'] }
     ) as { cursor: string; keys: Array<string> };
     assert.equal(reply.cursor, '1');
-    assert.deepEqual(slots.lookupScanCursor('1'), { address: 'b:1', cursor: '0', visited: new Set(['a:1']), createdAt: 0 });
+    assert.deepEqual(slots.lookupScanCursor('1'), { address: 'b:1', cursor: '0', visited: new Set(['a:1']), createdAt: 0, label: 'SCAN' });
 
     // node b exhausts, no unvisited masters left → caller sees "0", entry evicted.
     reply = finalizeScanCursor(
@@ -200,5 +235,48 @@ describe('finalizeScanCursor', () => {
     assert.notEqual(r1.cursor, r2.cursor);
     assert.equal(slots.lookupScanCursor(r1.cursor)!.cursor, '5');
     assert.equal(slots.lookupScanCursor(r2.cursor)!.cursor, '9');
+  });
+
+  it('walks a full two-master BLESS SCAN chain end to end (cursor at index 2)', () => {
+    const slots = new FakeSlots();
+    const a = slots.addMaster('a:1');
+    const b = slots.addMaster('b:1');
+
+    // BLESS SCAN 0 NO-EVICT on node a → mid-node cursor: token minted, reply cursor swapped.
+    let reply = finalizeScanCursor(
+      asSlots(slots), parserOf('BLESS', 'SCAN', '0', 'NO-EVICT'), [{ client: a }], { cursor: '5', keys: ['k1'] }
+    ) as { cursor: string; keys: Array<string> };
+    assert.equal(reply.cursor, '1');
+    assert.deepEqual(slots.lookupScanCursor('1'), { address: 'a:1', cursor: '5', visited: new Set(), createdAt: 0, label: 'BLESS SCAN' });
+
+    // node a exhausts → chain advances to node b with a fresh cursor 0.
+    reply = finalizeScanCursor(
+      asSlots(slots), parserOf('BLESS', 'SCAN', '1', 'NO-EVICT'), [{ client: a }], { cursor: '0', keys: ['k2'] }
+    ) as { cursor: string; keys: Array<string> };
+    assert.equal(reply.cursor, '1');
+    assert.deepEqual(slots.lookupScanCursor('1'), { address: 'b:1', cursor: '0', visited: new Set(['a:1']), createdAt: 0, label: 'BLESS SCAN' });
+
+    // node b exhausts, no unvisited masters left → caller sees "0", entry evicted.
+    reply = finalizeScanCursor(
+      asSlots(slots), parserOf('BLESS', 'SCAN', '1', 'NO-EVICT'), [{ client: b }], { cursor: '0', keys: ['k3'] }
+    ) as { cursor: string; keys: Array<string> };
+    assert.equal(reply.cursor, '0');
+    assert.equal(slots.scanCursors.size, 0);
+  });
+
+  it("starts a fresh BLESS SCAN chain instead of borrowing a SCAN token's visited set", () => {
+    const slots = new FakeSlots();
+    const a = slots.addMaster('a:1');
+    slots.addMaster('b:1');
+
+    // Token "1" belongs to an unrelated SCAN chain that already visited a:1.
+    slots.bindScanCursor('1', 'a:1', '5', new Set(['a:1']), 'SCAN');
+
+    // A BLESS SCAN call reusing that token by mistake must not inherit its
+    // visited set: node a is still the current target, not skipped.
+    const reply = finalizeScanCursor(
+      asSlots(slots), parserOf('BLESS', 'SCAN', '1', 'NO-EVICT'), [{ client: a }], { cursor: '0', keys: [] }
+    ) as { cursor: string };
+    assert.equal(slots.lookupScanCursor(reply.cursor)?.label, 'BLESS SCAN');
   });
 });
