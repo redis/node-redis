@@ -378,6 +378,7 @@ export default class RedisClusterSlots<
 
         this.#reconnectionTracker.removeClient(this.pubSubNode.client._clientId);
         this.pubSubNode.client.destroy();
+        this.pubSubNode = undefined;
 
         if (channelsListeners.size || patternsListeners.size) {
           promises.push(
