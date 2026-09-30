@@ -41,6 +41,10 @@ import BITFIELD_RO from './BITFIELD_RO';
 import BITFIELD from './BITFIELD';
 import BITOP from './BITOP';
 import BITPOS from './BITPOS';
+import BLESS_GET from './BLESS_GET';
+import BLESS_SET from './BLESS_SET';
+import BLESS_CLEAR from './BLESS_CLEAR';
+import BLESS_SCAN from './BLESS_SCAN';
 import BLMOVE from './BLMOVE';
 import BLMOVEM from './BLMOVEM';
 import BLMPOP from './BLMPOP';
@@ -940,6 +944,62 @@ export default {
    * @param mode - Optional counting mode: BYTE or BIT
    */
   bitPos: BITPOS,
+  /**
+   * Gets the bless flags currently set on a key
+   * @param key - The key to read bless flags from
+   * @since 8.12.0
+   */
+  BLESS_GET,
+  /**
+   * Gets the bless flags currently set on a key
+   * @param key - The key to read bless flags from
+   * @since 8.12.0
+   */
+  blessGet: BLESS_GET,
+  /**
+   * Sets a bless flag on a key
+   * @param key - The key to set the bless flag on
+   * @param flag - The bless flag to set
+   * @since 8.12.0
+   */
+  BLESS_SET,
+  /**
+   * Sets a bless flag on a key
+   * @param key - The key to set the bless flag on
+   * @param flag - The bless flag to set
+   * @since 8.12.0
+   */
+  blessSet: BLESS_SET,
+  /**
+   * Clears a bless flag from a key
+   * @param key - The key to clear the bless flag from
+   * @param flag - The bless flag to clear
+   * @since 8.12.0
+   */
+  BLESS_CLEAR,
+  /**
+   * Clears a bless flag from a key
+   * @param key - The key to clear the bless flag from
+   * @param flag - The bless flag to clear
+   * @since 8.12.0
+   */
+  blessClear: BLESS_CLEAR,
+  /**
+   * Incrementally iterates over keys that have a given bless flag set
+   * @param cursor - The cursor position, use '0' to start a new scan
+   * @param flag - The bless flag to scan for
+   * @param options - Optional COUNT hint
+   * @since 8.12.0
+   */
+  BLESS_SCAN,
+  /**
+   * Incrementally iterates over keys that have a given bless flag set
+   * @param cursor - The cursor position, use '0' to start a new scan
+   * @param flag - The bless flag to scan for
+   * @param options - Optional COUNT hint
+   * @since 8.12.0
+   */
+  blessScan: BLESS_SCAN,
   /**
    * Pop an element from a list, push it to another list and return it; or block until one is available
    * @param source - Key of the source list
