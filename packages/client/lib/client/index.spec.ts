@@ -826,6 +826,33 @@ describe('Client', () => {
       minimumDockerVersion: [6, 2] // CLIENT INFO
     });
 
+    testUtils.testWithClient('should remember a db selected by a raw lowercase Buffer SELECT in a pipeline', async client => {
+      await client.multi()
+        .addCommand([Buffer.from('select'), '2'])
+        .execAsPipeline();
+
+      const duplicate = await client.duplicate().connect();
+      try {
+        await Promise.all([
+          once(client, 'error'),
+          duplicate.clientKill({
+            filter: 'ID',
+            id: await client.clientId()
+          })
+        ]);
+      } finally {
+        duplicate.destroy();
+      }
+
+      assert.equal(
+        (await client.clientInfo()).db,
+        2
+      );
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      minimumDockerVersion: [6, 2] // CLIENT INFO
+    });
+
     testUtils.testWithClient('should handle error replies (#2665)', async client => {
       await assert.rejects(
         client.multi()
