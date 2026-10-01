@@ -25,15 +25,75 @@ type PubSubState = {
 
 type OnError = (err: unknown) => unknown;
 
-type PendingSubscribe = {
-  type: keyof Subscriptions;
-  channels: string | Array<string>;
-  listener: PubSubListener<boolean>;
-  bufferMode?: boolean;
+type PendingOp = {
+  /** replays this op's effect onto an extracted snapshot */
+  applyTo: (subscriptions: Subscriptions) => void;
+  /** set once the op reached the inner client, which then tracks it itself */
+  dispatched: boolean;
   /** set by extractListeners: the intent moved with the extraction, so the
    * teardown-caused rejection of this dispatch is not a failure */
-  carried?: boolean;
+  carried: boolean;
 };
+
+function channelsArray(channels: string | Array<string>) {
+  return Array.isArray(channels) ? channels : [channels];
+}
+
+function subscribeOp(
+  type: keyof Subscriptions,
+  channels: string | Array<string>,
+  listener: PubSubListener<boolean>,
+  bufferMode?: boolean
+): PendingOp {
+  return {
+    applyTo: subscriptions => {
+      const typeListeners = subscriptions[type];
+      for (const channel of channelsArray(channels)) {
+        let channelListeners = typeListeners.get(channel);
+        if (!channelListeners) {
+          channelListeners = { unsubscribing: false, buffers: new Set(), strings: new Set() };
+          typeListeners.set(channel, channelListeners);
+        }
+        if (bufferMode) {
+          channelListeners.buffers.add(listener as PubSubListener<true>);
+        } else {
+          channelListeners.strings.add(listener as PubSubListener<false>);
+        }
+      }
+    },
+    dispatched: false,
+    carried: false
+  };
+}
+
+/** Mirrors the listener removal `PubSub.unsubscribe` applies on its reply. */
+function unsubscribeOp(
+  type: keyof Subscriptions,
+  channels?: string | Array<string>,
+  listener?: PubSubListener<boolean>,
+  bufferMode?: boolean
+): PendingOp {
+  return {
+    applyTo: subscriptions => {
+      const typeListeners = subscriptions[type];
+      if (!channels) {
+        typeListeners.clear();
+        return;
+      }
+      for (const channel of channelsArray(channels)) {
+        const channelListeners = typeListeners.get(channel);
+        if (!channelListeners) continue;
+        if (listener) {
+          (bufferMode ? channelListeners.buffers : channelListeners.strings).delete(listener as PubSubListener<true>);
+          if (channelListeners.buffers.size !== 0 || channelListeners.strings.size !== 0) continue;
+        }
+        typeListeners.delete(channel);
+      }
+    },
+    dispatched: false,
+    carried: false
+  };
+}
 
 export class PubSubProxy extends EventEmitter {
   #clientOptions;
@@ -42,8 +102,8 @@ export class PubSubProxy extends EventEmitter {
   #node?: RedisNode;
   #state?: PubSubState;
   #subscriptions?: Subscriptions;
-  /** in-flight subscribes — see {@link PubSubProxy.prototype.extractListeners} */
-  readonly #pendingSubscribes = new Set<PendingSubscribe>();
+  /** in-flight ops in issuance order — see {@link PubSubProxy.prototype.extractListeners} */
+  readonly #pendingOps = new Set<PendingOp>();
 
   constructor(
     clientOptions: AnyRedisClientOptions,
@@ -167,28 +227,19 @@ export class PubSubProxy extends EventEmitter {
           [PUBSUB_TYPE.SHARDED]: new Map()
         };
 
-    // an in-flight subscribe lives only in its dispatch closure until the wire
-    // command resolves — and destroy() below silences or rejects that dispatch.
-    // Fold its intent into the snapshot (the listener Sets dedupe one that also
-    // reached the live maps) and mark it carried so its settlement is not
-    // reported as a failure.
-    for (const pending of this.#pendingSubscribes) {
+    // an op parked behind a pending connect lives only in its dispatch closure,
+    // and destroy() below silences or rejects that dispatch. Replay such ops
+    // onto the snapshot in issuance order (a subscribe then an unsubscribe of
+    // the same channel must end unsubscribed) and mark them carried so their
+    // settlement is not reported as a failure. A live inner client already
+    // replayed the ops dispatched to it, so only the rest apply there.
+    const live = this.#state !== undefined && this.#state.connectPromise === undefined;
+    for (const pending of this.#pendingOps) {
       pending.carried = true;
-      const { type, channels, listener, bufferMode } = pending;
-      const typeListeners = subscriptions[type];
-      for (const channel of Array.isArray(channels) ? channels : [channels]) {
-        let channelListeners = typeListeners.get(channel);
-        if (!channelListeners) {
-          channelListeners = { unsubscribing: false, buffers: new Set(), strings: new Set() };
-          typeListeners.set(channel, channelListeners);
-        }
-        if (bufferMode) {
-          channelListeners.buffers.add(listener as PubSubListener<true>);
-        } else {
-          channelListeners.strings.add(listener as PubSubListener<false>);
-        }
-      }
+      if (!live || !pending.dispatched) pending.applyTo(subscriptions);
     }
+    // the move consumes the log: a late settle must not replay into a later move
+    this.#pendingOps.clear();
 
     this.destroy();
     return subscriptions;
@@ -236,19 +287,22 @@ export class PubSubProxy extends EventEmitter {
     });
   }
 
-  /** Track an in-flight subscribe for the duration of its dispatch, so
+  /** Track an in-flight op for the duration of its dispatch, so
    * {@link extractListeners} can carry it during that window. */
-  async #trackedSubscribe<T>(pending: PendingSubscribe, execute: () => T): Promise<Awaited<T> | undefined> {
-    this.#pendingSubscribes.add(pending);
+  async #tracked<T>(pending: PendingOp, fn: (client: Client) => T): Promise<Awaited<T> | undefined> {
+    this.#pendingOps.add(pending);
     try {
-      return await execute();
+      return await this.#executeCommand(client => {
+        pending.dispatched = true;
+        return fn(client);
+      });
     } catch (err) {
       // the extraction that tore this client down carried the intent to the
-      // adopting member — the subscribe semantically succeeded there
+      // adopting member — the op semantically succeeded there
       if (pending.carried) return undefined;
       throw err;
     } finally {
-      this.#pendingSubscribes.delete(pending);
+      this.#pendingOps.delete(pending);
     }
   }
 
@@ -257,14 +311,14 @@ export class PubSubProxy extends EventEmitter {
     listener: PubSubListener<T>,
     bufferMode?: T
   ) {
-    return this.#trackedSubscribe(
-      { type: PUBSUB_TYPE.CHANNELS, channels, listener: listener as PubSubListener<boolean>, bufferMode },
-      () => this.#executeCommand(client => client.SUBSCRIBE(channels, listener, bufferMode))
+    return this.#tracked(
+      subscribeOp(PUBSUB_TYPE.CHANNELS, channels, listener as PubSubListener<boolean>, bufferMode),
+      client => client.SUBSCRIBE(channels, listener, bufferMode)
     );
   }
 
-  #unsubscribe<T>(fn: (client: Client) => Promise<T>) {
-    return this.#executeCommand(async client => {
+  #unsubscribe<T>(pending: PendingOp, fn: (client: Client) => Promise<T>) {
+    return this.#tracked(pending, async client => {
       const reply = await fn(client);
 
       if (!client.isPubSubActive) {
@@ -283,7 +337,10 @@ export class PubSubProxy extends EventEmitter {
     listener?: PubSubListener<boolean>,
     bufferMode?: T
   ) {
-    return this.#unsubscribe(client => client.UNSUBSCRIBE(channels, listener, bufferMode));
+    return this.#unsubscribe(
+      unsubscribeOp(PUBSUB_TYPE.CHANNELS, channels, listener, bufferMode),
+      client => client.UNSUBSCRIBE(channels, listener, bufferMode)
+    );
   }
 
   async pSubscribe<T extends boolean = false>(
@@ -291,9 +348,9 @@ export class PubSubProxy extends EventEmitter {
     listener: PubSubListener<T>,
     bufferMode?: T
   ) {
-    return this.#trackedSubscribe(
-      { type: PUBSUB_TYPE.PATTERNS, channels: patterns, listener: listener as PubSubListener<boolean>, bufferMode },
-      () => this.#executeCommand(client => client.PSUBSCRIBE(patterns, listener, bufferMode))
+    return this.#tracked(
+      subscribeOp(PUBSUB_TYPE.PATTERNS, patterns, listener as PubSubListener<boolean>, bufferMode),
+      client => client.PSUBSCRIBE(patterns, listener, bufferMode)
     );
   }
 
@@ -302,7 +359,10 @@ export class PubSubProxy extends EventEmitter {
     listener?: PubSubListener<T>,
     bufferMode?: T
   ) {
-    return this.#unsubscribe(client => client.PUNSUBSCRIBE(patterns, listener, bufferMode));
+    return this.#unsubscribe(
+      unsubscribeOp(PUBSUB_TYPE.PATTERNS, patterns, listener as PubSubListener<boolean>, bufferMode),
+      client => client.PUNSUBSCRIBE(patterns, listener, bufferMode)
+    );
   }
 
   sSubscribe<T extends boolean = false>(
@@ -310,9 +370,9 @@ export class PubSubProxy extends EventEmitter {
     listener: PubSubListener<T>,
     bufferMode?: T
   ) {
-    return this.#trackedSubscribe(
-      { type: PUBSUB_TYPE.SHARDED, channels, listener: listener as PubSubListener<boolean>, bufferMode },
-      () => this.#executeCommand(client => client.SSUBSCRIBE(channels, listener, bufferMode))
+    return this.#tracked(
+      subscribeOp(PUBSUB_TYPE.SHARDED, channels, listener as PubSubListener<boolean>, bufferMode),
+      client => client.SSUBSCRIBE(channels, listener, bufferMode)
     );
   }
 
@@ -321,7 +381,10 @@ export class PubSubProxy extends EventEmitter {
     listener?: PubSubListener<T>,
     bufferMode?: T
   ) {
-    return this.#unsubscribe(client => client.SUNSUBSCRIBE(channels, listener, bufferMode));
+    return this.#unsubscribe(
+      unsubscribeOp(PUBSUB_TYPE.SHARDED, channels, listener as PubSubListener<boolean>, bufferMode),
+      client => client.SUNSUBSCRIBE(channels, listener, bufferMode)
+    );
   }
 
   destroy() {

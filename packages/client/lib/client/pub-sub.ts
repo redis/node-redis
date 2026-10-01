@@ -49,9 +49,9 @@ export type PubSubCommand = (
   Required<Pick<CommandToWrite, 'args' | 'channelsCounter' | 'resolve'>> & {
     reject: undefined | (() => unknown);
     /**
-     * True when a teardown carried this subscribe's intent to another client
+     * True when a teardown carried this command's intent to another client
      * (multi-db move): the wire rejection is then a SUCCESS for the caller —
-     * the subscription lives on, on the adopting member.
+     * the subscription change lives on, on the adopting member.
      */
     carried?: () => boolean;
   }
@@ -111,31 +111,18 @@ export class PubSub {
   #subscribing = 0;
 
   /**
-   * Subscribes whose wire confirm is still in flight: their listeners exist
-   * only in the command closures until the server replies, invisible to
-   * {@link removeAllListeners}. Tracked so a subscription move started
-   * mid-round-trip still carries them; `carried` then makes the late confirm
-   * a no-op (registering would resurrect the subscription on the demoted
-   * client) and the late rejection a caller-visible success.
+   * Subscribes and unsubscribes whose wire reply is still in flight, in
+   * issuance order. Until the reply lands, a subscribe's listeners exist only
+   * in its command closure, and an unsubscribe's channels are still in
+   * `listeners` — so a subscription move started mid-round-trip would drop the
+   * first and resurrect the second. {@link removeAllListeners} replays the log
+   * onto its snapshot in order (an unsubscribe then a re-subscribe of the same
+   * channel must end subscribed) and marks each op carried: the late confirm
+   * then becomes a no-op on the demoted client, and the late rejection a
+   * caller-visible success.
    */
-  readonly #pendingSubscribes = new Set<{
-    type: PubSubType;
-    channels: Array<string>;
-    listener: PubSubListener<boolean>;
-    returnBuffers?: boolean;
-    carried: boolean;
-  }>();
-
-  /**
-   * Unsubscribes whose wire reply is still pending: the channels/listeners
-   * they will remove are STILL in `listeners` until the reply lands, so a
-   * subscription move started mid-round-trip would capture and resurrect them
-   * on the new member. Each carries the same `removeListeners` thunk the
-   * command settles with, applied to the snapshot instead (the mirror of
-   * {@link PubSub.prototype.subscribe}'s pending tracking).
-   */
-  readonly #pendingUnsubscribes = new Set<{
-    apply: () => void;
+  readonly #pendingOps = new Set<{
+    applyTo: (listeners: PubSubListeners) => void;
     carried: boolean;
   }>();
 
@@ -178,19 +165,26 @@ export class PubSub {
     this.#isActive = true;
     this.#subscribing++;
     const pending = {
-      type,
-      channels: channelsArray,
-      listener: listener as PubSubListener<boolean>,
-      returnBuffers: returnBuffers as boolean | undefined,
+      // the listener Sets dedupe one that also reached the live maps
+      applyTo: (snapshot: PubSubListeners) => {
+        for (const channel of channelsArray) {
+          let channelListeners = snapshot[type].get(channel);
+          if (!channelListeners) {
+            channelListeners = { unsubscribing: false, buffers: new Set(), strings: new Set() };
+            snapshot[type].set(channel, channelListeners);
+          }
+          PubSub.#listenersSet(channelListeners, returnBuffers).add(listener);
+        }
+      },
       carried: false
     };
-    this.#pendingSubscribes.add(pending);
+    this.#pendingOps.add(pending);
     return {
       args,
       channelsCounter: args.length - 1,
       resolve: () => {
         this.#subscribing--;
-        this.#pendingSubscribes.delete(pending);
+        this.#pendingOps.delete(pending);
         if (pending.carried) {
           // a move already took this intent to another member — registering
           // here would resurrect the subscription on the demoted client
@@ -212,7 +206,7 @@ export class PubSub {
       },
       reject: () => {
         this.#subscribing--;
-        this.#pendingSubscribes.delete(pending);
+        this.#pendingOps.delete(pending);
         this.#updateIsActive();
       },
       carried: () => pending.carried
@@ -296,20 +290,22 @@ export class PubSub {
     const listeners = this.listeners[type];
     if (!channels) {
       return this.#unsubscribeCommand(
+        type,
         [COMMANDS[type].unsubscribe],
         // cannot use `this.#subscribed` because there might be some `SUBSCRIBE` commands in the queue
         // cannot use `this.#subscribed + this.#subscribing` because some `SUBSCRIBE` commands might fail
         NaN,
-        () => listeners.clear()
+        listeners => listeners.clear()
       );
     }
 
     const channelsArray = PubSub.#channelsArray(channels);
     if (!listener) {
       return this.#unsubscribeCommand(
+        type,
         [COMMANDS[type].unsubscribe, ...channelsArray],
         channelsArray.length,
-        () => {
+        listeners => {
           for (const channel of channelsArray) {
             listeners.delete(channel);
           }
@@ -352,9 +348,10 @@ export class PubSub {
     }
 
     return this.#unsubscribeCommand(
+      type,
       args,
       args.length - 1,
-      () => {
+      listeners => {
         for (const channel of channelsArray) {
           const sets = listeners.get(channel);
           if (!sets) continue;
@@ -369,20 +366,24 @@ export class PubSub {
   }
 
   #unsubscribeCommand(
+    type: PubSubType,
     args: Array<RedisArgument>,
     channelsCounter: number,
-    removeListeners: () => void
+    removeListeners: (listeners: PubSubTypeListeners) => void
   ) {
-    const pending = { apply: removeListeners, carried: false };
-    this.#pendingUnsubscribes.add(pending);
+    const pending = {
+      applyTo: (snapshot: PubSubListeners) => removeListeners(snapshot[type]),
+      carried: false
+    };
+    this.#pendingOps.add(pending);
     return {
       args,
       channelsCounter,
       resolve: () => {
-        this.#pendingUnsubscribes.delete(pending);
+        this.#pendingOps.delete(pending);
         // a move already applied this removal to the extracted snapshot —
         // the live maps are fresh, nothing left to remove here
-        if (!pending.carried) removeListeners();
+        if (!pending.carried) removeListeners(this.listeners[type]);
         this.#updateIsActive();
       },
       reject: () => {
@@ -390,9 +391,12 @@ export class PubSub {
         // legitimately stays subscribed, so drop the pending entry WITHOUT
         // applying its removal — otherwise a later removeAllListeners would
         // replay this stale removal and drop a still-live subscription
-        this.#pendingUnsubscribes.delete(pending);
+        this.#pendingOps.delete(pending);
         this.#updateIsActive();
-      }
+      },
+      // a carried removal took effect on the snapshot, so the teardown's
+      // rejection of the wire command is a success for the caller
+      carried: () => pending.carried
     } satisfies PubSubCommand;
   }
 
@@ -500,30 +504,20 @@ export class PubSub {
       [PUBSUB_TYPE.SHARDED]: this.listeners[PUBSUB_TYPE.SHARDED]
     }
 
-    // in-flight subscribes live only in their command closures until the
-    // server confirms — fold their intent into the snapshot (the listener
-    // Sets dedupe one that also landed) and mark them carried so the late
-    // settle neither resurrects the subscription here nor fails its caller
-    for (const pending of this.#pendingSubscribes) {
+    // replay in-flight ops in issuance order — see #pendingOps. The move
+    // consumes the log: a late settle must not replay into a later move.
+    for (const pending of this.#pendingOps) {
       pending.carried = true;
-      const typeListeners = result[pending.type];
-      for (const channel of pending.channels) {
-        let channelListeners = typeListeners.get(channel);
-        if (!channelListeners) {
-          channelListeners = { unsubscribing: false, buffers: new Set(), strings: new Set() };
-          typeListeners.set(channel, channelListeners);
-        }
-        PubSub.#listenersSet(channelListeners, pending.returnBuffers).add(pending.listener);
-      }
+      pending.applyTo(result);
     }
+    this.#pendingOps.clear();
 
-    // in-flight unsubscribes will remove their channels/listeners once the
-    // reply lands, but those are still present in the snapshot above — apply
-    // the removal now (the thunk mutates the same map objects `result`
-    // aliases) so the move does not resurrect a channel the user just left
-    for (const pending of this.#pendingUnsubscribes) {
-      pending.carried = true;
-      pending.apply();
+    // the adopting client sends a fresh SUBSCRIBE for every moved channel; a
+    // stale flag from a failed unsubscribe would make it re-subscribe later
+    for (const typeListeners of Object.values(result)) {
+      for (const channelListeners of typeListeners.values()) {
+        channelListeners.unsubscribing = false;
+      }
     }
 
     this.listeners[PUBSUB_TYPE.CHANNELS] = new Map();

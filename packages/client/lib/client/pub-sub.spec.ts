@@ -344,6 +344,90 @@ describe('PubSub', () => {
       assert.ok(snapshot[TYPE].get('shared')?.strings.has(staying), 'the surviving listener must move');
       assert.equal(snapshot[TYPE].get('shared')?.strings.has(leaving), false);
     });
+
+    it('an unsubscribe then a re-subscribe, both in flight, moves the re-subscribe', () => {
+      const pubSub = new PubSub(CLIENT_ID);
+      const first = () => {};
+      const second = () => {};
+      assert.ok(pubSub.subscribe(TYPE, 'flip', first));
+      assert.ok(pubSub.unsubscribe(TYPE, 'flip'));
+      assert.ok(pubSub.subscribe(TYPE, 'flip', second));
+
+      const snapshot = pubSub.removeAllListeners();
+      const moved = snapshot[TYPE].get('flip');
+      assert.ok(moved?.strings.has(second), 'the latest subscribe must win');
+      assert.equal(moved.strings.has(first), false);
+    });
+
+    it('a per-listener unsubscribe then a re-subscribe of the same listener moves it', () => {
+      const pubSub = new PubSub(CLIENT_ID);
+      const listener = () => {};
+      pubSub.subscribe(TYPE, 'flip', listener)!.resolve();
+      assert.ok(pubSub.unsubscribe(TYPE, 'flip', listener));
+      assert.ok(pubSub.subscribe(TYPE, 'flip', listener));
+
+      const snapshot = pubSub.removeAllListeners();
+      assert.ok(snapshot[TYPE].get('flip')?.strings.has(listener), 'the re-subscribe must move');
+    });
+
+    it('a subscribe then an unsubscribe, both in flight, moves nothing', () => {
+      const pubSub = new PubSub(CLIENT_ID);
+      assert.ok(pubSub.subscribe(TYPE, 'flop', () => {}));
+      assert.ok(pubSub.unsubscribe(TYPE, 'flop'));
+      assert.equal(pubSub.removeAllListeners()[TYPE].has('flop'), false);
+    });
+
+    it('an unsubscribe-all in flight drops only what was issued before it', () => {
+      const pubSub = new PubSub(CLIENT_ID);
+      const before = () => {};
+      const afterOther = () => {};
+      const afterSame = () => {};
+      assert.ok(pubSub.subscribe(TYPE, 'x', before));
+      assert.ok(pubSub.unsubscribe(TYPE));
+      assert.ok(pubSub.subscribe(TYPE, 'y', afterOther));
+      assert.ok(pubSub.subscribe(TYPE, 'x', afterSame));
+
+      const snapshot = pubSub.removeAllListeners();
+      assert.deepEqual([...snapshot[TYPE].keys()].sort(), ['x', 'y']);
+      assert.ok(snapshot[TYPE].get('x')?.strings.has(afterSame));
+      assert.equal(snapshot[TYPE].get('x')?.strings.has(before), false);
+      assert.ok(snapshot[TYPE].get('y')?.strings.has(afterOther));
+    });
+
+    it('a carried unsubscribe reports carried, so its teardown rejection is a success', () => {
+      const pubSub = new PubSub(CLIENT_ID);
+      pubSub.subscribe(TYPE, 'leaving', () => {})!.resolve();
+      const unsub = pubSub.unsubscribe(TYPE, 'leaving');
+      assert.ok(unsub);
+      assert.equal(unsub.carried?.(), false);
+      pubSub.removeAllListeners();
+      assert.equal(unsub.carried?.(), true);
+    });
+
+    it('a move consumes the pending log — a carried op does not replay into a later move', () => {
+      const pubSub = new PubSub(CLIENT_ID);
+      const listener = () => {};
+      pubSub.subscribe(TYPE, 'again', listener)!.resolve();
+      assert.ok(pubSub.unsubscribe(TYPE, 'again', listener));
+      pubSub.removeAllListeners();
+
+      // the same channel subscribed again after the move, before the old reply lands
+      pubSub.subscribe(TYPE, 'again', listener)!.resolve();
+      const second = pubSub.removeAllListeners();
+      assert.ok(second[TYPE].get('again')?.strings.has(listener), 'the stale removal must not replay');
+    });
+
+    it('moved entries arrive with unsubscribing reset — no redundant SUBSCRIBE on the adopter', () => {
+      const pubSub = new PubSub(CLIENT_ID);
+      const listener = () => {};
+      pubSub.subscribe(TYPE, 'kept', listener)!.resolve();
+      // a failed unsubscribe leaves the entry flagged
+      pubSub.unsubscribe(TYPE, 'kept', listener)!.reject!();
+
+      const adopter = new PubSub(CLIENT_ID);
+      adopter.extendTypeListeners(TYPE, pubSub.removeAllListeners()[TYPE])!.resolve();
+      assert.equal(adopter.subscribe(TYPE, 'kept', () => {}), undefined, 'the channel is already subscribed');
+    });
   });
 });
 
