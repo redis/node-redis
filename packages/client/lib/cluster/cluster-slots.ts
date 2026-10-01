@@ -385,12 +385,20 @@ export default class RedisClusterSlots<
 
         this.#reconnectionTracker.removeClient(this.pubSubNode.client._clientId);
         this.pubSubNode.client.destroy();
+        this.pubSubNode = undefined;
 
         if (channelsListeners.size || patternsListeners.size) {
           promises.push(
             this.#initiatePubSubClient({
               [PUBSUB_TYPE.CHANNELS]: channelsListeners,
               [PUBSUB_TYPE.PATTERNS]: patternsListeners
+            }).catch(err => {
+              // A concurrent rediscovery may have already created a new pubSubNode.
+              // ClientClosedError here means the superseded connection was correctly
+              // rejected — not that the cluster is broken. Only re-throw when the
+              // cluster has been torn down (no replacement node was created).
+              if (err instanceof ClientClosedError && this.pubSubNode) return;
+              throw err;
             })
           );
         }
@@ -1260,28 +1268,43 @@ export default class RedisClusterSlots<
         this.replicas[index - this.masters.length],
       client = this.#createClient(node, false);
 
-    this.pubSubNode = {
+    const pubSubNode: PubSubNode<M, F, S, RESP, TYPE_MAPPING> = {
       address: node.address,
-      client,
-      connectPromise: client.connect()
-        .then(async client => {
-          if (toResubscribe) {
-            await Promise.all([
-              client.extendPubSubListeners(PUBSUB_TYPE.CHANNELS, toResubscribe[PUBSUB_TYPE.CHANNELS]),
-              client.extendPubSubListeners(PUBSUB_TYPE.PATTERNS, toResubscribe[PUBSUB_TYPE.PATTERNS])
-            ]);
-          }
-
-          this.pubSubNode!.connectPromise = undefined;
-          return client;
-        })
-        .catch(err => {
-          this.pubSubNode = undefined;
-          throw err;
-        })
+      client
     };
 
-    return this.pubSubNode.connectPromise!;
+    this.pubSubNode = pubSubNode;
+
+    pubSubNode.connectPromise = client.connect()
+      .then(async client => {
+        if (this.pubSubNode !== pubSubNode) {
+          client.destroy();
+          throw new ClientClosedError();
+        }
+
+        if (toResubscribe) {
+          await Promise.all([
+            client.extendPubSubListeners(PUBSUB_TYPE.CHANNELS, toResubscribe[PUBSUB_TYPE.CHANNELS]),
+            client.extendPubSubListeners(PUBSUB_TYPE.PATTERNS, toResubscribe[PUBSUB_TYPE.PATTERNS])
+          ]);
+
+          if (this.pubSubNode !== pubSubNode) {
+            client.destroy();
+            throw new ClientClosedError();
+          }
+        }
+
+        pubSubNode.connectPromise = undefined;
+        return client;
+      })
+      .catch(err => {
+        if (this.pubSubNode === pubSubNode) {
+          this.pubSubNode = undefined;
+        }
+        throw err;
+      });
+
+    return pubSubNode.connectPromise!;
   }
 
   async executeUnsubscribeCommand(

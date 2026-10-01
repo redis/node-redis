@@ -1,5 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { EventEmitter } from 'node:events';
+import * as net from 'node:net';
 import { RedisClusterClientOptions } from './index';
 import RedisClusterSlots, { groupCommandsByDestination, splitInFlightChainTail } from './cluster-slots';
 import type { MasterNode, Shard, ShardNode } from './cluster-slots';
@@ -307,6 +308,108 @@ describe('RedisClusterSlots', () => {
 
       assert.equal(destPauseCount, 1, 'destination should have been paused during migration');
       assert.equal(destUnpauseCount, 1, 'destination must be unpaused even when an error aborts the migration');
+    });
+  });
+
+  describe('pubSubNode stale pointer and callback guard', () => {
+    // Minimal CLUSTER SLOTS response: 1 shard [0-16383], master at 127.0.0.1:1 (dead port)
+    const SLOTS_RESPONSE =
+      '*1\r\n*3\r\n:0\r\n:16383\r\n*3\r\n$9\r\n127.0.0.1\r\n:1\r\n$5\r\nnode1\r\n';
+
+    let mockServer: net.Server;
+    let mockPort: number;
+
+    before(async () => {
+      mockServer = net.createServer(socket => {
+        socket.once('data', () => socket.write(SLOTS_RESPONSE));
+      });
+
+      await new Promise<void>((resolve, reject) => {
+        mockServer.on('error', reject);
+        mockServer.listen(0, '127.0.0.1', () => {
+          mockPort = (mockServer.address() as net.AddressInfo).port;
+          resolve();
+        });
+      });
+    });
+
+    after(done => mockServer.close(done));
+
+    function createSlots() {
+      return new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: mockPort } }],
+        defaults: {
+          socket: { reconnectStrategy: false, connectTimeout: 500 },
+          disableClientInfo: true,
+        },
+        minimizeConnections: true,
+        RESP: 2 as const,
+      }, () => true, 'test-cluster');
+    }
+
+    // When #discover() removes the pub-sub node's address from the topology and
+    // both listener maps are empty, pubSubNode must be nulled (fix: cluster-slots.ts
+    // line ~381). Without the fix, pubSubNode kept pointing at the destroyed client;
+    // getPubSubClient() then returned Promise.resolve(destroyedClient), causing
+    // ClientClosedError on every subsequent subscribe.
+    it('pubSubNode is undefined after topology removes the pub-sub address', async function () {
+      this.timeout(5000);
+
+      const slots = createSlots();
+      await slots.connect();
+
+      // Plant a pubSubNode at an address NOT in the mock topology so that
+      // #discover() destroys and nulls it on the next rediscovery.
+      slots.pubSubNode = {
+        address: '127.0.0.1:9999',
+        client: {
+          _clientId: 'stale-pub-sub',
+          destroy() {},
+          getPubSubListeners: () => new Map(),
+        },
+      } as unknown as NonNullable<typeof slots.pubSubNode>;
+
+      // Trigger topology rediscovery — #discover() sees pubSubNode.address is
+      // not in addressesInUse and calls destroy() + sets pubSubNode = undefined.
+      await slots.rediscover();
+
+      assert.equal(slots.pubSubNode, undefined,
+        'pubSubNode must be cleared when the address leaves the topology with no listeners');
+
+      slots.destroy();
+    });
+
+    // When a second topology rediscovery fires while the first pub-sub connection
+    // is still connecting, the first connection's .catch callback must not null a
+    // newer pubSubNode that was set by the second rediscovery.
+    it('catch callback does not clear a newer pubSubNode', async function () {
+      this.timeout(5000);
+
+      const slots = createSlots();
+      await slots.connect();
+
+      // Triggers #initiatePubSubClient() → picks the single master at 127.0.0.1:1
+      // (dead port). The method sets slots.pubSubNode synchronously, then returns
+      // a connectPromise that will reject with ECONNREFUSED.
+      const connectPromise = slots.getPubSubClient();
+      const originalPubSubNode = slots.pubSubNode;
+      assert.ok(originalPubSubNode, 'pubSubNode set synchronously by #initiatePubSubClient');
+
+      // Simulate a concurrent topology rediscovery replacing pubSubNode before
+      // the in-flight connection fails.
+      const mockNewerNode = { address: '127.0.0.1:2', client: { destroy() {} } } as unknown as NonNullable<typeof slots.pubSubNode>;
+      slots.pubSubNode = mockNewerNode;
+
+      // Let the original connection attempt reject (ECONNREFUSED to port 1).
+      await assert.rejects(connectPromise);
+
+      // The guard in #initiatePubSubClient's .catch:
+      //   if (this.pubSubNode === pubSubNode) { this.pubSubNode = undefined; }
+      // must NOT have fired because this.pubSubNode was already replaced.
+      assert.equal(slots.pubSubNode, mockNewerNode,
+        'catch callback must not clear a newer pubSubNode');
+
+      slots.destroy();
     });
   });
 });
