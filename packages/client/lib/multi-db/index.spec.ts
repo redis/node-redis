@@ -467,7 +467,8 @@ describe('multi-db', function () {
     it('multi() commits only on its pinned member while it is active, and its outcome never trips the new active', () =>
       withMultiDb(
         {
-          failureDetector: { minNumOfFailures: 1, failureRateThreshold: 0, windowSize: 60_000 },
+          // count every error: the default filter ignores the NOSUCHCOMMAND reply below
+          failureDetector: { minNumOfFailures: 1, failureRateThreshold: 0, windowSize: 60_000, errorFilter: () => true },
           databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })]
         },
         async ({ client, controller }) => {
