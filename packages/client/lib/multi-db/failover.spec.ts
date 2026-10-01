@@ -326,6 +326,8 @@ describe('multi-db failover', function () {
     });
     const { client, controller } = createMultiDbClient({
       ...FAST_FAILOVER,
+      // count every error: the default filter ignores the reply these tests provoke
+      failureDetector: { ...FAST_FAILOVER.failureDetector, errorFilter: () => true },
       // health checks slow enough that only the detector can drive the failover
       healthCheck: { interval: 30_000, timeout: 1_000, numProbes: 1, delayBetweenProbes: 0 },
       databases: [memberWithModule(serverA, { weight: 1 }), memberWithModule(serverB, { weight: 0.5 })]
@@ -369,6 +371,8 @@ describe('multi-db failover', function () {
     this.timeout(90_000);
     const { client, controller } = createMultiDbClient({
       ...FAST_FAILOVER,
+      // count every error: the default filter ignores the reply these tests provoke
+      failureDetector: { ...FAST_FAILOVER.failureDetector, errorFilter: () => true },
       // health checks slow enough that only the detector can drive the failover
       healthCheck: { interval: 30_000, timeout: 1_000, numProbes: 1, delayBetweenProbes: 0 },
       databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })]
