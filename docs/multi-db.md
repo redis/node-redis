@@ -232,8 +232,10 @@ never a copy — or `undefined` to escalate.
   socket error, a cluster node error, a sentinel MASTER connection error). Sentinel
   replica, sentinel-node and pub/sub-proxy errors are tolerated by a healthy deployment
   and are never counted — they surface only as `member-error`. Hard-down members with the
-  default offline queue are detected by health-check probe timeouts and `end` events, not
-  by command outcomes (queued commands do not reject until the switch abandons them).
+  default offline queue are detected by health-check probe timeouts, not by command
+  outcomes (queued commands do not reject until the switch abandons them). A standalone
+  member that gives up reconnecting (`terminated`) also fails over at once; cluster and
+  pool members rely on the probes.
 - **Resource overhead.** N member connections are live the whole time (each kind's usual
   connection count), plus one background health-check timer per member and the detector's
   sliding window on the command path. The command hot path adds one indirection per call.

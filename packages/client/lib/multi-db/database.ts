@@ -51,7 +51,10 @@ export interface DatabaseHooks<C extends RedisClientLike> {
  * healthy deployment and surface as `member-error` only). Sentinels handle
  * their own master changes internally — the default detector thresholds
  * absorb that transient blip, so a sentinel-internal failover does not open
- * the member circuit. `end` means the client gave up reconnecting.
+ * the member circuit. A standalone client emits `terminated` when it gives
+ * up reconnecting and `end` when it is closed; either one marks the member
+ * down. Cluster and pool members emit neither on a lost node, so health-check
+ * probes detect them.
  */
 export class Database<C extends RedisClientLike> {
   readonly id: string;
@@ -113,6 +116,7 @@ export class Database<C extends RedisClientLike> {
       .on('error', this.#onError)
       .on('client-error', this.#onClientError)
       .on('ready', this.#onReady)
+      .on('terminated', this.#onEnd)
       .on('end', this.#onEnd);
   }
 
@@ -127,6 +131,7 @@ export class Database<C extends RedisClientLike> {
       .off('error', this.#onError)
       .off('client-error', this.#onClientError)
       .off('ready', this.#onReady)
+      .off('terminated', this.#onEnd)
       .off('end', this.#onEnd);
   }
 }
