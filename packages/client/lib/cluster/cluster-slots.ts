@@ -342,6 +342,8 @@ export default class RedisClusterSlots<
       }
     }
 
+    // a destroy() during the last root node's discovery is a close, not an outage
+    if (!this.#isOpen) throw new Error('Cluster closed');
     throw new RootNodesUnavailableError();
   }
 
@@ -362,6 +364,9 @@ export default class RedisClusterSlots<
         eagerConnect = this.#options.minimizeConnections !== true;
 
       const shards = await this.#getShards(rootNode);
+      // destroy() may have run while the shards were in flight — building
+      // node clients now would leak them past teardown
+      if (!this.#isOpen) return false;
       this.#resetSlots(); // Reset slots AFTER shards have been fetched to prevent a race condition
       for (const { from, to, master, replicas } of shards) {
         const shard: Shard<M, F, S, RESP, TYPE_MAPPING> = {
@@ -436,7 +441,8 @@ export default class RedisClusterSlots<
 
       return true;
     } catch (err) {
-      this.#emit('error', err);
+      // after destroy() nobody may be listening for 'error' any more
+      if (this.#isOpen) this.#emit('error', err);
       return false;
     }
   }
@@ -939,7 +945,11 @@ export default class RedisClusterSlots<
     if (!this.#isOpen || this.#topologyRefreshPromise) return;
 
     this.#topologyRefreshPromise = this.rediscover(undefined, new Set(excludedAddresses))
-      .catch(err => this.#emit('error', err))
+      // a refresh cut short by destroy() rejects with 'Cluster closed' — nobody
+      // may be listening for 'error' any more
+      .catch(err => {
+        if (this.#isOpen) this.#emit('error', err);
+      })
       .finally(() => {
         this.#topologyRefreshPromise = undefined;
       });
