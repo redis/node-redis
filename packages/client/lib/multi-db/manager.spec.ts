@@ -1087,4 +1087,142 @@ describe('multi-db manager (unit)', function () {
       mgr.destroy();
     });
   });
+
+  describe('stale search and health rounds', () => {
+    const attemptsSince = (received: Harness['received'], from: number) => received
+      .slice(from)
+      .filter(r => r.event === 'all-databases-down')
+      .map(r => (r.payload as { attempt: number }).attempt);
+
+    it('a rescued search loop exits instead of exhausting a newer search', async () => {
+      const { mgr, fakes, received } = makeHarness(1, {
+        maxFailoverAttempts: 3,
+        delayBetweenFailoverAttempts: 50
+      });
+      await mgr.connect();
+
+      fakes.get('db-0')!.end(); // search 1 starts, sleeps 50ms
+      await tick(10);
+      await mgr.connect();      // same-member rescue mid-delay
+      assert.equal(mgr.unavailableError, undefined);
+
+      const mark = received.length;
+      fakes.get('db-0')!.end(); // search 2 starts while search 1 still sleeps
+      const deadline = Date.now() + 1_000;
+      while (!received.slice(mark).some(r => r.event === 'terminated') && Date.now() < deadline) {
+        await tick(10);
+      }
+
+      assert.deepEqual(attemptsSince(received, mark), [1, 2, 3], 'only the newer search may count attempts');
+      assert.equal(received.filter(r => r.event === 'terminated').length, 1);
+      mgr.destroy();
+    });
+
+    it('a same-member recovery starts with a clean failure detector', async () => {
+      // threshold is 2 failures in a long window
+      const { mgr, fakes, received } = makeHarness(1, {
+        maxFailoverAttempts: 100,
+        delayBetweenFailoverAttempts: 50
+      });
+      await mgr.connect();
+      const db = mgr.databases[0];
+
+      mgr.onCommandResult(false, new Error('before the outage'), db);
+      fakes.get('db-0')!.end();
+      mgr.onCommandResult(false, new Error('leftover during the search'), db);
+      await mgr.connect(); // the same member comes back
+
+      const mark = received.length;
+      mgr.onCommandResult(false, new Error('first failure after recovery'), db);
+
+      assert.equal(mgr.unavailableError, undefined, 'one fresh failure must not trip the detector');
+      assert.ok(!received.slice(mark).some(r => r.event === 'database-unhealthy'));
+      mgr.destroy();
+    });
+
+    // the probe timeout outlives the test steps, so the parked probe — not
+    // the timeout — decides when the stale round settles
+    const SLOW_PROBES: MultiDbConfig = {
+      healthCheck: { interval: 200, timeout: 150, numProbes: 1, delayBetweenProbes: 0 }
+    };
+
+    /** park the next probe on `fake`; later probes answer PONG */
+    async function parkNextProbe(fake: FakeClient): Promise<(err: Error) => void> {
+      let fail: ((err: Error) => void) | undefined;
+      const healthy = fake.onCommand;
+      fake.onCommand = () => {
+        fake.onCommand = healthy;
+        return new Promise((_, reject) => { fail = reject; });
+      };
+      const deadline = Date.now() + 1_000;
+      while (!fail && Date.now() < deadline) await tick(5);
+      assert.ok(fail, 'a background round must be in flight');
+      return fail;
+    }
+
+    it('a stale failed health round does not undo a forced switch', async () => {
+      const { mgr, fakes, received } = makeHarness(2, SLOW_PROBES);
+      await mgr.connect();
+
+      const failStale = await parkNextProbe(fakes.get('db-1')!);
+      await mgr.setActiveDatabase('db-1');
+      failStale(new Error('stale'));
+      await tick(20);
+
+      assert.equal(mgr.activeDatabase.id, 'db-1');
+      assert.equal(mgr.databases[1].circuit.state, 'CLOSED');
+      assert.ok(!received.some(r => r.event === 'database-unhealthy'));
+      assert.ok(!received.some(r => r.event === 'failover' && (r.payload as { reason: string }).reason === 'health-check'));
+      mgr.destroy();
+    });
+
+    it('a stale failed health round does not undo a force of the current active member', async () => {
+      const { mgr, fakes, received } = makeHarness(2, SLOW_PROBES);
+      await mgr.connect();
+
+      const failStale = await parkNextProbe(fakes.get('db-0')!);
+      await mgr.setActiveDatabase('db-0');
+      failStale(new Error('stale'));
+      await tick(20);
+
+      assert.equal(mgr.activeDatabase.id, 'db-0');
+      assert.ok(!received.some(r => r.event === 'database-unhealthy'));
+      assert.ok(!received.some(r => r.event === 'failover'));
+      mgr.destroy();
+    });
+
+    it('a stale failed health round does not undo a repeat connect()', async () => {
+      const { mgr, fakes, received } = makeHarness(2, SLOW_PROBES);
+      await mgr.connect();
+
+      const failStale = await parkNextProbe(fakes.get('db-0')!);
+      await mgr.connect();
+      failStale(new Error('stale'));
+      await tick(20);
+
+      assert.equal(mgr.activeDatabase.id, 'db-0');
+      assert.ok(!received.some(r => r.event === 'database-unhealthy'));
+      assert.ok(!received.some(r => r.event === 'failover'));
+      mgr.destroy();
+    });
+
+    it('close() during a forced switch probe round rejects the force at once', async () => {
+      // ANY: a passing first probe ends a round, so connect() stays fast; the
+      // force target fails its first probe and the round waits for the next
+      const { mgr, fakes } = makeHarness(2, {
+        healthCheck: { interval: 5_000, timeout: 100, numProbes: 3, delayBetweenProbes: 1_000, policy: 'ANY' }
+      });
+      await mgr.connect();
+      fakes.get('db-1')!.onCommand = async () => { throw new Error('down'); };
+
+      const forcing = mgr.setActiveDatabase('db-1');
+      forcing.catch(() => {});
+      await tick(20);
+      const start = Date.now();
+      await mgr.close();
+
+      await assert.rejects(forcing, /the client is closed/);
+      assert.ok(Date.now() - start < 500, 'the force must not wait out its probe delays');
+    });
+  });
 });

@@ -123,6 +123,12 @@ export class MultiDbManager<C extends RedisClientLike> {
    * re-promoted state (e.g. a rapid A→B→A).
    */
   #switchGeneration = 0;
+  /**
+   * Bumped when an all-down search starts. A search loop exits once a newer
+   * search exists — a rescue followed by a second outage within one delay
+   * must not let the old loop exhaust the new search's attempts.
+   */
+  #searchEpoch = 0;
   /** one forced switch at a time — setActiveDatabase rejects re-entry */
   #forcedSwitchInFlight = false;
   readonly #teardown = new AbortController();
@@ -271,6 +277,9 @@ export class MultiDbManager<C extends RedisClientLike> {
    * faulty.
    */
   onCommandResult(ok: boolean, err?: Error, source?: Database<C>): void {
+    // while the gate is up the failed member's leftovers are no evidence: a
+    // same-member recovery must start with a clean detector
+    if (this.#unavailable !== null) return;
     if (source !== undefined && source !== this.#active) return;
     this.#detector.onCommandResult(ok, err);
     if (!ok && this.#detector.isFaulty()) {
@@ -417,10 +426,11 @@ export class MultiDbManager<C extends RedisClientLike> {
 
     this.#failoverInFlight = true;
     this.#unavailable = 'searching';
-    void this.#searchLoop(reason);
+    this.#detector.reset();
+    void this.#searchLoop(reason, ++this.#searchEpoch);
   }
 
-  async #searchLoop(reason: 'failure-detector' | 'health-check' | 'connection-ended'): Promise<void> {
+  async #searchLoop(reason: 'failure-detector' | 'health-check' | 'connection-ended', epoch: number): Promise<void> {
     const { maxFailoverAttempts, delayBetweenFailoverAttempts } = this.#config;
     for (let attempt = 1; attempt <= maxFailoverAttempts; attempt++) {
       this.#events?.emit('all-databases-down', { attempt, maxAttempts: maxFailoverAttempts });
@@ -429,8 +439,8 @@ export class MultiDbManager<C extends RedisClientLike> {
       } catch {
         return; // torn down mid-search
       }
-      if (this.#unavailable !== 'searching') {
-        return; // rescued mid-delay by a forced switch
+      if (epoch !== this.#searchEpoch || this.#unavailable !== 'searching') {
+        return; // rescued mid-delay, or superseded by a newer search
       }
       // background recovery probing keeps running during the search — a member
       // whose circuit closes here is what makes an attempt succeed
@@ -484,8 +494,12 @@ export class MultiDbManager<C extends RedisClientLike> {
         case 'HALF_OPEN':
           await this.#recoveryProbe(db);
           return;
-        case 'CLOSED':
+        case 'CLOSED': {
+          const epoch = db.healthEpoch;
           if (!await runProbeRound(this.#targetFor(db), this.#healthChecks, this.#config.healthCheck, this.#teardown.signal)) {
+            // a forced switch or connect() verified the member meanwhile — a
+            // failed verdict from before that must not undo it
+            if (db.healthEpoch !== epoch) return;
             const cause = new Error(`MultiDb: database "${db.id}" failed its health check`);
             if (db === this.#active) {
               this.#handleActiveFailure(cause, 'health-check');
@@ -496,6 +510,7 @@ export class MultiDbManager<C extends RedisClientLike> {
             }
           }
           return;
+        }
       }
     } catch (err) {
       this.#emitError(err as Error);
@@ -591,7 +606,10 @@ export class MultiDbManager<C extends RedisClientLike> {
   }
 
   async #forceActiveDatabase(id: string, target: Database<C>): Promise<void> {
-    if (!await runProbeRound(this.#targetFor(target), this.#healthChecks, this.#config.healthCheck)) {
+    if (!await runProbeRound(this.#targetFor(target), this.#healthChecks, this.#config.healthCheck, this.#teardown.signal)) {
+      if (this.#teardown.signal.aborted) {
+        throw new Error('MultiDb: the client is closed');
+      }
       throw new Error(`MultiDb: cannot force database "${id}", it failed its health check`);
     }
     // the probe round takes seconds — a search exhausting meanwhile must fail
@@ -611,6 +629,7 @@ export class MultiDbManager<C extends RedisClientLike> {
       throw new TypeError(`MultiDb: no database with id "${id}"`);
     }
 
+    target.healthEpoch++;
     if (target.circuit.close()) {
       this.#events?.emit('database-recovered', { id: target.id });
     }
@@ -1038,10 +1057,11 @@ export class MultiDbManager<C extends RedisClientLike> {
       }
     }
 
-    if (!skipCheck && !await runProbeRound(this.#targetFor(db), this.#healthChecks, this.#config.healthCheck)) {
+    if (!skipCheck && !await runProbeRound(this.#targetFor(db), this.#healthChecks, this.#config.healthCheck, this.#teardown.signal)) {
       db.circuit.open();
       return false;
     }
+    db.healthEpoch++;
     // a probe-verified member must be selectable — without this, a member that
     // failed an earlier connect() keeps its OPEN circuit and the strategy can
     // never pick it on a repeat connect()
