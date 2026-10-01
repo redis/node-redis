@@ -288,7 +288,10 @@ export class PubSub {
     returnBuffers?: T
   ) {
     const listeners = this.listeners[type];
+    // flag what the reply will delete, so a re-subscribe before the reply
+    // lands sends SUBSCRIBE instead of joining an entry about to go away
     if (!channels) {
+      for (const sets of listeners.values()) sets.unsubscribing = true;
       return this.#unsubscribeCommand(
         type,
         [COMMANDS[type].unsubscribe],
@@ -301,6 +304,10 @@ export class PubSub {
 
     const channelsArray = PubSub.#channelsArray(channels);
     if (!listener) {
+      for (const channel of channelsArray) {
+        const sets = listeners.get(channel);
+        if (sets) sets.unsubscribing = true;
+      }
       return this.#unsubscribeCommand(
         type,
         [COMMANDS[type].unsubscribe, ...channelsArray],
