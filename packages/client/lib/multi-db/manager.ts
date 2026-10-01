@@ -847,7 +847,9 @@ export class MultiDbManager<C extends RedisClientLike> {
       if (member.circuit.state === 'CLOSED') {
         await member.client.close();
       } else {
-        member.client.destroy();
+        // a sentinel destroy settles asynchronously and can still emit
+        // 'error' — dispose() must not drop the listener before it settles
+        await member.client.destroy();
       }
     } catch {
       // best-effort teardown: the member may have never connected
@@ -959,9 +961,13 @@ export class MultiDbManager<C extends RedisClientLike> {
       },
       onDown: db => {
         this.#events?.emit('member-end', { id: db.id });
-        // a definitive end (reconnection given up) fails the active immediately
+        // a definitive end (reconnection given up) fails the active immediately.
+        // Before the first 'ready' connect() owns the outcome: the failed
+        // establish opens the circuit and selection skips the member.
         if (db === this.#active) {
-          this.#handleActiveFailure(new Error(`MultiDb: database "${db.id}" connection ended`), 'connection-ended');
+          if (this.#everReady) {
+            this.#handleActiveFailure(new Error(`MultiDb: database "${db.id}" connection ended`), 'connection-ended');
+          }
         } else if (!this.#teardown.signal.aborted && this.#databases.includes(db)) {
           // deliberate removals are spliced out first and must not announce
           this.#events?.emit('database-unhealthy', {

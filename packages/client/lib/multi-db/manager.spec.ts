@@ -39,15 +39,25 @@ class FakeClient extends EventEmitter {
     this.isOpen = false;
   }
 
-  destroy(): void {
+  /** scriptable destroy behavior; default: settles synchronously */
+  onDestroy: () => void | Promise<void> = () => {};
+
+  destroy(): void | Promise<void> {
     this.destroyed = true;
     this.isOpen = false;
+    return this.onDestroy();
   }
 
-  /** simulate the client giving up reconnecting */
+  /** simulate the client being closed */
   end(): void {
     this.isOpen = false;
     this.emit('end');
+  }
+
+  /** simulate the client giving up reconnecting */
+  terminate(): void {
+    this.isOpen = false;
+    this.emit('terminated', new Error('reconnect strategy gave up'));
   }
 
   handleCommand(): Promise<unknown> {
@@ -1223,6 +1233,86 @@ describe('multi-db manager (unit)', function () {
 
       await assert.rejects(forcing, /the client is closed/);
       assert.ok(Date.now() - start < 500, 'the force must not wait out its probe delays');
+    });
+  });
+
+  describe('member teardown and termination', () => {
+    it("a member's 'terminated' fails the active over immediately", async () => {
+      const { mgr, fakes, received } = makeHarness(2);
+      await mgr.connect();
+
+      fakes.get('db-0')!.terminate();
+
+      assert.deepEqual(received.filter(r => r.event === 'failover'), [
+        { event: 'failover', payload: { from: 'db-0', to: 'db-1', reason: 'connection-ended' } }
+      ]);
+      assert.ok(received.some(r => r.event === 'member-end' && (r.payload as { id: string }).id === 'db-0'));
+      assert.equal(mgr.databases[0].role, 'DISCONNECTED');
+      assert.equal(mgr.databases[0].circuit.state, 'OPEN');
+      mgr.destroy();
+    });
+
+    it("a 'terminated' during the initial connect() does not fail over before 'ready'", async () => {
+      const { mgr, fakes, received } = makeHarness(3);
+      const db0 = fakes.get('db-0')!;
+      db0.onConnect = async () => {
+        db0.terminate();
+        throw new Error('gave up');
+      };
+
+      await mgr.connect();
+
+      assert.equal(mgr.activeDatabase.id, 'db-1');
+      assert.deepEqual(received.filter(r => r.event === 'failover'), []);
+      assert.equal(mgr.databases[0].circuit.state, 'OPEN');
+      mgr.destroy();
+    });
+
+    it("removeDatabase detaches the 'terminated' listener", async () => {
+      const { mgr, fakes } = makeHarness(2);
+      await mgr.connect();
+      const db1 = fakes.get('db-1')!;
+      assert.equal(db1.listenerCount('terminated'), 1);
+
+      await mgr.removeDatabase('db-1');
+
+      assert.equal(db1.listenerCount('terminated'), 0);
+      mgr.destroy();
+    });
+
+    it('removeDatabase keeps the error listener until an async destroy settles', async () => {
+      const { mgr, fakes, received } = makeHarness(2);
+      await mgr.connect();
+      const db1 = fakes.get('db-1')!;
+      mgr.databases[1].circuit.open(); // not CLOSED → destroy path
+      const late = new Error('late');
+      db1.onDestroy = async () => {
+        await tick(10);
+        db1.emit('error', late);
+      };
+
+      await mgr.removeDatabase('db-1');
+
+      assert.ok(received.some(r =>
+        r.event === 'member-error' && (r.payload as { id: string; error: Error }).error === late));
+      assert.equal(db1.listenerCount('error'), 0);
+      mgr.destroy();
+    });
+
+    it('removeDatabase resolves when the member destroy rejects', async () => {
+      const { mgr, fakes } = makeHarness(2);
+      await mgr.connect();
+      const db1 = fakes.get('db-1')!;
+      mgr.databases[1].circuit.open();
+      db1.onDestroy = async () => {
+        throw new Error('destroy failed');
+      };
+
+      await mgr.removeDatabase('db-1');
+
+      assert.deepEqual(mgr.databases.map(db => db.id), ['db-0']);
+      assert.equal(db1.listenerCount('error'), 0);
+      mgr.destroy();
     });
   });
 });
