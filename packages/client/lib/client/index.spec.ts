@@ -1321,6 +1321,60 @@ describe('Client', () => {
       }
     }, GLOBAL.SERVERS.OPEN);
 
+    for (const resp of [2, 3] as const) {
+      testUtils.testWithClient(`should keep delivering messages after a listener throws (RESP${resp})`, async publisher => {
+        const subscriber = await publisher.duplicate().connect(),
+          listenerError = new Error('listener error'),
+          errors: Array<unknown> = [],
+          listener = spy((message: string) => {
+            if (message === '1') throw listenerError;
+          });
+        subscriber.on('error', err => errors.push(err));
+
+        try {
+          await subscriber.subscribe('channel', listener);
+          // published in one pipeline, the first three messages reach the subscriber in one chunk
+          await Promise.all(['1', '2', '3'].map(message => publisher.publish('channel', message)));
+          await publisher.publish('channel', '4');
+          await subscriber.ping();
+
+          assert.deepEqual(listener.args.map(([message]) => message), ['1', '2', '3', '4']);
+          assert.deepEqual(errors, [listenerError]);
+        } finally {
+          subscriber.destroy();
+        }
+      }, {
+        ...GLOBAL.SERVERS.OPEN,
+        clientOptions: { ...GLOBAL.SERVERS.OPEN.clientOptions, RESP: resp }
+      });
+    }
+
+    testUtils.testWithClient('should keep replies matched to their commands when a listener throws', async client => {
+      await client.mSet({ k1: 'v1', k2: 'v2', k3: 'v3', k4: 'v4' });
+      const duplicate = await client.duplicate().connect(),
+        listenerError = new Error('listener error');
+
+      try {
+        await duplicate.subscribe('channel', () => {
+          throw listenerError;
+        });
+        // the message and the two replies after it arrive in one chunk
+        const errorEvent = once(duplicate, 'error'),
+          replies = Promise.all([
+            duplicate.publish('channel', 'message'),
+            duplicate.get('k1'),
+            duplicate.get('k2')
+          ]);
+        assert.deepEqual(await errorEvent, [listenerError]);
+
+        const laterReplies = Promise.all([duplicate.get('k3'), duplicate.get('k4')]);
+        assert.deepEqual(await replies, [1, 'v1', 'v2']);
+        assert.deepEqual(await laterReplies, ['v3', 'v4']);
+      } finally {
+        duplicate.destroy();
+      }
+    }, GLOBAL.SERVERS.OPEN);
+
     testUtils.testWithClient('should be able to quit in PubSub mode', async client => {
       await client.subscribe('channel', () => {
         // noop
