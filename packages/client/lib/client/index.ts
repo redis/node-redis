@@ -1976,16 +1976,17 @@ export default class RedisClient<
             // rejections are collected by Promise.all, but the tracePromise wrapper
             // is a separate branch that nobody awaits.
             traced.catch(noop);
+            if (String(args[0]).toUpperCase() === 'SELECT') {
+              traced.then(() => {
+                this._self.#selectedDB = Number(args[1]);
+              }, noop);
+            }
             return traced;
           })
         );
         this._self.#scheduleWrite();
 
         const result = await promise;
-
-        if (selectedDB !== undefined) {
-          this._self.#selectedDB = selectedDB;
-        }
 
         return result;
       },

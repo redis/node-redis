@@ -789,6 +789,70 @@ describe('Client', () => {
       minimumDockerVersion: [6, 2] // CLIENT INFO
     });
 
+    testUtils.testWithClient('should remember selected db when a pipelined command fails', async client => {
+      // Regression: the SELECT ran on the server, but the INCR rejected the batch
+      // before the client recorded the database, so the reconnect went back to 0.
+      // The last of the three SELECTs is out of range, so the server ends on db 1.
+      const { databases } = await client.configGet('databases');
+      await assert.rejects(
+        client.multi()
+          .select(2)
+          .set('key', 'value')
+          .incr('key')
+          .select(1)
+          .select(Number(databases))
+          .execAsPipeline()
+      );
+
+      const duplicate = await client.duplicate().connect();
+      try {
+        await Promise.all([
+          once(client, 'error'),
+          duplicate.clientKill({
+            filter: 'ID',
+            id: await client.clientId()
+          })
+        ]);
+      } finally {
+        duplicate.destroy();
+      }
+
+      assert.equal(
+        (await client.clientInfo()).db,
+        1
+      );
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      minimumDockerVersion: [6, 2] // CLIENT INFO
+    });
+
+    testUtils.testWithClient('should remember a db selected by a raw lowercase Buffer SELECT in a pipeline', async client => {
+      await client.multi()
+        .addCommand([Buffer.from('select'), '2'])
+        .execAsPipeline();
+
+      const duplicate = await client.duplicate().connect();
+      try {
+        await Promise.all([
+          once(client, 'error'),
+          duplicate.clientKill({
+            filter: 'ID',
+            id: await client.clientId()
+          })
+        ]);
+      } finally {
+        duplicate.destroy();
+      }
+
+      assert.equal(
+        (await client.clientInfo()).db,
+        2
+      );
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      minimumDockerVersion: [6, 2] // CLIENT INFO
+    });
+
     testUtils.testWithClient('should handle error replies (#2665)', async client => {
       await assert.rejects(
         client.multi()
