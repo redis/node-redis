@@ -3,7 +3,7 @@ import { EventEmitter } from 'node:events';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import testUtils from '../test-utils';
-import { createMultiDbClient, createMultiDbClientPool, DefaultHealthCheck, MultiDbResult } from '.';
+import { createMultiDbClient, createMultiDbClientPool, CommandAbandonedError, DefaultHealthCheck, MultiDbResult } from '.';
 import type { FailureDetector } from '.';
 import type { FailoverEvent } from './controller';
 import RedisClient, { RedisClientType } from '../client';
@@ -464,7 +464,7 @@ describe('multi-db', function () {
   });
 
   describe('pinned surfaces', () => {
-    it('multi() executes on the member captured at creation, and its outcome never trips the new active', () =>
+    it('multi() commits only on its pinned member while it is active, and its outcome never trips the new active', () =>
       withMultiDb(
         {
           failureDetector: { minNumOfFailures: 1, failureRateThreshold: 0, windowSize: 60_000 },
@@ -472,34 +472,43 @@ describe('multi-db', function () {
         },
         async ({ client, controller }) => {
           const failovers: Array<{ reason: string }> = [];
-           
           client.on('failover', (event: { reason: string }) => failovers.push(event));
 
-          // the transaction pins to db-0; the switch must not move it
+          // pinned to db-0; after the switch neither path may write to the demoted member
           const tx = client.multi().set('pinned-tx', 'on-a');
+          const pipeline = client.multi().set('pinned-pipeline', 'on-a');
           await controller.setActiveDatabase('db-1');
-          assert.ok(await tx.exec());
+          await assert.rejects(tx.exec(), CommandAbandonedError);
+          await assert.rejects(pipeline.execAsPipeline(), CommandAbandonedError);
+
+          // a switch away and back leaves the pinned member active: it commits
+          const roundTrip = client.multi().set('pinned-round-trip', 'on-b');
+          await controller.setActiveDatabase('db-0');
+          await controller.setActiveDatabase('db-1');
+          assert.ok(await roundTrip.exec());
 
           const directA = RedisClient.create({ socket: { host: '127.0.0.1', port: serverA.port } });
           const directB = RedisClient.create({ socket: { host: '127.0.0.1', port: serverB.port } });
           await Promise.all([directA.connect(), directB.connect()]);
           try {
-            assert.equal(await directA.get('pinned-tx'), 'on-a', 'the transaction must execute on its pinned member');
+            assert.equal(await directA.get('pinned-tx'), null, 'a stale transaction must not commit on its demoted member');
+            assert.equal(await directA.get('pinned-pipeline'), null, 'a stale pipeline must not run on its demoted member');
             assert.equal(await directB.get('pinned-tx'), null);
+            assert.equal(await directB.get('pinned-round-trip'), 'on-b');
           } finally {
             directA.destroy();
             directB.destroy();
           }
 
-          // a failing exec attributed to a DEMOTED member must not trip the
-          // active one (detector threshold is 1 — any misattribution fails over)
+          // a stale exec is rejected locally and must not trip the active
+          // member (detector threshold is 1 — any misattribution fails over)
           const staleTx = client.multi().addCommand(['NOSUCHCOMMAND']);
           await controller.setActiveDatabase('db-0');
-          await assert.rejects(staleTx.exec());
+          await assert.rejects(staleTx.exec(), CommandAbandonedError);
           await new Promise(resolve => setTimeout(resolve, 200));
           assert.ok(
             failovers.every(event => event.reason === 'forced'),
-            'a demoted member\u2019s exec failure must not cause an automatic failover'
+            'a stale exec must not cause an automatic failover'
           );
 
           // …while a failing exec on the ACTIVE pinned member must feed the
@@ -514,6 +523,24 @@ describe('multi-db', function () {
             failovers.some(event => event.reason === 'failure-detector'),
             'an active member\u2019s exec failure must count toward the detector'
           );
+        }
+      )
+    );
+
+    it('a multi() pinned before a switch rejects with WatchError under a watch session on the new member', () =>
+      withMultiDb(
+        { databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })] },
+        async ({ client, controller }) => {
+          const tx = client.multi().set('watch-after-multi', 'on-a');
+          await controller.setActiveDatabase('db-1');
+          await client.watch('watch-after-multi');
+          await assert.rejects(tx.exec(), (err: Error) =>
+            err instanceof WatchError && /changed after MULTI/.test(err.message)
+          );
+
+          // the session on the new member is intact: the retry commits there
+          assert.ok(await client.multi().set('watch-after-multi', 'on-b').exec());
+          assert.equal(await client.get('watch-after-multi'), 'on-b');
         }
       )
     );
@@ -737,7 +764,7 @@ describe('multi-db', function () {
       })()
     );
 
-    it('a scan iterator stays pinned to its member and fails if that member is removed', () =>
+    it('a scan iterator rejects its next batch once the active member changes, and fails if that member is removed', () =>
       withMultiDb(
         { databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })] },
         async ({ client, controller }) => {
@@ -745,17 +772,23 @@ describe('multi-db', function () {
             await client.set(`scan-pin:${i}`, 'x');
           }
           const iterator = client.scanIterator({ MATCH: 'scan-pin:*', COUNT: 3 });
-          const seen: Array<string> = [];
           const first = await iterator.next();
           assert.equal(first.done, false);
-          seen.push(...(first.value as Array<string>));
 
-          // the switch must not redirect the cursor to another member
+          // the cursor belongs to db-0: it must neither follow the switch nor
+          // keep reading the demoted member
           await controller.setActiveDatabase('db-1');
-          for await (const keys of { [Symbol.asyncIterator]: () => iterator }) {
+          await assert.rejects(iterator.next(), CommandAbandonedError);
+
+          // an iterator that never sees a switch finishes its member's keyspace
+          for (let i = 0; i < 10; i++) {
+            await client.set(`scan-pin:${i}`, 'x');
+          }
+          const seen: Array<string> = [];
+          for await (const keys of client.scanIterator({ MATCH: 'scan-pin:*', COUNT: 3 })) {
             seen.push(...(keys as Array<string>));
           }
-          assert.equal(new Set(seen).size, 10, 'the iterator must finish its pinned member\u2019s keyspace');
+          assert.equal(new Set(seen).size, 10);
 
           // an iterator whose pinned member is removed fails with that member's error
           const pinnedToB = client.scanIterator();
@@ -858,6 +891,23 @@ describe('multi-db', function () {
         view.removeAllListeners('failover');
         client.emit('failover', { from: 'x', to: 'y', reason: 'forced' });
         assert.equal(fired.length, 0, 'removeAllListeners on a view must clear the root listener');
+
+        // with no argument it clears every event, as on a plain EventEmitter
+        view.on('failover', event => fired.push(event));
+        view.on('database-unhealthy', event => fired.push(event));
+        view.removeAllListeners();
+        assert.deepEqual(client.eventNames(), [], 'a no-arg removeAllListeners must clear every root event');
+      })
+    );
+
+    it('view.listenerCount() forwards the optional listener filter', () =>
+      withMultiDb({ databases: [memberOf(serverA)] }, async ({ client }) => {
+        const view = client.withTypeMapping({ [RESP_TYPES.BLOB_STRING]: Buffer });
+        const listener = () => {};
+        view.on('failover', listener);
+        assert.equal(view.listenerCount('failover'), 1);
+        assert.equal(view.listenerCount('failover', listener), 1);
+        assert.equal(view.listenerCount('failover', () => {}), 0, 'a listener filter must narrow the count');
       })
     );
   });
