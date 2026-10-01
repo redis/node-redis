@@ -248,6 +248,29 @@ describe('PubSub', () => {
     });
   });
 
+  describe('re-subscribe while a no-listener unsubscribe is in flight', () => {
+    for (const [name, unsubscribe] of [
+      ['unsubscribe(channel)', (pubSub: PubSub) => pubSub.unsubscribe(TYPE, 'again')],
+      ['unsubscribe()', (pubSub: PubSub) => pubSub.unsubscribe(TYPE)]
+    ] as const) {
+      it(`${name} then subscribe sends SUBSCRIBE and keeps the new listener`, () => {
+        const pubSub = new PubSub(CLIENT_ID);
+        pubSub.subscribe(TYPE, 'again', () => {})!.resolve();
+
+        const unsub = unsubscribe(pubSub);
+        assert.ok(unsub);
+        const listener = () => {};
+        const resubscribe = pubSub.subscribe(TYPE, 'again', listener);
+        assert.ok(resubscribe, 'the channel is leaving, so the re-subscribe must hit the wire');
+
+        // replies land in wire order
+        unsub.resolve();
+        resubscribe.resolve();
+        assert.ok(pubSub.listeners[TYPE].get('again')?.strings.has(listener));
+      });
+    }
+  });
+
   describe('in-flight subscribes across removeAllListeners (multi-db moves)', () => {
     it('an in-flight subscribe is folded into the snapshot; its late confirm does not resurrect it', () => {
       const pubSub = new PubSub(CLIENT_ID);
