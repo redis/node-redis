@@ -92,6 +92,19 @@ const asapClient = client.asap();
 await asapClient.ping();
 ```
 
+## Client Side Caching
+
+When [client side caching](./client-side-caching.md) is enabled, the `cache` option states whether the application wants a reply cached: `true` caches it if the command is eligible, `false` never caches it. It overrides the `cacheable` predicate and the [tracking mode](./client-side-caching.md#tracking-modes) default. Without `clientSideCache`, it has no effect.
+
+```javascript
+await client.withCommandOptions({ cache: true }).get('user:42');
+
+const uncached = client.withCommandOptions({ cache: false });
+await uncached.get('counter:hits');
+```
+
+Commands sent with `sendCommand` bypass the cache, so the option has no effect there.
+
 ## `withCommandOptions`
 
 You can set all of the above command options in a single call with the `withCommandOptions` function:

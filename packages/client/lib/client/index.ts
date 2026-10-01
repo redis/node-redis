@@ -4,8 +4,8 @@ import { BasicAuth, CredentialsError, CredentialsProvider, StreamingCredentialsP
 import RedisCommandsQueue, { CommandOptions } from './commands-queue';
 import { EventEmitter } from 'node:events';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
-import { defaultCommandMetadata, isCacheable } from '../command-metadata';
-import { AbortError, ClientClosedError, ClientOfflineError, DisconnectsClientError, WatchError } from '../errors';
+import { defaultCommandMetadata, isCacheable, isTrackable } from '../command-metadata';
+import { AbortError, ClientClosedError, ClientOfflineError, ClientSideCacheCommandError, ClientSideCacheMarkError, DisconnectsClientError, WatchError } from '../errors';
 import { URL } from 'node:url';
 import { TcpSocketConnectOpts } from 'node:net';
 import { PUBSUB_TYPE, PubSubType, PubSubListener, PubSubTypeListeners, ChannelListeners } from './pub-sub';
@@ -17,7 +17,7 @@ import { ScanOptions, ScanCommonOptions } from '../commands/SCAN';
 import { RedisLegacyClient, RedisLegacyClientType } from './legacy-mode';
 import { RedisPoolOptions, RedisClientPool } from './pool';
 import { RedisVariadicArgument, parseArgs } from '../commands/generic-transformers';
-import { BasicClientSideCache, ClientSideCacheConfig, ClientSideCacheProvider } from './cache';
+import { BasicClientSideCache, CLIENT_SIDE_CACHE_TRACKING_MODES, ClientSideCacheConfig, ClientSideCacheProvider } from './cache';
 import { BasicCommandParser, CommandParser, prefixKeys } from './parser';
 import SingleEntryCache from '../single-entry-cache';
 import { version } from '../../package.json'
@@ -53,6 +53,28 @@ function assertNoHimportSessionCommands(commands: Array<RedisMultiQueuedCommand>
         'HIMPORT PREPARE/DISCARD/DISCARDALL are not supported inside MULTI/pipeline; call them on the client before the transaction'
       );
     }
+  }
+}
+
+const CSC_MANAGED_CLIENT_SUBCOMMANDS = new Set(['CACHING', 'TRACKING']);
+
+/**
+ * With client-side caching on, the client owns the connection's tracking state: a user
+ * `CLIENT TRACKING` can reset the OPTIN/OPTOUT mode or stop invalidations, and a user
+ * `CLIENT CACHING` flag attaches to the wrong read. The handshake's `CLIENT TRACKING` and
+ * the `CLIENT CACHING` preludes go straight to the queue, so they never reach this check.
+ * Returns the refused command name (e.g. `CLIENT TRACKING`), if any.
+ */
+function cscManagedCommand(args: ReadonlyArray<RedisArgument>): string | undefined {
+  if (args.length < 2 || String(args[0]).toUpperCase() !== 'CLIENT') return;
+  const sub = String(args[1]).toUpperCase();
+  return CSC_MANAGED_CLIENT_SUBCOMMANDS.has(sub) ? `CLIENT ${sub}` : undefined;
+}
+
+function assertNoCscManagedCommands(commands: Array<RedisMultiQueuedCommand>) {
+  for (const { args } of commands) {
+    const command = cscManagedCommand(args);
+    if (command) throw new ClientSideCacheCommandError(command);
   }
 }
 
@@ -1304,26 +1326,88 @@ export default class RedisClient<
     // Eligibility is only worth computing when caching is enabled — the
     // metadata lookup decodes the command identifier (Buffer args included)
     // and must not tax the common no-CSC path.
+    const meta = csc ? defaultCommandMetadata.lookup(parser.commandIdentifier) : undefined;
+
     if (csc) {
       const defaultTypeMapping = this._self.#options.commandOptions === commandOptions ||
         (this._self.#options.commandOptions?.typeMapping === commandOptions?.typeMapping);
 
       // Override-first: a defined `Command.CACHEABLE` wins; otherwise CSC
       // eligibility derives from the server flags/tips (see `isCacheable`).
-      const cacheable = isCacheable(defaultCommandMetadata.lookup(parser.commandIdentifier), command.CACHEABLE);
+      const eligible = isCacheable(meta, command.CACHEABLE);
+      const mark = commandOptions?.cache;
 
-      if (cacheable && defaultTypeMapping) {
-        return await csc.handleCache(this._self, parser as BasicCommandParser, fn, transformReply, commandOptions?.typeMapping);
+      // Strict: reject before the send, so the command leaves no side effects behind.
+      // Otherwise the command still executes and nothing is stored; warn on every such call.
+      // TODO: consider removing this warning, or replacing it with a diagnostics channel event.
+      if (!eligible && mark === true) {
+        const error = new ClientSideCacheMarkError(parser.commandIdentifier.command);
+        if (csc.strict) {
+          throw error;
+        }
+        console.warn(error.message);
+      }
+
+      // Intent never makes an ineligible command cacheable. An ASK-redirected
+      // attempt is never stored: ASKING already occupies the one-shot slot the
+      // CLIENT CACHING flag needs.
+      const store = eligible && defaultTypeMapping && !commandOptions?.askRedirect &&
+        csc.resolveCacheIntent(mark, parser.commandIdentifier.command, parser.keys);
+
+      if (store) {
+        if (csc.trackingMode !== CLIENT_SIDE_CACHE_TRACKING_MODES.OPTIN) {
+          return await csc.handleCache(this._self, parser as BasicCommandParser, fn, transformReply, commandOptions?.typeMapping);
+        }
+
+        let storable = true;
+        const cmd = async () => {
+          const result = await this._self.#sendWithCaching(this, 'YES', parser, commandOptions);
+          storable = result.storable;
+          return result.reply;
+        };
+        return await csc.handleCache(this._self, parser as BasicCommandParser, cmd, transformReply, commandOptions?.typeMapping, () => storable);
       }
     }
 
-    const reply = await fn();
+    const reply = csc?.trackingMode === CLIENT_SIDE_CACHE_TRACKING_MODES.OPTOUT && isTrackable(meta) && !commandOptions?.askRedirect ?
+      // A failed NO flag only costs wasted tracking; the reply is never stored here.
+      (await this._self.#sendWithCaching(this, 'NO', parser, commandOptions)).reply :
+      await fn();
 
     const finalReply = transformReply ? transformReply(reply, parser.preserve, commandOptions?.typeMapping) : reply;
 
     publish(CHANNELS.COMMAND_REPLY, () => ({ args: sanitizeArgs(parser.redisArgs), reply: finalReply, clientId: this._self._clientId }));
 
     return finalReply;
+  }
+
+  /**
+   * Sends `CLIENT CACHING <flag>` followed by the read (OPTIN/OPTOUT tracking modes).
+   *
+   * The flag rides as the read's queue prelude, so the two are admitted, cancelled,
+   * encoded, and written as one unit, and both fail if the connection dies after the
+   * write — a flag can never reach the wire without its read.
+   *
+   * `storable` is true only when the flag succeeded: an error reply for the flag means
+   * tracking is unconfirmed, so the reply is returned but must not be cached.
+   */
+  async #sendWithCaching(
+    // The proxy-aware caller, needed for `sendCommand` merging and `_commandOptions`.
+    client: RedisClient<M, F, S, RESP, TYPE_MAPPING>,
+    flag: 'YES' | 'NO',
+    parser: CommandParser,
+    commandOptions: CommandOptions<TYPE_MAPPING> | undefined
+  ) {
+    let storable = false;
+    const reply = await client.sendCommand(parser.redisArgs, {
+      ...commandOptions,
+      prelude: {
+        args: ['CLIENT', 'CACHING', flag],
+        // The flag's reply always arrives before the read's.
+        onReply: err => { storable = err === undefined; }
+      }
+    });
+    return { reply, storable };
   }
 
   /**
@@ -1632,6 +1716,11 @@ export default class RedisClient<
           return Promise.reject(new ClientOfflineError());
         }
 
+        if (this._self.#clientSideCache) {
+          const command = cscManagedCommand(args);
+          if (command) return Promise.reject(new ClientSideCacheCommandError(command));
+        }
+
         // Merge global options with provided options
         const opts = {
           ...this._commandOptions,
@@ -1858,6 +1947,7 @@ export default class RedisClient<
     slotNumber?: number
   ) {
     assertNoHimportSessionCommands(commands);
+    if (this._self.#clientSideCache) assertNoCscManagedCommands(commands);
 
     if (!this._self.#socket.isOpen) {
       return Promise.reject(new ClientClosedError());
@@ -1919,6 +2009,7 @@ export default class RedisClient<
     chainId = Symbol('MULTI Chain')
   ) {
     assertNoHimportSessionCommands(commands);
+    if (this._self.#clientSideCache) assertNoCscManagedCommands(commands);
 
     const dirtyWatch = this._self.#dirtyWatch;
     this._self.#dirtyWatch = undefined;

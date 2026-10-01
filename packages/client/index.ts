@@ -38,7 +38,7 @@ export { GEO_REPLY_WITH, GeoReplyWith } from './lib/commands/GEOSEARCH_WITH';
 
 export { SetOptions, CLIENT_KILL_FILTERS, CLIENT_UNBLOCK_MODES, FAILOVER_MODES, CLUSTER_SLOT_STATES, COMMAND_LIST_FILTER_BY, REDIS_FLUSH_MODES, AR_PREDICATE_TYPES, AR_PREDICATE_COMBINATORS, AR_OPERATIONS } from './lib/commands'
 
-export { BasicClientSideCache, BasicPooledClientSideCache } from './lib/client/cache';
+export { BasicClientSideCache, BasicPooledClientSideCache, CLIENT_SIDE_CACHE_TRACKING_MODES, type ClientSideCacheTrackingMode } from './lib/client/cache';
 export { OpenTelemetry } from './lib/opentelemetry';
 
 export {
