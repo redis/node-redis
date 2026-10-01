@@ -1254,28 +1254,38 @@ export default class RedisClusterSlots<
         this.replicas[index - this.masters.length],
       client = this.#createClient(node, false);
 
-    this.pubSubNode = {
+    const pubSubNode: PubSubNode<M, F, S, RESP, TYPE_MAPPING> = {
       address: node.address,
-      client,
-      connectPromise: client.connect()
-        .then(async client => {
-          if (toResubscribe) {
-            await Promise.all([
-              client.extendPubSubListeners(PUBSUB_TYPE.CHANNELS, toResubscribe[PUBSUB_TYPE.CHANNELS]),
-              client.extendPubSubListeners(PUBSUB_TYPE.PATTERNS, toResubscribe[PUBSUB_TYPE.PATTERNS])
-            ]);
-          }
-
-          this.pubSubNode!.connectPromise = undefined;
-          return client;
-        })
-        .catch(err => {
-          this.pubSubNode = undefined;
-          throw err;
-        })
+      client
     };
 
-    return this.pubSubNode.connectPromise!;
+    this.pubSubNode = pubSubNode;
+
+    pubSubNode.connectPromise = client.connect()
+      .then(async client => {
+        if (this.pubSubNode !== pubSubNode) {
+          client.destroy();
+          return client;
+        }
+
+        if (toResubscribe) {
+          await Promise.all([
+            client.extendPubSubListeners(PUBSUB_TYPE.CHANNELS, toResubscribe[PUBSUB_TYPE.CHANNELS]),
+            client.extendPubSubListeners(PUBSUB_TYPE.PATTERNS, toResubscribe[PUBSUB_TYPE.PATTERNS])
+          ]);
+        }
+
+        pubSubNode.connectPromise = undefined;
+        return client;
+      })
+      .catch(err => {
+        if (this.pubSubNode === pubSubNode) {
+          this.pubSubNode = undefined;
+        }
+        throw err;
+      });
+
+    return pubSubNode.connectPromise!;
   }
 
   async executeUnsubscribeCommand(
