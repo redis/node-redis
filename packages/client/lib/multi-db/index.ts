@@ -7,6 +7,7 @@ import { RedisSentinelType, RedisSentinelOptions } from '../sentinel/types';
 import { RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
 import { PUBSUB_TYPE } from '../client/pub-sub';
 import { WatchError } from '../errors';
+import { CommandAbandonedError } from './errors';
 import { MultiDbManager } from './manager';
 import type { MemberAdapter, ResolvedMemberConfig } from './manager';
 import { MultiDbController } from './controller';
@@ -183,8 +184,10 @@ class MultiDbClientBase<C extends RedisClientLike> extends EventEmitter {
    * transaction must execute wholly on one member, so it never follows a
    * failover. Its execution methods reject while every member is down and
    * report their outcome to the failure detector, attributed to the pinned
-   * member; an EXEC whose watch session was invalidated by a switch rejects
-   * with WatchError. Create transactions per use, not at startup.
+   * member. If the active member changed since creation they commit nothing
+   * and reject — with WatchError under a watch session, else with
+   * CommandAbandonedError; an EXEC whose watch session was invalidated by a
+   * switch rejects with WatchError. Create transactions per use, not at startup.
    * @experimental
    */
   multi() {
@@ -219,7 +222,8 @@ class MultiDbClientBase<C extends RedisClientLike> extends EventEmitter {
  * Build a member's multi and patch its execution methods in place: the builder
  * methods chain on the same instance, so wrapping via a separate object would
  * be bypassed by the first chained call. `exec`/`execAsPipeline` gain the
- * fail-fast check and outcome reporting (the typed variants delegate to them).
+ * fail-fast check, the pinned-member check and outcome reporting (the typed
+ * variants delegate to them).
  */
 function makePinnedMulti<C extends RedisClientLike>(
   mgr: MultiDbManager<C>,
@@ -243,6 +247,16 @@ function makePinnedMulti<C extends RedisClientLike>(
       if (method === 'exec' && mgr.watchDirty) {
         mgr.clearWatchSession();
         return Promise.reject(new WatchError('MultiDb: the active database changed after WATCH'));
+      }
+      // traffic moved off the pinned member: committing there would write to a
+      // demoted database. Identity check, so a switch away and back still commits.
+      // Under WATCH the app already runs a WatchError retry loop — reuse it.
+      if (member !== mgr.activeDatabase) {
+        return Promise.reject(
+          mgr.watchedMember !== null ?
+            new WatchError('MultiDb: the active database changed after MULTI') :
+            new CommandAbandonedError()
+        );
       }
       // a real EXEC settles a session held by this member: the server consumes
       // its watches on delivery, and a failed EXEC means the watching
@@ -378,14 +392,17 @@ function makeDerived<C extends RedisClientLike>(
     };
   }
   dst.emit = (event: string, ...args: Array<unknown>) => eventRoot.emit(event, ...args);
-  dst.listenerCount = (event: string) => eventRoot.listenerCount(event);
+  dst.listenerCount = (...args: [string | symbol, ((...a: Array<unknown>) => void)?]) =>
+    eventRoot.listenerCount(...args);
   dst.listeners = (event: string) => eventRoot.listeners(event);
   dst.eventNames = () => eventRoot.eventNames();
   // the remaining EventEmitter surface must delegate too, or it operates on the
   // view's own empty emitter: removeAllListeners() would clear nothing while
   // the root keeps firing; rawListeners()/getMaxListeners() would read the
   // wrong emitter. Chainable ones return the view, query ones the root's value.
-  dst.removeAllListeners = (event?: string) => { eventRoot.removeAllListeners(event); return dst; };
+  // Optional arguments forward as-is: Node branches on arguments.length, so an
+  // explicit `undefined` event would clear nothing.
+  dst.removeAllListeners = (...args: [(string | symbol)?]) => { eventRoot.removeAllListeners(...args); return dst; };
   dst.rawListeners = (event: string) => eventRoot.rawListeners(event);
   dst.setMaxListeners = (n: number) => { eventRoot.setMaxListeners(n); return dst; };
   dst.getMaxListeners = () => eventRoot.getMaxListeners();
@@ -604,6 +621,7 @@ function attachForwarders<C extends RedisClientLike>(
           const active = mgr.activeDatabase;
           // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic
           const result = (resolve(active.client) as any)[name](...args);
+          if (name.endsWith('Iterator')) return pinIterator(mgr, active, result);
           if (result instanceof Promise) {
             return result.then(
               (reply: unknown) => {
@@ -620,6 +638,22 @@ function attachForwarders<C extends RedisClientLike>(
         };
       }
     }
+  }
+}
+
+/**
+ * SCAN cursors are member-specific, so an iterator cannot follow a switch.
+ * Once traffic leaves its member, the next batch rejects instead of reading a
+ * demoted database. A SCAN already in flight at the switch still yields.
+ */
+async function* pinIterator<C extends RedisClientLike>(
+  mgr: MultiDbManager<C>,
+  member: MultiDbManager<C>['activeDatabase'],
+  inner: AsyncIterable<unknown>
+): AsyncGenerator<unknown, void, undefined> {
+  for await (const batch of inner) {
+    yield batch;
+    if (member !== mgr.activeDatabase) throw new CommandAbandonedError();
   }
 }
 

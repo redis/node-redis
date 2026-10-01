@@ -21,9 +21,10 @@ export class PermanentlyUnavailableError extends Error {
 }
 
 /**
- * A command was still queued, unsent, on a member when traffic switched away
- * from it. It is rejected at the switch so it can never execute on the demoted
- * member when that member reconnects later.
+ * Work bound to a member was cut short because traffic switched away from it:
+ * a command still queued, unsent, at the switch (rejected so it can never
+ * execute on the demoted member when that member reconnects later), a pinned
+ * `multi()` executed after the switch, or a pinned scan iterator's next batch.
  * @experimental
  */
 export class CommandAbandonedError extends Error {

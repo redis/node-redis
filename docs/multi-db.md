@@ -242,11 +242,16 @@ never a copy — or `undefined` to escalate.
 - **Pinned surfaces.** A few handles bind to the member that was active when they were
   created and never follow a failover — create them per use, not at startup:
   - `multi()` — a transaction executes wholly on its pinned member; `exec()` rejects while
-    every member is down and its outcome feeds the detector. An `EXEC` whose watch session
-    was invalidated by a switch rejects with `WatchError` (see the WATCH caveat above).
+    every member is down and its outcome feeds the detector. If the active member changed
+    since `multi()`, `exec()` and `execAsPipeline()` commit nothing: they reject with
+    `WatchError` when a watch session exists (so the usual retry loop re-runs on the new
+    member), and with `CommandAbandonedError` otherwise. A switch away and back still
+    commits. An `EXEC` whose watch session was invalidated by a switch rejects with
+    `WatchError` (see the WATCH caveat above).
   - scan iterators (`scanIterator` and friends) — SCAN cursors are member-specific, so an
-    iterator finishes its member's keyspace and fails with that member's error if it dies.
-    While every member is down, creating one throws.
+    iterator cannot follow a switch: after the active member changes, its next batch rejects
+    with `CommandAbandonedError` (a SCAN already in flight still yields), and it fails with
+    its member's error if that member dies. While every member is down, creating one throws.
   - `legacy()` — the callback-style surface stays on its creation member; creating it while
     every member is down throws.
 
