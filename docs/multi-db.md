@@ -146,7 +146,7 @@ describe the multi-db client as a whole, not any one connection:
 | `fallback` | `{ from, to }` | auto-fallback returned to a higher-weight member |
 | `database-unhealthy` | `{ id, cause }` | a member's circuit opened |
 | `database-recovered` | `{ id }` | a member's circuit closed again |
-| `all-databases-down` | `{ attempt, maxAttempts }` | one failed selection attempt with no healthy member |
+| `all-databases-down` | `{ attempt, maxAttempts }` | one failed selection attempt with no healthy member; recovery shows as `failover`, or as `database-recovered` when the member that was already active comes back |
 | `member-error` | `{ id, error }` | one member's client reported an error |
 | `member-ready` | `{ id }` | one member's client (re)connected |
 | `member-end` | `{ id }` | one member's client gave up reconnecting |

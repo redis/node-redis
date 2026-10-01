@@ -58,6 +58,12 @@ export class Database<C extends RedisClientLike> {
   readonly client: C;
   weight: number;
   readonly circuit: Circuit;
+  /**
+   * Bumped when the member is verified outside the background scheduler
+   * (forced switch, connect). A background round that started earlier drops
+   * its failed verdict.
+   */
+  healthEpoch = 0;
   role: DatabaseRole = 'PASSIVE';
   readonly skipInitialHealthCheck: boolean;
   readonly #untypedErrorIsFault: boolean;
