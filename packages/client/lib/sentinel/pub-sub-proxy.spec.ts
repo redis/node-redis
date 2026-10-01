@@ -98,6 +98,52 @@ describe('sentinel pub-sub-proxy', function () {
     await leaving.catch(() => {}); // the abandoned dispatch settles quietly post-destroy
   });
 
+  it('a subscribe then an unsubscribe in flight on a live client are not resurrected by extract', async () => {
+    const node = { host: '127.0.0.1', port: server.port };
+    const proxy = new PubSubProxy({}, () => {});
+    await proxy.changeNode(node);
+    const kept = () => {};
+    await proxy.subscribe('kept', kept);
+
+    // both dispatched to the live inner client; extract before either settles
+    const subscribing = proxy.subscribe('flop', () => {});
+    const unsubscribing = proxy.unsubscribe('flop');
+    const extracted = proxy.extractListeners();
+
+    assert.ok(extracted[PUBSUB_TYPE.CHANNELS].get('kept')?.strings.has(kept));
+    assert.equal(extracted[PUBSUB_TYPE.CHANNELS].has('flop'), false, 'the later unsubscribe must win');
+    // both intents moved with the extraction: neither caller sees a failure
+    await assert.doesNotReject(subscribing);
+    await assert.doesNotReject(unsubscribing);
+  });
+
+  it('an unsubscribe parked behind a pending connect is replayed by extract', async () => {
+    const node = { host: '127.0.0.1', port: server.port };
+    const proxy = new PubSubProxy({}, () => {});
+    await proxy.changeNode(node);
+
+    // the first subscribe starts the connect; both ops park behind it
+    const subscribing = proxy.subscribe('parked', () => {});
+    const unsubscribing = proxy.unsubscribe('parked');
+    const extracted = proxy.extractListeners();
+
+    assert.equal(extracted[PUBSUB_TYPE.CHANNELS].has('parked'), false, 'the parked unsubscribe must apply');
+    await assert.doesNotReject(subscribing);
+    await assert.doesNotReject(unsubscribing);
+  });
+
+  it('a carried unsubscribe on a live client resolves for its caller', async () => {
+    const node = { host: '127.0.0.1', port: server.port };
+    const proxy = new PubSubProxy({}, () => {});
+    await proxy.changeNode(node);
+    await proxy.subscribe('stay', () => {});
+    await proxy.subscribe('leave', () => {});
+
+    const leaving = proxy.unsubscribe('leave');
+    proxy.extractListeners();
+    await assert.doesNotReject(leaving, 'the unsubscribe took effect on the snapshot');
+  });
+
   it('unsubscribing everything clears the adopted snapshot — no ghost on the next extract', async () => {
     const node = { host: '127.0.0.1', port: server.port };
     const source = new PubSubProxy({}, () => {});
