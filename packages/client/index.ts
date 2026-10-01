@@ -81,6 +81,7 @@ export {
   type InitialAvailability,
   type FailureDetector,
   DefaultFailureDetector,
+  defaultErrorFilter,
   type DefaultFailureDetectorOptions,
   DefaultHealthCheck,
   LagAwareHealthCheck,

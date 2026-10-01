@@ -1,5 +1,6 @@
 import type { RedisPoolOptions } from '../client/pool';
 import type { FailureDetector } from './failure-detector';
+import { defaultErrorFilter } from './error-filter';
 import type { HealthCheck } from './health-check';
 // value import, but health-check's own config imports are type-only — no cycle
 import { probeRoundBudget } from './health-check';
@@ -69,7 +70,11 @@ export interface FailureDetectorConfig {
   failureRateThreshold?: number;
   /** sliding window size in ms. Default 2000. */
   windowSize?: number;
-  /** which errors count as failures. Default: all errors count. */
+  /**
+   * which errors count as failures. Default `defaultErrorFilter`: server-state
+   * error replies and connection errors count; other error replies, WATCH
+   * conflicts and aborts do not.
+   */
   errorFilter?: (err: Error) => boolean;
 }
 
@@ -299,7 +304,7 @@ export function resolveMultiDbConfig<DB extends DatabaseConfig<unknown>>(
       ? config.failureDetector
       : {
           // not in MULTI_DB_DEFAULTS — the table stays data-only (deep-equal pinned by config.spec.ts)
-          errorFilter: () => true,
+          errorFilter: defaultErrorFilter,
           ...MULTI_DB_DEFAULTS.failureDetector,
           ...config.failureDetector
         };

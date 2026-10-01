@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert';
 import { resolveMultiDbConfig, MULTI_DB_DEFAULTS } from './config';
 import type { FailureDetector } from './failure-detector';
+import { defaultErrorFilter } from './error-filter';
 
 describe('resolveMultiDbConfig', () => {
   const DB = { options: {} };
@@ -24,14 +25,14 @@ describe('resolveMultiDbConfig', () => {
       assert.equal(config.failoverStrategy, undefined);
     });
 
-    it('applies default failure detector thresholds with an all-errors filter', () => {
+    it('applies default failure detector thresholds with the default error filter', () => {
       const { config } = resolveMultiDbConfig([DB]);
       assert.ok(!('isFaulty' in config.failureDetector));
       const detector = config.failureDetector as Exclude<typeof config.failureDetector, FailureDetector>;
       assert.equal(detector.minNumOfFailures, 1_000);
       assert.equal(detector.failureRateThreshold, 10);
       assert.equal(detector.windowSize, 2_000);
-      assert.equal(detector.errorFilter(new Error('any')), true);
+      assert.equal(detector.errorFilter, defaultErrorFilter);
     });
 
     it('fills database identity: generated ids, weight 1, no skipped initial check', () => {
