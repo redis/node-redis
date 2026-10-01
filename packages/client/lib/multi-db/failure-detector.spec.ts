@@ -1,5 +1,15 @@
 import { strict as assert } from 'node:assert';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { DefaultFailureDetector } from './failure-detector';
+import { defaultErrorFilter } from './error-filter';
+import {
+  AbortError,
+  MultiErrorReply,
+  SimpleError,
+  SocketClosedUnexpectedlyError,
+  TimeoutError,
+  WatchError
+} from '../errors';
 
 describe('DefaultFailureDetector', () => {
   function createDetector(options: {
@@ -116,6 +126,72 @@ describe('DefaultFailureDetector', () => {
       detector.onCommandResult(false);
       assert.equal(detector.isFaulty(), true);
     });
+  });
+
+  describe('defaultErrorFilter', () => {
+    const reply = (message: string) => new SimpleError(message);
+    const connReset = Object.assign(new Error('read ECONNRESET'), { code: 'ECONNRESET' });
+
+    for (const [name, err] of [
+      ['WRONGTYPE', reply('WRONGTYPE Operation against a key holding the wrong kind of value')],
+      ['CROSSSLOT', reply("CROSSSLOT Keys in request don't hash to the same slot")],
+      ['TRYAGAIN', reply('TRYAGAIN Multiple keys request during rehashing of slot')],
+      ['OOM', reply("OOM command not allowed when used memory > 'maxmemory'.")],
+      ['BUSYKEY (not BUSY)', reply('BUSYKEY Target key name already exists.')],
+      ['WatchError', new WatchError()],
+      ['AbortError', new AbortError()],
+      ['MultiErrorReply of command errors', new MultiErrorReply([reply('WRONGTYPE x')], [0])]
+    ] as const) {
+      it(`ignores ${name}`, () => {
+        assert.equal(defaultErrorFilter(err), false);
+      });
+    }
+
+    for (const [name, err] of [
+      ['LOADING', reply('LOADING Redis is loading the dataset in memory')],
+      ['BUSY', reply('BUSY Redis is busy running a script.')],
+      ['MASTERDOWN', reply('MASTERDOWN Link with MASTER is down')],
+      ['CLUSTERDOWN', reply('CLUSTERDOWN The cluster is down')],
+      ['READONLY', reply("READONLY You can't write against a read only replica.")],
+      ['NOREPLICAS', reply('NOREPLICAS Not enough good replicas to write.')],
+      ['MISCONF', reply('MISCONF Redis is configured to save RDB snapshots')],
+      ['SocketClosedUnexpectedlyError', new SocketClosedUnexpectedlyError()],
+      ['TimeoutError', new TimeoutError()],
+      ['ECONNRESET', connReset],
+      ['MultiErrorReply with a server-state reply', new MultiErrorReply([reply('WRONGTYPE x'), reply('LOADING y')], [0, 1])]
+    ] as const) {
+      it(`counts ${name}`, () => {
+        assert.equal(defaultErrorFilter(err), true);
+      });
+    }
+
+    it('is the detector default, and ignored errors still count as traffic', () => {
+      const { detector } = createDetector({ minNumOfFailures: 1, failureRateThreshold: 50 });
+      for (let i = 0; i < 3; i++) detector.onCommandResult(false, reply('WRONGTYPE x'));
+      assert.equal(detector.isFaulty(), false);
+      // 1 counted failure of 4 outcomes = 25% < 50%
+      detector.onCommandResult(false, reply('LOADING y'));
+      assert.equal(detector.isFaulty(), false);
+    });
+  });
+
+  it('the default clock ignores wall-clock jumps', async () => {
+    const realNow = Date.now;
+    let offset = 0;
+    // installed before construction, so a detector reading the wall clock sees the jump
+    Date.now = () => realNow() + offset;
+    try {
+      const detector = new DefaultFailureDetector({ minNumOfFailures: 3, failureRateThreshold: 0, windowSize: 20 });
+      detector.onCommandResult(false);
+      detector.onCommandResult(false);
+      // the wall clock steps back an hour (NTP correction, VM resume)
+      offset = -3_600_000;
+      await sleep(40);
+      detector.onCommandResult(false);
+      assert.equal(detector.isFaulty(), false, 'the first two failures must age out of the window');
+    } finally {
+      Date.now = realNow;
+    }
   });
 
   it('reset discards all observations', () => {

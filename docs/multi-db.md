@@ -91,7 +91,7 @@ All other options are flat on the factory call:
 | `failureDetector.minNumOfFailures` | `1000` | failures within the window; `0` = rate-only |
 | `failureDetector.failureRateThreshold` | `10` | failure rate (%); `0` = count-only |
 | `failureDetector.windowSize` | `2000` | sliding window in ms |
-| `failureDetector.errorFilter` | all count | which errors count as failures |
+| `failureDetector.errorFilter` | `defaultErrorFilter` | which errors count as failures (see below) |
 | `failoverStrategy` | `WeightBasedStrategy` | custom selection strategy |
 | `maxFailoverAttempts` | `10` | selection retries before permanent unavailability |
 | `delayBetweenFailoverAttempts` | `12000` | ms between selection retries |
@@ -231,7 +231,14 @@ never a copy — or `undefined` to escalate.
   outcomes and by data-path connection errors of the active member (a standalone/pool
   socket error, a cluster node error, a sentinel MASTER connection error). Sentinel
   replica, sentinel-node and pub/sub-proxy errors are tolerated by a healthy deployment
-  and are never counted — they surface only as `member-error`. Hard-down members with the
+  and are never counted — they surface only as `member-error`. The default
+  `errorFilter` (`defaultErrorFilter`, exported) counts connection errors, timeouts and
+  error replies that report server state (`LOADING`, `BUSY`, `MASTERDOWN`, `CLUSTERDOWN`,
+  `READONLY`, `NOREPLICAS`, `MISCONF`). Other error replies (`WRONGTYPE`, `CROSSSLOT`,
+  `TRYAGAIN`, `OOM`, ...), WATCH conflicts and aborts are about the command, not the
+  member: they count as traffic but not as failures. A `MULTI` error counts when any of
+  its replies does. To extend the default, compose it:
+  `errorFilter: err => defaultErrorFilter(err) || isMine(err)`. Hard-down members with the
   default offline queue are detected by health-check probe timeouts, not by command
   outcomes (queued commands do not reject until the switch abandons them). A standalone
   member that gives up reconnecting (`terminated`) also fails over at once; cluster and

@@ -1,7 +1,7 @@
 /** @experimental */
 export type CircuitState = 'CLOSED' | 'OPEN' | 'HALF_OPEN';
 
-/** Injectable time source so the state machine is testable without timers. */
+/** Monotonic ms source; only differences are used. Default `performance.now()`. */
 export type Clock = () => number;
 
 export interface CircuitOptions {
@@ -40,7 +40,7 @@ export class Circuit {
   constructor(options: CircuitOptions) {
     this.#gracePeriod = options.gracePeriod;
     this.#numProbes = options.numProbes;
-    this.#clock = options.clock ?? Date.now;
+    this.#clock = options.clock ?? (() => performance.now());
   }
 
   get state(): CircuitState {

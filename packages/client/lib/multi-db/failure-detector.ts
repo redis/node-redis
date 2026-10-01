@@ -1,5 +1,6 @@
 import type { FailureDetectorConfig } from './config';
 import { MULTI_DB_DEFAULTS } from './config';
+import { defaultErrorFilter } from './error-filter';
 
 /**
  * Decides when the active member is faulty. Implementations are fed every
@@ -18,7 +19,7 @@ export interface FailureDetector {
 
 /** @experimental */
 export interface DefaultFailureDetectorOptions extends FailureDetectorConfig {
-  /** injectable time source so the window is testable without timers */
+  /** monotonic ms source; only differences are used. Default `performance.now()`. */
   clock?: () => number;
 }
 
@@ -33,7 +34,8 @@ interface Outcome {
  * `failureRateThreshold` percent. A threshold of 0 disables that condition
  * (count-only / rate-only); at least one failure is always required, so an
  * idle member can never be declared faulty. Errors rejected by `errorFilter`
- * still count as traffic (rate denominator) but not as failures.
+ * (default {@link defaultErrorFilter}) still count as traffic (rate
+ * denominator) but not as failures.
  * @experimental
  */
 export class DefaultFailureDetector implements FailureDetector {
@@ -51,8 +53,8 @@ export class DefaultFailureDetector implements FailureDetector {
     this.#minNumOfFailures = options.minNumOfFailures ?? MULTI_DB_DEFAULTS.failureDetector.minNumOfFailures;
     this.#failureRateThreshold = options.failureRateThreshold ?? MULTI_DB_DEFAULTS.failureDetector.failureRateThreshold;
     this.#windowSize = options.windowSize ?? MULTI_DB_DEFAULTS.failureDetector.windowSize;
-    this.#errorFilter = options.errorFilter ?? (() => true);
-    this.#clock = options.clock ?? Date.now;
+    this.#errorFilter = options.errorFilter ?? defaultErrorFilter;
+    this.#clock = options.clock ?? (() => performance.now());
   }
 
   onCommandResult(ok: boolean, err?: Error): void {
