@@ -352,14 +352,26 @@ describe('RedisClusterSlots', () => {
     // line ~381). Without the fix, pubSubNode kept pointing at the destroyed client;
     // getPubSubClient() then returned Promise.resolve(destroyedClient), causing
     // ClientClosedError on every subsequent subscribe.
-    it('pubSubNode is undefined after topology removes the pub-sub address', async () => {
+    it('pubSubNode is undefined after topology removes the pub-sub address', async function () {
+      this.timeout(5000);
+
       const slots = createSlots();
       await slots.connect();
 
-      // Simulate #discover()'s new behaviour: null pubSubNode when its address
-      // is no longer in the topology and there are no active listeners.
-      slots.pubSubNode = { address: '127.0.0.1:1', client: { destroy() {} } as any };
-      slots.pubSubNode = undefined;
+      // Plant a pubSubNode at an address NOT in the mock topology so that
+      // #discover() destroys and nulls it on the next rediscovery.
+      slots.pubSubNode = {
+        address: '127.0.0.1:9999',
+        client: {
+          _clientId: 'stale-pub-sub',
+          destroy() {},
+          getPubSubListeners: () => new Map(),
+        },
+      } as unknown as NonNullable<typeof slots.pubSubNode>;
+
+      // Trigger topology rediscovery — #discover() sees pubSubNode.address is
+      // not in addressesInUse and calls destroy() + sets pubSubNode = undefined.
+      await slots.rediscover();
 
       assert.equal(slots.pubSubNode, undefined,
         'pubSubNode must be cleared when the address leaves the topology with no listeners');
@@ -385,7 +397,7 @@ describe('RedisClusterSlots', () => {
 
       // Simulate a concurrent topology rediscovery replacing pubSubNode before
       // the in-flight connection fails.
-      const mockNewerNode = { address: '127.0.0.1:2', client: { destroy() {} } as any };
+      const mockNewerNode = { address: '127.0.0.1:2', client: { destroy() {} } } as unknown as NonNullable<typeof slots.pubSubNode>;
       slots.pubSubNode = mockNewerNode;
 
       // Let the original connection attempt reject (ECONNREFUSED to port 1).

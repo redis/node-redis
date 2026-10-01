@@ -385,6 +385,13 @@ export default class RedisClusterSlots<
             this.#initiatePubSubClient({
               [PUBSUB_TYPE.CHANNELS]: channelsListeners,
               [PUBSUB_TYPE.PATTERNS]: patternsListeners
+            }).catch(err => {
+              // A concurrent rediscovery may have already created a new pubSubNode.
+              // ClientClosedError here means the superseded connection was correctly
+              // rejected — not that the cluster is broken. Only re-throw when the
+              // cluster has been torn down (no replacement node was created).
+              if (err instanceof ClientClosedError && this.pubSubNode) return;
+              throw err;
             })
           );
         }
