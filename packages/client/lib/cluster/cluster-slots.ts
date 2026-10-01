@@ -1265,7 +1265,7 @@ export default class RedisClusterSlots<
       .then(async client => {
         if (this.pubSubNode !== pubSubNode) {
           client.destroy();
-          return client;
+          throw new ClientClosedError();
         }
 
         if (toResubscribe) {
@@ -1273,6 +1273,11 @@ export default class RedisClusterSlots<
             client.extendPubSubListeners(PUBSUB_TYPE.CHANNELS, toResubscribe[PUBSUB_TYPE.CHANNELS]),
             client.extendPubSubListeners(PUBSUB_TYPE.PATTERNS, toResubscribe[PUBSUB_TYPE.PATTERNS])
           ]);
+
+          if (this.pubSubNode !== pubSubNode) {
+            client.destroy();
+            throw new ClientClosedError();
+          }
         }
 
         pubSubNode.connectPromise = undefined;
