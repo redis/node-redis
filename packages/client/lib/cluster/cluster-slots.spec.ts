@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert';
-import { EventEmitter } from 'node:events';
+import { EventEmitter, once } from 'node:events';
 import * as net from 'node:net';
+import { createServer, type AddressInfo, type Socket } from 'node:net';
 import { RedisClusterClientOptions } from './index';
 import RedisClusterSlots, { groupCommandsByDestination, splitInFlightChainTail } from './cluster-slots';
 import type { MasterNode, Shard, ShardNode } from './cluster-slots';
@@ -221,6 +222,123 @@ describe('RedisClusterSlots', () => {
       // Before the fix it resolved to the cached dead client (no rejection).
       await assert.rejects(slots.nodeClient(node), 'second call must retry, not return the cached dead client');
       assert.equal(node.client, undefined);
+    });
+  });
+
+  describe('destroy() during discovery', () => {
+    // A minimal RESP2 server: +OK to every command and a one-shard CLUSTER
+    // SLOTS reply pointing at itself. With `hold` set the slots reply waits
+    // for release(), so it can land after destroy(); with `rejecting` set new
+    // connections are dropped at once.
+    async function startFakeNode() {
+      const sockets = new Set<Socket>();
+      let releaseSlots!: () => void;
+      const state = { hold: false, rejecting: false };
+      const server = createServer(socket => {
+        if (state.rejecting) {
+          socket.destroy();
+          return;
+        }
+        sockets.add(socket);
+        socket.on('close', () => sockets.delete(socket));
+        socket.on('data', chunk => {
+          // one reply per command; commands are RESP arrays starting with '*'
+          for (const command of chunk.toString().split('*').filter(part => /^\d+\r\n\$/.test(part))) {
+            if (/CLUSTER\r\n\$5\r\nSLOTS/i.test(command)) {
+              const { port } = server.address() as AddressInfo;
+              const reply = () => socket.write(`*1\r\n*3\r\n:0\r\n:16383\r\n*3\r\n$9\r\n127.0.0.1\r\n:${port}\r\n$2\r\nid\r\n`);
+              if (state.hold) {
+                releaseSlots = reply;
+                server.emit('slots-requested');
+              } else {
+                reply();
+              }
+            } else {
+              socket.write('+OK\r\n');
+            }
+          }
+        });
+      });
+      server.listen(0, '127.0.0.1');
+      await once(server, 'listening');
+      return {
+        port: (server.address() as AddressInfo).port,
+        state,
+        nextSlotsRequest: () => once(server, 'slots-requested'),
+        release: () => releaseSlots(),
+        dropConnections() {
+          for (const socket of sockets) socket.destroy();
+        },
+        async close() {
+          for (const socket of sockets) socket.destroy();
+          server.close();
+          await once(server, 'close');
+        }
+      };
+    }
+
+    it('a slots reply landing after destroy() creates no node clients and emits no error', async () => {
+      const server = await startFakeNode();
+      server.state.hold = true;
+      const emitted: Array<string> = [];
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: server.port } }],
+        RESP: 2
+      }, ((event: string) => {
+        emitted.push(event);
+        return true;
+      }) as never, 'test-cluster');
+
+      try {
+        const slotsRequested = server.nextSlotsRequest();
+        const connecting = slots.connect();
+        await slotsRequested;
+        slots.destroy();
+        server.release();
+
+        await assert.rejects(connecting, /Cluster closed/);
+        assert.equal(slots.nodeByAddress.size, 0, 'no node client may be created after destroy()');
+        assert.deepEqual(emitted.filter(event => event === 'error'), []);
+      } finally {
+        slots.destroy();
+        await server.close();
+      }
+    });
+
+    it('a background topology refresh cut short by destroy() emits no error', async () => {
+      const server = await startFakeNode();
+      const emitted: Array<string> = [];
+      let reconnects = 0;
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: server.port } }],
+        RESP: 2,
+        topologyRefreshOnReconnectionAttemptStrategy: 1
+      }, ((event: string) => {
+        emitted.push(event);
+        // the second reconnect attempt schedules the refresh: let its
+        // discovery client in, and hold its slots reply
+        if (event === 'node-reconnecting' && ++reconnects === 2) {
+          server.state.rejecting = false;
+          server.state.hold = true;
+        }
+        return true;
+      }) as never, 'test-cluster');
+
+      try {
+        await slots.connect();
+        const slotsRequested = server.nextSlotsRequest();
+        server.state.rejecting = true;
+        server.dropConnections();
+        await slotsRequested;
+        slots.destroy();
+        server.release();
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        assert.deepEqual(emitted.filter(event => event === 'error'), []);
+      } finally {
+        slots.destroy();
+        await server.close();
+      }
     });
   });
 
