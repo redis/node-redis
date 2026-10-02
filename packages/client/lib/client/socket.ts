@@ -18,7 +18,7 @@ type ReconnectStrategyResult = {
   error?: Error;
 };
 
-type RedisSocketOptionsCommon = {
+export type RedisSocketOptionsCommon = {
   /**
    * Connection timeout (in milliseconds)
    */
@@ -34,25 +34,31 @@ type RedisSocketOptionsCommon = {
    * The timeout (in milliseconds) after which the socket will be closed. `undefined` means no timeout.
    */
   socketTimeout?: number;
-}
+};
 
-type RedisTcpOptions = RedisSocketOptionsCommon & NetOptions & Omit<
+export type RedisTcpOptions = RedisSocketOptionsCommon & NetOptions & Omit<
   net.TcpNetConnectOpts,
   'timeout' | 'onread' | 'readable' | 'writable' | 'port'
 > & {
   port?: number;
 };
 
-type RedisTlsOptions = RedisSocketOptionsCommon & tls.ConnectionOptions & {
-  tls: true;
-}
+export type RedisTlsOptions = RedisSocketOptionsCommon & Omit<
+  net.TcpNetConnectOpts,
+  'timeout' | 'onread' | 'readable' | 'writable' | 'port'
+> & Omit<
+  tls.ConnectionOptions,
+  'timeout' | 'path'
+> & {
+  tls?: boolean;
+};
 
-type RedisIpcOptions = RedisSocketOptionsCommon & Omit<
+export type RedisIpcOptions = RedisSocketOptionsCommon & Omit<
   net.IpcNetConnectOpts,
   'timeout' | 'onread' | 'readable' | 'writable'
 > & {
-  tls: false;
-}
+  tls?: false;
+};
 
 export type RedisTcpSocketOptions = RedisTcpOptions | RedisTlsOptions;
 
@@ -144,16 +150,12 @@ export default class RedisSocket extends EventEmitter {
   #createSocketFactory(options?: RedisSocketOptions) {
     // TLS
     if (options?.tls === true) {
-      const withDefaults: tls.ConnectionOptions = {
+      // https://nodejs.org/api/tls.html#tlsconnectoptions-callback "Any socket.connect() option not already listed"
+      const withDefaults: tls.ConnectionOptions & net.TcpNetConnectOpts = {
         ...options,
         port: options?.port ?? 6379,
-        // https://nodejs.org/api/tls.html#tlsconnectoptions-callback "Any socket.connect() option not already listed"
-        // @types/node is... incorrect...
-        // @ts-expect-error - @types/node omits socket.connect noDelay.
         noDelay: options?.noDelay ?? true,
-        // @ts-expect-error - @types/node omits socket.connect keepAlive.
         keepAlive: options?.keepAlive ?? true,
-        // @ts-expect-error - @types/node omits socket.connect keepAliveInitialDelay.
         keepAliveInitialDelay: options?.keepAliveInitialDelay ?? DEFAULT_KEEPALIVE_INITIAL_DELAY,
         timeout: undefined,
         onread: undefined,
