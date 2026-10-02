@@ -669,4 +669,63 @@ describe('RedisCommandsQueue', () => {
       assert.match(written(destination), /^\*3\r\n\$6\r\nCLIENT.*GET/s);
     });
   });
+
+  describe('RESP2 pub/sub decoder reset', () => {
+    function createResp2Queue() {
+      return new RedisCommandsQueue(2, null, () => {}, 'test-client');
+    }
+
+    function drain(queue: RedisCommandsQueue) {
+      for (const _ of queue.commandsToWrite());
+    }
+
+    function reply(...items: Array<string | number>) {
+      return Buffer.from(
+        `*${items.length}\r\n` +
+        items.map(item => typeof item === 'number' ? `:${item}\r\n` : `$${item.length}\r\n${item}\r\n`).join('')
+      );
+    }
+
+    async function get(queue: RedisCommandsQueue) {
+      const promise = queue.addCommand(['GET', 'k']);
+      drain(queue);
+      queue.decoder.write(Buffer.from('$1\r\nv\r\n'));
+      return promise;
+    }
+
+    it('leaves pub/sub mode after the last channel is unsubscribed', async () => {
+      const queue = createResp2Queue();
+      const subscribed = queue.subscribe(PUBSUB_TYPE.CHANNELS, 'a', () => {});
+      drain(queue);
+      queue.decoder.write(reply('subscribe', 'a', 1));
+      await subscribed;
+
+      const unsubscribed = queue.unsubscribe(PUBSUB_TYPE.CHANNELS, 'a');
+      drain(queue);
+      queue.decoder.write(reply('unsubscribe', 'a', 0));
+      await unsubscribed;
+
+      assert.strictEqual(await get(queue), 'v');
+    });
+
+    it('leaves pub/sub mode when adopted listeners are moved away before their SUBSCRIBE replies', async () => {
+      const source = createResp2Queue();
+      source.subscribe(PUBSUB_TYPE.CHANNELS, 'a', () => {})?.catch(() => {});
+      const queue = createResp2Queue();
+      const adopted = queue.extendPubSubListeners(
+        PUBSUB_TYPE.CHANNELS,
+        source.removeAllPubSubListeners()[PUBSUB_TYPE.CHANNELS]
+      );
+      drain(queue);
+
+      queue.removeAllPubSubListeners();
+      const unsubscribed = queue.unsubscribe(PUBSUB_TYPE.CHANNELS);
+      drain(queue);
+      queue.decoder.write(reply('subscribe', 'a', 1));
+      queue.decoder.write(reply('unsubscribe', 'a', 0));
+      await Promise.all([adopted, unsubscribed]);
+
+      assert.strictEqual(await get(queue), 'v');
+    });
+  });
 });

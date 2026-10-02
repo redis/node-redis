@@ -531,6 +531,7 @@ export default class RedisCommandsQueue {
     if (command && this.#respVersion === 2) {
       // RESP2 modifies `onReply` to handle PubSub (see #setupPubSubHandler)
       const { resolve } = command;
+      // resolve first: it drops the listeners and recomputes `isActive`
       command.resolve = () => {
         resolve();
 
