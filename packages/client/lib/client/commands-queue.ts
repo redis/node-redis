@@ -420,7 +420,14 @@ export default class RedisCommandsQueue {
           },
           reject(err) {
             command.reject?.();
-            reject(err);
+            // a teardown that carried this command's intent to another
+            // member (multi-db move) is a success for the caller — the
+            // subscription change lives on, on the adopting member
+            if (command.carried?.()) {
+              resolve();
+            } else {
+              reject(err);
+            }
           },
           channelsCounter: command.channelsCounter,
           typeMapping: PUSH_TYPE_MAPPING,
@@ -500,12 +507,13 @@ export default class RedisCommandsQueue {
     if (command && this.#respVersion === 2) {
       // RESP2 modifies `onReply` to handle PubSub (see #setupPubSubHandler)
       const { resolve } = command;
+      // resolve first: it drops the listeners and recomputes `isActive`
       command.resolve = () => {
+        resolve();
+
         if (!this.#pubSub.isActive) {
           this.#resetDecoderCallbacks();
         }
-
-        resolve();
       };
     }
 
@@ -723,9 +731,10 @@ export default class RedisCommandsQueue {
 
   flushWaitingForReply(err: Error): void {
     this.resetDecoder();
-    this.#pubSub.reset();
-
+    // reset after the rejects: a rejected in-flight SUBSCRIBE decrements the
+    // subscribe counter, which would otherwise drop below 0
     this.#flushWaitingForReply(err);
+    this.#pubSub.reset();
 
     if (!this.#chainInExecution) return;
 
@@ -738,12 +747,12 @@ export default class RedisCommandsQueue {
 
   flushAll(err: Error): void {
     this.resetDecoder();
-    this.#pubSub.reset();
     this.#flushWaitingForReply(err);
     for (const node of this.#toWrite) {
       RedisCommandsQueue.#flushToWrite(node, err);
     }
     this.#toWrite.reset();
+    this.#pubSub.reset();
   }
 
   isEmpty() {

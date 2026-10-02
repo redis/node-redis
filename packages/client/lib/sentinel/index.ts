@@ -366,6 +366,10 @@ export default class RedisSentinel<
 
     this.#internal = new RedisSentinelInternal<M, F, S, RESP, TYPE_MAPPING>(options, this.#identity.id);
     this.#internal.on('error', err => this.emit('error', err));
+    // per-node connection errors (master/replica/sentinel node): without this
+    // re-emit they exist only on the internal, and consumers documented to
+    // observe them — the multi-database failure detector among them — see none
+    this.#internal.on('client-error', (event: ClientErrorEvent) => this.emit('client-error', event));
 
     /* forward the lifecycle events the internal emits from its open/ready transitions */
     this.#internal
@@ -657,6 +661,20 @@ export default class RedisSentinel<
   }
 
   sUnsubscribe = this.SUNSUBSCRIBE;
+
+  /**
+   * @internal
+   * Move pub/sub subscriptions between sentinel members on multi-database
+   * failover: {@link _extractPubSubListeners} detaches them from the old
+   * member, {@link _adoptPubSubListeners} re-establishes them on the new one.
+   */
+  _extractPubSubListeners() {
+    return this._self.#internal._extractPubSubListeners();
+  }
+
+  _adoptPubSubListeners(listeners: ReturnType<RedisSentinelInternal<M, F, S, RESP, TYPE_MAPPING>['_extractPubSubListeners']>) {
+    return this._self.#internal._adoptPubSubListeners(listeners);
+  }
 
   /**
    * Acquires a master client lease for exclusive operations
@@ -1520,6 +1538,20 @@ export class RedisSentinelInternal<
     bufferMode?: T
   ) {
     return this.#pubSubProxy.sUnsubscribe(channels, listener, bufferMode);
+  }
+
+  /**
+   * @internal
+   * Move pub/sub subscriptions between sentinel members on multi-database
+   * failover: {@link _extractPubSubListeners} detaches them from the old
+   * member, {@link _adoptPubSubListeners} re-establishes them on the new one.
+   */
+  _extractPubSubListeners() {
+    return this.#pubSubProxy.extractListeners();
+  }
+
+  _adoptPubSubListeners(listeners: ReturnType<PubSubProxy['extractListeners']>) {
+    return this.#pubSubProxy.adoptListeners(listeners);
   }
 
   // observe/analyze/transform remediation functions
