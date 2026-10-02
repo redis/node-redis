@@ -124,6 +124,8 @@ export class PubSub {
   readonly #pendingOps = new Set<{
     applyTo: (listeners: PubSubListeners) => void;
     carried: boolean;
+    /** unsubscribes only: the entries this op flagged `unsubscribing` */
+    flagged?: Set<ChannelListeners>;
   }>();
 
   #isActive = false;
@@ -288,16 +290,17 @@ export class PubSub {
     returnBuffers?: T
   ) {
     const listeners = this.listeners[type];
-    // flag what the reply will delete, so a re-subscribe before the reply
-    // lands sends SUBSCRIBE instead of joining an entry about to go away
+    // collect what the reply will delete — see #unsubscribeCommand
+    const flagged = new Set<ChannelListeners>();
     if (!channels) {
-      for (const sets of listeners.values()) sets.unsubscribing = true;
+      for (const sets of listeners.values()) flagged.add(sets);
       return this.#unsubscribeCommand(
         type,
         [COMMANDS[type].unsubscribe],
         // cannot use `this.#subscribed` because there might be some `SUBSCRIBE` commands in the queue
         // cannot use `this.#subscribed + this.#subscribing` because some `SUBSCRIBE` commands might fail
         NaN,
+        flagged,
         listeners => listeners.clear()
       );
     }
@@ -306,12 +309,13 @@ export class PubSub {
     if (!listener) {
       for (const channel of channelsArray) {
         const sets = listeners.get(channel);
-        if (sets) sets.unsubscribing = true;
+        if (sets) flagged.add(sets);
       }
       return this.#unsubscribeCommand(
         type,
         [COMMANDS[type].unsubscribe, ...channelsArray],
         channelsArray.length,
+        flagged,
         listeners => {
           for (const channel of channelsArray) {
             listeners.delete(channel);
@@ -336,7 +340,7 @@ export class PubSub {
 
         const currentSize = current.has(listener) ? current.size - 1 : current.size;
         if (currentSize !== 0 || other.size !== 0) continue;
-        sets.unsubscribing = true;
+        flagged.add(sets);
       }
 
       args.push(channel);
@@ -358,6 +362,7 @@ export class PubSub {
       type,
       args,
       args.length - 1,
+      flagged,
       listeners => {
         for (const channel of channelsArray) {
           const sets = listeners.get(channel);
@@ -376,11 +381,16 @@ export class PubSub {
     type: PubSubType,
     args: Array<RedisArgument>,
     channelsCounter: number,
+    flagged: Set<ChannelListeners>,
     removeListeners: (listeners: PubSubTypeListeners) => void
   ) {
+    // flag what the reply will delete, so a re-subscribe before the reply
+    // lands sends SUBSCRIBE instead of joining an entry about to go away
+    for (const sets of flagged) sets.unsubscribing = true;
     const pending = {
       applyTo: (snapshot: PubSubListeners) => removeListeners(snapshot[type]),
-      carried: false
+      carried: false,
+      flagged
     };
     this.#pendingOps.add(pending);
     return {
@@ -399,12 +409,27 @@ export class PubSub {
         // applying its removal — otherwise a later removeAllListeners would
         // replay this stale removal and drop a still-live subscription
         this.#pendingOps.delete(pending);
+        // the channel stays, so lift the flag — unless another in-flight
+        // unsubscribe still deletes the entry. A carried op's entries belong
+        // to the adopting client now.
+        if (!pending.carried) {
+          for (const sets of flagged) {
+            if (!this.#stillLeaving(sets)) sets.unsubscribing = false;
+          }
+        }
         this.#updateIsActive();
       },
       // a carried removal took effect on the snapshot, so the teardown's
       // rejection of the wire command is a success for the caller
       carried: () => pending.carried
     } satisfies PubSubCommand;
+  }
+
+  #stillLeaving(sets: ChannelListeners) {
+    for (const op of this.#pendingOps) {
+      if (op.flagged?.has(sets)) return true;
+    }
+    return false;
   }
 
   #updateIsActive() {
