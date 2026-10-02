@@ -717,11 +717,13 @@ export function createMultiDbClient<
       // to clean. Skip if superseded: a switch-back (A→B→A) may have
       // re-subscribed `from` while this await was parked — unsubscribing it
       // now would tear down the subscriptions the newer switch just restored.
+      // By name: the maps are already empty, so an argument-less unsubscribe
+      // would expect the wrong residual count and misalign every later reply.
       if (from.isReady && isCurrent()) {
         await Promise.allSettled([
-          listeners[PUBSUB_TYPE.CHANNELS].size ? from.unsubscribe() : undefined,
-          listeners[PUBSUB_TYPE.PATTERNS].size ? from.pUnsubscribe() : undefined,
-          listeners[PUBSUB_TYPE.SHARDED].size ? from.sUnsubscribe() : undefined
+          listeners[PUBSUB_TYPE.CHANNELS].size ? from.unsubscribe([...listeners[PUBSUB_TYPE.CHANNELS].keys()]) : undefined,
+          listeners[PUBSUB_TYPE.PATTERNS].size ? from.pUnsubscribe([...listeners[PUBSUB_TYPE.PATTERNS].keys()]) : undefined,
+          listeners[PUBSUB_TYPE.SHARDED].size ? from.sUnsubscribe([...listeners[PUBSUB_TYPE.SHARDED].keys()]) : undefined
         ]);
       }
     },

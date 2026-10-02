@@ -744,6 +744,45 @@ describe('multi-db', function () {
       )
     );
 
+    it('a move off a member with channels and patterns keeps its replies matched to their commands', () =>
+      withMultiDb(
+        { databases: [memberOf(serverA, { weight: 1 }), memberOf(serverB, { weight: 0.5 })] },
+        async ({ client, controller }) => {
+          await client.subscribe('moved-channel', () => {});
+          await client.pSubscribe('moved-pattern:*', () => {});
+
+          await controller.setActiveDatabase('db-1');
+
+          // the move unsubscribes the old member after the new one adopts:
+          // wait until the server has run both
+          const direct = RedisClient.create({ socket: { host: '127.0.0.1', port: serverA.port } });
+          await direct.connect();
+          try {
+            const deadline = Date.now() + 5_000;
+            while (Date.now() < deadline) {
+              const [numSub, numPat] = await Promise.all([
+                direct.pubSubNumSub('moved-channel'),
+                direct.pubSubNumPat()
+              ]);
+              if (numSub['moved-channel'] === 0 && numPat === 0) break;
+              await new Promise(resolve => setTimeout(resolve, 20));
+            }
+          } finally {
+            direct.destroy();
+          }
+
+          const memberA = (client as unknown as {
+            _mgr: { databases: ReadonlyArray<{ id: string; client: RedisClientType }> }
+          })._mgr.databases.find(db => db.id === 'db-0')!.client;
+          const one = memberA.echo('one');
+          const two = memberA.echo('two');
+          two.catch(() => {});
+          assert.equal(await one, 'one');
+          assert.equal(await two, 'two');
+        }
+      )
+    );
+
     it('exec(true) and the EXEC alias each report exactly one outcome to the detector', () =>
       (async () => {
         const outcomes: Array<boolean> = [];
