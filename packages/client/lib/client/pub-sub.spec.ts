@@ -271,6 +271,61 @@ describe('PubSub', () => {
     }
   });
 
+  describe('a rejected unsubscribe lifts the unsubscribing flag', () => {
+    for (const [name, unsubscribe] of [
+      ['unsubscribe(channel, listener)', (pubSub: PubSub, listener: () => void) => pubSub.unsubscribe(TYPE, 'kept', listener)],
+      ['unsubscribe(channel)', (pubSub: PubSub) => pubSub.unsubscribe(TYPE, 'kept')],
+      ['unsubscribe()', (pubSub: PubSub) => pubSub.unsubscribe(TYPE)]
+    ] as const) {
+      it(`${name}: a later subscribe joins the still-subscribed channel at once`, () => {
+        const pubSub = new PubSub(CLIENT_ID);
+        const first = () => {};
+        pubSub.subscribe(TYPE, 'kept', first)!.resolve();
+        unsubscribe(pubSub, first)!.reject!();
+
+        const second = () => {};
+        assert.equal(pubSub.subscribe(TYPE, 'kept', second), undefined, 'the channel is still subscribed');
+        assert.ok(pubSub.listeners[TYPE].get('kept')?.strings.has(second));
+      });
+    }
+
+    it('keeps the flag while another unsubscribe of the channel is in flight', () => {
+      const pubSub = new PubSub(CLIENT_ID);
+      pubSub.subscribe(TYPE, 'kept', () => {})!.resolve();
+      const failed = pubSub.unsubscribe(TYPE, 'kept')!;
+      const leaving = pubSub.unsubscribe(TYPE, 'kept')!;
+      failed.reject!();
+
+      const listener = () => {};
+      const resubscribe = pubSub.subscribe(TYPE, 'kept', listener);
+      assert.ok(resubscribe, 'the second unsubscribe still deletes the entry, so the re-subscribe must hit the wire');
+      leaving.resolve();
+      resubscribe.resolve();
+      assert.ok(pubSub.listeners[TYPE].get('kept')?.strings.has(listener));
+    });
+
+    it('a carried unsubscribe rejected after a move leaves the adopter\'s flag alone', () => {
+      const pubSub = new PubSub(CLIENT_ID);
+      const first = () => {};
+      pubSub.subscribe(TYPE, 'kept', first)!.resolve();
+      const carried = pubSub.unsubscribe(TYPE, 'kept', first)!;
+      // a listener joins the flagged entry, so the same entry object survives
+      // the replay and moves to the adopter
+      pubSub.extendChannelListeners(TYPE, 'kept', {
+        unsubscribing: false,
+        buffers: new Set(),
+        strings: new Set([() => {}])
+      });
+
+      const adopter = new PubSub(CLIENT_ID);
+      adopter.extendTypeListeners(TYPE, pubSub.removeAllListeners()[TYPE])!.resolve();
+      assert.ok(adopter.unsubscribe(TYPE, 'kept'));
+      carried.reject!();
+
+      assert.ok(adopter.subscribe(TYPE, 'kept', () => {}), 'the adopter\'s unsubscribe is still in flight');
+    });
+  });
+
   describe('in-flight subscribes across removeAllListeners (multi-db moves)', () => {
     it('an in-flight subscribe is folded into the snapshot; its late confirm does not resurrect it', () => {
       const pubSub = new PubSub(CLIENT_ID);
