@@ -727,5 +727,27 @@ describe('RedisCommandsQueue', () => {
 
       assert.strictEqual(await get(queue), 'v');
     });
+
+    for (const flush of ['flushWaitingForReply', 'flushAll'] as const) {
+      it(`leaves pub/sub mode after ${flush} rejects an in-flight SUBSCRIBE`, async () => {
+        const queue = createResp2Queue();
+        const lost = queue.subscribe(PUBSUB_TYPE.CHANNELS, 'a', () => {});
+        drain(queue);
+        queue[flush](new DisconnectsClientError());
+        await assert.rejects(lost!, DisconnectsClientError);
+        assert.strictEqual(queue.isPubSubActive, false);
+
+        const subscribed = queue.subscribe(PUBSUB_TYPE.CHANNELS, 'b', () => {});
+        drain(queue);
+        queue.decoder.write(reply('subscribe', 'b', 1));
+        await subscribed;
+        const unsubscribed = queue.unsubscribe(PUBSUB_TYPE.CHANNELS, 'b');
+        drain(queue);
+        queue.decoder.write(reply('unsubscribe', 'b', 0));
+        await unsubscribed;
+
+        assert.strictEqual(await get(queue), 'v');
+      });
+    }
   });
 });

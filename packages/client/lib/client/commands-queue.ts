@@ -762,9 +762,10 @@ export default class RedisCommandsQueue {
 
   flushWaitingForReply(err: Error): void {
     this.resetDecoder();
-    this.#pubSub.reset();
-
+    // reset after the rejects: a rejected in-flight SUBSCRIBE decrements the
+    // subscribe counter, which would otherwise drop below 0
     this.#flushWaitingForReply(err);
+    this.#pubSub.reset();
 
     if (!this.#chainInExecution) return;
 
@@ -777,12 +778,12 @@ export default class RedisCommandsQueue {
 
   flushAll(err: Error): void {
     this.resetDecoder();
-    this.#pubSub.reset();
     this.#flushWaitingForReply(err);
     for (const node of this.#toWrite) {
       RedisCommandsQueue.#flushToWrite(node, err);
     }
     this.#toWrite.reset();
+    this.#pubSub.reset();
   }
 
   isEmpty() {
