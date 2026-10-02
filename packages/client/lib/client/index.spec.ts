@@ -506,6 +506,41 @@ describe('Client', () => {
         false
       );
     });
+
+    it('should support Heroku configuration pattern with boolean tls and rejectUnauthorized', () => {
+      const redissUrl = 'rediss://user:secret@localhost:6379';
+      const parsedTls = RedisClient.parseOptions({
+        url: redissUrl,
+        socket: {
+          tls: redissUrl.match(/rediss:/) != null,
+          rejectUnauthorized: false
+        }
+      });
+      assert.equal(parsedTls.socket.tls, true);
+      assert.equal((parsedTls.socket as { rejectUnauthorized?: boolean }).rejectUnauthorized, false);
+
+      const redisUrl = 'redis://user:secret@localhost:6379';
+      const parsedPlain = RedisClient.parseOptions({
+        url: redisUrl,
+        socket: {
+          tls: redisUrl.match(/rediss:/) != null,
+          rejectUnauthorized: false
+        }
+      });
+      assert.equal(parsedPlain.socket.tls, false);
+      assert.equal((parsedPlain.socket as { rejectUnauthorized?: boolean }).rejectUnauthorized, false);
+    });
+
+    it('should allow TLS socket options without explicit tls on rediss: URLs', () => {
+      const parsed = RedisClient.parseOptions({
+        url: 'rediss://localhost:6379',
+        socket: {
+          rejectUnauthorized: false
+        }
+      });
+      assert.equal(parsed.socket.tls, true);
+      assert.equal((parsed.socket as { rejectUnauthorized?: boolean }).rejectUnauthorized, false);
+    });
   });
 
   describe('authentication', () => {
