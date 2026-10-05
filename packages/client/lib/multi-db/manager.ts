@@ -296,7 +296,11 @@ export class MultiDbManager<C extends RedisClientLike> {
    */
   switchTo(target: Database<C>, reason: SwitchReason): void {
     const from = this.#active;
-    if (target === from) return;
+    if (target === from) {
+      // a same-member rescue: the member ended and re-readied as PASSIVE
+      target.role = 'ACTIVE';
+      return;
+    }
 
     this.#repoint(from, target);
 
@@ -1070,8 +1074,10 @@ export class MultiDbManager<C extends RedisClientLike> {
     db.healthEpoch++;
     // a probe-verified member must be selectable — without this, a member that
     // failed an earlier connect() keeps its OPEN circuit and the strategy can
-    // never pick it on a repeat connect()
-    db.circuit.close();
+    // never pick it on a repeat connect(); closing an OPEN circuit is a recovery
+    if (db.circuit.close() && this.#memberLive(db)) {
+      this.#events?.emit('database-recovered', { id: db.id });
+    }
     return true;
   }
 }

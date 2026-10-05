@@ -1036,6 +1036,52 @@ describe('multi-db manager (unit)', function () {
     mgr.destroy();
   });
 
+  // a repeat connect() during the search reconnects the ended active member
+  // (DISCONNECTED → PASSIVE, circuit closed) but fails its gate on the other
+  // member; the active member is rescued later by the same-member switch
+  async function rescueSetup(delayBetweenFailoverAttempts: number) {
+    const harness = makeHarness(2, {
+      initialAvailability: 'MAJORITY',
+      maxFailoverAttempts: 50,
+      delayBetweenFailoverAttempts
+    });
+    const { mgr, fakes } = harness;
+    await mgr.connect();
+    mgr.databases[1].circuit.open();
+    fakes.get('db-1')!.onCommand = async () => { throw new Error('down'); };
+    fakes.get('db-0')!.end();
+    assert.equal(mgr.databases[0].role, 'DISCONNECTED');
+
+    harness.received.length = 0;
+    await assert.rejects(mgr.connect(), /initial availability/);
+    assert.equal(mgr.databases[0].role, 'PASSIVE');
+    return harness;
+  }
+
+  it('a search that rescues the ended active member restores its ACTIVE role', async () => {
+    const { mgr, received } = await rescueSetup(20);
+    assert.deepEqual(
+      received.filter(r => r.event === 'database-recovered'),
+      [{ event: 'database-recovered', payload: { id: 'db-0' } }],
+      'the repeat connect() closed an OPEN circuit: that is a recovery'
+    );
+
+    const deadline = Date.now() + 1_000;
+    while (mgr.unavailableError !== undefined && Date.now() < deadline) await tick(10);
+    assert.equal(mgr.unavailableError, undefined);
+    assert.equal(mgr.activeDatabase.id, 'db-0');
+    assert.equal(mgr.activeDatabase.role, 'ACTIVE');
+    mgr.destroy();
+  });
+
+  it('forcing the ended active member restores its ACTIVE role', async () => {
+    const { mgr } = await rescueSetup(60_000); // no search tick lands first
+    await mgr.setActiveDatabase('db-0');
+    assert.equal(mgr.activeDatabase.id, 'db-0');
+    assert.equal(mgr.activeDatabase.role, 'ACTIVE');
+    mgr.destroy();
+  });
+
   describe('re-validation after await', () => {
     it('a recovery probe resolving after destroy() emits nothing', async () => {
       // long probe budget (timeout < interval), so the gate — not the timeout —
