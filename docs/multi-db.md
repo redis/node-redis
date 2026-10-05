@@ -193,7 +193,7 @@ never a copy — or `undefined` to escalate.
 
 - **Commands are rejected on failover, never retried or replayed.** Commands awaiting a
   reply on the failing member reject with that member's error, exactly like a single
-  client's reconnect. For standalone members, commands still queued *unsent* on the dead
+  client's reconnect. For standalone and pool members, commands still queued *unsent* on the dead
   member are rejected at the switch with `CommandAbandonedError` — without that, they would
   execute on the demoted member when it reconnects minutes later. Cluster and sentinel
   members keep their own queue lifecycles (unsent commands there follow the member's

@@ -1,4 +1,6 @@
 import { strict as assert } from 'node:assert';
+import { createServer, type AddressInfo, type Socket } from 'node:net';
+import { once } from 'node:events';
 import testUtils, { GLOBAL } from '../test-utils';
 import { RESP_TYPES } from '../RESP/decoder';
 import { RedisClientPool } from './pool';
@@ -642,5 +644,91 @@ describe('RedisClientPool', () => {
   }, {
     ...GLOBAL.SERVERS.OPEN,
     poolOptions: { minimum: 0, maximum: 1, acquireTimeout: 1000 }
+  });
+
+  describe('_rejectQueued', () => {
+    // A minimal RESP2 server: +OK to every command, recording each command's
+    // text so a test can tell whether a write ever reached it.
+    async function startFakeServer(port = 0) {
+      const sockets = new Set<Socket>();
+      const seen: Array<string> = [];
+      const server = createServer(socket => {
+        sockets.add(socket);
+        socket.on('close', () => sockets.delete(socket));
+        socket.on('error', () => {});
+        socket.on('data', chunk => {
+          for (const command of chunk.toString().split('*').filter(part => /^\d+\r\n\$/.test(part))) {
+            seen.push(command);
+            socket.write('+OK\r\n');
+          }
+        });
+      });
+      server.listen(port, '127.0.0.1');
+      await once(server, 'listening');
+      return {
+        port: (server.address() as AddressInfo).port,
+        seen,
+        async close() {
+          for (const socket of sockets) socket.destroy();
+          if (!server.listening) return;
+          server.close();
+          await once(server, 'close');
+        }
+      };
+    }
+
+    it('rejects unsent commands and waiting tasks on a pool with no ready client, so none replays on reconnect', async () => {
+      let server = await startFakeServer();
+      const { port } = server;
+      const pool = RedisClientPool.create(
+        { RESP: 2, socket: { host: '127.0.0.1', port, reconnectStrategy: () => 100 } },
+        { minimum: 2, maximum: 2, acquireTimeout: 0 }
+      );
+      pool.on('error', () => {});
+      try {
+        await pool.connect();
+        await server.close();
+        // let both clients see the drop, so the writes queue instead of going out
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        // two writes sit unsent in the in-use clients' offline queues, the
+        // third waits in the pool's task queue (acquireTimeout 0: forever)
+        const writes = ['stale1', 'stale2', 'stale3'].map(key => pool.sendCommand(['SET', key, 'v']));
+        assert.equal(pool.clientsInUse, 2);
+        assert.equal(pool.tasksQueueLength, 1);
+
+        const abandoned = new Error('abandoned');
+        pool._rejectQueued(abandoned);
+        for (const write of writes) {
+          await assert.rejects(write, err => err === abandoned);
+        }
+        assert.equal(pool.tasksQueueLength, 0);
+
+        server = await startFakeServer(port);
+        // give the reconnects (100ms strategy) and any replay time to land
+        await new Promise(resolve => setTimeout(resolve, 500));
+        assert.equal(server.seen.filter(command => command.includes('stale')).length, 0);
+      } finally {
+        pool.destroy();
+        await server.close();
+      }
+    });
+
+    it('leaves a ready pool alone', async () => {
+      const server = await startFakeServer();
+      const pool = RedisClientPool.create(
+        { RESP: 2, socket: { host: '127.0.0.1', port: server.port } },
+        { minimum: 1, maximum: 1, acquireTimeout: 0 }
+      );
+      try {
+        await pool.connect();
+        const write = pool.sendCommand(['SET', 'fresh', 'v']);
+        pool._rejectQueued(new Error('abandoned'));
+        assert.equal(await write, 'OK');
+      } finally {
+        pool.destroy();
+        await server.close();
+      }
+    });
   });
 });

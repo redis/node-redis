@@ -596,6 +596,29 @@ export class RedisClientPool<
     }
   }
 
+  /**
+   * @internal
+   * Rejects commands that would otherwise run when the pool reconnects: unsent
+   * commands on every client that is not ready and, when no client is ready,
+   * the tasks waiting for one. Ready clients drain their queues on their own.
+   */
+  _rejectQueued(error: Error) {
+    const clients = [...this._self.#clientsInUse, ...this._self.#idleClients];
+    for (const client of clients) {
+      if (!client.isReady) client._getQueue().flushAll(error);
+    }
+    if (clients.some(client => client.isReady)) return;
+
+    // same call as the flush: each flushed task returns its client a microtask
+    // later, and #returnClient would hand it the next waiting task — straight
+    // back into the offline queue just cleared
+    let task;
+    while ((task = this._self.#tasksQueue.shift())) {
+      clearTimeout(task.timeout);
+      task.reject(error);
+    }
+  }
+
   sendCommand(
     args: Array<RedisArgument>,
     options?: CommandOptions

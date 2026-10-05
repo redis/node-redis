@@ -753,7 +753,10 @@ export function createMultiDbClientPool<
   const { databases, config } = resolveMultiDbConfig(options.databases, options);
   const adapter: MemberAdapter<RedisClientPoolType<M, F, S, RESP, T>> = {
     create: db => RedisClientPool.create(db.options as RedisClientOptions<M, F, S, RESP, T>, db.poolOptions),
-    sendCommand: (client, args) => client.sendCommand(args)
+    sendCommand: (client, args) => client.sendCommand(args),
+    // unsent commands wait on not-ready clients' offline queues and in the
+    // pool's task queue — both would run on the demoted member on reconnect
+    rejectQueued: (from, error) => from._rejectQueued(error)
     // no movePubSub: a pool has no pub/sub surface (subscriptions need a
     // dedicated connection, which the pool does not expose), so there is
     // nothing to transfer on failover
