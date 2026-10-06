@@ -86,6 +86,17 @@ interface SchemaHNSWVectorField extends SchemaVectorField {
    * available since 8.10
    */
   RERANK?: boolean;
+  /**
+   * Scalar quantization of the stored vectors. Requires TYPE FLOAT32 or FLOAT16.
+   * available since 8.12
+   */
+  COMPRESSION?: 'SQ8';
+  /**
+   * Number of vectors collected before computing the quantization parameters (0 - 102400).
+   * Applicable only with COMPRESSION; 0 disables mean normalization.
+   * available since 8.12
+   */
+  TRAINING_THRESHOLD?: number;
 }
 
 export const VAMANA_COMPRESSION_ALGORITHM = {
@@ -300,6 +311,14 @@ export function parseSchema(parser: CommandParser, schema: RediSearchSchema) {
 
               if (fieldOptions.RERANK !== undefined) {
                 args.push('RERANK', fieldOptions.RERANK ? 'TRUE' : 'FALSE');
+              }
+
+              if (fieldOptions.COMPRESSION) {
+                args.push('COMPRESSION', fieldOptions.COMPRESSION);
+              }
+
+              if (fieldOptions.TRAINING_THRESHOLD !== undefined) {
+                args.push('TRAINING_THRESHOLD', fieldOptions.TRAINING_THRESHOLD.toString());
               }
 
               break;
