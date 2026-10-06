@@ -686,9 +686,11 @@ export class MultiDbManager<C extends RedisClientLike> {
   /**
    * Fan-out connect with per-member initial health checks. Resolves only when
    * the `initialAvailability` policy is met and a weight-selected healthy
-   * member is active; rejects otherwise, destroying every member — a rejected
-   * instance must not be reused. On success, members that failed to establish
-   * keep reconnecting per their own strategy with an OPEN circuit. Calling it
+   * member is active; rejects otherwise — a first connect destroys every
+   * member (a rejected instance must not be reused), a repeat connect on a
+   * client that has been ready leaves it serving. On success, members that
+   * failed to establish keep reconnecting per their own strategy with an OPEN
+   * circuit. Calling it
    * again re-probes and re-selects (the recovery path from permanent
    * unavailability); already-open members are not reconnected. Closed is
    * terminal: after close()/destroy() it rejects — a fresh start is
@@ -773,11 +775,18 @@ export class MultiDbManager<C extends RedisClientLike> {
    * never served — an initial (or never-ready) connect that rejects must
    * leave nothing live, per the documented contract. A repeat/recovery
    * connect on a client that has already been ready must not be torn down by
-   * a failed re-probe: reject and leave the live members serving.
+   * a failed re-probe: reject and leave the live members serving. An active
+   * member the re-probe opened fails over like a background check would —
+   * nothing else moves traffic off an OPEN active.
    */
   async #failConnect(error: Error): Promise<Error> {
     if (!this.#everReady) {
       await this.destroy();
+    } else if (this.#active.circuit.state !== 'CLOSED') {
+      this.#handleActiveFailure(
+        new Error(`MultiDb: database "${this.#active.id}" failed its health check`),
+        'health-check'
+      );
     }
     return error; // callers `throw await this.#failConnect(...)` so control flow narrows
   }

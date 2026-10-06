@@ -99,8 +99,11 @@ All other options are flat on the factory call:
 | `initialAvailability` | `'MAJORITY'` | members that must pass the initial check: `ALL`, `MAJORITY` or `ONE`. Majority is `floor(n/2)+1`, so with the common **two-member** setup it means **both** — pick `ONE` for a setup that should start degraded |
 
 `connect()` resolves only when `initialAvailability` is satisfied and an active member is
-selected; otherwise it rejects **and destroys every member** — a rejected instance must not
-be reused. A permanently unavailable client can be recovered with another `connect()`;
+selected; otherwise it rejects. A first `connect()` that rejects **destroys every member** —
+a rejected instance must not be reused. A repeat `connect()` on a client that has been ready
+rejects without tearing it down; if its re-probe failed the active member, the client fails
+over as it would on a background health check. A permanently unavailable client can be
+recovered with another `connect()`;
 `close()`/`destroy()` are terminal — `connect()` afterwards rejects, and a fresh start is
 `duplicate()` or a new factory call.
 

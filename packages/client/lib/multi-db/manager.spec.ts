@@ -748,6 +748,39 @@ describe('multi-db manager (unit)', function () {
     mgr.destroy();
   });
 
+  it('a failed repeat connect() fails over an active member it found unhealthy', async () => {
+    const { mgr, fakes, received } = makeHarness(2);
+    await mgr.connect();
+    assert.equal(mgr.activeDatabase.id, 'db-0');
+
+    // the ACTIVE member fails the re-probe: MAJORITY of two needs both, so
+    // the gate rejects — but traffic must not stay on an OPEN active
+    fakes.get('db-0')!.onCommand = async () => 'NOPONG';
+    await assert.rejects(mgr.connect(), /initial availability/);
+
+    assert.equal(mgr.activeDatabase.id, 'db-1');
+    assert.ok(
+      received.some(r => r.event === 'database-unhealthy' && (r.payload as { id: string }).id === 'db-0'),
+      "the failed active must be announced as 'database-unhealthy'"
+    );
+    assert.deepEqual(received.filter(r => r.event === 'failover'), [
+      { event: 'failover', payload: { from: 'db-0', to: 'db-1', reason: 'health-check' } }
+    ]);
+    assert.ok([...fakes.values()].every(fake => !fake.destroyed));
+    mgr.destroy();
+  });
+
+  it('a failed repeat connect() with every member unhealthy gates traffic', async () => {
+    const { mgr, fakes } = makeHarness(2, { delayBetweenFailoverAttempts: 60_000 });
+    await mgr.connect();
+
+    for (const fake of fakes.values()) fake.onCommand = async () => 'NOPONG';
+    await assert.rejects(mgr.connect(), /initial availability/);
+
+    assert.ok(mgr.unavailableError instanceof TemporarilyUnavailableError);
+    mgr.destroy();
+  });
+
   it('a recovery connect() that re-selects runs the full switch housekeeping', async () => {
     const { mgr, fakes, received, rejectedQueues, pubSubMoves } = makeHarness(2, {
       maxFailoverAttempts: 2,
