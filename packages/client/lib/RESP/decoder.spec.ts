@@ -502,4 +502,31 @@ describe('RESP Decoder', () => {
       pushReplies: [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]]
     });
   });
+
+  it('keeps decoding the chunk when a callback throws', () => {
+    // Regression: the error stopped write(), and the rest of the chunk was lost
+    const pushError = new Error('push listener error'),
+      nullError = new Error('reply listener error'),
+      onPush = spy(() => {
+        throw pushError;
+      }),
+      onReply = spy((reply: unknown) => {
+        if (reply === null) throw nullError;
+      }),
+      decoder = new Decoder({
+        getTypeMapping: () => ({}),
+        onReply,
+        onErrorReply: spy(),
+        onPush
+      });
+
+    assert.equal(decoder.write(Buffer.from('>2\r\n+mess')), undefined);
+    assert.deepEqual(
+      decoder.write(Buffer.from('age\r\n+1\r\n:1\r\n_\r\n>2\r\n+message\r\n+2\r\n$2\r\nv')),
+      [pushError, nullError, pushError]
+    );
+    assert.equal(decoder.write(Buffer.from('1\r\n')), undefined);
+    assert.deepEqual(onPush.args, [[['message', '1']], [['message', '2']]]);
+    assert.deepEqual(onReply.args, [[1], [null], ['v1']]);
+  });
 });

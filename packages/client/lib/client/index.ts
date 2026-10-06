@@ -1048,12 +1048,14 @@ export default class RedisClient<
 
   #attachListeners(socket: RedisSocket) {
     socket.on('data', chunk => {
+      let errors: Array<unknown> | undefined;
       try {
-        this.#queue.decoder.write(chunk);
+        errors = this.#queue.decoder.write(chunk);
       } catch (err) {
         this.#queue.resetDecoder();
         this.emit('error', err);
       }
+      errors?.forEach(err => this.emit('error', err));
     })
     .on('error', err => {
       this.emit('error', err);
