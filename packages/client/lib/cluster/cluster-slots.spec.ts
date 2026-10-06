@@ -529,5 +529,35 @@ describe('RedisClusterSlots', () => {
 
       slots.destroy();
     });
+
+    // A multi-db pub/sub move tears down a still-connecting sharded client and
+    // can seat a replacement on the same master before that connect rejects.
+    it('a torn-down sharded connect does not clear a newer master.pubSub', async function () {
+      this.timeout(5000);
+
+      const slots = createSlots();
+      await slots.connect();
+
+      const connectPromise = slots.getShardedPubSubClient('channel');
+      const master = slots.masters[0];
+      assert.ok(master.pubSub, 'master.pubSub set synchronously by #initiateShardedPubSubClient');
+
+      // the move away destroys the connecting client and clears the slot...
+      slots.removeAllPubSubListeners();
+      assert.equal(master.pubSub, undefined);
+
+      // ...and a move back seats a replacement before the stale connect settles
+      const replacement = {
+        client: { _clientId: 'replacement', destroy() {} }
+      } as unknown as NonNullable<typeof master.pubSub>;
+      master.pubSub = replacement;
+
+      await assert.rejects(connectPromise);
+
+      assert.equal(master.pubSub, replacement,
+        'a stale connect rejection must not clear the replacement');
+
+      slots.destroy();
+    });
   });
 });

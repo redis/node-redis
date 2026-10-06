@@ -163,4 +163,52 @@ describe('sentinel pub-sub-proxy', function () {
     assert.equal(extracted[PUBSUB_TYPE.CHANNELS].size, 0, 'no ghost channel may survive unsubscribe-all');
     adopter.destroy();
   });
+
+  it('a stale connect failure does not orphan the client a later adopt seated', async () => {
+    const live = { host: '127.0.0.1', port: server.port };
+    const proxy = new PubSubProxy({ socket: { reconnectStrategy: false } }, () => {});
+
+    const listener = () => {};
+    const subscriptions = {
+      [PUBSUB_TYPE.CHANNELS]: new Map([
+        ['orphan-channel', { unsubscribing: false, buffers: new Set(), strings: new Set([listener]) }]
+      ]),
+      [PUBSUB_TYPE.PATTERNS]: new Map(),
+      [PUBSUB_TYPE.SHARDED]: new Map()
+    };
+
+    // adopt onto a dead member: that client is still connecting when the move
+    // away extracts, and destroy() leaves it to fail on its own
+    await proxy.changeNode({ host: '127.0.0.1', port: 1 });
+    const staleAdopt = proxy.adoptListeners(subscriptions).catch(() => {});
+    const carried = proxy.extractListeners();
+
+    // the move back seats a replacement before the stale connect fails
+    await proxy.changeNode(live);
+    await proxy.adoptListeners(carried).catch(() => {});
+    await staleAdopt;
+
+    const publisher = RedisClient.create({ socket: live });
+    await publisher.connect();
+    const subscriberCount = async () =>
+      (await publisher.pubSubNumSub('orphan-channel'))['orphan-channel'];
+    const waitFor = async (count: number) => {
+      const deadline = Date.now() + 2_000;
+      while (await subscriberCount() !== count && Date.now() < deadline) {
+        await new Promise(resolve => setTimeout(resolve, 20));
+      }
+      return subscriberCount();
+    };
+
+    try {
+      assert.equal(await waitFor(1), 1, 'the replacement must hold the adopted subscription');
+
+      // the next move must find and tear down the replacement
+      proxy.extractListeners();
+      assert.equal(await waitFor(0), 0, 'the replacement must not stay subscribed after the next move');
+    } finally {
+      publisher.destroy();
+      proxy.destroy();
+    }
+  });
 });

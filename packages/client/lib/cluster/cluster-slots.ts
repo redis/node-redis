@@ -1454,20 +1454,25 @@ export default class RedisClusterSlots<
     });
 
 
-    master.pubSub = {
-      client,
-      connectPromise: client.connect()
-        .then(client => {
-          master.pubSub!.connectPromise = undefined;
-          return client;
-        })
-        .catch(err => {
-          master.pubSub = undefined;
-          throw err;
-        })
-    };
+    const pubSub: NonNullable<MasterNode<M, F, S, RESP, TYPE_MAPPING>['pubSub']> = { client };
+    master.pubSub = pubSub;
 
-    return master.pubSub.connectPromise!;
+    // a pub/sub move can destroy this client mid-connect and seat a
+    // replacement before the rejection lands: clear the slot only if it is
+    // still ours, or the stale rejection orphans the replacement
+    pubSub.connectPromise = client.connect()
+      .then(client => {
+        pubSub.connectPromise = undefined;
+        return client;
+      })
+      .catch(err => {
+        if (master.pubSub === pubSub) {
+          master.pubSub = undefined;
+        }
+        throw err;
+      });
+
+    return pubSub.connectPromise;
   }
 
 
