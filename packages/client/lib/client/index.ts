@@ -5,7 +5,7 @@ import RedisCommandsQueue, { CommandOptions } from './commands-queue';
 import { EventEmitter } from 'node:events';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
 import { defaultCommandMetadata, isCacheable, isTrackable } from '../command-metadata';
-import { AbortError, ClientClosedError, ClientOfflineError, ClientSideCacheCommandError, ClientSideCacheMarkError, DisconnectsClientError, WatchError } from '../errors';
+import { AbortError, ClientClosedError, ClientOfflineError, ClientSideCacheCommandError, ClientSideCacheMarkError, DisconnectsClientError, ErrorReply, WatchError } from '../errors';
 import { URL } from 'node:url';
 import { TcpSocketConnectOpts } from 'node:net';
 import { PUBSUB_TYPE, PubSubType, PubSubListener, PubSubTypeListeners, ChannelListeners } from './pub-sub';
@@ -2063,9 +2063,11 @@ export default class RedisClient<
           throw new WatchError();
         }
 
-        if (selectedDB !== undefined) {
-          this._self.#selectedDB = selectedDB;
-        }
+        commands.forEach(({ args }, i) => {
+          if (String(args[0]).toUpperCase() === 'SELECT' && !((execResult as Array<unknown>)[i] instanceof ErrorReply)) {
+            this._self.#selectedDB = Number(args[1]);
+          }
+        });
 
         return execResult as Array<unknown>;
       },
