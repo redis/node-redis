@@ -338,9 +338,11 @@ describe('multi-db topologies', function () {
 
     afterEach(async function () {
       // every test owns a healthy fixture: restart whatever the previous test
-      // stopped, nodes and sentinels alike
+      // stopped, nodes and sentinels alike, then wait for the sentinels to
+      // serve the master again
       this.timeout(120_000);
       await Promise.all([frameA.getAllRunning(), frameB.getAllRunning()]);
+      await Promise.all([frameA.waitForHealthyMaster(), frameB.waitForHealthyMaster()]);
     });
 
     it("the sentinel's own master change does not fail the member over", async function () {
