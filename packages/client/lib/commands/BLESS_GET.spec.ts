@@ -17,9 +17,11 @@ describe('BLESS GET', () => {
     testUtils.isVersionGreaterThanHook([8, 12]);
 
     testUtils.testAll('client.blessGet', async client => {
-      assert.ok(
-        Array.isArray(await client.blessGet('key'))
-      );
+      await client.set('key', 'value');
+      assert.deepEqual(await client.blessGet('key'), []);
+
+      await client.blessSet('key', 'NO-EVICT');
+      assert.deepEqual(await client.blessGet('key'), ['NO-EVICT']);
     }, {
       client: GLOBAL.SERVERS.OPEN,
       cluster: GLOBAL.CLUSTERS.OPEN

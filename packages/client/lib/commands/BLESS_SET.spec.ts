@@ -17,10 +17,10 @@ describe('BLESS SET', () => {
     testUtils.isVersionGreaterThanHook([8, 12]);
 
     testUtils.testAll('client.blessSet', async client => {
-      assert.equal(
-        typeof await client.blessSet('key', 'NO-EVICT'),
-        'number'
-      );
+      await client.set('key', 'value');
+
+      assert.equal(await client.blessSet('key', 'NO-EVICT'), 1);
+      assert.equal(await client.blessSet('key', 'NO-EVICT'), 0);
     }, {
       client: GLOBAL.SERVERS.OPEN,
       cluster: GLOBAL.CLUSTERS.OPEN
