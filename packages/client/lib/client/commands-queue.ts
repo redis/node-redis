@@ -340,6 +340,30 @@ export default class RedisCommandsQueue {
     value.reject(err);
   }
 
+  /**
+   * Inserts at the front of `#toWrite`, but behind the unwritten tail of a chain
+   * that is already partly on the wire, so that a MULTI is never split by a
+   * command that is not part of it.
+   */
+  #insertAtFront(value: CommandToWrite) {
+    const chainId = this.#chainInExecution;
+    let tailOfChain = this.#toWrite.head;
+    if (chainId === undefined || tailOfChain?.value.chainId !== chainId) {
+      return this.#toWrite.unshift(value);
+    }
+
+    while (tailOfChain.next?.value.chainId === chainId) {
+      tailOfChain = tailOfChain.next;
+    }
+    return this.#toWrite.insertAfter(tailOfChain, value);
+  }
+
+  #addToWrite(value: CommandToWrite, asap = false) {
+    return asap ?
+      this.#insertAtFront(value) :
+      this.#toWrite.push(value);
+  }
+
   addCommand<T>(
     args: ReadonlyArray<RedisArgument>,
     options?: CommandOptions,
@@ -369,7 +393,7 @@ export default class RedisCommandsQueue {
       value.slotNumber = options?.slotNumber;
       value.prelude = options?.prelude;
 
-      const node = this.#toWrite.add(value, options?.asap);
+      const node = this.#addToWrite(value, options?.asap);
 
       try {
         // If #maintenanceCommandTimeout was explicitly set, we should
@@ -408,7 +432,7 @@ export default class RedisCommandsQueue {
 
   #addPubSubCommand(command: PubSubCommand, asap = false, chainId?: symbol) {
     return new Promise<void>((resolve, reject) => {
-      this.#toWrite.add(
+      this.#addToWrite(
         {
           args: command.args,
           chainId,
@@ -568,7 +592,7 @@ export default class RedisCommandsQueue {
   monitor(callback: MonitorCallback, options?: CommandOptions) {
     return new Promise<void>((resolve, reject) => {
       const typeMapping = options?.typeMapping ?? {};
-      this.#toWrite.add(
+      this.#addToWrite(
         {
           args: ["MONITOR"],
           chainId: options?.chainId,
@@ -854,7 +878,7 @@ export default class RedisCommandsQueue {
 
     for (let i = commands.length - 1; i >= 0; i--) {
       const value = commands[i];
-      const node = this.#toWrite.unshift(value);
+      const node = this.#insertAtFront(value);
 
       if (value.rejected) {
         this.#toWrite.remove(node);
