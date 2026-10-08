@@ -841,6 +841,12 @@ export class MultiDbManager<C extends RedisClientLike> {
       if (!target) {
         throw new Error(`MultiDb: cannot remove active database "${id}", no healthy replacement`);
       }
+      // a replacement found mid-search ends the search — lift the gate before
+      // the 'failover' announcement, as a forced switch does
+      if (this.#unavailable === 'searching') {
+        this.#unavailable = null;
+        this.#failoverInFlight = false;
+      }
       this.switchTo(target, 'active-removed');
     }
 

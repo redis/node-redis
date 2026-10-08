@@ -293,6 +293,28 @@ describe('multi-db manager (unit)', function () {
     mgr.destroy();
   });
 
+  it('removing the active member during the all-down search lifts the gate', async () => {
+    const { mgr, fakes, events } = makeHarness(2, {
+      // the next search tick must not land inside the test and rescue for us
+      delayBetweenFailoverAttempts: 60_000
+    });
+    await mgr.connect();
+
+    mgr.databases[1].circuit.open();
+    fakes.get('db-0')!.end(); // active dies, no replacement → search starts
+    assert.ok(mgr.unavailableError instanceof TemporarilyUnavailableError);
+
+    mgr.databases[1].circuit.close(); // a recovery round closes db-1 mid-search
+    let gateAtFailover: Error | undefined = new Error('failover not emitted');
+    events.once('failover', () => { gateAtFailover = mgr.unavailableError; });
+    await mgr.removeDatabase('db-0');
+
+    assert.equal(mgr.activeDatabase.id, 'db-1');
+    assert.equal(gateAtFailover, undefined, "'failover' listeners must see the gate lifted");
+    assert.equal(mgr.unavailableError, undefined);
+    mgr.destroy();
+  });
+
   it('a healthy member added during the all-down search rescues it', async () => {
     const { mgr, received } = makeHarness(2, {
       maxFailoverAttempts: 100,
