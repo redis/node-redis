@@ -188,7 +188,7 @@ export class FaultInjectorClient implements IFaultInjectorClient {
   async #request<T>(
     method: string,
     path: string,
-    body?: Object | string,
+    body?: object | string,
     timeoutMs: number = 30000
   ): Promise<T> {
     const url = `${this.baseUrl}${path}`;

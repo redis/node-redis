@@ -95,7 +95,7 @@ export interface ActionTrigger {
 
 export interface ActionTriggerRequirement {
   dbconfig: CreateDatabaseConfig;
-  cluster: any;
+  cluster: unknown;
   description: string;
 }
 
