@@ -1072,6 +1072,9 @@ export default class RedisClient<
     })
     .on('connect', () => this.emit('connect'))
     .on('ready', () => {
+      // The handshake has re-armed tracking: let the cache drop what went stale during
+      // the outage before user code or the offline queue stores anything fresh.
+      this.#clientSideCache?.onReady();
       this.emit('ready');
       this.#setPingTimer();
       this.#maybeScheduleWrite();
