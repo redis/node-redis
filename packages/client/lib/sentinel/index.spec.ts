@@ -679,6 +679,34 @@ describe(`test with masterPoolSize 2`, () => {
     await assert.doesNotReject(promise);
   }, GLOBAL.SENTINEL.WITH_MASTER_POOL_SIZE_2);
 
+  testUtils.testWithClientSentinel('concurrent commands give their master lease back', async sentinel => {
+    // Regression: each concurrent command took its own master lease and neither
+    // went back to the pool, so use() waited for a free client forever.
+    await Promise.all([sentinel.ping(), sentinel.ping()]);
+
+    const reply = await Promise.race([
+      sentinel.use(client => client.ping()),
+      setTimeout(1000, 'use() is still waiting for a master client')
+    ]);
+    assert.equal(reply, 'PONG');
+  }, GLOBAL.SENTINEL.WITH_MASTER_POOL_SIZE_2);
+
+  testUtils.testWithClientSentinel('lends at most masterPoolSize clients after a shared lease', async sentinel => {
+    // Regression: the shared lease must go back to the pool exactly once, and a
+    // later command must take a fresh one, or two use() calls get the same client.
+    await Promise.all([sentinel.ping(), sentinel.ping()]);
+    await sentinel.ping();
+
+    let inUse = 0,
+      maxInUse = 0;
+    await Promise.all(Array.from({ length: 3 }, () => sentinel.use(async client => {
+      maxInUse = Math.max(maxInUse, ++inUse);
+      await client.ping();
+      inUse--;
+    })));
+    assert.equal(maxInUse, 2);
+  }, GLOBAL.SENTINEL.WITH_MASTER_POOL_SIZE_2);
+
   testUtils.testWithClientSentinel('use - watch - clean', async sentinel => {
     const promise = sentinel.use(async (client) => {
       await client.set("x", 1);
