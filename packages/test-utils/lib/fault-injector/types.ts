@@ -98,3 +98,45 @@ export interface ActionTriggerRequirement {
   cluster: any;
   description: string;
 }
+
+export type MultiDbTopology = "standalone" | "oss-cluster" | "active-active";
+
+export interface MultiDbFailoverRequirement {
+  config: MultiDbTopology;
+  provision: "per_cluster" | "crdb";
+  cluster: { min_clusters: number; actual_clusters: number };
+  description: string;
+  [key: string]: unknown;
+}
+
+export interface MultiDbFailoverTrigger {
+  name: string;
+  description: string;
+  requirements: MultiDbFailoverRequirement[];
+}
+
+export interface MultiDbRawEndpoint {
+  dns_name: string;
+  port: number;
+  addr?: string[];
+  [key: string]: unknown;
+}
+
+export interface MultiDbInstance {
+  cluster_index: number;
+  bdb_id: number;
+  endpoints: string[];
+  raw_endpoints: MultiDbRawEndpoint[];
+  username: string;
+  password: string;
+  tls: boolean;
+}
+
+export interface MultiDbSetup {
+  setup_id: string;
+  config: MultiDbTopology;
+  provision: "per_cluster" | "crdb";
+  crdb_guid: string | null;
+  db_name: string;
+  instances: MultiDbInstance[];
+}
