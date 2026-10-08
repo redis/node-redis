@@ -1300,6 +1300,15 @@ describe('Client', () => {
       });
     }
 
+    testUtils.testWithClient('should return strings after unsubscribing from all channels (RESP2)', async client => {
+      await client.subscribe('channel', () => {});
+      await client.unsubscribe('channel');
+      assert.equal(await client.echo('after'), 'after');
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      clientOptions: { ...GLOBAL.SERVERS.OPEN.clientOptions, RESP: 2 }
+    });
+
     testUtils.testWithClient('should resubscribe', async publisher => {
       const subscriber = await publisher.duplicate().connect();
 

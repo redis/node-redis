@@ -501,11 +501,11 @@ export default class RedisCommandsQueue {
       // RESP2 modifies `onReply` to handle PubSub (see #setupPubSubHandler)
       const { resolve } = command;
       command.resolve = () => {
+        resolve();
+
         if (!this.#pubSub.isActive) {
           this.#resetDecoderCallbacks();
         }
-
-        resolve();
       };
     }
 
