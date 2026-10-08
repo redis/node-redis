@@ -1309,6 +1309,29 @@ describe('Client', () => {
       clientOptions: { ...GLOBAL.SERVERS.OPEN.clientOptions, RESP: 2 }
     });
 
+    testUtils.testWithClient('should be able to monitor after unsubscribing and resetting together (RESP2)', async client => {
+      const duplicate = await client.duplicate().connect(),
+        listener = spy(message => assert.equal(typeof message, 'string'));
+
+      try {
+        await duplicate.subscribe('channel', () => {});
+        await Promise.all([
+          duplicate.unsubscribe('channel'),
+          duplicate.reset()
+        ]);
+        await duplicate.monitor(listener);
+        await Promise.all([
+          waitTillBeenCalled(listener),
+          client.ping()
+        ]);
+      } finally {
+        duplicate.destroy();
+      }
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      clientOptions: { ...GLOBAL.SERVERS.OPEN.clientOptions, RESP: 2 }
+    });
+
     testUtils.testWithClient('should resubscribe', async publisher => {
       const subscriber = await publisher.duplicate().connect();
 

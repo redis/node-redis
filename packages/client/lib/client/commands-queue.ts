@@ -504,7 +504,14 @@ export default class RedisCommandsQueue {
         resolve();
 
         if (!this.#pubSub.isActive) {
-          this.#resetDecoderCallbacks();
+          // if `RESET` already overrides `onReply`, restore its fallback instead
+          if (this.#resetFallbackOnReply) {
+            this.#resetFallbackOnReply = ((reply) =>
+              this.#onReply(reply)) as Decoder["onReply"];
+            this.decoder.getTypeMapping = () => this.#getTypeMapping();
+          } else {
+            this.#resetDecoderCallbacks();
+          }
         }
       };
     }
