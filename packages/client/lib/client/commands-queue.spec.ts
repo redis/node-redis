@@ -1,6 +1,7 @@
 import assert from 'node:assert';
 import RedisCommandsQueue from './commands-queue';
 import { AbortError, DisconnectsClientError, TimeoutError } from '../errors';
+import { PUBSUB_TYPE } from './pub-sub';
 
 describe('RedisCommandsQueue', () => {
   function createQueue() {
@@ -166,6 +167,114 @@ describe('RedisCommandsQueue', () => {
         remaining.map(command => command.args?.[0]),
         ['SET', 'EXEC'],
       );
+    });
+  });
+
+  describe('asap inside a partly written chain', () => {
+    function queuedCommandNames(queue: RedisCommandsQueue) {
+      return queue.extractAllCommands().map(command => String(command.args?.[0]));
+    }
+
+    function addChainAndWriteHead(queue: RedisCommandsQueue, written: number) {
+      const chainId = Symbol('MULTI Chain');
+      for (const name of ['MULTI', 'SET', 'SET2', 'EXEC']) {
+        queue.addCommand([name], { chainId }).catch(() => {});
+      }
+
+      const writer = queue.commandsToWrite();
+      for (let i = 0; i < written; i++) {
+        writer.next();
+      }
+      return chainId;
+    }
+
+    it('queues an asap command after the unwritten tail of the chain', () => {
+      const queue = createQueue();
+      addChainAndWriteHead(queue, 2);
+
+      queue.addCommand(['PING'], { asap: true }).catch(() => {});
+
+      assert.deepStrictEqual(queuedCommandNames(queue), ['SET2', 'EXEC', 'PING']);
+    });
+
+    it('keeps the reverse order for repeated asap commands', () => {
+      const queue = createQueue();
+      addChainAndWriteHead(queue, 1);
+
+      queue.addCommand(['PING1'], { asap: true }).catch(() => {});
+      queue.addCommand(['PING2'], { asap: true }).catch(() => {});
+
+      assert.deepStrictEqual(
+        queuedCommandNames(queue),
+        ['SET', 'SET2', 'EXEC', 'PING2', 'PING1']
+      );
+    });
+
+    it('does not leave the chain tail waiting for a reply behind an asap command', () => {
+      const queue = createQueue();
+      addChainAndWriteHead(queue, 2);
+      queue.addCommand(['PING'], { asap: true }).catch(() => {});
+
+      const written = [...queue.commandsToWrite()].map(encoded => encoded.join(''));
+
+      assert.ok(written[0].includes('SET2'));
+      assert.ok(written[1].includes('EXEC'));
+      assert.ok(written[2].includes('PING'));
+    });
+
+    it('still queues asap at the head when the chain is fully written', () => {
+      const queue = createQueue();
+      addChainAndWriteHead(queue, 4);
+      queue.addCommand(['LATER']).catch(() => {});
+
+      queue.addCommand(['PING'], { asap: true }).catch(() => {});
+
+      assert.deepStrictEqual(queuedCommandNames(queue), ['PING', 'LATER']);
+    });
+
+    it('still queues asap at the head when the head is not part of the chain', () => {
+      const queue = createQueue();
+      addChainAndWriteHead(queue, 4);
+      queue.addCommand(['LATER']).catch(() => {});
+      queue.addCommand(['PING1'], { asap: true }).catch(() => {});
+      queue.addCommand(['PING2'], { asap: true }).catch(() => {});
+
+      assert.deepStrictEqual(queuedCommandNames(queue), ['PING2', 'PING1', 'LATER']);
+    });
+
+    it('applies to asap MONITOR', () => {
+      const queue = createQueue();
+      addChainAndWriteHead(queue, 2);
+
+      queue.monitor(() => {}, { asap: true }).catch(() => {});
+
+      assert.deepStrictEqual(queuedCommandNames(queue), ['SET2', 'EXEC', 'MONITOR']);
+    });
+
+    it('applies to asap pub/sub commands', () => {
+      const queue = createQueue();
+      queue.extendPubSubListeners(
+        PUBSUB_TYPE.CHANNELS,
+        new Map([['channel', { unsubscribing: false, buffers: new Set(), strings: new Set([() => {}]) }]])
+      )?.catch(() => {});
+      Array.from(queue.commandsToWrite());
+      addChainAndWriteHead(queue, 2);
+
+      queue.resubscribe()?.catch(() => {});
+
+      assert.deepStrictEqual(queuedCommandNames(queue), ['SET2', 'EXEC', 'subscribe']);
+    });
+
+    it('applies to commands prepended from another queue, keeping their order', () => {
+      const queue = createQueue();
+      addChainAndWriteHead(queue, 2);
+      const source = createQueue();
+      source.addCommand(['A']).catch(() => {});
+      source.addCommand(['B']).catch(() => {});
+
+      queue.prependCommandsToWrite(source.extractAllCommands());
+
+      assert.deepStrictEqual(queuedCommandNames(queue), ['SET2', 'EXEC', 'A', 'B']);
     });
   });
 
