@@ -49,7 +49,11 @@ export type InitialAvailability = 'ALL' | 'MAJORITY' | 'ONE';
 export interface HealthCheckConfig {
   /** ms between background health-check rounds per member. Default 5000. */
   interval?: number;
-  /** ms per-probe timeout; must be < `interval`. Default 3000. */
+  /**
+   * ms per-probe timeout; must be < `interval`. Default 3000. Probes run on
+   * the member's command connection (or pool), so a blocking or long-running
+   * command in flight can time a probe out and trigger a failover.
+   */
   timeout?: number;
   /** consecutive successful probes to close a HALF_OPEN circuit / pass a round. Default 3. */
   numProbes?: number;

@@ -246,6 +246,11 @@ never a copy — or `undefined` to escalate.
   outcomes (queued commands do not reject until the switch abandons them). A standalone
   member that gives up reconnecting (`terminated`) also fails over at once; cluster and
   pool members rely on the probes.
+- **Probes share the command connection.** The default PING probe (and any custom check
+  that uses `sendCommand`) runs on the member's own command connection or pool. A blocking
+  or long-running command in flight (`BLPOP 0`, `XREAD BLOCK`, a slow script) can time a
+  probe out and fail over away from a healthy member. Run blocking commands on a separate
+  client, or set `healthCheck.timeout` above their longest expected run.
 - **Resource overhead.** N member connections are live the whole time (each kind's usual
   connection count), plus one background health-check timer per member and the detector's
   sliding window on the command path. The command hot path adds one indirection per call.
