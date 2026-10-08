@@ -501,11 +501,18 @@ export default class RedisCommandsQueue {
       // RESP2 modifies `onReply` to handle PubSub (see #setupPubSubHandler)
       const { resolve } = command;
       command.resolve = () => {
-        if (!this.#pubSub.isActive) {
-          this.#resetDecoderCallbacks();
-        }
-
         resolve();
+
+        if (!this.#pubSub.isActive) {
+          // if `RESET` already overrides `onReply`, restore its fallback instead
+          if (this.#resetFallbackOnReply) {
+            this.#resetFallbackOnReply = ((reply) =>
+              this.#onReply(reply)) as Decoder["onReply"];
+            this.decoder.getTypeMapping = () => this.#getTypeMapping();
+          } else {
+            this.#resetDecoderCallbacks();
+          }
+        }
       };
     }
 
