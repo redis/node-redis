@@ -336,6 +336,7 @@ export default class RedisSentinel<
   #reservedClientInfo?: ClientInfo;
   #masterClientCount = 0;
   #masterClientInfo?: ClientInfo;
+  #masterClientLease?: Promise<ClientInfo>;
 
   get clientSideCache() {
     return this._self.#internal.clientSideCache;
@@ -495,9 +496,9 @@ export default class RedisSentinel<
       if (this._self.#reservedClientInfo) {
         clientInfo = this._self.#reservedClientInfo;
       } else {
-        this._self.#masterClientInfo ??= await this._self.#internal.getClientLease();
-        clientInfo = this._self.#masterClientInfo;
         this._self.#masterClientCount++;
+        this._self.#masterClientLease ??= this._self.#internal.getClientLease();
+        clientInfo = this._self.#masterClientInfo = await this._self.#masterClientLease;
       }
     }
 
@@ -511,6 +512,7 @@ export default class RedisSentinel<
       ) {
         const promise = this._self.#internal.releaseClientLease(clientInfo);
         this._self.#masterClientInfo = undefined;
+        this._self.#masterClientLease = undefined;
         if (promise) await promise;
       }
     }
