@@ -2286,6 +2286,10 @@ export default class RedisClient<
    * Close the client. Wait for pending commands.
    */
   close() {
+    if (this._self.#socket.isOpen && !this._self.#socket.isReady) {
+      this.destroy();
+      return Promise.resolve();
+    }
     return new Promise<void>(resolve => {
       clearTimeout(this._self.#pingTimer);
       this._self.#socket.close();
