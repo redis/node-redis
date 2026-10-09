@@ -48,6 +48,12 @@ export type PubSubListeners = Record<PubSubType, PubSubTypeListeners>;
 export type PubSubCommand = (
   Required<Pick<CommandToWrite, 'args' | 'channelsCounter' | 'resolve'>> & {
     reject: undefined | (() => unknown);
+    /**
+     * True when a teardown carried this command's intent to another client
+     * (multi-db move): the wire rejection is then a SUCCESS for the caller —
+     * the subscription change lives on, on the adopting member.
+     */
+    carried?: () => boolean;
   }
 );
 
@@ -104,6 +110,24 @@ export class PubSub {
 
   #subscribing = 0;
 
+  /**
+   * Subscribes and unsubscribes whose wire reply is still in flight, in
+   * issuance order. Until the reply lands, a subscribe's listeners exist only
+   * in its command closure, and an unsubscribe's channels are still in
+   * `listeners` — so a subscription move started mid-round-trip would drop the
+   * first and resurrect the second. {@link removeAllListeners} replays the log
+   * onto its snapshot in order (an unsubscribe then a re-subscribe of the same
+   * channel must end subscribed) and marks each op carried: the late confirm
+   * then becomes a no-op on the demoted client, and the late rejection a
+   * caller-visible success.
+   */
+  readonly #pendingOps = new Set<{
+    applyTo: (listeners: PubSubListeners) => void;
+    carried: boolean;
+    /** unsubscribes only: the entries this op flagged `unsubscribing` */
+    flagged?: Set<ChannelListeners>;
+  }>();
+
   #isActive = false;
 
   get isActive() {
@@ -142,11 +166,33 @@ export class PubSub {
 
     this.#isActive = true;
     this.#subscribing++;
+    const pending = {
+      // the listener Sets dedupe one that also reached the live maps
+      applyTo: (snapshot: PubSubListeners) => {
+        for (const channel of channelsArray) {
+          let channelListeners = snapshot[type].get(channel);
+          if (!channelListeners) {
+            channelListeners = { unsubscribing: false, buffers: new Set(), strings: new Set() };
+            snapshot[type].set(channel, channelListeners);
+          }
+          PubSub.#listenersSet(channelListeners, returnBuffers).add(listener);
+        }
+      },
+      carried: false
+    };
+    this.#pendingOps.add(pending);
     return {
       args,
       channelsCounter: args.length - 1,
       resolve: () => {
         this.#subscribing--;
+        this.#pendingOps.delete(pending);
+        if (pending.carried) {
+          // a move already took this intent to another member — registering
+          // here would resurrect the subscription on the demoted client
+          this.#updateIsActive();
+          return;
+        }
         for (const channel of newChannels) {
           let listeners = this.listeners[type].get(channel);
           if (!listeners) {
@@ -162,8 +208,10 @@ export class PubSub {
       },
       reject: () => {
         this.#subscribing--;
+        this.#pendingOps.delete(pending);
         this.#updateIsActive();
-      }
+      },
+      carried: () => pending.carried
     } satisfies PubSubCommand;
   }
 
@@ -242,22 +290,33 @@ export class PubSub {
     returnBuffers?: T
   ) {
     const listeners = this.listeners[type];
+    // collect what the reply will delete — see #unsubscribeCommand
+    const flagged = new Set<ChannelListeners>();
     if (!channels) {
+      for (const sets of listeners.values()) flagged.add(sets);
       return this.#unsubscribeCommand(
+        type,
         [COMMANDS[type].unsubscribe],
         // cannot use `this.#subscribed` because there might be some `SUBSCRIBE` commands in the queue
         // cannot use `this.#subscribed + this.#subscribing` because some `SUBSCRIBE` commands might fail
         NaN,
-        () => listeners.clear()
+        flagged,
+        listeners => listeners.clear()
       );
     }
 
     const channelsArray = PubSub.#channelsArray(channels);
     if (!listener) {
+      for (const channel of channelsArray) {
+        const sets = listeners.get(channel);
+        if (sets) flagged.add(sets);
+      }
       return this.#unsubscribeCommand(
+        type,
         [COMMANDS[type].unsubscribe, ...channelsArray],
         channelsArray.length,
-        () => {
+        flagged,
+        listeners => {
           for (const channel of channelsArray) {
             listeners.delete(channel);
           }
@@ -281,7 +340,7 @@ export class PubSub {
 
         const currentSize = current.has(listener) ? current.size - 1 : current.size;
         if (currentSize !== 0 || other.size !== 0) continue;
-        sets.unsubscribing = true;
+        flagged.add(sets);
       }
 
       args.push(channel);
@@ -300,9 +359,11 @@ export class PubSub {
     }
 
     return this.#unsubscribeCommand(
+      type,
       args,
       args.length - 1,
-      () => {
+      flagged,
+      listeners => {
         for (const channel of channelsArray) {
           const sets = listeners.get(channel);
           if (!sets) continue;
@@ -317,19 +378,58 @@ export class PubSub {
   }
 
   #unsubscribeCommand(
+    type: PubSubType,
     args: Array<RedisArgument>,
     channelsCounter: number,
-    removeListeners: () => void
+    flagged: Set<ChannelListeners>,
+    removeListeners: (listeners: PubSubTypeListeners) => void
   ) {
+    // flag what the reply will delete, so a re-subscribe before the reply
+    // lands sends SUBSCRIBE instead of joining an entry about to go away
+    for (const sets of flagged) sets.unsubscribing = true;
+    const pending = {
+      applyTo: (snapshot: PubSubListeners) => removeListeners(snapshot[type]),
+      carried: false,
+      flagged
+    };
+    this.#pendingOps.add(pending);
     return {
       args,
       channelsCounter,
       resolve: () => {
-        removeListeners();
+        this.#pendingOps.delete(pending);
+        // a move already applied this removal to the extracted snapshot —
+        // the live maps are fresh, nothing left to remove here
+        if (!pending.carried) removeListeners(this.listeners[type]);
         this.#updateIsActive();
       },
-      reject: undefined
+      reject: () => {
+        // the unsubscribe failed (socket drop / error reply): the channel
+        // legitimately stays subscribed, so drop the pending entry WITHOUT
+        // applying its removal — otherwise a later removeAllListeners would
+        // replay this stale removal and drop a still-live subscription
+        this.#pendingOps.delete(pending);
+        // the channel stays, so lift the flag — unless another in-flight
+        // unsubscribe still deletes the entry. A carried op's entries belong
+        // to the adopting client now.
+        if (!pending.carried) {
+          for (const sets of flagged) {
+            if (!this.#stillLeaving(sets)) sets.unsubscribing = false;
+          }
+        }
+        this.#updateIsActive();
+      },
+      // a carried removal took effect on the snapshot, so the teardown's
+      // rejection of the wire command is a success for the caller
+      carried: () => pending.carried
     } satisfies PubSubCommand;
+  }
+
+  #stillLeaving(sets: ChannelListeners) {
+    for (const op of this.#pendingOps) {
+      if (op.flagged?.has(sets)) return true;
+    }
+    return false;
   }
 
   #updateIsActive() {
@@ -436,10 +536,28 @@ export class PubSub {
       [PUBSUB_TYPE.SHARDED]: this.listeners[PUBSUB_TYPE.SHARDED]
     }
 
+    // replay in-flight ops in issuance order — see #pendingOps. The move
+    // consumes the log: a late settle must not replay into a later move.
+    for (const pending of this.#pendingOps) {
+      pending.carried = true;
+      pending.applyTo(result);
+    }
+    this.#pendingOps.clear();
+
+    // the adopting client sends a fresh SUBSCRIBE for every moved channel; a
+    // stale flag from a failed unsubscribe would make it re-subscribe later
+    for (const typeListeners of Object.values(result)) {
+      for (const channelListeners of typeListeners.values()) {
+        channelListeners.unsubscribing = false;
+      }
+    }
+
     this.listeners[PUBSUB_TYPE.CHANNELS] = new Map();
     this.listeners[PUBSUB_TYPE.PATTERNS] = new Map();
     this.listeners[PUBSUB_TYPE.SHARDED] = new Map();
 
+    // after the reset — `result` aliases the old maps, so updating first would
+    // still see them as populated and leave `isActive` stuck on true
     this.#updateIsActive();
 
     return result;

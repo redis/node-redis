@@ -931,6 +931,36 @@ describe('legacy tests', () => {
       assert.strictEqual(sentinel.isOpen, false);
     });
 
+    // per-node errors are emitted as `client-error` on the internal; the
+    // public client must re-emit them — the multi-db failure detector (and any
+    // user diagnostics) listen on the public surface
+    it('re-emits per-node client-error events on the public client', async function () {
+      this.timeout(60000);
+
+      const masterPort = await frame.getMasterPort();
+      sentinel = frame.getSentinelClient({
+        // master remapped to a dead address: node connects fail while
+        // sentinel discovery stays healthy
+        nodeAddressMap: (address: string) => {
+          const [host, portStr] = address.split(':');
+          if (Number(portStr) === masterPort) {
+            return { host: '127.0.0.1', port: 1 };
+          }
+          return { host, port: Number(portStr) };
+        },
+        maxCommandRediscovers: 2
+      }, false);
+
+      sentinel.on('error', () => { });
+      const clientErrors: Array<{ type: string; error: Error }> = [];
+      sentinel.on('client-error', (event: { type: string; error: Error }) => clientErrors.push(event));
+
+      await assert.rejects(sentinel.connect());
+
+      assert.ok(clientErrors.length > 0, 'node connection failures must surface as public client-error events');
+      assert.ok(clientErrors.every(event => event.error instanceof Error && typeof event.type === 'string'));
+    });
+
     // stops master to force sentinel to update
     it('stop master', async function () {
       this.timeout(60000);
