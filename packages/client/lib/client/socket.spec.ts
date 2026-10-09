@@ -1,11 +1,11 @@
 import { strict as assert } from 'node:assert';
-import { spy } from 'sinon';
+import { spy, stub } from 'sinon';
 import { once } from 'node:events';
 import net from 'node:net';
 import RedisSocket, { RedisSocketOptions } from './socket';
 import testUtils, { GLOBAL } from '../test-utils';
 import { setTimeout } from 'timers/promises';
-import { ReconnectStrategyError } from '../errors';
+import { ClientClosedError, ReconnectStrategyError } from '../errors';
 
 describe('Socket', () => {
   const CLIENT_ID = 'test-client-id';
@@ -18,6 +18,35 @@ describe('Socket', () => {
     });
 
     return socket;
+  }
+
+  for (const shutdown of ['destroy', 'close'] as const) {
+    it(`does not connect after ${shutdown} while TCP connection is pending`, async () => {
+      const transport = new net.Socket();
+      const createConnection = stub(net, 'createConnection').returns(transport);
+      const initiator = spy(async () => {});
+      const socket = new RedisSocket(initiator, CLIENT_ID, { reconnectStrategy: 0 });
+      const events: string[] = [];
+      for (const event of ['connect', 'ready', 'error', 'reconnecting']) {
+        socket.on(event, () => events.push(event));
+      }
+
+      try {
+        const connecting = socket.connect();
+        socket[shutdown]();
+        transport.emit('connect');
+
+        await assert.rejects(connecting, ClientClosedError);
+        assert.equal(socket.isOpen, false);
+        assert.equal(socket.isReady, false);
+        assert.equal(transport.destroyed, true);
+        assert.equal(initiator.callCount, 0);
+        assert.deepEqual(events, []);
+      } finally {
+        transport.destroy();
+        createConnection.restore();
+      }
+    });
   }
 
   describe('reconnectStrategy', () => {
