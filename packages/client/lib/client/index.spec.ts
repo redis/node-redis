@@ -632,6 +632,29 @@ describe('Client', () => {
       }
     });
 
+    testUtils.testWithClient('Timeout with global timeout config (MULTI and pipeline)', async client => {
+      await blockSetImmediate(async () => {
+        await assert.rejects(client.multi().ping().exec(), TimeoutError);
+        await assert.rejects(client.multi().ping().execAsPipeline(), TimeoutError);
+      });
+      assert.equal(await client.ping(), 'PONG');
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      clientOptions: {
+        commandOptions: {
+          timeout: 5
+        }
+      }
+    });
+
+    testUtils.testWithClient('MULTI and pipeline with an invalid timeout write nothing', async client => {
+      const invalid = client.withCommandOptions({ timeout: -1 });
+      await assert.rejects(invalid.multi().set('key', 'value').set('other', 'value').exec(), RangeError);
+      await assert.rejects(invalid.multi().set('key', 'value').set('other', 'value').execAsPipeline(), RangeError);
+      assert.equal(await client.ping(), 'PONG');
+      assert.deepEqual(await client.mGet(['key', 'other']), [null, null]);
+    }, GLOBAL.SERVERS.OPEN);
+
     testUtils.testWithCluster('Timeout with global timeout config (cluster)', async cluster => {
       await blockSetImmediate(async () => {
         await assert.rejects(cluster.HSET('key', 'foo', 'value'), TimeoutError);
@@ -659,6 +682,42 @@ describe('Client', () => {
         }
       }
     });
+
+    testUtils.testWithCluster('Timeout with global timeout config (cluster MULTI and pipeline)', async cluster => {
+      await blockSetImmediate(async () => {
+        await assert.rejects(cluster.multi().set('key', 'value').exec(), TimeoutError);
+        await assert.rejects(cluster.multi().set('key', 'value').execAsPipeline(), TimeoutError);
+      });
+    }, {
+      ...GLOBAL.CLUSTERS.OPEN,
+      clusterConfiguration: {
+        commandOptions: {
+          timeout: 5
+        }
+      }
+    });
+
+    testUtils.testWithClientSentinel('Timeout with global timeout config (sentinel MULTI and pipeline)', async sentinel => {
+      await blockSetImmediate(async () => {
+        await assert.rejects(sentinel.multi().set('key', 'value').exec(), TimeoutError);
+        await assert.rejects(sentinel.multi().set('key', 'value').execAsPipeline(), TimeoutError);
+      });
+    }, {
+      ...GLOBAL.SENTINEL.OPEN,
+      clientOptions: {
+        commandOptions: {
+          timeout: 5
+        }
+      }
+    });
+
+    testUtils.testWithClientPool('Timeout from withCommandOptions (pool MULTI and pipeline)', async pool => {
+      const fast = pool.withCommandOptions({ timeout: 5 });
+      await blockSetImmediate(async () => {
+        await assert.rejects(fast.multi().ping().exec(), TimeoutError);
+        await assert.rejects(fast.multi().ping().execAsPipeline(), TimeoutError);
+      });
+    }, GLOBAL.SERVERS.OPEN);
 
     testUtils.testWithClient('undefined and null should not break the client', async client => {
       await assert.rejects(

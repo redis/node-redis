@@ -1946,7 +1946,8 @@ export default class RedisClient<
   async _executePipeline(
     commands: Array<RedisMultiQueuedCommand>,
     selectedDB?: number,
-    slotNumber?: number
+    slotNumber?: number,
+    commandOptions?: Pick<CommandOptions, 'timeout'>
   ) {
     assertNoHimportSessionCommands(commands);
     if (this._self.#clientSideCache) assertNoCscManagedCommands(commands);
@@ -1956,6 +1957,7 @@ export default class RedisClient<
     }
 
     const batchSize = commands.length;
+    const { timeout } = { ...this._commandOptions, ...commandOptions };
 
     return trace(CHANNELS.TRACE_BATCH,
       async () => {
@@ -1966,6 +1968,7 @@ export default class RedisClient<
               () => this._self.#queue.addCommand(args, {
                 chainId,
                 typeMapping: this._commandOptions?.typeMapping,
+                timeout,
                 slotNumber
               }),
               () => ({
@@ -2009,7 +2012,8 @@ export default class RedisClient<
     commands: Array<RedisMultiQueuedCommand>,
     selectedDB?: number,
     slotNumber?: number,
-    chainId = Symbol('MULTI Chain')
+    chainId = Symbol('MULTI Chain'),
+    commandOptions?: Pick<CommandOptions, 'timeout'>
   ) {
     assertNoHimportSessionCommands(commands);
     if (this._self.#clientSideCache) assertNoCscManagedCommands(commands);
@@ -2032,12 +2036,13 @@ export default class RedisClient<
     }
 
     const batchSize = commands.length;
+    const { timeout } = { ...this._commandOptions, ...commandOptions };
 
     return trace(CHANNELS.TRACE_BATCH,
       async () => {
         const typeMapping = this._commandOptions?.typeMapping;
         const promises: Array<Promise<unknown>> = [
-          this._self.#queue.addCommand(['MULTI'], { chainId, slotNumber }),
+          this._self.#queue.addCommand(['MULTI'], { chainId, timeout, slotNumber }),
         ];
 
         for (const { args } of commands) {
@@ -2045,13 +2050,14 @@ export default class RedisClient<
             this._self.#queue.addCommand(args, {
               chainId,
               typeMapping,
+              timeout,
               slotNumber
             })
           );
         }
 
         promises.push(
-          this._self.#queue.addCommand(['EXEC'], { chainId, slotNumber })
+          this._self.#queue.addCommand(['EXEC'], { chainId, timeout, slotNumber })
         );
 
         this._self.#scheduleWrite();

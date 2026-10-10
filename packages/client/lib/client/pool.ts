@@ -640,8 +640,8 @@ export class RedisClientPool<
     type Multi = new (...args: ConstructorParameters<typeof RedisClientMultiCommand>) => RedisClientMultiCommandType<isTyped, [], M, F, S, RESP, TYPE_MAPPING>;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- access to dynamic Multi class
     return new ((this as any).Multi as Multi)(
-      (commands, selectedDB) => this.execute(client => client._executeMulti(commands, selectedDB)),
-      (commands, selectedDB) => this.execute(client => client._executePipeline(commands, selectedDB)),
+      (commands, selectedDB) => this.execute(client => client._executeMulti(commands, selectedDB, undefined, undefined, this._commandOptions)),
+      (commands, selectedDB) => this.execute(client => client._executePipeline(commands, selectedDB, undefined, this._commandOptions)),
       this._commandOptions?.typeMapping,
       this._self._keyPrefix
     );
