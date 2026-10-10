@@ -828,13 +828,14 @@ export default class RedisCluster<
             commands,
             undefined,
             options?.slotNumber,
-            options?.chainId
+            options?.chainId,
+            this._commandOptions
           )
         );
       },
       async (firstKey, isReadonly, commands) => {
         const { client, slotNumber } = await this._self._slots.getClientAndSlotNumber(firstKey, isReadonly);
-        return client._executePipeline(commands, undefined, slotNumber);
+        return client._executePipeline(commands, undefined, slotNumber, this._commandOptions);
       },
       routing,
       this._commandOptions?.typeMapping,

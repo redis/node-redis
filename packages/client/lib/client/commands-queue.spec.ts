@@ -278,6 +278,103 @@ describe('RedisCommandsQueue', () => {
     });
   });
 
+  describe('timeout of a chain', () => {
+    function addChain(queue: RedisCommandsQueue, timeout?: number, slotNumber?: number, timedIndex = 0) {
+      const chainId = Symbol('MULTI Chain');
+      return ['MULTI', 'SET', 'EXEC'].map((name, i) => {
+        const promise = queue.addCommand([name], {
+          chainId,
+          slotNumber,
+          timeout: i === timedIndex ? timeout : undefined
+        });
+        promise.catch(() => {});
+        return promise;
+      });
+    }
+
+    it('rejects every unwritten command of the chain when the first one times out', async () => {
+      const queue = createQueue();
+      const promises = addChain(queue, 5);
+
+      for (const promise of promises) {
+        await assert.rejects(promise, TimeoutError);
+      }
+      assert.strictEqual(queue.extractAllCommands().length, 0);
+    });
+
+    it('rejects the whole chain whichever of its commands carries the timeout', async () => {
+      const queue = createQueue();
+      const promises = addChain(queue, 5, undefined, 1);
+
+      for (const promise of promises) {
+        await assert.rejects(promise, TimeoutError);
+      }
+      assert.strictEqual(queue.extractAllCommands().length, 0);
+    });
+
+    it('does not touch commands outside the chain', async () => {
+      const queue = createQueue();
+      queue.addCommand(['BEFORE']).catch(() => {});
+      const promises = addChain(queue, 5);
+      queue.addCommand(['AFTER']).catch(() => {});
+
+      for (const promise of promises) {
+        await assert.rejects(promise, TimeoutError);
+      }
+      assert.deepStrictEqual(
+        queue.extractAllCommands().map(command => command.args?.[0]),
+        ['BEFORE', 'AFTER']
+      );
+    });
+
+    it('lets a chain that is partly written finish', async () => {
+      const queue = createQueue();
+      const promises = addChain(queue);
+      queue.commandsToWrite().next();
+      queue.setMaintenanceCommandTimeout(5);
+
+      let settled = false;
+      Promise.allSettled(promises.slice(1)).then(() => { settled = true; });
+      await wait(20);
+
+      assert.strictEqual(settled, false);
+      assert.deepStrictEqual(
+        queue.extractAllCommands().map(command => command.args?.[0]),
+        ['SET', 'EXEC']
+      );
+    });
+
+    it('rejects the whole chain when a command in the middle timed out before prepend', async () => {
+      const source = createQueue();
+      const destination = createQueue();
+      const promises = addChain(source, 1, 1, 1);
+
+      const commands = source.extractCommandsForSlots(new Set([1]));
+      await wait(5);
+      destination.prependCommandsToWrite(commands);
+
+      for (const promise of promises) {
+        await assert.rejects(promise, TimeoutError);
+      }
+      assert.strictEqual(destination.extractAllCommands().length, 0);
+    });
+
+    it('rejects the whole chain when its first command timed out before prepend', async () => {
+      const source = createQueue();
+      const destination = createQueue();
+      const promises = addChain(source, 1, 1);
+
+      const commands = source.extractCommandsForSlots(new Set([1]));
+      await wait(5);
+      destination.prependCommandsToWrite(commands);
+
+      for (const promise of promises) {
+        await assert.rejects(promise, TimeoutError);
+      }
+      assert.strictEqual(destination.extractAllCommands().length, 0);
+    });
+  });
+
   describe('addCommand', () => {
     it('does not keep a command if timeout listener setup fails', async () => {
       const queue = createQueue();

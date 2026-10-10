@@ -317,7 +317,7 @@ export default class RedisCommandsQueue {
     wasInMaintenance: boolean,
   ) {
     return () => {
-      this.#rejectCommand(
+      this.#rejectTimedOut(
         node,
         value,
         wasInMaintenance
@@ -325,6 +325,36 @@ export default class RedisCommandsQueue {
           : new TimeoutError(),
       );
     };
+  }
+
+  /**
+   * A command of a chain cannot time out alone, the rest would be written
+   * without it (an EXEC without its MULTI). The unwritten chain is rejected as
+   * a whole, and a chain that is already partly written is left to finish.
+   */
+  #rejectTimedOut(
+    node: DoublyLinkedNode<CommandToWrite>,
+    value: CommandToWrite,
+    err: Error,
+  ) {
+    const { chainId } = value;
+    if (chainId === undefined) {
+      return this.#rejectCommand(node, value, err);
+    }
+
+    if (chainId === this.#chainInExecution) return;
+
+    // the commands of a chain are queued side by side
+    let chained: DoublyLinkedNode<CommandToWrite> | undefined = node;
+    while (chained.previous?.value.chainId === chainId) {
+      chained = chained.previous;
+    }
+
+    while (chained?.value.chainId === chainId) {
+      const next: DoublyLinkedNode<CommandToWrite> | undefined = chained.next;
+      this.#rejectCommand(chained, chained.value, err);
+      chained = next;
+    }
   }
 
   #rejectCommand(
@@ -885,6 +915,9 @@ export default class RedisCommandsQueue {
       return;
     }
 
+    // expired commands are rejected once the whole batch is back in the queue,
+    // so a chain is rejected together with its not yet inserted members
+    const expired: Array<[DoublyLinkedNode<CommandToWrite>, CommandToWrite, Error]> = [];
     for (let i = commands.length - 1; i >= 0; i--) {
       const value = commands[i];
       const node = this.#insertAtFront(value);
@@ -897,13 +930,13 @@ export default class RedisCommandsQueue {
       if (value.timeout) {
         RedisCommandsQueue.#removeTimeoutListener(value);
         if (value.timeout.signal.aborted) {
-          this.#rejectCommand(
+          expired.push([
             node,
             value,
             value.timeout.wasInMaintenance
               ? new CommandTimeoutDuringMaintenanceError(value.timeout.effectiveTimeout)
               : new TimeoutError(),
-          );
+          ]);
           continue;
         } else {
           value.timeout.listener = this.#createTimeoutListener(
@@ -929,6 +962,10 @@ export default class RedisCommandsQueue {
           });
         }
       }
+    }
+
+    for (const [node, value, err] of expired) {
+      this.#rejectTimedOut(node, value, err);
     }
   }
 }

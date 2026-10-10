@@ -208,7 +208,7 @@ export class RedisSentinelClient<
   ) {
     return this._execute(
       isReadonly,
-      client => client._executePipeline(commands)
+      client => client._executePipeline(commands, undefined, undefined, this.commandOptions)
     );
   }
 
@@ -221,7 +221,7 @@ export class RedisSentinelClient<
   ) {
     return this._execute(
       isReadonly,
-      client => client._executeMulti(commands)
+      client => client._executeMulti(commands, undefined, undefined, undefined, this.commandOptions)
     );
   }
 
@@ -552,7 +552,7 @@ export default class RedisSentinel<
   ) {
     return this._execute(
       isReadonly,
-      client => client._executePipeline(commands)
+      client => client._executePipeline(commands, undefined, undefined, this.commandOptions)
     );
   }
 
@@ -565,7 +565,7 @@ export default class RedisSentinel<
   ) {
     return this._execute(
       isReadonly,
-      client => client._executeMulti(commands)
+      client => client._executeMulti(commands, undefined, undefined, undefined, this.commandOptions)
     );
   }
 
