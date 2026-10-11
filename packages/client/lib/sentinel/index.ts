@@ -7,7 +7,7 @@ import { attachConfig } from '../commander';
 import { NON_STICKY_COMMANDS } from '../commands';
 import { ClientErrorEvent, NamespaceProxySentinel, NamespaceProxySentinelClient, NodeAddressMap, ProxySentinel, ProxySentinelClient, RedisNode, RedisSentinelClientType, RedisSentinelEvent, RedisSentinelOptions, RedisSentinelType, SentinelCommander } from './types';
 import { clientSocketToNode, createCommand, createFunctionCommand, createModuleCommand, createNodeList, createScriptCommand, getMappedNode, mergeSentinelNodes, parseNode } from './utils';
-import { RedisMultiQueuedCommand } from '../multi-command';
+import { MULTI_MODE, MultiMode, RedisMultiQueuedCommand } from '../multi-command';
 import RedisSentinelMultiCommand, { RedisSentinelMultiCommandType } from './multi-commands';
 import { PubSubListener } from '../client/pub-sub';
 import { PubSubProxy } from './pub-sub-proxy';
@@ -225,7 +225,7 @@ export class RedisSentinelClient<
     );
   }
 
-  MULTI(): RedisSentinelMultiCommandType<[], M, F, S, RESP, TYPE_MAPPING> {
+  MULTI<isTyped extends MultiMode = MULTI_MODE['TYPED']>(): RedisSentinelMultiCommandType<[], M, F, S, RESP, TYPE_MAPPING, isTyped> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return new (this as any).Multi(this);
   }
@@ -569,7 +569,7 @@ export default class RedisSentinel<
     );
   }
 
-  MULTI(): RedisSentinelMultiCommandType<[], M, F, S, RESP, TYPE_MAPPING> {
+  MULTI<isTyped extends MultiMode = MULTI_MODE['TYPED']>(): RedisSentinelMultiCommandType<[], M, F, S, RESP, TYPE_MAPPING, isTyped> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return new (this as any).Multi(this);
   }

@@ -6,6 +6,7 @@ import { EventEmitter } from 'node:events';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
 import RedisClusterSlots, { NodeAddressMap, RESUBSCRIBE_LISTENERS_EVENT, ShardNode } from './cluster-slots';
 import RedisClusterMultiCommand, { RedisClusterMultiCommandType } from './multi-command';
+import { MULTI_MODE, MultiMode } from '../multi-command';
 import { PubSubListener, PubSubListeners } from '../client/pub-sub';
 import { ErrorReply, MaxCommandRedirectionsError, ScanIteratorInterruptedError } from '../errors';
 import { ScanOptions, ScanCommonOptions } from '../commands/SCAN';
@@ -826,8 +827,8 @@ export default class RedisCluster<
     );
   }
 
-  MULTI(routing?: RedisArgument) {
-    type Multi = new (...args: ConstructorParameters<typeof RedisClusterMultiCommand>) => RedisClusterMultiCommandType<[], M, F, S, RESP, TYPE_MAPPING>;
+  MULTI<isTyped extends MultiMode = MULTI_MODE['TYPED']>(routing?: RedisArgument) {
+    type Multi = new (...args: ConstructorParameters<typeof RedisClusterMultiCommand>) => RedisClusterMultiCommandType<[], M, F, S, RESP, TYPE_MAPPING, isTyped>;
     const batchOptions = pickBatchOptions(this._commandOptions);
     return new (this as this & { Multi: Multi }).Multi(
       async (firstKey, isReadonly, commands) => {

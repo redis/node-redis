@@ -1,5 +1,5 @@
 import { NON_STICKY_COMMANDS } from '../commands';
-import RedisMultiCommand, { MULTI_REPLY, MultiReply, MultiReplyType, RedisMultiQueuedCommand } from '../multi-command';
+import RedisMultiCommand, { MULTI_MODE, MULTI_REPLY, MultiMode, MultiReply, MultiReplyType, RedisMultiQueuedCommand } from '../multi-command';
 import { ReplyWithTypeMapping, CommandReply, Command, CommandArguments, CommanderConfig, RedisFunctions, RedisModules, RedisScripts, RespVersions, TransformReply, RedisScript, RedisFunction, TypeMapping, RedisArgument } from '../RESP/types';
 import { attachConfig, functionArgumentsPrefix, getTransformReply } from '../commander';
 import { BasicCommandParser, prefixKey } from '../client/parser';
@@ -14,7 +14,7 @@ type CommandSignature<
   S extends RedisScripts,
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping
-> = (...args: Tail<Parameters<C['parseCommand']>>) => RedisClusterMultiCommandType<
+> = (...args: Tail<Parameters<C['parseCommand']>>) => RedisClusterMultiCommandTyped<
   [...REPLIES, ReplyWithTypeMapping<CommandReply<C, RESP>, TYPE_MAPPING>],
   M,
   F,
@@ -71,7 +71,7 @@ type WithScripts<
   [P in keyof S]: CommandSignature<REPLIES, S[P], M, F, S, RESP, TYPE_MAPPING>;
 };
 
-export type RedisClusterMultiCommandType<
+type RedisClusterMultiCommandTyped<
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- variance marker for reply tuple
   REPLIES extends Array<any>,
   M extends RedisModules,
@@ -86,6 +86,23 @@ export type RedisClusterMultiCommandType<
   WithFunctions<REPLIES, M, F, S, RESP, TYPE_MAPPING> &
   WithScripts<REPLIES, M, F, S, RESP, TYPE_MAPPING>
 );
+
+// Unlike the client, extracted cluster factories were already typed. Match
+// 'untyped' explicitly to preserve ReturnType<typeof cluster.multi>.
+type TypedOrAny<Flag extends MultiMode, T> =
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- non-typed branch falls through to any
+  [Flag] extends [MULTI_MODE['UNTYPED']] ? any : T;
+
+export type RedisClusterMultiCommandType<
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- variance marker for reply tuple
+  REPLIES extends Array<any>,
+  M extends RedisModules,
+  F extends RedisFunctions,
+  S extends RedisScripts,
+  RESP extends RespVersions,
+  TYPE_MAPPING extends TypeMapping,
+  isTyped extends MultiMode = MULTI_MODE['TYPED']
+> = TypedOrAny<isTyped, RedisClusterMultiCommandTyped<REPLIES, M, F, S, RESP, TYPE_MAPPING>>;
 
 export type ClusterMultiExecute = (
   firstKey: RedisArgument | undefined,
