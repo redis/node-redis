@@ -714,7 +714,9 @@ export function transformStreamMessageReply(typeMapping: TypeMapping | undefined
   const [ id, message, millisElapsedFromDelivery, deliveriesCounter ] = reply as unknown as UnwrapReply<typeof reply>;
   return {
     id: id,
-    message: transformTuplesReply(message, undefined, typeMapping),
+    message: message === null ?
+      null as unknown as StreamMessageReply['message'] :
+      transformTuplesReply(message, undefined, typeMapping),
     ...(millisElapsedFromDelivery !== undefined ? { millisElapsedFromDelivery } : {}),
     ...(deliveriesCounter !== undefined ? { deliveriesCounter } : {})
   };
