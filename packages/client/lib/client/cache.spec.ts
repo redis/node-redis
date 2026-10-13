@@ -5,7 +5,19 @@ import { REDIS_FLUSH_MODES } from "../commands/FLUSHALL";
 import { once } from 'events';
 import RedisClient from "./index";
 import { BasicCommandParser } from "./parser";
-import { ClientSideCacheCommandError, ClientSideCacheMarkError } from "../errors";
+import {
+  AbortError,
+  ClientClosedError,
+  ClientOfflineError,
+  ClientSideCacheCommandError,
+  ClientSideCacheMarkError,
+  ConnectionTimeoutError,
+  DisconnectsClientError,
+  SimpleError,
+  SocketClosedUnexpectedlyError,
+  SocketTimeoutError,
+  TimeoutError
+} from "../errors";
 
 describe("Client Side Cache", () => {
   it("destroy() on a never-connected client does not flush a shared pooled cache (#3396)", () => {
@@ -1158,6 +1170,213 @@ describe("Client Side Cache", () => {
       }, {
         ...GLOBAL.CLUSTERS.OPEN,
         clusterConfiguration: { RESP: 3, clientSideCache: { trackingMode: 'optin' } }
+      });
+    });
+  });
+  describe('Serve stale on disconnect', () => {
+    function getParser() {
+      const parser = new BasicCommandParser();
+      parser.push('GET');
+      parser.pushKey('k');
+      return parser;
+    }
+
+    const read = (cache: BasicClientSideCache, fn: () => Promise<unknown>) =>
+      cache.handleCache({} as never, getParser(), fn as never, undefined, undefined);
+
+    const offline = () => Promise.reject(new ClientOfflineError());
+
+    describe('config', () => {
+      it('defaults to "flush"', () => {
+        assert.equal(new BasicClientSideCache().disconnectPolicy, 'flush');
+      });
+
+      it('"serve-stale" requires maxStaleAge', () => {
+        assert.throws(() => new BasicClientSideCache({ disconnectPolicy: 'serve-stale' }), /maxStaleAge/);
+        assert.throws(() => new BasicClientSideCache({ disconnectPolicy: 'serve-stale', maxStaleAge: 0 }), /maxStaleAge/);
+        assert.doesNotThrow(() => new BasicClientSideCache({ disconnectPolicy: 'serve-stale', maxStaleAge: 1000 }));
+      });
+    });
+
+    it('a read that fails with a connection error returns the stale value, until reconnect', async () => {
+      const cache = new BasicClientSideCache({ disconnectPolicy: 'serve-stale', maxStaleAge: 60_000 });
+      assert.equal(await read(cache, () => Promise.resolve('v1')), 'v1');
+      assert.equal(cache.size(), 1);
+
+      cache.onError();
+      assert.equal(cache.size(), 0, 'stale entries are not live entries');
+
+      assert.equal(await read(cache, offline), 'v1', 'first fallback read');
+      assert.equal(await read(cache, offline), 'v1', 'second fallback read');
+
+      cache.onReady();
+      await assert.rejects(read(cache, offline), ClientOfflineError);
+    });
+
+    it('onClose() keeps entries stale like onError()', async () => {
+      const cache = new BasicClientSideCache({ disconnectPolicy: 'serve-stale', maxStaleAge: 60_000 });
+      await read(cache, () => Promise.resolve('v1'));
+
+      cache.onClose();
+
+      assert.equal(await read(cache, offline), 'v1');
+    });
+
+    it('a stale entry never satisfies a read while connected', async () => {
+      const cache = new BasicClientSideCache({ disconnectPolicy: 'serve-stale', maxStaleAge: 60_000 });
+      await read(cache, () => Promise.resolve('v1'));
+      cache.onError();
+
+      assert.equal(await read(cache, () => Promise.resolve('v2')), 'v2', 'a miss, loaded from the server');
+      assert.equal(cache.size(), 1);
+    });
+
+    it('a stale entry past maxStaleAge is not served and is removed', async () => {
+      const cache = new BasicClientSideCache({ disconnectPolicy: 'serve-stale', maxStaleAge: 20 });
+      await read(cache, () => Promise.resolve('v1'));
+      cache.onError();
+      await new Promise(resolve => setTimeout(resolve, 40));
+
+      await assert.rejects(read(cache, offline), ClientOfflineError);
+      await assert.rejects(read(cache, offline), ClientOfflineError);
+    });
+
+    it('socket-level failures count as connection errors', async () => {
+      const errors = [
+        new ClientClosedError(),
+        new SocketClosedUnexpectedlyError(),
+        new SocketTimeoutError(1000),
+        new ConnectionTimeoutError(),
+        new DisconnectsClientError(),
+        // what net.Socket emits on a reset: a plain Error with code/errno/syscall
+        Object.assign(new Error('read ECONNRESET'), { code: 'ECONNRESET', errno: -54, syscall: 'read' })
+      ];
+      for (const err of errors) {
+        const cache = new BasicClientSideCache({ disconnectPolicy: 'serve-stale', maxStaleAge: 60_000 });
+        await read(cache, () => Promise.resolve('v1'));
+        cache.onError();
+
+        assert.equal(await read(cache, () => Promise.reject(err)), 'v1', err.message);
+      }
+    });
+
+    it('a failure that is not a connection error propagates and drops the stale copy', async () => {
+      // HLD 4.5: an error reply or an abort removes the retained value, as it would a live entry
+      const errors = [new SimpleError('ERR something'), new AbortError(), new TimeoutError(), new Error('The queue is full')];
+      for (const err of errors) {
+        const cache = new BasicClientSideCache({ disconnectPolicy: 'serve-stale', maxStaleAge: 60_000 });
+        await read(cache, () => Promise.resolve('v1'));
+        cache.onError();
+
+        await assert.rejects(read(cache, () => Promise.reject(err)), e => e === err);
+        await assert.rejects(read(cache, offline), ClientOfflineError, `${err.message}: the stale copy is gone`);
+      }
+    });
+
+    it('a reader that joined the failing load gets the stale value too', async () => {
+      const cache = new BasicClientSideCache({ disconnectPolicy: 'serve-stale', maxStaleAge: 60_000 });
+      await read(cache, () => Promise.resolve('v1'));
+      cache.onError();
+
+      let reject!: (err: Error) => void;
+      let calls = 0;
+      const fn = () => {
+        calls++;
+        return new Promise<never>((_, r) => reject = r);
+      };
+      const loader = read(cache, fn);
+      const joiner = read(cache, fn);
+      reject(new ClientOfflineError());
+
+      assert.deepEqual(await Promise.all([loader, joiner]), ['v1', 'v1']);
+      assert.equal(calls, 1, 'the joiner reused the in-flight load');
+    });
+
+    it('a joined reader fails with the loader when the error is not a connection error', async () => {
+      const cache = new BasicClientSideCache({ disconnectPolicy: 'serve-stale', maxStaleAge: 60_000 });
+      await read(cache, () => Promise.resolve('v1'));
+      cache.onError();
+
+      let reject!: (err: Error) => void;
+      const fn = () => new Promise<never>((_, r) => reject = r);
+      const loader = read(cache, fn);
+      const joiner = read(cache, fn);
+      reject(new SimpleError('ERR boom'));
+
+      await Promise.all([
+        assert.rejects(loader, /ERR boom/),
+        assert.rejects(joiner, /ERR boom/)
+      ]);
+      await assert.rejects(read(cache, offline), ClientOfflineError, 'the stale copy is gone');
+    });
+
+    it('invalidate(key) drops the stale copy', async () => {
+      const cache = new BasicClientSideCache({ disconnectPolicy: 'serve-stale', maxStaleAge: 60_000 });
+      await read(cache, () => Promise.resolve('v1'));
+      cache.onError();
+
+      cache.invalidate('other');
+      assert.equal(await read(cache, offline), 'v1', 'another key leaves it alone');
+
+      cache.invalidate('k');
+      await assert.rejects(read(cache, offline), ClientOfflineError);
+    });
+
+    it('a failed reconnect attempt (onError again) keeps stale copies and their keys', async () => {
+      const cache = new BasicClientSideCache({ disconnectPolicy: 'serve-stale', maxStaleAge: 60_000 });
+      await read(cache, () => Promise.resolve('v1'));
+      cache.onError();
+      cache.onError();
+
+      assert.equal(await read(cache, offline), 'v1');
+
+      cache.invalidate('k');
+      await assert.rejects(read(cache, offline), ClientOfflineError);
+    });
+
+    it('"flush" keeps today\'s behavior', async () => {
+      const cache = new BasicClientSideCache();
+      await read(cache, () => Promise.resolve('v1'));
+      cache.onError();
+
+      await assert.rejects(read(cache, offline), ClientOfflineError);
+    });
+
+    describe('client', () => {
+      const csc = new BasicClientSideCache({ disconnectPolicy: 'serve-stale', maxStaleAge: 60_000 });
+
+      testUtils.testWithClient('a read on a destroyed client returns the stale value', async client => {
+        csc.clear();
+        await client.set('x', '1');
+        assert.equal(await client.get('x'), '1');
+
+        client.destroy();
+
+        assert.deepEqual(
+          await Promise.all([client.get('x'), client.get('x')]),
+          ['1', '1'],
+          'ClientClosedError falls back to the stale value, for concurrent readers too'
+        );
+        await assert.rejects(client.get('y'), ClientClosedError, 'a key that was never cached still fails');
+      }, {
+        ...GLOBAL.SERVERS.OPEN,
+        clientOptions: { RESP: 3, clientSideCache: csc }
+      });
+
+      testUtils.testWithClient('stale entries are dropped on reconnect', async client => {
+        csc.clear();
+        await client.set('x', '1');
+        assert.equal(await client.get('x'), '1');
+
+        await client.close();
+        assert.equal(await client.get('x'), '1', 'stale while closed');
+
+        await client.connect(); // ready → reconnect cleanup
+        await client.close();
+        await assert.rejects(client.get('x'), ClientClosedError, 'the pre-reconnect stale entry is gone');
+      }, {
+        ...GLOBAL.SERVERS.OPEN,
+        clientOptions: { RESP: 3, clientSideCache: csc }
       });
     });
   });
