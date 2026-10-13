@@ -1064,6 +1064,36 @@ describe('Client', () => {
     minimumDockerVersion: [6, 2] // CLIENT INFO
   });
 
+  testUtils.testWithClient('should select the default database on reset', async client => {
+    // Regression: the handshake read #selectedDB before reset() assigned it,
+    // so it sent SELECT 1 again right after RESET.
+    await client.select(1);
+    await client.reset();
+    assert.equal(
+      (await client.clientInfo()).db,
+      0
+    );
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    minimumDockerVersion: [6, 2] // CLIENT INFO
+  });
+
+  testUtils.testWithClient('should select the database option on reset', async client => {
+    await client.select(0);
+    await client.reset();
+    assert.equal(
+      (await client.clientInfo()).db,
+      2
+    );
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    clientOptions: {
+      ...GLOBAL.SERVERS.OPEN.clientOptions,
+      database: 2
+    },
+    minimumDockerVersion: [6, 2] // CLIENT INFO
+  });
+
   testUtils.testWithClient('scanIterator', async client => {
     const entries: Array<string> = [],
       keys = new Set<string>();
