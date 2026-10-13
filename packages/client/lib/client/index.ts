@@ -2031,6 +2031,12 @@ export default class RedisClient<
       throw new WatchError('Client reconnected after WATCH');
     }
 
+    // Admit MULTI + commands + EXEC as one unit. Partial admission leaves the
+    // server inside MULTI (later commands answer QUEUED) — see #3502.
+    if (!this._self.#queue.hasCapacity(commands.length + 2)) {
+      throw new Error('The queue is full');
+    }
+
     const batchSize = commands.length;
 
     return trace(CHANNELS.TRACE_BATCH,
