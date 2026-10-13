@@ -28,6 +28,16 @@ You can also [watch](https://redis.io/docs/interact/transactions/#optimistic-loc
 
 The `WATCH` state is stored on the connection (by the server). In case you need to run multiple `WATCH` & `MULTI` in parallel you'll need to use a [pool](./pool.md).
 
+For example, another connection can change a watched key after you read it but before `EXEC`:
+
+![A pooled connection watches and reads a key. Another connection changes that key. The watched connection sends MULTI and EXEC, and Redis returns a null EXEC reply.](./images/watch-conflict.png)
+
+[Edit diagram](https://svgdiagram.ai/diagram-sources/node-redis-watch-conflict?version=1).
+
+Redis does not execute the queued transaction commands in this case. Node Redis converts the null `EXEC` reply into a `WatchError`. This example assumes the watched connection stays connected and shows selected commands and replies; use the same `pool.execute()` callback for the watch, read and transaction.
+
+[Download SVG](./images/watch-conflict.svg).
+
 ## `execAsPipeline`
 
 `execAsPipeline` will execute the commands without "wrapping" it with `MULTI` & `EXEC` (and lose the transactional semantics).
