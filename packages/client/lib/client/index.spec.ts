@@ -757,6 +757,47 @@ describe('Client', () => {
       );
     }, GLOBAL.SERVERS.OPEN);
 
+    testUtils.testWithClient('rejects a MULTI larger than commandsQueueMaxLength without leaving the connection in MULTI (#3502)', async client => {
+      const multi = client.multi();
+      for (let i = 0; i < 20; i++) {
+        multi.set(`key:${i}`, 'value');
+      }
+
+      await assert.rejects(multi.exec(), /The queue is full/);
+
+      // Let anything that was admitted reach the server and drain from the queue.
+      await new Promise<void>(resolve => { globalThis.setTimeout(resolve, 100); });
+
+      // Before the fix MULTI and part of the batch were written, EXEC was
+      // rejected, and the server stayed inside the transaction, so this SET
+      // answered 'QUEUED' instead of 'OK'.
+      assert.equal(await client.set('key', 'value'), 'OK');
+      assert.equal(await client.get('key'), 'value');
+      assert.equal(await client.exists('key:0'), 0);
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      clientOptions: {
+        commandsQueueMaxLength: 10
+      }
+    });
+
+    testUtils.testWithClient('runs a MULTI that exactly fits commandsQueueMaxLength', async client => {
+      // MULTI + 3 commands + EXEC = 5 queue slots
+      assert.deepEqual(
+        await client.multi()
+          .set('key', 'value')
+          .get('key')
+          .ping()
+          .exec(),
+        ['OK', 'value', 'PONG']
+      );
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      clientOptions: {
+        commandsQueueMaxLength: 5
+      }
+    });
+
     describe('execAsPipeline', () => {
       testUtils.testWithClient('exec(true)', async client => {
         assert.deepEqual(
