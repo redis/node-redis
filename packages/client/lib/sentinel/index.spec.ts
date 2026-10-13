@@ -318,7 +318,7 @@ describe('RedisSentinel', () => {
         sentinelOptions: {
           scanInterval: 250,
           nodeAddressMap: (address: string) => ({
-            host: '127.0.0.2',
+            host: 'localhost',
             port: Number(address.split(':')[1])
           })
         }
