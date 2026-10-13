@@ -757,6 +757,51 @@ describe('Client', () => {
       );
     }, GLOBAL.SERVERS.OPEN);
 
+    testUtils.testWithClient('WatchError when exec is called while reconnecting after WATCH', async client => {
+      // Regression: the socket epoch only moves on 'ready', so an exec issued while
+      // reconnecting was queued and ran on the new connection without the WATCH.
+      await client.watch('key');
+      await killClient(client);
+
+      await assert.rejects(
+        client.multi()
+          .decr('key')
+          .exec(),
+        WatchError
+      );
+    }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('WatchError when the socket is swapped after WATCH', async client => {
+      await client.watch('key');
+
+      // Same socket swap as the maintenance handoff in EnterpriseMaintenanceManager.
+      const duplicate = await client.duplicate().connect();
+      const oldSocket = client._ejectSocket();
+      client._insertSocket(duplicate._ejectSocket());
+      duplicate._insertSocket(oldSocket);
+      duplicate.destroy();
+
+      await assert.rejects(
+        client.multi()
+          .decr('key')
+          .exec(),
+        WatchError
+      );
+    }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('should exec after UNWATCH once the client reconnected', async client => {
+      await client.watch('key');
+      await killClient(client);
+      await client.unwatch();
+
+      assert.deepEqual(
+        await client.multi()
+          .incr('key')
+          .exec(),
+        [1]
+      );
+    }, GLOBAL.SERVERS.OPEN);
+
     describe('execAsPipeline', () => {
       testUtils.testWithClient('exec(true)', async client => {
         assert.deepEqual(

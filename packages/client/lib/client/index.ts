@@ -1064,6 +1064,9 @@ export default class RedisClient<
       // issued between disconnect and re-ready would otherwise see a live-looking entry,
       // skip the PREPARE injection, and replay bare onto the new socket's empty session.
       this.#preparedFieldsets.clear();
+      if (this.#watchEpoch !== undefined) {
+        this.#dirtyWatch ??= 'Client reconnected after WATCH';
+      }
       if (this.#socket.isOpen && !this.#options.disableOfflineQueue) {
         this.#queue.flushWaitingForReply(err);
       } else {
@@ -1265,6 +1268,9 @@ export default class RedisClient<
      // A swapped-in socket carries a fresh server session with no other observable signal
      // on this client — the explicit wipe is the only fieldset-invalidation mechanism here.
      this._self.#preparedFieldsets.clear();
+     if (this._self.#watchEpoch !== undefined) {
+       this._self.#dirtyWatch ??= 'Client reconnected after WATCH';
+     }
      this._self.#socket = socket;
      this._self.#attachListeners(this._self.#socket);
    }
@@ -1890,6 +1896,7 @@ export default class RedisClient<
 
   async UNWATCH() {
     const reply = await this._self.sendCommand(['UNWATCH']);
+    this._self.#dirtyWatch = undefined;
     this._self.#watchEpoch = undefined;
     return reply as unknown as ReplyWithTypeMapping<SimpleStringReply<'OK'>, TYPE_MAPPING>;
   }
