@@ -178,6 +178,15 @@ export default class RedisCommandsQueue {
   }
 
   /**
+   * Returns whether `size` more commands can be admitted without exceeding
+   * `commandsQueueMaxLength`. When no max is configured, always true.
+   */
+  hasCapacity(size: number): boolean {
+    if (!this.#maxLength) return true;
+    return this.#toWrite.length + this.#waitingForReply.length + size <= this.#maxLength;
+  }
+
+  /**
    * The chainId of the most recently written command, if it belonged to a
    * MULTI/pipeline chain. While this is set, any command still in `#toWrite`
    * with a matching `chainId` is the tail of a chain that's already partially

@@ -2021,6 +2021,13 @@ export default class RedisClient<
     assertNoHimportSessionCommands(commands);
     if (this._self.#clientSideCache) assertNoCscManagedCommands(commands);
 
+    // Admit MULTI + commands + EXEC as one unit. Partial admission leaves the
+    // server inside MULTI (later commands answer QUEUED) — see #3502.
+    // Checked before the WATCH state is consumed, so a rejected batch keeps it.
+    if (!this._self.#queue.hasCapacity(commands.length + 2)) {
+      throw new Error('The queue is full');
+    }
+
     const dirtyWatch = this._self.#dirtyWatch;
     this._self.#dirtyWatch = undefined;
     const watchEpoch = this._self.#watchEpoch;

@@ -12,6 +12,21 @@ describe('RedisCommandsQueue', () => {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
+  describe('hasCapacity', () => {
+    it('always has capacity when no max length is configured', () => {
+      const queue = createQueue();
+      queue.addCommand(['PING']);
+      assert.equal(queue.hasCapacity(1_000_000), true);
+    });
+
+    it('counts queued commands against the max length', () => {
+      const queue = new RedisCommandsQueue(3, 3, () => {}, 'test-client');
+      queue.addCommand(['PING']);
+      assert.equal(queue.hasCapacity(2), true);
+      assert.equal(queue.hasCapacity(3), false);
+    });
+  });
+
   describe('extractAllCommands', () => {
     it('returns and removes every queued command, not just the first one', () => {
       const queue = createQueue();
