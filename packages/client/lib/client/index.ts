@@ -2224,9 +2224,11 @@ export default class RedisClient<
       selectedDB = this._self.#options?.database ?? 0;
     this._self.#credentialsSubscription?.dispose();
     this._self.#credentialsSubscription = null;
+    this._self.#selectedDB = selectedDB;
     promises.push(...(await this._self.#handshake(chainId, false)));
     this._self.#scheduleWrite();
     await Promise.all(promises);
+    // a select() sent before RESET resolves in between and records its db
     this._self.#selectedDB = selectedDB;
     this._self.#monitorCallback = undefined;
     this._self.#dirtyWatch = undefined;
