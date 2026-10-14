@@ -2021,6 +2021,13 @@ export default class RedisClient<
     assertNoHimportSessionCommands(commands);
     if (this._self.#clientSideCache) assertNoCscManagedCommands(commands);
 
+    // Admit MULTI + commands + EXEC as one unit. Partial admission leaves the
+    // server inside MULTI (later commands answer QUEUED) — see #3502.
+    // Checked before the WATCH state is consumed, so a rejected batch keeps it.
+    if (!this._self.#queue.hasCapacity(commands.length + 2)) {
+      throw new Error('The queue is full');
+    }
+
     const dirtyWatch = this._self.#dirtyWatch;
     this._self.#dirtyWatch = undefined;
     const watchEpoch = this._self.#watchEpoch;
@@ -2042,14 +2049,6 @@ export default class RedisClient<
 
     return trace(CHANNELS.TRACE_BATCH,
       async () => {
-        // Admit MULTI + commands + EXEC as one unit. Partial admission leaves the
-        // server inside MULTI (later commands answer QUEUED) — see #3502.
-        // Checked inside the traced callback so it also sees anything queued by
-        // batch-start subscribers.
-        if (!this._self.#queue.hasCapacity(commands.length + 2)) {
-          throw new Error('The queue is full');
-        }
-
         const typeMapping = this._commandOptions?.typeMapping;
         const promises: Array<Promise<unknown>> = [
           this._self.#queue.addCommand(['MULTI'], { chainId, slotNumber }),

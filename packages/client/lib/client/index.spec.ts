@@ -826,6 +826,37 @@ describe('Client', () => {
       }
     });
 
+    testUtils.testWithClient('keeps the WATCH state when an oversized MULTI is rejected (#3502)', async client => {
+      await client.watch('key');
+
+      const multi = client.multi();
+      for (let i = 0; i < 20; i++) {
+        multi.set(`key:${i}`, 'value');
+      }
+
+      await assert.rejects(multi.exec(), /The queue is full/);
+      assert.equal(client.isWatching, true);
+
+      const duplicate = await client.duplicate().connect();
+      try {
+        await duplicate.set('key', '1');
+      } finally {
+        duplicate.destroy();
+      }
+
+      await assert.rejects(
+        client.multi()
+          .get('key')
+          .exec(),
+        WatchError
+      );
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      clientOptions: {
+        commandsQueueMaxLength: 10
+      }
+    });
+
     testUtils.testWithClient('runs a MULTI that exactly fits commandsQueueMaxLength', async client => {
       // MULTI + 3 commands + EXEC = 5 queue slots
       assert.deepEqual(
