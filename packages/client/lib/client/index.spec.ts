@@ -1078,6 +1078,22 @@ describe('Client', () => {
     minimumDockerVersion: [6, 2] // CLIENT INFO
   });
 
+  testUtils.testWithClient('should keep the default database when a select() is in flight on reset', async client => {
+    // SELECT 1 replies before RESET, so select() records 1 after reset() has
+    // recorded the default, while the server ends on db 0.
+    const select = client.select(1);
+    await client.reset();
+    await select;
+    await killClient(client);
+    assert.equal(
+      (await client.clientInfo()).db,
+      0
+    );
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    minimumDockerVersion: [6, 2] // CLIENT INFO
+  });
+
   testUtils.testWithClient('should select the database option on reset', async client => {
     await client.select(0);
     await client.reset();

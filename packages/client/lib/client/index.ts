@@ -2228,6 +2228,8 @@ export default class RedisClient<
     promises.push(...(await this._self.#handshake(chainId, false)));
     this._self.#scheduleWrite();
     await Promise.all(promises);
+    // a select() sent before RESET resolves in between and records its db
+    this._self.#selectedDB = selectedDB;
     this._self.#monitorCallback = undefined;
     this._self.#dirtyWatch = undefined;
     this._self.#watchEpoch = undefined;
