@@ -779,6 +779,19 @@ export default class RedisClusterSlots<
       }
 
       this.nodeByAddress.set(address, node);
+    } else if (node.readonly !== readonly) {
+      node.readonly = readonly;
+
+      if (readonly && node.client) {
+        const { client } = node;
+        this.#reconnectionTracker.removeClient(client._clientId);
+        client.close().catch(() => client.destroy());
+        node.client = undefined;
+
+        if (eagerConnent) {
+          promises.push(this.#createNodeClient(node));
+        }
+      }
     }
 
     if (!addressesInUse.has(address)) {
