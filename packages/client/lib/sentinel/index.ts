@@ -1612,7 +1612,8 @@ export class RedisSentinelInternal<
       throw new Error("no valid master node");
     }
 
-    if (master.host === observed.currentMaster?.host && master.port === observed.currentMaster?.port) {
+    const mappedMaster = getMappedNode(master.host, master.port, this.#nodeAddressMap);
+    if (mappedMaster.host === observed.currentMaster?.host && mappedMaster.port === observed.currentMaster?.port) {
       this.#trace(`analyze: master node hasn't changed from ${observed.currentMaster?.host}:${observed.currentMaster?.port}`);
       master = undefined;
     } else {
@@ -1620,7 +1621,8 @@ export class RedisSentinelInternal<
     }
 
     let sentinel: RedisNode | undefined = observed.sentinelConnected;
-    if (sentinel.host === observed.currentSentinel?.host && sentinel.port === observed.currentSentinel.port) {
+    const mappedSentinel = getMappedNode(sentinel.host, sentinel.port, this.#nodeAddressMap);
+    if (mappedSentinel.host === observed.currentSentinel?.host && mappedSentinel.port === observed.currentSentinel.port) {
       this.#trace(`analyze: sentinel node hasn't changed`);
       sentinel = undefined;
     } else {
@@ -1630,31 +1632,33 @@ export class RedisSentinelInternal<
     const replicasToClose: Array<RedisNode> = [];
     const replicasToOpen = new Map<RedisNode, number>();
 
-    const desiredSet = new Set<string>();
+    const desiredMap = new Map<string, RedisNode>();
     const seen = new Set<string>();
 
     if (observed.useReplicas) {
       const replicaList = createNodeList(observed.replicaData)
 
       for (const node of replicaList) {
-        desiredSet.add(JSON.stringify(node));
+        const mapped = getMappedNode(node.host, node.port, this.#nodeAddressMap);
+        desiredMap.set(JSON.stringify({ host: mapped.host, port: mapped.port }), node);
       }
 
       for (const [node, value] of observed.currentReplicas) {
-        if (!desiredSet.has(JSON.stringify(node))) {
+        const desired = desiredMap.get(JSON.stringify(node));
+        if (desired === undefined) {
           replicasToClose.push(node);
           this.#trace(`analyze: adding ${node.host}:${node.port} to replicsToClose`);
         } else {
           seen.add(JSON.stringify(node));
           if (value != observed.replicaPoolSize) {
-            replicasToOpen.set(node, observed.replicaPoolSize - value);
+            replicasToOpen.set(desired, observed.replicaPoolSize - value);
             this.#trace(`analyze: adding ${node.host}:${node.port} to replicsToOpen`);
           }
         }
       }
 
-      for (const node of replicaList) {
-        if (!seen.has(JSON.stringify(node))) {
+      for (const [key, node] of desiredMap) {
+        if (!seen.has(key)) {
           replicasToOpen.set(node, observed.replicaPoolSize);
           this.#trace(`analyze: adding ${node.host}:${node.port} to replicsToOpen`);
         }

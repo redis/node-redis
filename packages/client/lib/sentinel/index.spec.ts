@@ -5,7 +5,7 @@ import { RESP_TYPES } from '../RESP/decoder';
 import { ScanIteratorInterruptedError, WatchError } from "../errors";
 import { RedisSentinelConfig, SentinelFramework } from "./test-util";
 import { RedisSentinelEvent, RedisSentinelType, RedisSentinelClientType, RedisNode } from "./types";
-import RedisSentinel from "./index";
+import RedisSentinel, { RedisSentinelInternal } from "./index";
 import { mergeSentinelNodes } from "./utils";
 import { RedisArgument, RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
 import { promisify } from 'node:util';
@@ -303,6 +303,53 @@ describe('RedisSentinel', () => {
         sentinelOptions: {
           nodeAddressMap: () => undefined
         }
+      });
+
+      testUtils.testWithClientSentinel('should not report a topology change when a mapped address is rescanned', async sentinel => {
+        // Regression: the rescan compared the addresses the sentinel reports with the mapped addresses of
+        // the open clients, so every scan saw a new master, sentinel and replicas and reconnected them all.
+        const events: Array<RedisSentinelEvent> = [];
+        sentinel.on('topology-change', (event: RedisSentinelEvent) => events.push(event));
+        await setTimeout(1500);
+        assert.deepEqual(events, []);
+      }, {
+        ...GLOBAL.SENTINEL.OPEN,
+        replicaPoolSize: 1,
+        sentinelOptions: {
+          scanInterval: 250,
+          nodeAddressMap: (address: string) => ({
+            host: 'localhost',
+            port: Number(address.split(':')[1])
+          })
+        }
+      });
+
+      it('should compare the mapped addresses and open replicas at the reported address', () => {
+        const internal = new RedisSentinelInternal<{}, {}, {}, 2, {}>({
+          name: 'mymaster',
+          sentinelRootNodes: [{ host: '10.0.0.3', port: 26379 }],
+          nodeAddressMap: (address: string) => {
+            const [host, port] = address.split(':');
+            return { host: `external-${host}`, port: Number(port) };
+          }
+        }, 'test');
+
+        const analyzed = internal.analyze({
+          sentinelConnected: { host: '10.0.0.3', port: 26379 },
+          sentinelData: [],
+          masterData: { ip: '10.0.0.1', port: '6379', flags: 'master', 'config-epoch': '0' },
+          replicaData: [{ ip: '10.0.0.2', port: '6379', flags: 'slave' }],
+          currentMaster: { host: 'external-10.0.0.1', port: 6379 },
+          currentReplicas: new Map([[{ host: 'external-10.0.0.2', port: 6379 }, 1]]),
+          currentSentinel: { host: 'external-10.0.0.3', port: 26379 },
+          replicaPoolSize: 2,
+          useReplicas: true
+        });
+
+        assert.equal(analyzed.masterToOpen, undefined);
+        assert.equal(analyzed.sentinelToOpen, undefined);
+        assert.deepEqual(analyzed.replicasToClose, []);
+        assert.deepEqual([...analyzed.replicasToOpen], [[{ host: '10.0.0.2', port: 6379 }, 1]]);
       });
     });
   });
