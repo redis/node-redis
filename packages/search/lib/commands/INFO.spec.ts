@@ -3,6 +3,7 @@ import testUtils, { GLOBAL } from '../test-utils';
 import INFO from './INFO';
 import { SCHEMA_FIELD_TYPE } from './CREATE';
 import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
+import { RESP_TYPES } from '@redis/client';
 
 describe('INFO', () => {
   it('transformArguments', () => {
@@ -39,6 +40,87 @@ describe('INFO', () => {
       'background indexing status': 'ok'
     });
   });
+
+  describe('transformReply attribute flags', () => {
+    // RESP2 sends flags as bare tokens after each attribute's key/value pairs
+    const reply = [
+      'index_name', 'index',
+      'attributes', [
+        ['identifier', 'plain', 'attribute', 'plain', 'type', 'TEXT', 'WEIGHT', '1'],
+        ['identifier', 'tag', 'attribute', 'tag', 'type', 'TAG', 'SEPARATOR', ',', 'CASESENSITIVE', 'SORTABLE', 'UNF']
+      ]
+    ] as unknown as Parameters<typeof INFO.transformReply[2]>[0];
+
+    it('collects flags like RESP3', () => {
+      assert.deepStrictEqual(INFO.transformReply[2](reply).attributes, [{
+        identifier: 'plain',
+        attribute: 'plain',
+        type: 'TEXT',
+        WEIGHT: '1',
+        flags: []
+      }, {
+        identifier: 'tag',
+        attribute: 'tag',
+        type: 'TAG',
+        SEPARATOR: ',',
+        flags: ['CASESENSITIVE', 'SORTABLE', 'UNF']
+      }]);
+    });
+
+    it('with RESP_TYPES.MAP: Map typeMapping', () => {
+      const [, tag] = INFO.transformReply[2](reply, undefined, {
+        [RESP_TYPES.MAP]: Map
+      }).attributes as unknown as Array<Map<string, unknown>>;
+      assert.deepStrictEqual(tag, new Map<string, unknown>([
+        ['identifier', 'tag'],
+        ['attribute', 'tag'],
+        ['type', 'TAG'],
+        ['SEPARATOR', ','],
+        ['flags', ['CASESENSITIVE', 'SORTABLE', 'UNF']]
+      ]));
+    });
+
+    it('with RESP_TYPES.MAP: Array typeMapping', () => {
+      const [, tag] = INFO.transformReply[2](reply, undefined, {
+        [RESP_TYPES.MAP]: Array
+      }).attributes as unknown as Array<Array<unknown>>;
+      assert.deepStrictEqual(tag, [
+        'identifier', 'tag',
+        'attribute', 'tag',
+        'type', 'TAG',
+        'SEPARATOR', ',',
+        'flags', ['CASESENSITIVE', 'SORTABLE', 'UNF']
+      ]);
+    });
+  });
+
+  for (const RESP of [2, 3] as const) {
+    testUtils.testWithClient(`client.ft.info attribute flags (RESP${RESP})`, async client => {
+      await client.ft.create('index', {
+        plain: SCHEMA_FIELD_TYPE.TEXT,
+        title: {
+          type: SCHEMA_FIELD_TYPE.TEXT,
+          NOSTEM: true,
+          SORTABLE: true
+        }
+      });
+
+      const { attributes } = await client.ft.info('index');
+      assert.deepEqual(
+        attributes.map(({ identifier, flags }) => ({ identifier, flags })),
+        [
+          { identifier: 'plain', flags: [] },
+          { identifier: 'title', flags: ['SORTABLE', 'NOSTEM'] }
+        ]
+      );
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      clientOptions: {
+        ...GLOBAL.SERVERS.OPEN.clientOptions,
+        RESP
+      }
+    });
+  }
 
   testUtils.testWithClientIfVersionWithinRange([[8], 'LATEST'], 'client.ft.info', async client => {
     await client.ft.create('index', {

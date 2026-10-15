@@ -1,7 +1,7 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { RedisArgument } from "@redis/client";
-import { ArrayReply, BlobStringReply, Command, DoubleReply, MapReply, NullReply, NumberReply, SimpleStringReply, TypeMapping } from "@redis/client/dist/lib/RESP/types";
-import { createTransformTuplesReplyFunc, transformDoubleReply } from "@redis/client/dist/lib/commands/generic-transformers";
+import { ArrayReply, BlobStringReply, Command, DoubleReply, MapReply, NullReply, NumberReply, RESP_TYPES, RespType, SimpleStringReply, TypeMapping } from "@redis/client/dist/lib/RESP/types";
+import { createTransformTuplesReplyFunc, transformDoubleReply, transformTuplesReply } from "@redis/client/dist/lib/commands/generic-transformers";
 import { TuplesReply } from '@redis/client/dist/lib/RESP/types';
 
 export default {
@@ -18,11 +18,17 @@ export default {
   },
 } as const satisfies Command;
 
+export interface InfoAttributeReply extends RespType<
+  RESP_TYPES['MAP'],
+  { [key: string]: SimpleStringReply } & { flags: ArrayReply<SimpleStringReply> },
+  Map<SimpleStringReply, SimpleStringReply | ArrayReply<SimpleStringReply>> | Array<SimpleStringReply | ArrayReply<SimpleStringReply>>
+> {}
+
 export interface InfoReply {
   index_name: SimpleStringReply;
   index_options: ArrayReply<SimpleStringReply>;
   index_definition: MapReply<SimpleStringReply, SimpleStringReply>;
-  attributes: Array<MapReply<SimpleStringReply, SimpleStringReply>>;
+  attributes: Array<InfoAttributeReply>;
   num_docs: NumberReply
   max_doc_id: NumberReply;
   num_terms: NumberReply;
@@ -126,7 +132,7 @@ function transformV2Reply(reply: Array<unknown>, preserve?: unknown, typeMapping
         ret[key] = myTransformFunc(reply[i+1] as ArrayReply<SimpleStringReply>);
         break;
       case 'attributes':
-        ret[key] = (reply[i+1] as Array<ArrayReply<SimpleStringReply>>).map(attribute => myTransformFunc(attribute));
+        ret[key] = (reply[i+1] as Array<Array<SimpleStringReply>>).map(attribute => transformAttributeV2Reply(attribute, typeMapping));
         break;
       case 'dialect_stats':
         ret[key] = myTransformFunc(reply[i+1] as ArrayReply<SimpleStringReply>) as never;
@@ -183,4 +189,31 @@ function transformV2Reply(reply: Array<unknown>, preserve?: unknown, typeMapping
   }
 
   return ret;
+}
+
+const ATTRIBUTE_FLAGS = new Set([
+  'SORTABLE',
+  'UNF',
+  'NOSTEM',
+  'NOINDEX',
+  'CASESENSITIVE',
+  'WITHSUFFIXTRIE',
+  'INDEXEMPTY',
+  'INDEXMISSING'
+]);
+
+function transformAttributeV2Reply(attribute: Array<SimpleStringReply>, typeMapping?: TypeMapping) {
+  const tuples: Array<unknown> = [],
+    flags: Array<SimpleStringReply> = [];
+
+  for (let i = 0; i < attribute.length; i++) {
+    if (ATTRIBUTE_FLAGS.has(attribute[i].toString())) {
+      flags.push(attribute[i]);
+    } else {
+      tuples.push(attribute[i], attribute[++i]);
+    }
+  }
+
+  tuples.push('flags', flags);
+  return transformTuplesReply(tuples as unknown as ArrayReply<SimpleStringReply>, undefined, typeMapping) as unknown as InfoAttributeReply;
 }
