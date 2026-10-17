@@ -287,6 +287,8 @@ await client.set("key", "new-value", { condition: "IFDEQ", matchValue: hash });
 
 ### Disconnecting
 
+Calling `client.close()` before the connection is ready cancels the connection and rejects queued commands. Once ready, `close()` waits for pending commands to finish.
+
 The `QUIT` command has been deprecated in Redis 7.2 and should now also be considered deprecated in Node-Redis. Instead
 of sending a `QUIT` command to the server, the client can simply close the network connection.
 

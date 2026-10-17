@@ -253,7 +253,12 @@ export default class RedisSocket extends EventEmitter {
     do {
       try {
         const connectStartTime = performance.now();
-        const socket = this.#socket = await this.#createSocket();
+        const socket = await this.#createSocket();
+        if (!this.#isOpen) {
+          socket.destroy();
+          throw new ClientClosedError();
+        }
+        this.#socket = socket;
         this.emit('connect');
 
         try {
