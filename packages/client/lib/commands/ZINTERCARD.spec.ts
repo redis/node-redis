@@ -30,6 +30,15 @@ describe('ZINTERCARD', () => {
           ['ZINTERCARD', '2', '1', '2', 'LIMIT', '1']
         );
       });
+
+      it('{ LIMIT: 0 }', () => {
+        assert.deepEqual(
+          parseArgs(ZINTERCARD, ['1', '2'], {
+            LIMIT: 0
+          }),
+          ['ZINTERCARD', '2', '1', '2', 'LIMIT', '0']
+        );
+      });
     });
   });
 
