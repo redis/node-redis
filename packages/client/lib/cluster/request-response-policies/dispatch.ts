@@ -133,11 +133,15 @@ function specialKey(parser: CommandParser): string {
 /**
  * Special-request routers. Looked up by `COMMAND SUBCOMMAND` first, then bare
  * `COMMAND` — SCAN registers bare because its second argument is a cursor,
- * which the naive `commandIdentifier` mistakes for a subcommand.
+ * which the naive `commandIdentifier` mistakes for a subcommand. BLESS SCAN's
+ * second argument *is* a real subcommand token, so it registers under
+ * `"BLESS SCAN"` instead and shares the same handler (see `resolveScanCommand`
+ * in `scan-cursor.ts`).
  */
 export const SPECIAL_REQUEST_ROUTERS: Record<string, RequestRouter> = {
   'FT.CURSOR READ': routeFtCursor,
   'FT.CURSOR DEL': routeFtCursor,
+  'BLESS SCAN': routeScan,
   SCAN: routeScan
 };
 
@@ -213,9 +217,9 @@ export const reduceRandomKey = async <T>(promises: Promise<T>[]): Promise<T> => 
  * `SPECIAL_REQUEST_ROUTERS` (`COMMAND SUBCOMMAND`, bare-command fallback). A
  * `special` response needs command-specific merging that no generic rule
  * captures; commands absent here hit `reduceSpecial`'s generic fallback. SCAN
- * (response also tipped `special`) needs no entry: its plan is single-node, so
- * the fallback passes the sole reply through and the cursor rewrite happens in
- * `finalizeScanCursor`.
+ * and BLESS SCAN (response also tipped `special`) need no entry: their plan
+ * is single-node, so the fallback passes the sole reply through and the
+ * cursor rewrite happens in `finalizeScanCursor`.
  */
 export const SPECIAL_RESPONSE_REDUCERS: Record<string, ResponseReducer<unknown>> = {
   RANDOMKEY: reduceRandomKey

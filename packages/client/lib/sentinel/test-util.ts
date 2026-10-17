@@ -9,6 +9,7 @@ import RedisSentinel from '.';
 import { RedisFunctions, RedisModules, RedisScripts, RespVersions, TypeMapping, DEFAULT_RESP } from '../RESP/types';
 const execAsync = promisify(exec);
 import RedisSentinelModule from './module'
+import { parseNode } from './utils';
 import TestUtils from '@redis/test-utils';
 import { DEBUG_MODE_ARGS } from '../test-utils'
 interface ErrorWithCode extends Error {
@@ -301,6 +302,37 @@ export class SentinelFramework extends DockerBase {
         }
         await this.restartSentinel(port.toString());
       }
+    }
+  }
+
+  // a bound port is not a servable master: after a failover or a full stop
+  // the sentinels keep flagging the master for a while. Wait until every
+  // sentinel reports the same master and the client would accept it.
+  async waitForHealthyMaster() {
+    while (true) {
+      const masters = await Promise.all(
+        this.getAllSentinelsPort().map(async port => {
+          const client = RedisClient.create({
+            socket: { host: "127.0.0.1", port },
+            modules: RedisSentinelModule,
+          });
+          try {
+            await client.connect();
+            const info = await client.sentinel.sentinelMaster(this.config.sentinelName) as Record<string, string>;
+            return parseNode(info)?.port;
+          } catch {
+            return undefined;
+          } finally {
+            client.destroy();
+          }
+        })
+      );
+
+      if (masters[0] !== undefined && masters.every(port => port === masters[0])) {
+        return;
+      }
+
+      await setTimeout(100);
     }
   }
 

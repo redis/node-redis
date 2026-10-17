@@ -1,6 +1,7 @@
 import assert from 'node:assert';
 import RedisCommandsQueue from './commands-queue';
 import { AbortError, DisconnectsClientError, TimeoutError } from '../errors';
+import { PUBSUB_TYPE } from './pub-sub';
 
 describe('RedisCommandsQueue', () => {
   function createQueue() {
@@ -10,6 +11,21 @@ describe('RedisCommandsQueue', () => {
   function wait(ms: number) {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
+
+  describe('hasCapacity', () => {
+    it('always has capacity when no max length is configured', () => {
+      const queue = createQueue();
+      queue.addCommand(['PING']);
+      assert.equal(queue.hasCapacity(1_000_000), true);
+    });
+
+    it('counts queued commands against the max length', () => {
+      const queue = new RedisCommandsQueue(3, 3, () => {}, 'test-client');
+      queue.addCommand(['PING']);
+      assert.equal(queue.hasCapacity(2), true);
+      assert.equal(queue.hasCapacity(3), false);
+    });
+  });
 
   describe('extractAllCommands', () => {
     it('returns and removes every queued command, not just the first one', () => {
@@ -166,6 +182,114 @@ describe('RedisCommandsQueue', () => {
         remaining.map(command => command.args?.[0]),
         ['SET', 'EXEC'],
       );
+    });
+  });
+
+  describe('asap inside a partly written chain', () => {
+    function queuedCommandNames(queue: RedisCommandsQueue) {
+      return queue.extractAllCommands().map(command => String(command.args?.[0]));
+    }
+
+    function addChainAndWriteHead(queue: RedisCommandsQueue, written: number) {
+      const chainId = Symbol('MULTI Chain');
+      for (const name of ['MULTI', 'SET', 'SET2', 'EXEC']) {
+        queue.addCommand([name], { chainId }).catch(() => {});
+      }
+
+      const writer = queue.commandsToWrite();
+      for (let i = 0; i < written; i++) {
+        writer.next();
+      }
+      return chainId;
+    }
+
+    it('queues an asap command after the unwritten tail of the chain', () => {
+      const queue = createQueue();
+      addChainAndWriteHead(queue, 2);
+
+      queue.addCommand(['PING'], { asap: true }).catch(() => {});
+
+      assert.deepStrictEqual(queuedCommandNames(queue), ['SET2', 'EXEC', 'PING']);
+    });
+
+    it('keeps the reverse order for repeated asap commands', () => {
+      const queue = createQueue();
+      addChainAndWriteHead(queue, 1);
+
+      queue.addCommand(['PING1'], { asap: true }).catch(() => {});
+      queue.addCommand(['PING2'], { asap: true }).catch(() => {});
+
+      assert.deepStrictEqual(
+        queuedCommandNames(queue),
+        ['SET', 'SET2', 'EXEC', 'PING2', 'PING1']
+      );
+    });
+
+    it('does not leave the chain tail waiting for a reply behind an asap command', () => {
+      const queue = createQueue();
+      addChainAndWriteHead(queue, 2);
+      queue.addCommand(['PING'], { asap: true }).catch(() => {});
+
+      const written = [...queue.commandsToWrite()].map(encoded => encoded.join(''));
+
+      assert.ok(written[0].includes('SET2'));
+      assert.ok(written[1].includes('EXEC'));
+      assert.ok(written[2].includes('PING'));
+    });
+
+    it('still queues asap at the head when the chain is fully written', () => {
+      const queue = createQueue();
+      addChainAndWriteHead(queue, 4);
+      queue.addCommand(['LATER']).catch(() => {});
+
+      queue.addCommand(['PING'], { asap: true }).catch(() => {});
+
+      assert.deepStrictEqual(queuedCommandNames(queue), ['PING', 'LATER']);
+    });
+
+    it('still queues asap at the head when the head is not part of the chain', () => {
+      const queue = createQueue();
+      addChainAndWriteHead(queue, 4);
+      queue.addCommand(['LATER']).catch(() => {});
+      queue.addCommand(['PING1'], { asap: true }).catch(() => {});
+      queue.addCommand(['PING2'], { asap: true }).catch(() => {});
+
+      assert.deepStrictEqual(queuedCommandNames(queue), ['PING2', 'PING1', 'LATER']);
+    });
+
+    it('applies to asap MONITOR', () => {
+      const queue = createQueue();
+      addChainAndWriteHead(queue, 2);
+
+      queue.monitor(() => {}, { asap: true }).catch(() => {});
+
+      assert.deepStrictEqual(queuedCommandNames(queue), ['SET2', 'EXEC', 'MONITOR']);
+    });
+
+    it('applies to asap pub/sub commands', () => {
+      const queue = createQueue();
+      queue.extendPubSubListeners(
+        PUBSUB_TYPE.CHANNELS,
+        new Map([['channel', { unsubscribing: false, buffers: new Set(), strings: new Set([() => {}]) }]])
+      )?.catch(() => {});
+      Array.from(queue.commandsToWrite());
+      addChainAndWriteHead(queue, 2);
+
+      queue.resubscribe()?.catch(() => {});
+
+      assert.deepStrictEqual(queuedCommandNames(queue), ['SET2', 'EXEC', 'subscribe']);
+    });
+
+    it('applies to commands prepended from another queue, keeping their order', () => {
+      const queue = createQueue();
+      addChainAndWriteHead(queue, 2);
+      const source = createQueue();
+      source.addCommand(['A']).catch(() => {});
+      source.addCommand(['B']).catch(() => {});
+
+      queue.prependCommandsToWrite(source.extractAllCommands());
+
+      assert.deepStrictEqual(queuedCommandNames(queue), ['SET2', 'EXEC', 'A', 'B']);
     });
   });
 
@@ -438,5 +562,207 @@ describe('RedisCommandsQueue', () => {
       // already-drained source queue.
       assert.strictEqual(source.extractAllCommands().length, 0);
     });
+  });
+
+  describe('prelude', () => {
+    function prelude() {
+      const outcomes: Array<unknown> = [];
+      return {
+        outcomes,
+        prelude: {
+          args: ['CLIENT', 'CACHING', 'NO'],
+          onReply: (err?: unknown) => { outcomes.push(err ?? 'ok'); }
+        }
+      };
+    }
+
+    function written(queue: RedisCommandsQueue) {
+      return [...queue.commandsToWrite()].map(chunks => chunks.join('')).join('');
+    }
+
+    it('writes the prelude and its command as one chunk, prelude first', () => {
+      const queue = createQueue();
+      const { prelude: p } = prelude();
+      queue.addCommand(['GET', 'k'], { prelude: p }).catch(() => {});
+
+      const chunks = [...queue.commandsToWrite()];
+      assert.strictEqual(chunks.length, 1);
+      assert.strictEqual(
+        chunks[0].join(''),
+        '*3\r\n$6\r\nCLIENT\r\n$7\r\nCACHING\r\n$2\r\nNO\r\n*2\r\n$3\r\nGET\r\n$1\r\nk\r\n'
+      );
+    });
+
+    it('reports the prelude reply and resolves the command with its own reply', async () => {
+      const queue = createQueue();
+      const { prelude: p, outcomes } = prelude();
+      const promise = queue.addCommand(['GET', 'k'], { prelude: p });
+      written(queue);
+
+      queue.decoder.write(Buffer.from('+OK\r\n$1\r\nv\r\n'));
+
+      assert.strictEqual(await promise, 'v');
+      assert.deepStrictEqual(outcomes, ['ok']);
+    });
+
+    it('reports a prelude error reply without rejecting the command', async () => {
+      const queue = createQueue();
+      const { prelude: p, outcomes } = prelude();
+      const promise = queue.addCommand(['GET', 'k'], { prelude: p });
+      written(queue);
+
+      queue.decoder.write(Buffer.from('-ERR denied\r\n$1\r\nv\r\n'));
+
+      assert.strictEqual(await promise, 'v');
+      assert.strictEqual(outcomes.length, 1);
+      assert.match(String(outcomes[0]), /denied/);
+    });
+
+    it('is rejected as a whole when the queue has room for only one of the two', async () => {
+      const queue = new RedisCommandsQueue(3, 2, () => {}, 'test-client');
+      queue.addCommand(['PING']).catch(() => {});
+      const { prelude: p, outcomes } = prelude();
+
+      await assert.rejects(queue.addCommand(['GET', 'k'], { prelude: p }), /The queue is full/);
+
+      assert.strictEqual(written(queue), '*1\r\n$4\r\nPING\r\n', 'the prelude must not be written');
+      assert.deepStrictEqual(outcomes, []);
+    });
+
+    it('writes neither when the command fails to encode', async () => {
+      const queue = createQueue();
+      const { prelude: p } = prelude();
+      const promise = queue.addCommand([1 as never], { prelude: p });
+
+      assert.strictEqual(written(queue), '');
+      await assert.rejects(promise, TypeError);
+    });
+
+    it('is removed as a whole when aborted before it is written', async () => {
+      const queue = createQueue();
+      const controller = new AbortController();
+      const { prelude: p } = prelude();
+      const promise = queue.addCommand(['GET', 'k'], { prelude: p, abortSignal: controller.signal });
+
+      controller.abort();
+
+      await assert.rejects(promise, AbortError);
+      assert.strictEqual(written(queue), '');
+    });
+
+    it('is removed as a whole when it times out before it is written', async () => {
+      const queue = createQueue();
+      const { prelude: p } = prelude();
+      const promise = queue.addCommand(['GET', 'k'], { prelude: p, timeout: 1 });
+
+      await assert.rejects(promise, TimeoutError);
+      assert.strictEqual(written(queue), '');
+    });
+
+    it('fails both when the connection is lost after the write', async () => {
+      const queue = createQueue();
+      const { prelude: p, outcomes } = prelude();
+      const promise = queue.addCommand(['GET', 'k'], { prelude: p });
+      written(queue);
+
+      queue.flushAll(new DisconnectsClientError());
+
+      await assert.rejects(promise, DisconnectsClientError);
+      assert.strictEqual(outcomes.length, 1);
+      assert.ok(outcomes[0] instanceof DisconnectsClientError);
+    });
+
+    it('travels with its command when extracted and prepended to another queue', () => {
+      const source = createQueue();
+      const destination = createQueue();
+      const { prelude: p } = prelude();
+      source.addCommand(['GET', 'k'], { prelude: p }).catch(() => {});
+
+      destination.prependCommandsToWrite(source.extractAllCommands());
+
+      assert.strictEqual(written(source), '');
+      assert.match(written(destination), /^\*3\r\n\$6\r\nCLIENT.*GET/s);
+    });
+  });
+
+  describe('RESP2 pub/sub decoder reset', () => {
+    function createResp2Queue() {
+      return new RedisCommandsQueue(2, null, () => {}, 'test-client');
+    }
+
+    function drain(queue: RedisCommandsQueue) {
+      for (const _ of queue.commandsToWrite());
+    }
+
+    function reply(...items: Array<string | number>) {
+      return Buffer.from(
+        `*${items.length}\r\n` +
+        items.map(item => typeof item === 'number' ? `:${item}\r\n` : `$${item.length}\r\n${item}\r\n`).join('')
+      );
+    }
+
+    async function get(queue: RedisCommandsQueue) {
+      const promise = queue.addCommand(['GET', 'k']);
+      drain(queue);
+      queue.decoder.write(Buffer.from('$1\r\nv\r\n'));
+      return promise;
+    }
+
+    it('leaves pub/sub mode after the last channel is unsubscribed', async () => {
+      const queue = createResp2Queue();
+      const subscribed = queue.subscribe(PUBSUB_TYPE.CHANNELS, 'a', () => {});
+      drain(queue);
+      queue.decoder.write(reply('subscribe', 'a', 1));
+      await subscribed;
+
+      const unsubscribed = queue.unsubscribe(PUBSUB_TYPE.CHANNELS, 'a');
+      drain(queue);
+      queue.decoder.write(reply('unsubscribe', 'a', 0));
+      await unsubscribed;
+
+      assert.strictEqual(await get(queue), 'v');
+    });
+
+    it('leaves pub/sub mode when adopted listeners are moved away before their SUBSCRIBE replies', async () => {
+      const source = createResp2Queue();
+      source.subscribe(PUBSUB_TYPE.CHANNELS, 'a', () => {})?.catch(() => {});
+      const queue = createResp2Queue();
+      const adopted = queue.extendPubSubListeners(
+        PUBSUB_TYPE.CHANNELS,
+        source.removeAllPubSubListeners()[PUBSUB_TYPE.CHANNELS]
+      );
+      drain(queue);
+
+      queue.removeAllPubSubListeners();
+      const unsubscribed = queue.unsubscribe(PUBSUB_TYPE.CHANNELS);
+      drain(queue);
+      queue.decoder.write(reply('subscribe', 'a', 1));
+      queue.decoder.write(reply('unsubscribe', 'a', 0));
+      await Promise.all([adopted, unsubscribed]);
+
+      assert.strictEqual(await get(queue), 'v');
+    });
+
+    for (const flush of ['flushWaitingForReply', 'flushAll'] as const) {
+      it(`leaves pub/sub mode after ${flush} rejects an in-flight SUBSCRIBE`, async () => {
+        const queue = createResp2Queue();
+        const lost = queue.subscribe(PUBSUB_TYPE.CHANNELS, 'a', () => {});
+        drain(queue);
+        queue[flush](new DisconnectsClientError());
+        await assert.rejects(lost!, DisconnectsClientError);
+        assert.strictEqual(queue.isPubSubActive, false);
+
+        const subscribed = queue.subscribe(PUBSUB_TYPE.CHANNELS, 'b', () => {});
+        drain(queue);
+        queue.decoder.write(reply('subscribe', 'b', 1));
+        await subscribed;
+        const unsubscribed = queue.unsubscribe(PUBSUB_TYPE.CHANNELS, 'b');
+        drain(queue);
+        queue.decoder.write(reply('unsubscribe', 'b', 0));
+        await unsubscribed;
+
+        assert.strictEqual(await get(queue), 'v');
+      });
+    }
   });
 });

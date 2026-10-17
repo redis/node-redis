@@ -83,6 +83,7 @@ export class Decoder {
   getTypeMapping;
   #cursor = 0;
   #next;
+  #callbackErrors?: Array<unknown>;
 
   constructor(config: DecoderOptions) {
     this.onReply = config.onReply;
@@ -97,6 +98,12 @@ export class Decoder {
   }
 
   write(chunk) {
+    this.#callbackErrors = undefined;
+    this.#write(chunk);
+    return this.#callbackErrors;
+  }
+
+  #write(chunk) {
     if (this.#cursor >= chunk.length) {
       this.#cursor -= chunk.length;
       return;
@@ -131,8 +138,10 @@ export class Decoder {
   #decodeTypeValue(type, chunk) {
     switch (type) {
       case RESP_TYPES.NULL:
-        this.onReply(this.#decodeNull());
-        return false;
+        return this.#handleDecodedValue(
+          this.onReply,
+          this.#decodeNull()
+        );
 
       case RESP_TYPES.BOOLEAN:
         return this.#handleDecodedValue(
@@ -241,7 +250,11 @@ export class Decoder {
       return true;
     }
 
-    cb(value);
+    try {
+      cb(value);
+    } catch (err) {
+      (this.#callbackErrors ??= []).push(err);
+    }
     return false;
   }
 

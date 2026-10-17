@@ -245,6 +245,27 @@ describe('FT.CREATE', () => {
           );
         });
 
+        it('HNSW algorithm with SQ8 COMPRESSION and TRAINING_THRESHOLD', () => {
+          assert.deepEqual(
+            parseArgs(CREATE, 'index', {
+              field: {
+                type: SCHEMA_FIELD_TYPE.VECTOR,
+                ALGORITHM: SCHEMA_VECTOR_FIELD_ALGORITHM.HNSW,
+                TYPE: 'FLOAT32',
+                DIM: 64,
+                DISTANCE_METRIC: 'L2',
+                COMPRESSION: 'SQ8',
+                TRAINING_THRESHOLD: 4096
+              }
+            }),
+            [
+              'FT.CREATE', 'index', 'SCHEMA', 'field', 'VECTOR', 'HNSW', '10', 'TYPE',
+              'FLOAT32', 'DIM', '64', 'DISTANCE_METRIC', 'L2', 'COMPRESSION', 'SQ8',
+              'TRAINING_THRESHOLD', '4096'
+            ]
+          );
+        });
+
         it('VAMANA algorithm', () => {
           assert.deepEqual(
             parseArgs(CREATE, 'index', {
@@ -705,6 +726,60 @@ describe('FT.CREATE', () => {
         },
       }),
       /disk-based/
+    );
+  }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClientIfVersionWithinRange([[8, 12], 'LATEST'], 'client.ft.create vector hnsw sq8 compression', async client => {
+    assert.equal(
+      await client.ft.create('index_hnsw_sq8', {
+        field: {
+          type: SCHEMA_FIELD_TYPE.VECTOR,
+          ALGORITHM: SCHEMA_VECTOR_FIELD_ALGORITHM.HNSW,
+          TYPE: 'FLOAT32',
+          DIM: 64,
+          DISTANCE_METRIC: 'L2',
+          COMPRESSION: 'SQ8',
+          TRAINING_THRESHOLD: 4096
+        }
+      }),
+      'OK'
+    );
+
+    const [attribute] = (await client.ft.info('index_hnsw_sq8')).attributes;
+    assert.equal(attribute.compression, 'SQ8');
+    assert.equal(Number(attribute.training_threshold), 4096);
+
+    assert.equal(
+      await client.ft.create('index_hnsw_sq8_zero_threshold', {
+        field: {
+          type: SCHEMA_FIELD_TYPE.VECTOR,
+          ALGORITHM: SCHEMA_VECTOR_FIELD_ALGORITHM.HNSW,
+          TYPE: 'FLOAT16',
+          DIM: 64,
+          DISTANCE_METRIC: 'L2',
+          COMPRESSION: 'SQ8',
+          TRAINING_THRESHOLD: 0
+        }
+      }),
+      'OK'
+    );
+
+    const [zeroAttribute] = (await client.ft.info('index_hnsw_sq8_zero_threshold')).attributes;
+    assert.equal(Number(zeroAttribute.training_threshold), 0);
+
+    // TRAINING_THRESHOLD is rejected without COMPRESSION
+    await assert.rejects(
+      client.ft.create('index_hnsw_threshold_without_compression', {
+        field: {
+          type: SCHEMA_FIELD_TYPE.VECTOR,
+          ALGORITHM: SCHEMA_VECTOR_FIELD_ALGORITHM.HNSW,
+          TYPE: 'FLOAT32',
+          DIM: 64,
+          DISTANCE_METRIC: 'L2',
+          TRAINING_THRESHOLD: 4096
+        }
+      }),
+      /TRAINING_THRESHOLD is irrelevant/
     );
   }, GLOBAL.SERVERS.OPEN);
 

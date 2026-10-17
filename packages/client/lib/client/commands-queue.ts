@@ -7,6 +7,20 @@ import { AbortError, ErrorReply, CommandTimeoutDuringMaintenanceError, TimeoutEr
 import { MonitorCallback } from '.';
 import { dbgMaintenance } from './enterprise-maintenance-manager';
 
+/**
+ * @internal
+ * A command written immediately in front of another as one unit: admitted, cancelled,
+ * encoded, and written together, so nothing can land between the two on the wire.
+ */
+export interface CommandPrelude {
+  args: ReadonlyArray<RedisArgument>;
+  /**
+   * Receives the prelude's outcome (`err` is set on an error reply or a failure before
+   * the reply). The prelude never rejects the main command's promise by itself.
+   */
+  onReply(err?: unknown): void;
+}
+
 export interface CommandOptions<T = TypeMapping> {
   chainId?: symbol;
   asap?: boolean;
@@ -20,6 +34,12 @@ export interface CommandOptions<T = TypeMapping> {
    */
   timeout?: number;
   /**
+   * Client-side caching intent for this call: `true` caches the reply if the command is
+   * eligible, `false` never caches it. Overrides the `cacheable` predicate and the tracking
+   * mode default. Has no effect without `clientSideCache`.
+   */
+  cache?: boolean;
+  /**
    * @internal
    * The slot the command is targeted to (if any)
    */
@@ -31,6 +51,11 @@ export interface CommandOptions<T = TypeMapping> {
    * would consume the one-shot ASKING flag — the hook re-issues ASKING right before the main.
    */
   askRedirect?: boolean;
+  /**
+   * @internal
+   * A command to write in front of this one, as one unit (see `CommandPrelude`).
+   */
+  prelude?: CommandPrelude;
 }
 
 export interface CommandToWrite extends CommandWaitingForReply {
@@ -48,7 +73,8 @@ export interface CommandToWrite extends CommandWaitingForReply {
     wasInMaintenance: boolean;
   } | undefined;
   rejected?: boolean;
-  slotNumber?: number
+  slotNumber?: number;
+  prelude?: CommandPrelude;
 }
 
 interface CommandWaitingForReply {
@@ -149,6 +175,15 @@ export default class RedisCommandsQueue {
    */
   get pendingCount(): number {
     return this.#toWrite.length + this.#waitingForReply.length;
+  }
+
+  /**
+   * Returns whether `size` more commands can be admitted without exceeding
+   * `commandsQueueMaxLength`. When no max is configured, always true.
+   */
+  hasCapacity(size: number): boolean {
+    if (!this.#maxLength) return true;
+    return this.#toWrite.length + this.#waitingForReply.length + size <= this.#maxLength;
   }
 
   /**
@@ -314,13 +349,39 @@ export default class RedisCommandsQueue {
     value.reject(err);
   }
 
+  /**
+   * Inserts at the front of `#toWrite`, but behind the unwritten tail of a chain
+   * that is already partly on the wire, so that a MULTI is never split by a
+   * command that is not part of it.
+   */
+  #insertAtFront(value: CommandToWrite) {
+    const chainId = this.#chainInExecution;
+    let tailOfChain = this.#toWrite.head;
+    if (chainId === undefined || tailOfChain?.value.chainId !== chainId) {
+      return this.#toWrite.unshift(value);
+    }
+
+    while (tailOfChain.next?.value.chainId === chainId) {
+      tailOfChain = tailOfChain.next;
+    }
+    return this.#toWrite.insertAfter(tailOfChain, value);
+  }
+
+  #addToWrite(value: CommandToWrite, asap = false) {
+    return asap ?
+      this.#insertAtFront(value) :
+      this.#toWrite.push(value);
+  }
+
   addCommand<T>(
     args: ReadonlyArray<RedisArgument>,
     options?: CommandOptions,
   ): Promise<T> {
+    // A prelude and its command are admitted together or not at all.
+    const size = options?.prelude ? 2 : 1;
     if (
       this.#maxLength &&
-      this.#toWrite.length + this.#waitingForReply.length >= this.#maxLength
+      this.#toWrite.length + this.#waitingForReply.length + size > this.#maxLength
     ) {
       return Promise.reject(new Error("The queue is full"));
     } else if (options?.abortSignal?.aborted) {
@@ -339,8 +400,9 @@ export default class RedisCommandsQueue {
         typeMapping: options?.typeMapping,
       };
       value.slotNumber = options?.slotNumber;
+      value.prelude = options?.prelude;
 
-      const node = this.#toWrite.add(value, options?.asap);
+      const node = this.#addToWrite(value, options?.asap);
 
       try {
         // If #maintenanceCommandTimeout was explicitly set, we should
@@ -379,7 +441,7 @@ export default class RedisCommandsQueue {
 
   #addPubSubCommand(command: PubSubCommand, asap = false, chainId?: symbol) {
     return new Promise<void>((resolve, reject) => {
-      this.#toWrite.add(
+      this.#addToWrite(
         {
           args: command.args,
           chainId,
@@ -391,7 +453,14 @@ export default class RedisCommandsQueue {
           },
           reject(err) {
             command.reject?.();
-            reject(err);
+            // a teardown that carried this command's intent to another
+            // member (multi-db move) is a success for the caller — the
+            // subscription change lives on, on the adopting member
+            if (command.carried?.()) {
+              resolve();
+            } else {
+              reject(err);
+            }
           },
           channelsCounter: command.channelsCounter,
           typeMapping: PUSH_TYPE_MAPPING,
@@ -471,12 +540,20 @@ export default class RedisCommandsQueue {
     if (command && this.#respVersion === 2) {
       // RESP2 modifies `onReply` to handle PubSub (see #setupPubSubHandler)
       const { resolve } = command;
+      // resolve first: it drops the listeners and recomputes `isActive`
       command.resolve = () => {
-        if (!this.#pubSub.isActive) {
-          this.#resetDecoderCallbacks();
-        }
-
         resolve();
+
+        if (!this.#pubSub.isActive) {
+          // if `RESET` already overrides `onReply`, restore its fallback instead
+          if (this.#resetFallbackOnReply) {
+            this.#resetFallbackOnReply = ((reply) =>
+              this.#onReply(reply)) as Decoder["onReply"];
+            this.decoder.getTypeMapping = () => this.#getTypeMapping();
+          } else {
+            this.#resetDecoderCallbacks();
+          }
+        }
       };
     }
 
@@ -532,7 +609,7 @@ export default class RedisCommandsQueue {
   monitor(callback: MonitorCallback, options?: CommandOptions) {
     return new Promise<void>((resolve, reject) => {
       const typeMapping = options?.typeMapping ?? {};
-      this.#toWrite.add(
+      this.#addToWrite(
         {
           args: ["MONITOR"],
           chainId: options?.chainId,
@@ -612,6 +689,10 @@ export default class RedisCommandsQueue {
       let encoded: ReadonlyArray<RedisArgument>;
       try {
         encoded = encodeCommand(toSend.args!);
+        // Encode the prelude with its command, so a failure writes neither.
+        if (toSend.prelude) {
+          encoded = [...encodeCommand(toSend.prelude.args), ...encoded];
+        }
       } catch (err) {
         toSend.reject(err);
         toSend = this.#toWrite.shift();
@@ -630,6 +711,17 @@ export default class RedisCommandsQueue {
       }
       this.#chainInExecution = toSend.chainId;
       toSend.chainId = undefined;
+      if (toSend.prelude) {
+        // The prelude's reply arrives first; it is reported, never propagated.
+        const { onReply } = toSend.prelude;
+        toSend.prelude = undefined;
+        this.#waitingForReply.push({
+          resolve: () => onReply(),
+          reject: (err) => onReply(err),
+          channelsCounter: undefined,
+          typeMapping: undefined,
+        });
+      }
       this.#waitingForReply.push(toSend);
 
       yield encoded;
@@ -679,9 +771,10 @@ export default class RedisCommandsQueue {
 
   flushWaitingForReply(err: Error): void {
     this.resetDecoder();
-    this.#pubSub.reset();
-
+    // reset after the rejects: a rejected in-flight SUBSCRIBE decrements the
+    // subscribe counter, which would otherwise drop below 0
     this.#flushWaitingForReply(err);
+    this.#pubSub.reset();
 
     if (!this.#chainInExecution) return;
 
@@ -694,12 +787,12 @@ export default class RedisCommandsQueue {
 
   flushAll(err: Error): void {
     this.resetDecoder();
-    this.#pubSub.reset();
     this.#flushWaitingForReply(err);
     for (const node of this.#toWrite) {
       RedisCommandsQueue.#flushToWrite(node, err);
     }
     this.#toWrite.reset();
+    this.#pubSub.reset();
   }
 
   isEmpty() {
@@ -803,7 +896,7 @@ export default class RedisCommandsQueue {
 
     for (let i = commands.length - 1; i >= 0; i--) {
       const value = commands[i];
-      const node = this.#toWrite.unshift(value);
+      const node = this.#insertAtFront(value);
 
       if (value.rejected) {
         this.#toWrite.remove(node);

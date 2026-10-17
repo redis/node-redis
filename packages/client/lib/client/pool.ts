@@ -251,6 +251,10 @@ export class RedisClientPool<
     waitStartTimestamp: number;
   }>();
 
+  // in-use clients `_rejectQueued` flushed while not ready: their next return
+  // must not take a waiting task into the offline queue just cleared
+  readonly #abandoned = new WeakSet<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>();
+
   /**
    * The number of tasks waiting for a client to become available.
    */
@@ -558,7 +562,8 @@ export class RedisClientPool<
   }
 
   #returnClient(node: DoublyLinkedNode<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>) {
-    const task = this.#tasksQueue.shift();
+    const skip = this.#abandoned.delete(node.value) && !node.value.isReady;
+    const task = skip ? undefined : this.#tasksQueue.shift();
     if (task) {
       clearTimeout(task.timeout);
       publish(CHANNELS.POOL_CONNECTION_WAIT, () => ({ clientId: node.value._clientId, waitStartTimestamp: task.waitStartTimestamp }));
@@ -593,6 +598,32 @@ export class RedisClientPool<
       // TODO: shift vs pop
       const client = this.#idleClients.shift()!
       client.destroy();
+    }
+  }
+
+  /**
+   * @internal
+   * Rejects commands that would otherwise run when the pool reconnects: unsent
+   * commands on every client that is not ready and, when no client is ready,
+   * the tasks waiting for one. Ready clients drain their queues on their own,
+   * waiting tasks included.
+   */
+  _rejectQueued(error: Error) {
+    for (const client of this._self.#clientsInUse) {
+      if (client.isReady) continue;
+      client._getQueue().flushAll(error);
+      this._self.#abandoned.add(client);
+    }
+    for (const client of this._self.#idleClients) {
+      if (!client.isReady) client._getQueue().flushAll(error);
+    }
+    const clients = [...this._self.#clientsInUse, ...this._self.#idleClients];
+    if (clients.some(client => client.isReady)) return;
+
+    let task;
+    while ((task = this._self.#tasksQueue.shift())) {
+      clearTimeout(task.timeout);
+      task.reject(error);
     }
   }
 

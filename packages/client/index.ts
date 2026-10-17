@@ -38,7 +38,7 @@ export { GEO_REPLY_WITH, GeoReplyWith } from './lib/commands/GEOSEARCH_WITH';
 
 export { SetOptions, CLIENT_KILL_FILTERS, CLIENT_UNBLOCK_MODES, FAILOVER_MODES, CLUSTER_SLOT_STATES, COMMAND_LIST_FILTER_BY, REDIS_FLUSH_MODES, AR_PREDICATE_TYPES, AR_PREDICATE_COMBINATORS, AR_OPERATIONS } from './lib/commands'
 
-export { BasicClientSideCache, BasicPooledClientSideCache } from './lib/client/cache';
+export { BasicClientSideCache, BasicPooledClientSideCache, CLIENT_SIDE_CACHE_TRACKING_MODES, type ClientSideCacheTrackingMode } from './lib/client/cache';
 export { OpenTelemetry } from './lib/opentelemetry';
 
 export {
@@ -60,3 +60,51 @@ export {
   type CommandReplyEvent,
   type PoolConnectionWaitEvent,
 } from './lib/client/tracing';
+
+export {
+  createMultiDbClient,
+  createMultiDbClientPool,
+  createMultiDbCluster,
+  createMultiDbSentinel,
+  MultiDbController,
+  TemporarilyUnavailableError,
+  PermanentlyUnavailableError,
+  CommandAbandonedError,
+  type MultiDbResult,
+  type RedisClientLike,
+  type MultiDbConfig,
+  type DatabaseConfig,
+  type PoolDatabaseConfig,
+  type HealthCheckConfig,
+  type FailureDetectorConfig,
+  type ProbePolicy,
+  type InitialAvailability,
+  type FailureDetector,
+  DefaultFailureDetector,
+  defaultErrorFilter,
+  type DefaultFailureDetectorOptions,
+  DefaultHealthCheck,
+  LagAwareHealthCheck,
+  type LagAwareHealthCheckOptions,
+  type HealthCheck,
+  type HealthCheckTarget,
+  type FailoverStrategy,
+  type FailoverCandidate,
+  WeightBasedStrategy,
+  type CircuitState,
+  type DatabaseRole,
+  type DatabaseDescriptor,
+  type FailoverReason,
+  type FailoverEvent,
+  type FallbackEvent,
+  type DatabaseUnhealthyEvent,
+  type DatabaseRecoveredEvent,
+  type AllDatabasesDownEvent,
+  type TerminatedEvent,
+  type MemberErrorEvent,
+  type MemberReadyEvent,
+  type MemberEndEvent,
+  type MultiDbClientEvents,
+  type MultiDbEventEmitter,
+  type MultiDbClientType
+} from './lib/multi-db';

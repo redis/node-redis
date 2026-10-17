@@ -5,7 +5,7 @@ import { RESP_TYPES } from '../RESP/decoder';
 import { ScanIteratorInterruptedError, WatchError } from "../errors";
 import { RedisSentinelConfig, SentinelFramework } from "./test-util";
 import { RedisSentinelEvent, RedisSentinelType, RedisSentinelClientType, RedisNode } from "./types";
-import RedisSentinel from "./index";
+import RedisSentinel, { RedisSentinelInternal } from "./index";
 import { mergeSentinelNodes } from "./utils";
 import { RedisArgument, RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
 import { promisify } from 'node:util';
@@ -303,6 +303,53 @@ describe('RedisSentinel', () => {
         sentinelOptions: {
           nodeAddressMap: () => undefined
         }
+      });
+
+      testUtils.testWithClientSentinel('should not report a topology change when a mapped address is rescanned', async sentinel => {
+        // Regression: the rescan compared the addresses the sentinel reports with the mapped addresses of
+        // the open clients, so every scan saw a new master, sentinel and replicas and reconnected them all.
+        const events: Array<RedisSentinelEvent> = [];
+        sentinel.on('topology-change', (event: RedisSentinelEvent) => events.push(event));
+        await setTimeout(1500);
+        assert.deepEqual(events, []);
+      }, {
+        ...GLOBAL.SENTINEL.OPEN,
+        replicaPoolSize: 1,
+        sentinelOptions: {
+          scanInterval: 250,
+          nodeAddressMap: (address: string) => ({
+            host: 'localhost',
+            port: Number(address.split(':')[1])
+          })
+        }
+      });
+
+      it('should compare the mapped addresses and open replicas at the reported address', () => {
+        const internal = new RedisSentinelInternal<{}, {}, {}, 2, {}>({
+          name: 'mymaster',
+          sentinelRootNodes: [{ host: '10.0.0.3', port: 26379 }],
+          nodeAddressMap: (address: string) => {
+            const [host, port] = address.split(':');
+            return { host: `external-${host}`, port: Number(port) };
+          }
+        }, 'test');
+
+        const analyzed = internal.analyze({
+          sentinelConnected: { host: '10.0.0.3', port: 26379 },
+          sentinelData: [],
+          masterData: { ip: '10.0.0.1', port: '6379', flags: 'master', 'config-epoch': '0' },
+          replicaData: [{ ip: '10.0.0.2', port: '6379', flags: 'slave' }],
+          currentMaster: { host: 'external-10.0.0.1', port: 6379 },
+          currentReplicas: new Map([[{ host: 'external-10.0.0.2', port: 6379 }, 1]]),
+          currentSentinel: { host: 'external-10.0.0.3', port: 26379 },
+          replicaPoolSize: 2,
+          useReplicas: true
+        });
+
+        assert.equal(analyzed.masterToOpen, undefined);
+        assert.equal(analyzed.sentinelToOpen, undefined);
+        assert.deepEqual(analyzed.replicasToClose, []);
+        assert.deepEqual([...analyzed.replicasToOpen], [[{ host: '10.0.0.2', port: 6379 }, 1]]);
       });
     });
   });
@@ -679,6 +726,34 @@ describe(`test with masterPoolSize 2`, () => {
     await assert.doesNotReject(promise);
   }, GLOBAL.SENTINEL.WITH_MASTER_POOL_SIZE_2);
 
+  testUtils.testWithClientSentinel('concurrent commands give their master lease back', async sentinel => {
+    // Regression: each concurrent command took its own master lease and neither
+    // went back to the pool, so use() waited for a free client forever.
+    await Promise.all([sentinel.ping(), sentinel.ping()]);
+
+    const reply = await Promise.race([
+      sentinel.use(client => client.ping()),
+      setTimeout(1000, 'use() is still waiting for a master client')
+    ]);
+    assert.equal(reply, 'PONG');
+  }, GLOBAL.SENTINEL.WITH_MASTER_POOL_SIZE_2);
+
+  testUtils.testWithClientSentinel('lends at most masterPoolSize clients after a shared lease', async sentinel => {
+    // Regression: the shared lease must go back to the pool exactly once, and a
+    // later command must take a fresh one, or two use() calls get the same client.
+    await Promise.all([sentinel.ping(), sentinel.ping()]);
+    await sentinel.ping();
+
+    let inUse = 0,
+      maxInUse = 0;
+    await Promise.all(Array.from({ length: 3 }, () => sentinel.use(async client => {
+      maxInUse = Math.max(maxInUse, ++inUse);
+      await client.ping();
+      inUse--;
+    })));
+    assert.equal(maxInUse, 2);
+  }, GLOBAL.SENTINEL.WITH_MASTER_POOL_SIZE_2);
+
   testUtils.testWithClientSentinel('use - watch - clean', async sentinel => {
     const promise = sentinel.use(async (client) => {
       await client.set("x", 1);
@@ -929,6 +1004,36 @@ describe('legacy tests', () => {
 
       await assert.rejects(sentinel.connect());
       assert.strictEqual(sentinel.isOpen, false);
+    });
+
+    // per-node errors are emitted as `client-error` on the internal; the
+    // public client must re-emit them — the multi-db failure detector (and any
+    // user diagnostics) listen on the public surface
+    it('re-emits per-node client-error events on the public client', async function () {
+      this.timeout(60000);
+
+      const masterPort = await frame.getMasterPort();
+      sentinel = frame.getSentinelClient({
+        // master remapped to a dead address: node connects fail while
+        // sentinel discovery stays healthy
+        nodeAddressMap: (address: string) => {
+          const [host, portStr] = address.split(':');
+          if (Number(portStr) === masterPort) {
+            return { host: '127.0.0.1', port: 1 };
+          }
+          return { host, port: Number(portStr) };
+        },
+        maxCommandRediscovers: 2
+      }, false);
+
+      sentinel.on('error', () => { });
+      const clientErrors: Array<{ type: string; error: Error }> = [];
+      sentinel.on('client-error', (event: { type: string; error: Error }) => clientErrors.push(event));
+
+      await assert.rejects(sentinel.connect());
+
+      assert.ok(clientErrors.length > 0, 'node connection failures must surface as public client-error events');
+      assert.ok(clientErrors.every(event => event.error instanceof Error && typeof event.type === 'string'));
     });
 
     // stops master to force sentinel to update

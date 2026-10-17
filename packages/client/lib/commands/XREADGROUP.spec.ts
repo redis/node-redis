@@ -2,6 +2,7 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL, parseFirstKey } from '../test-utils';
 import XREADGROUP from './XREADGROUP';
 import { parseArgs } from './generic-transformers';
+import { RESP_TYPES } from '../RESP/decoder';
 
 describe('XREADGROUP', () => {
   describe('FIRST_KEY_INDEX', () => {
@@ -163,6 +164,26 @@ describe('XREADGROUP', () => {
     });
   });
 
+  it('transformReply with a deleted pending entry and typeMapping', () => {
+    assert.deepEqual(
+      XREADGROUP.transformReply[2](
+        [['key', [['1-1', null], ['2-1', ['field', 'value']]]]],
+        undefined,
+        { [RESP_TYPES.MAP]: Map }
+      ),
+      [{
+        name: 'key',
+        messages: [{
+          id: '1-1',
+          message: null
+        }, {
+          id: '2-1',
+          message: new Map([['field', 'value']])
+        }]
+      }]
+    );
+  });
+
   testUtils.testAll('xReadGroup - null', async client => {
     const [, readGroupReply] = await Promise.all([
       client.xGroupCreate('key', 'group', '$', {
@@ -219,6 +240,40 @@ describe('XREADGROUP', () => {
     }];
 
     assert.deepStrictEqual(readGroupReply, expected);
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
+
+  testUtils.testAll('xReadGroup - pending entry whose message was deleted', async client => {
+    // Regression: re-reading the PEL with id 0 returns [id, nil] for a trimmed entry
+    const [, trimmedId, id, , , readGroupReply] = await Promise.all([
+      client.xGroupCreate('key', 'group', '$', {
+        MKSTREAM: true
+      }),
+      client.xAdd('key', '*', { field: 'trimmed' }),
+      client.xAdd('key', '*', { field: 'value' }),
+      client.xReadGroup('group', 'consumer', {
+        key: 'key',
+        id: '>'
+      }),
+      client.xTrim('key', 'MAXLEN', 1),
+      client.xReadGroup('group', 'consumer', {
+        key: 'key',
+        id: '0'
+      })
+    ]);
+
+    assert.deepStrictEqual(readGroupReply, [{
+      name: 'key',
+      messages: [{
+        id: trimmedId,
+        message: null
+      }, {
+        id,
+        message: { field: 'value' }
+      }]
+    }]);
   }, {
     client: GLOBAL.SERVERS.OPEN,
     cluster: GLOBAL.CLUSTERS.OPEN

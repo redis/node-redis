@@ -86,3 +86,15 @@ export function isCacheable(
     // it instead of blocking for new data.
     && !meta.flags.includes('blocking');
 }
+
+/**
+ * Whether the server tracks a command's keys for client-side caching: the
+ * command has the `readonly` flag and takes key-name arguments. Broader than
+ * `isCacheable` — XPENDING and TOUCH are tracked but never cached.
+ *
+ * Unknown commands are treated as not trackable. Under OPTOUT that skips the
+ * `CLIENT CACHING NO`, which can only cost wasted tracking, never stale data.
+ */
+export function isTrackable(meta: CommandMetadata | undefined): boolean {
+  return !!meta?.flags?.includes('readonly') && !meta.isKeyless;
+}

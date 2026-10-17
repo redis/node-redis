@@ -757,6 +757,123 @@ describe('Client', () => {
       );
     }, GLOBAL.SERVERS.OPEN);
 
+    testUtils.testWithClient('WatchError when exec is called while reconnecting after WATCH', async client => {
+      // Regression: the socket epoch only moves on 'ready', so an exec issued while
+      // reconnecting was queued and ran on the new connection without the WATCH.
+      await client.watch('key');
+      await killClient(client);
+
+      await assert.rejects(
+        client.multi()
+          .decr('key')
+          .exec(),
+        WatchError
+      );
+    }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('WatchError when the socket is swapped after WATCH', async client => {
+      await client.watch('key');
+
+      // Same socket swap as the maintenance handoff in EnterpriseMaintenanceManager.
+      const duplicate = await client.duplicate().connect();
+      const oldSocket = client._ejectSocket();
+      client._insertSocket(duplicate._ejectSocket());
+      duplicate._insertSocket(oldSocket);
+      duplicate.destroy();
+
+      await assert.rejects(
+        client.multi()
+          .decr('key')
+          .exec(),
+        WatchError
+      );
+    }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('should exec after UNWATCH once the client reconnected', async client => {
+      await client.watch('key');
+      await killClient(client);
+      await client.unwatch();
+
+      assert.deepEqual(
+        await client.multi()
+          .incr('key')
+          .exec(),
+        [1]
+      );
+    }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('rejects a MULTI larger than commandsQueueMaxLength without leaving the connection in MULTI (#3502)', async client => {
+      const multi = client.multi();
+      for (let i = 0; i < 20; i++) {
+        multi.set(`key:${i}`, 'value');
+      }
+
+      await assert.rejects(multi.exec(), /The queue is full/);
+
+      // Let anything that was admitted reach the server and drain from the queue.
+      await new Promise<void>(resolve => { globalThis.setTimeout(resolve, 100); });
+
+      // Before the fix MULTI and part of the batch were written, EXEC was
+      // rejected, and the server stayed inside the transaction, so this SET
+      // answered 'QUEUED' instead of 'OK'.
+      assert.equal(await client.set('key', 'value'), 'OK');
+      assert.equal(await client.get('key'), 'value');
+      assert.equal(await client.exists('key:0'), 0);
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      clientOptions: {
+        commandsQueueMaxLength: 10
+      }
+    });
+
+    testUtils.testWithClient('keeps the WATCH state when an oversized MULTI is rejected (#3502)', async client => {
+      await client.watch('key');
+
+      const multi = client.multi();
+      for (let i = 0; i < 20; i++) {
+        multi.set(`key:${i}`, 'value');
+      }
+
+      await assert.rejects(multi.exec(), /The queue is full/);
+      assert.equal(client.isWatching, true);
+
+      const duplicate = await client.duplicate().connect();
+      try {
+        await duplicate.set('key', '1');
+      } finally {
+        duplicate.destroy();
+      }
+
+      await assert.rejects(
+        client.multi()
+          .get('key')
+          .exec(),
+        WatchError
+      );
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      clientOptions: {
+        commandsQueueMaxLength: 10
+      }
+    });
+
+    testUtils.testWithClient('runs a MULTI that exactly fits commandsQueueMaxLength', async client => {
+      // MULTI + 3 commands + EXEC = 5 queue slots
+      assert.deepEqual(
+        await client.multi()
+          .set('key', 'value')
+          .get('key')
+          .ping()
+          .exec(),
+        ['OK', 'value', 'PONG']
+      );
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      clientOptions: {
+        commandsQueueMaxLength: 5
+      }
+    });
+
     describe('execAsPipeline', () => {
       testUtils.testWithClient('exec(true)', async client => {
         assert.deepEqual(
@@ -783,6 +900,106 @@ describe('Client', () => {
       assert.equal(
         (await client.clientInfo()).db,
         1
+      );
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      minimumDockerVersion: [6, 2] // CLIENT INFO
+    });
+
+    testUtils.testWithClient('should not remember a db whose SELECT failed in a transaction', async client => {
+      // Regression: EXEC returned an error for the out-of-range SELECT, but the
+      // client recorded that index anyway, so every reconnect handshake failed.
+      // The server ran select(1), so the connection stays on db 1.
+      const { databases } = await client.configGet('databases');
+      await assert.rejects(
+        client.multi()
+          .select(1)
+          .select(Number(databases))
+          .exec(),
+        MultiErrorReply
+      );
+      await killClient(client);
+      assert.equal(
+        (await client.clientInfo()).db,
+        1
+      );
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      minimumDockerVersion: [6, 2] // CLIENT INFO
+    });
+
+    testUtils.testWithClient('should remember a db selected by a raw lowercase Buffer SELECT in a transaction', async client => {
+      await client.multi()
+        .addCommand([Buffer.from('select'), '2'])
+        .exec();
+      await killClient(client);
+      assert.equal(
+        (await client.clientInfo()).db,
+        2
+      );
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      minimumDockerVersion: [6, 2] // CLIENT INFO
+    });
+
+    testUtils.testWithClient('should remember selected db when a pipelined command fails', async client => {
+      // Regression: the SELECT ran on the server, but the INCR rejected the batch
+      // before the client recorded the database, so the reconnect went back to 0.
+      // The last of the three SELECTs is out of range, so the server ends on db 1.
+      const { databases } = await client.configGet('databases');
+      await assert.rejects(
+        client.multi()
+          .select(2)
+          .set('key', 'value')
+          .incr('key')
+          .select(1)
+          .select(Number(databases))
+          .execAsPipeline()
+      );
+
+      const duplicate = await client.duplicate().connect();
+      try {
+        await Promise.all([
+          once(client, 'error'),
+          duplicate.clientKill({
+            filter: 'ID',
+            id: await client.clientId()
+          })
+        ]);
+      } finally {
+        duplicate.destroy();
+      }
+
+      assert.equal(
+        (await client.clientInfo()).db,
+        1
+      );
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      minimumDockerVersion: [6, 2] // CLIENT INFO
+    });
+
+    testUtils.testWithClient('should remember a db selected by a raw lowercase Buffer SELECT in a pipeline', async client => {
+      await client.multi()
+        .addCommand([Buffer.from('select'), '2'])
+        .execAsPipeline();
+
+      const duplicate = await client.duplicate().connect();
+      try {
+        await Promise.all([
+          once(client, 'error'),
+          duplicate.clientKill({
+            filter: 'ID',
+            id: await client.clientId()
+          })
+        ]);
+      } finally {
+        duplicate.destroy();
+      }
+
+      assert.equal(
+        (await client.clientInfo()).db,
+        2
       );
     }, {
       ...GLOBAL.SERVERS.OPEN,
@@ -916,6 +1133,52 @@ describe('Client', () => {
     );
   }, {
     ...GLOBAL.SERVERS.OPEN,
+    minimumDockerVersion: [6, 2] // CLIENT INFO
+  });
+
+  testUtils.testWithClient('should select the default database on reset', async client => {
+    // Regression: the handshake read #selectedDB before reset() assigned it,
+    // so it sent SELECT 1 again right after RESET.
+    await client.select(1);
+    await client.reset();
+    assert.equal(
+      (await client.clientInfo()).db,
+      0
+    );
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    minimumDockerVersion: [6, 2] // CLIENT INFO
+  });
+
+  testUtils.testWithClient('should keep the default database when a select() is in flight on reset', async client => {
+    // SELECT 1 replies before RESET, so select() records 1 after reset() has
+    // recorded the default, while the server ends on db 0.
+    const select = client.select(1);
+    await client.reset();
+    await select;
+    await killClient(client);
+    assert.equal(
+      (await client.clientInfo()).db,
+      0
+    );
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    minimumDockerVersion: [6, 2] // CLIENT INFO
+  });
+
+  testUtils.testWithClient('should select the database option on reset', async client => {
+    await client.select(0);
+    await client.reset();
+    assert.equal(
+      (await client.clientInfo()).db,
+      2
+    );
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    clientOptions: {
+      ...GLOBAL.SERVERS.OPEN.clientOptions,
+      database: 2
+    },
     minimumDockerVersion: [6, 2] // CLIENT INFO
   });
 
@@ -1200,6 +1463,38 @@ describe('Client', () => {
       });
     }
 
+    testUtils.testWithClient('should return strings after unsubscribing from all channels (RESP2)', async client => {
+      await client.subscribe('channel', () => {});
+      await client.unsubscribe('channel');
+      assert.equal(await client.echo('after'), 'after');
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      clientOptions: { ...GLOBAL.SERVERS.OPEN.clientOptions, RESP: 2 }
+    });
+
+    testUtils.testWithClient('should be able to monitor after unsubscribing and resetting together (RESP2)', async client => {
+      const duplicate = await client.duplicate().connect(),
+        listener = spy(message => assert.equal(typeof message, 'string'));
+
+      try {
+        await duplicate.subscribe('channel', () => {});
+        await Promise.all([
+          duplicate.unsubscribe('channel'),
+          duplicate.reset()
+        ]);
+        await duplicate.monitor(listener);
+        await Promise.all([
+          waitTillBeenCalled(listener),
+          client.ping()
+        ]);
+      } finally {
+        duplicate.destroy();
+      }
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      clientOptions: { ...GLOBAL.SERVERS.OPEN.clientOptions, RESP: 2 }
+    });
+
     testUtils.testWithClient('should resubscribe', async publisher => {
       const subscriber = await publisher.duplicate().connect();
 
@@ -1254,6 +1549,60 @@ describe('Client', () => {
         ]));
       } finally {
         subscriber.destroy();
+      }
+    }, GLOBAL.SERVERS.OPEN);
+
+    for (const resp of [2, 3] as const) {
+      testUtils.testWithClient(`should keep delivering messages after a listener throws (RESP${resp})`, async publisher => {
+        const subscriber = await publisher.duplicate().connect(),
+          listenerError = new Error('listener error'),
+          errors: Array<unknown> = [],
+          listener = spy((message: string) => {
+            if (message === '1') throw listenerError;
+          });
+        subscriber.on('error', err => errors.push(err));
+
+        try {
+          await subscriber.subscribe('channel', listener);
+          // published in one pipeline, the first three messages reach the subscriber in one chunk
+          await Promise.all(['1', '2', '3'].map(message => publisher.publish('channel', message)));
+          await publisher.publish('channel', '4');
+          await subscriber.ping();
+
+          assert.deepEqual(listener.args.map(([message]) => message), ['1', '2', '3', '4']);
+          assert.deepEqual(errors, [listenerError]);
+        } finally {
+          subscriber.destroy();
+        }
+      }, {
+        ...GLOBAL.SERVERS.OPEN,
+        clientOptions: { ...GLOBAL.SERVERS.OPEN.clientOptions, RESP: resp }
+      });
+    }
+
+    testUtils.testWithClient('should keep replies matched to their commands when a listener throws', async client => {
+      await client.mSet({ k1: 'v1', k2: 'v2', k3: 'v3', k4: 'v4' });
+      const duplicate = await client.duplicate().connect(),
+        listenerError = new Error('listener error');
+
+      try {
+        await duplicate.subscribe('channel', () => {
+          throw listenerError;
+        });
+        // the message and the two replies after it arrive in one chunk
+        const errorEvent = once(duplicate, 'error'),
+          replies = Promise.all([
+            duplicate.publish('channel', 'message'),
+            duplicate.get('k1'),
+            duplicate.get('k2')
+          ]);
+        assert.deepEqual(await errorEvent, [listenerError]);
+
+        const laterReplies = Promise.all([duplicate.get('k3'), duplicate.get('k4')]);
+        assert.deepEqual(await replies, [1, 'v1', 'v2']);
+        assert.deepEqual(await laterReplies, ['v3', 'v4']);
+      } finally {
+        duplicate.destroy();
       }
     }, GLOBAL.SERVERS.OPEN);
 

@@ -4,7 +4,7 @@ export { StaticMetadataResolver } from './static-metadata-resolver';
 export { DynamicPolicyResolverFactory, type CommandFetcher } from './dynamic-policy-resolver-factory';
 
 export * from './policies-constants';
-export { isReplicaSafe, isCacheable } from './predicates';
+export { isReplicaSafe, isCacheable, isTrackable } from './predicates';
 export { COMMAND_METADATA } from './command-metadata-data';
 
 import { StaticMetadataResolver } from './static-metadata-resolver';

@@ -1,6 +1,7 @@
 {
   "npm": {
     "publish": true,
+    "skipChecks": true,
     "publishArgs": ["--access", "public"]
   },
   "git": {

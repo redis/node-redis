@@ -8,6 +8,10 @@ import {
   CreateDatabaseConfig,
   DatabaseConfig,
   IFaultInjectorClient,
+  MultiDbFailoverTrigger,
+  MultiDbSetup,
+  MultiDbTopology,
+  TriggerActionOptions,
 } from "./types";
 
 const dbg = (...args: unknown[]) => {
@@ -184,7 +188,7 @@ export class FaultInjectorClient implements IFaultInjectorClient {
   async #request<T>(
     method: string,
     path: string,
-    body?: Object | string,
+    body?: object | string,
     timeoutMs: number = 30000
   ): Promise<T> {
     const url = `${this.baseUrl}${path}`;
@@ -219,12 +223,8 @@ export class FaultInjectorClient implements IFaultInjectorClient {
       });
 
       if (!response.ok) {
-        try {
-          const text = await response.text();
-          throw new Error(`HTTP ${response.status} - ${text}`);
-        } catch {
-          throw new Error(`HTTP ${response.status}`);
-        }
+        const text = await response.text().catch(() => "");
+        throw new Error(text ? `HTTP ${response.status} - ${text}` : `HTTP ${response.status}`);
       }
 
       try {
@@ -322,4 +322,122 @@ export class FaultInjectorClient implements IFaultInjectorClient {
     return result;
   }
 
+  /**
+   * Lists the multi-db failover triggers, one requirement per member topology.
+   * @throws {Error} When the HTTP request fails or response cannot be parsed as JSON
+   */
+  public async listMultiDbFailoverTriggers(): Promise<MultiDbFailoverTrigger[]> {
+    const res = await this.#request<{ triggers: MultiDbFailoverTrigger[] }>(
+      "GET",
+      "/multi-db-failover"
+    );
+    return res.triggers;
+  }
+
+  /**
+   * Provisions a multi-db member fleet (one member per cluster) for a topology.
+   * Blocks until every member is active.
+   * @param topology The member topology to provision
+   * @param trigger The trigger the fleet must support
+   * @throws {Error} When the topology is not offered or the setup fails
+   */
+  public async multiDbSetup(
+    topology: MultiDbTopology,
+    trigger = "network_failure"
+  ): Promise<MultiDbSetup> {
+    const triggers = await this.listMultiDbFailoverTriggers();
+    const requirements = triggers.find(t => t.name === trigger)?.requirements ?? [];
+    const variantIndex = requirements.findIndex(r => r.config === topology);
+    if (variantIndex === -1) {
+      throw new Error(`Fault injector offers no "${topology}" topology for trigger "${trigger}"`);
+    }
+
+    dbg('multiDbSetup:', topology, 'variant', variantIndex);
+    const setup = await this.#request<MultiDbSetup>(
+      "POST",
+      `/multi-db-failover/setup?${new URLSearchParams({
+        trigger,
+        variant_index: String(variantIndex)
+      })}`,
+      undefined,
+      MULTI_DB_BLOCKING_TIMEOUT_MS
+    );
+    dbg('multiDbSetup done:', setup.setup_id, setup.instances.map(i => ({
+      cluster_index: i.cluster_index,
+      bdb_id: i.bdb_id,
+      endpoints: i.endpoints
+    })));
+    return setup;
+  }
+
+  /**
+   * Takes one member of a multi-db setup offline and keeps it down until
+   * {@link multiDbRestore}. Resolves once the outage is in place.
+   * @param setupId The setup id from {@link multiDbSetup}
+   * @param instanceIndex Which member to take offline
+   * @throws {Error} When the action fails
+   */
+  public async multiDbTakeOffline(
+    setupId: string,
+    instanceIndex: number,
+    options?: TriggerActionOptions
+  ): Promise<ActionStatus> {
+    dbg('multiDbTakeOffline:', setupId, 'instance', instanceIndex);
+    const { action_id } = await this.#request<{ action_id: string }>(
+      "POST",
+      `/multi-db-failover?${new URLSearchParams({
+        trigger: "network_failure",
+        setup_id: setupId,
+        instance_index: String(instanceIndex),
+        hold: "true"
+      })}`
+    );
+    dbg('action_id:', action_id);
+    return this.waitForAction(action_id, options);
+  }
+
+  /**
+   * Brings a member taken offline by {@link multiDbTakeOffline} back online.
+   * Blocks until the network is restored.
+   * @param setupId The setup id from {@link multiDbSetup}
+   * @param instanceIndex Which member to restore
+   * @throws {Error} When the HTTP request fails
+   */
+  public async multiDbRestore(setupId: string, instanceIndex: number): Promise<unknown> {
+    dbg('multiDbRestore:', setupId, 'instance', instanceIndex);
+    return this.#request(
+      "POST",
+      `/multi-db-failover/restore?${new URLSearchParams({
+        setup_id: setupId,
+        instance_index: String(instanceIndex)
+      })}`,
+      undefined,
+      MULTI_DB_BLOCKING_TIMEOUT_MS
+    );
+  }
+
+  /**
+   * Deletes every member of a multi-db setup and flushes any network block
+   * left behind. Blocks until done.
+   * @param setupId The setup id from {@link multiDbSetup}
+   * @throws {Error} When the HTTP request fails
+   */
+  public async multiDbTeardown(setupId: string): Promise<unknown> {
+    dbg('multiDbTeardown:', setupId);
+    const res = await this.#request(
+      "POST",
+      `/multi-db-failover/teardown?${new URLSearchParams({
+        setup_id: setupId,
+        clean_iptables: "true"
+      })}`,
+      undefined,
+      MULTI_DB_BLOCKING_TIMEOUT_MS
+    );
+    dbg('multiDbTeardown done:', res);
+    return res;
+  }
+
 }
+
+// The blocking multi-db routes create or delete databases; a CRDB can take many minutes.
+const MULTI_DB_BLOCKING_TIMEOUT_MS = 20 * 60 * 1000;

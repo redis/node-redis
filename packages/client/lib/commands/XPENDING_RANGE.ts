@@ -5,7 +5,7 @@ import { RedisArgument, ArrayReply, TuplesReply, BlobStringReply, NumberReply, U
  * Options for the XPENDING RANGE command
  * 
  * @property IDLE - Filter by message idle time in milliseconds
- * @property consumer - Filter by specific consumer name
+ * @property consumer - Filter by specific consumer name, including an empty name
  */
 export interface XPendingRangeOptions {
   IDLE?: number;
@@ -47,7 +47,7 @@ export default {
 
     parser.push(start, end, count.toString());
 
-    if (options?.consumer) {
+    if (options?.consumer !== undefined) {
       parser.push(options.consumer);
     }
   },

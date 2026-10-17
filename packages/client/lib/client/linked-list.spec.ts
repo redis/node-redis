@@ -169,6 +169,46 @@ describe("DoublyLinkedList", () => {
   });
 });
 
+describe("DoublyLinkedList.insertAfter", () => {
+  it("inserts in the middle", () => {
+    const list = new DoublyLinkedList<number>();
+    const first = list.push(1);
+    list.push(3);
+
+    const node = list.insertAfter(first, 2);
+
+    equal(list.length, 3);
+    deepEqual(Array.from(list), [1, 2, 3]);
+    equal(node.previous, first);
+    equal(node.next, list.tail);
+    equal(list.tail!.previous, node);
+  });
+
+  it("updates the tail when inserting after it", () => {
+    const list = new DoublyLinkedList<number>();
+    list.push(1);
+    const tail = list.push(2);
+
+    const node = list.insertAfter(tail, 3);
+
+    equal(list.tail, node);
+    equal(node.next, undefined);
+    equal(list.length, 3);
+    deepEqual(Array.from(list), [1, 2, 3]);
+  });
+
+  it("works on a single node list", () => {
+    const list = new DoublyLinkedList<number>();
+    const only = list.push(1);
+
+    const node = list.insertAfter(only, 2);
+
+    equal(list.head, only);
+    equal(list.tail, node);
+    deepEqual(Array.from(list), [1, 2]);
+  });
+});
+
 describe("SinglyLinkedList", () => {
   const list = new SinglyLinkedList();
 

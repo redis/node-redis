@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      packages: write
+      id-token: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -30,6 +30,9 @@ jobs:
         with:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
+
+      - name: Update npm for trusted publishing
+        run: npm install --global npm@11
 
       - name: Install dependencies
         run: npm ci
@@ -47,7 +50,6 @@ jobs:
       - name: Release packages
         run: npm run release -- --ci -i ${{ github.event.inputs.version }} ${{ github.event.inputs.args }}
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Packages are released one workspace at a time starting with @redis/client.
           # `npm version` runs a workspace-update install after the bump; because the sibling

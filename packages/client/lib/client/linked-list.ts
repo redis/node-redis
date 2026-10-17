@@ -61,6 +61,18 @@ export class DoublyLinkedList<T> {
     };
   }
 
+  insertAfter(node: DoublyLinkedNode<T>, value: T) {
+    if (node.next === undefined) return this.push(value);
+
+    ++this.#length;
+
+    return node.next = node.next.previous = {
+      previous: node,
+      next: node.next,
+      value
+    };
+  }
+
   add(value: T, prepend = false) {
     return prepend ?
       this.unshift(value) :
