@@ -874,6 +874,129 @@ describe('Client', () => {
       }
     });
 
+    describe('queue timeout', () => {
+      it('rejects batches queued while the client cannot connect (#3504)', async () => {
+        const client = createClient({
+          socket: {
+            host: '127.0.0.1',
+            port: await getFreePortNumber(),
+            reconnectStrategy: () => 10
+          },
+          commandOptions: { timeout: 50 }
+        });
+        client.on('error', () => {});
+        const connecting = client.connect().catch(() => {});
+
+        try {
+          await Promise.all([
+            assert.rejects(client.ping(), TimeoutError),
+            assert.rejects(client.multi().ping().exec(), TimeoutError),
+            assert.rejects(client.multi().ping().execAsPipeline(), TimeoutError)
+          ]);
+        } finally {
+          client.destroy();
+          await connecting;
+        }
+      });
+
+      testUtils.testWithClient('per-call timeout cancels the whole batch', async client => {
+        const withTimeout = client.withCommandOptions({ timeout: 5 });
+        await blockSetImmediate(async () => {
+          await assert.rejects(withTimeout.multi().ping().set('key', 'value').exec(), TimeoutError);
+          await assert.rejects(withTimeout.multi().ping().set('key', 'value').execAsPipeline(), TimeoutError);
+        });
+
+        // Nothing of either batch reached the server, and the connection is not left inside MULTI.
+        assert.equal(await client.get('key'), null);
+        assert.equal(await client.set('other', 'value'), 'OK');
+      }, GLOBAL.SERVERS.OPEN);
+
+      testUtils.testWithClient('client timeout applies to batches', async client => {
+        await blockSetImmediate(async () => {
+          await assert.rejects(client.multi().ping().exec(), TimeoutError);
+          await assert.rejects(client.multi().ping().execAsPipeline(), TimeoutError);
+        });
+      }, {
+        ...GLOBAL.SERVERS.OPEN,
+        clientOptions: {
+          commandOptions: {
+            timeout: 5
+          }
+        }
+      });
+
+      testUtils.testWithClient('abortSignal cancels the whole batch', async client => {
+        await blockSetImmediate(async () => {
+          await assert.rejects(client.withAbortSignal(AbortSignal.timeout(5)).multi().ping().exec(), AbortError);
+          await assert.rejects(client.withAbortSignal(AbortSignal.timeout(5)).multi().ping().execAsPipeline(), AbortError);
+        });
+        assert.equal(await client.set('key', 'value'), 'OK');
+      }, GLOBAL.SERVERS.OPEN);
+
+      testUtils.testWithClient('timeout: undefined keeps a queued batch waiting', async client => {
+        const withoutTimeout = client.withCommandOptions({ timeout: undefined });
+        let exec: Promise<unknown> | undefined;
+        let settled = false;
+        await blockSetImmediate(async () => {
+          exec = withoutTimeout.multi().ping().exec();
+          exec.finally(() => { settled = true; }).catch(() => {});
+          await new Promise(resolve => globalThis.setTimeout(resolve, 20));
+        });
+
+        assert.equal(settled, false);
+        assert.equal(await client.ping(), 'PONG');
+        assert.deepEqual(await exec, ['PONG']);
+      }, {
+        ...GLOBAL.SERVERS.OPEN,
+        clientOptions: {
+          commandOptions: {
+            timeout: 5
+          }
+        }
+      });
+
+      testUtils.testWithClient('does not cancel a batch once it is written', async client => {
+        assert.deepEqual(
+          await client.withCommandOptions({ timeout: 5 }).multi().ping().blPop('key', 0.05).execAsPipeline(),
+          ['PONG', null]
+        );
+      }, GLOBAL.SERVERS.OPEN);
+
+      testUtils.testWithClient('keeps the WATCH state when a queued MULTI times out', async client => {
+        await client.watch('key');
+
+        await blockSetImmediate(async () => {
+          await assert.rejects(client.withCommandOptions({ timeout: 5 }).multi().get('key').exec(), TimeoutError);
+        });
+        assert.equal(client.isWatching, true);
+
+        const duplicate = await client.duplicate().connect();
+        try {
+          await duplicate.set('key', '1');
+        } finally {
+          duplicate.destroy();
+        }
+
+        await assert.rejects(client.multi().get('key').exec(), WatchError);
+      }, GLOBAL.SERVERS.OPEN);
+
+      testUtils.testWithClient('keeps the WATCH state when the signal is already aborted', async client => {
+        await client.watch('key');
+
+        await assert.rejects(client.withAbortSignal(AbortSignal.abort()).multi().get('key').exec(), AbortError);
+        assert.equal(client.isWatching, true);
+
+        const duplicate = await client.duplicate().connect();
+        try {
+          await duplicate.set('key', '1');
+        } finally {
+          duplicate.destroy();
+        }
+
+        await assert.rejects(client.multi().get('key').exec(), WatchError);
+      }, GLOBAL.SERVERS.OPEN);
+    });
+
     describe('execAsPipeline', () => {
       testUtils.testWithClient('exec(true)', async client => {
         assert.deepEqual(
