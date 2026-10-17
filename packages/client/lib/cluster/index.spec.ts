@@ -883,6 +883,56 @@ describe('Cluster', () => {
       serverArguments: [],
       minimumDockerVersion: [7]
     });
+
+    testUtils.testWithCluster('closes the sharded pub/sub client of a master demoted by a failover', async cluster => {
+      await cluster.connect();
+
+      try {
+        const SLOT = 10328, // slot of `channel`
+          listener = spy();
+
+        await cluster.sSubscribe('channel', listener);
+
+        const previousMaster = cluster.slots[SLOT].master,
+          pubSubClient = previousMaster.pubSub!.client,
+          replicaClient = await cluster.nodeClient(cluster.slots[SLOT].replicas![0]);
+
+        await replicaClient.clusterFailover();
+
+        for (let i = 0; ; i++) {
+          const info = await replicaClient.sendCommand<string>(['INFO', 'replication']);
+          if (info.includes('role:master')) break;
+          if (i === 199) assert.fail('Cluster failover did not complete');
+          await setTimeout(50);
+        }
+
+        for (let i = 0; i < 50 && !listener.called; i++) {
+          await cluster.sPublish('channel', 'message');
+          await setTimeout(100);
+        }
+
+        // the old master's node is now a replica that still holds its pub/sub client
+        assert.ok(listener.calledWithExactly('message', 'channel'));
+        assert.equal(cluster.slots[SLOT].replicas![0].address, previousMaster.address);
+        assert.equal(pubSubClient.isOpen, true);
+
+        await cluster.close();
+
+        assert.equal(pubSubClient.isOpen, false);
+      } finally {
+        cluster.destroy();
+      }
+    }, {
+      serverArguments: [],
+      numberOfMasters: 2,
+      numberOfReplicas: 1,
+      minimumDockerVersion: [7],
+      disableClusterSetup: true,
+      clusterConfiguration: {
+        useReplicas: true
+      },
+      testTimeout: 30000
+    });
   });
 
   describe('clusterEvents', () => {

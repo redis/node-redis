@@ -1118,6 +1118,11 @@ export default class RedisClusterSlots<
       if (replica.client) {
         yield replica.client;
       }
+
+      const { pubSub } = replica as MasterNode<M, F, S, RESP, TYPE_MAPPING>;
+      if (pubSub) {
+        yield pubSub.client;
+      }
     }
   }
 
