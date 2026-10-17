@@ -1,0 +1,9 @@
+name: "batch-ping"
+
+clientconfig:
+  - command: |
+      npm install
+      npm run build:tests-tools
+      cd benchmark
+      npm install
+      npm run start -- --name batch-ping --batch-size 100 --times 100000 --redis-server-host ${server_private_ip}

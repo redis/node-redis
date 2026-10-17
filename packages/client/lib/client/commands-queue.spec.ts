@@ -685,6 +685,182 @@ describe('RedisCommandsQueue', () => {
     });
   });
 
+  describe('addBatch', () => {
+    const MULTI = [{ args: ['MULTI'] }, { args: ['SET', 'k', 'v'] }, { args: ['EXEC'] }];
+
+    function written(queue: RedisCommandsQueue) {
+      return [...queue.commandsToWrite()].map(chunks => chunks.join('')).join('');
+    }
+
+    function outcomes(promises: Array<Promise<unknown>>) {
+      return Promise.all(promises.map(promise => promise.then(
+        () => 'resolved',
+        (err: Error) => err.constructor.name
+      )));
+    }
+
+    it('times out the whole batch with one timer while it is still queued', async () => {
+      const queue = createQueue();
+      queue.addCommand(['PING']).catch(() => {});
+      const promises = queue.addBatch(MULTI, { chainId: Symbol('MULTI Chain'), timeout: 1 });
+      queue.addCommand(['PING']).catch(() => {});
+
+      assert.deepStrictEqual(await outcomes(promises), ['TimeoutError', 'TimeoutError', 'TimeoutError']);
+      assert.strictEqual(written(queue), '*1\r\n$4\r\nPING\r\n*1\r\n$4\r\nPING\r\n');
+    });
+
+    it('arms the timeout and abort listener on the first command only', () => {
+      const queue = createQueue();
+      queue.addBatch(MULTI, {
+        chainId: Symbol('MULTI Chain'),
+        timeout: 1000,
+        abortSignal: new AbortController().signal
+      }).forEach(promise => promise.catch(() => {}));
+
+      const [head, ...rest] = queue.extractAllCommands();
+      assert.ok(head.timeout);
+      assert.ok(head.abort);
+      assert.deepStrictEqual(rest.map(command => [command.timeout, command.abort]), [[undefined, undefined], [undefined, undefined]]);
+    });
+
+    it('stops the timer once the first command is written', async () => {
+      const queue = createQueue();
+      const promises = queue.addBatch(MULTI, { chainId: Symbol('MULTI Chain'), timeout: 1 });
+
+      const toWrite = queue.commandsToWrite();
+      assert.match(toWrite.next().value!.join(''), /MULTI/);
+      await wait(10);
+      assert.match([...toWrite].map(chunks => chunks.join('')).join(''), /SET.*EXEC/s);
+
+      queue.decoder.write(Buffer.from('+OK\r\n+QUEUED\r\n*1\r\n+OK\r\n'));
+      assert.deepStrictEqual(await outcomes(promises), ['resolved', 'resolved', 'resolved']);
+    });
+
+    it('removes the whole batch when aborted before it is written', async () => {
+      const queue = createQueue();
+      const controller = new AbortController();
+      const promises = queue.addBatch(MULTI, { chainId: Symbol('MULTI Chain'), abortSignal: controller.signal });
+
+      controller.abort();
+
+      assert.deepStrictEqual(await outcomes(promises), ['AbortError', 'AbortError', 'AbortError']);
+      assert.strictEqual(written(queue), '');
+    });
+
+    it('rejects the whole batch when the signal is already aborted', async () => {
+      const queue = createQueue();
+      let cancelled = 0;
+      const promises = queue.addBatch(MULTI, {
+        chainId: Symbol('MULTI Chain'),
+        abortSignal: AbortSignal.abort(),
+        onCancel: () => cancelled++
+      });
+
+      assert.deepStrictEqual(await outcomes(promises), ['AbortError', 'AbortError', 'AbortError']);
+      assert.strictEqual(written(queue), '');
+      assert.strictEqual(cancelled, 1);
+    });
+
+    it('rejects the whole batch when the timeout is invalid', async () => {
+      const queue = createQueue();
+      const promises = queue.addBatch(MULTI, { chainId: Symbol('MULTI Chain'), timeout: -1 });
+
+      assert.deepStrictEqual(await outcomes(promises), ['RangeError', 'RangeError', 'RangeError']);
+      assert.strictEqual(written(queue), '');
+    });
+
+    it('calls onCancel only for a batch that was never written', async () => {
+      const queue = createQueue();
+      let cancelled = 0;
+      const timedOut = queue.addBatch(MULTI, { chainId: Symbol('MULTI Chain'), timeout: 1, onCancel: () => cancelled++ });
+      await outcomes(timedOut);
+      assert.strictEqual(cancelled, 1);
+
+      const sent = queue.addBatch(MULTI, { chainId: Symbol('MULTI Chain'), timeout: 1, onCancel: () => cancelled++ });
+      written(queue);
+      queue.flushAll(new DisconnectsClientError());
+      assert.deepStrictEqual(await outcomes(sent), ['DisconnectsClientError', 'DisconnectsClientError', 'DisconnectsClientError']);
+      assert.strictEqual(cancelled, 1);
+    });
+
+    it('keeps the queued tail of a partly written batch out of the timeout', async () => {
+      const queue = createQueue();
+      const promises = queue.addBatch(MULTI, { chainId: Symbol('Pipeline Chain'), timeout: 1 });
+
+      queue.commandsToWrite().next();
+      await wait(10);
+
+      assert.match(written(queue), /SET.*EXEC/s);
+      queue.decoder.write(Buffer.from('+OK\r\n+QUEUED\r\n*1\r\n+OK\r\n'));
+      assert.deepStrictEqual(await outcomes(promises), ['resolved', 'resolved', 'resolved']);
+    });
+
+    describe('maintenance timeout', () => {
+      it('replaces the batch timer with one maintenance timer', async () => {
+        const queue = createQueue();
+        const promises = queue.addBatch(MULTI, { chainId: Symbol('MULTI Chain') });
+
+        queue.setMaintenanceCommandTimeout(1);
+
+        assert.deepStrictEqual(
+          await outcomes(promises),
+          ['CommandTimeoutDuringMaintenanceError', 'CommandTimeoutDuringMaintenanceError', 'CommandTimeoutDuringMaintenanceError']
+        );
+        assert.strictEqual(written(queue), '');
+      });
+
+      it('applies to a batch queued during maintenance', async () => {
+        const queue = createQueue();
+        queue.setMaintenanceCommandTimeout(1);
+        const promises = queue.addBatch(MULTI, { chainId: Symbol('MULTI Chain'), timeout: 1000 });
+
+        assert.deepStrictEqual(
+          await outcomes(promises),
+          ['CommandTimeoutDuringMaintenanceError', 'CommandTimeoutDuringMaintenanceError', 'CommandTimeoutDuringMaintenanceError']
+        );
+      });
+
+      it('does not arm a timer on the tail of a batch that started writing', async () => {
+        const queue = createQueue();
+        const promises = queue.addBatch(MULTI, { chainId: Symbol('MULTI Chain') });
+        queue.commandsToWrite().next();
+
+        queue.setMaintenanceCommandTimeout(1);
+        await wait(10);
+
+        assert.match(written(queue), /SET.*EXEC/s);
+        queue.decoder.write(Buffer.from('+OK\r\n+QUEUED\r\n*1\r\n+OK\r\n'));
+        assert.deepStrictEqual(await outcomes(promises), ['resolved', 'resolved', 'resolved']);
+      });
+    });
+
+    describe('moved to another queue', () => {
+      it('still times out as a whole', async () => {
+        const source = createQueue();
+        const destination = createQueue();
+        const promises = source.addBatch(MULTI, { chainId: Symbol('MULTI Chain'), timeout: 5 });
+
+        destination.prependCommandsToWrite(source.extractAllCommands());
+
+        assert.deepStrictEqual(await outcomes(promises), ['TimeoutError', 'TimeoutError', 'TimeoutError']);
+        assert.strictEqual(written(destination), '');
+      });
+
+      it('is rejected as a whole when its timer fired before the move', async () => {
+        const source = createQueue();
+        const destination = createQueue();
+        const promises = source.addBatch(MULTI, { chainId: Symbol('MULTI Chain'), timeout: 1 });
+        const extracted = source.extractAllCommands();
+        await wait(5);
+
+        destination.prependCommandsToWrite(extracted);
+
+        assert.deepStrictEqual(await outcomes(promises), ['TimeoutError', 'TimeoutError', 'TimeoutError']);
+        assert.strictEqual(written(destination), '');
+      });
+    });
+  });
+
   describe('RESP2 pub/sub decoder reset', () => {
     function createResp2Queue() {
       return new RedisCommandsQueue(2, null, () => {}, 'test-client');
