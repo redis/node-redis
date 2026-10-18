@@ -83,4 +83,112 @@ describe('JSON.GET', () => {
     assert.ok(!Array.isArray(legacyPathResult), 'Legacy . syntax should not return array');
     assert.deepEqual(legacyPathResult, { name: 'Bob', age: 25 });
   }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.json.get with responseMap', async client => {
+    await client.json.set('json:map:test', '$', {
+      '.pets[1].name': 'Rex',
+      '.pets[1].age': 3,
+      otherField: 'ignored'
+    });
+
+    const res = await client.json.get('json:map:test', {
+      responseMap: {
+        '.pets[1].name': 'name',
+        '.pets[1].age': 'age'
+      }
+    });
+
+    assert.deepEqual(res, {
+      name: 'Rex',
+      age: 3
+    });
+  }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.json.get with advanced responseMap, nested paths, and edge cases', async client => {
+  await client.json.set('vehicle:fleet:alpha', '$', {
+    fleet: {
+      id: 'FL-992-NX',
+      region: 'North-West',
+      metrics: {
+        totalVehicles: 45,
+        operational: 42
+      }
+    },
+    vehicles: [
+      { code: 'v-01', model: 'Transit EV', mileage: 14500, active: true },
+      { code: 'v-02', model: 'Model Y', mileage: 8200, active: false },
+      { code: 'v-03', model: 'Sprinter', mileage: 31000, active: true }
+    ],
+    tags: ['logistics', 'electric', 'express']
+  });
+
+  const res = await client.json.get('vehicle:fleet:alpha', {
+    responseMap: {
+      'fleet.id': 'fleetId',
+      'fleet.metrics.operational': 'activeFleetCount',
+      'vehicles[2].model': 'featuredModel',
+      'vehicles[2].mileage': 'featuredMileage',
+      'vehicles[2].active': 'isFeaturedActive',
+      'tags[0]': 'primaryTag',
+      'nonexistent.deep.path': 'missingField' 
+    }
+  });
+
+  assert.deepEqual(res, {
+    fleetId: 'FL-992-NX',
+    activeFleetCount: 42,
+    featuredModel: 'Sprinter',
+    featuredMileage: 31000,
+    isFeaturedActive: true,
+    primaryTag: 'logistics'
+   
+  });
+
+  const nullRes = await client.json.get('vehicle:fleet:nonexistent', {
+    responseMap: { 'fleet.id': 'fleetId' }
+  });
+  assert.equal(nullRes, null);
+
+  const emptyMapRes = await client.json.get('vehicle:fleet:alpha', {
+    responseMap: {}
+  });
+  assert.deepEqual(emptyMapRes, {});
+
+ 
+  const subDocRes = await client.json.get('vehicle:fleet:alpha', {
+    responseMap: {
+      'vehicles[1].model': 'secondModel',
+      'vehicles[1].active': 'secondActive'
+    }
+  });
+
+  assert.deepEqual(subDocRes, {
+    secondModel: 'Model Y',
+    secondActive: false
+  });
+}, GLOBAL.SERVERS.OPEN);
+
+testUtils.testWithClient('client.json.get with responseMap edge cases (arrays, primitives, duplicate keys)', async client => {
+
+    await client.json.set('json:array:root', '$', ['a', 'b', 'c']);
+    const arrayRes = await client.json.get('json:array:root', {
+      responseMap: { '0': 'first' }
+    });
+    assert.deepEqual(arrayRes, ['a', 'b', 'c']);
+
+    await client.json.set('json:primitive:root', '$', 100);
+    const primRes = await client.json.get('json:primitive:root', {
+      responseMap: { '': 'value' }
+    });
+    assert.equal(primRes, 100);
+
+    await client.json.set('json:dup:test', '$', { a: 'firstVal', b: 'secondVal' });
+    const dupRes = await client.json.get('json:dup:test', {
+      responseMap: {
+        'a': 'targetKey',
+        'b': 'targetKey'
+      }
+    });
+    assert.deepEqual(dupRes, { targetKey: 'secondVal' });
+  }, GLOBAL.SERVERS.OPEN);
 });

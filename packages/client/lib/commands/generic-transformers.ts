@@ -927,8 +927,64 @@ export function transformRedisJsonArgument(json: RedisJSON): string {
 
 export type JsonReviver = Parameters<typeof JSON.parse>[1];
 
-export function transformRedisJsonReply(json: BlobStringReply, reviver?: JsonReviver): RedisJSON {
+export interface JsonGetPreserve {
+  reviver?: JsonReviver;
+  responseMap?: Record<string, string>;
+}
+
+/**
+ * Safely resolves a path or literal key from an object.
+ * Supports a literal-key lookup fallback first (to handle keys containing dots/brackets),
+ * followed by standard dot notation and array index bracket resolution.
+ */
+function getByPath(obj: unknown, path: string): RedisJSON | undefined {
+  if (!obj || typeof obj !== 'object') return undefined;
+
+  if (Object.prototype.hasOwnProperty.call(obj, path)) {
+    return (obj as Record<string,RedisJSON>)[path];
+  }
+
+  const parts = path.replace(/\[(\d+)\]/g, '.$1').split('.').filter(Boolean);
+  let curr: unknown = obj;
+  for (const part of parts) {
+    if (curr === null || curr === undefined || typeof curr !== 'object') {
+      return undefined;
+    }
+    if (!Object.prototype.hasOwnProperty.call(curr, part)) {
+      return undefined;
+    }
+    curr = (curr as Record<string,unknown>)[part];
+  }
+  return curr as RedisJSON;
+}
+
+export function transformRedisJsonReply(json: BlobStringReply, preserve?: JsonReviver | JsonGetPreserve): RedisJSON {
+  let reviver: JsonReviver | undefined;
+  let responseMap: Record<string, string> | undefined;
+
+
+  if (typeof preserve === 'function') {
+    reviver = preserve;
+  } else if (preserve && typeof preserve === 'object') {
+    reviver = preserve.reviver;
+    responseMap = preserve.responseMap;
+  }
+
   const res = JSON.parse((json as unknown as UnwrapReply<typeof json>).toString(), reviver);
+
+  // Apply key remapping. Note: Array roots and primitives are returned unmodified 
+  // since responseMap is designed to project flat/nested properties from object responses.
+  if (responseMap && typeof res === 'object' && res !== null && !Array.isArray(res)) {
+    const mapped: Record<string, RedisJSON> = {};
+    for (const [originalKey, newKey] of Object.entries(responseMap)) {
+      const val = getByPath(res,originalKey)
+      if (val !== undefined) {
+        mapped[newKey] = val;
+      }
+    }
+    return mapped;
+  }
+
   return res;
 }
 

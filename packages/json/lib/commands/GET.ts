@@ -4,7 +4,8 @@ import { RedisVariadicArgument, transformRedisJsonNullReply, JsonReviver } from 
 
 export interface JsonGetOptions {
   path?: RedisVariadicArgument;
-  reviver?: JsonReviver
+  reviver?: JsonReviver;
+  responseMap?: Record<string, string>;
 }
 
 export default {
@@ -18,7 +19,9 @@ export default {
     if (options?.path !== undefined) {
       parser.pushVariadic(options.path);
     }
-    parser.preserve = options?.reviver;
+   parser.preserve = options?.responseMap 
+      ? { reviver: options?.reviver, responseMap: options?.responseMap }
+      : options?.reviver;
   },
   transformReply: transformRedisJsonNullReply
 } as const satisfies Command;
