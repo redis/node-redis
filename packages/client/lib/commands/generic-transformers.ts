@@ -1,6 +1,6 @@
 import { BasicCommandParser, CommandParser } from '../client/parser';
 import { REQUEST_POLICIES_WITH_DEFAULTS, RequestPolicyWithDefaults, RESPONSE_POLICIES_WITH_DEFAULTS, ResponsePolicyWithDefaults } from '../command-metadata/policies-constants';
-import { RESP_TYPES } from '../RESP/decoder';
+import { RESP_TYPES, setMapEntry } from '../RESP/decoder';
 import { UnwrapReply, ArrayReply, BlobStringReply, BooleanReply, CommandArguments, DoubleReply, NullReply, NumberReply, RedisArgument, ReplyUnion, TuplesReply, MapReply, TypeMapping, Command } from '../RESP/types';
 
 export function isNullReply(reply: unknown): reply is NullReply {
@@ -166,7 +166,7 @@ export function transformTuplesReply<T extends Stringable>(
       const ret: Record<string, BlobStringReply> = {};
 
       for (let i = 0; i < inferred.length; i += 2) {
-        ret[inferred[i].toString()] = inferred[i + 1] as unknown as BlobStringReply;
+        setMapEntry(ret, inferred[i].toString(), inferred[i + 1] as unknown as BlobStringReply);
       }
 
       return ret as unknown as MapReply<T, T>;;

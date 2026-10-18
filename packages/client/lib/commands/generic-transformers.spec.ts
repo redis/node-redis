@@ -274,6 +274,18 @@ describe('Generic Transformers', () => {
         );
     });
 
+    // A plain assignment would hit the inherited `__proto__` setter instead of
+    // storing the entry, so the field vanished from the reply.
+    it('transformTuplesReply with a "__proto__" key', () => {
+        assert.deepEqual(
+            transformTuplesReply(['__proto__', 'value1', 'key2', 'value2'] as unknown as ArrayReply<Stringable>),
+            Object.defineProperties({}, {
+                ['__proto__']: { value: 'value1', enumerable: true, configurable: true, writable: true },
+                key2: { value: 'value2', enumerable: true, configurable: true, writable: true }
+            })
+        );
+    });
+
     it('transformStreamMessagesReply', () => {
         assert.deepEqual(
             transformStreamMessagesReply([['0-0', ['0key', '0value']], ['1-0', ['1key', '1value']]] as unknown as ArrayReply<StreamMessageRawReply>),

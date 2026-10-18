@@ -67,6 +67,28 @@ export const PUSH_TYPE_MAPPING = {
   [RESP_TYPES.BLOB_STRING]: Buffer
 };
 
+/**
+ * Stores a decoded map entry on an object reply.
+ *
+ * A plain assignment would route the key `__proto__` to the inherited setter
+ * instead of storing it: the entry would silently vanish from the reply, and an
+ * aggregated value would replace the reply's prototype with server-provided
+ * data. Defining the property keeps it an own enumerable value, the same shape
+ * `JSON.parse` gives a `"__proto__"` key.
+ */
+export function setMapEntry(object, key, value) {
+  if (key === '__proto__') {
+    Object.defineProperty(object, key, {
+      value,
+      enumerable: true,
+      configurable: true,
+      writable: true
+    });
+  } else {
+    object[key] = value;
+  }
+}
+
 // this was written with performance in mind, so it's not very readable... sorry :(
 
 interface DecoderOptions {
@@ -1082,7 +1104,7 @@ export class Decoder {
         );
       }
 
-      object[key] = value;
+      setMapEntry(object, key, value);
       --remaining;
     }
 
@@ -1124,7 +1146,7 @@ export class Decoder {
       );
     }
 
-    object[key] = value;
+    setMapEntry(object, key, value);
 
     return this.#decodeMapAsObject(object, remaining - 1, typeMapping, chunk);
   }
@@ -1142,7 +1164,7 @@ export class Decoder {
       );
     }
 
-    object[key] = value;
+    setMapEntry(object, key, value);
 
     return this.#decodeMapAsObject(object, remaining - 1, typeMapping, chunk);
   }

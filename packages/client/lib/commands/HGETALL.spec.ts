@@ -31,4 +31,20 @@ describe('HGETALL', () => {
     client: GLOBAL.SERVERS.OPEN,
     cluster: GLOBAL.CLUSTERS.OPEN
   });
+
+  testUtils.testAll('hGetAll with a "__proto__" field', async client => {
+    await client.hSet('protoKey', '__proto__', 'value');
+    assert.deepEqual(
+      await client.hGetAll('protoKey'),
+      Object.defineProperties({}, {
+        ['__proto__']: {
+          value: 'value',
+          enumerable: true
+        }
+      })
+    );
+  }, {
+    client: GLOBAL.SERVERS.OPEN,
+    cluster: GLOBAL.CLUSTERS.OPEN
+  });
 });

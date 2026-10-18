@@ -482,6 +482,37 @@ describe('RESP Decoder', () => {
       ])]
     });
 
+    // A plain assignment would hit the inherited `__proto__` setter instead of
+    // storing the entry, so the field vanished from the reply (and a map value
+    // replaced the reply's prototype).
+    test('with a "__proto__" key', {
+      toWrite: Buffer.from(`%2\r\n$9\r\n__proto__\r\n$1\r\nv\r\n$1\r\na\r\n$1\r\nb\r\n`),
+      replies: [Object.defineProperties({}, {
+        ['__proto__']: { value: 'v', enumerable: true, configurable: true, writable: true },
+        a: { value: 'b', enumerable: true, configurable: true, writable: true }
+      })]
+    });
+
+    // A key that is split across chunks completes through a different code path
+    // than the single chunk / byte by byte cases above.
+    it('with a "__proto__" key split across chunks', () => {
+      const onReplySpy = spy(),
+        decoder = new Decoder({
+          getTypeMapping: () => ({}),
+          onReply: onReplySpy,
+          onErrorReply: spy(),
+          onPush: spy()
+        });
+
+      decoder.write(Buffer.from(`%1\r\n$`));
+      decoder.write(Buffer.from(`9\r\n__proto__\r\n$1\r\nv\r\n`));
+
+      assert.equal(onReplySpy.callCount, 1);
+      assert.deepEqual(onReplySpy.getCall(0).args, [Object.defineProperties({}, {
+        ['__proto__']: { value: 'v', enumerable: true, configurable: true, writable: true }
+      })]);
+    });
+
     test("{ '0'..'9': <key> } as Array", {
       typeMapping: {
         [RESP_TYPES.MAP]: Array
