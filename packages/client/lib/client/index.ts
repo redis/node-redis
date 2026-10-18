@@ -2067,10 +2067,12 @@ export default class RedisClient<
             slotNumber,
             timeout: this._commandOptions?.timeout,
             abortSignal: this._commandOptions?.abortSignal,
-            // Nothing reached the server, so its WATCH still holds.
+            // Nothing reached the server, so its WATCH still holds, unless the
+            // connection dropped after the batch was admitted. A reconnect keeps the
+            // socket object and its epoch until it is ready again, so check readiness.
             onCancel: watchEpoch === undefined ? undefined : () => {
               this._self.#watchEpoch ??= watchEpoch;
-              if (this._self.#socket !== socket) {
+              if (this._self.#socket !== socket || !socket.isReady) {
                 this._self.#dirtyWatch ??= 'Client reconnected after WATCH';
               }
             }

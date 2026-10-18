@@ -899,6 +899,45 @@ describe('Client', () => {
         }
       });
 
+      it('marks the WATCH dirty when a queued MULTI times out after the connection dropped', async () => {
+        const sockets = new Set<net.Socket>();
+        const server = net.createServer(socket => {
+          sockets.add(socket);
+          socket.on('data', (chunk: Buffer) => {
+            socket.write('+OK\r\n'.repeat(countRespCommands(chunk)));
+          });
+        });
+        const port = await getFreePortNumber();
+        await once(server.listen(port), 'listening');
+
+        const client = createClient({
+          socket: { host: '127.0.0.1', port, reconnectStrategy: () => 500 }
+        });
+        client.on('error', () => {});
+
+        try {
+          await client.connect();
+          await client.watch('key');
+          assert.equal(client.isWatching, true);
+
+          await blockSetImmediate(async () => {
+            const batch = assert.rejects(
+              client.withCommandOptions({ timeout: 100 }).multi().ping().exec(),
+              TimeoutError
+            );
+            server.close();
+            sockets.forEach(socket => socket.destroy());
+            await batch;
+          });
+          assert.equal(client.isReady, false);
+
+          await assert.rejects(client.withCommandOptions({ timeout: 100 }).multi().ping().exec(), WatchError);
+        } finally {
+          client.destroy();
+          server.close();
+        }
+      });
+
       testUtils.testWithClient('per-call timeout cancels the whole batch', async client => {
         const withTimeout = client.withCommandOptions({ timeout: 5 });
         await blockSetImmediate(async () => {
