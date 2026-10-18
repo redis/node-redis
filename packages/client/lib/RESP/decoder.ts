@@ -75,17 +75,21 @@ export const PUSH_TYPE_MAPPING = {
  * aggregated value would replace the reply's prototype with server-provided
  * data. Defining the property keeps it an own enumerable value, the same shape
  * `JSON.parse` gives a `"__proto__"` key.
+ *
+ * The key is coerced first because a non-string key (e.g. an array key) can
+ * still coerce to `__proto__` when used as a property key.
  */
 export function setMapEntry(object, key, value) {
-  if (key === '__proto__') {
-    Object.defineProperty(object, key, {
+  const propertyKey = typeof key === 'symbol' ? key : String(key);
+  if (propertyKey === '__proto__') {
+    Object.defineProperty(object, propertyKey, {
       value,
       enumerable: true,
       configurable: true,
       writable: true
     });
   } else {
-    object[key] = value;
+    object[propertyKey] = value;
   }
 }
 

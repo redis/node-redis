@@ -513,6 +513,16 @@ describe('RESP Decoder', () => {
       })]);
     });
 
+    // A non-string key can still coerce to `__proto__` when used as a property
+    // key (an array key containing that string is the simplest example), so
+    // comparing the decoded key without coercing it misses the setter.
+    test('with an array key that coerces to "__proto__"', {
+      toWrite: Buffer.from(`%1\r\n*1\r\n$9\r\n__proto__\r\n%1\r\n$1\r\nx\r\n$1\r\ny\r\n`),
+      replies: [Object.defineProperties({}, {
+        ['__proto__']: { value: { x: 'y' }, enumerable: true, configurable: true, writable: true }
+      })]
+    });
+
     test("{ '0'..'9': <key> } as Array", {
       typeMapping: {
         [RESP_TYPES.MAP]: Array
