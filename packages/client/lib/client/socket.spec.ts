@@ -49,6 +49,49 @@ describe('Socket', () => {
     });
   }
 
+  it('does not reconnect after destroy while replacement TCP connection is pending', async () => {
+    const transport = new net.Socket();
+    const replacement = new net.Socket();
+    const createConnection = stub(net, 'createConnection').returns(replacement);
+    createConnection.onFirstCall().returns(transport);
+    const initiator = spy(async () => {});
+    const socket = new RedisSocket(initiator, CLIENT_ID, { reconnectStrategy: 0 });
+    const events: string[] = [];
+    for (const event of ['connect', 'ready', 'error', 'reconnecting']) {
+      socket.on(event, () => events.push(event));
+    }
+
+    try {
+      const connecting = socket.connect();
+      transport.emit('connect');
+      await connecting;
+      assert.equal(socket.isReady, true);
+
+      events.length = 0;
+      transport.emit('error', new Error('Connection lost'));
+      assert.deepEqual(events, ['error', 'reconnecting']);
+      assert.equal(createConnection.callCount, 2);
+      assert.equal(socket.isReady, false);
+      assert.equal(replacement.destroyed, false);
+
+      socket.destroy();
+      events.length = 0;
+      replacement.emit('connect');
+      await new Promise<void>(resolve => setImmediate(resolve));
+
+      assert.equal(replacement.destroyed, true, 'late replacement socket must be destroyed');
+      assert.equal(socket.isOpen, false);
+      assert.equal(socket.isReady, false);
+      assert.equal(initiator.callCount, 1);
+      assert.deepEqual(events, []);
+    } finally {
+      socket.destroy();
+      transport.destroy();
+      replacement.destroy();
+      createConnection.restore();
+    }
+  });
+
   describe('reconnectStrategy', () => {
     it('false', async () => {
       const socket = createSocket({
