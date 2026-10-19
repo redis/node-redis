@@ -411,7 +411,9 @@ export default class RedisClusterSlots<
 
       //Keep only the nodes that are still in use
       for (const [address, node] of this.nodeByAddress.entries()) {
-        if (addressesInUse.has(address)) continue;
+        const inUse = addressesInUse.has(address);
+        // a master demoted to a replica stays, but loses its pub/sub client like an unused node
+        if (inUse && !node.readonly) continue;
 
         const { pubSub } = node as MasterNode<M, F, S, RESP, TYPE_MAPPING>;
         if (pubSub) {
@@ -421,7 +423,7 @@ export default class RedisClusterSlots<
           }
         }
 
-        if (node.client) {
+        if (!inUse && node.client) {
           this.#reconnectionTracker.removeClient(node.client._clientId);
           node.client.destroy();
           node.client = undefined;
@@ -433,7 +435,7 @@ export default class RedisClusterSlots<
           (node as MasterNode<M, F, S, RESP, TYPE_MAPPING>).pubSub = undefined;
         }
 
-        this.nodeByAddress.delete(address);
+        if (!inUse) this.nodeByAddress.delete(address);
       }
 
       await Promise.all(promises);
@@ -1117,11 +1119,6 @@ export default class RedisClusterSlots<
     for (const replica of this.replicas) {
       if (replica.client) {
         yield replica.client;
-      }
-
-      const { pubSub } = replica as MasterNode<M, F, S, RESP, TYPE_MAPPING>;
-      if (pubSub) {
-        yield pubSub.client;
       }
     }
   }

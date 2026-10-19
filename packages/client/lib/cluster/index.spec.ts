@@ -911,13 +911,9 @@ describe('Cluster', () => {
           await setTimeout(100);
         }
 
-        // the old master's node is now a replica that still holds its pub/sub client
+        // the old master's node is now a replica, and its pub/sub client is closed
         assert.ok(listener.calledWithExactly('message', 'channel'));
         assert.equal(cluster.slots[SLOT].replicas![0].address, previousMaster.address);
-        assert.equal(pubSubClient.isOpen, true);
-
-        await cluster.close();
-
         assert.equal(pubSubClient.isOpen, false);
       } finally {
         cluster.destroy();
