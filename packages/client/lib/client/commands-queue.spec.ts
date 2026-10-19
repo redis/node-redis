@@ -795,6 +795,49 @@ describe('RedisCommandsQueue', () => {
       assert.deepStrictEqual(await outcomes(promises), ['resolved', 'resolved', 'resolved']);
     });
 
+    describe('chain already started by an ASKING', () => {
+      function askingChain(queue: RedisCommandsQueue, options: { timeout?: number, abortSignal?: AbortSignal }) {
+        const chainId = Symbol('asking chain');
+        const asking = queue.addCommand(['ASKING'], { chainId });
+        const batch = queue.addBatch(MULTI, { chainId, ...options });
+        // Only ASKING is written, as when the socket stops to drain.
+        queue.commandsToWrite().next();
+        return { asking, batch };
+      }
+
+      it('does not time out the batch', async () => {
+        const queue = createQueue();
+        const { asking, batch } = askingChain(queue, { timeout: 1 });
+        await wait(10);
+
+        assert.match(written(queue), /MULTI.*SET.*EXEC/s);
+        queue.decoder.write(Buffer.from('+OK\r\n+OK\r\n+QUEUED\r\n*1\r\n+OK\r\n'));
+        assert.deepStrictEqual(await outcomes([asking, ...batch]), ['resolved', 'resolved', 'resolved', 'resolved']);
+      });
+
+      it('does not abort the batch', async () => {
+        const queue = createQueue();
+        const controller = new AbortController();
+        const { asking, batch } = askingChain(queue, { abortSignal: controller.signal });
+        controller.abort();
+
+        assert.match(written(queue), /MULTI.*SET.*EXEC/s);
+        queue.decoder.write(Buffer.from('+OK\r\n+OK\r\n+QUEUED\r\n*1\r\n+OK\r\n'));
+        assert.deepStrictEqual(await outcomes([asking, ...batch]), ['resolved', 'resolved', 'resolved', 'resolved']);
+      });
+
+      it('keeps its own timer when the maintenance timeout is set', () => {
+        const queue = createQueue();
+        const { batch } = askingChain(queue, { timeout: 1000 });
+        batch.forEach(promise => promise.catch(() => {}));
+        queue.setMaintenanceCommandTimeout(1);
+
+        const [head] = queue.extractAllCommands();
+        assert.strictEqual(head.timeout?.effectiveTimeout, 1000);
+        assert.strictEqual(head.timeout?.wasInMaintenance, false);
+      });
+    });
+
     describe('maintenance timeout', () => {
       it('replaces the batch timer with one maintenance timer', async () => {
         const queue = createQueue();

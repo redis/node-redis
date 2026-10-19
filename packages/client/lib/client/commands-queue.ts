@@ -167,8 +167,9 @@ export default class RedisCommandsQueue {
       const command = node.value;
 
       // A batch shares the timer of its first command, and a batch whose first
-      // command is already written is not cancelled any more.
-      if (command.batch === 'member') continue;
+      // command or a command of its chain is already written is not cancelled
+      // any more.
+      if (command.batch === 'member' || this.#isBatchStarted(command)) continue;
 
       // Remove timeout listener if it exists
       RedisCommandsQueue.#removeTimeoutListener(command);
@@ -336,11 +337,23 @@ export default class RedisCommandsQueue {
     });
   }
 
+  /**
+   * A batch whose chain is already partly written, e.g. an ASKING sent ahead of
+   * its MULTI, must not be removed: the written command would then apply to the
+   * next unrelated command.
+   */
+  #isBatchStarted(value: CommandToWrite) {
+    return value.batch === 'head' &&
+      value.chainId !== undefined &&
+      value.chainId === this.#chainInExecution;
+  }
+
   #createAbortListener(
     node: DoublyLinkedNode<CommandToWrite>,
     value: CommandToWrite,
   ) {
     return () => {
+      if (this.#isBatchStarted(value)) return;
       this.#rejectCommand(node, value, new AbortError());
     };
   }
@@ -352,6 +365,7 @@ export default class RedisCommandsQueue {
     wasInMaintenance: boolean,
   ) {
     return () => {
+      if (this.#isBatchStarted(value)) return;
       this.#rejectCommand(
         node,
         value,
@@ -489,7 +503,8 @@ export default class RedisCommandsQueue {
   /**
    * Queues a MULTI or pipeline. Like a single command, the batch has one timeout and
    * one abort listener, which stop when its first command is written. If either fires
-   * first, every command of the batch is removed from the queue and rejected.
+   * first, and no command of its chain is written yet, every command of the batch
+   * is removed from the queue and rejected.
    */
   addBatch(
     commands: ReadonlyArray<BatchCommand>,
