@@ -1472,6 +1472,29 @@ describe('Client', () => {
       clientOptions: { ...GLOBAL.SERVERS.OPEN.clientOptions, RESP: 2 }
     });
 
+    testUtils.testWithClient('should return replies after a rejected subscribe (RESP2)', async client => {
+      await client.sendCommand(['ACL', 'SETUSER', 'no-channels', 'on', '>password', '~*', '+@all', 'resetchannels']);
+      await client.rPush('list', ['message', 'a', 'b']);
+      const duplicate = await client.duplicate({
+        username: 'no-channels',
+        password: 'password'
+      }).connect();
+
+      try {
+        // the server rejects the SUBSCRIBE (NOPERM), so the client never enters pub/sub mode
+        // and later replies must not go through the RESP2 pub/sub reply handler
+        await assert.rejects(duplicate.subscribe('channel', () => {}));
+        assert.equal(await duplicate.echo('after'), 'after');
+        assert.deepEqual(await duplicate.lRange('list', 0, -1), ['message', 'a', 'b']);
+      } finally {
+        duplicate.destroy();
+        await client.sendCommand(['ACL', 'DELUSER', 'no-channels']);
+      }
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      clientOptions: { ...GLOBAL.SERVERS.OPEN.clientOptions, RESP: 2 }
+    });
+
     testUtils.testWithClient('should be able to monitor after unsubscribing and resetting together (RESP2)', async client => {
       const duplicate = await client.duplicate().connect(),
         listener = spy(message => assert.equal(typeof message, 'string'));

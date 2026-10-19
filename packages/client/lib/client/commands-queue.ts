@@ -451,8 +451,9 @@ export default class RedisCommandsQueue {
             command.resolve();
             resolve();
           },
-          reject(err) {
+          reject: (err) => {
             command.reject?.();
+            this.#restoreDecoderIfPubSubInactive();
             // a teardown that carried this command's intent to another
             // member (multi-db move) is a success for the caller — the
             // subscription change lives on, on the adopting member
@@ -523,6 +524,19 @@ export default class RedisCommandsQueue {
     this.decoder.getTypeMapping = () => this.#getTypeMapping();
   }
 
+  #restoreDecoderIfPubSubInactive() {
+    if (this.#respVersion !== 2 || this.#pubSub.isActive) return;
+
+    // if `RESET` already overrides `onReply`, restore its fallback instead
+    if (this.#resetFallbackOnReply) {
+      this.#resetFallbackOnReply = ((reply) =>
+        this.#onReply(reply)) as Decoder["onReply"];
+      this.decoder.getTypeMapping = () => this.#getTypeMapping();
+    } else {
+      this.#resetDecoderCallbacks();
+    }
+  }
+
   unsubscribe<T extends boolean>(
     type: PubSubType,
     channels?: string | Array<string>,
@@ -543,17 +557,7 @@ export default class RedisCommandsQueue {
       // resolve first: it drops the listeners and recomputes `isActive`
       command.resolve = () => {
         resolve();
-
-        if (!this.#pubSub.isActive) {
-          // if `RESET` already overrides `onReply`, restore its fallback instead
-          if (this.#resetFallbackOnReply) {
-            this.#resetFallbackOnReply = ((reply) =>
-              this.#onReply(reply)) as Decoder["onReply"];
-            this.decoder.getTypeMapping = () => this.#getTypeMapping();
-          } else {
-            this.#resetDecoderCallbacks();
-          }
-        }
+        this.#restoreDecoderIfPubSubInactive();
       };
     }
 
