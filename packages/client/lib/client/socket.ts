@@ -88,6 +88,9 @@ export default class RedisSocket extends EventEmitter {
 
   #socketEpoch = 0;
 
+  // Bumped on every teardown, so a pending connect attempt can tell it was torn down
+  #teardownEpoch = 0;
+
   get socketEpoch() {
     return this.#socketEpoch;
   }
@@ -253,7 +256,15 @@ export default class RedisSocket extends EventEmitter {
     do {
       try {
         const connectStartTime = performance.now();
-        const socket = this.#socket = await this.#createSocket();
+        const teardownEpoch = this.#teardownEpoch;
+        const socket = await this.#createSocket();
+        // destroySocket() cannot reach a pending socket, so drop it here. A close() that is
+        // still draining has not torn down yet, so its socket may connect and drain.
+        if (this.#teardownEpoch !== teardownEpoch) {
+          socket.destroy();
+          throw new ClientClosedError();
+        }
+        this.#socket = socket;
         this.emit('connect');
 
         try {
@@ -499,6 +510,7 @@ export default class RedisSocket extends EventEmitter {
   }
 
   destroySocket() {
+    this.#teardownEpoch++;
     const wasReady = this.#isReady;
     this.#isReady = false;
 

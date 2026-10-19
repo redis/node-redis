@@ -1,11 +1,11 @@
 import { strict as assert } from 'node:assert';
-import { spy } from 'sinon';
+import { spy, stub } from 'sinon';
 import { once } from 'node:events';
 import net from 'node:net';
 import RedisSocket, { RedisSocketOptions } from './socket';
 import testUtils, { GLOBAL } from '../test-utils';
 import { setTimeout } from 'timers/promises';
-import { ReconnectStrategyError } from '../errors';
+import { ClientClosedError, ReconnectStrategyError } from '../errors';
 
 describe('Socket', () => {
   const CLIENT_ID = 'test-client-id';
@@ -19,6 +19,110 @@ describe('Socket', () => {
 
     return socket;
   }
+
+  // How the client tears the socket down: destroy(), or close() once nothing is left to drain
+  const shutdowns = {
+    destroy: (socket: RedisSocket) => socket.destroy(),
+    close: (socket: RedisSocket) => {
+      socket.close();
+      socket.destroySocket();
+    }
+  };
+
+  for (const [name, shutdown] of Object.entries(shutdowns)) {
+    it(`does not connect after ${name} while TCP connection is pending`, async () => {
+      const transport = new net.Socket();
+      const createConnection = stub(net, 'createConnection').returns(transport);
+      const initiator = spy(async () => {});
+      const socket = new RedisSocket(initiator, CLIENT_ID, { reconnectStrategy: 0 });
+      const events: string[] = [];
+      for (const event of ['connect', 'ready', 'error', 'reconnecting']) {
+        socket.on(event, () => events.push(event));
+      }
+
+      try {
+        const connecting = socket.connect();
+        shutdown(socket);
+        transport.emit('connect');
+
+        await assert.rejects(connecting, ClientClosedError);
+        assert.equal(socket.isOpen, false);
+        assert.equal(socket.isReady, false);
+        assert.equal(transport.destroyed, true);
+        assert.equal(initiator.callCount, 0);
+        assert.deepEqual(events, []);
+      } finally {
+        transport.destroy();
+        createConnection.restore();
+      }
+    });
+
+    it(`does not reconnect after ${name} while replacement TCP connection is pending`, async () => {
+      const transport = new net.Socket();
+      const replacement = new net.Socket();
+      const createConnection = stub(net, 'createConnection').returns(replacement);
+      createConnection.onFirstCall().returns(transport);
+      const initiator = spy(async () => {});
+      const socket = new RedisSocket(initiator, CLIENT_ID, { reconnectStrategy: 0 });
+      const events: string[] = [];
+      for (const event of ['connect', 'ready', 'error', 'reconnecting']) {
+        socket.on(event, () => events.push(event));
+      }
+
+      try {
+        const connecting = socket.connect();
+        transport.emit('connect');
+        await connecting;
+        assert.equal(socket.isReady, true);
+
+        events.length = 0;
+        transport.emit('error', new Error('Connection lost'));
+        assert.deepEqual(events, ['error', 'reconnecting']);
+        assert.equal(createConnection.callCount, 2);
+        assert.equal(socket.isReady, false);
+        assert.equal(replacement.destroyed, false);
+
+        shutdown(socket);
+        events.length = 0;
+        replacement.emit('connect');
+        await new Promise<void>(resolve => setImmediate(resolve));
+
+        assert.equal(replacement.destroyed, true, 'late replacement socket must be destroyed');
+        assert.equal(socket.isOpen, false);
+        assert.equal(socket.isReady, false);
+        assert.equal(initiator.callCount, 1);
+        assert.deepEqual(events, []);
+      } finally {
+        socket.destroy();
+        transport.destroy();
+        replacement.destroy();
+        createConnection.restore();
+      }
+    });
+  }
+
+  it('lets a pending TCP connection connect after close() while still draining', async () => {
+    const transport = new net.Socket();
+    const createConnection = stub(net, 'createConnection').returns(transport);
+    const initiator = spy(async () => {});
+    const socket = new RedisSocket(initiator, CLIENT_ID, { reconnectStrategy: 0 });
+
+    try {
+      const connecting = socket.connect();
+      socket.close();
+      transport.emit('connect');
+      await connecting;
+
+      assert.equal(socket.isOpen, false);
+      assert.equal(socket.isReady, true);
+      assert.equal(transport.destroyed, false);
+      assert.equal(initiator.callCount, 1);
+    } finally {
+      socket.destroy();
+      transport.destroy();
+      createConnection.restore();
+    }
+  });
 
   describe('reconnectStrategy', () => {
     it('false', async () => {
