@@ -411,11 +411,12 @@ export default class RedisClusterSlots<
 
       //Keep only the nodes that are still in use
       for (const [address, node] of this.nodeByAddress.entries()) {
-        const inUse = addressesInUse.has(address);
+        const inUse = addressesInUse.has(address),
+          { pubSub } = node as MasterNode<M, F, S, RESP, TYPE_MAPPING>;
         // a master demoted to a replica stays, but loses its pub/sub client like an unused node
-        if (inUse && !node.readonly) continue;
+        const demotedWithPubSub = node.readonly && pubSub !== undefined;
+        if (inUse && !demotedWithPubSub) continue;
 
-        const { pubSub } = node as MasterNode<M, F, S, RESP, TYPE_MAPPING>;
         if (pubSub) {
           const listeners = pubSub.client._getQueue().removeAllPubSubListeners();
           if (listeners.CHANNELS.size || listeners.PATTERNS.size || listeners.SHARDED.size) {
