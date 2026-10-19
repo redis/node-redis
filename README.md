@@ -134,6 +134,17 @@ await client.set("key", "value", {
 });
 ```
 
+Commands that take several values of the same kind, such as `DEL`, `HDEL` or `LPUSH`, accept either a single value or
+an array:
+
+```typescript
+await client.hDel("key", "field");
+await client.hDel("key", ["field1", "field2"]);
+```
+
+Do not spread the values into separate arguments (`client.hDel("key", ...fields)`). Only the first value is sent, and
+the rest are silently ignored.
+
 Replies will be transformed into useful data structures:
 
 ```typescript

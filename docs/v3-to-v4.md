@@ -66,6 +66,20 @@ await subscriber.subscribe('channel_name', (message, channelName) => {
 });
 ```
 
+### Multiple values are passed as an array
+
+In V3, commands that take several values accepted them as separate arguments. In V4, those values go in a single array argument:
+
+```typescript
+// V3
+client.hdel('key', 'field1', 'field2');
+
+// V4
+await client.hDel('key', ['field1', 'field2']);
+```
+
+Passing the values as separate arguments in V4, including by spreading an array (`client.hDel('key', ...fields)`), sends only the first value and silently ignores the rest.
+
 ## Legacy Mode
 
 Use legacy mode to preserve the backwards compatibility of commands while still getting access to the updated experience:
