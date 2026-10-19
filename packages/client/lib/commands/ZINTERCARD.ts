@@ -18,7 +18,7 @@ export default {
     // backwards compatibility
     if (typeof options === 'number') {
       parser.push('LIMIT', options.toString());
-    } else if (options?.LIMIT) {
+    } else if (options?.LIMIT !== undefined) {
       parser.push('LIMIT', options.LIMIT.toString());
     }
   },
