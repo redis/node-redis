@@ -75,6 +75,28 @@ export interface CommandToWrite extends CommandWaitingForReply {
   rejected?: boolean;
   slotNumber?: number;
   prelude?: CommandPrelude;
+  /**
+   * Set on the commands of a MULTI or pipeline queued with `addBatch`. Only the `head`
+   * carries the batch's timeout and abort listeners.
+   */
+  batch?: 'head' | 'member';
+  onCancel?: () => void;
+}
+
+export interface BatchCommand {
+  args: ReadonlyArray<RedisArgument>;
+  typeMapping?: TypeMapping;
+}
+
+export interface BatchOptions {
+  chainId: symbol;
+  slotNumber?: number;
+  timeout?: number;
+  abortSignal?: AbortSignal;
+  /**
+   * Called when the timeout or abort signal removes the batch before any of it is written.
+   */
+  onCancel?: () => void;
 }
 
 interface CommandWaitingForReply {
@@ -143,6 +165,11 @@ export default class RedisCommandsQueue {
     // Overwrite timeouts of all eligible toWrite commands
     for (const node of this.#toWrite.nodes()) {
       const command = node.value;
+
+      // A batch shares the timer of its first command, and a batch whose first
+      // command or a command of its chain is already written is not cancelled
+      // any more.
+      if (command.batch === 'member' || this.#isBatchStarted(command)) continue;
 
       // Remove timeout listener if it exists
       RedisCommandsQueue.#removeTimeoutListener(command);
@@ -310,11 +337,23 @@ export default class RedisCommandsQueue {
     });
   }
 
+  /**
+   * A batch whose chain is already partly written, e.g. an ASKING sent ahead of
+   * its MULTI, must not be removed: the written command would then apply to the
+   * next unrelated command.
+   */
+  #isBatchStarted(value: CommandToWrite) {
+    return value.batch === 'head' &&
+      value.chainId !== undefined &&
+      value.chainId === this.#chainInExecution;
+  }
+
   #createAbortListener(
     node: DoublyLinkedNode<CommandToWrite>,
     value: CommandToWrite,
   ) {
     return () => {
+      if (this.#isBatchStarted(value)) return;
       this.#rejectCommand(node, value, new AbortError());
     };
   }
@@ -326,6 +365,7 @@ export default class RedisCommandsQueue {
     wasInMaintenance: boolean,
   ) {
     return () => {
+      if (this.#isBatchStarted(value)) return;
       this.#rejectCommand(
         node,
         value,
@@ -345,6 +385,18 @@ export default class RedisCommandsQueue {
 
     value.rejected = true;
     RedisCommandsQueue.#removeCommandListeners(value);
+    if (value.batch === 'head') {
+      // The rest of the batch is queued right behind its first command.
+      let member = node.next;
+      while (member?.value.batch === 'member' && member.value.chainId === value.chainId) {
+        const next = member.next;
+        member.value.rejected = true;
+        this.#toWrite.remove(member);
+        member.value.reject(err);
+        member = next;
+      }
+      value.onCancel?.();
+    }
     this.#toWrite.remove(node);
     value.reject(err);
   }
@@ -405,38 +457,93 @@ export default class RedisCommandsQueue {
       const node = this.#addToWrite(value, options?.asap);
 
       try {
-        // If #maintenanceCommandTimeout was explicitly set, we should
-        // use it instead of the timeout provided by the command
-        const timeout = this.#maintenanceCommandTimeout ?? options?.timeout;
-        const wasInMaintenance = this.#maintenanceCommandTimeout !== undefined;
-        if (timeout) {
-          const signal = AbortSignal.timeout(timeout);
-          value.timeout = {
-            signal,
-            listener: this.#createTimeoutListener(node, value, timeout, wasInMaintenance),
-            originalTimeout: options?.timeout,
-            effectiveTimeout: timeout,
-            wasInMaintenance,
-          };
-          signal.addEventListener("abort", value.timeout.listener, {
-            once: true,
-          });
-        }
-
-        const signal = options?.abortSignal;
-        if (signal) {
-          value.abort = {
-            signal,
-            listener: this.#createAbortListener(node, value),
-          };
-          signal.addEventListener("abort", value.abort.listener, { once: true });
-        }
+        this.#arm(node, value, options?.timeout, options?.abortSignal);
       } catch (err) {
         RedisCommandsQueue.#removeCommandListeners(value);
         this.#toWrite.remove(node);
         reject(err);
       }
     });
+  }
+
+  #arm(
+    node: DoublyLinkedNode<CommandToWrite>,
+    value: CommandToWrite,
+    originalTimeout: number | undefined,
+    abortSignal: AbortSignal | undefined
+  ) {
+    // If #maintenanceCommandTimeout was explicitly set, we should
+    // use it instead of the timeout provided by the command
+    const timeout = this.#maintenanceCommandTimeout ?? originalTimeout;
+    const wasInMaintenance = this.#maintenanceCommandTimeout !== undefined;
+    if (timeout) {
+      const signal = AbortSignal.timeout(timeout);
+      value.timeout = {
+        signal,
+        listener: this.#createTimeoutListener(node, value, timeout, wasInMaintenance),
+        originalTimeout,
+        effectiveTimeout: timeout,
+        wasInMaintenance,
+      };
+      signal.addEventListener("abort", value.timeout.listener, {
+        once: true,
+      });
+    }
+
+    if (abortSignal) {
+      if (abortSignal.aborted) throw new AbortError();
+      value.abort = {
+        signal: abortSignal,
+        listener: this.#createAbortListener(node, value),
+      };
+      abortSignal.addEventListener("abort", value.abort.listener, { once: true });
+    }
+  }
+
+  /**
+   * Queues a MULTI or pipeline. Like a single command, the batch has one timeout and
+   * one abort listener, which stop when its first command is written. If either fires
+   * first, and no command of its chain is written yet, every command of the batch
+   * is removed from the queue and rejected.
+   */
+  addBatch(
+    commands: ReadonlyArray<BatchCommand>,
+    options: BatchOptions
+  ): Array<Promise<unknown>> {
+    let head: DoublyLinkedNode<CommandToWrite> | undefined;
+    const promises = commands.map(({ args, typeMapping }) => {
+      if (!this.hasCapacity(1)) {
+        return Promise.reject(new Error("The queue is full"));
+      }
+
+      return new Promise((resolve, reject) => {
+        const node = this.#toWrite.push({
+          args,
+          chainId: options.chainId,
+          abort: undefined,
+          timeout: undefined,
+          resolve,
+          reject,
+          channelsCounter: undefined,
+          typeMapping,
+          slotNumber: options.slotNumber,
+          batch: head ? 'member' : 'head'
+        });
+        head ??= node;
+      });
+    });
+
+    if (head) {
+      head.value.onCancel = options.onCancel;
+      try {
+        this.#arm(head, head.value, options.timeout, options.abortSignal);
+      } catch (err) {
+        // Nothing is written synchronously, so the batch is still whole.
+        this.#rejectCommand(head, head.value, err as Error);
+      }
+    }
+
+    return promises;
   }
 
   #addPubSubCommand(command: PubSubCommand, asap = false, chainId?: symbol) {
@@ -713,6 +820,7 @@ export default class RedisCommandsQueue {
         RedisCommandsQueue.#removeTimeoutListener(toSend);
         toSend.timeout = undefined;
       }
+      toSend.onCancel = undefined;
       this.#chainInExecution = toSend.chainId;
       toSend.chainId = undefined;
       if (toSend.prelude) {

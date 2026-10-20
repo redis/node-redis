@@ -83,6 +83,18 @@ const client = createClient({
 })
 ```
 
+### Transactions and pipelines
+
+`multi().exec()` and `multi().execAsPipeline()` apply the timeout and the abort signal to the batch as a whole. If either fires before the first command of the batch is written, every command of the batch is rejected and nothing is sent. Once the batch starts writing, it runs to the end. A transaction cancelled this way keeps the client's `WATCH` state.
+
+```javascript
+await client.withCommandOptions({ timeout: 1000 })
+  .multi()
+  .incr('counter')
+  .get('counter')
+  .exec();
+```
+
 ## ASAP
 
 Commands that are executed in the "asap" mode are added to the beginning of the "to send" queue.

@@ -1966,15 +1966,20 @@ export default class RedisClient<
 
     return trace(CHANNELS.TRACE_BATCH,
       async () => {
-        const chainId = Symbol('Pipeline Chain');
+        const typeMapping = this._commandOptions?.typeMapping;
+        const queued = this._self.#queue.addBatch(
+          commands.map(({ args }) => ({ args, typeMapping })),
+          {
+            chainId: Symbol('Pipeline Chain'),
+            slotNumber,
+            timeout: this._commandOptions?.timeout,
+            abortSignal: this._commandOptions?.abortSignal
+          }
+        );
         const promise = Promise.all(
-          commands.map(({ args }) => {
+          commands.map(({ args }, i) => {
             const traced = trace(CHANNELS.TRACE_COMMAND,
-              () => this._self.#queue.addCommand(args, {
-                chainId,
-                typeMapping: this._commandOptions?.typeMapping,
-                slotNumber
-              }),
+              () => queued[i],
               () => ({
                 ...this._self.#commandTraceContext(args),
                 batchMode: 'PIPELINE' as const,
@@ -2050,22 +2055,28 @@ export default class RedisClient<
     return trace(CHANNELS.TRACE_BATCH,
       async () => {
         const typeMapping = this._commandOptions?.typeMapping;
-        const promises: Array<Promise<unknown>> = [
-          this._self.#queue.addCommand(['MULTI'], { chainId, slotNumber }),
-        ];
-
-        for (const { args } of commands) {
-          promises.push(
-            this._self.#queue.addCommand(args, {
-              chainId,
-              typeMapping,
-              slotNumber
-            })
-          );
-        }
-
-        promises.push(
-          this._self.#queue.addCommand(['EXEC'], { chainId, slotNumber })
+        const socket = this._self.#socket;
+        const promises = this._self.#queue.addBatch(
+          [
+            { args: ['MULTI'] },
+            ...commands.map(({ args }) => ({ args, typeMapping })),
+            { args: ['EXEC'] }
+          ],
+          {
+            chainId,
+            slotNumber,
+            timeout: this._commandOptions?.timeout,
+            abortSignal: this._commandOptions?.abortSignal,
+            // Nothing reached the server, so its WATCH still holds, unless the
+            // connection dropped after the batch was admitted. A reconnect keeps the
+            // socket object and its epoch until it is ready again, so check readiness.
+            onCancel: watchEpoch === undefined ? undefined : () => {
+              this._self.#watchEpoch ??= watchEpoch;
+              if (this._self.#socket !== socket || !socket.isReady) {
+                this._self.#dirtyWatch ??= 'Client reconnected after WATCH';
+              }
+            }
+          }
         );
 
         this._self.#scheduleWrite();
