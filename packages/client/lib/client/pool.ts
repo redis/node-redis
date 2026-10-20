@@ -255,6 +255,9 @@ export class RedisClientPool<
   // must not take a waiting task into the offline queue just cleared
   readonly #abandoned = new WeakSet<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>();
 
+  // members whose reconnect strategy gave up: closed for good, so replaced instead of reused
+  readonly #terminated = new WeakSet<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>();
+
   /**
    * The number of tasks waiting for a client to become available.
    */
@@ -444,10 +447,11 @@ export class RedisClientPool<
     return this as unknown as RedisClientPoolType<M, F, S, RESP, TYPE_MAPPING>;
   }
 
-  async #create() {
+  async #create(replacement = false) {
     const client = this._self.#clientFactory();
     client._setIdentity(ClientRole.POOL_MEMBER, this._self.#identity.id);
     client.on('error', (err: Error) => this.emit('error', err));
+    client.on('terminated', () => this._self.#terminated.add(client));
     // Track the client as "in use" during connect so it counts toward capacity.
     // If we waited to add it until after connect, the pool would think it doesn't
     // exist yet and could spin up extra clients when multiple tasks queue up.
@@ -457,9 +461,9 @@ export class RedisClientPool<
       await client.connect();
     } catch (err) {
       this._self.#clientsInUse.remove(node);
-      // Closing with no client left: `#returnClient()`, the only other place that signals the
+      // Closing or replacing with no client left: `#returnClient()`, the only other place that signals the
       // drain, will not run again, and nothing can pick up the queued tasks either
-      if (this._self.isClosing && this._self.#clientsInUse.length === 0) {
+      if ((this._self.isClosing || replacement) && this._self.#clientsInUse.length === 0) {
         let task;
         while ((task = this._self.#tasksQueue.shift())) {
           clearTimeout(task.timeout);
@@ -481,6 +485,11 @@ export class RedisClientPool<
 
       const waitStartTimestamp = performance.now();
       const client = this._self.#idleClients.shift();
+      if (client && this._self.#terminated.has(client)) {
+        client.destroy();
+        this.execute(fn).then(resolve, reject);
+        return;
+      }
       if (!client) {
         let timeout: NodeJS.Timeout | undefined;
         if (this._self.#options.acquireTimeout > 0) {
@@ -562,6 +571,17 @@ export class RedisClientPool<
   }
 
   #returnClient(node: DoublyLinkedNode<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>) {
+    if (this.#terminated.has(node.value)) {
+      this.#clientsInUse.remove(node);
+      node.value.destroy();
+      if (this.#tasksQueue.length > 0) {
+        this.#create(true).catch(() => {});
+      } else if (this.isClosing && this.#clientsInUse.length === 0) {
+        this.#drainResolve?.();
+      }
+      return;
+    }
+
     const skip = this.#abandoned.delete(node.value) && !node.value.isReady;
     const task = skip ? undefined : this.#tasksQueue.shift();
     if (task) {
@@ -670,6 +690,10 @@ export class RedisClientPool<
       // Now all tasks are done, close all clients (which are now idle)
       const promises = [];
       for (const client of this._self.#idleClients) {
+        if (this._self.#terminated.has(client)) {
+          client.destroy();
+          continue;
+        }
         promises.push(client.close().catch(err => {
           try {
             // close() can reject before the socket is destroyed, for example
