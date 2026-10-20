@@ -1495,6 +1495,44 @@ describe('legacy tests', () => {
       assert.equal(sawRecoverySuccess, true, 'expected periodic GET to recover after restart');
     });
 
+    // Regression: when the only reachable sentinel restarted, the closed sentinel client was
+    // kept, so its +switch-master subscription was gone and the next failover was missed.
+    it('reopens the sentinel client after the only sentinel restarts', async function () {
+      this.timeout(120000);
+
+      const [sentinelPort, ...extraSentinelPorts] = frame.getAllSentinelsPort();
+      await Promise.all(extraSentinelPorts.map(port => frame.stopSentinel(port.toString())));
+
+      sentinel = RedisSentinel.create({
+        name: config.sentinelName,
+        sentinelRootNodes: [{ host: '127.0.0.1', port: sentinelPort }],
+        scanInterval: 0
+      });
+      sentinel.setTracer(tracer);
+      sentinel.on('error', () => { });
+      await sentinel.connect();
+
+      await frame.stopSentinel(sentinelPort.toString());
+      await frame.restartSentinel(sentinelPort.toString());
+      // give the reset started by the sentinel client's error time to reach the restarted sentinel
+      await setTimeout(3000);
+      await Promise.all(extraSentinelPorts.map(port => frame.restartSentinel(port.toString())));
+
+      const masterNode = sentinel.getMasterNode()!;
+      const masterChange = new Promise<RedisNode>(resolve => {
+        sentinel!.on('topology-change', (event: RedisSentinelEvent) => {
+          if (event.type === 'MASTER_CHANGE') resolve(event.node);
+        });
+      });
+      await frame.stopNode(masterNode.port.toString());
+
+      const newMaster = await Promise.race([
+        masterChange,
+        setTimeout(30000).then(() => { throw new Error('no MASTER_CHANGE after the failover'); })
+      ]);
+      assert.notEqual(newMaster.port, masterNode.port);
+    });
+
     // Regression test for https://github.com/redis/node-redis/issues/3385
     //
     // The rediscovery cap previously applied only before the first successful

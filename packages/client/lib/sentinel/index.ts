@@ -1584,7 +1584,7 @@ export class RedisSentinelInternal<
           replicaData: replicaData,
           currentMaster: this.getMasterNode(),
           currentReplicas: this.getReplicaNodes(),
-          currentSentinel: this.getSentinelNode(),
+          currentSentinel: this.#sentinelClient?.isOpen ? this.getSentinelNode() : undefined,
           replicaPoolSize: this.#replicaPoolSize,
           useReplicas: this.useReplicas
         }
