@@ -901,6 +901,23 @@ export default class RedisClient<
     });
   }
 
+  #replaceCredentialsSubscription(subscription: Disposable) {
+    if (!this.#socket.isOpen) {
+      // Closed or destroyed while subscribe() was pending. close()/destroy() disposed only the
+      // subscription they could see, so dispose this one too; the handshake can still go on
+      // with its credentials (close() may be draining queued commands).
+      subscription.dispose();
+      return;
+    }
+
+    // Every handshake subscribes again (on each reconnect and each retried attempt), so the
+    // previous subscription must go. Dispose it after subscribing, not before: a provider that
+    // drops to zero listeners may stop its token manager and fetch new credentials on the next
+    // subscribe, as @redis/entraid's provider does.
+    this.#credentialsSubscription?.dispose();
+    this.#credentialsSubscription = subscription;
+  }
+
   async #handshake(chainId: symbol, asap: boolean) {
     const promises = [];
     const commandsWithErrorHandlers = await this.#getHandshakeCommands();
@@ -943,7 +960,7 @@ export default class RedisClient<
       if (cp && cp.type === 'streaming-credentials-provider') {
         const [credentials, disposable] =
           await this.#subscribeForStreamingCredentials(cp);
-        this.#credentialsSubscription = disposable;
+        this.#replaceCredentialsSubscription(disposable);
 
         if (credentials.password) {
           hello.AUTH = {
@@ -975,7 +992,7 @@ export default class RedisClient<
       if (cp && cp.type === 'streaming-credentials-provider') {
         const [credentials, disposable] =
           await this.#subscribeForStreamingCredentials(cp);
-        this.#credentialsSubscription = disposable;
+        this.#replaceCredentialsSubscription(disposable);
 
         if (credentials.username || credentials.password) {
           commands.push({
