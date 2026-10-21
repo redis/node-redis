@@ -12,6 +12,7 @@ import { SortedSetMember } from '../commands/generic-transformers';
 import { HASH_EXPIRATION } from '../commands/HEXPIRE';
 import { CommandParser } from './parser';
 import { RedisSocketOptions } from './socket';
+import { StreamingCredentialsProvider } from '../authx';
 import { getFreePortNumber } from '@redis/test-utils/lib/proxy/redis-proxy';
 import { createClient } from '../../';
 import net from 'node:net'
@@ -2246,6 +2247,149 @@ describe('Client', () => {
       await closing; // hangs (test times out) if close() never settles
       assert.equal(await blocked, 'rejected');
     }, GLOBAL.SERVERS.OPEN);
+  });
+
+  describe('streaming credentials subscription', () => {
+    async function listen() {
+      const sockets = new Set<net.Socket>();
+      const server = net.createServer(socket => {
+        sockets.add(socket);
+        socket.on('close', () => sockets.delete(socket));
+        socket.on('data', (chunk: Buffer) => {
+          socket.write('+OK\r\n'.repeat(countRespCommands(chunk)));
+        });
+      });
+      const port = await getFreePortNumber();
+      await once(server.listen(port), 'listening');
+      return { server, sockets, port };
+    }
+
+    // Like @redis/entraid's provider, holds each listener until its subscription is disposed
+    function provider(listeners: Set<unknown>, { beforeResolve, onDispose }: {
+      beforeResolve?: () => Promise<void>;
+      onDispose?: () => void;
+    } = {}): StreamingCredentialsProvider {
+      return {
+        type: 'streaming-credentials-provider',
+        subscribe: async listener => {
+          await beforeResolve?.();
+          listeners.add(listener);
+          return [
+            { password: 'password' },
+            {
+              dispose: () => {
+                listeners.delete(listener);
+                onDispose?.();
+              }
+            }
+          ];
+        },
+        onReAuthenticationError: () => {}
+      };
+    }
+
+    // Keeps subscribe() pending, as a slow token fetch would, until release()
+    function pendingSubscribe() {
+      let subscribing!: () => void,
+        release!: () => void;
+      const subscribed = new Promise<void>(resolve => { subscribing = resolve; }),
+        released = new Promise<void>(resolve => { release = resolve; });
+      return {
+        subscribed,
+        release,
+        beforeResolve: () => {
+          subscribing();
+          return released;
+        }
+      };
+    }
+
+    for (const RESP of [2, 3] as const) {
+      it(`keeps one subscription across reconnects and releases it on destroy() (RESP${RESP})`, async () => {
+        const { server, sockets, port } = await listen();
+        const listeners = new Set<unknown>();
+        // a provider left without listeners stops its token manager (as @redis/entraid's does)
+        let emptied = 0;
+        const client = createClient({
+          socket: {
+            host: 'localhost',
+            port
+          },
+          RESP,
+          credentialsProvider: provider(listeners, {
+            onDispose: () => { if (listeners.size === 0) emptied++; }
+          })
+        }).on('error', () => {});
+
+        await client.connect();
+        try {
+          for (let i = 0; i < 3; i++) {
+            // not once(client, 'ready'), which rejects on the error each dropped connection emits first
+            const ready = new Promise(resolve => client.once('ready', resolve));
+            sockets.forEach(socket => socket.destroy());
+            await ready;
+            assert.equal(listeners.size, 1);
+            assert.equal(emptied, 0);
+          }
+        } finally {
+          client.destroy();
+          server.close();
+        }
+
+        assert.equal(listeners.size, 0);
+      });
+    }
+
+    for (const shutdown of ['close', 'destroy'] as const) {
+      it(`disposes a subscription that resolves after ${shutdown}()`, async () => {
+        const { server, port } = await listen();
+        const listeners = new Set<unknown>();
+        const pending = pendingSubscribe();
+        const client = createClient({
+          socket: {
+            host: 'localhost',
+            port
+          },
+          credentialsProvider: provider(listeners, pending)
+        }).on('error', () => {});
+
+        const connecting = client.connect().catch(() => {}); // the shutdown aborts the handshake
+        await pending.subscribed;
+        await client[shutdown]();
+        pending.release();
+        await connecting;
+        await new Promise<void>(resolve => setImmediate(resolve)); // let the handshake resume after subscribe()
+        server.close();
+
+        assert.equal(listeners.size, 0);
+      });
+    }
+
+    it('disposes a subscription that resolves while close() drains queued commands', async () => {
+      const { server, port } = await listen();
+      const listeners = new Set<unknown>();
+      const pending = pendingSubscribe();
+      const client = createClient({
+        socket: {
+          host: 'localhost',
+          port
+        },
+        credentialsProvider: provider(listeners, pending)
+      }).on('error', () => {});
+
+      // close() drains and tears the socket down before 'ready', so connect() rejects
+      const connecting = client.connect().catch(() => {});
+      await pending.subscribed;
+      const ping = client.ping();
+      const closing = client.close();
+      pending.release(); // the handshake goes on, so close() can still drain the PING
+      assert.equal(await ping, 'OK');
+      await closing;
+      await connecting;
+      server.close();
+
+      assert.equal(listeners.size, 0);
+    });
   });
 });
 
