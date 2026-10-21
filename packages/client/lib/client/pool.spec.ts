@@ -1,12 +1,13 @@
 import { strict as assert } from 'node:assert';
 import { createServer, type AddressInfo, type Socket } from 'node:net';
 import { once } from 'node:events';
+import { spy, stub, type SinonStub } from 'sinon';
 import testUtils, { GLOBAL } from '../test-utils';
 import { RESP_TYPES } from '../RESP/decoder';
 import { RedisClientPool } from './pool';
 import { ClientClosedError, TimeoutError } from '../errors';
 import { BasicPooledClientSideCache } from './cache';
-import RedisClient from './index';
+import RedisClient, { type RedisClientType } from './index';
 
 describe('RedisClientPool', () => {
   it('chained withCommandOptions(...).withTypeMapping(...) preserves earlier overrides at dispatch', () => {
@@ -644,6 +645,99 @@ describe('RedisClientPool', () => {
   }, {
     ...GLOBAL.SERVERS.OPEN,
     poolOptions: { minimum: 0, maximum: 1, acquireTimeout: 1000 }
+  });
+
+  describe('a member whose reconnect strategy gave up', () => {
+    // Regression: the pool kept handing out a member closed for good by its reconnect
+    // strategy, so every task on it failed with ClientClosedError until the pool was recreated.
+    const options = {
+      ...GLOBAL.SERVERS.OPEN,
+      clientOptions: {
+        ...GLOBAL.SERVERS.OPEN.clientOptions,
+        socket: { reconnectStrategy: false as const }
+      },
+      poolOptions: { minimum: 1, maximum: 1 }
+    };
+
+    async function killConnection(member: RedisClientType<{}, {}, {}, 3>) {
+      const duplicate = await member.duplicate().connect();
+      try {
+        await Promise.all([
+          once(member, 'terminated'),
+          duplicate.clientKill({
+            filter: 'ID',
+            id: await member.clientId()
+          })
+        ]);
+      } finally {
+        duplicate.destroy();
+      }
+    }
+
+    testUtils.testWithClientPool('is replaced when it was idle', async pool => {
+      pool.on('error', () => {});
+      const member = await pool.execute(async client => client);
+      const destroy = spy(member, 'destroy');
+      await killConnection(member);
+
+      assert.equal(await pool.ping(), 'PONG');
+      assert.ok(destroy.calledOnce);
+      const replacement = await pool.execute(async client => client);
+      assert.equal(await pool.execute(async client => client), replacement);
+    }, options);
+
+    testUtils.testWithClientPool('is replaced for the tasks queued behind it', async pool => {
+      pool.on('error', () => {});
+      const member = await pool.execute(async client => client);
+      const destroy = spy(member, 'destroy');
+      const killed = pool.execute(killConnection);
+      const queued = pool.execute(client => client.ping());
+      await killed;
+
+      assert.equal(await queued, 'PONG');
+      assert.ok(destroy.calledOnce);
+      assert.equal(pool.totalClients, 1);
+    }, options);
+
+    testUtils.testWithClientPool('rejects the tasks queued behind it when no replacement connects', async pool => {
+      pool.on('error', () => {});
+      let connect: SinonStub | undefined;
+      try {
+        const killed = pool.execute(async client => {
+          await killConnection(client);
+          connect = stub(RedisClient.prototype, 'connect').rejects(new Error('connect failed'));
+        });
+        const queued = pool.execute(client => client.ping());
+        await killed;
+
+        await assert.rejects(queued, /connect failed/);
+      } finally {
+        connect?.restore();
+      }
+    }, options);
+
+    testUtils.testWithClientPool('does not make close() reject', async pool => {
+      pool.on('error', () => {});
+      const member = await pool.execute(async client => client);
+      const destroy = spy(member, 'destroy');
+      await killConnection(member);
+
+      await pool.close();
+      assert.ok(destroy.calledOnce);
+      assert.equal(pool.totalClients, 0);
+    }, options);
+
+    testUtils.testWithClientPool('does not stall close() when it was in use', async pool => {
+      pool.on('error', () => {});
+      let closing!: Promise<void>;
+      await pool.execute(async client => {
+        await killConnection(client);
+        closing = pool.close();
+      });
+
+      await closing;
+      assert.equal(pool.totalClients, 0);
+    }, options);
   });
 
   describe('_rejectQueued', () => {
