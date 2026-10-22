@@ -30,3 +30,20 @@ client.scanIterator({
   COUNT: 100
 });
 ```
+
+## Cluster
+
+The cluster client has the same iterators. `scanIterator` walks every master, one after another, and yields the keys of each `SCAN` page:
+
+```javascript
+for await (const keys of cluster.scanIterator({ MATCH: 'user:*' })) {
+  if (keys.length === 0) continue; // pages can be empty
+  const values = await cluster.mGet(keys);
+}
+```
+
+The cluster-wide cursor is held by the client. If you `break` out of the loop early, it is freed right away.
+
+If the node serving the cursor leaves the cluster mid-scan, `scanIterator` throws a `ScanIteratorInterruptedError`. Start a new scan to continue. Keys that move between nodes during the scan (for example during resharding) may be missed or returned twice.
+
+`hScanIterator`, `hScanValuesIterator`, `hScanNoValuesIterator`, `sScanIterator`, and `zScanIterator` work on a single key, so they behave the same as on a single client.

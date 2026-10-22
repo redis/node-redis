@@ -3,7 +3,7 @@ import { setTimeout } from 'node:timers/promises';
 import testUtils, { GLOBAL, waitTillBeenCalled } from '../test-utils';
 import RedisCluster from '.';
 import { SQUARE_SCRIPT } from '../client/index.spec';
-import { ClientClosedError, ClientOfflineError, RootNodesUnavailableError, MaxCommandRedirectionsError } from '../errors';
+import { ClientClosedError, ClientOfflineError, RootNodesUnavailableError, MaxCommandRedirectionsError, ScanIteratorInterruptedError } from '../errors';
 import { spy } from 'sinon';
 import RedisClient from '../client';
 import { RESP_TYPES } from '../RESP/decoder';
@@ -481,6 +481,120 @@ describe('Cluster', () => {
   testUtils.testWithCluster('cluster-wide SCAN rejects a foreign cursor', async cluster => {
     await assert.rejects(cluster.scan('123456'), /unknown cursor/);
   }, GLOBAL.CLUSTERS.OPEN);
+
+  describe('scan iterators', () => {
+    async function setScanKeys(cluster: { set(key: string, value: string): Promise<unknown> }) {
+      const keys = new Set<string>();
+      const writes: Array<Promise<unknown>> = [];
+      for (let i = 0; i < 100; i++) {
+        const key = `scan-iterator:${i}`;
+        keys.add(key);
+        writes.push(cluster.set(key, 'v'));
+      }
+      await Promise.all(writes);
+      return keys;
+    }
+
+    testUtils.testWithCluster('scanIterator yields the keys of every master', async cluster => {
+      const expected = await setScanKeys(cluster);
+      // The keys must be spread over every master for this test to mean anything.
+      for (const master of cluster.masters) {
+        assert.ok(await (await cluster.nodeClient(master)).dbSize() > 0);
+      }
+
+      const found = new Set<string>();
+      for await (const keys of cluster.scanIterator({ MATCH: 'scan-iterator:*', COUNT: 10 })) {
+        for (const key of keys) found.add(key);
+      }
+
+      assert.deepEqual(found, expected);
+      assert.equal(cluster._slots.scanCursors.size, 0);
+    }, GLOBAL.CLUSTERS.OPEN);
+
+    testUtils.testWithCluster('scanIterator terminates under a Buffer type mapping', async cluster => {
+      const expected = await setScanKeys(cluster);
+      const mapped = cluster.withTypeMapping({ [RESP_TYPES.BLOB_STRING]: Buffer });
+
+      const found = new Set<string>();
+      for await (const keys of mapped.scanIterator({ MATCH: 'scan-iterator:*', COUNT: 10 })) {
+        for (const key of keys) {
+          assert.ok(Buffer.isBuffer(key));
+          found.add(key.toString());
+        }
+      }
+
+      assert.deepEqual(found, expected);
+    }, GLOBAL.CLUSTERS.OPEN);
+
+    testUtils.testWithCluster('scanIterator frees the cursor on an early break', async cluster => {
+      await setScanKeys(cluster);
+
+      for await (const _ of cluster.scanIterator({ MATCH: 'scan-iterator:*', COUNT: 10 })) {
+        assert.equal(cluster._slots.scanCursors.size, 1);
+        break;
+      }
+
+      assert.equal(cluster._slots.scanCursors.size, 0);
+    }, GLOBAL.CLUSTERS.OPEN);
+
+    testUtils.testWithCluster('scanIterator throws ScanIteratorInterruptedError when the cursor node leaves', async cluster => {
+      await setScanKeys(cluster);
+
+      const iterator = cluster.scanIterator({ MATCH: 'scan-iterator:*', COUNT: 10 });
+      await iterator.next();
+
+      // Point the in-flight cursor at a node that is not in the cluster.
+      const [entry] = cluster._slots.scanCursors.values();
+      entry.address = '127.0.0.1:1';
+
+      await assert.rejects(iterator.next(), ScanIteratorInterruptedError);
+      assert.equal(cluster._slots.scanCursors.size, 0);
+    }, GLOBAL.CLUSTERS.OPEN);
+
+    testUtils.testWithCluster('hScanIterator, sScanIterator and zScanIterator', async cluster => {
+      const fields: Record<string, string> = {};
+      const members: Array<string> = [];
+      for (let i = 0; i < 50; i++) {
+        fields[`field:${i}`] = `value:${i}`;
+        members.push(`member:${i}`);
+      }
+      await Promise.all([
+        cluster.hSet('hash', fields),
+        cluster.sAdd('set', members),
+        cluster.zAdd('zset', members.map((value, score) => ({ value, score })))
+      ]);
+
+      const hashEntries: Record<string, string> = {};
+      for await (const entries of cluster.hScanIterator('hash', { COUNT: 10 })) {
+        for (const { field, value } of entries) hashEntries[field] = value;
+      }
+      assert.deepEqual(hashEntries, fields);
+
+      const hashValues = new Set<string>();
+      for await (const values of cluster.hScanValuesIterator('hash', { COUNT: 10 })) {
+        for (const value of values) hashValues.add(value);
+      }
+      assert.deepEqual(hashValues, new Set(Object.values(fields)));
+
+      const hashFields = new Set<string>();
+      for await (const batch of cluster.hScanNoValuesIterator('hash', { COUNT: 10 })) {
+        for (const field of batch) hashFields.add(field);
+      }
+      assert.deepEqual(hashFields, new Set(Object.keys(fields)));
+
+      const setMembers = new Set<string>();
+      for await (const batch of cluster.sScanIterator('set', { COUNT: 10 })) {
+        for (const member of batch) setMembers.add(member);
+      }
+      assert.deepEqual(setMembers, new Set(members));
+
+      const zsetMembers = new Map<string, number>();
+      for await (const batch of cluster.zScanIterator('zset', { COUNT: 10 })) {
+        for (const { value, score } of batch) zsetMembers.set(value, score);
+      }
+      assert.deepEqual(zsetMembers, new Map(members.map((value, score) => [value, score])));
+    }, GLOBAL.CLUSTERS.OPEN);
+  });
 
   testUtils.testWithCluster('RANDOMKEY finds the key whichever shard holds it', async cluster => {
     // Single key in the whole cluster: a single-node RANDOMKEY would return
