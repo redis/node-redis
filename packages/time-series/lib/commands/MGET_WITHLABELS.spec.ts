@@ -76,4 +76,19 @@ describe('TS.MGET_WITHLABELS', () => {
     assert.equal(entry.sample.value, 0);
     assert.equal(entry.sample.timestamp, 0);
   }, GLOBAL.SERVERS.OPEN);
+
+  for (const RESP of [2, 3] as const) {
+    testUtils.testWithClient(`client.ts.mGetWithLabels with an empty series (RESP${RESP})`, async client => {
+      await client.ts.create('key', { LABELS: { label: 'value' } });
+
+      const reply = await client.ts.mGetWithLabels('label=value');
+      assert.equal(reply.key.sample, null);
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      clientOptions: {
+        ...GLOBAL.SERVERS.OPEN.clientOptions,
+        RESP
+      }
+    });
+  }
 });
