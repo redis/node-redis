@@ -551,10 +551,42 @@ describe('Cluster', () => {
       assert.equal(cluster._slots.scanCursors.size, 0);
     }, GLOBAL.CLUSTERS.OPEN);
 
+    testUtils.testWithCluster('scanIterator leaves a cursor it does not own alone', async cluster => {
+      // A live cursor of another scan-chained command, which SCAN rejects.
+      const token = cluster._slots.mintCursorToken();
+      cluster._slots.bindScanCursor(token, cluster.masters[0].address, '0', new Set(), 'BLESS SCAN');
+
+      await assert.rejects(cluster.scanIterator({ cursor: token }).next(), /unknown cursor/);
+      assert.ok(cluster._slots.lookupScanCursor(token));
+    }, GLOBAL.CLUSTERS.OPEN);
+
+    testUtils.testWithCluster('keyed scan iterators keep every page on the master', async cluster => {
+      // Above `set-max-listpack-entries`, so SSCAN really takes several pages.
+      const members = Array.from({ length: 300 }, (_, i) => `member:${i}`);
+      await cluster.sAdd('set', members);
+
+      // With `useReplicas`, read-only commands rotate over the master and its
+      // replicas, but a scan cursor is only valid on the node that issued it.
+      const replicaSpies = await Promise.all(cluster.replicas.map(async replica =>
+        spy(await cluster.nodeClient(replica), '_executeCommand')
+      ));
+      try {
+        const found = new Set<string>();
+        for await (const batch of cluster.sScanIterator('set', { COUNT: 5 })) {
+          for (const member of batch) found.add(member);
+        }
+        assert.deepEqual(found, new Set(members));
+        for (const replicaSpy of replicaSpies) assert.equal(replicaSpy.callCount, 0);
+      } finally {
+        for (const replicaSpy of replicaSpies) replicaSpy.restore();
+      }
+    }, GLOBAL.CLUSTERS.WITH_REPLICAS);
+
     testUtils.testWithCluster('hScanIterator, sScanIterator and zScanIterator', async cluster => {
+      // Above the listpack limits, so each iterator really takes several pages.
       const fields: Record<string, string> = {};
       const members: Array<string> = [];
-      for (let i = 0; i < 50; i++) {
+      for (let i = 0; i < 300; i++) {
         fields[`field:${i}`] = `value:${i}`;
         members.push(`member:${i}`);
       }

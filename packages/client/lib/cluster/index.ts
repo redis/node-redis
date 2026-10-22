@@ -203,7 +203,7 @@ export default class RedisCluster<
 
       return this._self._executeWithPolicies(
         parser,
-        command.IS_READ_ONLY,
+        this._forceMaster ? false : command.IS_READ_ONLY,
         this._commandOptions,
         p => (client, opts) => client._executeCommand(command, p, opts, transformReply)
       );
@@ -332,6 +332,7 @@ export default class RedisCluster<
   readonly #identity: ClientIdentity;
 
   private _self = this;
+  private _forceMaster = false;
   private _commandOptions?: ClusterCommandOptions<TYPE_MAPPING/*, POLICIES*/>;
   private _policyResolver: PolicyResolver;
 
@@ -865,6 +866,9 @@ export default class RedisCluster<
     options?: ScanOptions & ScanIteratorOptions
   ) {
     let cursor = options?.cursor ?? '0';
+    // Set once a reply carries a cursor of this iterator's own chain. Until
+    // then `cursor` is the caller's (possibly another scan's), so leave it be.
+    let ownsCursor = false;
     try {
       do {
         let reply;
@@ -883,6 +887,7 @@ export default class RedisCluster<
           throw err;
         }
         cursor = reply.cursor;
+        ownsCursor = true;
         yield reply.keys;
         // Cursor may be a Buffer when a Blob String type mapping is in use;
         // compare by string value so iteration actually terminates.
@@ -890,8 +895,20 @@ export default class RedisCluster<
     } finally {
       // Free the cluster-wide cursor when the caller stops early (or on an
       // error) instead of leaving it to the idle sweep. No-op once done.
-      this._self._slots.evictScanCursor(cursor.toString());
+      if (ownsCursor) this._self._slots.evictScanCursor(cursor.toString());
     }
+  }
+
+  /**
+   * A view of this cluster whose commands always run on the slot master, even
+   * with `useReplicas`. Scan cursors are only valid on the node that issued
+   * them, so the pages of a keyed `*SCAN` iteration must not be spread over
+   * the master and its replicas.
+   */
+  _masterOnly(this: RedisClusterType<M, F, S, RESP, TYPE_MAPPING>) {
+    const view: RedisClusterType<M, F, S, RESP, TYPE_MAPPING> = Object.create(this);
+    view._forceMaster = true;
+    return view;
   }
 
   async* hScanIterator(
@@ -899,9 +916,10 @@ export default class RedisCluster<
     key: RedisArgument,
     options?: ScanCommonOptions & ScanIteratorOptions
   ) {
+    const onMaster = this._masterOnly();
     let cursor = options?.cursor ?? '0';
     do {
-      const reply = await this.hScan(key, cursor, options);
+      const reply = await onMaster.hScan(key, cursor, options);
       cursor = reply.cursor;
       yield reply.entries;
     } while (cursor.toString() !== '0');
@@ -912,9 +930,10 @@ export default class RedisCluster<
     key: RedisArgument,
     options?: ScanCommonOptions & ScanIteratorOptions
   ) {
+    const onMaster = this._masterOnly();
     let cursor = options?.cursor ?? '0';
     do {
-      const reply = await this.hScan(key, cursor, options);
+      const reply = await onMaster.hScan(key, cursor, options);
       cursor = reply.cursor;
       yield reply.entries.map(entry => entry.value);
     } while (cursor.toString() !== '0');
@@ -925,9 +944,10 @@ export default class RedisCluster<
     key: RedisArgument,
     options?: ScanCommonOptions & ScanIteratorOptions
   ) {
+    const onMaster = this._masterOnly();
     let cursor = options?.cursor ?? '0';
     do {
-      const reply = await this.hScanNoValues(key, cursor, options);
+      const reply = await onMaster.hScanNoValues(key, cursor, options);
       cursor = reply.cursor;
       yield reply.fields;
     } while (cursor.toString() !== '0');
@@ -938,9 +958,10 @@ export default class RedisCluster<
     key: RedisArgument,
     options?: ScanCommonOptions & ScanIteratorOptions
   ) {
+    const onMaster = this._masterOnly();
     let cursor = options?.cursor ?? '0';
     do {
-      const reply = await this.sScan(key, cursor, options);
+      const reply = await onMaster.sScan(key, cursor, options);
       cursor = reply.cursor;
       yield reply.members;
     } while (cursor.toString() !== '0');
@@ -951,9 +972,10 @@ export default class RedisCluster<
     key: RedisArgument,
     options?: ScanCommonOptions & ScanIteratorOptions
   ) {
+    const onMaster = this._masterOnly();
     let cursor = options?.cursor ?? '0';
     do {
-      const reply = await this.zScan(key, cursor, options);
+      const reply = await onMaster.zScan(key, cursor, options);
       cursor = reply.cursor;
       yield reply.members;
     } while (cursor.toString() !== '0');
