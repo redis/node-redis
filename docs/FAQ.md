@@ -42,6 +42,8 @@ try {
 
 Imports that resolve to the same module reuse its exported client. The top-level `await` ensures that the connection is ready before importing modules use it. If `connect()` rejects, importing the module rejects too.
 
+With the default reconnect strategy, an unreachable Redis causes the client to keep retrying, so the top-level `await` and importing modules can wait indefinitely. Configure [`reconnectStrategy`](./client-configuration.md#reconnect-strategy) if the application should fail fast at startup.
+
 Keep the client open while the application needs it and close it when the application shuts down. Modules that use the shared client should not close it after each operation.
 
 ## `RedisClientType`
