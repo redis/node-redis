@@ -44,4 +44,13 @@ describe('VINFO', () => {
     client: { ...GLOBAL.SERVERS.OPEN, minimumDockerVersion: [8, 0] },
     cluster: { ...GLOBAL.CLUSTERS.OPEN, minimumDockerVersion: [8, 0] }
   });
+
+  for (const RESP of [2, 3] as const) {
+    testUtils.testAll(`vInfo on a missing key (RESP${RESP})`, async client => {
+      assert.equal(await client.vInfo('missing'), null);
+    }, {
+      client: { ...GLOBAL.SERVERS.OPEN, clientOptions: { RESP }, minimumDockerVersion: [8, 0] },
+      cluster: { ...GLOBAL.CLUSTERS.OPEN, clusterConfiguration: { RESP }, minimumDockerVersion: [8, 0] }
+    });
+  }
 });

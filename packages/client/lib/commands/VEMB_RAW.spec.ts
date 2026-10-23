@@ -73,4 +73,16 @@ describe('VEMB_RAW', () => {
     },
     minimumDockerVersion: [8, 0]
   });
+
+  for (const RESP of [2, 3] as const) {
+    testUtils.testAll(`vEmbRaw on a missing key or element (RESP${RESP})`, async client => {
+      assert.equal(await client.vEmbRaw('missing', 'element'), null);
+
+      await client.vAdd('key', [1.0, 2.0, 3.0], 'element');
+      assert.equal(await client.vEmbRaw('key', 'missing'), null);
+    }, {
+      client: { ...GLOBAL.SERVERS.OPEN, clientOptions: { RESP }, minimumDockerVersion: [8, 0] },
+      cluster: { ...GLOBAL.CLUSTERS.OPEN, clusterConfiguration: { RESP }, minimumDockerVersion: [8, 0] }
+    });
+  }
 });
