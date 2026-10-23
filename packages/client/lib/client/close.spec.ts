@@ -62,7 +62,7 @@ describe('Client close', () => {
     }
   });
 
-  it('drains queued commands when closing during a reconnect', async () => {
+  it('drains queued commands when closing from the reconnecting callback', async () => {
     const transport = new net.Socket();
     const replacement = new net.Socket();
     const createConnection = stub(net, 'createConnection').returns(replacement);
@@ -83,10 +83,14 @@ describe('Client close', () => {
       transport.emit('connect');
       await connecting;
 
+      let command!: ReturnType<typeof client.ping>;
+      let closing!: Promise<void>;
+      client.once('reconnecting', () => {
+        command = client.ping();
+        closing = client.close();
+      });
       transport.emit('error', new Error('Connection lost'));
       assert.equal(client.isReady, false);
-      const command = client.ping();
-      const closing = client.close();
       replacement.emit('connect');
 
       assert.equal(await command, 'PONG');
@@ -101,6 +105,44 @@ describe('Client close', () => {
       createConnection.restore();
     }
   });
+
+  for (const shutdown of ['destroy', 'close'] as const) {
+    it(`does not reconnect after ${shutdown} in the reconnecting callback`, async () => {
+      const transport = new net.Socket();
+      const replacement = new net.Socket();
+      const createConnection = stub(net, 'createConnection').returns(replacement);
+      createConnection.onFirstCall().returns(transport);
+      const client = RedisClient.create({
+        RESP: 2, disableClientInfo: true, socket: { reconnectStrategy: 0 }
+      }).on('error', () => {});
+      const events: string[] = [];
+      for (const event of ['connect', 'ready']) {
+        client.on(event, () => events.push(event));
+      }
+
+      try {
+        const connecting = client.connect();
+        transport.emit('connect');
+        await connecting;
+
+        events.length = 0;
+        client.once('reconnecting', () => { client[shutdown](); });
+        transport.emit('error', new Error('Connection lost'));
+        replacement.emit('connect');
+        await new Promise<void>(resolve => setImmediate(resolve));
+
+        assert.equal(createConnection.callCount, 1, 'shutdown must prevent a new TCP connection');
+        assert.equal(client.isOpen, false);
+        assert.equal(client.isReady, false);
+        assert.deepEqual(events, []);
+      } finally {
+        client.destroy();
+        transport.destroy();
+        replacement.destroy();
+        createConnection.restore();
+      }
+    });
+  }
 
   it('does not connect after closing with an empty queue while TCP connection is pending', async () => {
     const transport = new net.Socket();
