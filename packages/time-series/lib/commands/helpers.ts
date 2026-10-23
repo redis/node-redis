@@ -164,6 +164,19 @@ export const transformSampleReply = {
   }
 };
 
+export const transformNullableSampleReply = {
+  2(reply: Resp2Reply<TuplesReply<[]> | SampleRawReply>) {
+    if ((reply as unknown as UnwrapReply<typeof reply>).length === 0) return null;
+
+    return transformSampleReply[2](reply as Resp2Reply<SampleRawReply>);
+  },
+  3(reply: TuplesReply<[]> | SampleRawReply) {
+    if ((reply as unknown as UnwrapReply<typeof reply>).length === 0) return null;
+
+    return transformSampleReply[3](reply as SampleRawReply);
+  }
+};
+
 export type SamplesRawReply = ArrayReply<SampleRawReply>;
 
 export const transformSamplesReply = {

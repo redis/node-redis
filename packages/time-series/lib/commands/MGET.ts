@@ -1,6 +1,6 @@
 import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { Command, BlobStringReply, ArrayReply, Resp2Reply, MapReply, TuplesReply, TypeMapping } from '@redis/client/dist/lib/RESP/types';
-import { resp2MapToValue, resp3MapToValue, SampleRawReply, transformSampleReply } from './helpers';
+import { resp2MapToValue, resp3MapToValue, SampleRawReply, transformNullableSampleReply } from './helpers';
 import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
 
 export interface TsMGetOptions {
@@ -58,14 +58,14 @@ export default {
     2(reply: MGetRawReply2, _, typeMapping?: TypeMapping) {
       return resp2MapToValue(reply, ([,, sample]) => {
         return {
-          sample: transformSampleReply[2](sample)
+          sample: transformNullableSampleReply[2](sample)
         };
       }, typeMapping);
     },
     3(reply: MGetRawReply3) {
       return resp3MapToValue(reply, ([, sample]) => {
         return {
-          sample: transformSampleReply[3](sample)
+          sample: transformNullableSampleReply[3](sample)
         };
       });
     }

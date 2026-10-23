@@ -2,7 +2,7 @@ import { CommandParser } from '@redis/client/dist/lib/client/parser';
 import { Command, BlobStringReply, ArrayReply, Resp2Reply, MapReply, TuplesReply, TypeMapping } from '@redis/client/dist/lib/RESP/types';
 import { RedisVariadicArgument } from '@redis/client/dist/lib/commands/generic-transformers';
 import { TsMGetOptions, parseLatestArgument, parseFilterArgument } from './MGET';
-import { RawLabelValue, resp2MapToValue, resp3MapToValue, SampleRawReply, transformRESP2Labels, transformSampleReply } from './helpers';
+import { RawLabelValue, resp2MapToValue, resp3MapToValue, SampleRawReply, transformRESP2Labels, transformNullableSampleReply } from './helpers';
 
 export interface TsMGetWithLabelsOptions extends TsMGetOptions {
   SELECTED_LABELS?: RedisVariadicArgument;
@@ -35,7 +35,7 @@ export function createTransformMGetLabelsReply<T extends RawLabelValue>() {
       return resp2MapToValue(reply, ([, labels, sample]) => {
         return {
           labels: transformRESP2Labels(labels, typeMapping),
-          sample: transformSampleReply[2](sample)
+          sample: transformNullableSampleReply[2](sample)
         };
       }, typeMapping);
     },
@@ -43,7 +43,7 @@ export function createTransformMGetLabelsReply<T extends RawLabelValue>() {
       return resp3MapToValue(reply, ([labels, sample]) => {
         return {
           labels,
-          sample: transformSampleReply[3](sample)
+          sample: transformNullableSampleReply[3](sample)
         };
       });
     }
