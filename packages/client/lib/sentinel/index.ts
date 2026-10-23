@@ -2,7 +2,7 @@ import { EventEmitter } from 'node:events';
 import { CommandArguments, RedisArgument, RedisFunctions, RedisModules, RedisScripts, ReplyUnion, RespVersions, TypeMapping, DEFAULT_RESP } from '../RESP/types';
 import { ScanIteratorInterruptedError } from '../errors';
 import RedisClient, { AnyRedisClientOptions, RedisClientOptions, RedisClientType, ScanIteratorOptions } from '../client';
-import { CommandOptions } from '../client/commands-queue';
+import { CommandOptions, pickBatchOptions } from '../client/commands-queue';
 import { attachConfig } from '../commander';
 import { NON_STICKY_COMMANDS } from '../commands';
 import { ClientErrorEvent, NamespaceProxySentinel, NamespaceProxySentinelClient, NodeAddressMap, ProxySentinel, ProxySentinelClient, RedisNode, RedisSentinelClientType, RedisSentinelEvent, RedisSentinelOptions, RedisSentinelType, SentinelCommander } from './types';
@@ -208,7 +208,7 @@ export class RedisSentinelClient<
   ) {
     return this._execute(
       isReadonly,
-      client => client._executePipeline(commands)
+      client => client.withCommandOptions(pickBatchOptions(this.commandOptions))._executePipeline(commands)
     );
   }
 
@@ -221,7 +221,7 @@ export class RedisSentinelClient<
   ) {
     return this._execute(
       isReadonly,
-      client => client._executeMulti(commands)
+      client => client.withCommandOptions(pickBatchOptions(this.commandOptions))._executeMulti(commands)
     );
   }
 
@@ -552,7 +552,7 @@ export default class RedisSentinel<
   ) {
     return this._execute(
       isReadonly,
-      client => client._executePipeline(commands)
+      client => client.withCommandOptions(pickBatchOptions(this.commandOptions))._executePipeline(commands)
     );
   }
 
@@ -565,7 +565,7 @@ export default class RedisSentinel<
   ) {
     return this._execute(
       isReadonly,
-      client => client._executeMulti(commands)
+      client => client.withCommandOptions(pickBatchOptions(this.commandOptions))._executeMulti(commands)
     );
   }
 

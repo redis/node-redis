@@ -6,7 +6,7 @@ import { performance } from 'node:perf_hooks';
 import { DoublyLinkedNode, DoublyLinkedList, SinglyLinkedList } from './linked-list';
 import { ClientClosedError, TimeoutError } from '../errors';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
-import { CommandOptions } from './commands-queue';
+import { CommandOptions, pickBatchOptions } from './commands-queue';
 import RedisClientMultiCommand, { RedisClientMultiCommandType } from './multi-command';
 import { BasicPooledClientSideCache, ClientSideCacheConfig, PooledClientSideCacheProvider } from './cache';
 import { BasicCommandParser } from './parser';
@@ -658,10 +658,11 @@ export class RedisClientPool<
 
   MULTI<isTyped extends MultiMode = MULTI_MODE['TYPED']>() {
     type Multi = new (...args: ConstructorParameters<typeof RedisClientMultiCommand>) => RedisClientMultiCommandType<isTyped, [], M, F, S, RESP, TYPE_MAPPING>;
+    const batchOptions = pickBatchOptions(this._commandOptions);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- access to dynamic Multi class
     return new ((this as any).Multi as Multi)(
-      (commands, selectedDB) => this.execute(client => client._executeMulti(commands, selectedDB)),
-      (commands, selectedDB) => this.execute(client => client._executePipeline(commands, selectedDB)),
+      (commands, selectedDB) => this.execute(client => client.withCommandOptions(batchOptions)._executeMulti(commands, selectedDB)),
+      (commands, selectedDB) => this.execute(client => client.withCommandOptions(batchOptions)._executePipeline(commands, selectedDB)),
       this._commandOptions?.typeMapping,
       this._self._keyPrefix
     );

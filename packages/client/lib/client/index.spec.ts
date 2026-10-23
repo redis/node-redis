@@ -1,9 +1,9 @@
 import { strict as assert } from 'node:assert';
-import testUtils, { GLOBAL, waitTillBeenCalled } from '../test-utils';
+import testUtils, { GLOBAL, blockSetImmediate, waitTillBeenCalled } from '../test-utils';
 import RedisClient, { RedisClientOptions, RedisClientType } from '.';
 import { AbortError, ClientClosedError, ClientOfflineError, ConnectionTimeoutError, DisconnectsClientError, ErrorReply, MultiErrorReply, TimeoutError, WatchError } from '../errors';
 import { defineScript } from '../lua-script';
-import { spy, stub } from 'sinon';
+import { spy } from 'sinon';
 import EventEmitter, { once } from 'node:events';
 import { MATH_FUNCTION, loadMathFunction } from '../commands/FUNCTION_LOAD.spec';
 import { RESP_TYPES } from '../RESP/decoder';
@@ -2403,24 +2403,4 @@ function countRespCommands(chunk: Buffer): number {
   }
 
   return commands;
-}
-
-/**
- * Executes the provided function in a context where setImmediate is stubbed to not do anything.
- * This blocks setImmediate callbacks from executing
- */
-async function blockSetImmediate(fn: () => Promise<unknown>) {
-  let setImmediateStub: ReturnType<typeof stub> | undefined;
-
-  try {
-    setImmediateStub = stub(global, 'setImmediate');
-    setImmediateStub.callsFake(() => {
-      //Dont call the callback, effectively blocking execution
-    });
-    await fn();
-  } finally {
-    if (setImmediateStub) {
-      setImmediateStub.restore();
-    }
-  }
 }

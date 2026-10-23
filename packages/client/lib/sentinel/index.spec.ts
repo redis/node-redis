@@ -1,8 +1,8 @@
 import { strict as assert } from 'node:assert';
 import { setTimeout } from 'node:timers/promises';
-import testUtils, { GLOBAL, MATH_FUNCTION } from '../test-utils';
+import testUtils, { GLOBAL, MATH_FUNCTION, blockSetImmediate } from '../test-utils';
 import { RESP_TYPES } from '../RESP/decoder';
-import { ScanIteratorInterruptedError, WatchError } from "../errors";
+import { AbortError, ScanIteratorInterruptedError, TimeoutError, WatchError } from "../errors";
 import { RedisSentinelConfig, SentinelFramework } from "./test-util";
 import { RedisSentinelEvent, RedisSentinelType, RedisSentinelClientType, RedisNode } from "./types";
 import RedisSentinel, { RedisSentinelInternal } from "./index";
@@ -379,6 +379,36 @@ describe('RedisSentinel', () => {
           .exec(),
         ['OK', '1']
       );
+    }, testOptions);
+
+    testUtils.testWithClientSentinel('per-call timeout reaches queued batches', async sentinel => {
+      const withTimeout = sentinel.withCommandOptions({ timeout: 5 });
+      const start = Date.now();
+      await blockSetImmediate(async () => {
+        await assert.rejects(withTimeout.multi().ping().exec(), TimeoutError);
+        await assert.rejects(withTimeout.multi().ping().execAsPipeline(), TimeoutError);
+      });
+      assert.ok(Date.now() - start < 1000, 'the node client default timeout was used');
+    }, testOptions);
+
+    testUtils.testWithClientSentinel('abortSignal reaches queued batches', async sentinel => {
+      await blockSetImmediate(async () => {
+        await assert.rejects(sentinel.withCommandOptions({ abortSignal: AbortSignal.timeout(5) }).multi().ping().exec(), AbortError);
+        await assert.rejects(sentinel.withCommandOptions({ abortSignal: AbortSignal.timeout(5) }).multi().ping().execAsPipeline(), AbortError);
+      });
+      assert.equal(await sentinel.ping(), 'PONG');
+    }, testOptions);
+
+    testUtils.testWithClientSentinel('per-call timeout reaches batches on a leased client', async sentinel => {
+      await sentinel.use(async client => {
+        const withTimeout = client.withCommandOptions({ timeout: 5 });
+        const start = Date.now();
+        await blockSetImmediate(async () => {
+          await assert.rejects(withTimeout.multi().ping().exec(), TimeoutError);
+          await assert.rejects(withTimeout.multi().ping().execAsPipeline(), TimeoutError);
+        });
+        assert.ok(Date.now() - start < 1000, 'the node client default timeout was used');
+      });
     }, testOptions);
 
 
