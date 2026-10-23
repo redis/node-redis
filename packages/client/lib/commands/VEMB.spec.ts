@@ -25,4 +25,15 @@ describe('VEMB', () => {
     cluster: { ...GLOBAL.CLUSTERS.OPEN, minimumDockerVersion: [8, 0] }
   });
 
+  for (const RESP of [2, 3] as const) {
+    testUtils.testAll(`vEmb on a missing key or element (RESP${RESP})`, async client => {
+      assert.equal(await client.vEmb('missing', 'element'), null);
+
+      await client.vAdd('key', [1.0, 2.0, 3.0], 'element');
+      assert.equal(await client.vEmb('key', 'missing'), null);
+    }, {
+      client: { ...GLOBAL.SERVERS.OPEN, clientOptions: { RESP }, minimumDockerVersion: [8, 0] },
+      cluster: { ...GLOBAL.CLUSTERS.OPEN, clusterConfiguration: { RESP }, minimumDockerVersion: [8, 0] }
+    });
+  }
 });

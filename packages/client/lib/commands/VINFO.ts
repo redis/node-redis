@@ -1,5 +1,5 @@
 import { CommandParser } from '../client/parser';
-import { RedisArgument, Command, UnwrapReply, Resp2Reply, TuplesToMapReply, SimpleStringReply, NumberReply } from '../RESP/types';
+import { RedisArgument, Command, UnwrapReply, Resp2Reply, TuplesToMapReply, SimpleStringReply, NumberReply, NullReply } from '../RESP/types';
 
 export type VInfoReplyMap = TuplesToMapReply<[
   [SimpleStringReply<'quant-type'>, SimpleStringReply],
@@ -23,7 +23,9 @@ export default {
     parser.pushKey(key);
   },
   transformReply: {
-    2: (reply: UnwrapReply<Resp2Reply<VInfoReplyMap>>): VInfoReplyMap => {
+    2: (reply: UnwrapReply<Resp2Reply<VInfoReplyMap> | NullReply>): VInfoReplyMap | null => {
+      if (reply === null) return null;
+
       const ret: Record<string, unknown> = {};
 
       for (let i = 0; i < reply.length; i += 2) {
@@ -32,6 +34,6 @@ export default {
 
       return ret as unknown as VInfoReplyMap;
     },
-    3: undefined as unknown as () => VInfoReplyMap
+    3: undefined as unknown as () => VInfoReplyMap | NullReply
   }
 } as const satisfies Command;

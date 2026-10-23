@@ -1,14 +1,16 @@
-import { BlobStringReply, Command, DoubleReply, MapReply, TypeMapping } from '../RESP/types';
+import { BlobStringReply, Command, DoubleReply, MapReply, NullReply, TypeMapping } from '../RESP/types';
 import { transformDoubleReply } from './generic-transformers';
 import VLINKS from './VLINKS';
 
 
 function transformVLinksWithScoresReply(
-  reply: Array<Array<BlobStringReply>>,
+  reply: Array<Array<BlobStringReply>> | null,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
   preserve?: any,
   typeMapping?: TypeMapping
-): Array<Record<string, DoubleReply>> {
+): Array<Record<string, DoubleReply>> | null {
+  if (reply === null) return null;
+
   const layers: Array<Record<string, DoubleReply>> = [];
 
   for (const layer of reply) {
@@ -36,6 +38,6 @@ export default {
   },
   transformReply: {
     2: transformVLinksWithScoresReply,
-    3: undefined as unknown as () => Array<MapReply<BlobStringReply, DoubleReply>>
+    3: undefined as unknown as () => Array<MapReply<BlobStringReply, DoubleReply>> | NullReply
   }
 } as const satisfies Command;
