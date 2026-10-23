@@ -2,10 +2,10 @@ import { strict as assert } from 'node:assert';
 import { createServer, type AddressInfo, type Socket } from 'node:net';
 import { once } from 'node:events';
 import { spy, stub, type SinonStub } from 'sinon';
-import testUtils, { GLOBAL } from '../test-utils';
+import testUtils, { GLOBAL, blockSetImmediate } from '../test-utils';
 import { RESP_TYPES } from '../RESP/decoder';
 import { RedisClientPool } from './pool';
-import { ClientClosedError, TimeoutError } from '../errors';
+import { AbortError, ClientClosedError, TimeoutError } from '../errors';
 import { BasicPooledClientSideCache } from './cache';
 import RedisClient, { type RedisClientType } from './index';
 
@@ -126,6 +126,46 @@ describe('RedisClientPool', () => {
 
     assert.deepEqual(seen, [2], 'execAsPipeline must forward the selected database');
   }, GLOBAL.SERVERS.OPEN);
+
+  describe('batch timeout', () => {
+    testUtils.testWithClientPool('per-call timeout reaches queued batches', async pool => {
+      const withTimeout = pool.withCommandOptions({ timeout: 5 });
+      const start = Date.now();
+      await blockSetImmediate(async () => {
+        await assert.rejects(withTimeout.multi().ping().exec(), TimeoutError);
+        await assert.rejects(withTimeout.multi().ping().execAsPipeline(), TimeoutError);
+      });
+      assert.ok(Date.now() - start < 1000, 'the pooled client default timeout was used');
+    }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClientPool('abortSignal reaches queued batches', async pool => {
+      await blockSetImmediate(async () => {
+        await assert.rejects(pool.withAbortSignal(AbortSignal.timeout(5)).multi().ping().exec(), AbortError);
+        await assert.rejects(pool.withAbortSignal(AbortSignal.timeout(5)).multi().ping().execAsPipeline(), AbortError);
+      });
+      assert.equal(await pool.set('key', 'value'), 'OK');
+    }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClientPool('timeout: undefined keeps a queued batch waiting', async pool => {
+      const withoutTimeout = pool.withCommandOptions({ timeout: undefined });
+      let exec: Promise<unknown> | undefined;
+      let settled = false;
+      await blockSetImmediate(async () => {
+        exec = withoutTimeout.multi().ping().exec();
+        exec.finally(() => { settled = true; }).catch(() => {});
+        await new Promise(resolve => setTimeout(resolve, 20));
+      });
+
+      assert.equal(settled, false);
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      clientOptions: {
+        commandOptions: {
+          timeout: 5
+        }
+      }
+    });
+  });
 
   testUtils.testWithClientPool('close', async pool => {
     assert.equal(pool.isOpen, true, 'pool should be open before close');

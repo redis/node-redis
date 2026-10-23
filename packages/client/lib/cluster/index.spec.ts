@@ -1,9 +1,9 @@
 import { strict as assert } from 'node:assert';
 import { setTimeout } from 'node:timers/promises';
-import testUtils, { GLOBAL, waitTillBeenCalled } from '../test-utils';
+import testUtils, { GLOBAL, blockSetImmediate, waitTillBeenCalled } from '../test-utils';
 import RedisCluster from '.';
 import { SQUARE_SCRIPT } from '../client/index.spec';
-import { ClientClosedError, ClientOfflineError, RootNodesUnavailableError, MaxCommandRedirectionsError, ScanIteratorInterruptedError } from '../errors';
+import { AbortError, ClientClosedError, ClientOfflineError, RootNodesUnavailableError, MaxCommandRedirectionsError, ScanIteratorInterruptedError, TimeoutError } from '../errors';
 import { spy } from 'sinon';
 import RedisClient from '../client';
 import { RESP_TYPES } from '../RESP/decoder';
@@ -140,6 +140,26 @@ describe('Cluster', () => {
       ['OK', 'value']
     );
   }, GLOBAL.CLUSTERS.OPEN);
+
+  describe('batch timeout', () => {
+    testUtils.testWithCluster('per-call timeout reaches queued batches', async cluster => {
+      const withTimeout = cluster.withCommandOptions({ timeout: 5 });
+      const start = Date.now();
+      await blockSetImmediate(async () => {
+        await assert.rejects(withTimeout.multi().set('key', 'value').exec(), TimeoutError);
+        await assert.rejects(withTimeout.multi().set('key', 'value').execAsPipeline(), TimeoutError);
+      });
+      assert.ok(Date.now() - start < 1000, 'the node client default timeout was used');
+    }, GLOBAL.CLUSTERS.OPEN);
+
+    testUtils.testWithCluster('abortSignal reaches queued batches', async cluster => {
+      await blockSetImmediate(async () => {
+        await assert.rejects(cluster.withCommandOptions({ abortSignal: AbortSignal.timeout(5) }).multi().set('key', 'value').exec(), AbortError);
+        await assert.rejects(cluster.withCommandOptions({ abortSignal: AbortSignal.timeout(5) }).multi().set('key', 'value').execAsPipeline(), AbortError);
+      });
+      assert.equal(await cluster.get('key'), null);
+    }, GLOBAL.CLUSTERS.OPEN);
+  });
 
   testUtils.testWithCluster('multi sendCommand', async cluster => {
     const key = 'key';

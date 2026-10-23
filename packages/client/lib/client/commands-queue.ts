@@ -58,6 +58,18 @@ export interface CommandOptions<T = TypeMapping> {
   prelude?: CommandPrelude;
 }
 
+/**
+ * The options a MULTI or pipeline takes from the pool, cluster or sentinel it was created
+ * on. Only the keys that are set are passed to the node client, so an unset `timeout`
+ * keeps the node client's own and `timeout: undefined` still opts out.
+ */
+export function pickBatchOptions(options: CommandOptions = {}) {
+  const picked: Pick<CommandOptions, 'timeout' | 'abortSignal'> = {};
+  if ('timeout' in options) picked.timeout = options.timeout;
+  if ('abortSignal' in options) picked.abortSignal = options.abortSignal;
+  return picked;
+}
+
 export interface CommandToWrite extends CommandWaitingForReply {
   args: ReadonlyArray<RedisArgument> | undefined;
   chainId: symbol | undefined;
