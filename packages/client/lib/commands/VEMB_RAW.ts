@@ -19,7 +19,9 @@ type RawVembReply = {
 
 const transformRawVembReply = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
-  2: (reply: [SimpleStringReply, BlobStringReply, BlobStringReply, BlobStringReply?], preserve?: any, typeMapping?: TypeMapping): RawVembReply => {
+  2: (reply: [SimpleStringReply, BlobStringReply, BlobStringReply, BlobStringReply?] | null, preserve?: any, typeMapping?: TypeMapping): RawVembReply | null => {
+    if (reply === null) return null;
+
     return {
       quantization: reply[0],
       raw: reply[1],
@@ -27,7 +29,9 @@ const transformRawVembReply = {
       ...(reply[3] !== undefined && { quantizationRange: transformDoubleReply[2](reply[3], preserve, typeMapping) })
     };
   },
-  3: (reply: [SimpleStringReply, BlobStringReply, DoubleReply, DoubleReply?]): RawVembReply => {
+  3: (reply: [SimpleStringReply, BlobStringReply, DoubleReply, DoubleReply?] | null): RawVembReply | null => {
+    if (reply === null) return null;
+
     return {
       quantization: reply[0],
       raw: reply[1],

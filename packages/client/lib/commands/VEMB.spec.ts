@@ -13,6 +13,28 @@ describe('VEMB', () => {
     );
   });
 
+  it('transforms a RESP2 reply', () => {
+    assert.deepEqual(
+      VEMB.transformReply[2](['1.0', '2.0', '3.0']),
+      [1.0, 2.0, 3.0]
+    );
+  });
+
+  it('returns null for a nil RESP2 reply', () => {
+    assert.equal(
+      VEMB.transformReply[2](null),
+      null
+    );
+  });
+
+  it('returns null for a nil RESP3 reply', () => {
+    const transform = VEMB.transformReply[3] as unknown as ((reply: unknown) => unknown) | undefined;
+    assert.equal(
+      typeof transform === 'function' ? transform(null) : null,
+      null
+    );
+  });
+
   testUtils.testAll('vEmb', async client => {
     await client.vAdd('key', [1.0, 2.0, 3.0], 'element');
 

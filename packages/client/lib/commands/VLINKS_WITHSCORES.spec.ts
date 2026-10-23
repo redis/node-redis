@@ -23,6 +23,21 @@ describe('VLINKS WITHSCORES', () => {
     );
   });
 
+  it('returns null for a nil RESP2 reply', () => {
+    assert.equal(
+      VLINKS_WITHSCORES.transformReply[2](null),
+      null
+    );
+  });
+
+  it('returns null for a nil RESP3 reply', () => {
+    const transform = VLINKS_WITHSCORES.transformReply[3] as unknown as ((reply: unknown) => unknown) | undefined;
+    assert.equal(
+      typeof transform === 'function' ? transform(null) : null,
+      null
+    );
+  });
+
   testUtils.testAll(
     'vLinksWithScores',
     async client => {

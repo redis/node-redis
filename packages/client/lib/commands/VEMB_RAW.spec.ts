@@ -21,6 +21,27 @@ describe('VEMB_RAW', () => {
     );
   });
 
+  it('transforms a RESP3 reply', () => {
+    assert.deepEqual(
+      VEMB_RAW.transformReply[3](['int8', 'raw', 1.5, 0.5]),
+      { quantization: 'int8', raw: 'raw', l2Norm: 1.5, quantizationRange: 0.5 }
+    );
+  });
+
+  it('returns null for a nil RESP2 reply', () => {
+    assert.equal(
+      VEMB_RAW.transformReply[2](null),
+      null
+    );
+  });
+
+  it('returns null for a nil RESP3 reply', () => {
+    assert.equal(
+      VEMB_RAW.transformReply[3](null),
+      null
+    );
+  });
+
   testUtils.testAll('vEmbRaw', async client => {
     await client.vAdd('key1', [1.0, 2.0, 3.0], 'element');
     const result1 = await client.vEmbRaw('key1', 'element');
