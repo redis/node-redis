@@ -1,4 +1,4 @@
-import { RedisClientOptions, RedisClientType, WithFunctions, WithModules, WithScripts } from '../client';
+import { RedisClientOptions, RedisClientType, ScanIteratorOptions, WithFunctions, WithModules, WithScripts } from '../client';
 import { CommandOptions } from '../client/commands-queue';
 import { Command, CommandArguments, CommanderConfig, CommandSignature, TypeMapping, RedisArgument, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions } from '../RESP/types';
 import { NON_STICKY_COMMANDS } from '../commands';
@@ -7,7 +7,8 @@ import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumen
 import RedisClusterSlots, { NodeAddressMap, RESUBSCRIBE_LISTENERS_EVENT, ShardNode } from './cluster-slots';
 import RedisClusterMultiCommand, { RedisClusterMultiCommandType } from './multi-command';
 import { PubSubListener, PubSubListeners } from '../client/pub-sub';
-import { ErrorReply, MaxCommandRedirectionsError } from '../errors';
+import { ErrorReply, MaxCommandRedirectionsError, ScanIteratorInterruptedError } from '../errors';
+import { ScanOptions, ScanCommonOptions } from '../commands/SCAN';
 import { RedisTcpSocketOptions } from '../client/socket';
 import { ClientSideCacheConfig, PooledClientSideCacheProvider } from '../client/cache';
 import { BasicCommandParser, CommandParser } from '../client/parser';
@@ -202,7 +203,7 @@ export default class RedisCluster<
 
       return this._self._executeWithPolicies(
         parser,
-        command.IS_READ_ONLY,
+        this._forceMaster ? false : command.IS_READ_ONLY,
         this._commandOptions,
         p => (client, opts) => client._executeCommand(command, p, opts, transformReply)
       );
@@ -331,6 +332,7 @@ export default class RedisCluster<
   readonly #identity: ClientIdentity;
 
   private _self = this;
+  private _forceMaster = false;
   private _commandOptions?: ClusterCommandOptions<TYPE_MAPPING/*, POLICIES*/>;
   private _policyResolver: PolicyResolver;
 
@@ -843,6 +845,141 @@ export default class RedisCluster<
   }
 
   multi = this.MULTI;
+
+  /**
+   * Async iterator over the keyspace of every master, issuing paged cluster-wide
+   * `SCAN` calls and yielding one array of keys per page until the cursor returns
+   * to `0`. The masters are scanned one after another (see `cluster.scan()`).
+   *
+   * @remarks
+   * With a configured {@link RedisClusterOptions.keyPrefix}, the yielded keys are the
+   * **already-prefixed** keys as stored on the server — replies are never un-prefixed.
+   * Strip the prefix before passing them back into a key-prefixed command.
+   *
+   * Breaking out of the loop early frees the cluster-wide cursor right away.
+   *
+   * @throws {ScanIteratorInterruptedError} If the node serving the cursor left the
+   *   cluster mid-scan. Restart the scan from `0`.
+   */
+  async* scanIterator(
+    this: RedisClusterType<M, F, S, RESP, TYPE_MAPPING>,
+    options?: ScanOptions & ScanIteratorOptions
+  ) {
+    let cursor = options?.cursor ?? '0';
+    // Set once a reply carries a cursor of this iterator's own chain. Until
+    // then `cursor` is the caller's (possibly another scan's), so leave it be.
+    let ownsCursor = false;
+    try {
+      do {
+        let reply;
+        try {
+          reply = await this.scan(cursor, options);
+        } catch (err) {
+          // The cursor is bound to one node; once that node is gone the scan
+          // can't resume from it.
+          const entry = this._self._slots.lookupScanCursor(cursor.toString());
+          if (entry && !this._self._slots.nodeByAddress.has(entry.address)) {
+            throw new ScanIteratorInterruptedError(
+              err,
+              'Scan iteration was interrupted because the cluster node serving the cursor left the cluster'
+            );
+          }
+          throw err;
+        }
+        cursor = reply.cursor;
+        ownsCursor = true;
+        yield reply.keys;
+        // Cursor may be a Buffer when a Blob String type mapping is in use;
+        // compare by string value so iteration actually terminates.
+      } while (cursor.toString() !== '0');
+    } finally {
+      // Free the cluster-wide cursor when the caller stops early (or on an
+      // error) instead of leaving it to the idle sweep. No-op once done.
+      if (ownsCursor) this._self._slots.evictScanCursor(cursor.toString());
+    }
+  }
+
+  /**
+   * A view of this cluster whose commands always run on the slot master, even
+   * with `useReplicas`. Scan cursors are only valid on the node that issued
+   * them, so the pages of a keyed `*SCAN` iteration must not be spread over
+   * the master and its replicas.
+   */
+  _masterOnly(this: RedisClusterType<M, F, S, RESP, TYPE_MAPPING>) {
+    const view: RedisClusterType<M, F, S, RESP, TYPE_MAPPING> = Object.create(this);
+    view._forceMaster = true;
+    return view;
+  }
+
+  async* hScanIterator(
+    this: RedisClusterType<M, F, S, RESP, TYPE_MAPPING>,
+    key: RedisArgument,
+    options?: ScanCommonOptions & ScanIteratorOptions
+  ) {
+    const onMaster = this._masterOnly();
+    let cursor = options?.cursor ?? '0';
+    do {
+      const reply = await onMaster.hScan(key, cursor, options);
+      cursor = reply.cursor;
+      yield reply.entries;
+    } while (cursor.toString() !== '0');
+  }
+
+  async* hScanValuesIterator(
+    this: RedisClusterType<M, F, S, RESP, TYPE_MAPPING>,
+    key: RedisArgument,
+    options?: ScanCommonOptions & ScanIteratorOptions
+  ) {
+    const onMaster = this._masterOnly();
+    let cursor = options?.cursor ?? '0';
+    do {
+      const reply = await onMaster.hScan(key, cursor, options);
+      cursor = reply.cursor;
+      yield reply.entries.map(entry => entry.value);
+    } while (cursor.toString() !== '0');
+  }
+
+  async* hScanNoValuesIterator(
+    this: RedisClusterType<M, F, S, RESP, TYPE_MAPPING>,
+    key: RedisArgument,
+    options?: ScanCommonOptions & ScanIteratorOptions
+  ) {
+    const onMaster = this._masterOnly();
+    let cursor = options?.cursor ?? '0';
+    do {
+      const reply = await onMaster.hScanNoValues(key, cursor, options);
+      cursor = reply.cursor;
+      yield reply.fields;
+    } while (cursor.toString() !== '0');
+  }
+
+  async* sScanIterator(
+    this: RedisClusterType<M, F, S, RESP, TYPE_MAPPING>,
+    key: RedisArgument,
+    options?: ScanCommonOptions & ScanIteratorOptions
+  ) {
+    const onMaster = this._masterOnly();
+    let cursor = options?.cursor ?? '0';
+    do {
+      const reply = await onMaster.sScan(key, cursor, options);
+      cursor = reply.cursor;
+      yield reply.members;
+    } while (cursor.toString() !== '0');
+  }
+
+  async* zScanIterator(
+    this: RedisClusterType<M, F, S, RESP, TYPE_MAPPING>,
+    key: RedisArgument,
+    options?: ScanCommonOptions & ScanIteratorOptions
+  ) {
+    const onMaster = this._masterOnly();
+    let cursor = options?.cursor ?? '0';
+    do {
+      const reply = await onMaster.zScan(key, cursor, options);
+      cursor = reply.cursor;
+      yield reply.members;
+    } while (cursor.toString() !== '0');
+  }
 
   async SUBSCRIBE<T extends boolean = false>(
     channels: string | Array<string>,

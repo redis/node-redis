@@ -175,6 +175,10 @@ Commands such as `GET`, `SET`, etc. are routed by the first key specified. For e
 
 Admin commands such as `MEMORY STATS`, `FLUSHALL`, etc. are not attached to the cluster, and must be executed on a specific node via `.getSlotMaster()`.
 
+### Scanning the keyspace
+
+`SCAN` is sent to every master in turn, so a single cursor covers the whole cluster. Use `cluster.scanIterator()` to loop over it; see [Scan Iterators](./scan-iterators.md#cluster).
+
 ### "Forwarded Commands"
 
 Certain commands (e.g. `PUBLISH`) are forwarded to other cluster nodes by the Redis server. The client sends these commands to a random node in order to spread the load across the cluster.
