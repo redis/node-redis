@@ -557,6 +557,7 @@ export abstract class ClientSideCacheProvider extends EventEmitter {
 export class BasicClientSideCache extends ClientSideCacheProvider {
   #cacheKeyToEntryMap: Map<string, ClientSideCacheEntry>;
   #keyToCacheKeySetMap: Map<string, Set<string>>;
+  #cacheKeyToKeysMap: Map<string, Array<string>>;
   readonly ttl: number;
   readonly maxEntries: number;
   readonly lru: boolean;
@@ -583,6 +584,7 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
 
     this.#cacheKeyToEntryMap = new Map<string, ClientSideCacheEntry>();
     this.#keyToCacheKeySetMap = new Map<string, Set<string>>();
+    this.#cacheKeyToKeysMap = new Map<string, Array<string>>();
     this.ttl = config?.ttl ?? 0;
     this.maxEntries = config?.maxEntries ?? 0;
     this.lru = config?.evictPolicy !== "FIFO";
@@ -739,6 +741,7 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
           deletedCount++;
         }
         this.#cacheKeyToEntryMap.delete(cacheKey);
+        this.#deleteFromKeyIndex(cacheKey);
       }
       this.#keyToCacheKeySetMap.delete(key.toString());
       if (deletedCount > 0) {
@@ -754,6 +757,7 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
     const oldSize = this.#cacheKeyToEntryMap.size;
     this.#cacheKeyToEntryMap.clear();
     this.#keyToCacheKeySetMap.clear();
+    this.#cacheKeyToKeysMap.clear();
 
     if (resetStats) {
       if (!(this.#statsCounter instanceof DisabledStatsCounter)) {
@@ -794,6 +798,23 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
       entry.invalidate();
       this.#cacheKeyToEntryMap.delete(cacheKey);
     }
+    this.#deleteFromKeyIndex(cacheKey);
+  }
+
+  #deleteFromKeyIndex(cacheKey: string) {
+    const keys = this.#cacheKeyToKeysMap.get(cacheKey);
+    if (!keys) return;
+
+    this.#cacheKeyToKeysMap.delete(cacheKey);
+    for (const key of keys) {
+      const cacheKeySet = this.#keyToCacheKeySetMap.get(key);
+      if (!cacheKeySet) continue;
+
+      cacheKeySet.delete(cacheKey);
+      if (cacheKeySet.size === 0) {
+        this.#keyToCacheKeySetMap.delete(key);
+      }
+    }
   }
 
   has(cacheKey: string) {
@@ -817,6 +838,7 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
     }
 
     this.#cacheKeyToEntryMap.set(cacheKey, cacheEntry);
+    this.#cacheKeyToKeysMap.set(cacheKey, keys.map(key => key.toString()));
 
     for (const key of keys) {
       if (!this.#keyToCacheKeySetMap.has(key.toString())) {
@@ -865,6 +887,7 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
         entry.invalidate();
       }
       this.#cacheKeyToEntryMap.delete(key);
+      this.#deleteFromKeyIndex(key);
     }
   }
 
