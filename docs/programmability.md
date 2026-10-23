@@ -2,7 +2,7 @@
 
 Redis provides a programming interface allowing code execution on the redis server.
 
-## [Functions](https://redis.io/docs/manual/programmability/functions-intro/)
+## [Functions](https://redis.io/docs/latest/develop/programmability/functions-intro/)
 
 The following example retrieves a key in redis, returning the value of the key, incremented by an integer. For example, if your key _foo_ has the value _17_ and we run `add('foo', 25)`, it returns the answer to Life, the Universe and Everything.
 

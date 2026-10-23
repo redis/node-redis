@@ -12,7 +12,7 @@ For a complete example, see [`time-series.js`](https://github.com/redis/node-red
 
 ### Creating Time Series data structure in Redis
 
-The [`TS.CREATE`](https://oss.redis.com/redistimeseries/commands/#tscreate) command creates a new time series.
+The [`TS.CREATE`](https://redis.io/docs/latest/commands/ts.create/) command creates a new time series.
 
 Here, we'll create a new time series "`temperature`":
 
