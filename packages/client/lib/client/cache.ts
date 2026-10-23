@@ -3,6 +3,15 @@ import RedisClient from '.';
 import { RedisArgument, ReplyUnion, TransformReply, TypeMapping } from '../RESP/types';
 import { BasicCommandParser } from './parser';
 import { publish, CHANNELS } from './tracing';
+import {
+  ClientClosedError,
+  ClientOfflineError,
+  ConnectionTimeoutError,
+  DisconnectsClientError,
+  SocketClosedUnexpectedlyError,
+  SocketTimeoutDuringMaintenanceError,
+  SocketTimeoutError
+} from '../errors';
 
 /**
  * A snapshot of cache statistics.
@@ -381,6 +390,13 @@ export const CLIENT_SIDE_CACHE_TRACKING_MODES = {
 
 export type ClientSideCacheTrackingMode = typeof CLIENT_SIDE_CACHE_TRACKING_MODES[keyof typeof CLIENT_SIDE_CACHE_TRACKING_MODES];
 
+export const CLIENT_SIDE_CACHE_DISCONNECT_POLICIES = {
+  FLUSH: "flush",
+  SERVE_STALE: "serve-stale"
+} as const;
+
+export type ClientSideCacheDisconnectPolicy = typeof CLIENT_SIDE_CACHE_DISCONNECT_POLICIES[keyof typeof CLIENT_SIDE_CACHE_DISCONNECT_POLICIES];
+
 /**
  * Configuration options for Client Side Cache
  */
@@ -442,6 +458,22 @@ export interface ClientSideCacheConfig {
    * @default false
    */
   strict?: boolean;
+
+  /**
+   * What happens to cached entries when the connection is lost.
+   * - "flush": the cache is emptied
+   * - "serve-stale": entries are kept as stale. A read that fails with a connection error
+   *   returns the stale entry if it is younger than `maxStaleAge`. Stale entries are removed
+   *   on reconnect. Standalone client only.
+   * @default "flush"
+   */
+  disconnectPolicy?: ClientSideCacheDisconnectPolicy;
+
+  /**
+   * Maximum age in milliseconds of a stale entry a read may fall back to, counted from when
+   * the server last returned the value. Required with `disconnectPolicy: "serve-stale"`.
+   */
+  maxStaleAge?: number;
 }
 
 interface CacheCreator {
@@ -471,6 +503,23 @@ function generateCacheKey(redisArgs: ReadonlyArray<RedisArgument>): string {
   return tmp.join('_');
 }
 
+/**
+ * Whether a read failed because the server could not be reached: one of the client's
+ * connection-lifecycle errors, or a Node system error coming off the socket (ECONNRESET,
+ * EPIPE, ...). An error reply, an abort, a command timeout and a full queue are not
+ * connection errors. Only a connection error may be answered with a stale entry.
+ */
+function isConnectionError(err: unknown): boolean {
+  return err instanceof ClientClosedError ||
+    err instanceof ClientOfflineError ||
+    err instanceof SocketClosedUnexpectedlyError ||
+    err instanceof SocketTimeoutError ||
+    err instanceof SocketTimeoutDuringMaintenanceError ||
+    err instanceof ConnectionTimeoutError ||
+    err instanceof DisconnectsClientError ||
+    (err instanceof Error && 'syscall' in err);
+}
+
 abstract class ClientSideCacheEntryBase implements ClientSideCacheEntry {
   #invalidated = false;
   readonly #expireTime: number;
@@ -494,6 +543,8 @@ abstract class ClientSideCacheEntryBase implements ClientSideCacheEntry {
 
 class ClientSideCacheEntryValue extends ClientSideCacheEntryBase {
   readonly #value: unknown;
+  // when the server last returned this value; the age bound for a stale fallback
+  readonly createdAt = performance.now();
 
   get value() {
     return this.#value;
@@ -534,6 +585,12 @@ export abstract class ClientSideCacheProvider extends EventEmitter {
   abstract onClose(): void;
 
   /**
+   * Called once a connection is ready, after the handshake enabled tracking.
+   * Custom providers default to a no-op.
+   */
+  onReady(): void { }
+
+  /**
    * How connections enable tracking. Custom providers default to "plain".
    */
   readonly trackingMode: ClientSideCacheTrackingMode = CLIENT_SIDE_CACHE_TRACKING_MODES.PLAIN;
@@ -557,12 +614,17 @@ export abstract class ClientSideCacheProvider extends EventEmitter {
 export class BasicClientSideCache extends ClientSideCacheProvider {
   #cacheKeyToEntryMap: Map<string, ClientSideCacheEntry>;
   #keyToCacheKeySetMap: Map<string, Set<string>>;
+  // values kept after a disconnect under "serve-stale", and their redis keys; see #onDisconnect
+  #staleEntries = new Map<string, ClientSideCacheEntryValue>();
+  #staleKeyToCacheKeySetMap = new Map<string, Set<string>>();
   readonly ttl: number;
   readonly maxEntries: number;
   readonly lru: boolean;
   override readonly trackingMode: ClientSideCacheTrackingMode;
   override readonly strict: boolean;
   readonly cacheable: ClientSideCacheConfig["cacheable"];
+  readonly disconnectPolicy: ClientSideCacheDisconnectPolicy;
+  readonly maxStaleAge: number;
   #statsCounter: StatsCounter;
 
 
@@ -589,6 +651,14 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
     this.trackingMode = config?.trackingMode ?? CLIENT_SIDE_CACHE_TRACKING_MODES.PLAIN;
     this.cacheable = config?.cacheable;
     this.strict = config?.strict ?? false;
+    this.disconnectPolicy = config?.disconnectPolicy ?? CLIENT_SIDE_CACHE_DISCONNECT_POLICIES.FLUSH;
+    this.maxStaleAge = config?.maxStaleAge ?? 0;
+    if (
+      this.disconnectPolicy === CLIENT_SIDE_CACHE_DISCONNECT_POLICIES.SERVE_STALE &&
+      !(Number.isFinite(this.maxStaleAge) && this.maxStaleAge > 0)
+    ) {
+      throw new Error('clientSideCache: maxStaleAge is required with disconnectPolicy "serve-stale"');
+    }
 
     const recordStats = config?.recordStats !== false;
     this.#statsCounter = recordStats ? DefaultStatsCounter.create() : disabledStatsCounter();
@@ -610,6 +680,10 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
     3c. if valid - overwrite with value entry
         if not storable (tracking not confirmed) - drop the promise entry, don't store
   4. return previously non cached result
+  5. if the send fails and a stale entry exists for the cacheKey (kept by #onDisconnect under
+     "serve-stale"): a connection error returns it, within maxStaleAge; any other failure
+     drops it, as it would have dropped a live entry. Same for a reader that joined the
+     loader's promise.
   */
   override async handleCache(
     client: CachingClient,
@@ -637,7 +711,12 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
         // This counts as a miss since the value hasn't been fully loaded yet.
         this.#statsCounter.recordMisses(1);
         publish(CHANNELS.CACHE_REQUEST, () => ({ result: 'miss', clientId: client._clientId }));
-        reply = await cacheEntry.promise;
+        try {
+          reply = await cacheEntry.promise;
+        } catch (err) {
+          // "5" - the loader has already dropped the promise entry
+          return this.#serveStaleOrThrow(cacheKey, err);
+        }
       } else {
         throw new Error("unknown cache entry type");
       }
@@ -663,7 +742,8 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
           this.delete(cacheKey!);
         }
 
-        throw err;
+        // "5"
+        return this.#serveStaleOrThrow(cacheKey, err);
       }
     }
 
@@ -747,6 +827,16 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
       }
     }
 
+    // a stale copy of an invalidated key must not come back through a fallback read
+    // (this index is only non-empty during an outage)
+    const staleKeySet = this.#staleKeyToCacheKeySetMap.get(key.toString());
+    if (staleKeySet) {
+      for (const cacheKey of staleKeySet) {
+        this.#staleEntries.delete(cacheKey);
+      }
+      this.#staleKeyToCacheKeySetMap.delete(key.toString());
+    }
+
     this.emit('invalidate', key);
   }
 
@@ -754,6 +844,8 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
     const oldSize = this.#cacheKeyToEntryMap.size;
     this.#cacheKeyToEntryMap.clear();
     this.#keyToCacheKeySetMap.clear();
+    this.#staleEntries.clear();
+    this.#staleKeyToCacheKeySetMap.clear();
 
     if (resetStats) {
       if (!(this.#statsCounter instanceof DisabledStatsCounter)) {
@@ -845,11 +937,69 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
   }
 
   override onError(): void {
-    this.clear();
+    this.#onDisconnect();
   }
 
   override onClose() {
-    this.clear();
+    this.#onDisconnect();
+  }
+
+  override onReady(): void {
+    // tracking is armed again, so stale entries go before any fresh result is stored
+    this.#staleEntries.clear();
+    this.#staleKeyToCacheKeySetMap.clear();
+  }
+
+  /**
+   * Under "serve-stale", live values move to the stale store instead of being dropped, so a
+   * read that fails with a connection error can fall back to them (see handleCache).
+   * Promise entries are dropped exactly as clear() drops them.
+   */
+  #onDisconnect() {
+    if (this.disconnectPolicy !== CLIENT_SIDE_CACHE_DISCONNECT_POLICIES.SERVE_STALE) {
+      this.clear();
+      return;
+    }
+
+    for (const [cacheKey, entry] of this.#cacheKeyToEntryMap) {
+      if (entry instanceof ClientSideCacheEntryValue && entry.validate()) {
+        this.#staleEntries.set(cacheKey, entry);
+      }
+    }
+    // the reverse index goes with them, so invalidate() can still find a stale copy by redis
+    // key. Merged rather than swapped: onError fires again on every failed reconnect attempt.
+    for (const [key, cacheKeys] of this.#keyToCacheKeySetMap) {
+      let staleKeys = this.#staleKeyToCacheKeySetMap.get(key);
+      if (!staleKeys) {
+        staleKeys = new Set<string>();
+        this.#staleKeyToCacheKeySetMap.set(key, staleKeys);
+      }
+      for (const cacheKey of cacheKeys) {
+        staleKeys.add(cacheKey);
+      }
+    }
+    this.#cacheKeyToEntryMap.clear();
+    this.#keyToCacheKeySetMap.clear();
+  }
+
+  /**
+   * "5": the fetch for cacheKey failed with err. Under "serve-stale", a connection error is
+   * answered with the stale copy if it is within maxStaleAge. Any other outcome - an error
+   * reply, an abort, a copy past the age limit - drops the stale copy, as the failure would
+   * have dropped a live entry, and rethrows.
+   */
+  #serveStaleOrThrow(cacheKey: string, err: unknown): unknown {
+    if (this.disconnectPolicy === CLIENT_SIDE_CACHE_DISCONNECT_POLICIES.SERVE_STALE) {
+      const stale = this.#staleEntries.get(cacheKey);
+      if (stale) {
+        if (isConnectionError(err) && performance.now() - stale.createdAt <= this.maxStaleAge) {
+          // stored after transformReply, so returned as-is
+          return structuredClone(stale.value);
+        }
+        this.#staleEntries.delete(cacheKey);
+      }
+    }
+    throw err;
   }
 
   /**
