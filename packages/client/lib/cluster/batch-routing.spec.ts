@@ -9,6 +9,7 @@ describe('Cluster batch routing', () => {
     let capturedSlotNumber: number | undefined;
 
     const fakeClient = {
+      withCommandOptions() { return this; },
       _executeMulti: async (_commands: unknown, _selectedDB?: number, slotNumber?: number) => {
         capturedSlotNumber = slotNumber;
         return ['OK'];
@@ -37,6 +38,7 @@ describe('Cluster batch routing', () => {
     let capturedSlotNumber: number | undefined;
 
     const fakeClient = {
+      withCommandOptions() { return this; },
       _executePipeline: async (_commands: unknown, _selectedDB?: number, slotNumber?: number) => {
         capturedSlotNumber = slotNumber;
         return ['OK'];
@@ -68,6 +70,7 @@ describe('Cluster batch routing', () => {
 
     const redirectedClient = {
       _clientId: 'redirected',
+      withCommandOptions() { return this; },
       _executeMulti: async (
         _commands: unknown,
         _selectedDB?: number,
@@ -79,6 +82,7 @@ describe('Cluster batch routing', () => {
     };
     const staleClient = {
       _clientId: 'stale',
+      withCommandOptions() { return this; },
       _executeMulti: async (
         _commands: unknown,
         _selectedDB?: number,
@@ -126,6 +130,7 @@ describe('Cluster batch routing', () => {
         askingChainId = options?.chainId;
         return 'OK';
       },
+      withCommandOptions() { return this; },
       _executeMulti: async (
         _commands: unknown,
         _selectedDB?: number,
@@ -139,6 +144,7 @@ describe('Cluster batch routing', () => {
     };
     const staleClient = {
       _clientId: 'stale',
+      withCommandOptions() { return this; },
       _executeMulti: async (): Promise<Array<unknown>> => {
         throw new ErrorReply(`ASK ${slotNumber} 127.0.0.1:7001`);
       }
@@ -167,6 +173,7 @@ describe('Cluster batch routing', () => {
     let rediscoveries = 0;
 
     const client = {
+      withCommandOptions() { return this; },
       _executePipeline: async (): Promise<Array<unknown>> => {
         attempts++;
         throw new ErrorReply(`MOVED ${slotNumber} 127.0.0.1:7001`);
