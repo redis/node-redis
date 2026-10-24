@@ -27,6 +27,62 @@ describe("Client Side Cache", () => {
     assert.ok(cache.get("k"), "a never-connected client must not flush the shared cache");
   });
 
+  describe('key index', () => {
+    const setEntry = (cache: BasicClientSideCache, cacheKey: string, keys: Array<string>) =>
+      cache.set(cacheKey, cache.createValueEntry(undefined as never, cacheKey), keys);
+
+    const keyIndex = (cache: BasicClientSideCache) => new Map(
+      [...cache.keySetEntries()].map(([key, cacheKeys]) => [key, [...cacheKeys]])
+    );
+
+    it('drops evicted entries from the key index', () => {
+      // Regression: an entry evicted by maxEntries left its cacheKey in keyToCacheKeySetMap,
+      // so reading many distinct keys grew the index past maxEntries.
+      const cache = new BasicClientSideCache({ maxEntries: 2 });
+
+      for (let i = 0; i < 10; i++) {
+        setEntry(cache, `get_k${i}`, [`k${i}`]);
+      }
+
+      assert.equal(cache.size(), 2);
+      assert.deepEqual(keyIndex(cache), new Map([['k8', ['get_k8']], ['k9', ['get_k9']]]));
+    });
+
+    it('drops a deleted entry from the key index and keeps other entries on the same key', () => {
+      const cache = new BasicClientSideCache();
+      setEntry(cache, 'get_a', ['a']);
+      setEntry(cache, 'strlen_a', ['a']);
+      setEntry(cache, 'get_b', ['b']);
+
+      cache.delete('get_a');
+      cache.delete('get_b');
+
+      assert.deepEqual(keyIndex(cache), new Map([['a', ['strlen_a']]]));
+    });
+
+    it('drops the other keys of a multi-key entry when one key is invalidated', () => {
+      const cache = new BasicClientSideCache();
+      setEntry(cache, 'mget_a_b', ['a', 'b']);
+      setEntry(cache, 'get_b', ['b']);
+
+      cache.invalidate('a');
+
+      assert.equal(cache.has('mget_a_b'), false);
+      assert.deepEqual(keyIndex(cache), new Map([['b', ['get_b']]]));
+    });
+
+    it('drops the old keys of an entry that set() overwrites', () => {
+      const cache = new BasicClientSideCache();
+      setEntry(cache, 'entry', ['a', 'b']);
+      setEntry(cache, 'entry', ['a']);
+
+      cache.invalidate('b');
+
+      assert.equal(cache.has('entry'), true);
+      assert.deepEqual(keyIndex(cache), new Map([['a', ['entry']]]));
+    });
+  });
+
   describe('Basic Cache', () => {
     const csc = new BasicClientSideCache({ maxEntries: 10 });
 
