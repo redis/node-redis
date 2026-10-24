@@ -828,6 +828,7 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
     if (oldEntry) {
       count--; // overwriting, so not incrementing
       oldEntry.invalidate();
+      this.#deleteFromKeyIndex(cacheKey);
     }
 
     if (this.maxEntries > 0 && count >= this.maxEntries) {

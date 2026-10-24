@@ -70,6 +70,17 @@ describe("Client Side Cache", () => {
       assert.equal(cache.has('mget_a_b'), false);
       assert.deepEqual(keyIndex(cache), new Map([['b', ['get_b']]]));
     });
+
+    it('drops the old keys of an entry that set() overwrites', () => {
+      const cache = new BasicClientSideCache();
+      setEntry(cache, 'entry', ['a', 'b']);
+      setEntry(cache, 'entry', ['a']);
+
+      cache.invalidate('b');
+
+      assert.equal(cache.has('entry'), true);
+      assert.deepEqual(keyIndex(cache), new Map([['a', ['entry']]]));
+    });
   });
 
   describe('Basic Cache', () => {
