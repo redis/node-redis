@@ -508,11 +508,6 @@ function cloneReply<T>(value: T): T {
 }
 
 function reapplyReplyBuffers(clone: unknown, original: unknown, seen: WeakMap<object, unknown>): unknown {
-  if (original instanceof Buffer) {
-    const view = clone as Uint8Array;
-    return Buffer.from(view.buffer, view.byteOffset, view.length);
-  }
-
   if (original === null || typeof original !== 'object') {
     return clone;
   }
@@ -520,6 +515,13 @@ function reapplyReplyBuffers(clone: unknown, original: unknown, seen: WeakMap<ob
   const known = seen.get(original);
   if (known !== undefined) {
     return known;
+  }
+
+  if (original instanceof Buffer) {
+    const view = clone as Uint8Array;
+    const buffer = Buffer.from(view.buffer, view.byteOffset, view.length);
+    seen.set(original, buffer);
+    return buffer;
   }
 
   if (Array.isArray(original)) {
@@ -555,6 +557,13 @@ function reapplyReplyBuffers(clone: unknown, original: unknown, seen: WeakMap<ob
     return out;
   }
 
+  if (!isPlainObject(original)) {
+    // `String` objects (`VerbatimString`), errors, dates and custom mapped classes keep
+    // their `structuredClone` result: their indexed/own properties are not writable
+    // (a `String` object throws on assignment) and cannot hold buffers in practice
+    return clone;
+  }
+
   seen.set(original, clone);
   for (const key of Object.keys(original)) {
     (clone as Record<string, unknown>)[key] = reapplyReplyBuffers(
@@ -564,6 +573,11 @@ function reapplyReplyBuffers(clone: unknown, original: unknown, seen: WeakMap<ob
     );
   }
   return clone;
+}
+
+function isPlainObject(value: object): boolean {
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
 }
 
 class ClientSideCacheEntryValue extends ClientSideCacheEntryBase {
