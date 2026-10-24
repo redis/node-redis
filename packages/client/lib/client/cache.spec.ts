@@ -27,6 +27,93 @@ describe("Client Side Cache", () => {
     assert.ok(cache.get("k"), "a never-connected client must not flush the shared cache");
   });
 
+  describe("Reply cloning", () => {
+    function fakeParser(args: Array<string> = ["GET", "k"]) {
+      return {
+        redisArgs: args,
+        keys: [args[1]].filter(Boolean),
+        preserve: undefined
+      } as unknown as BasicCommandParser;
+    }
+
+    const shouldNotRun = async () => {
+      throw new Error("must be served from the cache");
+    };
+
+    it("preserves Buffer replies on miss and hit, with independent copies", async () => {
+      const cache = new BasicClientSideCache({ maxEntries: 10 });
+      const client = RedisClient.create({ RESP: 3, clientSideCache: cache });
+      const parser = fakeParser();
+      const transformReply = () => Buffer.from("hello");
+
+      const first = await cache.handleCache(client as never, parser, async () => "raw", transformReply as never);
+      assert.ok(Buffer.isBuffer(first), "the read that fills the cache should return a Buffer");
+      assert.strictEqual((first as Buffer).toString(), "hello");
+
+      const second = await cache.handleCache(client as never, parser, shouldNotRun, transformReply as never);
+      assert.ok(Buffer.isBuffer(second), "a cache hit should return a Buffer");
+      assert.strictEqual((second as Buffer).toString(), "hello");
+
+      // mutating a returned copy must not corrupt the cached entry
+      (second as Buffer)[0] = 0x21;
+      const third = await cache.handleCache(client as never, parser, shouldNotRun, transformReply as never);
+      assert.strictEqual((third as Buffer).toString(), "hello");
+    });
+
+    it("preserves Buffers nested in arrays, maps, sets and plain objects", async () => {
+      const cache = new BasicClientSideCache({ maxEntries: 10 });
+      const client = RedisClient.create({ RESP: 3, clientSideCache: cache });
+      const parser = fakeParser(["CMD"]);
+      const nested = new Map<string, unknown>([
+        ["list", [Buffer.from("a"), 1, [Buffer.from("b")]]],
+        ["set", new Set<unknown>([Buffer.from("c"), "d"])],
+        ["plain", { x: Buffer.from("e") }]
+      ]);
+      const transformReply = () => nested;
+
+      const first = await cache.handleCache(client as never, parser, async () => "raw", transformReply as never);
+      const second = await cache.handleCache(client as never, parser, shouldNotRun, transformReply as never);
+
+      for (const value of [first, second] as Array<Map<string, unknown>>) {
+        assert.ok(value instanceof Map);
+        const [a, one, [b]] = value.get("list") as [Buffer, number, [Buffer]];
+        assert.ok(Buffer.isBuffer(a) && a.toString() === "a");
+        assert.strictEqual(one, 1);
+        assert.ok(Buffer.isBuffer(b) && b.toString() === "b");
+        const set = value.get("set") as Set<unknown>;
+        assert.ok(set instanceof Set);
+        assert.ok([...set].some(v => Buffer.isBuffer(v) && (v as Buffer).toString() === "c"));
+        assert.ok(set.has("d"));
+        const plain = value.get("plain") as { x: Buffer };
+        assert.ok(Buffer.isBuffer(plain.x) && plain.x.toString() === "e");
+      }
+    });
+
+    it("keeps structuredClone semantics for the rest of the reply", async () => {
+      const cache = new BasicClientSideCache({ maxEntries: 10 });
+      const client = RedisClient.create({ RESP: 3, clientSideCache: cache });
+      const parser = fakeParser(["CMD"]);
+      const shared = Buffer.from("shared");
+      const reply = { twice: [shared, shared], n: 42, s: "str", nil: null };
+      const transformReply = () => reply;
+
+      const out = await cache.handleCache(client as never, parser, async () => "raw", transformReply as never) as {
+        twice: Array<Buffer>;
+        n: number;
+        s: string;
+        nil: null;
+      };
+      assert.strictEqual(out.n, 42);
+      assert.strictEqual(out.s, "str");
+      assert.strictEqual(out.nil, null);
+      assert.ok(Buffer.isBuffer(out.twice[0]) && Buffer.isBuffer(out.twice[1]));
+      // shared references stay shared, like structuredClone
+      assert.strictEqual(out.twice[0].buffer, out.twice[1].buffer);
+      // but the returned copy is independent of the cached entry
+      assert.notStrictEqual(out.twice[0], shared);
+    });
+  });
+
   describe('Basic Cache', () => {
     const csc = new BasicClientSideCache({ maxEntries: 10 });
 
