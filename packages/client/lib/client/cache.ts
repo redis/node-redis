@@ -492,6 +492,94 @@ abstract class ClientSideCacheEntryBase implements ClientSideCacheEntry {
   }
 }
 
+
+/**
+ * Clones a cached reply, preserving the `Buffer` subclass.
+ *
+ * `structuredClone` clones a `Buffer` as a plain `Uint8Array`, so every read from the
+ * cache (and the read that fills it) lost the configured `Buffer` type mapping
+ * (`BLOB_STRING -> Buffer`, the documented setup for caching with binary replies).
+ * The clone and the original have identical structure, so walk them in tandem and
+ * replace the cloned values with `Buffer`s exactly where the original reply had them.
+ * The memo keeps shared references (and cycles) intact, like `structuredClone` does.
+ */
+function cloneReply<T>(value: T): T {
+  return reapplyReplyBuffers(structuredClone(value), value, new WeakMap()) as T;
+}
+
+function reapplyReplyBuffers(clone: unknown, original: unknown, seen: WeakMap<object, unknown>): unknown {
+  if (original === null || typeof original !== 'object') {
+    return clone;
+  }
+
+  const known = seen.get(original);
+  if (known !== undefined) {
+    return known;
+  }
+
+  if (original instanceof Buffer) {
+    const view = clone as Uint8Array;
+    const buffer = Buffer.from(view.buffer, view.byteOffset, view.length);
+    seen.set(original, buffer);
+    return buffer;
+  }
+
+  if (Array.isArray(original)) {
+    seen.set(original, clone);
+    const clonedArray = clone as Array<unknown>;
+    for (let i = 0; i < original.length; i++) {
+      clonedArray[i] = reapplyReplyBuffers(clonedArray[i], original[i], seen);
+    }
+    return clone;
+  }
+
+  if (original instanceof Map) {
+    const out = new Map<unknown, unknown>();
+    seen.set(original, out);
+    const clonedEntries = (clone as Map<unknown, unknown>).entries();
+    for (const [key, val] of original) {
+      const clonedEntry = clonedEntries.next().value as [unknown, unknown];
+      out.set(
+        reapplyReplyBuffers(clonedEntry[0], key, seen),
+        reapplyReplyBuffers(clonedEntry[1], val, seen)
+      );
+    }
+    return out;
+  }
+
+  if (original instanceof Set) {
+    const out = new Set<unknown>();
+    seen.set(original, out);
+    const clonedValues = (clone as Set<unknown>).values();
+    for (const item of original) {
+      out.add(reapplyReplyBuffers(clonedValues.next().value, item, seen));
+    }
+    return out;
+  }
+
+  if (!isPlainObject(original)) {
+    // `String` objects (`VerbatimString`), errors, dates and custom mapped classes keep
+    // their `structuredClone` result: their indexed/own properties are not writable
+    // (a `String` object throws on assignment) and cannot hold buffers in practice
+    return clone;
+  }
+
+  seen.set(original, clone);
+  for (const key of Object.keys(original)) {
+    (clone as Record<string, unknown>)[key] = reapplyReplyBuffers(
+      (clone as Record<string, unknown>)[key],
+      (original as Record<string, unknown>)[key],
+      seen
+    );
+  }
+  return clone;
+}
+
+function isPlainObject(value: object): boolean {
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
 class ClientSideCacheEntryValue extends ClientSideCacheEntryBase {
   readonly #value: unknown;
 
@@ -632,7 +720,7 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
         this.#statsCounter.recordHits(1);
         publish(CHANNELS.CACHE_REQUEST, () => ({ result: 'hit', clientId: client._clientId }));
 
-        return structuredClone(cacheEntry.value);
+        return cloneReply(cacheEntry.value);
       } else if (cacheEntry instanceof ClientSideCacheEntryPromise) { // 2b2
         // This counts as a miss since the value hasn't been fully loaded yet.
         this.#statsCounter.recordMisses(1);
@@ -691,7 +779,7 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
       //   cache entry for key got invalidated between execution and saving, so not saving
     }
 
-    return structuredClone(val);
+    return cloneReply(val);
   }
 
   override trackingOn() {
