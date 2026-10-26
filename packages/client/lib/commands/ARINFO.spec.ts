@@ -20,6 +20,13 @@ describe('ARINFO', () => {
     });
   });
 
+  it('transformReply with FULL on RESP2', () => {
+    assert.deepEqual(
+      ARINFO.transformReply[2](['count', 3, 'avg-dense-size', '0', 'avg-dense-fill', '0', 'avg-sparse-size', '1.5'], undefined, undefined),
+      { count: 3, 'avg-dense-size': 0, 'avg-dense-fill': 0, 'avg-sparse-size': 1.5 }
+    );
+  });
+
   testUtils.testWithClientIfVersionWithinRange([[8, 8], 'LATEST'], 'arInfo returns expected fields', async client => {
     assert.equal(await client.arMSet('key', [[0, 'a'], [1, 'b'], [100, 'c']]), 3);
     const info = await client.arInfo('key') as Record<string, number>;
