@@ -2,6 +2,7 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL, parseFirstKey } from '../test-utils';
 import XREAD from './XREAD';
 import { parseArgs } from './generic-transformers';
+import { RESP_TYPES } from '../RESP/decoder';
 
 describe('XREAD', () => {
   describe('FIRST_KEY_INDEX', () => {
@@ -128,6 +129,28 @@ describe('XREAD', () => {
         ['XREAD', 'COUNT', '2', 'MAXCOUNT', '3', 'MAXSIZE', '65536', 'BLOCK', '0', 'STREAMS', 'key', '0-0']
       );
     });
+  });
+
+  it('transformReply with a binary stream name and typeMapping', () => {
+    const name = Buffer.from([0x6b, 0xff, 0xfe]);
+
+    assert.deepEqual(
+      XREAD.transformReply[3](
+        [name, [['1-1', ['field', 'value']]]],
+        undefined,
+        {
+          [RESP_TYPES.BLOB_STRING]: Buffer,
+          [RESP_TYPES.MAP]: Array
+        }
+      ),
+      [{
+        name,
+        messages: [{
+          id: '1-1',
+          message: ['field', 'value']
+        }]
+      }]
+    );
   });
 
   testUtils.testAll('client.xRead', async client => {
