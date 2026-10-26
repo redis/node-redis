@@ -22,6 +22,15 @@ describe('VSETATTR', () => {
         ['VSETATTR', 'key', 'element', '{"name":"test"}']
       );
     });
+
+    it('with Buffer', () => {
+      const parser = new BasicCommandParser();
+      VSETATTR.parseCommand(parser, 'key', 'element', Buffer.from('{"name":"test"}'));
+      assert.deepEqual(
+        parser.redisArgs,
+        ['VSETATTR', 'key', 'element', Buffer.from('{"name":"test"}')]
+      );
+    });
   });
 
   testUtils.testAll('vSetAttr', async client => {
