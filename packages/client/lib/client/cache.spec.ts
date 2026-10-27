@@ -155,6 +155,81 @@ describe("Client Side Cache", () => {
         assert.equal(cache.stats().hitCount, 2);
       });
     }
+
+    // replies that only a JSON.GET reviver or a "__proto__" field in a document can produce
+    async function loadTwice(reply: () => unknown) {
+      const cache = new BasicClientSideCache(),
+        typeMapping = { [RESP_TYPES.BLOB_STRING]: Buffer },
+        load = () => cache.handleCache({} as never, getParser(), (() => Promise.resolve(reply())) as never, undefined, typeMapping);
+      const copies = [await load(), await load()];
+      assert.equal(cache.stats().hitCount, 1);
+      return copies;
+    }
+
+    it('keeps an own __proto__ field', async () => {
+      for (const copy of await loadTwice(() => JSON.parse('{"__proto__": {"x": 1}, "a": 1}'))) {
+        const object = copy as Record<string, unknown>;
+        assert.ok(Object.hasOwn(object, '__proto__'));
+        assert.equal(Object.getPrototypeOf(object), Object.prototype);
+        assert.deepEqual(Object.keys(object), ['__proto__', 'a']);
+      }
+    });
+
+    it('keeps cycles and shared containers', async () => {
+      const reply = () => {
+        const shared = { field: Buffer.from('shared') },
+          list = [shared],
+          map = new Map([['key', shared]]),
+          set = new Set([shared]),
+          verbatim = new VerbatimString('txt', 'verbatim'),
+          date = new Date(0),
+          object: Record<string, unknown> = {
+            buffers: [Buffer.from('buffer')],
+            objects: [shared, shared],
+            lists: [list, list],
+            maps: [map, map],
+            sets: [set, set],
+            verbatims: [verbatim, verbatim],
+            dates: [date, date]
+          };
+        (object.buffers as Array<unknown>).push((object.buffers as Array<unknown>)[0]);
+        object.self = object;
+        return object;
+      };
+
+      const original = reply();
+      for (const copy of await loadTwice(() => original)) {
+        const object = copy as Record<string, Array<unknown>> & { self: unknown },
+          source = original as Record<string, Array<unknown>>;
+        assert.notEqual(object, original);
+        assert.equal(object.self, object);
+        for (const name of ['objects', 'lists', 'maps', 'sets', 'dates']) {
+          assert.equal(object[name][0], object[name][1], `${name} stay shared`);
+          assert.notEqual(object[name][0], source[name][0], `${name} are copied`);
+        }
+        // Buffers and VerbatimStrings are copied wherever they appear
+        for (const name of ['buffers', 'verbatims']) {
+          assert.deepStrictEqual(object[name][0], object[name][1]);
+          assert.notEqual(object[name][0], object[name][1], `${name} are copied each time`);
+          assert.notEqual(object[name][0], source[name][0], `${name} are copied`);
+        }
+        assert.equal((object.lists[0] as Array<unknown>)[0], object.objects[0]);
+        assert.equal((object.maps[0] as Map<string, unknown>).get('key'), object.objects[0]);
+        assert.equal([...(object.sets[0] as Set<unknown>)][0], object.objects[0]);
+        assert.ok(Buffer.isBuffer(object.buffers[0]));
+        assert.ok(object.verbatims[0] instanceof VerbatimString);
+      }
+    });
+
+    it('keeps array holes', async () => {
+      // eslint-disable-next-line no-sparse-arrays -- the hole is the point of the test
+      for (const copy of await loadTwice(() => [Buffer.from('a'), , Buffer.from('c')])) {
+        const array = copy as Array<unknown>;
+        assert.equal(array.length, 3);
+        assert.ok(!(1 in array));
+        assert.ok(Buffer.isBuffer(array[0]) && Buffer.isBuffer(array[2]));
+      }
+    });
   });
 
   describe('Buffer type mapping', () => {

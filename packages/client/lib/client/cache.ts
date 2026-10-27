@@ -484,7 +484,10 @@ function needsTypeAwareCopy(typeMapping: TypeMapping | undefined): boolean {
   );
 }
 
-function typeAwareCopy<T>(value: T): T {
+// Copies like `structuredClone` does (cycles and shared containers survive, holes stay holes), but
+// keeps Buffers as Buffers and VerbatimStrings with their `format`. Those two are copied wherever
+// they appear: decoded replies never share them, and tracking them would slow down large replies.
+function typeAwareCopy<T>(value: T, copies = new Map<object, unknown>()): T {
   if (typeof value !== 'object' || value === null) return value;
 
   if (Buffer.isBuffer(value)) return Buffer.from(value) as T;
@@ -493,26 +496,32 @@ function typeAwareCopy<T>(value: T): T {
     return new VerbatimString(value.format, String(value)) as T;
   }
 
+  const known = copies.get(value);
+  if (known !== undefined) return known as T;
+
   if (Array.isArray(value)) {
     const copy = new Array(value.length);
+    copies.set(value, copy);
     for (let i = 0; i < value.length; i++) {
-      copy[i] = typeAwareCopy(value[i]);
+      if (i in value) copy[i] = typeAwareCopy(value[i], copies);
     }
     return copy as T;
   }
 
   if (value instanceof Map) {
     const copy = new Map();
+    copies.set(value, copy);
     for (const [key, entry] of value) {
-      copy.set(typeAwareCopy(key), typeAwareCopy(entry));
+      copy.set(typeAwareCopy(key, copies), typeAwareCopy(entry, copies));
     }
     return copy as T;
   }
 
   if (value instanceof Set) {
     const copy = new Set();
+    copies.set(value, copy);
     for (const entry of value) {
-      copy.add(typeAwareCopy(entry));
+      copy.add(typeAwareCopy(entry, copies));
     }
     return copy as T;
   }
@@ -521,13 +530,23 @@ function typeAwareCopy<T>(value: T): T {
     const source = value as Record<string, unknown>,
       copy: Record<string, unknown> = {},
       keys = Object.keys(source);
+    copies.set(value, copy);
     for (let i = 0; i < keys.length; i++) {
-      copy[keys[i]] = typeAwareCopy(source[keys[i]]);
+      const key = keys[i],
+        entry = typeAwareCopy(source[key], copies);
+      if (key === '__proto__') {
+        // assigning would call the inherited setter instead of creating the field
+        Object.defineProperty(copy, key, { value: entry, writable: true, enumerable: true, configurable: true });
+      } else {
+        copy[key] = entry;
+      }
     }
     return copy as T;
   }
 
-  return structuredClone(value);
+  const copy = structuredClone(value);
+  copies.set(value, copy);
+  return copy;
 }
 
 abstract class ClientSideCacheEntryBase implements ClientSideCacheEntry {
