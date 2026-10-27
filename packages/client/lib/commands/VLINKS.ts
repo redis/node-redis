@@ -1,5 +1,5 @@
 import { CommandParser } from '../client/parser';
-import { RedisArgument, ArrayReply, BlobStringReply, Command } from '../RESP/types';
+import { RedisArgument, ArrayReply, BlobStringReply, NullReply, Command } from '../RESP/types';
 
 export default {
   parseCommand(parser: CommandParser, key: RedisArgument, element: RedisArgument) {
@@ -7,5 +7,5 @@ export default {
     parser.pushKey(key);
     parser.push(element);
   },
-  transformReply: undefined as unknown as () => ArrayReply<ArrayReply<BlobStringReply>>
+  transformReply: undefined as unknown as () => ArrayReply<ArrayReply<BlobStringReply>> | NullReply
 } as const satisfies Command;
