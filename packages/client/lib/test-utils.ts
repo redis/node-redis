@@ -1,5 +1,5 @@
 import TestUtils from '@redis/test-utils';
-import { SinonSpy } from 'sinon';
+import { SinonSpy, stub } from 'sinon';
 import { setTimeout } from 'node:timers/promises';
 import { CredentialsProvider } from './authx';
 import { Command, NumberReply } from './RESP/types';
@@ -194,4 +194,24 @@ export function parseFirstKey(command: Command, ...args: Array<unknown>) {
   const parser = new BasicCommandParser();
   command.parseCommand!(parser, ...args);
   return parser.firstKey;
+}
+
+/**
+ * Executes the provided function in a context where setImmediate is stubbed to not do anything.
+ * This blocks setImmediate callbacks from executing
+ */
+export async function blockSetImmediate(fn: () => Promise<unknown>) {
+  let setImmediateStub: ReturnType<typeof stub> | undefined;
+
+  try {
+    setImmediateStub = stub(global, 'setImmediate');
+    setImmediateStub.callsFake(() => {
+      //Dont call the callback, effectively blocking execution
+    });
+    await fn();
+  } finally {
+    if (setImmediateStub) {
+      setImmediateStub.restore();
+    }
+  }
 }

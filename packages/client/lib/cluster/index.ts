@@ -1,5 +1,5 @@
 import { RedisClientOptions, RedisClientType, ScanIteratorOptions, WithFunctions, WithModules, WithScripts } from '../client';
-import { CommandOptions } from '../client/commands-queue';
+import { CommandOptions, pickBatchOptions } from '../client/commands-queue';
 import { Command, CommandArguments, CommanderConfig, CommandSignature, TypeMapping, RedisArgument, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions } from '../RESP/types';
 import { NON_STICKY_COMMANDS } from '../commands';
 import { EventEmitter } from 'node:events';
@@ -817,6 +817,7 @@ export default class RedisCluster<
 
   MULTI(routing?: RedisArgument) {
     type Multi = new (...args: ConstructorParameters<typeof RedisClusterMultiCommand>) => RedisClusterMultiCommandType<[], M, F, S, RESP, TYPE_MAPPING>;
+    const batchOptions = pickBatchOptions(this._commandOptions);
     return new (this as this & { Multi: Multi }).Multi(
       async (firstKey, isReadonly, commands) => {
         const parser = new BasicCommandParser();
@@ -826,7 +827,7 @@ export default class RedisCluster<
           parser,
           isReadonly,
           undefined,
-          (client, options) => client._executeMulti(
+          (client, options) => client.withCommandOptions(batchOptions)._executeMulti(
             commands,
             undefined,
             options?.slotNumber,
@@ -836,7 +837,7 @@ export default class RedisCluster<
       },
       async (firstKey, isReadonly, commands) => {
         const { client, slotNumber } = await this._self._slots.getClientAndSlotNumber(firstKey, isReadonly);
-        return client._executePipeline(commands, undefined, slotNumber);
+        return client.withCommandOptions(batchOptions)._executePipeline(commands, undefined, slotNumber);
       },
       routing,
       this._commandOptions?.typeMapping,
