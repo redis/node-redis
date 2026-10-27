@@ -898,7 +898,7 @@ export function transformStreamsMessagesReplyResp3Compat(
     for (let i = 0; i < transformed.length; i += 2) {
       const rawName = transformed[i] as unknown as UnwrapReply<BlobStringReply>;
       compat.push({
-        name: rawName?.toString?.() ?? rawName,
+        name: rawName,
         messages: transformed[i + 1]
       });
     }
