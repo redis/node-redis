@@ -983,5 +983,63 @@ describe('RedisCommandsQueue', () => {
         assert.strictEqual(await get(queue), 'v');
       });
     }
+
+    async function monitorOneLine(queue: RedisCommandsQueue) {
+      const lines: Array<string> = [];
+      const monitoring = queue.monitor(reply => lines.push(String(reply)));
+      drain(queue);
+      queue.decoder.write(Buffer.from('+OK\r\n'));
+      await monitoring;
+      queue.decoder.write(Buffer.from('+1 [0 127.0.0.1:1] "PING"\r\n'));
+      return lines;
+    }
+
+    it('delivers MONITOR lines after a RESET is lost to a disconnect', async () => {
+      const queue = createQueue();
+      const lost = queue.reset(Symbol('reset'));
+      drain(queue);
+      queue.flushWaitingForReply(new DisconnectsClientError());
+      await assert.rejects(lost, DisconnectsClientError);
+
+      assert.deepStrictEqual(await monitorOneLine(queue), ['1 [0 127.0.0.1:1] "PING"']);
+    });
+
+    it('leaves RESP2 pub/sub mode after a RESET is lost to a disconnect', async () => {
+      const queue = createResp2Queue();
+      const lost = queue.reset(Symbol('reset'));
+      drain(queue);
+      queue.flushWaitingForReply(new DisconnectsClientError());
+      await assert.rejects(lost, DisconnectsClientError);
+
+      const subscribed = queue.subscribe(PUBSUB_TYPE.CHANNELS, 'a', () => {});
+      drain(queue);
+      queue.decoder.write(reply('subscribe', 'a', 1));
+      await subscribed;
+      const unsubscribed = queue.unsubscribe(PUBSUB_TYPE.CHANNELS, 'a');
+      drain(queue);
+      queue.decoder.write(reply('unsubscribe', 'a', 0));
+      await unsubscribed;
+
+      const list = queue.addCommand(['LRANGE', 'l', '0', '-1']);
+      drain(queue);
+      queue.decoder.write(reply('message', 'a', 'b'));
+      assert.deepStrictEqual(await list, ['message', 'a', 'b']);
+    });
+
+    it('delivers MONITOR lines after a RESP2 SUBSCRIBE replaces the RESET handler', async () => {
+      const queue = createResp2Queue();
+      const reset = queue.reset(Symbol('reset'));
+      const subscribed = queue.subscribe(PUBSUB_TYPE.CHANNELS, 'a', () => {});
+      drain(queue);
+      queue.decoder.write(Buffer.from('+RESET\r\n'));
+      queue.decoder.write(reply('subscribe', 'a', 1));
+      await Promise.all([reset, subscribed]);
+      const unsubscribed = queue.unsubscribe(PUBSUB_TYPE.CHANNELS, 'a');
+      drain(queue);
+      queue.decoder.write(reply('unsubscribe', 'a', 0));
+      await unsubscribed;
+
+      assert.deepStrictEqual(await monitorOneLine(queue), ['1 [0 127.0.0.1:1] "PING"']);
+    });
   });
 });
