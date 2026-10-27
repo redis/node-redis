@@ -647,7 +647,7 @@ export default class RedisCommandsQueue {
     if (this.#respVersion !== 2 || this.#pubSub.isActive) return;
 
     // if `RESET` already overrides `onReply`, restore its fallback instead
-    if (this.#resetFallbackOnReply) {
+    if (this.decoder.onReply === this.#resetOnReply) {
       this.#resetFallbackOnReply = ((reply) =>
         this.#onReply(reply)) as Decoder["onReply"];
       this.decoder.getTypeMapping = () => this.#getTypeMapping();
@@ -744,7 +744,7 @@ export default class RedisCommandsQueue {
             // any other command should cause an error
 
             // if `RESET` already overrides `onReply`, set monitor as it's fallback
-            if (this.#resetFallbackOnReply) {
+            if (this.decoder.onReply === this.#resetOnReply) {
               this.#resetFallbackOnReply = callback;
             } else {
               this.decoder.onReply = callback;
@@ -768,12 +768,13 @@ export default class RedisCommandsQueue {
   }
 
   #resetFallbackOnReply?: Decoder["onReply"];
+  #resetOnReply?: Decoder["onReply"];
 
   async reset<T extends TypeMapping>(chainId: symbol, typeMapping?: T) {
     return new Promise((resolve, reject) => {
       // overriding onReply to handle `RESET` while in `MONITOR` or PubSub mode
       this.#resetFallbackOnReply = this.decoder.onReply;
-      this.decoder.onReply = ((reply) => {
+      this.decoder.onReply = this.#resetOnReply = ((reply) => {
         if (
           (typeof reply === "string" && reply === "RESET") ||
           (reply instanceof Buffer && RESET.equals(reply))
