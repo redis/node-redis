@@ -1,6 +1,8 @@
 import { EventEmitter } from 'stream';
 import RedisClient from '.';
 import { RedisArgument, ReplyUnion, TransformReply, TypeMapping } from '../RESP/types';
+import { RESP_TYPES } from '../RESP/decoder';
+import { VerbatimString } from '../RESP/verbatim-string';
 import { BasicCommandParser } from './parser';
 import { publish, CHANNELS } from './tracing';
 
@@ -471,6 +473,63 @@ function generateCacheKey(redisArgs: ReadonlyArray<RedisArgument>): string {
   return tmp.join('_');
 }
 
+// `structuredClone` turns a Buffer into a plain Uint8Array and a VerbatimString into a String
+// object without its `format`, so replies that can hold either are copied by `typeAwareCopy`.
+function needsTypeAwareCopy(typeMapping: TypeMapping | undefined): boolean {
+  return typeMapping !== undefined && (
+    typeMapping[RESP_TYPES.BLOB_STRING] === Buffer ||
+    typeMapping[RESP_TYPES.SIMPLE_STRING] === Buffer ||
+    typeMapping[RESP_TYPES.VERBATIM_STRING] === Buffer ||
+    typeMapping[RESP_TYPES.VERBATIM_STRING] === VerbatimString
+  );
+}
+
+function typeAwareCopy<T>(value: T): T {
+  if (typeof value !== 'object' || value === null) return value;
+
+  if (Buffer.isBuffer(value)) return Buffer.from(value) as T;
+
+  if (value instanceof VerbatimString) {
+    return new VerbatimString(value.format, String(value)) as T;
+  }
+
+  if (Array.isArray(value)) {
+    const copy = new Array(value.length);
+    for (let i = 0; i < value.length; i++) {
+      copy[i] = typeAwareCopy(value[i]);
+    }
+    return copy as T;
+  }
+
+  if (value instanceof Map) {
+    const copy = new Map();
+    for (const [key, entry] of value) {
+      copy.set(typeAwareCopy(key), typeAwareCopy(entry));
+    }
+    return copy as T;
+  }
+
+  if (value instanceof Set) {
+    const copy = new Set();
+    for (const entry of value) {
+      copy.add(typeAwareCopy(entry));
+    }
+    return copy as T;
+  }
+
+  if (Object.getPrototypeOf(value) === Object.prototype) {
+    const source = value as Record<string, unknown>,
+      copy: Record<string, unknown> = {},
+      keys = Object.keys(source);
+    for (let i = 0; i < keys.length; i++) {
+      copy[keys[i]] = typeAwareCopy(source[keys[i]]);
+    }
+    return copy as T;
+  }
+
+  return structuredClone(value);
+}
+
 abstract class ClientSideCacheEntryBase implements ClientSideCacheEntry {
   #invalidated = false;
   readonly #expireTime: number;
@@ -624,6 +683,7 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
     let reply: ReplyUnion;
 
     const cacheKey = generateCacheKey(parser.redisArgs);
+    const clone = needsTypeAwareCopy(typeMapping) ? typeAwareCopy : structuredClone;
 
     // "2"
     let cacheEntry = this.get(cacheKey);
@@ -634,7 +694,7 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
         this.#statsCounter.recordHits(1);
         publish(CHANNELS.CACHE_REQUEST, () => ({ result: 'hit', clientId: client._clientId }));
 
-        return structuredClone(cacheEntry.value);
+        return clone(cacheEntry.value);
       } else if (cacheEntry instanceof ClientSideCacheEntryPromise) { // 2b2
         // This counts as a miss since the value hasn't been fully loaded yet.
         this.#statsCounter.recordMisses(1);
@@ -693,7 +753,7 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
       //   cache entry for key got invalidated between execution and saving, so not saving
     }
 
-    return structuredClone(val);
+    return clone(val);
   }
 
   override trackingOn() {
