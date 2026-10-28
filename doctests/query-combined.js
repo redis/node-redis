@@ -4,7 +4,7 @@ import assert from 'node:assert';
 import fs from 'node:fs';
 import { createClient } from 'redis';
 import { SCHEMA_FIELD_TYPE, SCHEMA_VECTOR_FIELD_ALGORITHM } from '@redis/search';
-import { pipeline } from '@xenova/transformers';
+import { pipeline } from '@huggingface/transformers';
 
 function float32Buffer(arr) {
   const floatArray = new Float32Array(arr);
