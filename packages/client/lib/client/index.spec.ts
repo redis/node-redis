@@ -697,6 +697,41 @@ describe('Client', () => {
       );
     }, GLOBAL.SERVERS.OPEN);
 
+    // Regression: EXEC was queued without the type mapping, so the replies it
+    // carries were decoded as strings and non-UTF-8 bytes were lost.
+    testUtils.testWithClient('should apply withTypeMapping to exec() replies', async client => {
+      const value = Buffer.from([0x89, 0x50, 0xff, 0xfe, 0x00, 0x01]);
+      await client.set('key', value);
+      assert.deepEqual(
+        await client.withTypeMapping({
+          [RESP_TYPES.BLOB_STRING]: Buffer
+        }).multi().get('key').exec(),
+        [value]
+      );
+      assert.deepEqual(
+        await client.multi().get('key').exec(),
+        [value.toString()]
+      );
+    }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('should apply commandOptions.typeMapping to exec() replies', async client => {
+      const value = Buffer.from([0x89, 0x50, 0xff, 0xfe, 0x00, 0x01]);
+      await client.set('key', value);
+      assert.deepEqual(
+        await client.multi().get('key').exec(),
+        [value]
+      );
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      clientOptions: {
+        commandOptions: {
+          typeMapping: {
+            [RESP_TYPES.BLOB_STRING]: Buffer
+          }
+        }
+      }
+    });
+
     testUtils.testWithClient('should reject the whole chain on error', client => {
       return assert.rejects(
         client.multi()

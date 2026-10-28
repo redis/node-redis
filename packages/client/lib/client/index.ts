@@ -2077,7 +2077,7 @@ export default class RedisClient<
           [
             { args: ['MULTI'] },
             ...commands.map(({ args }) => ({ args, typeMapping })),
-            { args: ['EXEC'] }
+            { args: ['EXEC'], typeMapping }
           ],
           {
             chainId,
