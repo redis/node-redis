@@ -68,8 +68,8 @@ export class RedisLegacyClient {
       }
 
       promise
-        .then(reply => callback(null, transformReply ? transformReply(reply) : reply))
-        .catch(err => callback(err));
+        .then(reply => transformReply ? transformReply(reply) : reply)
+        .then(reply => callback(null, reply), err => callback(err));
     };
   }
 
@@ -105,9 +105,7 @@ export class RedisLegacyClient {
       return;
     }
   
-    promise
-      .then(reply => callback(null, reply))
-      .catch(err => callback(err));
+    promise.then(reply => callback(null, reply), err => callback(err));
   }
 
   quit(callback?: (err: ErrorReply | null, reply?: string) => unknown) {
@@ -118,9 +116,7 @@ export class RedisLegacyClient {
       return;
     }
 
-    promise
-      .then(reply => callback(null, reply))
-      .catch(err => callback(err));
+    promise.then(reply => callback(null, reply), err => callback(err));
   }
 
   multi() {
@@ -186,7 +182,7 @@ class LegacyMultiCommand {
     }
 
     promise
-      .then(results => cb(null, this.#multi.transformReplies(results)))
-      .catch(err => cb?.(err));
+      .then(results => this.#multi.transformReplies(results))
+      .then(replies => cb(null, replies), err => cb(err));
   }
 }

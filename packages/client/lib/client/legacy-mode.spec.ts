@@ -10,6 +10,29 @@ function testWithLegacyClient(title: string, fn: (legacy: RedisLegacyClientType,
   testUtils.testWithClient(title, client => fn(client.legacy(), client), GLOBAL.SERVERS.OPEN);
 }
 
+// Regression: the callback ran inside a .then whose rejection the next .catch passed back to the
+// same callback, so a callback that threw was called a second time with its own error.
+async function callsOfThrowingCallback(run: (callback: (err: ErrorReply | null, reply?: unknown) => void) => void) {
+  const calls: Array<[ErrorReply | null, unknown]> = [],
+    thrown = new Error('thrown by the callback');
+  let unhandled: unknown;
+  const onUnhandled = (reason: unknown) => { unhandled = reason; };
+  process.on('unhandledRejection', onUnhandled);
+  try {
+    await new Promise<void>(resolve => run((err, reply) => {
+      calls.push([err, reply]);
+      resolve();
+      throw thrown;
+    }));
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(unhandled, thrown, 'the callback error must surface as an unhandled rejection');
+  } finally {
+    process.removeListener('unhandledRejection', onUnhandled);
+  }
+
+  return calls;
+}
+
 describe('Legacy Mode', () => {
   describe('client.sendCommand', () => {
     testWithLegacyClient('resolve', async client => {
@@ -30,6 +53,13 @@ describe('Legacy Mode', () => {
       legacy.sendCommand('ERROR');
       const [err] = await once(client, 'error');
       assert.ok(err instanceof ErrorReply);
+    });
+
+    testWithLegacyClient('does not call back again when the callback throws', async legacy => {
+      assert.deepEqual(
+        await callsOfThrowingCallback(callback => legacy.sendCommand('PING', callback)),
+        [[null, 'PONG']]
+      );
     });
   });
 
@@ -83,6 +113,13 @@ describe('Legacy Mode', () => {
       const [err] = await once(client, 'error');
       assert.ok(err instanceof ErrorReply);
     });
+
+    testWithLegacyClient('does not call back again when the callback throws', async legacy => {
+      assert.deepEqual(
+        await callsOfThrowingCallback(callback => legacy.set('key', 'value', callback)),
+        [[null, 'OK']]
+      );
+    });
   });
 
   describe('client.quit', () => {
@@ -109,6 +146,13 @@ describe('Legacy Mode', () => {
       assert.equal(client.isOpen, false);
       assert.equal(reconnecting, 0);
     });
+
+    testWithLegacyClient('does not call back again when the callback throws', async legacy => {
+      assert.deepEqual(
+        await callsOfThrowingCallback(callback => legacy.quit(callback)),
+        [[null, 'OK']]
+      );
+    });
   });
 
   describe('client.multi', () => {
@@ -132,6 +176,14 @@ describe('Legacy Mode', () => {
       legacy.multi().sendCommand('ERROR').exec();
       const [err] = await once(client, 'error');
       assert.ok(err instanceof ErrorReply);
+    });
+
+    testWithLegacyClient('does not call back again when the callback throws', async legacy => {
+      const multi = legacy.multi().ping();
+      assert.deepEqual(
+        await callsOfThrowingCallback(callback => multi.exec(callback)),
+        [[null, ['PONG']]]
+      );
     });
   });
 });
