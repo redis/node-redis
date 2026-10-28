@@ -120,6 +120,32 @@ describe('Cluster', () => {
     assert.deepEqual(resp, Buffer.from('PONG'));
   }, GLOBAL.CLUSTERS.OPEN);
 
+  testUtils.testWithCluster('withTypeMapping override reaches multi() replies', async cluster => {
+    const value = Buffer.from([0x89, 0x50, 0xff, 0xfe, 0x00, 0x01]);
+    await cluster.set('key', value);
+    const typed = cluster.withTypeMapping({
+      [RESP_TYPES.BLOB_STRING]: Buffer
+    });
+    assert.deepEqual(await typed.multi().get('key').execAsPipeline(), [value]);
+    assert.deepEqual(await typed.multi().get('key').exec(), [value]);
+  }, GLOBAL.CLUSTERS.OPEN);
+
+  testUtils.testWithCluster('default commandOptions typeMapping reaches multi() replies', async cluster => {
+    const value = Buffer.from([0x89, 0x50, 0xff, 0xfe, 0x00, 0x01]);
+    await cluster.set('key', value);
+    assert.deepEqual(await cluster.multi().get('key').execAsPipeline(), [value]);
+    assert.deepEqual(await cluster.multi().get('key').exec(), [value]);
+  }, {
+    ...GLOBAL.CLUSTERS.OPEN,
+    clusterConfiguration: {
+      commandOptions: {
+        typeMapping: {
+          [RESP_TYPES.BLOB_STRING]: Buffer
+        }
+      }
+    }
+  });
+
   testUtils.testWithCluster('isOpen', async cluster => {
     assert.equal(cluster.isOpen, true);
     await cluster.destroy();

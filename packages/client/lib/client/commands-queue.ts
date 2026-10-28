@@ -64,9 +64,10 @@ export interface CommandOptions<T = TypeMapping> {
  * keeps the node client's own and `timeout: undefined` still opts out.
  */
 export function pickBatchOptions(options: CommandOptions = {}) {
-  const picked: Pick<CommandOptions, 'timeout' | 'abortSignal'> = {};
+  const picked: Pick<CommandOptions, 'timeout' | 'abortSignal' | 'typeMapping'> = {};
   if ('timeout' in options) picked.timeout = options.timeout;
   if ('abortSignal' in options) picked.abortSignal = options.abortSignal;
+  if ('typeMapping' in options) picked.typeMapping = options.typeMapping;
   return picked;
 }
 

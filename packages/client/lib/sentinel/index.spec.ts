@@ -399,6 +399,16 @@ describe('RedisSentinel', () => {
       assert.equal(await sentinel.ping(), 'PONG');
     }, testOptions);
 
+    testUtils.testWithClientSentinel('withTypeMapping reaches queued batches', async sentinel => {
+      const value = Buffer.from([0x89, 0x50, 0xff, 0xfe, 0x00, 0x01]);
+      await sentinel.set('x', value);
+      const typed = sentinel.withTypeMapping({
+        [RESP_TYPES.BLOB_STRING]: Buffer
+      });
+      assert.deepEqual(await typed.multi().get('x').execAsPipeline(), [value]);
+      assert.deepEqual(await typed.multi().get('x').exec(), [value]);
+    }, testOptions);
+
     testUtils.testWithClientSentinel('per-call timeout reaches batches on a leased client', async sentinel => {
       await sentinel.use(async client => {
         const withTimeout = client.withCommandOptions({ timeout: 5 });
