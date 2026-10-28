@@ -4,7 +4,7 @@ import assert from 'node:assert';
 import fs from 'node:fs';
 import { createClient } from 'redis';
 import { SCHEMA_FIELD_TYPE, SCHEMA_VECTOR_FIELD_ALGORITHM } from '@redis/search';
-import { pipeline } from '@xenova/transformers';
+import { pipeline } from '@huggingface/transformers';
 
 function float32Buffer(arr) {
   const floatArray = new Float32Array(arr);
@@ -85,7 +85,7 @@ assert.strictEqual(res1.total, 3);
 
 // STEP_START vector2
 const res2 = await client.ft.search('idx:bicycle', 
-  '@vector:[VECTOR_RANGE 0.9 $query_vector]=>{$YIELD_DISTANCE_AS: vector_dist}', {
+  '@vector:[VECTOR_RANGE 0.92 $query_vector]=>{$YIELD_DISTANCE_AS: vector_dist}', {
     PARAMS: { query_vector: vector_query },
     SORTBY: 'vector_dist',
     RETURN: ['vector_dist', 'description'],

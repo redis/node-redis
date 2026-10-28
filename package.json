@@ -44,6 +44,13 @@
     "typescript": "^5.3.3",
     "typescript-eslint": "^8.59.0"
   },
+  "overrides": {
+    "basic-ftp": "^6.2.3",
+    "release-it": {
+      "undici": "^6.29.1"
+    },
+    "serialize-javascript": "^7.1.4"
+  },
   "allowScripts": {
     "esbuild@0.28.1": true
   }
