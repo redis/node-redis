@@ -1,6 +1,8 @@
 import { EventEmitter } from 'stream';
 import RedisClient from '.';
 import { RedisArgument, ReplyUnion, TransformReply, TypeMapping } from '../RESP/types';
+import { RESP_TYPES } from '../RESP/decoder';
+import { VerbatimString } from '../RESP/verbatim-string';
 import { BasicCommandParser } from './parser';
 import { publish, CHANNELS } from './tracing';
 
@@ -471,6 +473,82 @@ function generateCacheKey(redisArgs: ReadonlyArray<RedisArgument>): string {
   return tmp.join('_');
 }
 
+// `structuredClone` turns a Buffer into a plain Uint8Array and a VerbatimString into a String
+// object without its `format`, so replies that can hold either are copied by `typeAwareCopy`.
+function needsTypeAwareCopy(typeMapping: TypeMapping | undefined): boolean {
+  return typeMapping !== undefined && (
+    typeMapping[RESP_TYPES.BLOB_STRING] === Buffer ||
+    typeMapping[RESP_TYPES.SIMPLE_STRING] === Buffer ||
+    typeMapping[RESP_TYPES.VERBATIM_STRING] === Buffer ||
+    typeMapping[RESP_TYPES.VERBATIM_STRING] === VerbatimString
+  );
+}
+
+// Copies like `structuredClone` does (cycles and shared containers survive, holes stay holes), but
+// keeps Buffers as Buffers and VerbatimStrings with their `format`. Those two are copied wherever
+// they appear: decoded replies never share them, and tracking them would slow down large replies.
+function typeAwareCopy<T>(value: T, copies = new Map<object, unknown>()): T {
+  if (typeof value !== 'object' || value === null) return value;
+
+  if (Buffer.isBuffer(value)) return Buffer.from(value) as T;
+
+  if (value instanceof VerbatimString) {
+    return new VerbatimString(value.format, String(value)) as T;
+  }
+
+  const known = copies.get(value);
+  if (known !== undefined) return known as T;
+
+  if (Array.isArray(value)) {
+    const copy = new Array(value.length);
+    copies.set(value, copy);
+    for (let i = 0; i < value.length; i++) {
+      if (i in value) copy[i] = typeAwareCopy(value[i], copies);
+    }
+    return copy as T;
+  }
+
+  if (value instanceof Map) {
+    const copy = new Map();
+    copies.set(value, copy);
+    for (const [key, entry] of value) {
+      copy.set(typeAwareCopy(key, copies), typeAwareCopy(entry, copies));
+    }
+    return copy as T;
+  }
+
+  if (value instanceof Set) {
+    const copy = new Set();
+    copies.set(value, copy);
+    for (const entry of value) {
+      copy.add(typeAwareCopy(entry, copies));
+    }
+    return copy as T;
+  }
+
+  if (Object.getPrototypeOf(value) === Object.prototype) {
+    const source = value as Record<string, unknown>,
+      copy: Record<string, unknown> = {},
+      keys = Object.keys(source);
+    copies.set(value, copy);
+    for (let i = 0; i < keys.length; i++) {
+      const key = keys[i],
+        entry = typeAwareCopy(source[key], copies);
+      if (key === '__proto__') {
+        // assigning would call the inherited setter instead of creating the field
+        Object.defineProperty(copy, key, { value: entry, writable: true, enumerable: true, configurable: true });
+      } else {
+        copy[key] = entry;
+      }
+    }
+    return copy as T;
+  }
+
+  const copy = structuredClone(value);
+  copies.set(value, copy);
+  return copy;
+}
+
 abstract class ClientSideCacheEntryBase implements ClientSideCacheEntry {
   #invalidated = false;
   readonly #expireTime: number;
@@ -624,6 +702,7 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
     let reply: ReplyUnion;
 
     const cacheKey = generateCacheKey(parser.redisArgs);
+    const clone = needsTypeAwareCopy(typeMapping) ? typeAwareCopy : structuredClone;
 
     // "2"
     let cacheEntry = this.get(cacheKey);
@@ -634,7 +713,7 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
         this.#statsCounter.recordHits(1);
         publish(CHANNELS.CACHE_REQUEST, () => ({ result: 'hit', clientId: client._clientId }));
 
-        return structuredClone(cacheEntry.value);
+        return clone(cacheEntry.value);
       } else if (cacheEntry instanceof ClientSideCacheEntryPromise) { // 2b2
         // This counts as a miss since the value hasn't been fully loaded yet.
         this.#statsCounter.recordMisses(1);
@@ -693,7 +772,7 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
       //   cache entry for key got invalidated between execution and saving, so not saving
     }
 
-    return structuredClone(val);
+    return clone(val);
   }
 
   override trackingOn() {

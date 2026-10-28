@@ -6,6 +6,9 @@ import { once } from 'events';
 import RedisClient from "./index";
 import { BasicCommandParser } from "./parser";
 import { ClientSideCacheCommandError, ClientSideCacheMarkError } from "../errors";
+import { RESP_TYPES } from "../RESP/decoder";
+import { TypeMapping } from "../RESP/types";
+import { VerbatimString } from "../RESP/verbatim-string";
 
 describe("Client Side Cache", () => {
   it("destroy() on a never-connected client does not flush a shared pooled cache (#3396)", () => {
@@ -80,6 +83,186 @@ describe("Client Side Cache", () => {
 
       assert.equal(cache.has('entry'), true);
       assert.deepEqual(keyIndex(cache), new Map([['a', ['entry']]]));
+    });
+  });
+
+  describe('handleCache() copies of cached replies', () => {
+    function getParser() {
+      const parser = new BasicCommandParser();
+      parser.push('GET');
+      parser.pushKey('k');
+      return parser;
+    }
+
+    // every type the decoder can produce; Buffer and VerbatimString only come from a type mapping
+    const plain = () => ['value', 1, 1.5, 10n, true, null],
+      mapped = () => [Buffer.from('value'), new VerbatimString('txt', 'value'), ...plain()];
+
+    const MAPPINGS: Array<[string, TypeMapping | undefined, () => Array<unknown>]> = [
+      ['no type mapping', undefined, plain],
+      ['BLOB_STRING: Buffer', { [RESP_TYPES.BLOB_STRING]: Buffer }, mapped],
+      ['SIMPLE_STRING: Buffer', { [RESP_TYPES.SIMPLE_STRING]: Buffer }, mapped],
+      ['VERBATIM_STRING: Buffer', { [RESP_TYPES.VERBATIM_STRING]: Buffer }, mapped],
+      ['VERBATIM_STRING: VerbatimString', { [RESP_TYPES.VERBATIM_STRING]: VerbatimString }, mapped]
+    ];
+
+    function changeEverything(value: unknown) {
+      if (Buffer.isBuffer(value)) {
+        value.fill(0x21);
+      } else if (Array.isArray(value)) {
+        value.forEach(changeEverything);
+        value.push('changed');
+      } else if (value instanceof Map) {
+        for (const [key, entry] of value) {
+          changeEverything(key);
+          changeEverything(entry);
+        }
+        value.set('changed', 'changed');
+      } else if (value instanceof Set) {
+        value.forEach(changeEverything);
+        value.add('changed');
+      } else if (value instanceof VerbatimString) {
+        value.format = 'changed';
+      } else if (typeof value === 'object' && value !== null) {
+        const object = value as Record<string, unknown>;
+        Object.values(object).forEach(changeEverything);
+        object.changed = 'changed';
+      }
+    }
+
+    for (const [name, typeMapping, values] of MAPPINGS) {
+      it(`keeps the class of every value with ${name}`, async () => {
+        const cache = new BasicClientSideCache(),
+          reply = () => {
+            const keys = values(),
+              entries = values();
+            return [
+              ...values(),
+              [values()],
+              Object.fromEntries(values().map((value, i) => [`field${i}`, value])),
+              new Map(keys.map((key, i) => [key, entries[i]])),
+              new Set(values())
+            ];
+          };
+
+        // the miss that fills the cache, then two hits
+        for (let i = 0; i < 3; i++) {
+          const copy = await cache.handleCache({} as never, getParser(), (() => Promise.resolve(reply())) as never, undefined, typeMapping);
+          assert.deepStrictEqual(copy, reply(), `call ${i + 1}`);
+          changeEverything(copy);
+        }
+
+        assert.equal(cache.stats().hitCount, 2);
+      });
+    }
+
+    // replies that only a JSON.GET reviver or a "__proto__" field in a document can produce
+    async function loadTwice(reply: () => unknown) {
+      const cache = new BasicClientSideCache(),
+        typeMapping = { [RESP_TYPES.BLOB_STRING]: Buffer },
+        load = () => cache.handleCache({} as never, getParser(), (() => Promise.resolve(reply())) as never, undefined, typeMapping);
+      const copies = [await load(), await load()];
+      assert.equal(cache.stats().hitCount, 1);
+      return copies;
+    }
+
+    it('keeps an own __proto__ field', async () => {
+      for (const copy of await loadTwice(() => JSON.parse('{"__proto__": {"x": 1}, "a": 1}'))) {
+        const object = copy as Record<string, unknown>;
+        assert.ok(Object.hasOwn(object, '__proto__'));
+        assert.equal(Object.getPrototypeOf(object), Object.prototype);
+        assert.deepEqual(Object.keys(object), ['__proto__', 'a']);
+      }
+    });
+
+    it('keeps cycles and shared containers', async () => {
+      const reply = () => {
+        const shared = { field: Buffer.from('shared') },
+          list = [shared],
+          map = new Map([['key', shared]]),
+          set = new Set([shared]),
+          verbatim = new VerbatimString('txt', 'verbatim'),
+          date = new Date(0),
+          object: Record<string, unknown> = {
+            buffers: [Buffer.from('buffer')],
+            objects: [shared, shared],
+            lists: [list, list],
+            maps: [map, map],
+            sets: [set, set],
+            verbatims: [verbatim, verbatim],
+            dates: [date, date]
+          };
+        (object.buffers as Array<unknown>).push((object.buffers as Array<unknown>)[0]);
+        object.self = object;
+        return object;
+      };
+
+      const original = reply();
+      for (const copy of await loadTwice(() => original)) {
+        const object = copy as Record<string, Array<unknown>> & { self: unknown },
+          source = original as Record<string, Array<unknown>>;
+        assert.notEqual(object, original);
+        assert.equal(object.self, object);
+        for (const name of ['objects', 'lists', 'maps', 'sets', 'dates']) {
+          assert.equal(object[name][0], object[name][1], `${name} stay shared`);
+          assert.notEqual(object[name][0], source[name][0], `${name} are copied`);
+        }
+        // Buffers and VerbatimStrings are copied wherever they appear
+        for (const name of ['buffers', 'verbatims']) {
+          assert.deepStrictEqual(object[name][0], object[name][1]);
+          assert.notEqual(object[name][0], object[name][1], `${name} are copied each time`);
+          assert.notEqual(object[name][0], source[name][0], `${name} are copied`);
+        }
+        assert.equal((object.lists[0] as Array<unknown>)[0], object.objects[0]);
+        assert.equal((object.maps[0] as Map<string, unknown>).get('key'), object.objects[0]);
+        assert.equal([...(object.sets[0] as Set<unknown>)][0], object.objects[0]);
+        assert.ok(Buffer.isBuffer(object.buffers[0]));
+        assert.ok(object.verbatims[0] instanceof VerbatimString);
+      }
+    });
+
+    it('keeps array holes', async () => {
+      // eslint-disable-next-line no-sparse-arrays -- the hole is the point of the test
+      for (const copy of await loadTwice(() => [Buffer.from('a'), , Buffer.from('c')])) {
+        const array = copy as Array<unknown>;
+        assert.equal(array.length, 3);
+        assert.ok(!(1 in array));
+        assert.ok(Buffer.isBuffer(array[0]) && Buffer.isBuffer(array[2]));
+      }
+    });
+  });
+
+  describe('Buffer type mapping', () => {
+    testUtils.testAll('returns Buffers from the cache', async client => {
+      await client.set('x', 'hello');
+      await client.hSet('h', 'field', 'value');
+
+      for (let i = 0; i < 2; i++) {
+        const value = await client.get('x');
+        assert.ok(Buffer.isBuffer(value), `get, call ${i + 1}`);
+        assert.equal(value.toString(), 'hello');
+
+        const hash = await client.hGetAll('h');
+        assert.ok(Buffer.isBuffer(hash.field), `hGetAll, call ${i + 1}`);
+        assert.equal(hash.field.toString(), 'value');
+      }
+    }, {
+      client: {
+        ...GLOBAL.SERVERS.OPEN,
+        clientOptions: {
+          RESP: 3,
+          clientSideCache: { ttl: 0, maxEntries: 0 },
+          commandOptions: { typeMapping: { [RESP_TYPES.BLOB_STRING]: Buffer } }
+        }
+      },
+      cluster: {
+        ...GLOBAL.CLUSTERS.OPEN,
+        clusterConfiguration: {
+          RESP: 3,
+          clientSideCache: { ttl: 0, maxEntries: 0 },
+          commandOptions: { typeMapping: { [RESP_TYPES.BLOB_STRING]: Buffer } }
+        }
+      }
     });
   });
 
@@ -341,6 +524,37 @@ describe("Client Side Cache", () => {
       ...GLOBAL.SERVERS.OPEN,
       clientOptions: {
         RESP: 3,
+      },
+      poolOptions: {
+        minimum: 5,
+        maximum: 5,
+        acquireTimeout: 0,
+        cleanupDelay: 1,
+        clientSideCache: csc
+      }
+    })
+
+    testUtils.testWithClientPool('Cached replies stay Buffers with a Buffer type mapping', async client => {
+      csc.clear();
+
+      await client.set('x', 'hello');
+      for (let i = 0; i < 2; i++) {
+        const value = await client.get('x');
+        assert.ok(Buffer.isBuffer(value), `call ${i + 1}`);
+        assert.equal(value.toString(), 'hello');
+      }
+
+      assert.equal(csc.stats().missCount, 1, "Cache Misses");
+      assert.equal(csc.stats().hitCount, 1, "Cache Hits");
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      clientOptions: {
+        RESP: 3,
+        commandOptions: {
+          typeMapping: {
+            [RESP_TYPES.BLOB_STRING]: Buffer
+          }
+        }
       },
       poolOptions: {
         minimum: 5,
