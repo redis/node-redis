@@ -2020,6 +2020,50 @@ describe('Client', () => {
     disableClientSetup: true
   });
 
+  it('should reject batches while reconnecting when `disableOfflineQueue`', async () => {
+    const sockets = new Set<net.Socket>();
+    const server = net.createServer(socket => {
+      sockets.add(socket);
+      socket.on('data', (chunk: Buffer) => {
+        socket.write('+OK\r\n'.repeat(countRespCommands(chunk)));
+      });
+    });
+    const port = await getFreePortNumber();
+    await once(server.listen(port), 'listening');
+
+    const client = createClient({
+      disableOfflineQueue: true,
+      socket: { host: '127.0.0.1', port, reconnectStrategy: () => 500 }
+    });
+    client.on('error', () => {});
+
+    try {
+      await client.connect();
+      await client.watch('key');
+
+      // wait for the dropped connection and the refused reconnect: the client now backs off for 500 ms
+      server.close();
+      sockets.forEach(socket => socket.destroy());
+      await once(client, 'error');
+      await once(client, 'error');
+      assert.equal(client.isReady, false);
+
+      await Promise.all([
+        assert.rejects(client.multi().ping().exec(), ClientOfflineError),
+        assert.rejects(client.multi().ping().execAsPipeline(), ClientOfflineError)
+      ]);
+
+      // the rejected EXEC must not use up the WATCH that the reconnect invalidated
+      server.listen(port);
+      await once(client, 'ready');
+      await assert.rejects(client.multi().ping().exec(), WatchError);
+      assert.deepEqual(await client.multi().ping().execAsPipeline(), ['OK']);
+    } finally {
+      client.destroy();
+      server.close();
+    }
+  });
+
   describe('MONITOR', () => {
     testUtils.testWithClient('should be able to monitor commands', async client => {
       const duplicate = await client.duplicate().connect(),
