@@ -77,6 +77,17 @@ describe('RedisClientPool', () => {
     assert.deepEqual(resp, Buffer.from('PONG'));
   }, GLOBAL.SERVERS.OPEN);
 
+  // Regression: pickBatchOptions dropped typeMapping, so batch replies were decoded as strings.
+  testUtils.testWithClientPool('withTypeMapping override reaches multi() replies', async pool => {
+    const value = Buffer.from([0x89, 0x50, 0xff, 0xfe, 0x00, 0x01]);
+    await pool.set('key', value);
+    const typed = pool.withTypeMapping({
+      [RESP_TYPES.BLOB_STRING]: Buffer
+    });
+    assert.deepEqual(await typed.multi().get('key').execAsPipeline(), [value]);
+    assert.deepEqual(await typed.multi().get('key').exec(), [value]);
+  }, GLOBAL.SERVERS.OPEN);
+
   testUtils.testWithClientPool('constructor commandOptions reach sendCommand without an explicit proxy', async pool => {
     // The stated motivation for storing `_commandOptions` on the pool at
     // construction was that the typeMapping needs to reach dispatch — the
