@@ -772,6 +772,17 @@ export default class RedisCluster<
               retryCount: i,
             }));
             await this._slots.rediscover(client);
+            if (parser.firstKey === undefined) {
+              // A keyless command (e.g. FT.AGGREGATE, which some servers route
+              // by index name) went to a random node; another random node may
+              // be wrong again, so follow the redirect to the node it names.
+              const address = err.message.substring(err.message.lastIndexOf(' ') + 1);
+              const redirectTo = await this._slots.getMasterByAddress(address);
+              if (redirectTo) {
+                client = redirectTo;
+                continue;
+              }
+            }
             client = (await this._slots.getClientAndSlotNumber(parser.firstKey, isReadonly)).client;
             continue;
           }

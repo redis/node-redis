@@ -289,6 +289,27 @@ describe('Cluster', () => {
     numberOfMasters: 2
   });
 
+  testUtils.testWithCluster('a keyless command follows MOVED to the node it names', async cluster => {
+    const key = 'keylessMovedKey';
+    await cluster.set(key, 'value');
+
+    // With no routing key the command goes to a random master; any other
+    // master answers MOVED. One redirect must be enough, so the client has to
+    // follow the MOVED address rather than retry another random node.
+    for (let i = 0; i < 20; i++) {
+      assert.equal(
+        await cluster.sendCommand(undefined, true, ['GET', key]),
+        'value'
+      );
+    }
+  }, {
+    ...GLOBAL.CLUSTERS.OPEN,
+    numberOfMasters: 3,
+    clusterConfiguration: {
+      maxCommandRedirections: 1
+    }
+  });
+
   testUtils.testWithCluster('should throw MaxCommandRedirectionsError when exceeding maxCommandRedirections', async cluster => {
     const key = 'maxCommandRedirectionsErrorKey',
       slot = calculateSlot(key),

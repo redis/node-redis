@@ -1846,7 +1846,9 @@ describe("FT.HYBRID", () => {
         // Note: This is timing-dependent, so we just check it returns
         assert.ok(result2 !== undefined);
       },
-      GLOBAL.SERVERS.OPEN,
+      // Seeding 1000 documents and two K=1000 queries can outrun Mocha's
+      // default 2s on a busy CI runner.
+      { ...GLOBAL.SERVERS.OPEN, testTimeout: 10000 },
     );
 
     // Test: Hybrid search with LOAD and GROUPBY
