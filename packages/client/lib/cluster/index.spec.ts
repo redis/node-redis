@@ -289,6 +289,45 @@ describe('Cluster', () => {
     numberOfMasters: 2
   });
 
+  testUtils.testWithCluster('execAsPipeline refreshes the slot map after MOVED', async cluster => {
+    const key = 'pipelineMovedKey',
+      slot = calculateSlot(key),
+      owner = cluster.slots[slot].master,
+      target = cluster.masters.find(master => master.id !== owner.id)!,
+      [ownerClient, targetClient] = await Promise.all([
+        cluster.nodeClient(owner),
+        cluster.nodeClient(target)
+      ]);
+
+    // Move the empty slot behind the cluster client's back, so its slot map
+    // still names the old owner.
+    await Promise.all([
+      ownerClient.clusterSetSlot(slot, 'NODE', target.id),
+      targetClient.clusterSetSlot(slot, 'NODE', target.id)
+    ]);
+
+    try {
+      // not retried (it can be partially applied), but it must refresh the slot map
+      await assert.rejects(
+        cluster.multi().set(key, 'value').get(key).execAsPipeline(),
+        (err: Error) => err.message.startsWith('MOVED')
+      );
+      assert.deepEqual(
+        await cluster.multi().set(key, 'value').get(key).execAsPipeline(),
+        ['OK', 'value']
+      );
+    } finally {
+      await cluster.del(key);
+      await Promise.all([
+        ownerClient.clusterSetSlot(slot, 'NODE', owner.id),
+        targetClient.clusterSetSlot(slot, 'NODE', owner.id)
+      ]);
+    }
+  }, {
+    serverArguments: [],
+    numberOfMasters: 2
+  });
+
   testUtils.testWithCluster('a keyless command follows MOVED to the node it names', async cluster => {
     const key = 'keylessMovedKey';
     await cluster.set(key, 'value');
