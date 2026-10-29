@@ -14,7 +14,7 @@ export default {
     parser.pushKey(key);
     parser.push(element);
     
-    if (typeof attributes === 'object' && attributes !== null) {
+    if (typeof attributes === 'object' && attributes !== null && !(attributes instanceof Buffer)) {
       parser.push(JSON.stringify(attributes));
     } else {
       parser.push(attributes);
