@@ -26,6 +26,37 @@ describe('XINFO STREAM', () => {
     assert.equal(reply['last-entry'], null);
   });
 
+  // With a BLOB_STRING -> Buffer mapping the reply keys are Buffers, so they have to be compared as strings
+  it('parses entries of a RESP3 array reply with Buffer keys', () => {
+    const reply = XINFO_STREAM.transformReply[3](
+      [
+        Buffer.from('first-entry'), [Buffer.from('1-1'), [Buffer.from('field'), Buffer.from('value')]],
+        Buffer.from('last-entry'), null
+      ],
+      undefined,
+      { [RESP_TYPES.MAP]: Array, [RESP_TYPES.BLOB_STRING]: Buffer }
+    ) as unknown as Array<unknown>;
+
+    assert.deepEqual(reply[1], {
+      id: Buffer.from('1-1'),
+      message: [Buffer.from('field'), Buffer.from('value')]
+    });
+  });
+
+  testUtils.testWithClient('xInfoStream with RESP2 and a Buffer type mapping', async client => {
+    await client.xAdd('key', '1-1', { field: 'value' });
+
+    const reply = await client.withTypeMapping({ [RESP_TYPES.BLOB_STRING]: Buffer }).xInfoStream('key');
+    const entry = { id: Buffer.from('1-1'), message: { field: Buffer.from('value') } };
+    assert.deepEqual(reply['first-entry'], entry);
+    assert.deepEqual(reply['last-entry'], entry);
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    clientOptions: {
+      RESP: 2
+    }
+  });
+
   testUtils.testAll('xInfoStream', async client => {
     const [, reply] = await Promise.all([
       client.xGroupCreate('key', 'group', '$', {

@@ -1,6 +1,7 @@
 import { CommandParser } from '../client/parser';
 import { RedisArgument, TuplesToMapReply, BlobStringReply, NumberReply, NullReply, TuplesReply, ArrayReply, UnwrapReply, Command, TypeMapping } from '../RESP/types';
 import { isNullReply, transformTuplesReply } from './generic-transformers';
+import { keyToString } from './reply-utils';
 
 /**
  * Reply structure for XINFO STREAM command containing detailed information about a stream
@@ -62,7 +63,7 @@ export default {
       const parsedReply: Partial<XInfoStreamReply['DEFAULT']> = {};
 
       for (let i = 0; i < reply.length; i += 2) {
-        switch (reply[i]) {
+        switch (keyToString(reply[i])) {
           case 'first-entry':
           case 'last-entry':
             parsedReply[reply[i] as ('first-entry' | 'last-entry')] = transformEntry(reply[i + 1] as RawEntry, typeMapping);
@@ -91,7 +92,8 @@ export default {
         // Find entries by key name to handle different Redis versions
         // (8.6+ has additional idempotency fields that shift the indices)
         for (let i = 0; i < reply.length; i += 2) {
-          if (reply[i] === 'first-entry' || reply[i] === 'last-entry') {
+          const key = keyToString(reply[i]);
+          if (key === 'first-entry' || key === 'last-entry') {
             reply[i + 1] = transformEntry(reply[i + 1] as RawEntry, typeMapping);
           }
         }
