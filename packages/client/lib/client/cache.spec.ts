@@ -246,6 +246,12 @@ describe("Client Side Cache", () => {
         assert.ok(Buffer.isBuffer(hash.field), `hGetAll, call ${i + 1}`);
         assert.equal(hash.field.toString(), 'value');
       }
+
+      // The second call of each command is served from the cache
+      // (https://github.com/redis/node-redis/issues/3549)
+      const stats = client.clientSideCache!.stats();
+      assert.equal(stats.missCount, 2, 'Cache Misses');
+      assert.equal(stats.hitCount, 2, 'Cache Hits');
     }, {
       client: {
         ...GLOBAL.SERVERS.OPEN,

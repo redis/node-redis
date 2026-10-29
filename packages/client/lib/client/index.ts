@@ -220,6 +220,13 @@ export interface RedisClientOptions<
    */
   himportRegistry?: FieldsetRegistry;
   /**
+   * @internal
+   * The `typeMapping` whose replies the client-side cache stores, in place of this client's own
+   * `commandOptions.typeMapping`. A cluster passes its own `typeMapping` to its node clients,
+   * which run the cluster's commands with it. Not a user-facing option.
+   */
+  cacheTypeMapping?: TypeMapping;
+  /**
    * If set to true, disables sending client identifier (user-agent like message) to the redis server
    */
   disableClientInfo?: boolean;
@@ -1354,8 +1361,10 @@ export default class RedisClient<
     const meta = csc ? defaultCommandMetadata.lookup(parser.commandIdentifier) : undefined;
 
     if (csc) {
-      const defaultTypeMapping = this._self.#options.commandOptions === commandOptions ||
-        (this._self.#options.commandOptions?.typeMapping === commandOptions?.typeMapping);
+      const cacheTypeMapping = 'cacheTypeMapping' in this._self.#options ?
+        this._self.#options.cacheTypeMapping :
+        this._self.#options.commandOptions?.typeMapping;
+      const defaultTypeMapping = cacheTypeMapping === commandOptions?.typeMapping;
 
       // Override-first: a defined `Command.CACHEABLE` wins; otherwise CSC
       // eligibility derives from the server flags/tips (see `isCacheable`).

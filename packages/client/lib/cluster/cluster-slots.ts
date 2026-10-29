@@ -818,6 +818,7 @@ export default class RedisClusterSlots<
     let wasReady = false;
     const client = this.#clientFactory(this.#clientOptionsDefaults({
       clientSideCache: this.clientSideCache,
+      cacheTypeMapping: this.#options.commandOptions?.typeMapping,
       himportRegistry: this.#himportRegistry,
       RESP: this.#options.RESP,
       socket,
