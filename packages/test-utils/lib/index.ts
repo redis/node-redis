@@ -417,6 +417,7 @@ export default class TestUtils {
     }
 
     it(title, async function () {
+      if (options.testTimeout) this.timeout(options.testTimeout);
       if (options.skipTest) return this.skip();
       // Against a managed Redis Enterprise database there is no Docker server to spawn;
       // build the client from the resolved RE endpoint instead.
