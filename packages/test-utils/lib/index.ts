@@ -103,7 +103,7 @@ export const DEFAULT_DOCKER_CONFIG: TestUtilsConfig = {
   dockerImageName: 'redislabs/client-libs-test',
   dockerImageTagArgument: 'redis-tag',
   dockerImageVersionArgument: 'redis-version',
-  defaultDockerVersion: { tag: 'custom-30445126297-debian', version: '8.10' }
+  defaultDockerVersion: { tag: 'unstable-40786267336-debian', version: '8.12' }
 };
 
 interface CommonTestOptions {
