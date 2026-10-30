@@ -818,6 +818,10 @@ export default class RedisClusterSlots<
     let wasReady = false;
     const client = this.#clientFactory(this.#clientOptionsDefaults({
       clientSideCache: this.clientSideCache,
+      // only when the cluster has a type mapping, so the node falls back to its own
+      ...(this.#options.commandOptions?.typeMapping !== undefined && {
+        cacheTypeMapping: this.#options.commandOptions.typeMapping
+      }),
       himportRegistry: this.#himportRegistry,
       RESP: this.#options.RESP,
       socket,
