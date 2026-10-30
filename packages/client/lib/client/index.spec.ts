@@ -1239,6 +1239,61 @@ describe('Client', () => {
     }
   });
 
+  describe('read-only scripts', () => {
+    testUtils.isVersionGreaterThanHook([7]);
+
+    const READ_ONLY_SQUARE_SCRIPT = defineScript({
+      ...SQUARE_SCRIPT,
+      IS_READ_ONLY: true
+    });
+
+    const options = {
+      ...GLOBAL.SERVERS.OPEN,
+      clientOptions: {
+        scripts: {
+          square: READ_ONLY_SQUARE_SCRIPT
+        }
+      }
+    };
+
+    // runs fn as a user that may run EVAL_RO and EVALSHA_RO but not EVAL or EVALSHA,
+    // after SCRIPT FLUSH, so the script has to be loaded again
+    async function asReadOnlyScriptsUser(
+      client: RedisClientType<{}, {}, { square: typeof READ_ONLY_SQUARE_SCRIPT }, 2>,
+      fn: (user: typeof client) => Promise<void>
+    ) {
+      await client.sendCommand([
+        'ACL', 'SETUSER', 'read-only-scripts', 'on', '>password', '~*', '+@all', '-eval', '-evalsha'
+      ]);
+      const user = client.duplicate({
+        username: 'read-only-scripts',
+        password: 'password'
+      });
+      await user.connect();
+
+      try {
+        await client.set('key', '2');
+        await client.scriptFlush();
+        await fn(user);
+      } finally {
+        user.destroy();
+        await client.sendCommand(['ACL', 'DELUSER', 'read-only-scripts']);
+      }
+    }
+
+    testUtils.testWithClient('loads a missing script with EVAL_RO', async client => {
+      await asReadOnlyScriptsUser(client, async user => {
+        assert.equal(await user.square('key'), 4);
+      });
+    }, options);
+
+    testUtils.testWithClient('uses EVAL_RO in MULTI', async client => {
+      await asReadOnlyScriptsUser(client, async user => {
+        assert.deepEqual(await user.multi().square('key').exec(), [4]);
+      });
+    }, options);
+  });
+
   const module = {
     echo: {
       parseCommand(parser: CommandParser, message: string) {
