@@ -443,7 +443,9 @@ export default class RedisSocket extends EventEmitter {
     if (strategyError) this.#emitError(strategyError);
     if (!this.#isOpen) return;
 
+    const teardownEpoch = this.#teardownEpoch;
     this.emit('reconnecting');
+    if (this.#teardownEpoch !== teardownEpoch) return;
     this.#connect(1).catch(() => {
       // the error was already emitted, silently ignore it
     });
