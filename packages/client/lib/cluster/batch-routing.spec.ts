@@ -165,7 +165,7 @@ describe('Cluster batch routing', () => {
     assert.equal(redirectedSlot, slotNumber);
   });
 
-  it('does not retry a non-atomic pipeline after MOVED', async () => {
+  it('does not retry a non-atomic pipeline after MOVED, but refreshes the slot map', async () => {
     const cluster = RedisCluster.create({ rootNodes: [] });
     const key = 'key';
     const slotNumber = calculateSlot(key);
@@ -193,6 +193,61 @@ describe('Cluster batch routing', () => {
       error => error instanceof ErrorReply && error.message.startsWith('MOVED')
     );
     assert.equal(attempts, 1);
+    assert.equal(rediscoveries, 1);
+  });
+
+  it('rejects a pipeline with the MOVED error when the slot map refresh fails', async () => {
+    const cluster = RedisCluster.create({ rootNodes: [] });
+    const key = 'key';
+    const slotNumber = calculateSlot(key);
+    const moved = new ErrorReply(`MOVED ${slotNumber} 127.0.0.1:7001`);
+
+    const client = {
+      withCommandOptions() { return this; },
+      _executePipeline: async (): Promise<Array<unknown>> => {
+        throw moved;
+      }
+    };
+
+    cluster._slots.getClientAndSlotNumber = async () => ({
+      client: client as never,
+      slotNumber
+    });
+    cluster._slots.rediscover = async () => {
+      throw new Error('Cluster closed');
+    };
+
+    await assert.rejects(
+      cluster.multi().get(key).execAsPipeline(),
+      error => error === moved
+    );
+  });
+
+  it('does not refresh the slot map after ASK in a pipeline', async () => {
+    const cluster = RedisCluster.create({ rootNodes: [] });
+    const key = 'key';
+    const slotNumber = calculateSlot(key);
+    let rediscoveries = 0;
+
+    const client = {
+      withCommandOptions() { return this; },
+      _executePipeline: async (): Promise<Array<unknown>> => {
+        throw new ErrorReply(`ASK ${slotNumber} 127.0.0.1:7001`);
+      }
+    };
+
+    cluster._slots.getClientAndSlotNumber = async () => ({
+      client: client as never,
+      slotNumber
+    });
+    cluster._slots.rediscover = async () => {
+      rediscoveries++;
+    };
+
+    await assert.rejects(
+      cluster.multi().get(key).execAsPipeline(),
+      error => error instanceof ErrorReply && error.message.startsWith('ASK')
+    );
     assert.equal(rediscoveries, 0);
   });
 });

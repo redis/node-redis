@@ -848,7 +848,14 @@ export default class RedisCluster<
       },
       async (firstKey, isReadonly, commands) => {
         const { client, slotNumber } = await this._self._slots.getClientAndSlotNumber(firstKey, isReadonly);
-        return client.withCommandOptions(batchOptions)._executePipeline(commands, undefined, slotNumber);
+        try {
+          return await client.withCommandOptions(batchOptions)._executePipeline(commands, undefined, slotNumber);
+        } catch (err) {
+          if (err instanceof ErrorReply && err.message.startsWith('MOVED')) {
+            await this._self._slots.rediscover(client).catch(() => {});
+          }
+          throw err;
+        }
       },
       routing,
       this._commandOptions?.typeMapping,
