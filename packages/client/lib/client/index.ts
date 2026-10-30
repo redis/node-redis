@@ -1986,6 +1986,11 @@ export default class RedisClient<
 
     if (!this._self.#socket.isOpen) {
       return Promise.reject(new ClientClosedError());
+    } else if (
+      !this._self.#socket.isReady &&
+      this._self.#options.disableOfflineQueue
+    ) {
+      return Promise.reject(new ClientOfflineError());
     }
 
     const batchSize = commands.length;
@@ -2057,6 +2062,14 @@ export default class RedisClient<
     // Checked before the WATCH state is consumed, so a rejected batch keeps it.
     if (!this._self.#queue.hasCapacity(commands.length + 2)) {
       throw new Error('The queue is full');
+    }
+
+    if (
+      this._self.#socket.isOpen &&
+      !this._self.#socket.isReady &&
+      this._self.#options.disableOfflineQueue
+    ) {
+      throw new ClientOfflineError();
     }
 
     const dirtyWatch = this._self.#dirtyWatch;
