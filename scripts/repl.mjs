@@ -34,6 +34,6 @@ console.log(`Connected to ${url}. Use \`client\`, e.g. await client.ping()`);
 const server = repl.start('redis> ');
 server.context.client = client;
 server.on('exit', async () => {
-  await client.close();
+  client.destroy();
   process.exit();
 });
