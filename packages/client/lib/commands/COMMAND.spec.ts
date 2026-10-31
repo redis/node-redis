@@ -2,6 +2,7 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import { parseArgs, transformCommandReply, transformKeySpec, CommandFlags, CommandCategories, CommandRawReply } from './generic-transformers';
 import COMMAND from './COMMAND';
+import { RESP_TYPES } from '../RESP/decoder';
 
 describe('COMMAND', () => {
   it('transformArguments', () => {
@@ -209,6 +210,30 @@ describe('COMMAND', () => {
           keySpecs: [],
           subcommands: []
         }
+      },
+      {
+        // { [RESP_TYPES.BLOB_STRING]: Buffer } delivers every tip as a Buffer
+        name: 'with Buffer tips',
+        input: ['info', -1, [], 0, 0, 0, [], [
+          Buffer.from('nondeterministic_output'),
+          Buffer.from('request_policy:all_shards'),
+          Buffer.from('response_policy:special')
+        ], [], []] as unknown as CommandRawReply,
+        expected: {
+          name: 'info',
+          arity: -1,
+          flags: new Set([]),
+          firstKeyIndex: 0,
+          lastKeyIndex: 0,
+          step: 0,
+          categories: new Set([]),
+          policies: { request: 'all_shards', response: 'special' },
+          isKeyless: true,
+          nondeterministicOutput: true,
+          tips: ['nondeterministic_output'],
+          keySpecs: [],
+          subcommands: []
+        }
       }
     ];
 
@@ -295,6 +320,17 @@ describe('COMMAND', () => {
       }
     ];
 
+    // With { [RESP_TYPES.BLOB_STRING]: Buffer } every bulk string is a Buffer,
+    // except RESP3 map keys, which the decoder always turns into strings.
+    function withBuffers(value: unknown): unknown {
+      if (typeof value === 'string') return Buffer.from(value);
+      if (Array.isArray(value)) return value.map(withBuffers);
+      if (value !== null && typeof value === 'object') {
+        return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, withBuffers(item)]));
+      }
+      return value;
+    }
+
     testCases.forEach(testCase => {
       it(`${testCase.name} - RESP3 shape`, () => {
         assert.deepEqual(transformKeySpec(testCase.resp3), testCase.expected);
@@ -302,6 +338,14 @@ describe('COMMAND', () => {
 
       it(`${testCase.name} - RESP2 shape`, () => {
         assert.deepEqual(transformKeySpec(testCase.resp2), testCase.expected);
+      });
+
+      it(`${testCase.name} - RESP3 shape with Buffer strings`, () => {
+        assert.deepEqual(transformKeySpec(withBuffers(testCase.resp3)), testCase.expected);
+      });
+
+      it(`${testCase.name} - RESP2 shape with Buffer strings`, () => {
+        assert.deepEqual(transformKeySpec(withBuffers(testCase.resp2)), testCase.expected);
       });
     });
 
@@ -336,6 +380,18 @@ describe('COMMAND', () => {
     assert.deepEqual(mset?.keySpecs, [{
       beginSearch: { type: 'index', index: 1 },
       findKeys: { type: 'range', lastKey: -1, keyStep: 2, limit: 0 }
+    }]);
+  }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.commandInfo with a Buffer type mapping', async client => {
+    const [dbsize, set] = await client
+      .withTypeMapping({ [RESP_TYPES.BLOB_STRING]: Buffer })
+      .commandInfo(['dbsize', 'set']);
+
+    assert.deepEqual(dbsize?.policies, { request: 'all_shards', response: 'agg_sum' });
+    assert.deepEqual(set?.keySpecs, [{
+      beginSearch: { type: 'index', index: 1 },
+      findKeys: { type: 'range', lastKey: 0, keyStep: 1, limit: 0 }
     }]);
   }, GLOBAL.SERVERS.OPEN);
 });

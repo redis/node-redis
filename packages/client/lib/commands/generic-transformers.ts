@@ -402,8 +402,8 @@ function normalizeKeySpecMap(raw: unknown): Record<string, unknown> | undefined 
   const normalized: Record<string, unknown> = {};
   for (let i = 0; i < raw.length; i += 2) {
     const field = raw[i];
-    if (typeof field !== 'string') return undefined;
-    normalized[field] = raw[i + 1];
+    if (typeof field !== 'string' && !(field instanceof Buffer)) return undefined;
+    normalized[field.toString()] = raw[i + 1];
   }
   return normalized;
 }
@@ -420,7 +420,7 @@ function transformBeginSearch(raw: unknown): KeySpec['beginSearch'] {
   const spec = normalizeKeySpecMap(beginSearch?.spec);
   if (!beginSearch || !spec) return UNKNOWN_KEY_SPEC_PART;
 
-  switch (beginSearch.type) {
+  switch (String(beginSearch.type)) {
     case 'index': {
       const index = transformNumber(spec.index);
       if (index !== undefined) return { type: 'index', index };
@@ -428,8 +428,9 @@ function transformBeginSearch(raw: unknown): KeySpec['beginSearch'] {
     }
     case 'keyword': {
       const startFrom = transformNumber(spec.startfrom);
-      if (typeof spec.keyword === 'string' && startFrom !== undefined) {
-        return { type: 'keyword', keyword: spec.keyword, startFrom };
+      const keyword = spec.keyword;
+      if ((typeof keyword === 'string' || keyword instanceof Buffer) && startFrom !== undefined) {
+        return { type: 'keyword', keyword: keyword.toString(), startFrom };
       }
       break;
     }
@@ -442,7 +443,7 @@ function transformFindKeys(raw: unknown): KeySpec['findKeys'] {
   const spec = normalizeKeySpecMap(findKeys?.spec);
   if (!findKeys || !spec) return UNKNOWN_KEY_SPEC_PART;
 
-  switch (findKeys.type) {
+  switch (String(findKeys.type)) {
     case 'range': {
       const lastKey = transformNumber(spec.lastkey),
         keyStep = transformNumber(spec.keystep),
@@ -499,7 +500,8 @@ export function transformCommandReply(
   // nondeterministic_output, ...). The policy tips are captured separately.
   const otherTips: Array<string> = [];
 
-  for (const tip of tips) {
+  for (const rawTip of tips) {
+    const tip = rawTip.toString();
     if (tip.startsWith('request_policy:')) {
       const raw = tip.slice('request_policy:'.length);
       if ((Object.values(REQUEST_POLICIES_WITH_DEFAULTS) as string[]).includes(raw)) {
