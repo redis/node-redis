@@ -212,13 +212,17 @@ describe('Socket', () => {
           }
         });
 
+        // The no-op initiator lets the client turn ready before the server
+        // accepts, so wait for the server side of the connection too.
+        const accepted = once(server, 'connection');
         await socket.connect();
         assert.equal(socket.isReady, true, 'socket.isReady');
+        const [conn] = await accepted as [net.Socket];
 
         // Close before destroying so reconnects fail with ECONNREFUSED rather
         // than briefly succeeding (initiator microtask beats the server RST).
         server.close();
-        connections[0].destroy();
+        conn.destroy();
 
         await new Promise<void>(resolve => socket.once('terminated', () => resolve()));
 
