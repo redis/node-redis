@@ -44,10 +44,16 @@ export default class RedisMultiCommand {
     const redisArgs: CommandArguments = [];
     redisArgs.preserve = args.preserve;
     if (this.scriptsInUse.has(script.SHA1)) {
-      redisArgs.push('EVALSHA', script.SHA1);
+      redisArgs.push(
+        script.IS_READ_ONLY ? 'EVALSHA_RO' : 'EVALSHA',
+        script.SHA1
+      );
     } else {
       this.scriptsInUse.add(script.SHA1);
-      redisArgs.push('EVAL', script.SCRIPT);
+      redisArgs.push(
+        script.IS_READ_ONLY ? 'EVAL_RO' : 'EVAL',
+        script.SCRIPT
+      );
     }
 
     if (script.NUMBER_OF_KEYS !== undefined) {

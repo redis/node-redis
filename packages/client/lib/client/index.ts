@@ -1725,7 +1725,9 @@ export default class RedisClient<
     } catch (err) {
       if (!(err as Error)?.message?.startsWith?.('NOSCRIPT')) throw err;
 
-      args[0] = 'EVAL';
+      // Keep the RO family when the script is read-only so ACL users with only
+      // EVAL_RO/EVALSHA_RO can load the script on first use (#3563).
+      args[0] = script.IS_READ_ONLY ? 'EVAL_RO' : 'EVAL';
       args[1] = script.SCRIPT;
       reply = await this.sendCommand(args, options);
     }
