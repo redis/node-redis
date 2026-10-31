@@ -3,6 +3,7 @@ import testUtils, { GLOBAL } from '../test-utils';
 import { defineScript } from '../lua-script';
 import { BlobStringReply, NumberReply } from '../RESP/types';
 import { CommandParser } from './parser';
+import { createClient } from '../../index';
 
 const READ_ONLY_GET_SCRIPT = defineScript({
   SCRIPT: `return redis.call('GET', KEYS[1])`,
@@ -68,7 +69,10 @@ describe('read-only scripts with EVAL_RO ACL (#3563)', () => {
     await admin.set('k', 'v');
     await admin.scriptFlush();
 
-    const client = await admin.duplicate({
+    // Scripts are bound at client-class creation time; duplicate() does not attach them.
+    const client = await createClient({
+      socket: admin.options.socket,
+      RESP: admin.options.RESP,
       username,
       password: 'pw',
       scripts: {
@@ -117,7 +121,9 @@ describe('read-only scripts with EVAL_RO ACL (#3563)', () => {
     await admin.set('n', '3');
     await admin.scriptFlush();
 
-    const client = await admin.duplicate({
+    const client = await createClient({
+      socket: admin.options.socket,
+      RESP: admin.options.RESP,
       username,
       password: 'pw',
       scripts: {
