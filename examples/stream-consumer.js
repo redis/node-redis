@@ -2,7 +2,7 @@
 // https://redis.io/commands/xread/
 // This consumes entries from a stream created by stream-producer.js
 
-import { createClient, commandOptions } from 'redis';
+import { createClient } from 'redis';
 
 const client = createClient();
 
@@ -10,12 +10,12 @@ await client.connect();
 
 let currentId = '0-0'; // Start at lowest possible stream ID
 
+const pool = await client.createPool().connect();
+
 while (true) {
   try {
-    let response = await client.xRead(
-      commandOptions({
-        isolated: true
-      }), [
+    let response = await pool.xRead(
+      [
         // XREAD can read from multiple streams, starting at a
         // different ID for each...
         {

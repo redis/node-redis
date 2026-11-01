@@ -16,7 +16,8 @@ You can create a pool using the `createClientPool` function:
 import { createClientPool } from 'redis';
 
 const pool = await createClientPool()
-  .on('error', err => console.error('Redis Client Pool Error', err));
+  .on('error', err => console.error('Redis Client Pool Error', err))
+  .connect();
 ```
 
 The function accepts two arguments, the client configuration (see [here](./client-configuration.md) for more details), and the pool configuration:
@@ -31,7 +32,8 @@ The function accepts two arguments, the client configuration (see [here](./clien
 You can also create a pool from a client (reusing its configuration):
 ```javascript
 const pool = await client.createPool()
-  .on('error', err => console.error('Redis Client Pool Error', err));
+  .on('error', err => console.error('Redis Client Pool Error', err))
+  .connect();
 ```
 
 ## The Simple Scenario
