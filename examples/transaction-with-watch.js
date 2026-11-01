@@ -32,7 +32,10 @@ async function transaction() {
   } catch (error) {
     if (error instanceof WatchError) {
       console.log('Transaction Failed Due To Concurrent Modification!');
-      fn();
+      if (!fn()) {
+        client.quit();
+        pool.close();
+      }
     } else {
       console.log(`Error: ${error}`);
       client.quit();
