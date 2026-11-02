@@ -13,7 +13,7 @@ function restrictFunctionCalls(fn, maxCalls) {
 
 const fn = restrictFunctionCalls(transaction, 4);
 
-const pool = await client.createPool();
+const pool = await client.createPool().connect();
 
 async function transaction() {
   try {
@@ -27,14 +27,19 @@ async function transaction() {
       await multi.exec();
       console.log('Transaction completed Successfully!');
       client.quit();
+      pool.close();
     });
   } catch (error) {
     if (error instanceof WatchError) {
       console.log('Transaction Failed Due To Concurrent Modification!');
-      fn();
+      if (!fn()) {
+        client.quit();
+        pool.close();
+      }
     } else {
       console.log(`Error: ${error}`);
       client.quit();
+      pool.close();
     }
   }
 }

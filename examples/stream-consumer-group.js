@@ -40,13 +40,13 @@ try {
     MKSTREAM: true
   });
   console.log('Created consumer group.');
-} catch (e) {
+} catch {
   console.log('Consumer group already exists, skipped creation.');
 }
 
 console.log(`Starting consumer ${consumerName}.`);
 
-const pool = client.createPool();
+const pool = await client.createPool().connect();
 
 while (true) {
   try {
