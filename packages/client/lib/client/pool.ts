@@ -258,6 +258,9 @@ export class RedisClientPool<
   // members whose reconnect strategy gave up: closed for good, so replaced instead of reused
   readonly #terminated = new WeakSet<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>();
 
+  // members destroy() tore down while in use: their nodes belong to the lists it reset
+  readonly #destroyed = new WeakSet<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>();
+
   /**
    * The number of tasks waiting for a client to become available.
    */
@@ -571,7 +574,8 @@ export class RedisClientPool<
   }
 
   #returnClient(node: DoublyLinkedNode<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>) {
-    if (this.#terminated.has(node.value)) {
+    const destroyed = this.#destroyed.has(node.value);
+    if (this.#terminated.has(node.value) && !destroyed) {
       this.#clientsInUse.remove(node);
       node.value.destroy();
       if (this.#tasksQueue.length > 0) {
@@ -590,6 +594,8 @@ export class RedisClientPool<
       this.#executeTask(node, task.resolve, task.reject, task.fn);
       return;
     }
+
+    if (destroyed) return;
 
     this.#clientsInUse.remove(node);
     this.#idleClients.push(node.value);
@@ -737,6 +743,7 @@ export class RedisClientPool<
     this._self.#idleClients.reset();
 
     for (const client of this._self.#clientsInUse) {
+      this._self.#destroyed.add(client);
       client.destroy();
     }
 

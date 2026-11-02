@@ -192,6 +192,49 @@ describe('RedisClientPool', () => {
     assert.equal(pool.isOpen, false, 'isOpen should be false after destroy');
   }, GLOBAL.SERVERS.OPEN);
 
+  describe('connect after destroy with tasks in flight', () => {
+    // Regression: a task that settled after destroy() put its destroyed member back in the pool, so
+    // after connect() the pool held more members than maximum and kept handing out the dead ones.
+    function runTwoTasks(pool: { execute(fn: () => Promise<void>): Promise<void> }) {
+      let release!: () => void;
+      const settled = new Promise<void>(resolve => release = resolve);
+      const tasks = Promise.all([pool.execute(() => settled), pool.execute(() => settled)]);
+      return { release, tasks };
+    }
+
+    testUtils.testWithClientPool('does not reuse the destroyed members once their tasks settle', async pool => {
+      const { release, tasks } = runTwoTasks(pool);
+      pool.destroy();
+      release();
+      await tasks;
+      await pool.connect();
+
+      for (let i = 0; i < 6; i++) {
+        assert.equal(await pool.ping(), 'PONG');
+      }
+      assert.equal(pool.totalClients, 2);
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      poolOptions: { minimum: 2, maximum: 2 }
+    });
+
+    testUtils.testWithClientPool('does not reuse the destroyed members when their tasks settle after connect', async pool => {
+      const { release, tasks } = runTwoTasks(pool);
+      pool.destroy();
+      await pool.connect();
+      release();
+      await tasks;
+
+      for (let i = 0; i < 6; i++) {
+        assert.equal(await pool.ping(), 'PONG');
+      }
+      assert.equal(pool.totalClients, 2);
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      poolOptions: { minimum: 2, maximum: 2 }
+    });
+  });
+
   testUtils.testWithClientPool('close rejects and clears the pool when a client is already closed', async pool => {
     let cacheClosed = false;
     pool.clientSideCache!.onPoolClose = () => {
@@ -787,6 +830,19 @@ describe('RedisClientPool', () => {
       });
 
       await closing;
+      assert.equal(pool.totalClients, 0);
+    }, options);
+
+    testUtils.testWithClientPool('is not replaced once the pool is destroyed', async pool => {
+      pool.on('error', () => {});
+      const killed = pool.execute(async client => {
+        await killConnection(client);
+        pool.destroy();
+      });
+      const queued = pool.execute(client => client.ping());
+      await killed;
+
+      await assert.rejects(queued, ClientClosedError);
       assert.equal(pool.totalClients, 0);
     }, options);
   });
