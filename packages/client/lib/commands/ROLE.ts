@@ -46,7 +46,8 @@ export default {
    * @returns Structured object representing role information
    */
   transformReply(reply: UnwrapReply<Role>) {
-    switch (reply[0] as unknown as UnwrapReply<typeof reply[0]>) {
+    // Role name may be a Buffer when BLOB_STRING is type-mapped (#3565).
+    switch (String(reply[0] as unknown as UnwrapReply<typeof reply[0]>)) {
       case 'master': {
         const [role, replicationOffest, replicas] = reply as MasterRole;
         return {

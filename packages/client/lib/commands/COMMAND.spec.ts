@@ -2,6 +2,7 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import { parseArgs, transformCommandReply, transformKeySpec, CommandFlags, CommandCategories, CommandRawReply } from './generic-transformers';
 import COMMAND from './COMMAND';
+import { RESP_TYPES } from '../RESP/decoder';
 
 describe('COMMAND', () => {
   it('transformArguments', () => {
@@ -220,6 +221,77 @@ describe('COMMAND', () => {
         );
       });
     });
+
+    it('accepts Buffer tips from a BLOB_STRING type mapping', () => {
+      const reply = transformCommandReply([
+        Buffer.from('dbsize'),
+        1,
+        [],
+        0,
+        0,
+        0,
+        [],
+        [Buffer.from('request_policy:all_shards'), Buffer.from('response_policy:agg_sum')],
+        [],
+        []
+      ] as unknown as CommandRawReply);
+
+      assert.equal(reply.name, 'dbsize');
+      assert.deepEqual(reply.policies, {
+        request: 'all_shards',
+        response: 'agg_sum'
+      });
+    });
+
+    it('accepts Map key specifications from a MAP type mapping', () => {
+      const reply = transformCommandReply([
+        'mset',
+        -3,
+        [],
+        1,
+        -1,
+        2,
+        [],
+        [],
+        [new Map<string, unknown>([
+          ['begin_search', new Map<string, unknown>([
+            ['type', 'index'],
+            ['spec', new Map([['index', 1]])]
+          ])],
+          ['find_keys', new Map<string, unknown>([
+            ['type', 'range'],
+            ['spec', new Map([['lastkey', -1], ['keystep', 2], ['limit', 0]])]
+          ])]
+        ])],
+        []
+      ] as unknown as CommandRawReply);
+
+      assert.deepEqual(reply.keySpecs, [{
+        beginSearch: { type: 'index', index: 1 },
+        findKeys: { type: 'range', lastKey: -1, keyStep: 2, limit: 0 }
+      }]);
+    });
+
+    it('accepts Set subcommands from a SET type mapping', () => {
+      const child = [
+        'get', 2, [], 1, 1, 1, [], [], [], []
+      ] satisfies CommandRawReply;
+      const reply = transformCommandReply([
+        'command',
+        -1,
+        [],
+        0,
+        0,
+        0,
+        [],
+        [],
+        [],
+        new Set([child])
+      ] as unknown as CommandRawReply);
+
+      assert.equal(reply.subcommands.length, 1);
+      assert.equal(reply.subcommands[0].name, 'get');
+    });
   });
 
   describe('transformKeySpec', () => {
@@ -337,5 +409,48 @@ describe('COMMAND', () => {
       beginSearch: { type: 'index', index: 1 },
       findKeys: { type: 'range', lastKey: -1, keyStep: 2, limit: 0 }
     }]);
+  }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.command with BLOB_STRING Buffer mapping', async client => {
+    const [set] = await client.withTypeMapping({
+      [RESP_TYPES.BLOB_STRING]: Buffer
+    }).commandInfo(['set']);
+
+    assert.equal(set?.name, 'set');
+    assert.notDeepEqual(set?.keySpecs, [{
+      beginSearch: { type: 'unknown' },
+      findKeys: { type: 'unknown' }
+    }]);
+    assert.equal(set?.keySpecs[0]?.beginSearch.type, 'index');
+  }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.command with BLOB_STRING Buffer mapping (RESP2)', async client => {
+    const [set] = await client.withTypeMapping({
+      [RESP_TYPES.BLOB_STRING]: Buffer
+    }).commandInfo(['set']);
+
+    assert.equal(set?.name, 'set');
+    assert.notDeepEqual(set?.keySpecs, [{
+      beginSearch: { type: 'unknown' },
+      findKeys: { type: 'unknown' }
+    }]);
+    assert.equal(set?.keySpecs[0]?.beginSearch.type, 'index');
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    clientOptions: {
+      ...GLOBAL.SERVERS.OPEN.clientOptions,
+      RESP: 2
+    }
+  });
+
+  testUtils.testWithClient('client.command with MAP and SET mappings (RESP3)', async client => {
+    const [set] = await client.withTypeMapping({
+      [RESP_TYPES.MAP]: Map,
+      [RESP_TYPES.SET]: Set
+    }).commandInfo(['set']);
+
+    assert.equal(set?.name, 'set');
+    assert.equal(set?.keySpecs[0]?.beginSearch.type, 'index');
+    assert.ok(Array.isArray(set?.subcommands));
   }, GLOBAL.SERVERS.OPEN);
 });

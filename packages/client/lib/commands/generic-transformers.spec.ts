@@ -121,6 +121,20 @@ describe('Generic Transformers', () => {
             );
         });
 
+        it('string "1" from NUMBER type mapping', () => {
+            assert.equal(
+                transformBooleanReply[2]('1' as unknown as NumberReply<0|1>),
+                true
+            );
+        });
+
+        it('string "0" from NUMBER type mapping', () => {
+            assert.equal(
+                transformBooleanReply[2]('0' as unknown as NumberReply<0|1>),
+                false
+            );
+        });
+
     });
 
     describe('transformBooleanArrayReply', () => {
