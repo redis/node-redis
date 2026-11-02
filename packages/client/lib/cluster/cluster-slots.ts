@@ -393,14 +393,12 @@ export default class RedisClusterSlots<
         this.pubSubNode = undefined;
 
         if (channelsListeners.size || patternsListeners.size) {
-          const initPromise = this.#initiatePubSubClient({
-            [PUBSUB_TYPE.CHANNELS]: channelsListeners,
-            [PUBSUB_TYPE.PATTERNS]: patternsListeners
-          });
-          const capturedPubSubNode = this.pubSubNode;
           promises.push(
-            initPromise.catch(err => {
-              if (err instanceof ClientClosedError && this.pubSubNode !== capturedPubSubNode) return;
+            this.#initiatePubSubClient({
+              [PUBSUB_TYPE.CHANNELS]: channelsListeners,
+              [PUBSUB_TYPE.PATTERNS]: patternsListeners
+            }).catch(err => {
+              if (err instanceof ClientClosedError && this.#isOpen) return;
               throw err;
             })
           );
