@@ -4,6 +4,8 @@ import ROLE from './ROLE';
 import { parseArgs } from './generic-transformers';
 import { RESP_TYPES } from '../RESP/decoder';
 
+type RoleReply = Parameters<typeof ROLE.transformReply>[0];
+
 describe('ROLE', () => {
   it('transformArguments', () => {
     assert.deepEqual(
@@ -15,7 +17,7 @@ describe('ROLE', () => {
   describe('transformReply', () => {
     it('master', () => {
       assert.deepEqual(
-        ROLE.transformReply(['master', 3129659, [['127.0.0.1', '9001', '3129242'], ['127.0.0.1', '9002', '3129543']]] as any),
+        ROLE.transformReply(['master', 3129659, [['127.0.0.1', '9001', '3129242'], ['127.0.0.1', '9002', '3129543']]] as unknown as RoleReply),
         {
           role: 'master',
           replicationOffest: 3129659,
@@ -34,7 +36,7 @@ describe('ROLE', () => {
 
     it('replica', () => {
       assert.deepEqual(
-        ROLE.transformReply(['slave', '127.0.0.1', 9000, 'connected', 3167038] as any),
+        ROLE.transformReply(['slave', '127.0.0.1', 9000, 'connected', 3167038] as unknown as RoleReply),
         {
           role: 'slave',
           master: {
@@ -49,7 +51,7 @@ describe('ROLE', () => {
 
     it('sentinel', () => {
       assert.deepEqual(
-        ROLE.transformReply(['sentinel', ['resque-master', 'html-fragments-master', 'stats-master', 'metadata-master']] as any),
+        ROLE.transformReply(['sentinel', ['resque-master', 'html-fragments-master', 'stats-master', 'metadata-master']] as unknown as RoleReply),
         {
           role: 'sentinel',
           masterNames: ['resque-master', 'html-fragments-master', 'stats-master', 'metadata-master']
@@ -59,7 +61,7 @@ describe('ROLE', () => {
 
     it('master with Buffer role from BLOB_STRING type mapping', () => {
       assert.deepEqual(
-        ROLE.transformReply([Buffer.from('master'), 0, []] as any),
+        ROLE.transformReply([Buffer.from('master'), 0, []] as unknown as RoleReply),
         {
           role: Buffer.from('master'),
           replicationOffest: 0,
