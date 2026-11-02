@@ -2,6 +2,7 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import ROLE from './ROLE';
 import { parseArgs } from './generic-transformers';
+import { RESP_TYPES } from '../RESP/decoder';
 
 describe('ROLE', () => {
   it('transformArguments', () => {
@@ -55,6 +56,17 @@ describe('ROLE', () => {
         }
       );
     });
+
+    it('master with Buffer role from BLOB_STRING type mapping', () => {
+      assert.deepEqual(
+        ROLE.transformReply([Buffer.from('master'), 0, []] as any),
+        {
+          role: Buffer.from('master'),
+          replicationOffest: 0,
+          replicas: []
+        }
+      );
+    });
   });
 
   testUtils.testWithClient('client.role', async client => {
@@ -66,5 +78,15 @@ describe('ROLE', () => {
         replicas: []
       }
     );
+  }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.role with BLOB_STRING Buffer mapping', async client => {
+    const reply = await client.withTypeMapping({
+      [RESP_TYPES.BLOB_STRING]: Buffer
+    }).role();
+    assert.ok(Buffer.isBuffer(reply.role));
+    assert.equal(reply.role.toString(), 'master');
+    assert.equal(reply.replicationOffest, 0);
+    assert.deepEqual(reply.replicas, []);
   }, GLOBAL.SERVERS.OPEN);
 });

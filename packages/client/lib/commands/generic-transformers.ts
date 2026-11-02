@@ -2,6 +2,7 @@ import { BasicCommandParser, CommandParser } from '../client/parser';
 import { REQUEST_POLICIES_WITH_DEFAULTS, RequestPolicyWithDefaults, RESPONSE_POLICIES_WITH_DEFAULTS, ResponsePolicyWithDefaults } from '../command-metadata/policies-constants';
 import { RESP_TYPES } from '../RESP/decoder';
 import { UnwrapReply, ArrayReply, BlobStringReply, BooleanReply, CommandArguments, DoubleReply, NullReply, NumberReply, RedisArgument, ReplyUnion, TuplesReply, MapReply, TypeMapping, Command } from '../RESP/types';
+import { keyToString, mapLikeToObject } from './reply-utils';
 
 export function isNullReply(reply: unknown): reply is NullReply {
   return reply === null;
@@ -12,7 +13,8 @@ export function isArrayReply(reply: unknown): reply is ArrayReply<unknown> {
 }
 
 export const transformBooleanReply = {
-  2: (reply: NumberReply<0 | 1>) => reply as unknown as UnwrapReply<typeof reply> === 1,
+  // Coerce so NUMBER→String mappings (`'1'` / `'0'`) still parse as booleans (#3565).
+  2: (reply: NumberReply<0 | 1>) => Number(reply as unknown as UnwrapReply<typeof reply>) === 1,
   3: undefined as unknown as () => BooleanReply
 };
 
@@ -390,22 +392,31 @@ export type CommandReply = {
 /**
  * Normalizes one map-shaped level of a key specification to the RESP3 object
  * shape. RESP3 already delivers objects; RESP2 delivers the same data as flat
- * `[field, value, ...]` pair arrays.
+ * `[field, value, ...]` pair arrays. Also accepts `Map` (and Buffer keys) when
+ * a type mapping is set (#3565).
  */
 function normalizeKeySpecMap(raw: unknown): Record<string, unknown> | undefined {
   if (raw === null || typeof raw !== 'object') return undefined;
 
-  if (!Array.isArray(raw)) return raw as Record<string, unknown>;
-
-  if (raw.length % 2 !== 0) return undefined;
-
-  const normalized: Record<string, unknown> = {};
-  for (let i = 0; i < raw.length; i += 2) {
-    const field = raw[i];
-    if (typeof field !== 'string') return undefined;
-    normalized[field] = raw[i + 1];
+  if (Array.isArray(raw) && raw.length % 2 !== 0) {
+    // Preserve the previous "malformed flat array → unknown" contract used by
+    // transformKeySpec tests, unless the array is tuple-shaped.
+    if (!raw.every(item => Array.isArray(item) && item.length >= 2)) {
+      return undefined;
+    }
   }
-  return normalized;
+
+  return mapLikeToObject(raw);
+}
+
+/**
+ * Tips / subcommands / key-specs may arrive as arrays or RESP3 sets depending
+ * on type mapping.
+ */
+function asArrayList(value: unknown): Array<unknown> {
+  if (Array.isArray(value)) return value;
+  if (value instanceof Set) return [...value];
+  return [];
 }
 
 function transformNumber(raw: unknown): number | undefined {
@@ -420,7 +431,8 @@ function transformBeginSearch(raw: unknown): KeySpec['beginSearch'] {
   const spec = normalizeKeySpecMap(beginSearch?.spec);
   if (!beginSearch || !spec) return UNKNOWN_KEY_SPEC_PART;
 
-  switch (beginSearch.type) {
+  // `type` / `keyword` may be Buffers under a BLOB_STRING mapping (#3565).
+  switch (keyToString(beginSearch.type)) {
     case 'index': {
       const index = transformNumber(spec.index);
       if (index !== undefined) return { type: 'index', index };
@@ -428,8 +440,9 @@ function transformBeginSearch(raw: unknown): KeySpec['beginSearch'] {
     }
     case 'keyword': {
       const startFrom = transformNumber(spec.startfrom);
-      if (typeof spec.keyword === 'string' && startFrom !== undefined) {
-        return { type: 'keyword', keyword: spec.keyword, startFrom };
+      const keyword = spec.keyword == null ? '' : keyToString(spec.keyword);
+      if (keyword !== '' && startFrom !== undefined) {
+        return { type: 'keyword', keyword, startFrom };
       }
       break;
     }
@@ -442,7 +455,7 @@ function transformFindKeys(raw: unknown): KeySpec['findKeys'] {
   const spec = normalizeKeySpecMap(findKeys?.spec);
   if (!findKeys || !spec) return UNKNOWN_KEY_SPEC_PART;
 
-  switch (findKeys.type) {
+  switch (keyToString(findKeys.type)) {
     case 'range': {
       const lastKey = transformNumber(spec.lastkey),
         keyStep = transformNumber(spec.keystep),
@@ -499,43 +512,52 @@ export function transformCommandReply(
   // nondeterministic_output, ...). The policy tips are captured separately.
   const otherTips: Array<string> = [];
 
-  for (const tip of tips) {
-    if (tip.startsWith('request_policy:')) {
-      const raw = tip.slice('request_policy:'.length);
+  for (const tip of asArrayList(tips)) {
+    // Tips may be Buffers when BLOB_STRING is mapped (#3565).
+    const tipStr = keyToString(tip);
+    if (tipStr.startsWith('request_policy:')) {
+      const raw = tipStr.slice('request_policy:'.length);
       if ((Object.values(REQUEST_POLICIES_WITH_DEFAULTS) as string[]).includes(raw)) {
         requestPolicy = raw as RequestPolicyWithDefaults;
       }
-    } else if (tip.startsWith('response_policy:')) {
-      const raw = tip.slice('response_policy:'.length);
+    } else if (tipStr.startsWith('response_policy:')) {
+      const raw = tipStr.slice('response_policy:'.length);
       if ((Object.values(RESPONSE_POLICIES_WITH_DEFAULTS) as string[]).includes(raw)) {
         responsePolicy = raw as ResponsePolicyWithDefaults;
       }
     } else {
-      otherTips.push(tip);
-      if (tip === 'nondeterministic_output') {
+      otherTips.push(tipStr);
+      if (tipStr === 'nondeterministic_output') {
         nondeterministicOutput = true;
       }
     }
   }
 
-  const subcommands = subcommandsReply.map(transformCommandReply);
+  const keySpecsRaw = asArrayList(keySpecifications);
+  const subcommands = asArrayList(subcommandsReply).map(
+    subcommand => transformCommandReply(subcommand as CommandRawReply)
+  );
 
   return {
-    name,
+    name: keyToString(name),
     arity,
-    flags: new Set(flags),
+    flags: new Set(
+      asArrayList(flags).map(flag => keyToString(flag) as CommandFlags)
+    ),
     firstKeyIndex,
     lastKeyIndex,
     step,
-    categories: new Set(categories),
+    categories: new Set(
+      asArrayList(categories).map(category => keyToString(category) as CommandCategories)
+    ),
     policies: {
       request: requestPolicy,
       response: responsePolicy
     },
-    isKeyless: keySpecifications.length === 0,
+    isKeyless: keySpecsRaw.length === 0,
     nondeterministicOutput,
     tips: otherTips,
-    keySpecs: keySpecifications.map(transformKeySpec),
+    keySpecs: keySpecsRaw.map(transformKeySpec),
     subcommands
   };
 }
