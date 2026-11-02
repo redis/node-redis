@@ -42,6 +42,24 @@ describe('Multi Command', () => {
         ['EVALSHA', SQUARE_SCRIPT.SHA1, '2']
       );
     });
+
+    it('should use EVAL_RO and EVALSHA_RO for a read-only script', () => {
+      const multi = new RedisMultiCommand(),
+        script = {
+          ...SQUARE_SCRIPT,
+          IS_READ_ONLY: true
+        };
+
+      multi.addScript(script, ['1']);
+      multi.addScript(script, ['2']);
+      assert.deepEqual(
+        multi.queue.map(({ args }) => Array.from(args)),
+        [
+          ['EVAL_RO', SQUARE_SCRIPT.SCRIPT, '1', '1'],
+          ['EVALSHA_RO', SQUARE_SCRIPT.SHA1, '1', '2']
+        ]
+      );
+    });
   });
 
   describe('exec', () => {

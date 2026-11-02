@@ -1725,7 +1725,7 @@ export default class RedisClient<
     } catch (err) {
       if (!(err as Error)?.message?.startsWith?.('NOSCRIPT')) throw err;
 
-      args[0] = 'EVAL';
+      args[0] = script.IS_READ_ONLY ? 'EVAL_RO' : 'EVAL';
       args[1] = script.SCRIPT;
       reply = await this.sendCommand(args, options);
     }
