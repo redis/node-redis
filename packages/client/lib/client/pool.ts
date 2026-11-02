@@ -574,8 +574,10 @@ export class RedisClientPool<
   }
 
   #returnClient(node: DoublyLinkedNode<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>) {
-    const destroyed = this.#destroyed.has(node.value);
-    if (this.#terminated.has(node.value) && !destroyed) {
+    // destroy() already closed this member and reset the lists its node was in, so it takes no task
+    if (this.#destroyed.has(node.value)) return;
+
+    if (this.#terminated.has(node.value)) {
       this.#clientsInUse.remove(node);
       node.value.destroy();
       if (this.#tasksQueue.length > 0) {
@@ -594,8 +596,6 @@ export class RedisClientPool<
       this.#executeTask(node, task.resolve, task.reject, task.fn);
       return;
     }
-
-    if (destroyed) return;
 
     this.#clientsInUse.remove(node);
     this.#idleClients.push(node.value);
@@ -750,6 +750,15 @@ export class RedisClientPool<
     this._self.#clientSideCache?.onPoolClose();
 
     this._self.#clientsInUse.reset();
+    // a close() waiting for the members destroy() just closed has nothing left to drain
+    this._self.#drainResolve?.();
+
+    // the destroyed members take no more tasks, so the ones still waiting fail as they would have on them
+    let task;
+    while ((task = this._self.#tasksQueue.shift())) {
+      clearTimeout(task.timeout);
+      task.reject(new ClientClosedError());
+    }
 
     this._self.#isOpen = false;
   }

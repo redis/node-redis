@@ -233,6 +233,48 @@ describe('RedisClientPool', () => {
       ...GLOBAL.SERVERS.OPEN,
       poolOptions: { minimum: 2, maximum: 2 }
     });
+
+    testUtils.testWithClientPool('does not hand a waiter queued after connect to a destroyed member', async pool => {
+      let releaseOld!: () => void;
+      const oldTask = pool.execute(() => new Promise<void>(resolve => releaseOld = resolve));
+      pool.destroy();
+      await pool.connect();
+
+      let releaseNew!: () => void;
+      const newTask = pool.execute(() => new Promise<void>(resolve => releaseNew = resolve));
+      const waiter = pool.ping();
+      releaseOld();
+      await oldTask;
+      releaseNew();
+      await newTask;
+
+      assert.equal(await waiter, 'PONG');
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      poolOptions: { minimum: 1, maximum: 1 }
+    });
+
+    testUtils.testWithClientPool('settles a close() that destroy() interrupts', async pool => {
+      let release!: () => void;
+      const task = pool.execute(() => new Promise<void>(resolve => release = resolve));
+      const closing = pool.close();
+      // close() starts waiting for the in-use member on a later tick
+      await new Promise(resolve => setImmediate(resolve));
+      pool.destroy();
+      release();
+      await task;
+
+      let timer!: NodeJS.Timeout;
+      const timedOut = new Promise<string>(resolve => timer = setTimeout(() => resolve('timed out'), 1000));
+      try {
+        assert.equal(await Promise.race([closing.then(() => 'closed'), timedOut]), 'closed');
+      } finally {
+        clearTimeout(timer);
+      }
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      poolOptions: { minimum: 1, maximum: 1 }
+    });
   });
 
   testUtils.testWithClientPool('close rejects and clears the pool when a client is already closed', async pool => {
