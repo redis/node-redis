@@ -90,6 +90,12 @@ tip: see a real sample here: [samples/interactive-browser/index.ts](./samples/in
 
 The DefaultAzureCredential from @azure/identity provides a simplified authentication experience that automatically tries different authentication methods based on the environment. This is especially useful for applications that need to work in different environments (local development, CI/CD, and production).
 
+`@redis/entraid` does not install `@azure/identity`. Add it to your project:
+
+```bash
+npm install @azure/identity
+```
+
 ```typescript
 import { createClient } from '@redis/client';
 import { getDefaultAzureCredential } from '@azure/identity';
