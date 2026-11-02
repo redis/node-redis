@@ -96,6 +96,8 @@ The DefaultAzureCredential from @azure/identity provides a simplified authentica
 npm install @azure/identity
 ```
 
+Current `@azure/identity` releases need Node 22. On Node 20, install a release that supports it (4.13.1 or older).
+
 ```typescript
 import { createClient } from '@redis/client';
 import { getDefaultAzureCredential } from '@azure/identity';
