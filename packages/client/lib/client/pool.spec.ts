@@ -275,6 +275,53 @@ describe('RedisClientPool', () => {
       ...GLOBAL.SERVERS.OPEN,
       poolOptions: { minimum: 1, maximum: 1 }
     });
+
+    // Regression: the close() that destroy() interrupted still ran its cleanup after the connect() that
+    // followed, so the pool reported closed, and the next connect() opened members past maximum.
+    async function assertConnectedWithin(pool: {
+      isOpen: boolean;
+      isClosing: boolean;
+      totalClients: number;
+      ping(): Promise<unknown>;
+      connect(): Promise<unknown>;
+    }, maximum: number) {
+      assert.equal(pool.isOpen, true);
+      assert.equal(pool.isClosing, false);
+      assert.equal(await pool.ping(), 'PONG');
+      await pool.connect();
+      assert.equal(await pool.ping(), 'PONG');
+      assert.ok(pool.totalClients <= maximum, `${pool.totalClients} clients, maximum ${maximum}`);
+    }
+
+    testUtils.testWithClientPool('keeps the pool that connect() opens after destroy() interrupts a waiting close()', async pool => {
+      let release!: () => void;
+      const task = pool.execute(() => new Promise<void>(resolve => release = resolve));
+      const closing = pool.close();
+      // close() starts waiting for the in-use member on a later tick
+      await new Promise(resolve => setImmediate(resolve));
+      pool.destroy();
+      await pool.connect();
+      release();
+      await task;
+      await closing;
+
+      await assertConnectedWithin(pool, 2);
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      poolOptions: { minimum: 2, maximum: 2 }
+    });
+
+    testUtils.testWithClientPool('keeps the pool that connect() opens right after close() and destroy()', async pool => {
+      const closing = pool.close();
+      pool.destroy();
+      await pool.connect();
+      await closing;
+
+      await assertConnectedWithin(pool, 2);
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      poolOptions: { minimum: 2, maximum: 2 }
+    });
   });
 
   testUtils.testWithClientPool('close rejects and clears the pool when a client is already closed', async pool => {

@@ -296,6 +296,12 @@ export class RedisClientPool<
    */
   #closePromise?: Promise<void>;
 
+  /**
+   * Bumped by destroy(). A close() started before it sees the change and leaves
+   * the pool alone, so its cleanup cannot undo a connect() that followed.
+   */
+  #destroyCount = 0;
+
   #clientSideCache?: PooledClientSideCacheProvider;
   get clientSideCache() {
     return this._self.#clientSideCache;
@@ -681,18 +687,22 @@ export class RedisClientPool<
     if (!this._self.#isOpen) return; // TODO: throw err?
 
     clearTimeout(this._self.cleanupTimeout);
-    this._self.#closePromise = Promise.resolve().then(() => this._self.#doClose());
+    const destroyCount = this._self.#destroyCount;
+    this._self.#closePromise = Promise.resolve().then(() => this._self.#doClose(destroyCount));
     return this._self.#closePromise;
   }
 
-  async #doClose() {
+  async #doClose(destroyCount: number) {
+    // destroy() took over: the members are gone, and the lists belong to whatever connect() comes next
+    const destroyed = () => this._self.#destroyCount !== destroyCount;
     try {
       // Wait for all in-flight and queued tasks to complete
-      if (this._self.#clientsInUse.length > 0) {
+      if (!destroyed() && this._self.#clientsInUse.length > 0) {
         await new Promise<void>(resolve => {
           this._self.#drainResolve = resolve;
         });
       }
+      if (destroyed()) return;
 
       // Now all tasks are done, close all clients (which are now idle)
       const promises = [];
@@ -716,27 +726,31 @@ export class RedisClientPool<
       // A failed close must not let the pool finish closing while other clients
       // are still draining their pending commands.
       const results = await Promise.allSettled(promises);
+      if (destroyed()) return;
       for (const result of results) {
         if (result.status === 'rejected') throw result.reason;
       }
     } finally {
-      try {
-        // A throw here would replace a pending client close error, since a
-        // throw inside `finally` overrides the exception already in flight.
-        this._self.#clientSideCache?.onPoolClose();
-      } catch {
-        // Preserve the client close error even if cache cleanup also fails.
-      }
+      if (!destroyed()) {
+        try {
+          // A throw here would replace a pending client close error, since a
+          // throw inside `finally` overrides the exception already in flight.
+          this._self.#clientSideCache?.onPoolClose();
+        } catch {
+          // Preserve the client close error even if cache cleanup also fails.
+        }
 
-      this._self.#idleClients.reset();
-      this._self.#clientsInUse.reset();
-      this._self.#drainResolve = undefined;
-      this._self.#isOpen = false;
-      this._self.#closePromise = undefined;
+        this._self.#idleClients.reset();
+        this._self.#clientsInUse.reset();
+        this._self.#drainResolve = undefined;
+        this._self.#isOpen = false;
+        this._self.#closePromise = undefined;
+      }
     }
   }
 
   destroy() {
+    this._self.#destroyCount++;
     for (const client of this._self.#idleClients) {
       client.destroy();
     }
@@ -752,6 +766,8 @@ export class RedisClientPool<
     this._self.#clientsInUse.reset();
     // a close() waiting for the members destroy() just closed has nothing left to drain
     this._self.#drainResolve?.();
+    this._self.#drainResolve = undefined;
+    this._self.#closePromise = undefined;
 
     // the destroyed members take no more tasks, so the ones still waiting fail as they would have on them
     let task;
