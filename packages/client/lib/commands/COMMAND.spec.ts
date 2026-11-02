@@ -424,6 +424,25 @@ describe('COMMAND', () => {
     assert.equal(set?.keySpecs[0]?.beginSearch.type, 'index');
   }, GLOBAL.SERVERS.OPEN);
 
+  testUtils.testWithClient('client.command with BLOB_STRING Buffer mapping (RESP2)', async client => {
+    const [set] = await client.withTypeMapping({
+      [RESP_TYPES.BLOB_STRING]: Buffer
+    }).commandInfo(['set']);
+
+    assert.equal(set?.name, 'set');
+    assert.notDeepEqual(set?.keySpecs, [{
+      beginSearch: { type: 'unknown' },
+      findKeys: { type: 'unknown' }
+    }]);
+    assert.equal(set?.keySpecs[0]?.beginSearch.type, 'index');
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    clientOptions: {
+      ...GLOBAL.SERVERS.OPEN.clientOptions,
+      RESP: 2
+    }
+  });
+
   testUtils.testWithClient('client.command with MAP and SET mappings (RESP3)', async client => {
     const [set] = await client.withTypeMapping({
       [RESP_TYPES.MAP]: Map,

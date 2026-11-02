@@ -89,4 +89,20 @@ describe('ROLE', () => {
     assert.equal(reply.replicationOffest, 0);
     assert.deepEqual(reply.replicas, []);
   }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.role with BLOB_STRING Buffer mapping (RESP2)', async client => {
+    const reply = await client.withTypeMapping({
+      [RESP_TYPES.BLOB_STRING]: Buffer
+    }).role();
+    assert.ok(Buffer.isBuffer(reply.role));
+    assert.equal(reply.role.toString(), 'master');
+    assert.equal(reply.replicationOffest, 0);
+    assert.deepEqual(reply.replicas, []);
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    clientOptions: {
+      ...GLOBAL.SERVERS.OPEN.clientOptions,
+      RESP: 2
+    }
+  });
 });
