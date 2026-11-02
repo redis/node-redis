@@ -2,7 +2,7 @@ import { CommandParser } from '../client/parser';
 import { ArrayReply, Command, RedisArgument } from '../RESP/types';
 import { RedisVariadicArgument } from './generic-transformers';
 
-export const SET_EXPIRATION = {
+export const SET_MEMBER_EXPIRATION = {
   /** The member does not exist */
   MEMBER_NOT_EXISTS: -2,
   /** Specified NX | XX | GT | LT condition not met */
@@ -13,7 +13,7 @@ export const SET_EXPIRATION = {
   DELETED: 2
 } as const;
 
-export type SetExpiration = typeof SET_EXPIRATION[keyof typeof SET_EXPIRATION];
+export type SetMemberExpiration = typeof SET_MEMBER_EXPIRATION[keyof typeof SET_MEMBER_EXPIRATION];
 
 export default {
   parseCommand(
@@ -34,5 +34,5 @@ export default {
     parser.push('MEMBERS');
     parser.pushVariadicWithLength(members);
   },
-  transformReply: undefined as unknown as () => ArrayReply<SetExpiration>
+  transformReply: undefined as unknown as () => ArrayReply<SetMemberExpiration>
 } as const satisfies Command;

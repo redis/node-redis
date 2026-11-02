@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SEXPIRETIME from './SEXPIRETIME';
-import { SET_EXPIRATION_TIME } from './SEXPIRETIME';
+import { SET_MEMBER_EXPIRATION_TIME } from './SEXPIRETIME';
 import { parseArgs } from './generic-transformers';
 
 describe('SEXPIRETIME', () => {
@@ -34,8 +34,8 @@ describe('SEXPIRETIME', () => {
         await client.sExpireTime('key', ['a', 'b', 'missing']),
         [
           expiresAt,
-          SET_EXPIRATION_TIME.NO_EXPIRATION,
-          SET_EXPIRATION_TIME.MEMBER_NOT_EXISTS
+          SET_MEMBER_EXPIRATION_TIME.NO_EXPIRATION,
+          SET_MEMBER_EXPIRATION_TIME.MEMBER_NOT_EXISTS
         ]
       );
     }, {

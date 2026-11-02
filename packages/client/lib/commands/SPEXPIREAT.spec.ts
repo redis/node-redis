@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SPEXPIREAT from './SPEXPIREAT';
-import { SET_EXPIRATION } from './SEXPIRE';
+import { SET_MEMBER_EXPIRATION } from './SEXPIRE';
 import { parseArgs, transformPXAT } from './generic-transformers';
 
 describe('SPEXPIREAT', () => {
@@ -38,16 +38,16 @@ describe('SPEXPIREAT', () => {
       const expiresAt = Date.now() + 60_000;
       assert.deepEqual(
         await client.spExpireAt('key', ['a', 'missing'], expiresAt),
-        [SET_EXPIRATION.UPDATED, SET_EXPIRATION.MEMBER_NOT_EXISTS]
+        [SET_MEMBER_EXPIRATION.UPDATED, SET_MEMBER_EXPIRATION.MEMBER_NOT_EXISTS]
       );
       assert.deepEqual(await client.spExpireTime('key', 'a'), [expiresAt]);
       assert.deepEqual(
         await client.spExpireAt('key', 'a', expiresAt + 60, 'NX'),
-        [SET_EXPIRATION.CONDITION_NOT_MET]
+        [SET_MEMBER_EXPIRATION.CONDITION_NOT_MET]
       );
       assert.deepEqual(
         await client.spExpireAt('key', 'b', 1),
-        [SET_EXPIRATION.DELETED]
+        [SET_MEMBER_EXPIRATION.DELETED]
       );
     }, {
       client: GLOBAL.SERVERS.OPEN,

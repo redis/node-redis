@@ -2,7 +2,7 @@ import { CommandParser } from '../client/parser';
 import { ArrayReply, Command, NumberReply, RedisArgument } from '../RESP/types';
 import { RedisVariadicArgument } from './generic-transformers';
 
-export const SET_EXPIRATION_TIME = {
+export const SET_MEMBER_EXPIRATION_TIME = {
   /** The member does not exist */
   MEMBER_NOT_EXISTS: -2,
   /** The member exists but has no associated expire */

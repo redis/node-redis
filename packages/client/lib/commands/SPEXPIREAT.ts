@@ -1,7 +1,7 @@
 import { CommandParser } from '../client/parser';
 import { ArrayReply, Command, RedisArgument } from '../RESP/types';
 import { RedisVariadicArgument, transformPXAT } from './generic-transformers';
-import { SetExpiration } from './SEXPIRE';
+import { SetMemberExpiration } from './SEXPIRE';
 
 export default {
   parseCommand(
@@ -22,5 +22,5 @@ export default {
     parser.push('MEMBERS');
     parser.pushVariadicWithLength(members);
   },
-  transformReply: undefined as unknown as () => ArrayReply<SetExpiration>
+  transformReply: undefined as unknown as () => ArrayReply<SetMemberExpiration>
 } as const satisfies Command;

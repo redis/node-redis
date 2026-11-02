@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
-import SEXPIRE, { SET_EXPIRATION } from './SEXPIRE';
+import SEXPIRE, { SET_MEMBER_EXPIRATION } from './SEXPIRE';
 import { parseArgs } from './generic-transformers';
 
 describe('SEXPIRE', () => {
@@ -35,15 +35,15 @@ describe('SEXPIRE', () => {
 
       assert.deepEqual(
         await client.sExpire('key', ['a', 'missing'], 60),
-        [SET_EXPIRATION.UPDATED, SET_EXPIRATION.MEMBER_NOT_EXISTS]
+        [SET_MEMBER_EXPIRATION.UPDATED, SET_MEMBER_EXPIRATION.MEMBER_NOT_EXISTS]
       );
       assert.deepEqual(
         await client.sExpire('key', 'a', 30, 'GT'),
-        [SET_EXPIRATION.CONDITION_NOT_MET]
+        [SET_MEMBER_EXPIRATION.CONDITION_NOT_MET]
       );
       assert.deepEqual(
         await client.sExpire('key', 'a', 0),
-        [SET_EXPIRATION.DELETED]
+        [SET_MEMBER_EXPIRATION.DELETED]
       );
       assert.deepEqual(await client.sMembers('key'), ['b']);
     }, {

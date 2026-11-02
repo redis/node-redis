@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SPEXPIRE from './SPEXPIRE';
-import { SET_EXPIRATION } from './SEXPIRE';
+import { SET_MEMBER_EXPIRATION } from './SEXPIRE';
 import { parseArgs } from './generic-transformers';
 
 describe('SPEXPIRE', () => {
@@ -36,11 +36,11 @@ describe('SPEXPIRE', () => {
 
       assert.deepEqual(
         await client.spExpire('key', 'a', 60_000, 'XX'),
-        [SET_EXPIRATION.CONDITION_NOT_MET]
+        [SET_MEMBER_EXPIRATION.CONDITION_NOT_MET]
       );
       assert.deepEqual(
         await client.spExpire('key', ['a', 'missing'], 60_000),
-        [SET_EXPIRATION.UPDATED, SET_EXPIRATION.MEMBER_NOT_EXISTS]
+        [SET_MEMBER_EXPIRATION.UPDATED, SET_MEMBER_EXPIRATION.MEMBER_NOT_EXISTS]
       );
     }, {
       client: GLOBAL.SERVERS.OPEN,
