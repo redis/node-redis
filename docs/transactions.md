@@ -22,6 +22,10 @@ await multi.execTyped(); // [string]
 
 > :warning: this only works when all the commands are invoked in a single "call chain"
 
+Standalone clients, pools, clusters and Sentinel clients also support `multi<'untyped'>()`. This returns `any`,
+disabling TypeScript checks for the transaction's commands and replies. The default
+`multi()` keeps those checks. This option does not change how the transaction executes.
+
 ## [`WATCH`](https://redis.io/commands/watch/)
 
 You can also [watch](https://redis.io/docs/interact/transactions/#optimistic-locking-using-check-and-set) keys by calling `.watch()`. Your transaction will abort if any of the watched keys change or if the client reconnected between the `watch` and `exec` calls.

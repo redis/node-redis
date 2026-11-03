@@ -1,5 +1,5 @@
 import { NON_STICKY_COMMANDS } from '../commands';
-import RedisMultiCommand, { MULTI_REPLY, MultiReply, MultiReplyType } from '../multi-command';
+import RedisMultiCommand, { MULTI_MODE, MULTI_REPLY, MultiMode, MultiReply, MultiReplyType } from '../multi-command';
 import { ReplyWithTypeMapping, CommandReply, Command, CommandArguments, CommanderConfig, RedisFunctions, RedisModules, RedisScripts, RespVersions, TransformReply, RedisScript, RedisFunction, TypeMapping, RedisArgument } from '../RESP/types';
 import { attachConfig, functionArgumentsPrefix, getTransformReply } from '../commander';
 import { RedisSentinelType } from './types';
@@ -15,7 +15,7 @@ type CommandSignature<
   S extends RedisScripts,
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping
-> = (...args: Tail<Parameters<C['parseCommand']>>) => RedisSentinelMultiCommandType<
+> = (...args: Tail<Parameters<C['parseCommand']>>) => RedisSentinelMultiCommandTyped<
   [...REPLIES, ReplyWithTypeMapping<CommandReply<C, RESP>, TYPE_MAPPING>],
   M,
   F,
@@ -73,7 +73,7 @@ type WithScripts<
   [P in keyof S]: CommandSignature<REPLIES, S[P], M, F, S, RESP, TYPE_MAPPING>;
 };
 
-export type RedisSentinelMultiCommandType<
+type RedisSentinelMultiCommandTyped<
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- variance marker for reply tuple
   REPLIES extends Array<any>,
   M extends RedisModules,
@@ -88,6 +88,23 @@ export type RedisSentinelMultiCommandType<
   WithFunctions<REPLIES, M, F, S, RESP, TYPE_MAPPING> &
   WithScripts<REPLIES, M, F, S, RESP, TYPE_MAPPING>
 );
+
+// Unlike the client, extracted Sentinel factories were already typed. Match
+// 'untyped' explicitly to preserve ReturnType<typeof sentinel.multi>.
+type TypedOrAny<Flag extends MultiMode, T> =
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- non-typed branch falls through to any
+  [Flag] extends [MULTI_MODE['UNTYPED']] ? any : T;
+
+export type RedisSentinelMultiCommandType<
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- variance marker for reply tuple
+  REPLIES extends Array<any>,
+  M extends RedisModules,
+  F extends RedisFunctions,
+  S extends RedisScripts,
+  RESP extends RespVersions,
+  TYPE_MAPPING extends TypeMapping,
+  isTyped extends MultiMode = MULTI_MODE['TYPED']
+> = TypedOrAny<isTyped, RedisSentinelMultiCommandTyped<REPLIES, M, F, S, RESP, TYPE_MAPPING>>;
 
 export default class RedisSentinelMultiCommand<REPLIES = []> {
   private static _createCommand(command: Command, resp: RespVersions) {
