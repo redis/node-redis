@@ -388,6 +388,33 @@ describe('RedisClientPool', () => {
       poolOptions: { minimum: 1, maximum: 1 }
     });
 
+    testUtils.testWithClientPool('closes every member when one teardown throws', async pool => {
+      const tick = () => new Promise(resolve => setImmediate(resolve));
+      const members = await Promise.all([
+        pool.execute(async client => { await tick(); return client; }),
+        pool.execute(async client => { await tick(); return client; })
+      ]);
+      assert.notEqual(members[0], members[1]);
+      const destroys = members.map(member => stub(member, 'destroy').throws(new Error('dispose failed')));
+      try {
+        assert.throws(() => pool.destroy(), /dispose failed/);
+        for (const destroy of destroys) {
+          assert.ok(destroy.calledOnce);
+        }
+      } finally {
+        for (const destroy of destroys) {
+          destroy.restore();
+        }
+      }
+      for (const member of members) {
+        member.destroy();
+      }
+      assert.equal(pool.isOpen, false);
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      poolOptions: { minimum: 2, maximum: 2 }
+    });
+
     // Regression: a member still connecting when destroy() ran removed its stale node from the list that
     // connect() had refilled, so the pool lost count of a member in use and opened more than maximum.
     testUtils.testWithClientPool('keeps the pool that connect() opens when a member destroy() closed mid-connect fails', async pool => {

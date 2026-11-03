@@ -777,13 +777,25 @@ export class RedisClientPool<
 
     this._self.#isOpen = false;
 
-    // last, so a member or a cache hook that throws cannot leave a close() waiting or the pool half reset
-    for (const client of idleClients) {
-      client.destroy();
+    // last, so a member or a cache hook that throws cannot leave a close() waiting or the pool half reset;
+    // the lists no longer track these members, so each teardown runs and the first error is rethrown
+    let failed = false;
+    let error: unknown;
+    const teardowns = [
+      ...idleClients.map(client => () => client.destroy()),
+      ...clientsInUse.map(client => () => client.destroy()),
+      () => this._self.#clientSideCache?.onPoolClose()
+    ];
+    for (const teardown of teardowns) {
+      try {
+        teardown();
+      } catch (err) {
+        if (!failed) {
+          failed = true;
+          error = err;
+        }
+      }
     }
-    for (const client of clientsInUse) {
-      client.destroy();
-    }
-    this._self.#clientSideCache?.onPoolClose();
+    if (failed) throw error;
   }
 }
