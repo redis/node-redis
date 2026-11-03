@@ -22,6 +22,14 @@ export interface RedisMultiQueuedCommand {
   transformReply?: TransformReply;
 }
 
+function isScriptFlush(args: CommandArguments): boolean {
+  return (
+    args.length >= 2 &&
+    String(args[0]).toUpperCase() === 'SCRIPT' &&
+    String(args[1]).toUpperCase() === 'FLUSH'
+  );
+}
+
 export default class RedisMultiCommand {
   private readonly typeMapping?: TypeMapping;
 
@@ -33,13 +41,26 @@ export default class RedisMultiCommand {
   readonly queue: Array<RedisMultiQueuedCommand> = [];
 
   /**
-   * SHAs already sent with EVAL/EVAL_RO on this connection (or shared from the
-   * owning client). Reused so later MULTI/PIPELINE batches can EVALSHA instead
-   * of re-uploading the full script (#2084).
+   * SHAs known to be loaded on this connection (often shared with the owning
+   * client). Only mutated after a batch that actually ran — see
+   * {@link publishScriptsInUse} (#2084).
    */
   readonly scriptsInUse: Set<string>;
 
+  /**
+   * SHAs queued as EVAL/EVAL_RO in this builder only. Kept out of
+   * {@link scriptsInUse} until the batch executes so an abandoned or
+   * WatchError'd multi cannot poison later batches with EVALSHA.
+   */
+  readonly #pendingScripts = new Set<string>();
+
   addCommand(args: CommandArguments, transformReply?: TransformReply) {
+    // A flush in this batch drops anything we were about to load; later scripts
+    // in the same builder must EVAL again.
+    if (isScriptFlush(args)) {
+      this.#pendingScripts.clear();
+    }
+
     this.queue.push({
       args,
       transformReply
@@ -49,10 +70,13 @@ export default class RedisMultiCommand {
   addScript(script: RedisScript, args: CommandArguments, transformReply?: TransformReply) {
     const redisArgs: CommandArguments = [];
     redisArgs.preserve = args.preserve;
-    if (this.scriptsInUse.has(script.SHA1)) {
+    if (
+      this.scriptsInUse.has(script.SHA1) ||
+      this.#pendingScripts.has(script.SHA1)
+    ) {
       redisArgs.push(script.IS_READ_ONLY ? 'EVALSHA_RO' : 'EVALSHA', script.SHA1);
     } else {
-      this.scriptsInUse.add(script.SHA1);
+      this.#pendingScripts.add(script.SHA1);
       redisArgs.push(script.IS_READ_ONLY ? 'EVAL_RO' : 'EVAL', script.SCRIPT);
     }
 
@@ -64,7 +88,22 @@ export default class RedisMultiCommand {
 
     this.addCommand(redisArgs, transformReply);
   }
-  
+
+  /**
+   * After MULTI/PIPELINE successfully reaches Redis, merge this builder's
+   * pending EVAL SHAs into the shared set — or clear it if the batch flushed.
+   */
+  publishScriptsInUse() {
+    if (this.queue.some(({ args }) => isScriptFlush(args))) {
+      this.scriptsInUse.clear();
+    }
+
+    for (const sha of this.#pendingScripts) {
+      this.scriptsInUse.add(sha);
+    }
+    this.#pendingScripts.clear();
+  }
+
   transformReplies(rawReplies: Array<unknown>): Array<unknown> {
     const errorIndexes: Array<number> = [],
       replies = rawReplies.map((reply, i) => {

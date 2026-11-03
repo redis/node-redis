@@ -69,6 +69,8 @@ describe('Multi Command', () => {
         Array.from(first.queue.at(-1).args),
         ['EVAL', SQUARE_SCRIPT.SCRIPT, '1', '1']
       );
+      // SHA is published only after the batch would have executed.
+      first.publishScriptsInUse();
 
       const second = new RedisMultiCommand(undefined, scriptsInUse);
       second.addScript(SQUARE_SCRIPT, ['2']);
@@ -76,6 +78,43 @@ describe('Multi Command', () => {
         Array.from(second.queue.at(-1).args),
         ['EVALSHA', SQUARE_SCRIPT.SHA1, '1', '2']
       );
+    });
+
+    it('should not publish SHAs from an abandoned Multi into the shared set', () => {
+      const scriptsInUse = new Set<string>();
+      const abandoned = new RedisMultiCommand(undefined, scriptsInUse);
+      abandoned.addScript(SQUARE_SCRIPT, ['1']);
+
+      assert.equal(scriptsInUse.has(SQUARE_SCRIPT.SHA1), false);
+
+      const next = new RedisMultiCommand(undefined, scriptsInUse);
+      next.addScript(SQUARE_SCRIPT, ['2']);
+      assert.deepEqual(
+        Array.from(next.queue.at(-1).args),
+        ['EVAL', SQUARE_SCRIPT.SCRIPT, '1', '2']
+      );
+    });
+
+    it('should clear the shared set when the batch contains SCRIPT FLUSH', () => {
+      const scriptsInUse = new Set<string>([SQUARE_SCRIPT.SHA1]);
+      const multi = new RedisMultiCommand(undefined, scriptsInUse);
+      multi.addCommand(['SCRIPT', 'FLUSH']);
+      multi.publishScriptsInUse();
+      assert.equal(scriptsInUse.size, 0);
+    });
+
+    it('should EVAL again for scripts queued after SCRIPT FLUSH in the same Multi', () => {
+      const scriptsInUse = new Set<string>();
+      const multi = new RedisMultiCommand(undefined, scriptsInUse);
+      multi.addScript(SQUARE_SCRIPT, ['1']);
+      multi.addCommand(['SCRIPT', 'FLUSH']);
+      multi.addScript(SQUARE_SCRIPT, ['2']);
+      assert.deepEqual(
+        multi.queue.map(({ args }) => args[0]),
+        ['EVAL', 'SCRIPT', 'EVAL']
+      );
+      multi.publishScriptsInUse();
+      assert.deepEqual([...scriptsInUse], [SQUARE_SCRIPT.SHA1]);
     });
   });
 

@@ -238,9 +238,10 @@ export default class RedisClientMultiCommand<REPLIES = []> {
   async exec<T extends MultiReply = MULTI_REPLY['GENERIC']>(execAsPipeline = false): Promise<MultiReplyType<T, REPLIES>> {
     if (execAsPipeline) return this.execAsPipeline<T>();
 
-    return this.#multi.transformReplies(
-      await this.#executeMulti(this.#multi.queue, this.#selectedDB)
-    ) as MultiReplyType<T, REPLIES>;
+    const rawReplies = await this.#executeMulti(this.#multi.queue, this.#selectedDB);
+    // Only publish after the batch ran (WatchError / early reject skips this).
+    this.#multi.publishScriptsInUse();
+    return this.#multi.transformReplies(rawReplies) as MultiReplyType<T, REPLIES>;
   }
 
   EXEC = this.exec;
@@ -252,9 +253,9 @@ export default class RedisClientMultiCommand<REPLIES = []> {
   async execAsPipeline<T extends MultiReply = MULTI_REPLY['GENERIC']>(): Promise<MultiReplyType<T, REPLIES>> {
     if (this.#multi.queue.length === 0) return [] as MultiReplyType<T, REPLIES>;
 
-    return this.#multi.transformReplies(
-      await this.#executePipeline(this.#multi.queue, this.#selectedDB)
-    ) as MultiReplyType<T, REPLIES>;
+    const rawReplies = await this.#executePipeline(this.#multi.queue, this.#selectedDB);
+    this.#multi.publishScriptsInUse();
+    return this.#multi.transformReplies(rawReplies) as MultiReplyType<T, REPLIES>;
   }
 
   execAsPipelineTyped() {

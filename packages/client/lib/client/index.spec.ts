@@ -790,6 +790,17 @@ describe('Client', () => {
         await client.multi().square('key').exec(),
         [4]
       );
+
+      // SCRIPT FLUSH inside multi/pipeline must also drop the local SHA cache.
+      assert.deepEqual(
+        await client.multi().square('key').exec(),
+        [4]
+      );
+      await client.multi().scriptFlush().exec();
+      assert.deepEqual(
+        await client.multi().square('key').exec(),
+        [4]
+      );
     }, {
       ...GLOBAL.SERVERS.OPEN,
       clientOptions: {
