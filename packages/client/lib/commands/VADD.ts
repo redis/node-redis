@@ -46,7 +46,7 @@ export default {
       parser.push('EF', options.EF.toString());
     }
 
-    if (options?.SETATTR) {
+    if (options?.SETATTR !== undefined) {
       const attributes = options.SETATTR;
       if (typeof attributes === 'object' && !(attributes instanceof Buffer)) {
         parser.push('SETATTR', JSON.stringify(attributes));
