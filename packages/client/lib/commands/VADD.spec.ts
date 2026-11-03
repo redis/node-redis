@@ -46,6 +46,24 @@ describe('VADD', () => {
       );
     });
 
+    it('with SETATTR as string', () => {
+      const parser = new BasicCommandParser();
+      VADD.parseCommand(parser, 'key', [1.0, 2.0], 'element', { SETATTR: '{"name":"test"}' });
+      assert.deepEqual(
+        parser.redisArgs,
+        ['VADD', 'key', 'VALUES', '2', '1', '2', 'element', 'SETATTR', '{"name":"test"}']
+      );
+    });
+
+    it('with SETATTR as Buffer', () => {
+      const parser = new BasicCommandParser();
+      VADD.parseCommand(parser, 'key', [1.0, 2.0], 'element', { SETATTR: Buffer.from('{"name":"test"}') });
+      assert.deepEqual(
+        parser.redisArgs,
+        ['VADD', 'key', 'VALUES', '2', '1', '2', 'element', 'SETATTR', Buffer.from('{"name":"test"}')]
+      );
+    });
+
     it('with all options', () => {
       const parser = new BasicCommandParser();
       VADD.parseCommand(parser, 'key', [1.0, 2.0], 'element', {
