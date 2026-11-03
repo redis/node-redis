@@ -756,18 +756,14 @@ export class RedisClientPool<
 
   destroy() {
     this._self.#destroyCount++;
-    for (const client of this._self.#idleClients) {
-      client.destroy();
+    const idleClients = [...this._self.#idleClients];
+    const clientsInUse = [...this._self.#clientsInUse];
+    for (const client of clientsInUse) {
+      this._self.#destroyed.add(client);
     }
     this._self.#idleClients.reset();
-
-    for (const client of this._self.#clientsInUse) {
-      this._self.#destroyed.add(client);
-      client.destroy();
-    }
-
     this._self.#clientsInUse.reset();
-    // a close() waiting for the members destroy() just closed has nothing left to drain
+    // a close() waiting for the members destroy() closes has nothing left to drain
     this._self.#drainResolve?.();
     this._self.#drainResolve = undefined;
     this._self.#closePromise = undefined;
@@ -781,7 +777,13 @@ export class RedisClientPool<
 
     this._self.#isOpen = false;
 
-    // last, so a hook that throws cannot leave a close() waiting or the pool half reset
+    // last, so a member or a cache hook that throws cannot leave a close() waiting or the pool half reset
+    for (const client of idleClients) {
+      client.destroy();
+    }
+    for (const client of clientsInUse) {
+      client.destroy();
+    }
     this._self.#clientSideCache?.onPoolClose();
   }
 }
