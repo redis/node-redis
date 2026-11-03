@@ -25,6 +25,7 @@ OpenTelemetry.init({
   metrics: {
     enabled: true,
     enabledMetricGroups: ['command', 'connection-basic', 'resiliency'],
+    customAttributes: { 'deployment.environment': 'example' },
   }
 });
 

@@ -99,6 +99,7 @@ export interface MetricConfig {
   bucketsConnectionCreateTime?: number[];
   bucketsConnectionWaitTime?: number[];
   bucketsStreamProcessingDuration?: number[];
+  customAttributes?: Attributes;
 }
 
 export interface OTelClientAttributes {
@@ -118,6 +119,7 @@ export interface MetricOptions extends Required<
   Omit<MetricConfig, "meterProvider" | "includeCommands" | "excludeCommands">
 > {
   attributes: Attributes;
+  hasCustomAttributes: boolean;
   meterProvider?: MeterProvider;
   includeCommands: Record<string, true>;
   excludeCommands: Record<string, true>;

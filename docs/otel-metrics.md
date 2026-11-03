@@ -114,6 +114,7 @@ OpenTelemetry.init({
     hideStreamNames: false,
     bucketsOperationDuration: [0.001, 0.01, 0.1, 1],
     bucketsStreamProcessingDuration: [0.01, 0.1, 1, 5],
+    customAttributes: { "deployment.environment": "staging", team: "platform" },
   },
 });
 ```
@@ -141,6 +142,24 @@ OpenTelemetry.init({
 | bucketsConnectionCreateTime | **[0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5, 10]** | Histogram bucket boundaries for db.client.connection.create_time (seconds). |
 | bucketsConnectionWaitTime | **[0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5, 10]** | Histogram bucket boundaries for db.client.connection.wait_time (seconds). |
 | bucketsStreamProcessingDuration | **[0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5, 10]** | Histogram bucket boundaries for redis.client.stream.lag (seconds). |
+| customAttributes | **{}** | Attributes added to every data point of every metric, from every client in the process. See [Custom attributes](#custom-attributes). |
+
+## Custom attributes
+
+Custom attributes label metrics with your own values, for example to tell services apart in a dashboard. Set them with `customAttributes` in `OpenTelemetry.init`. They apply to every metric from every client in the process.
+
+```typescript
+OpenTelemetry.init({
+  metrics: {
+    enabled: true,
+    customAttributes: { "deployment.environment": "production" },
+  },
+});
+```
+
+> **Warning**: Keep the cardinality of custom attributes low. Every distinct combination of attribute values creates a new time series for every metric, which raises the memory, storage and cost of your metrics backend. Use a few fixed values per process, such as the service, team, region or environment.
+
+> **Note**: A custom attribute replaces a built-in attribute with the same key, which changes how its metrics group. For example, a custom `server.address` merges the data points of every node into one series. Prefer keys outside the namespaces node-redis uses (`db.*`, `server.*`, `network.*`, `error.*` and `redis.*`).
 
 ## Metric groups and metrics
 

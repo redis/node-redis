@@ -13,10 +13,12 @@ import {
 import { createClient } from "@redis/client/index";
 import { OTelMetrics } from "./metrics";
 import {
+  Attributes,
   CONNECTION_CLOSE_REASON,
   CSC_EVICTION_REASON,
   CSC_RESULT,
   ERROR_CATEGORY,
+  METRIC_GROUP,
   METRIC_NAMES,
   ObservabilityConfig,
   OTEL_ATTRIBUTES,
@@ -321,6 +323,136 @@ describe("OTel Metrics Unit Tests", () => {
       client.destroy();
     }
     api.metrics.disable();
+  });
+
+  describe("customAttributes", () => {
+    let exporter: InMemoryMetricExporter;
+    let meterProvider: MeterProvider;
+
+    const registerClient = (clientId: string) => {
+      ClientRegistry.instance.register({
+        identity: { id: clientId, role: ClientRole.STANDALONE },
+        getAttributes: () => ({ host: "127.0.0.1", port: 6379, db: 0, clientId }),
+        getPendingRequests: () => 0,
+        getCacheItemCount: () => 0,
+        isConnected: () => true,
+      });
+    };
+
+    const initWith = (customAttributes?: Attributes) => {
+      exporter = new InMemoryMetricExporter(AggregationTemporality.CUMULATIVE);
+      meterProvider = new MeterProvider({
+        readers: [new PeriodicExportingMetricReader({ exporter })],
+      });
+      ClientRegistry.init();
+      registerClient("client-1");
+      OTelMetrics.init({
+        api,
+        config: {
+          metrics: {
+            enabled: true,
+            enabledMetricGroups: ["command", "connection-basic", "resiliency"],
+            meterProvider,
+            customAttributes,
+          },
+        },
+      });
+    };
+
+    const publishEvents = (clientId = "client-1", command = "GET") => {
+      const commandCtx = { command, clientId };
+      dc.channel("tracing:node-redis:command:start").publish(commandCtx);
+      dc.channel("tracing:node-redis:command:asyncEnd").publish(commandCtx);
+      dc.channel("node-redis:error").publish({
+        error: new Error("boom"),
+        origin: "client",
+        internal: false,
+        clientId,
+      });
+      dc.channel("node-redis:connection:relaxed-timeout").publish({
+        clientId,
+        value: 1,
+      });
+    };
+
+    const collect = async (metricName: string) => {
+      await meterProvider.forceFlush();
+      return getMetricDataPoints(exporter.getMetrics(), metricName);
+    };
+
+    afterEach(async () => {
+      ClientRegistry.reset();
+      await meterProvider.shutdown().catch(() => {});
+    });
+
+    it("should add custom attributes to every metric", async () => {
+      exporter = new InMemoryMetricExporter(AggregationTemporality.CUMULATIVE);
+      meterProvider = new MeterProvider({
+        readers: [new PeriodicExportingMetricReader({ exporter })],
+      });
+      ClientRegistry.init();
+      registerClient("client-1");
+      OTelMetrics.init({
+        api,
+        config: {
+          metrics: {
+            enabled: true,
+            enabledMetricGroups: Object.values(METRIC_GROUP),
+            meterProvider,
+            customAttributes: { env: "prod" },
+          },
+        },
+      });
+
+      // One event for each metric that publishEvents doesn't cover. The gauges need none.
+      const clientId = "client-1";
+      publishEvents(clientId);
+      const events: Array<[string, object]> = [
+        ["node-redis:connection:ready", { clientId, createTimeMs: 1 }],
+        ["node-redis:connection:closed", { clientId, reason: CONNECTION_CLOSE_REASON.APPLICATION_CLOSE }],
+        ["node-redis:connection:handoff", { clientId }],
+        ["node-redis:pool:connection-wait", { clientId, waitStartTimestamp: performance.now() }],
+        ["node-redis:maintenance", { clientId, notification: "MOVING" }],
+        ["node-redis:pubsub", { clientId, direction: "in", channel: "channel" }],
+        ["node-redis:command:reply", { clientId, args: ["PUBLISH", "channel", "message"] }],
+        ["node-redis:command:reply", {
+          clientId,
+          args: ["XREAD", "STREAMS", "stream", "0"],
+          reply: [{ name: "stream", messages: [{ id: `${Date.now()}-0` }] }],
+        }],
+        ["node-redis:cache:request", { clientId, result: CSC_RESULT.HIT }],
+        ["node-redis:cache:eviction", { clientId, reason: CSC_EVICTION_REASON.FULL }],
+      ];
+      for (const [channel, event] of events) {
+        dc.channel(channel).publish(event);
+      }
+
+      await meterProvider.forceFlush();
+      const metrics = exporter.getMetrics()
+        .flatMap(({ scopeMetrics }) => scopeMetrics)
+        .flatMap(({ metrics }) => metrics);
+      assert.deepEqual(
+        metrics.map(({ descriptor }) => descriptor.name).sort(),
+        Object.values(METRIC_NAMES).sort(),
+      );
+      for (const { descriptor, dataPoints } of metrics) {
+        for (const { attributes } of dataPoints) {
+          assert.equal(attributes.env, "prod", descriptor.name);
+        }
+      }
+    });
+
+    it("should let a process-level custom attribute replace a built-in one", async () => {
+      initWith({
+        [OTEL_ATTRIBUTES.dbSystemName]: "other",
+        [OTEL_ATTRIBUTES.serverAddress]: "override",
+      });
+      publishEvents();
+
+      const [dataPoint] = await collect(METRIC_NAMES.dbClientOperationDuration);
+      assert.equal(dataPoint.attributes[OTEL_ATTRIBUTES.dbSystemName], "other");
+      assert.equal(dataPoint.attributes[OTEL_ATTRIBUTES.serverAddress], "override");
+    });
   });
 });
 

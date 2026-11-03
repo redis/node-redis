@@ -1,4 +1,4 @@
-import { OTEL_ATTRIBUTES, OTelClientAttributes } from "../types";
+import { Attributes, MetricOptions, OTEL_ATTRIBUTES, OTelClientAttributes } from "../types";
 
 export { getErrorInfo, isRedirectionError } from "./error.util";
 export type { ErrorInfo } from "./error.util";
@@ -26,5 +26,21 @@ export const parseClientAttributes = (
     ...(clientAttributes?.parentId && {
       [OTEL_ATTRIBUTES.redisClientParentId]: clientAttributes.parentId,
     }),
+  };
+};
+
+// Custom attributes are merged last, so they override the built-in ones.
+// With none set, the call site's object is passed through as is.
+export const withCustomAttributes = (
+  options: MetricOptions,
+  attributes: Attributes,
+): Attributes => {
+  if (!options.hasCustomAttributes) {
+    return attributes;
+  }
+
+  return {
+    ...attributes,
+    ...options.customAttributes,
   };
 };
