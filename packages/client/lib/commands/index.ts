@@ -279,6 +279,7 @@ import RPOPLPUSH from './RPOPLPUSH';
 import RPUSH from './RPUSH';
 import RPUSHX from './RPUSHX';
 import SADD from './SADD';
+import SADDEX from './SADDEX';
 import SCAN from './SCAN';
 import SCARD from './SCARD';
 import SCRIPT_DEBUG from './SCRIPT_DEBUG';
@@ -294,6 +295,9 @@ import SETBIT from './SETBIT';
 import SETEX from './SETEX';
 import SETNX from './SETNX';
 import SETRANGE from './SETRANGE';
+import SEXPIRE from './SEXPIRE';
+import SEXPIREAT from './SEXPIREAT';
+import SEXPIRETIME from './SEXPIRETIME';
 import SINTER from './SINTER';
 import SINTERCARD from './SINTERCARD';
 import SINTERSTORE from './SINTERSTORE';
@@ -304,14 +308,20 @@ import SMOVE from './SMOVE';
 import SORT_RO from './SORT_RO';
 import SORT_STORE from './SORT_STORE';
 import SORT from './SORT';
+import SPERSIST from './SPERSIST';
+import SPEXPIRE from './SPEXPIRE';
+import SPEXPIREAT from './SPEXPIREAT';
+import SPEXPIRETIME from './SPEXPIRETIME';
 import SPOP_COUNT from './SPOP_COUNT';
 import SPOP from './SPOP';
+import SPTTL from './SPTTL';
 import SPUBLISH from './SPUBLISH';
 import SRANDMEMBER_COUNT from './SRANDMEMBER_COUNT';
 import SRANDMEMBER from './SRANDMEMBER';
 import SREM from './SREM';
 import SSCAN from './SSCAN';
 import STRLEN from './STRLEN';
+import STTL from './STTL';
 import SUNION from './SUNION';
 import SUNIONCARD from './SUNIONCARD';
 import SUNIONSTORE from './SUNIONSTORE';
@@ -4183,6 +4193,24 @@ export default {
    */
   sAdd: SADD,
   /**
+   * Adds one or more members to a set and optionally sets their expiration
+   * @param key - The set key to add members to
+   * @param members - One or more members to add
+   * @param options - Optional member condition (MNX/MXX) and expiration (EX/PX/EXAT/PXAT/KEEPTTL); without KEEPTTL, existing member expirations are discarded
+   * @since 8.12.0
+   * @see https://redis.io/commands/saddex/
+   */
+  SADDEX,
+  /**
+   * Adds one or more members to a set and optionally sets their expiration
+   * @param key - The set key to add members to
+   * @param members - One or more members to add
+   * @param options - Optional member condition (MNX/MXX) and expiration (EX/PX/EXAT/PXAT/KEEPTTL); without KEEPTTL, existing member expirations are discarded
+   * @since 8.12.0
+   * @see https://redis.io/commands/saddex/
+   */
+  sAddEx: SADDEX,
+  /**
    * Constructs the SCAN command
    *
    * @param cursor - The cursor position to start scanning from
@@ -4417,6 +4445,62 @@ export default {
    */
   setRange: SETRANGE,
   /**
+   * Sets a timeout on set members. After the timeout has expired, the members will be automatically deleted
+   * @param key - The set key
+   * @param members - Members to set expiration on
+   * @param seconds - Number of seconds until member expiration
+   * @param mode - Expiration mode: NX (only if member has no expiry), XX (only if member has existing expiry), GT (only if new expiry is greater than current), LT (only if new expiry is less than current)
+   * @since 8.12.0
+   * @see https://redis.io/commands/sexpire/
+   */
+  SEXPIRE,
+  /**
+   * Sets a timeout on set members. After the timeout has expired, the members will be automatically deleted
+   * @param key - The set key
+   * @param members - Members to set expiration on
+   * @param seconds - Number of seconds until member expiration
+   * @param mode - Expiration mode: NX (only if member has no expiry), XX (only if member has existing expiry), GT (only if new expiry is greater than current), LT (only if new expiry is less than current)
+   * @since 8.12.0
+   * @see https://redis.io/commands/sexpire/
+   */
+  sExpire: SEXPIRE,
+  /**
+   * Sets the expiration of set members as a Unix timestamp in seconds
+   * @param key - The set key
+   * @param members - Members to set expiration on
+   * @param timestamp - Unix timestamp in seconds, or a Date
+   * @param mode - Expiration mode: NX (only if member has no expiry), XX (only if member has existing expiry), GT (only if new expiry is greater than current), LT (only if new expiry is less than current)
+   * @since 8.12.0
+   * @see https://redis.io/commands/sexpireat/
+   */
+  SEXPIREAT,
+  /**
+   * Sets the expiration of set members as a Unix timestamp in seconds
+   * @param key - The set key
+   * @param members - Members to set expiration on
+   * @param timestamp - Unix timestamp in seconds, or a Date
+   * @param mode - Expiration mode: NX (only if member has no expiry), XX (only if member has existing expiry), GT (only if new expiry is greater than current), LT (only if new expiry is less than current)
+   * @since 8.12.0
+   * @see https://redis.io/commands/sexpireat/
+   */
+  sExpireAt: SEXPIREAT,
+  /**
+   * Returns the absolute Unix timestamp in seconds at which set members will expire
+   * @param key - The set key
+   * @param members - Members to get expiration time for
+   * @since 8.12.0
+   * @see https://redis.io/commands/sexpiretime/
+   */
+  SEXPIRETIME,
+  /**
+   * Returns the absolute Unix timestamp in seconds at which set members will expire
+   * @param key - The set key
+   * @param members - Members to get expiration time for
+   * @since 8.12.0
+   * @see https://redis.io/commands/sexpiretime/
+   */
+  sExpireTime: SEXPIRETIME,
+  /**
    * Constructs the SINTER command
    *
    * @param keys - One or more set keys to compute the intersection from
@@ -4567,6 +4651,78 @@ export default {
    */
   sort: SORT,
   /**
+   * Removes the expiration from set members
+   * @param key - The set key
+   * @param members - Members to remove expiration from
+   * @since 8.12.0
+   * @see https://redis.io/commands/spersist/
+   */
+  SPERSIST,
+  /**
+   * Removes the expiration from set members
+   * @param key - The set key
+   * @param members - Members to remove expiration from
+   * @since 8.12.0
+   * @see https://redis.io/commands/spersist/
+   */
+  sPersist: SPERSIST,
+  /**
+   * Sets a timeout on set members in milliseconds. After the timeout has expired, the members will be automatically deleted
+   * @param key - The set key
+   * @param members - Members to set expiration on
+   * @param ms - Number of milliseconds until member expiration
+   * @param mode - Expiration mode: NX (only if member has no expiry), XX (only if member has existing expiry), GT (only if new expiry is greater than current), LT (only if new expiry is less than current)
+   * @since 8.12.0
+   * @see https://redis.io/commands/spexpire/
+   */
+  SPEXPIRE,
+  /**
+   * Sets a timeout on set members in milliseconds. After the timeout has expired, the members will be automatically deleted
+   * @param key - The set key
+   * @param members - Members to set expiration on
+   * @param ms - Number of milliseconds until member expiration
+   * @param mode - Expiration mode: NX (only if member has no expiry), XX (only if member has existing expiry), GT (only if new expiry is greater than current), LT (only if new expiry is less than current)
+   * @since 8.12.0
+   * @see https://redis.io/commands/spexpire/
+   */
+  spExpire: SPEXPIRE,
+  /**
+   * Sets the expiration of set members as a Unix timestamp in milliseconds
+   * @param key - The set key
+   * @param members - Members to set expiration on
+   * @param timestamp - Unix timestamp in milliseconds, or a Date
+   * @param mode - Expiration mode: NX (only if member has no expiry), XX (only if member has existing expiry), GT (only if new expiry is greater than current), LT (only if new expiry is less than current)
+   * @since 8.12.0
+   * @see https://redis.io/commands/spexpireat/
+   */
+  SPEXPIREAT,
+  /**
+   * Sets the expiration of set members as a Unix timestamp in milliseconds
+   * @param key - The set key
+   * @param members - Members to set expiration on
+   * @param timestamp - Unix timestamp in milliseconds, or a Date
+   * @param mode - Expiration mode: NX (only if member has no expiry), XX (only if member has existing expiry), GT (only if new expiry is greater than current), LT (only if new expiry is less than current)
+   * @since 8.12.0
+   * @see https://redis.io/commands/spexpireat/
+   */
+  spExpireAt: SPEXPIREAT,
+  /**
+   * Returns the absolute Unix timestamp in milliseconds at which set members will expire
+   * @param key - The set key
+   * @param members - Members to get expiration time for
+   * @since 8.12.0
+   * @see https://redis.io/commands/spexpiretime/
+   */
+  SPEXPIRETIME,
+  /**
+   * Returns the absolute Unix timestamp in milliseconds at which set members will expire
+   * @param key - The set key
+   * @param members - Members to get expiration time for
+   * @since 8.12.0
+   * @see https://redis.io/commands/spexpiretime/
+   */
+  spExpireTime: SPEXPIRETIME,
+  /**
    * Constructs the SPOP command to remove and return multiple random members from a set
    *
    * @param key - The key of the set to pop from
@@ -4596,6 +4752,22 @@ export default {
    * @see https://redis.io/commands/spop/
    */
   sPop: SPOP,
+  /**
+   * Returns the remaining time to live of set members in milliseconds
+   * @param key - The set key
+   * @param members - Members to get time-to-live for
+   * @since 8.12.0
+   * @see https://redis.io/commands/spttl/
+   */
+  SPTTL,
+  /**
+   * Returns the remaining time to live of set members in milliseconds
+   * @param key - The set key
+   * @param members - Members to get time-to-live for
+   * @since 8.12.0
+   * @see https://redis.io/commands/spttl/
+   */
+  spTTL: SPTTL,
   /**
    * Constructs the SPUBLISH command to post a message to a Sharded Pub/Sub channel
    *
@@ -4696,6 +4868,22 @@ export default {
    * @see https://redis.io/commands/strlen/
    */
   strLen: STRLEN,
+  /**
+   * Returns the remaining time to live of set members in seconds
+   * @param key - The set key
+   * @param members - Members to get time-to-live for
+   * @since 8.12.0
+   * @see https://redis.io/commands/sttl/
+   */
+  STTL,
+  /**
+   * Returns the remaining time to live of set members in seconds
+   * @param key - The set key
+   * @param members - Members to get time-to-live for
+   * @since 8.12.0
+   * @see https://redis.io/commands/sttl/
+   */
+  sTTL: STTL,
   /**
    * Constructs the SUNION command to return the members of the set resulting from the union of all the given sets
    *
