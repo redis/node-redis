@@ -46,7 +46,7 @@ export default {
       parser.push('EF', options.EF.toString());
     }
 
-    if (options?.SETATTR) {
+    if (options?.SETATTR !== undefined) {
       parser.push(
         'SETATTR',
         typeof options.SETATTR === 'object' && !(options.SETATTR instanceof Buffer) ?

@@ -64,6 +64,15 @@ describe('VADD', () => {
       );
     });
 
+    it('with empty SETATTR', () => {
+      const parser = new BasicCommandParser();
+      VADD.parseCommand(parser, 'key', [1.0, 2.0], 'element', { SETATTR: '' });
+      assert.deepEqual(
+        parser.redisArgs,
+        ['VADD', 'key', 'VALUES', '2', '1', '2', 'element', 'SETATTR', '']
+      );
+    });
+
     it('with all options', () => {
       const parser = new BasicCommandParser();
       VADD.parseCommand(parser, 'key', [1.0, 2.0], 'element', {
