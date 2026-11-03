@@ -632,6 +632,13 @@ export default class RedisClient<
   // clients via the himportRegistry option) vs. what THIS socket's server session holds.
   #himportRegistry: FieldsetRegistry;
   #preparedFieldsets = new PreparedFieldsets();
+  /**
+   * Script SHAs loaded on this connection (via EVAL in MULTI/PIPELINE or a
+   * successful EVALSHA/EVAL). Shared across `multi()` so later batches can
+   * EVALSHA instead of re-sending the full script (#2084). Cleared on socket
+   * errors when server-side scripts are no longer guaranteed.
+   */
+  #scriptsInUse = new Set<string>();
   #credentialsSubscription: Disposable | null = null;
   // Flag used to pause writing to the socket during maintenance windows.
   // When true, prevents new commands from being written while waiting for:
@@ -1088,6 +1095,7 @@ export default class RedisClient<
       // issued between disconnect and re-ready would otherwise see a live-looking entry,
       // skip the PREPARE injection, and replay bare onto the new socket's empty session.
       this.#preparedFieldsets.clear();
+      this.#scriptsInUse.clear();
       if (this.#watchEpoch !== undefined) {
         this.#dirtyWatch ??= 'Client reconnected after WATCH';
       }
@@ -1725,10 +1733,13 @@ export default class RedisClient<
     } catch (err) {
       if (!(err as Error)?.message?.startsWith?.('NOSCRIPT')) throw err;
 
+      this._self.#scriptsInUse.delete(script.SHA1);
       args[0] = script.IS_READ_ONLY ? 'EVAL_RO' : 'EVAL';
       args[1] = script.SCRIPT;
       reply = await this.sendCommand(args, options);
     }
+
+    this._self.#scriptsInUse.add(script.SHA1);
 
     return transformReply ?
       transformReply(reply, parser.preserve, options?.typeMapping) :
@@ -1760,6 +1771,16 @@ export default class RedisClient<
           ...this._commandOptions,
           ...options,
         };
+
+        // SCRIPT FLUSH drops server-side scripts; drop the local SHA cache too
+        // so later MULTI batches re-EVAL instead of EVALSHA (#2084).
+        if (
+          String(args[0]).toUpperCase() === 'SCRIPT' &&
+          args[1] !== undefined &&
+          String(args[1]).toUpperCase() === 'FLUSH'
+        ) {
+          this._self.#scriptsInUse.clear();
+        }
 
         const promise = this._self.#queue.addCommand<T>(args, opts);
         this._self.#scheduleWrite();
@@ -2151,7 +2172,8 @@ export default class RedisClient<
       this._executeMulti.bind(this),
       this._executePipeline.bind(this),
       this._commandOptions?.typeMapping,
-      this._self._keyPrefix
+      this._self._keyPrefix,
+      this._self.#scriptsInUse
     );
   }
 

@@ -199,8 +199,14 @@ export default class RedisClientMultiCommand<REPLIES = []> {
 
   #selectedDB?: number;
 
-  constructor(executeMulti: ExecuteMulti, executePipeline: ExecuteMulti, typeMapping?: TypeMapping, keyPrefix?: RedisArgument) {
-    this.#multi = new RedisMultiCommand(typeMapping);
+  constructor(
+    executeMulti: ExecuteMulti,
+    executePipeline: ExecuteMulti,
+    typeMapping?: TypeMapping,
+    keyPrefix?: RedisArgument,
+    scriptsInUse?: Set<string>
+  ) {
+    this.#multi = new RedisMultiCommand(typeMapping, scriptsInUse);
     this.#executeMulti = executeMulti;
     this.#executePipeline = executePipeline;
     this.#keyPrefix = keyPrefix;

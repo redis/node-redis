@@ -772,6 +772,33 @@ describe('Client', () => {
       }
     });
 
+    testUtils.testWithClient('reuses EVALSHA across multi() script batches', async client => {
+      await client.set('key', '2');
+
+      assert.deepEqual(
+        await client.multi().square('key').exec(),
+        [4]
+      );
+      assert.deepEqual(
+        await client.multi().square('key').exec(),
+        [4]
+      );
+
+      await client.scriptFlush();
+
+      assert.deepEqual(
+        await client.multi().square('key').exec(),
+        [4]
+      );
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      clientOptions: {
+        scripts: {
+          square: SQUARE_SCRIPT
+        }
+      }
+    });
+
     testUtils.testWithClient('WatchError', async client => {
       await client.watch('key');
 

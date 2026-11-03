@@ -60,6 +60,23 @@ describe('Multi Command', () => {
         ]
       );
     });
+
+    it('should reuse EVALSHA across Multi instances that share scriptsInUse', () => {
+      const scriptsInUse = new Set<string>();
+      const first = new RedisMultiCommand(undefined, scriptsInUse);
+      first.addScript(SQUARE_SCRIPT, ['1']);
+      assert.deepEqual(
+        Array.from(first.queue.at(-1).args),
+        ['EVAL', SQUARE_SCRIPT.SCRIPT, '1', '1']
+      );
+
+      const second = new RedisMultiCommand(undefined, scriptsInUse);
+      second.addScript(SQUARE_SCRIPT, ['2']);
+      assert.deepEqual(
+        Array.from(second.queue.at(-1).args),
+        ['EVALSHA', SQUARE_SCRIPT.SHA1, '1', '2']
+      );
+    });
   });
 
   describe('exec', () => {

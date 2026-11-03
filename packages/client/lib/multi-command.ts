@@ -25,13 +25,19 @@ export interface RedisMultiQueuedCommand {
 export default class RedisMultiCommand {
   private readonly typeMapping?: TypeMapping;
 
-  constructor(typeMapping?: TypeMapping) {
+  constructor(typeMapping?: TypeMapping, scriptsInUse?: Set<string>) {
     this.typeMapping = typeMapping;
+    this.scriptsInUse = scriptsInUse ?? new Set();
   }
 
   readonly queue: Array<RedisMultiQueuedCommand> = [];
 
-  readonly scriptsInUse = new Set<string>();
+  /**
+   * SHAs already sent with EVAL/EVAL_RO on this connection (or shared from the
+   * owning client). Reused so later MULTI/PIPELINE batches can EVALSHA instead
+   * of re-uploading the full script (#2084).
+   */
+  readonly scriptsInUse: Set<string>;
 
   addCommand(args: CommandArguments, transformReply?: TransformReply) {
     this.queue.push({
