@@ -446,10 +446,12 @@ export class RedisClientPool<
       promises.push(this._self.#create());
     }
 
+    const destroyCount = this._self.#destroyCount;
     try {
       await Promise.all(promises);
     } catch (err) {
-      this.destroy();
+      // a destroy() since then already closed these members, and the pool may belong to a later connect()
+      if (this._self.#destroyCount === destroyCount) this.destroy();
       throw err;
     }
 
@@ -469,6 +471,9 @@ export class RedisClientPool<
     try {
       await client.connect();
     } catch (err) {
+      // destroy() already reset the list this node was in, and dealt with the drain and the queued tasks
+      if (this._self.#destroyed.has(client)) throw err;
+
       this._self.#clientsInUse.remove(node);
       // Closing or replacing with no client left: `#returnClient()`, the only other place that signals the
       // drain, will not run again, and nothing can pick up the queued tasks either
@@ -761,8 +766,6 @@ export class RedisClientPool<
       client.destroy();
     }
 
-    this._self.#clientSideCache?.onPoolClose();
-
     this._self.#clientsInUse.reset();
     // a close() waiting for the members destroy() just closed has nothing left to drain
     this._self.#drainResolve?.();
@@ -777,5 +780,8 @@ export class RedisClientPool<
     }
 
     this._self.#isOpen = false;
+
+    // last, so a hook that throws cannot leave a close() waiting or the pool half reset
+    this._self.#clientSideCache?.onPoolClose();
   }
 }
