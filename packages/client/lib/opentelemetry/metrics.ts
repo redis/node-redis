@@ -116,7 +116,7 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
 
       this.#instruments.dbClientOperationDuration.record(
         (performance.now() - state.startTime) / 1000,
-        withCustomAttributes(this.#options, {
+        withCustomAttributes(this.#options, state.clientAttributes, {
           ...this.#options.attributes,
           [OTEL_ATTRIBUTES.dbNamespace]: state.clientAttributes?.db?.toString(),
           [OTEL_ATTRIBUTES.serverAddress]: state.clientAttributes?.host,
@@ -134,7 +134,7 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
       const errorInfo = getErrorInfo(ctx.error);
       this.#instruments.dbClientOperationDuration.record(
         (performance.now() - state.startTime) / 1000,
-        withCustomAttributes(this.#options, {
+        withCustomAttributes(this.#options, state.clientAttributes, {
           ...this.#options.attributes,
           [OTEL_ATTRIBUTES.dbNamespace]: state.clientAttributes?.db?.toString(),
           [OTEL_ATTRIBUTES.serverAddress]: state.clientAttributes?.host,
@@ -164,7 +164,7 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
 
       this.#instruments.dbClientOperationDuration.record(
         (performance.now() - state.startTime) / 1000,
-        withCustomAttributes(this.#options, {
+        withCustomAttributes(this.#options, state.clientAttributes, {
           ...this.#options.attributes,
           [OTEL_ATTRIBUTES.dbNamespace]: state.clientAttributes?.db?.toString(),
           [OTEL_ATTRIBUTES.serverAddress]: state.clientAttributes?.host,
@@ -182,7 +182,7 @@ class OTelCommandMetrics implements IOTelCommandMetrics {
       const errorInfo = getErrorInfo(ctx.error);
       this.#instruments.dbClientOperationDuration.record(
         (performance.now() - state.startTime) / 1000,
-        withCustomAttributes(this.#options, {
+        withCustomAttributes(this.#options, state.clientAttributes, {
           ...this.#options.attributes,
           [OTEL_ATTRIBUTES.dbNamespace]: state.clientAttributes?.db?.toString(),
           [OTEL_ATTRIBUTES.serverAddress]: state.clientAttributes?.host,
@@ -279,7 +279,7 @@ class OTelChannelSubscribers {
       const clientAttributes = resolveClientAttributes(ctx.clientId);
       this.#instruments.dbClientConnectionCreateTime.record(
         ctx.createTimeMs / 1000,
-        withCustomAttributes(this.#options, {
+        withCustomAttributes(this.#options, clientAttributes, {
           ...this.#options.attributes,
           ...parseClientAttributes(clientAttributes),
         }),
@@ -288,7 +288,7 @@ class OTelChannelSubscribers {
 
     this.#sub(CHANNELS.CONNECTION_RELAXED_TIMEOUT, (ctx: ConnectionRelaxedTimeoutEvent) => {
       const clientAttributes = resolveClientAttributes(ctx.clientId);
-      this.#instruments.redisClientConnectionRelaxedTimeout.add(ctx.value, withCustomAttributes(this.#options, {
+      this.#instruments.redisClientConnectionRelaxedTimeout.add(ctx.value, withCustomAttributes(this.#options, clientAttributes, {
         ...this.#options.attributes,
         ...parseClientAttributes(clientAttributes),
       }));
@@ -296,7 +296,7 @@ class OTelChannelSubscribers {
 
     this.#sub(CHANNELS.CONNECTION_HANDOFF, (ctx: ConnectionHandoffEvent) => {
       const clientAttributes = resolveClientAttributes(ctx.clientId);
-      this.#instruments.redisClientConnectionHandoff.add(1, withCustomAttributes(this.#options, {
+      this.#instruments.redisClientConnectionHandoff.add(1, withCustomAttributes(this.#options, clientAttributes, {
         ...this.#options.attributes,
         ...parseClientAttributes(clientAttributes),
       }));
@@ -308,7 +308,7 @@ class OTelChannelSubscribers {
   #subscribeConnectionClosed() {
     this.#sub(CHANNELS.CONNECTION_CLOSED, (ctx: ConnectionClosedEvent) => {
       const clientAttributes = resolveClientAttributes(ctx.clientId);
-      this.#instruments.redisClientConnectionClosed.add(1, withCustomAttributes(this.#options, {
+      this.#instruments.redisClientConnectionClosed.add(1, withCustomAttributes(this.#options, clientAttributes, {
         ...this.#options.attributes,
         ...parseClientAttributes(clientAttributes),
         [OTEL_ATTRIBUTES.redisClientConnectionCloseReason]: ctx.reason,
@@ -325,7 +325,7 @@ class OTelChannelSubscribers {
       const clientAttributes = resolveClientAttributes(ctx.clientId);
       this.#instruments.dbClientConnectionWaitTime.record(
         (performance.now() - ctx.waitStartTimestamp) / 1000,
-        withCustomAttributes(this.#options, {
+        withCustomAttributes(this.#options, clientAttributes, {
           ...this.#options.attributes,
           ...parseClientAttributes(clientAttributes),
         }),
@@ -337,7 +337,7 @@ class OTelChannelSubscribers {
     const clientAttributes = resolveClientAttributes(clientId);
     const errorInfo = getErrorInfo(error);
 
-    this.#instruments.redisClientErrors.add(1, withCustomAttributes(this.#options, {
+    this.#instruments.redisClientErrors.add(1, withCustomAttributes(this.#options, clientAttributes, {
       ...this.#options.attributes,
       ...parseClientAttributes(clientAttributes),
       [OTEL_ATTRIBUTES.errorType]: errorInfo.errorType,
@@ -381,7 +381,7 @@ class OTelChannelSubscribers {
 
     this.#sub(CHANNELS.MAINTENANCE, (ctx: MaintenanceNotificationEvent) => {
       const clientAttributes = resolveClientAttributes(ctx.clientId);
-      this.#instruments.redisClientMaintenanceNotifications.add(1, withCustomAttributes(this.#options, {
+      this.#instruments.redisClientMaintenanceNotifications.add(1, withCustomAttributes(this.#options, clientAttributes, {
         ...this.#options.attributes,
         ...parseClientAttributes(clientAttributes),
         [OTEL_ATTRIBUTES.redisClientConnectionNotification]: ctx.notification,
@@ -394,7 +394,7 @@ class OTelChannelSubscribers {
   #subscribeClientSideCache() {
     this.#sub(CHANNELS.CACHE_REQUEST, (ctx: CacheRequestEvent) => {
       const clientAttributes = resolveClientAttributes(ctx.clientId);
-      this.#instruments.redisClientCscRequests.add(1, withCustomAttributes(this.#options, {
+      this.#instruments.redisClientCscRequests.add(1, withCustomAttributes(this.#options, clientAttributes, {
         ...this.#options.attributes,
         [OTEL_ATTRIBUTES.serverAddress]: clientAttributes?.host,
         [OTEL_ATTRIBUTES.serverPort]: clientAttributes?.port?.toString(),
@@ -405,7 +405,7 @@ class OTelChannelSubscribers {
 
     this.#sub(CHANNELS.CACHE_EVICTION, (ctx: CacheEvictionEvent) => {
       const clientAttributes = resolveClientAttributes(ctx.clientId);
-      this.#instruments.redisClientCscEvictions.add(ctx.count ?? 1, withCustomAttributes(this.#options, {
+      this.#instruments.redisClientCscEvictions.add(ctx.count ?? 1, withCustomAttributes(this.#options, clientAttributes, {
         ...this.#options.attributes,
         [OTEL_ATTRIBUTES.serverAddress]: clientAttributes?.host,
         [OTEL_ATTRIBUTES.serverPort]: clientAttributes?.port?.toString(),
@@ -420,7 +420,7 @@ class OTelChannelSubscribers {
   #subscribePubSub() {
     this.#sub(CHANNELS.PUBSUB, (ctx: PubSubMessageEvent) => {
       const clientAttributes = resolveClientAttributes(ctx.clientId);
-      this.#instruments.redisClientPubsubMessages.add(1, withCustomAttributes(this.#options, {
+      this.#instruments.redisClientPubsubMessages.add(1, withCustomAttributes(this.#options, clientAttributes, {
         ...this.#options.attributes,
         ...parseClientAttributes(clientAttributes),
         [OTEL_ATTRIBUTES.redisClientPubSubMessageDirection]: ctx.direction,
@@ -444,7 +444,7 @@ class OTelChannelSubscribers {
 
       if (hasPubSub && (commandName === 'PUBLISH' || commandName === 'SPUBLISH')) {
         const clientAttributes = resolveClientAttributes(ctx.clientId);
-        this.#instruments.redisClientPubsubMessages.add(1, withCustomAttributes(this.#options, {
+        this.#instruments.redisClientPubsubMessages.add(1, withCustomAttributes(this.#options, clientAttributes, {
           ...this.#options.attributes,
           ...parseClientAttributes(clientAttributes),
           [OTEL_ATTRIBUTES.redisClientPubSubMessageDirection]: 'out',
@@ -478,7 +478,7 @@ class OTelChannelSubscribers {
 
           if (!messages || !Array.isArray(messages) || messages.length === 0) continue;
 
-          const streamAttributes = withCustomAttributes(this.#options, {
+          const streamAttributes = withCustomAttributes(this.#options, clientAttributes, {
             ...this.#options.attributes,
             ...parseClientAttributes(clientAttributes),
             ...(!this.#options.hideStreamNames
@@ -731,12 +731,13 @@ export class OTelMetrics {
         (observableResult, opts) => {
           for (const handle of ClientRegistry.instance.getAll()) {
             if (handle.isConnected()) {
+              const clientAttributes = handle.getAttributes();
               observableResult.observe(
                 this.#instruments.redisClientConnectionCount,
                 1,
-                withCustomAttributes(opts, {
+                withCustomAttributes(opts, clientAttributes, {
                   ...opts.attributes,
-                  ...parseClientAttributes(handle.getAttributes()),
+                  ...parseClientAttributes(clientAttributes),
                 }),
               );
             }
@@ -863,12 +864,13 @@ export class OTelMetrics {
         options,
         (observableResult, opts) => {
           for (const handle of ClientRegistry.instance.getAll()) {
+            const clientAttributes = handle.getAttributes();
             observableResult.observe(
               this.#instruments.redisClientCscItems,
               handle.getCacheItemCount(),
-              withCustomAttributes(opts, {
+              withCustomAttributes(opts, clientAttributes, {
                 ...opts.attributes,
-                ...parseClientAttributes(handle.getAttributes()),
+                ...parseClientAttributes(clientAttributes),
               }),
             );
           }

@@ -23,6 +23,7 @@ import SingleEntryCache from '../single-entry-cache';
 import { version } from '../../package.json'
 import EnterpriseMaintenanceManager, { MaintenanceUpdate, MovingEndpointType, SMIGRATED_EVENT, SMigratedEvent } from './enterprise-maintenance-manager';
 import { ClientMetricsHandle, ClientRegistry } from '../opentelemetry';
+import type { ClientMetricConfig } from '../opentelemetry/types';
 import { ClientIdentity, ClientRole, generateClientId } from './identity';
 import { trace, sanitizeArgs, publish, CHANNELS, type CommandTraceContext } from './tracing';
 import { DEFAULT_COMMAND_TIMEOUT } from '../defaults';
@@ -278,6 +279,13 @@ export interface RedisClientOptions<
    * The default is 10000
    */
   maintRelaxedSocketTimeout?: number;
+  /**
+   * OpenTelemetry metrics options for this client.
+   *
+   * `customAttributes` are added to every metric data point this client emits,
+   * and override the process-level `customAttributes` set in `OpenTelemetry.init`.
+   */
+  metrics?: ClientMetricConfig;
 };
 
 /**
@@ -691,6 +699,7 @@ export default class RedisClient<
         clientId: this._self.#clientIdentity.id,
         parentId: this._self.#clientIdentity.parentId,
         isPubSub: this._self.#queue.isPubSubActive,
+        customAttributes: this._self.#options.metrics?.customAttributes,
       }),
       getPendingRequests: () => this._self.#queue.pendingCount,
       getCacheItemCount: () => this._self.#clientSideCache?.size() ?? 0,

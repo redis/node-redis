@@ -146,7 +146,10 @@ OpenTelemetry.init({
 
 ## Custom attributes
 
-Custom attributes label metrics with your own values, for example to tell services apart in a dashboard. Set them with `customAttributes` in `OpenTelemetry.init`. They apply to every metric from every client in the process.
+Custom attributes label metrics with your own values, for example to tell services or client instances apart in a dashboard. You can set them at two levels:
+
+- **Process:** `customAttributes` in `OpenTelemetry.init`. Applies to every client in the process.
+- **Client:** `metrics.customAttributes` in the client options. Applies to every metric that client emits. For a pool, set it in the client options; for a cluster, in `defaults`; for a sentinel, in `nodeClientOptions` and `sentinelClientOptions`. Every client they create then carries it.
 
 ```typescript
 OpenTelemetry.init({
@@ -155,7 +158,21 @@ OpenTelemetry.init({
     customAttributes: { "deployment.environment": "production" },
   },
 });
+
+const orders = createClient({ metrics: { customAttributes: { app: "orders" } } });
+const billing = createCluster({
+  rootNodes: [{ url: "redis://10.0.0.1:30001" }],
+  defaults: { metrics: { customAttributes: { app: "billing" } } },
+});
 ```
+
+When the same key is set more than once, the most specific value wins:
+
+1. client attributes
+2. process attributes
+3. attributes node-redis sets, such as `db.system.name` or `server.address`
+
+Each client only carries its own attributes, so `orders` metrics never carry `app: "billing"`.
 
 > **Warning**: Keep the cardinality of custom attributes low. Every distinct combination of attribute values creates a new time series for every metric, which raises the memory, storage and cost of your metrics backend. Use a few fixed values per process, such as the service, team, region or environment.
 

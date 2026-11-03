@@ -29,18 +29,22 @@ export const parseClientAttributes = (
   };
 };
 
-// Custom attributes are merged last, so they override the built-in ones.
-// With none set, the call site's object is passed through as is.
+// Custom attributes are merged last, so they override the built-in ones:
+// client-level first, then process-level. With neither set, the call site's
+// object is passed through as is.
 export const withCustomAttributes = (
   options: MetricOptions,
+  clientAttributes: OTelClientAttributes | undefined,
   attributes: Attributes,
 ): Attributes => {
-  if (!options.hasCustomAttributes) {
+  const clientCustomAttributes = clientAttributes?.customAttributes;
+  if (!clientCustomAttributes && !options.hasCustomAttributes) {
     return attributes;
   }
 
   return {
     ...attributes,
     ...options.customAttributes,
+    ...clientCustomAttributes,
   };
 };

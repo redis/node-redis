@@ -102,6 +102,19 @@ export interface MetricConfig {
   customAttributes?: Attributes;
 }
 
+/**
+ * Per-client metrics options. For a cluster, set them in `defaults`; for a sentinel, in
+ * `nodeClientOptions` and `sentinelClientOptions`.
+ */
+export interface ClientMetricConfig {
+  /**
+   * Attributes added to every metric data point this client emits. They
+   * override `OpenTelemetry.init` `metrics.customAttributes` and the attributes
+   * node-redis sets. Keep the cardinality low.
+   */
+  customAttributes?: Attributes;
+}
+
 export interface OTelClientAttributes {
   host?: string;
   port?: string | number;
@@ -109,6 +122,7 @@ export interface OTelClientAttributes {
   clientId?: string;
   parentId?: string;
   isPubSub?: boolean;
+  customAttributes?: Attributes;
 }
 
 export interface ObservabilityConfig {
