@@ -223,7 +223,7 @@ export class EntraIdCredentialsProviderFactory {
         const idp = new MSALIdentityProvider(
           async () => {
             if (!initialCredentialsAccount) {
-              let authResult = await authFlow.acquireTokenByCode(pkceParams);
+              const authResult = await authFlow.acquireTokenByCode(pkceParams);
               initialCredentialsAccount = authResult.account;
               return authResult;
             } else {
@@ -326,7 +326,10 @@ const loggerOptions = {
  */
 export const DEFAULT_RETRY_POLICY: RetryPolicy = {
   // currently only retry on network errors
-  isRetryable: (error: unknown) => error instanceof NetworkError,
+  // msal-node can load its own copy of msal-common, so `instanceof` alone can miss its errors
+  isRetryable: (error: unknown) =>
+    error instanceof NetworkError ||
+    (error instanceof Error && error.name === 'NetworkError'),
   maxAttempts: 10,
   initialDelayMs: 100,
   maxDelayMs: 100000,
