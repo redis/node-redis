@@ -20,6 +20,8 @@ export type MultiReplyType<T extends MultiReply, REPLIES> = T extends MULTI_REPL
 export interface RedisMultiQueuedCommand {
   args: CommandArguments;
   transformReply?: TransformReply;
+  /** Present when the command was built via {@link RedisMultiCommand.addScript}. */
+  script?: RedisScript;
 }
 
 /**
@@ -79,6 +81,19 @@ function isScriptFlush(args: CommandArguments): boolean {
   );
 }
 
+function isEvalsha(args: CommandArguments): boolean {
+  const command = String(args[0]).toUpperCase();
+  return command === 'EVALSHA' || command === 'EVALSHA_RO';
+}
+
+function isNoscript(reply: unknown): boolean {
+  return (
+    reply instanceof ErrorReply &&
+    typeof reply.message === 'string' &&
+    reply.message.startsWith('NOSCRIPT')
+  );
+}
+
 function addSha(scriptsInUse: ScriptsInUse, sha: string, epoch: number) {
   if (scriptsInUse instanceof ScriptsInUseSet) {
     scriptsInUse.addIfEpoch(sha, epoch);
@@ -87,7 +102,7 @@ function addSha(scriptsInUse: ScriptsInUse, sha: string, epoch: number) {
   }
 }
 
-function sampleEpoch(scriptsInUse: ScriptsInUse): number {
+export function sampleScriptsEpoch(scriptsInUse: ScriptsInUse): number {
   return scriptsInUse instanceof ScriptsInUseSet ? scriptsInUse.epoch : 0;
 }
 
@@ -153,29 +168,59 @@ export default class RedisMultiCommand {
 
     redisArgs.push(...args);
 
-    this.addCommand(redisArgs, transformReply);
+    this.queue.push({
+      args: redisArgs,
+      transformReply,
+      script
+    });
+  }
+
+  /**
+   * Before EXEC/pipeline send: if a flush cleared the shared cache after this
+   * builder queued EVALSHA, rewrite those entries back to EVAL.
+   */
+  revalidateQueuedScripts() {
+    for (const command of this.queue) {
+      const { script, args } = command;
+      if (!script || !isEvalsha(args)) continue;
+
+      if (
+        this.#pendingScripts.has(script.SHA1) ||
+        (!this.#ignoreInheritedScripts && this.scriptsInUse.has(script.SHA1))
+      ) {
+        continue;
+      }
+
+      args[0] = script.IS_READ_ONLY ? 'EVAL_RO' : 'EVAL';
+      args[1] = script.SCRIPT;
+      this.#pendingScripts.add(script.SHA1);
+    }
+  }
+
+  sampleEpoch() {
+    return sampleScriptsEpoch(this.scriptsInUse);
   }
 
   /**
    * After MULTI/PIPELINE successfully reaches Redis, merge this builder's
    * pending EVAL SHAs into the shared set — or clear it if the batch flushed.
+   *
+   * @param epochAtStart Epoch sampled **before** the batch was awaited, so a
+   * concurrent `SCRIPT FLUSH` that bumps the epoch during the await cannot be
+   * undone by re-adding SHAs against the post-flush epoch.
    */
-  publishScriptsInUse() {
-    const epochBefore = sampleEpoch(this.scriptsInUse);
-
+  publishScriptsInUse(epochAtStart = sampleScriptsEpoch(this.scriptsInUse)) {
     if (this.queue.some(({ args }) => isScriptFlush(args))) {
       this.scriptsInUse.clear();
-    }
-
-    // After a flush clear, use the post-clear epoch so scripts queued after the
-    // flush in this same batch are recorded; in-flight work holding epochBefore
-    // will not re-add via addIfEpoch.
-    const epochForPending = this.queue.some(({ args }) => isScriptFlush(args))
-      ? sampleEpoch(this.scriptsInUse)
-      : epochBefore;
-
-    for (const sha of this.#pendingScripts) {
-      addSha(this.scriptsInUse, sha, epochForPending);
+      // Scripts queued after the flush in this same batch loaded on a fresh cache.
+      const epochAfterFlush = sampleScriptsEpoch(this.scriptsInUse);
+      for (const sha of this.#pendingScripts) {
+        addSha(this.scriptsInUse, sha, epochAfterFlush);
+      }
+    } else {
+      for (const sha of this.#pendingScripts) {
+        addSha(this.scriptsInUse, sha, epochAtStart);
+      }
     }
     this.#pendingScripts.clear();
   }
@@ -189,6 +234,37 @@ export default class RedisMultiCommand {
       this.scriptsInUse.clear();
     }
     this.#pendingScripts.clear();
+  }
+
+  /**
+   * Drop SHAs for EVALSHA commands that returned NOSCRIPT so later batches
+   * re-EVAL instead of repeating a doomed EVALSHA.
+   */
+  evictNoscriptShas(rawReplies: Array<unknown>) {
+    for (let i = 0; i < this.queue.length; i++) {
+      if (!isNoscript(rawReplies[i])) continue;
+      const { args } = this.queue[i];
+      if (!isEvalsha(args)) continue;
+      this.scriptsInUse.delete(String(args[1]));
+      this.#pendingScripts.delete(String(args[1]));
+    }
+  }
+
+  /**
+   * When a pipeline command promise rejects with NOSCRIPT, evict every queued
+   * EVALSHA SHA (we may not have a full reply array).
+   */
+  evictNoscriptFromError(err: unknown) {
+    const message = (err as Error)?.message;
+    if (typeof message !== 'string' || !message.startsWith('NOSCRIPT')) {
+      return;
+    }
+
+    for (const { args } of this.queue) {
+      if (!isEvalsha(args)) continue;
+      this.scriptsInUse.delete(String(args[1]));
+      this.#pendingScripts.delete(String(args[1]));
+    }
   }
 
   transformReplies(rawReplies: Array<unknown>): Array<unknown> {

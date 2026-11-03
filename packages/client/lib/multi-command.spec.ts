@@ -1,5 +1,6 @@
 import { strict as assert } from 'node:assert';
-import RedisMultiCommand from './multi-command';
+import RedisMultiCommand, { ScriptsInUseSet } from './multi-command';
+import { ErrorReply } from './errors';
 import { SQUARE_SCRIPT } from './client/index.spec';
 
 describe('Multi Command', () => {
@@ -135,6 +136,42 @@ describe('Multi Command', () => {
       multi.addScript(SQUARE_SCRIPT, ['1']);
       multi.invalidateScriptsOnError();
       assert.equal(scriptsInUse.size, 0);
+    });
+
+    it('should not re-add SHAs when epoch moved during the batch await', () => {
+      const scriptsInUse = new ScriptsInUseSet();
+      const multi = new RedisMultiCommand(undefined, scriptsInUse);
+      multi.addScript(SQUARE_SCRIPT, ['1']);
+      const epochAtStart = multi.sampleEpoch();
+      // Concurrent SCRIPT FLUSH while the batch is in flight.
+      scriptsInUse.clear();
+      multi.publishScriptsInUse(epochAtStart);
+      assert.equal(scriptsInUse.has(SQUARE_SCRIPT.SHA1), false);
+    });
+
+    it('should rewrite queued EVALSHA back to EVAL after an intervening flush', () => {
+      const scriptsInUse = new Set<string>([SQUARE_SCRIPT.SHA1]);
+      const multi = new RedisMultiCommand(undefined, scriptsInUse);
+      multi.addScript(SQUARE_SCRIPT, ['1']);
+      assert.equal(multi.queue[0].args[0], 'EVALSHA');
+
+      scriptsInUse.clear();
+      multi.revalidateQueuedScripts();
+
+      assert.deepEqual(
+        Array.from(multi.queue[0].args),
+        ['EVAL', SQUARE_SCRIPT.SCRIPT, '1', '1']
+      );
+    });
+
+    it('should evict SHAs for EVALSHA commands that return NOSCRIPT', () => {
+      const scriptsInUse = new Set<string>([SQUARE_SCRIPT.SHA1]);
+      const multi = new RedisMultiCommand(undefined, scriptsInUse);
+      multi.addScript(SQUARE_SCRIPT, ['1']);
+      multi.evictNoscriptShas([
+        new ErrorReply('NOSCRIPT No matching script. Please use EVAL.')
+      ]);
+      assert.equal(scriptsInUse.has(SQUARE_SCRIPT.SHA1), false);
     });
   });
 
