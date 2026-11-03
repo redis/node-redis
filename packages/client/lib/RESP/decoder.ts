@@ -317,7 +317,7 @@ export class Decoder {
         this.#cursor = cursor + 2; // skip \r\n
         return number;
       }
-      number = number * 10 + byte - ASCII['0'];
+      number = number * 10 + (byte - ASCII['0']);
     } while (++cursor < chunk.length);
 
     this.#cursor = cursor;

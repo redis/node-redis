@@ -116,6 +116,16 @@ describe('RESP Decoder', () => {
       toWrite: Buffer.from(':1\r\n'),
       replies: ['1']
     });
+
+    test('Number.MAX_SAFE_INTEGER', {
+      toWrite: Buffer.from(`:${Number.MAX_SAFE_INTEGER}\r\n`),
+      replies: [Number.MAX_SAFE_INTEGER]
+    });
+
+    test('Number.MIN_SAFE_INTEGER', {
+      toWrite: Buffer.from(`:${Number.MIN_SAFE_INTEGER}\r\n`),
+      replies: [Number.MIN_SAFE_INTEGER]
+    });
   });
 
   describe('BigNumber', () => {
