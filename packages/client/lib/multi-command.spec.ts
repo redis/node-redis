@@ -116,6 +116,26 @@ describe('Multi Command', () => {
       multi.publishScriptsInUse();
       assert.deepEqual([...scriptsInUse], [SQUARE_SCRIPT.SHA1]);
     });
+
+    it('should ignore inherited shared SHAs after SCRIPT FLUSH in the same Multi', () => {
+      const scriptsInUse = new Set<string>([SQUARE_SCRIPT.SHA1]);
+      const multi = new RedisMultiCommand(undefined, scriptsInUse);
+      multi.addCommand(['SCRIPT', 'FLUSH']);
+      multi.addScript(SQUARE_SCRIPT, ['1']);
+      assert.deepEqual(
+        Array.from(multi.queue.at(-1).args),
+        ['EVAL', SQUARE_SCRIPT.SCRIPT, '1', '1']
+      );
+    });
+
+    it('invalidateScriptsOnError clears shared SHAs when the batch flushed', () => {
+      const scriptsInUse = new Set<string>([SQUARE_SCRIPT.SHA1]);
+      const multi = new RedisMultiCommand(undefined, scriptsInUse);
+      multi.addCommand(['SCRIPT', 'FLUSH']);
+      multi.addScript(SQUARE_SCRIPT, ['1']);
+      multi.invalidateScriptsOnError();
+      assert.equal(scriptsInUse.size, 0);
+    });
   });
 
   describe('exec', () => {

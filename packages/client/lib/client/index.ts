@@ -11,7 +11,7 @@ import { TcpSocketConnectOpts } from 'node:net';
 import { PUBSUB_TYPE, PubSubType, PubSubListener, PubSubTypeListeners, ChannelListeners } from './pub-sub';
 import { Command, CommandSignature, TypeMapping, CommanderConfig, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions, RedisArgument, ReplyWithTypeMapping, SimpleStringReply, TransformReply, CommandArguments, DEFAULT_RESP } from '../RESP/types';
 import RedisClientMultiCommand, { RedisClientMultiCommandType } from './multi-command';
-import { MULTI_MODE, MultiMode, RedisMultiQueuedCommand } from '../multi-command';
+import { MULTI_MODE, MultiMode, RedisMultiQueuedCommand, ScriptsInUseSet } from '../multi-command';
 import HELLO, { HelloOptions } from '../commands/HELLO';
 import { ScanOptions, ScanCommonOptions } from '../commands/SCAN';
 import { RedisLegacyClient, RedisLegacyClientType } from './legacy-mode';
@@ -638,7 +638,7 @@ export default class RedisClient<
    * EVALSHA instead of re-sending the full script (#2084). Cleared on socket
    * errors when server-side scripts are no longer guaranteed.
    */
-  #scriptsInUse = new Set<string>();
+  #scriptsInUse = new ScriptsInUseSet();
   #credentialsSubscription: Disposable | null = null;
   // Flag used to pause writing to the socket during maintenance windows.
   // When true, prevents new commands from being written while waiting for:
@@ -1298,8 +1298,9 @@ export default class RedisClient<
       this._self._ejectSocket().destroy();
      }
      // A swapped-in socket carries a fresh server session with no other observable signal
-     // on this client — the explicit wipe is the only fieldset-invalidation mechanism here.
+     // on this client — the explicit wipe is the only fieldset/script-invalidation mechanism here.
      this._self.#preparedFieldsets.clear();
+     this._self.#scriptsInUse.clear();
      if (this._self.#watchEpoch !== undefined) {
        this._self.#dirtyWatch ??= 'Client reconnected after WATCH';
      }
@@ -1727,6 +1728,10 @@ export default class RedisClient<
   ) {
     const args = parser.redisArgs as Array<RedisArgument>;
 
+    // Sample before await so a concurrent SCRIPT FLUSH (which bumps epoch)
+    // cannot be undone by this completion re-adding the SHA (#2084).
+    let scriptsEpoch = this._self.#scriptsInUse.epoch;
+
     let reply: ReplyUnion;
     try {
       reply = await this.sendCommand(args, options);
@@ -1736,10 +1741,12 @@ export default class RedisClient<
       this._self.#scriptsInUse.delete(script.SHA1);
       args[0] = script.IS_READ_ONLY ? 'EVAL_RO' : 'EVAL';
       args[1] = script.SCRIPT;
+      // Re-sample: a flush may have bumped the epoch since the failed EVALSHA.
+      scriptsEpoch = this._self.#scriptsInUse.epoch;
       reply = await this.sendCommand(args, options);
     }
 
-    this._self.#scriptsInUse.add(script.SHA1);
+    this._self.#scriptsInUse.addIfEpoch(script.SHA1, scriptsEpoch);
 
     return transformReply ?
       transformReply(reply, parser.preserve, options?.typeMapping) :

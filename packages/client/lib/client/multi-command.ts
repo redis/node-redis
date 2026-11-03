@@ -1,5 +1,5 @@
 import COMMANDS from '../commands';
-import RedisMultiCommand, { MULTI_MODE, MULTI_REPLY, MultiMode, MultiReply, MultiReplyType, RedisMultiQueuedCommand } from '../multi-command';
+import RedisMultiCommand, { MULTI_MODE, MULTI_REPLY, MultiMode, MultiReply, MultiReplyType, RedisMultiQueuedCommand, ScriptsInUse } from '../multi-command';
 import { ReplyWithTypeMapping, CommandReply, Command, CommandArguments, CommanderConfig, RedisFunctions, RedisModules, RedisScripts, RespVersions, TransformReply, RedisScript, RedisFunction, TypeMapping, RedisArgument } from '../RESP/types';
 import { attachConfig, functionArgumentsPrefix, getTransformReply } from '../commander';
 import { BasicCommandParser } from './parser';
@@ -204,7 +204,7 @@ export default class RedisClientMultiCommand<REPLIES = []> {
     executePipeline: ExecuteMulti,
     typeMapping?: TypeMapping,
     keyPrefix?: RedisArgument,
-    scriptsInUse?: Set<string>
+    scriptsInUse?: ScriptsInUse
   ) {
     this.#multi = new RedisMultiCommand(typeMapping, scriptsInUse);
     this.#executeMulti = executeMulti;
@@ -253,9 +253,15 @@ export default class RedisClientMultiCommand<REPLIES = []> {
   async execAsPipeline<T extends MultiReply = MULTI_REPLY['GENERIC']>(): Promise<MultiReplyType<T, REPLIES>> {
     if (this.#multi.queue.length === 0) return [] as MultiReplyType<T, REPLIES>;
 
-    const rawReplies = await this.#executePipeline(this.#multi.queue, this.#selectedDB);
-    this.#multi.publishScriptsInUse();
-    return this.#multi.transformReplies(rawReplies) as MultiReplyType<T, REPLIES>;
+    try {
+      const rawReplies = await this.#executePipeline(this.#multi.queue, this.#selectedDB);
+      this.#multi.publishScriptsInUse();
+      return this.#multi.transformReplies(rawReplies) as MultiReplyType<T, REPLIES>;
+    } catch (err) {
+      // SCRIPT FLUSH may already have run on the server before Promise.all rejects.
+      this.#multi.invalidateScriptsOnError();
+      throw err;
+    }
   }
 
   execAsPipelineTyped() {
