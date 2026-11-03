@@ -8,7 +8,7 @@ export interface VAddOptions {
   QUANT?: 'NOQUANT' | 'BIN' | 'Q8',
   EF?: number;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  SETATTR?: Record<string, any>;
+  SETATTR?: RedisArgument | Record<string, any>;
   M?: number;
 }
 
@@ -47,7 +47,12 @@ export default {
     }
 
     if (options?.SETATTR) {
-      parser.push('SETATTR', JSON.stringify(options.SETATTR));
+      const attributes = options.SETATTR;
+      if (typeof attributes === 'object' && !(attributes instanceof Buffer)) {
+        parser.push('SETATTR', JSON.stringify(attributes));
+      } else {
+        parser.push('SETATTR', attributes);
+      }
     }
 
     if (options?.M !== undefined) {
