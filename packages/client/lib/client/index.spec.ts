@@ -1292,6 +1292,28 @@ describe('Client', () => {
         assert.deepEqual(await user.multi().square('key').exec(), [4]);
       });
     }, options);
+
+    // After the script is cached, a later call must stay on EVALSHA_RO even if EVAL_RO
+    // is revoked — otherwise NOSCRIPT-style fallbacks (or a wrong command pick) would
+    // fail with NOPERM. See #3579.
+    testUtils.testWithClient('uses cached EVALSHA_RO after EVAL_RO ACL revocation', async client => {
+      await asReadOnlyScriptsUser(client, async user => {
+        assert.equal(await user.square('key'), 4);
+
+        await client.sendCommand([
+          'ACL', 'SETUSER', 'read-only-scripts', '-eval_ro'
+        ]);
+
+        await assert.rejects(
+          user.evalRo(READ_ONLY_SQUARE_SCRIPT.SCRIPT, {
+            keys: ['key']
+          }),
+          (err: unknown) => err instanceof ErrorReply && err.message.startsWith('NOPERM')
+        );
+
+        assert.equal(await user.square('key'), 4);
+      });
+    }, options);
   });
 
   const module = {
