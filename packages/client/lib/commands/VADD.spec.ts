@@ -64,6 +64,33 @@ describe('VADD', () => {
         ]
       );
     });
+
+    it('with SETATTR as a string', () => {
+      const parser = new BasicCommandParser();
+      VADD.parseCommand(parser, 'key', [1.0, 2.0], 'element', { SETATTR: '{"name":"test"}' });
+      assert.deepEqual(
+        parser.redisArgs,
+        ['VADD', 'key', 'VALUES', '2', '1', '2', 'element', 'SETATTR', '{"name":"test"}']
+      );
+    });
+
+    it('with SETATTR as a Buffer', () => {
+      const parser = new BasicCommandParser();
+      VADD.parseCommand(parser, 'key', [1.0, 2.0], 'element', { SETATTR: Buffer.from('{"name":"test"}') });
+      assert.deepEqual(
+        parser.redisArgs,
+        ['VADD', 'key', 'VALUES', '2', '1', '2', 'element', 'SETATTR', Buffer.from('{"name":"test"}')]
+      );
+    });
+
+    it('with SETATTR as an empty string', () => {
+      const parser = new BasicCommandParser();
+      VADD.parseCommand(parser, 'key', [1.0, 2.0], 'element', { SETATTR: '' });
+      assert.deepEqual(
+        parser.redisArgs,
+        ['VADD', 'key', 'VALUES', '2', '1', '2', 'element', 'SETATTR', '']
+      );
+    });
   });
 
   testUtils.testAll('vAdd', async client => {
@@ -78,6 +105,28 @@ describe('VADD', () => {
       false
     );
 
+  }, {
+    client: { ...GLOBAL.SERVERS.OPEN, minimumDockerVersion: [8, 0] },
+    cluster: { ...GLOBAL.CLUSTERS.OPEN, minimumDockerVersion: [8, 0] },
+  });
+
+  testUtils.testAll('vAdd with SETATTR as an object, a string and a Buffer', async client => {
+    const attributes = { color: 'red' };
+    await client.vAdd('key', [0.1, 0.2], 'object', { SETATTR: attributes });
+    await client.vAdd('key', [0.3, 0.4], 'string', { SETATTR: JSON.stringify(attributes) });
+    await client.vAdd('key', [0.5, 0.6], 'buffer', { SETATTR: Buffer.from(JSON.stringify(attributes)) });
+
+    for (const element of ['object', 'string', 'buffer']) {
+      assert.deepEqual(await client.vGetAttr('key', element), attributes);
+    }
+
+    assert.deepEqual(
+      (await client.vSim('key', [0.1, 0.2], { FILTER: '.color == "red"' })).sort(),
+      ['buffer', 'object', 'string']
+    );
+
+    await client.vAdd('key', [0.1, 0.2], 'object', { SETATTR: '' });
+    assert.equal(await client.vGetAttr('key', 'object'), null);
   }, {
     client: { ...GLOBAL.SERVERS.OPEN, minimumDockerVersion: [8, 0] },
     cluster: { ...GLOBAL.CLUSTERS.OPEN, minimumDockerVersion: [8, 0] },
