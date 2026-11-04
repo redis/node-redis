@@ -192,6 +192,288 @@ describe('RedisClientPool', () => {
     assert.equal(pool.isOpen, false, 'isOpen should be false after destroy');
   }, GLOBAL.SERVERS.OPEN);
 
+  describe('connect after destroy with tasks in flight', () => {
+    // Regression: a task that settled after destroy() put its destroyed member back in the pool, so
+    // after connect() the pool held more members than maximum and kept handing out the dead ones.
+    function runTwoTasks(pool: { execute(fn: () => Promise<void>): Promise<void> }) {
+      let release!: () => void;
+      const settled = new Promise<void>(resolve => release = resolve);
+      const tasks = Promise.all([pool.execute(() => settled), pool.execute(() => settled)]);
+      return { release, tasks };
+    }
+
+    testUtils.testWithClientPool('does not reuse the destroyed members once their tasks settle', async pool => {
+      const { release, tasks } = runTwoTasks(pool);
+      pool.destroy();
+      release();
+      await tasks;
+      await pool.connect();
+
+      for (let i = 0; i < 6; i++) {
+        assert.equal(await pool.ping(), 'PONG');
+      }
+      assert.equal(pool.totalClients, 2);
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      poolOptions: { minimum: 2, maximum: 2 }
+    });
+
+    testUtils.testWithClientPool('does not reuse the destroyed members when their tasks settle after connect', async pool => {
+      const { release, tasks } = runTwoTasks(pool);
+      pool.destroy();
+      await pool.connect();
+      release();
+      await tasks;
+
+      for (let i = 0; i < 6; i++) {
+        assert.equal(await pool.ping(), 'PONG');
+      }
+      assert.equal(pool.totalClients, 2);
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      poolOptions: { minimum: 2, maximum: 2 }
+    });
+
+    testUtils.testWithClientPool('does not hand a waiter queued after connect to a destroyed member', async pool => {
+      let releaseOld!: () => void;
+      const oldTask = pool.execute(() => new Promise<void>(resolve => releaseOld = resolve));
+      pool.destroy();
+      await pool.connect();
+
+      let releaseNew!: () => void;
+      const newTask = pool.execute(() => new Promise<void>(resolve => releaseNew = resolve));
+      const waiter = pool.ping();
+      releaseOld();
+      await oldTask;
+      releaseNew();
+      await newTask;
+
+      assert.equal(await waiter, 'PONG');
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      poolOptions: { minimum: 1, maximum: 1 }
+    });
+
+    testUtils.testWithClientPool('settles a close() that destroy() interrupts', async pool => {
+      let release!: () => void;
+      const task = pool.execute(() => new Promise<void>(resolve => release = resolve));
+      const closing = pool.close();
+      // close() starts waiting for the in-use member on a later tick
+      await new Promise(resolve => setImmediate(resolve));
+      pool.destroy();
+      release();
+      await task;
+
+      let timer!: NodeJS.Timeout;
+      const timedOut = new Promise<string>(resolve => timer = setTimeout(() => resolve('timed out'), 1000));
+      try {
+        assert.equal(await Promise.race([closing.then(() => 'closed'), timedOut]), 'closed');
+      } finally {
+        clearTimeout(timer);
+      }
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      poolOptions: { minimum: 1, maximum: 1 }
+    });
+
+    // Regression: the close() that destroy() interrupted still ran its cleanup after the connect() that
+    // followed, so the pool reported closed, and the next connect() opened members past maximum.
+    async function assertConnectedWithin(pool: {
+      isOpen: boolean;
+      isClosing: boolean;
+      totalClients: number;
+      ping(): Promise<unknown>;
+      connect(): Promise<unknown>;
+    }, maximum: number) {
+      assert.equal(pool.isOpen, true);
+      assert.equal(pool.isClosing, false);
+      assert.equal(await pool.ping(), 'PONG');
+      await pool.connect();
+      assert.equal(await pool.ping(), 'PONG');
+      assert.ok(pool.totalClients <= maximum, `${pool.totalClients} clients, maximum ${maximum}`);
+    }
+
+    testUtils.testWithClientPool('keeps the pool that connect() opens after destroy() interrupts a waiting close()', async pool => {
+      let release!: () => void;
+      const task = pool.execute(() => new Promise<void>(resolve => release = resolve));
+      const closing = pool.close();
+      // close() starts waiting for the in-use member on a later tick
+      await new Promise(resolve => setImmediate(resolve));
+      pool.destroy();
+      await pool.connect();
+      release();
+      await task;
+      await closing;
+
+      await assertConnectedWithin(pool, 2);
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      poolOptions: { minimum: 2, maximum: 2 }
+    });
+
+    testUtils.testWithClientPool('keeps the pool that connect() opens right after close() and destroy()', async pool => {
+      const closing = pool.close();
+      pool.destroy();
+      await pool.connect();
+      await closing;
+
+      await assertConnectedWithin(pool, 2);
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      poolOptions: { minimum: 2, maximum: 2 }
+    });
+
+    testUtils.testWithClientPool('settles a close() that destroy() interrupts when the cache cleanup throws', async pool => {
+      pool.clientSideCache!.onPoolClose = () => {
+        throw new Error('cache cleanup failed');
+      };
+      let release!: () => void;
+      const task = pool.execute(() => new Promise<void>(resolve => release = resolve));
+      const closing = pool.close();
+      // close() starts waiting for the in-use member on a later tick
+      await new Promise(resolve => setImmediate(resolve));
+      assert.throws(() => pool.destroy(), /cache cleanup failed/);
+      release();
+      await task;
+
+      let timer!: NodeJS.Timeout;
+      const timedOut = new Promise<string>(resolve => timer = setTimeout(() => resolve('timed out'), 1000));
+      try {
+        assert.equal(await Promise.race([closing.then(() => 'closed'), timedOut]), 'closed');
+      } finally {
+        clearTimeout(timer);
+      }
+      assert.equal(pool.isOpen, false);
+      assert.equal(pool.totalClients, 0);
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      poolOptions: {
+        minimum: 1,
+        maximum: 1,
+        clientSideCache: new BasicPooledClientSideCache({})
+      }
+    });
+
+    testUtils.testWithClientPool('settles a close() that destroy() interrupts when a member teardown throws', async pool => {
+      let member!: RedisClientType;
+      let release!: () => void;
+      const task = pool.execute(client => {
+        member = client as unknown as RedisClientType;
+        return new Promise<void>(resolve => release = resolve);
+      });
+      const closing = pool.close();
+      // close() starts waiting for the in-use member on a later tick
+      await new Promise(resolve => setImmediate(resolve));
+      const destroy = stub(member, 'destroy').throws(new Error('dispose failed'));
+      try {
+        assert.throws(() => pool.destroy(), /dispose failed/);
+      } finally {
+        destroy.restore();
+      }
+      member.destroy();
+      release();
+      await task.catch(() => {});
+
+      let timer!: NodeJS.Timeout;
+      const timedOut = new Promise<string>(resolve => timer = setTimeout(() => resolve('timed out'), 1000));
+      try {
+        assert.equal(await Promise.race([closing.then(() => 'closed'), timedOut]), 'closed');
+      } finally {
+        clearTimeout(timer);
+      }
+      assert.equal(pool.isOpen, false);
+      assert.equal(pool.totalClients, 0);
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      poolOptions: { minimum: 1, maximum: 1 }
+    });
+
+    testUtils.testWithClientPool('closes every member when one teardown throws', async pool => {
+      const tick = () => new Promise(resolve => setImmediate(resolve));
+      const members = await Promise.all([
+        pool.execute(async client => { await tick(); return client; }),
+        pool.execute(async client => { await tick(); return client; })
+      ]);
+      assert.notEqual(members[0], members[1]);
+      const destroys = members.map(member => stub(member, 'destroy').throws(new Error('dispose failed')));
+      try {
+        assert.throws(() => pool.destroy(), /dispose failed/);
+        for (const destroy of destroys) {
+          assert.ok(destroy.calledOnce);
+        }
+      } finally {
+        for (const destroy of destroys) {
+          destroy.restore();
+        }
+      }
+      for (const member of members) {
+        member.destroy();
+      }
+      assert.equal(pool.isOpen, false);
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      poolOptions: { minimum: 2, maximum: 2 }
+    });
+
+    // Regression: a member still connecting when destroy() ran removed its stale node from the list that
+    // connect() had refilled, so the pool lost count of a member in use and opened more than maximum.
+    testUtils.testWithClientPool('keeps the pool that connect() opens when a member destroy() closed mid-connect fails', async pool => {
+      let failConnect!: (err: Error) => void;
+      const connect = stub(RedisClient.prototype, 'connect');
+      connect.callThrough();
+      connect.onFirstCall().returns(new Promise((_, reject) => failConnect = reject));
+      try {
+        let release!: () => void;
+        const task = pool.execute(() => new Promise<void>(resolve => release = resolve));
+        // the busy member makes the pool open a second one, which stays connecting
+        const waiter = pool.execute(client => client.ping());
+        assert.equal(pool.clientsInUse, 2);
+        pool.destroy();
+        await assert.rejects(waiter, ClientClosedError);
+        release();
+        await task;
+        await pool.connect();
+
+        let releaseNew!: () => void;
+        const newTask = pool.execute(() => new Promise<void>(resolve => releaseNew = resolve));
+        failConnect(new Error('connect failed'));
+        await new Promise(resolve => setImmediate(resolve));
+        assert.deepEqual(await Promise.all([pool.ping(), pool.ping()]), ['PONG', 'PONG']);
+        releaseNew();
+        await newTask;
+
+        await assertConnectedWithin(pool, 2);
+      } finally {
+        connect.restore();
+      }
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      poolOptions: { minimum: 1, maximum: 2 }
+    });
+
+    testUtils.testWithClientPool('keeps the pool that connect() opens when the connect() destroy() interrupted fails', async pool => {
+      await pool.close();
+      let failConnect!: (err: Error) => void;
+      const connect = stub(RedisClient.prototype, 'connect');
+      connect.callThrough();
+      connect.onFirstCall().returns(new Promise((_, reject) => failConnect = reject));
+      try {
+        const first = pool.connect();
+        pool.destroy();
+        await pool.connect();
+        failConnect(new Error('connect failed'));
+        await assert.rejects(first, /connect failed/);
+
+        await assertConnectedWithin(pool, 1);
+      } finally {
+        connect.restore();
+      }
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      poolOptions: { minimum: 1, maximum: 1 }
+    });
+  });
+
   testUtils.testWithClientPool('close rejects and clears the pool when a client is already closed', async pool => {
     let cacheClosed = false;
     pool.clientSideCache!.onPoolClose = () => {
@@ -787,6 +1069,19 @@ describe('RedisClientPool', () => {
       });
 
       await closing;
+      assert.equal(pool.totalClients, 0);
+    }, options);
+
+    testUtils.testWithClientPool('is not replaced once the pool is destroyed', async pool => {
+      pool.on('error', () => {});
+      const killed = pool.execute(async client => {
+        await killConnection(client);
+        pool.destroy();
+      });
+      const queued = pool.execute(client => client.ping());
+      await killed;
+
+      await assert.rejects(queued, ClientClosedError);
       assert.equal(pool.totalClients, 0);
     }, options);
   });

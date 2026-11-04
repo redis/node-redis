@@ -258,6 +258,9 @@ export class RedisClientPool<
   // members whose reconnect strategy gave up: closed for good, so replaced instead of reused
   readonly #terminated = new WeakSet<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>();
 
+  // members destroy() tore down while in use: their nodes belong to the lists it reset
+  readonly #destroyed = new WeakSet<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>();
+
   /**
    * The number of tasks waiting for a client to become available.
    */
@@ -292,6 +295,12 @@ export class RedisClientPool<
    * observe the same outcome instead of an early, unconditional resolve.
    */
   #closePromise?: Promise<void>;
+
+  /**
+   * Bumped by destroy(). A close() started before it sees the change and leaves
+   * the pool alone, so its cleanup cannot undo a connect() that followed.
+   */
+  #destroyCount = 0;
 
   #clientSideCache?: PooledClientSideCacheProvider;
   get clientSideCache() {
@@ -437,10 +446,12 @@ export class RedisClientPool<
       promises.push(this._self.#create());
     }
 
+    const destroyCount = this._self.#destroyCount;
     try {
       await Promise.all(promises);
     } catch (err) {
-      this.destroy();
+      // a destroy() since then already closed these members, and the pool may belong to a later connect()
+      if (this._self.#destroyCount === destroyCount) this.destroy();
       throw err;
     }
 
@@ -460,6 +471,9 @@ export class RedisClientPool<
     try {
       await client.connect();
     } catch (err) {
+      // destroy() already reset the list this node was in, and dealt with the drain and the queued tasks
+      if (this._self.#destroyed.has(client)) throw err;
+
       this._self.#clientsInUse.remove(node);
       // Closing or replacing with no client left: `#returnClient()`, the only other place that signals the
       // drain, will not run again, and nothing can pick up the queued tasks either
@@ -571,6 +585,9 @@ export class RedisClientPool<
   }
 
   #returnClient(node: DoublyLinkedNode<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>) {
+    // destroy() already closed this member and reset the lists its node was in, so it takes no task
+    if (this.#destroyed.has(node.value)) return;
+
     if (this.#terminated.has(node.value)) {
       this.#clientsInUse.remove(node);
       node.value.destroy();
@@ -675,18 +692,22 @@ export class RedisClientPool<
     if (!this._self.#isOpen) return; // TODO: throw err?
 
     clearTimeout(this._self.cleanupTimeout);
-    this._self.#closePromise = Promise.resolve().then(() => this._self.#doClose());
+    const destroyCount = this._self.#destroyCount;
+    this._self.#closePromise = Promise.resolve().then(() => this._self.#doClose(destroyCount));
     return this._self.#closePromise;
   }
 
-  async #doClose() {
+  async #doClose(destroyCount: number) {
+    // destroy() took over: the members are gone, and the lists belong to whatever connect() comes next
+    const destroyed = () => this._self.#destroyCount !== destroyCount;
     try {
       // Wait for all in-flight and queued tasks to complete
-      if (this._self.#clientsInUse.length > 0) {
+      if (!destroyed() && this._self.#clientsInUse.length > 0) {
         await new Promise<void>(resolve => {
           this._self.#drainResolve = resolve;
         });
       }
+      if (destroyed()) return;
 
       // Now all tasks are done, close all clients (which are now idle)
       const promises = [];
@@ -710,40 +731,71 @@ export class RedisClientPool<
       // A failed close must not let the pool finish closing while other clients
       // are still draining their pending commands.
       const results = await Promise.allSettled(promises);
+      if (destroyed()) return;
       for (const result of results) {
         if (result.status === 'rejected') throw result.reason;
       }
     } finally {
-      try {
-        // A throw here would replace a pending client close error, since a
-        // throw inside `finally` overrides the exception already in flight.
-        this._self.#clientSideCache?.onPoolClose();
-      } catch {
-        // Preserve the client close error even if cache cleanup also fails.
-      }
+      if (!destroyed()) {
+        try {
+          // A throw here would replace a pending client close error, since a
+          // throw inside `finally` overrides the exception already in flight.
+          this._self.#clientSideCache?.onPoolClose();
+        } catch {
+          // Preserve the client close error even if cache cleanup also fails.
+        }
 
-      this._self.#idleClients.reset();
-      this._self.#clientsInUse.reset();
-      this._self.#drainResolve = undefined;
-      this._self.#isOpen = false;
-      this._self.#closePromise = undefined;
+        this._self.#idleClients.reset();
+        this._self.#clientsInUse.reset();
+        this._self.#drainResolve = undefined;
+        this._self.#isOpen = false;
+        this._self.#closePromise = undefined;
+      }
     }
   }
 
   destroy() {
-    for (const client of this._self.#idleClients) {
-      client.destroy();
+    this._self.#destroyCount++;
+    const idleClients = [...this._self.#idleClients];
+    const clientsInUse = [...this._self.#clientsInUse];
+    for (const client of clientsInUse) {
+      this._self.#destroyed.add(client);
     }
     this._self.#idleClients.reset();
+    this._self.#clientsInUse.reset();
+    // a close() waiting for the members destroy() closes has nothing left to drain
+    this._self.#drainResolve?.();
+    this._self.#drainResolve = undefined;
+    this._self.#closePromise = undefined;
 
-    for (const client of this._self.#clientsInUse) {
-      client.destroy();
+    // the destroyed members take no more tasks, so the ones still waiting fail as they would have on them
+    let task;
+    while ((task = this._self.#tasksQueue.shift())) {
+      clearTimeout(task.timeout);
+      task.reject(new ClientClosedError());
     }
 
-    this._self.#clientSideCache?.onPoolClose();
-
-    this._self.#clientsInUse.reset();
-
     this._self.#isOpen = false;
+
+    // last, so a member or a cache hook that throws cannot leave a close() waiting or the pool half reset;
+    // the lists no longer track these members, so each teardown runs and the first error is rethrown
+    let failed = false;
+    let error: unknown;
+    const teardowns = [
+      ...idleClients.map(client => () => client.destroy()),
+      ...clientsInUse.map(client => () => client.destroy()),
+      () => this._self.#clientSideCache?.onPoolClose()
+    ];
+    for (const teardown of teardowns) {
+      try {
+        teardown();
+      } catch (err) {
+        if (!failed) {
+          failed = true;
+          error = err;
+        }
+      }
+    }
+    if (failed) throw error;
   }
 }
