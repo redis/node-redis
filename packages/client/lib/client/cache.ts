@@ -482,6 +482,15 @@ function generateCacheKey(redisArgs: ReadonlyArray<RedisArgument>): string {
   return tmp.join('_');
 }
 
+// Indexes Redis keys by the bytes on the wire so invalidation can tell binary keys apart.
+// Strings are sent as UTF-8; push invalidations always arrive as Buffers of those same bytes.
+function encodeKeyForInvalidationIndex(key: RedisArgument): string {
+  if (typeof key === 'string') {
+    return Buffer.from(key, 'utf8').toString('latin1');
+  }
+  return key.toString('latin1');
+}
+
 // `structuredClone` turns a Buffer into a plain Uint8Array and a VerbatimString into a String
 // object without its `format`, so replies that can hold either are copied by `typeAwareCopy`.
 function needsTypeAwareCopy(typeMapping: TypeMapping | undefined): boolean {
@@ -819,7 +828,8 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
       return;
     }
 
-    const keySet = this.#keyToCacheKeySetMap.get(key.toString());
+    const encodedKey = encodeKeyForInvalidationIndex(key);
+    const keySet = this.#keyToCacheKeySetMap.get(encodedKey);
     if (keySet) {
       let deletedCount = 0;
       for (const cacheKey of keySet) {
@@ -831,7 +841,7 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
         this.#cacheKeyToEntryMap.delete(cacheKey);
         this.#deleteFromKeyIndex(cacheKey);
       }
-      this.#keyToCacheKeySetMap.delete(key.toString());
+      this.#keyToCacheKeySetMap.delete(encodedKey);
       if (deletedCount > 0) {
         // Record invalidations as server-initiated evictions
         publish(CHANNELS.CACHE_EVICTION, () => ({ reason: 'invalidation', count: deletedCount }));
@@ -927,14 +937,15 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
     }
 
     this.#cacheKeyToEntryMap.set(cacheKey, cacheEntry);
-    this.#cacheKeyToKeysMap.set(cacheKey, keys.map(key => key.toString()));
+    this.#cacheKeyToKeysMap.set(cacheKey, keys.map(encodeKeyForInvalidationIndex));
 
     for (const key of keys) {
-      if (!this.#keyToCacheKeySetMap.has(key.toString())) {
-        this.#keyToCacheKeySetMap.set(key.toString(), new Set<string>());
+      const encodedKey = encodeKeyForInvalidationIndex(key);
+      if (!this.#keyToCacheKeySetMap.has(encodedKey)) {
+        this.#keyToCacheKeySetMap.set(encodedKey, new Set<string>());
       }
 
-      const cacheKeySet = this.#keyToCacheKeySetMap.get(key.toString());
+      const cacheKeySet = this.#keyToCacheKeySetMap.get(encodedKey);
       cacheKeySet!.add(cacheKey);
     }
   }
