@@ -2334,6 +2334,86 @@ describe('Client', () => {
 
   });
 
+  describe('sharded resubscribe on reconnect', () => {
+    // Reads RESP command arrays out of a stream of chunks
+    function parseCommands(state: { buf: Buffer }, chunk: Buffer): string[][] {
+      state.buf = Buffer.concat([state.buf, chunk]);
+      const commands: string[][] = [];
+      let pos = 0;
+      outer: while (pos < state.buf.length) {
+        let cur = pos;
+        const lineEnd = () => state.buf.indexOf('\r\n', cur);
+        let end = lineEnd();
+        if (end === -1) break;
+        const count = Number(state.buf.toString('latin1', cur + 1, end));
+        cur = end + 2;
+        const args: string[] = [];
+        for (let i = 0; i < count; i++) {
+          end = lineEnd();
+          if (end === -1) break outer;
+          const len = Number(state.buf.toString('latin1', cur + 1, end));
+          cur = end + 2;
+          if (state.buf.length < cur + len + 2) break outer;
+          args.push(state.buf.toString('latin1', cur, cur + len));
+          cur += len + 2;
+        }
+        commands.push(args);
+        pos = cur;
+      }
+      state.buf = state.buf.subarray(pos);
+      return commands;
+    }
+
+    it('writes every SSUBSCRIBE when they exceed the socket write buffer', async () => {
+      const CHANNELS = 2000;
+      const channels = Array.from({ length: CHANNELS }, (_, i) => `room:/desk/channel/1234/user-chats/65f0c0ffee${i}`);
+      const subscribed = new Set<string>();
+      let connections = 0;
+      const sockets = new Set<net.Socket>();
+
+      const server = net.createServer(socket => {
+        const connection = ++connections;
+        const state = { buf: Buffer.alloc(0) };
+        sockets.add(socket);
+        socket.on('close', () => sockets.delete(socket));
+        socket.on('error', () => {});
+        socket.on('data', chunk => {
+          for (const [name, ...args] of parseCommands(state, chunk)) {
+            if (name.toUpperCase() === 'SSUBSCRIBE') {
+              if (connection > 1) subscribed.add(args[0]);
+              socket.write(`*3\r\n$10\r\nssubscribe\r\n$${args[0].length}\r\n${args[0]}\r\n:1\r\n`);
+            } else {
+              socket.write('+OK\r\n');
+            }
+          }
+        });
+      });
+      const port = await getFreePortNumber();
+      await once(server.listen(port), 'listening');
+
+      const client = createClient({ socket: { host: 'localhost', port, reconnectStrategy: 50 } });
+      client.on('error', () => {});
+      try {
+        await client.connect();
+        for (const channel of channels) {
+          await client.sSubscribe(channel, () => {});
+        }
+
+        const ready = new Promise<void>(resolve => client.once('ready', resolve));
+        for (const socket of sockets) socket.destroy();
+        await Promise.race([
+          ready,
+          new Promise((_, reject) => globalThis.setTimeout(() => reject(new Error(`not ready, resubscribed ${subscribed.size}/${CHANNELS}`)), 1500))
+        ]);
+
+        assert.equal(subscribed.size, CHANNELS);
+      } finally {
+        client.destroy();
+        server.close();
+      }
+    });
+  });
+
   describe('close', () => {
     it('disposes the credentials subscription when the command queue is empty', async () => {
       const server = net.createServer(socket => {

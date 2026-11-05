@@ -1105,9 +1105,20 @@ export default class RedisClient<
     })
     .on('reconnecting', () => this.emit('reconnecting'))
     .on('terminated', cause => this.emit('terminated', cause))
-    .on('drain', () => this.#maybeScheduleWrite())
+    .on('drain', () => {
+      // While the socket initiator waits on replies, `#scheduleWrite()` is a no-op (the
+      // socket isn't ready yet), so keep flushing here or commands beyond the first
+      // write buffer are never sent and the initiator never settles.
+      if (this.#initiatorWriting && this.#queue.isWaitingToWrite()) {
+        this.#write();
+        return;
+      }
+      this.#maybeScheduleWrite();
+    })
     .on('end', () => this.emit('end'));
   }
+
+  #initiatorWriting = false;
 
   #initiateSocket(clientId: string): RedisSocket {
     const socketInitiator = async () => {
@@ -1140,8 +1151,11 @@ export default class RedisClient<
       promises.push(...(await this.#handshake(chainId, true)));
 
       if (promises.length) {
+        this.#initiatorWriting = true;
         this.#write();
-        return Promise.all(promises);
+        return Promise.all(promises).finally(() => {
+          this.#initiatorWriting = false;
+        });
       }
     };
 
