@@ -46,8 +46,9 @@ export function parseRangeArguments(
   parseRangeCommonArguments(parser, fromTimestamp, toTimestamp, options);
 
   if (options?.AGGREGATION) {
-    if (options?.ALIGN !== undefined) {
-      parser.push('ALIGN', transformTimestampArgument(options.ALIGN));
+    const align = options.ALIGN ?? options.AGGREGATION.ALIGN;
+    if (align !== undefined) {
+      parser.push('ALIGN', transformTimestampArgument(align));
     }
 
     parser.push(

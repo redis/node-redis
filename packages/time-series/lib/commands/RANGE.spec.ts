@@ -27,6 +27,21 @@ describe('TS.RANGE', () => {
     );
   });
 
+  it('transformArguments with ALIGN inside AGGREGATION', () => {
+    assert.deepEqual(
+      parseArgs(RANGE, 'key', '-', '+', {
+        AGGREGATION: {
+          ALIGN: 0,
+          type: TIME_SERIES_AGGREGATION_TYPE.AVG,
+          timeBucket: 1
+        }
+      }),
+      [
+        'TS.RANGE', 'key', '-', '+', 'ALIGN', '0', 'AGGREGATION', 'AVG', '1'
+      ]
+    );
+  });
+
   it('transformArguments with COUNTNAN aggregation', () => {
     assert.deepEqual(
       parseArgs(RANGE, 'key', '-', '+', {
