@@ -466,8 +466,17 @@ function generateCacheKey(redisArgs: ReadonlyArray<RedisArgument>): string {
   const tmp = new Array(redisArgs.length * 2);
 
   for (let i = 0; i < redisArgs.length; i++) {
-    tmp[i] = redisArgs[i].length;
-    tmp[i + redisArgs.length] = redisArgs[i];
+    const arg = redisArgs[i];
+    if (typeof arg === 'string') {
+      tmp[i] = arg.length;
+      tmp[i + redisArgs.length] = arg;
+    } else {
+      // Decoding a Buffer as UTF-8 is lossy (invalid bytes all become U+FFFD), so distinct
+      // binary keys could share a cache entry. latin1 maps every byte to its own character;
+      // the "b" prefix keeps a Buffer apart from a string with the same characters.
+      tmp[i] = 'b' + arg.length;
+      tmp[i + redisArgs.length] = arg.toString('latin1');
+    }
   }
 
   return tmp.join('_');
