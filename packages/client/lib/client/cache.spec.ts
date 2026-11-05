@@ -31,7 +31,7 @@ describe("Client Side Cache", () => {
   });
 
   describe('key index', () => {
-    const setEntry = (cache: BasicClientSideCache, cacheKey: string, keys: Array<string>) =>
+    const setEntry = (cache: BasicClientSideCache, cacheKey: string, keys: Array<string | Buffer>) =>
       cache.set(cacheKey, cache.createValueEntry(undefined as never, cacheKey), keys);
 
     const keyIndex = (cache: BasicClientSideCache) => new Map(
@@ -83,6 +83,75 @@ describe("Client Side Cache", () => {
 
       assert.equal(cache.has('entry'), true);
       assert.deepEqual(keyIndex(cache), new Map([['a', ['entry']]]));
+    });
+
+    it('keeps non-UTF-8 Buffer keys on separate invalidation index entries', () => {
+      const cache = new BasicClientSideCache(),
+        a = Buffer.from([0x75, 0x73, 0x65, 0x72, 0x3a, 0, 0, 0, 0xc8]),
+        b = Buffer.from([0x75, 0x73, 0x65, 0x72, 0x3a, 0, 0, 0, 0xc9]);
+
+      setEntry(cache, 'get_a', [a]);
+      setEntry(cache, 'get_b', [b]);
+
+      cache.invalidate(b);
+
+      assert.equal(cache.has('get_a'), true);
+      assert.equal(cache.has('get_b'), false);
+      assert.deepEqual(
+        [...cache.keySetEntries()].map(([key, cacheKeys]) => [key, [...cacheKeys]]),
+        [[a.toString('latin1'), ['get_a']]]
+      );
+    });
+  });
+
+  describe('cache keys', () => {
+    function getParser(key: string | Buffer) {
+      const parser = new BasicCommandParser();
+      parser.push('GET');
+      parser.pushKey(key);
+      return parser;
+    }
+
+    async function load(cache: BasicClientSideCache, key: string | Buffer, reply: string) {
+      return cache.handleCache({} as never, getParser(key), (() => Promise.resolve(reply)) as never, undefined, undefined);
+    }
+
+    it('does not share an entry between Buffer keys that are not valid UTF-8', async () => {
+      // both keys decode to "user:\0\0\0\uFFFD" as UTF-8
+      const cache = new BasicClientSideCache(),
+        a = Buffer.from([0x75, 0x73, 0x65, 0x72, 0x3a, 0, 0, 0, 0xc8]),
+        b = Buffer.from([0x75, 0x73, 0x65, 0x72, 0x3a, 0, 0, 0, 0xc9]);
+
+      assert.equal(await load(cache, a, 'alice'), 'alice');
+      assert.equal(await load(cache, b, 'bob'), 'bob');
+      assert.equal(await load(cache, a, 'not cached'), 'alice');
+      assert.equal(await load(cache, b, 'not cached'), 'bob');
+      assert.equal(cache.size(), 2);
+    });
+
+    it('does not share an entry between a Buffer key and a string key with the same characters', async () => {
+      // Buffer [0xc3, 0xbf] read as latin1 is "\u00c3\u00bf", a different key than the string "\u00c3\u00bf"
+      const cache = new BasicClientSideCache();
+
+      assert.equal(await load(cache, Buffer.from([0xc3, 0xbf]), 'buffer'), 'buffer');
+      assert.equal(await load(cache, '\u00c3\u00bf', 'string'), 'string');
+      assert.equal(cache.size(), 2);
+    });
+
+    it('invalidating one non-UTF-8 Buffer key leaves the colliding sibling cached', async () => {
+      // both keys decode to the same UTF-8 string, so a lossy index would drop both
+      const cache = new BasicClientSideCache(),
+        a = Buffer.from([0x75, 0x73, 0x65, 0x72, 0x3a, 0, 0, 0, 0xc8]),
+        b = Buffer.from([0x75, 0x73, 0x65, 0x72, 0x3a, 0, 0, 0, 0xc9]);
+
+      assert.equal(await load(cache, a, 'alice'), 'alice');
+      assert.equal(await load(cache, b, 'bob'), 'bob');
+
+      cache.invalidate(b);
+
+      assert.equal(await load(cache, a, 'not cached'), 'alice');
+      assert.equal(await load(cache, b, 'reload'), 'reload');
+      assert.equal(cache.size(), 2);
     });
   });
 
@@ -429,6 +498,36 @@ describe("Client Side Cache", () => {
 
       assert.equal(csc.stats().missCount, 3, "Cache Misses");
       assert.equal(csc.stats().hitCount, 0, "Cache Hits");
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      clientOptions: {
+        RESP: 3,
+        clientSideCache: csc
+      }
+    });
+
+    testUtils.testWithClient('Binary keys get their own entries', async client => {
+      csc.clear();
+
+      // Binary IDs whose last byte is >= 0x80 are not valid UTF-8
+      const key = (id: number) => Buffer.from([0x75, 0x73, 0x65, 0x72, 0x3a, 0, 0, 0, id]);
+      await client.set(key(200), 'alice');
+      await client.set(key(201), 'bob');
+
+      assert.equal(await client.get(key(200)), 'alice');
+      assert.equal(await client.get(key(201)), 'bob');
+      assert.equal(await client.get(key(200)), 'alice');
+      assert.equal(await client.get(key(201)), 'bob');
+
+      assert.equal(csc.stats().missCount, 2, "Cache Misses");
+      assert.equal(csc.stats().hitCount, 2, "Cache Hits");
+
+      await client.set(key(201), 'carol');
+      assert.equal(await client.get(key(201)), 'carol', 'get after invalidation');
+      // SET on key(201) must not evict the still-valid entry for key(200)
+      assert.equal(await client.get(key(200)), 'alice', 'sibling still cached');
+      assert.equal(csc.stats().missCount, 3, "Cache Misses after one write");
+      assert.equal(csc.stats().hitCount, 3, "Cache Hits after sibling read");
     }, {
       ...GLOBAL.SERVERS.OPEN,
       clientOptions: {
