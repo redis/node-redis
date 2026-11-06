@@ -114,6 +114,7 @@ OpenTelemetry.init({
     hideStreamNames: false,
     bucketsOperationDuration: [0.001, 0.01, 0.1, 1],
     bucketsStreamProcessingDuration: [0.01, 0.1, 1, 5],
+    customAttributes: { "deployment.environment": "staging", team: "platform" },
   },
 });
 ```
@@ -141,6 +142,41 @@ OpenTelemetry.init({
 | bucketsConnectionCreateTime | **[0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5, 10]** | Histogram bucket boundaries for db.client.connection.create_time (seconds). |
 | bucketsConnectionWaitTime | **[0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5, 10]** | Histogram bucket boundaries for db.client.connection.wait_time (seconds). |
 | bucketsStreamProcessingDuration | **[0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5, 10]** | Histogram bucket boundaries for redis.client.stream.lag (seconds). |
+| customAttributes | **{}** | Attributes added to every data point of every metric, from every client in the process. See [Custom attributes](#custom-attributes). |
+
+## Custom attributes
+
+Custom attributes label metrics with your own values, for example to tell services or client instances apart in a dashboard. You can set them at two levels:
+
+- **Process:** `customAttributes` in `OpenTelemetry.init`. Applies to every client in the process.
+- **Client:** `metrics.customAttributes` in the client options. Applies to every metric that client emits. For a pool, set it in the client options; for a cluster, in `defaults`; for a sentinel, in `nodeClientOptions` and `sentinelClientOptions`. Every client they create then carries it.
+
+```typescript
+OpenTelemetry.init({
+  metrics: {
+    enabled: true,
+    customAttributes: { "deployment.environment": "production" },
+  },
+});
+
+const orders = createClient({ metrics: { customAttributes: { app: "orders" } } });
+const billing = createCluster({
+  rootNodes: [{ url: "redis://10.0.0.1:30001" }],
+  defaults: { metrics: { customAttributes: { app: "billing" } } },
+});
+```
+
+When the same key is set more than once, the most specific value wins:
+
+1. client attributes
+2. process attributes
+3. attributes node-redis sets, such as `db.system.name` or `server.address`
+
+Each client only carries its own attributes, so `orders` metrics never carry `app: "billing"`.
+
+> **Warning**: Keep the cardinality of custom attributes low. Every distinct combination of attribute values creates a new time series for every metric, which raises the memory, storage and cost of your metrics backend. Use a few fixed values per process, such as the service, team, region or environment.
+
+> **Note**: A custom attribute replaces a built-in attribute with the same key, which changes how its metrics group. For example, a custom `server.address` merges the data points of every node into one series. Prefer keys outside the namespaces node-redis uses (`db.*`, `server.*`, `network.*`, `error.*` and `redis.*`).
 
 ## Metric groups and metrics
 

@@ -13,10 +13,12 @@ import {
 import { createClient } from "@redis/client/index";
 import { OTelMetrics } from "./metrics";
 import {
+  Attributes,
   CONNECTION_CLOSE_REASON,
   CSC_EVICTION_REASON,
   CSC_RESULT,
   ERROR_CATEGORY,
+  METRIC_GROUP,
   METRIC_NAMES,
   ObservabilityConfig,
   OTEL_ATTRIBUTES,
@@ -321,6 +323,207 @@ describe("OTel Metrics Unit Tests", () => {
       client.destroy();
     }
     api.metrics.disable();
+  });
+
+  describe("customAttributes", () => {
+    let exporter: InMemoryMetricExporter;
+    let meterProvider: MeterProvider;
+
+    const registerClient = (clientId: string, customAttributes?: Attributes) => {
+      ClientRegistry.instance.register({
+        identity: { id: clientId, role: ClientRole.STANDALONE },
+        getAttributes: () => ({ host: "127.0.0.1", port: 6379, db: 0, clientId, customAttributes }),
+        getPendingRequests: () => 0,
+        getCacheItemCount: () => 0,
+        isConnected: () => true,
+      });
+    };
+
+    const initWith = (customAttributes?: Attributes, clientCustomAttributes?: Attributes) => {
+      exporter = new InMemoryMetricExporter(AggregationTemporality.CUMULATIVE);
+      meterProvider = new MeterProvider({
+        readers: [new PeriodicExportingMetricReader({ exporter })],
+      });
+      ClientRegistry.init();
+      registerClient("client-1", clientCustomAttributes);
+      OTelMetrics.init({
+        api,
+        config: {
+          metrics: {
+            enabled: true,
+            enabledMetricGroups: ["command", "connection-basic", "resiliency"],
+            meterProvider,
+            customAttributes,
+          },
+        },
+      });
+    };
+
+    const publishEvents = (clientId = "client-1", command = "GET") => {
+      const commandCtx = { command, clientId };
+      dc.channel("tracing:node-redis:command:start").publish(commandCtx);
+      dc.channel("tracing:node-redis:command:asyncEnd").publish(commandCtx);
+      dc.channel("node-redis:error").publish({
+        error: new Error("boom"),
+        origin: "client",
+        internal: false,
+        clientId,
+      });
+      dc.channel("node-redis:connection:relaxed-timeout").publish({
+        clientId,
+        value: 1,
+      });
+    };
+
+    const collect = async (metricName: string) => {
+      await meterProvider.forceFlush();
+      return getMetricDataPoints(exporter.getMetrics(), metricName);
+    };
+
+    const EVERY_INSTRUMENT_KIND = [
+      METRIC_NAMES.dbClientOperationDuration,
+      METRIC_NAMES.redisClientErrors,
+      METRIC_NAMES.redisClientConnectionRelaxedTimeout,
+      METRIC_NAMES.redisClientConnectionCount,
+    ];
+
+    afterEach(async () => {
+      ClientRegistry.reset();
+      await meterProvider.shutdown().catch(() => {});
+    });
+
+    it("should add custom attributes to every metric", async () => {
+      exporter = new InMemoryMetricExporter(AggregationTemporality.CUMULATIVE);
+      meterProvider = new MeterProvider({
+        readers: [new PeriodicExportingMetricReader({ exporter })],
+      });
+      ClientRegistry.init();
+      registerClient("client-1", { app: "a" });
+      OTelMetrics.init({
+        api,
+        config: {
+          metrics: {
+            enabled: true,
+            enabledMetricGroups: Object.values(METRIC_GROUP),
+            meterProvider,
+            customAttributes: { env: "prod" },
+          },
+        },
+      });
+
+      // One event for each metric that publishEvents doesn't cover. The gauges need none.
+      const clientId = "client-1";
+      publishEvents(clientId);
+      const events: Array<[string, object]> = [
+        ["node-redis:connection:ready", { clientId, createTimeMs: 1 }],
+        ["node-redis:connection:closed", { clientId, reason: CONNECTION_CLOSE_REASON.APPLICATION_CLOSE }],
+        ["node-redis:connection:handoff", { clientId }],
+        ["node-redis:pool:connection-wait", { clientId, waitStartTimestamp: performance.now() }],
+        ["node-redis:maintenance", { clientId, notification: "MOVING" }],
+        ["node-redis:pubsub", { clientId, direction: "in", channel: "channel" }],
+        ["node-redis:command:reply", { clientId, args: ["PUBLISH", "channel", "message"] }],
+        ["node-redis:command:reply", {
+          clientId,
+          args: ["XREAD", "STREAMS", "stream", "0"],
+          reply: [{ name: "stream", messages: [{ id: `${Date.now()}-0` }] }],
+        }],
+        ["node-redis:cache:request", { clientId, result: CSC_RESULT.HIT }],
+        ["node-redis:cache:eviction", { clientId, reason: CSC_EVICTION_REASON.FULL }],
+      ];
+      for (const [channel, event] of events) {
+        dc.channel(channel).publish(event);
+      }
+
+      await meterProvider.forceFlush();
+      const metrics = exporter.getMetrics()
+        .flatMap(({ scopeMetrics }) => scopeMetrics)
+        .flatMap(({ metrics }) => metrics);
+      assert.deepEqual(
+        metrics.map(({ descriptor }) => descriptor.name).sort(),
+        Object.values(METRIC_NAMES).sort(),
+      );
+      for (const { descriptor, dataPoints } of metrics) {
+        for (const { attributes } of dataPoints) {
+          assert.equal(attributes.env, "prod", descriptor.name);
+          assert.equal(attributes.app, "a", descriptor.name);
+        }
+      }
+    });
+
+    it("should let a process-level custom attribute replace a built-in one", async () => {
+      initWith({
+        [OTEL_ATTRIBUTES.dbSystemName]: "other",
+        [OTEL_ATTRIBUTES.serverAddress]: "override",
+      });
+      publishEvents();
+
+      const [dataPoint] = await collect(METRIC_NAMES.dbClientOperationDuration);
+      assert.equal(dataPoint.attributes[OTEL_ATTRIBUTES.dbSystemName], "other");
+      assert.equal(dataPoint.attributes[OTEL_ATTRIBUTES.serverAddress], "override");
+    });
+
+    it("should let client-level custom attributes override process-level ones on every instrument kind", async () => {
+      initWith({ team: "process", env: "prod" }, { team: "client" });
+      publishEvents();
+
+      for (const metricName of EVERY_INSTRUMENT_KIND) {
+        const [dataPoint] = await collect(metricName);
+        assert.equal(dataPoint.attributes.team, "client", metricName);
+        assert.equal(dataPoint.attributes.env, "prod", metricName);
+      }
+    });
+
+    it("should let a client-level custom attribute replace a built-in one", async () => {
+      initWith(undefined, {
+        [OTEL_ATTRIBUTES.dbSystemName]: "other",
+        [OTEL_ATTRIBUTES.errorType]: "custom",
+      });
+      publishEvents();
+
+      const [operation] = await collect(METRIC_NAMES.dbClientOperationDuration);
+      assert.equal(operation.attributes[OTEL_ATTRIBUTES.dbSystemName], "other");
+      const [error] = await collect(METRIC_NAMES.redisClientErrors);
+      assert.equal(error.attributes[OTEL_ATTRIBUTES.errorType], "custom");
+    });
+
+    it("should not mix custom attributes between clients", async () => {
+      initWith({ env: "prod" }, { app: "a" });
+      registerClient("client-2", { app: "b" });
+      publishEvents("client-1", "GET");
+      publishEvents("client-2", "SET");
+
+      const appByClient: Record<string, string> = { "client-1": "a", "client-2": "b" };
+      for (const metricName of [
+        METRIC_NAMES.redisClientErrors,
+        METRIC_NAMES.redisClientConnectionRelaxedTimeout,
+        METRIC_NAMES.redisClientConnectionCount,
+      ]) {
+        const dataPoints = await collect(metricName);
+        assert.equal(dataPoints.length, 2, metricName);
+        for (const { attributes } of dataPoints) {
+          const clientId = attributes[OTEL_ATTRIBUTES.dbClientConnectionPoolName] as string;
+          assert.equal(attributes.app, appByClient[clientId], metricName);
+          assert.equal(attributes.env, "prod", metricName);
+        }
+      }
+
+      // Command points carry no pool name, so the command tells the clients apart.
+      const operations = await collect(METRIC_NAMES.dbClientOperationDuration);
+      const appByCommand = Object.fromEntries(
+        operations.map(({ attributes }) => [attributes[OTEL_ATTRIBUTES.dbOperationName], attributes.app]),
+      );
+      assert.deepEqual(appByCommand, { GET: "a", SET: "b" });
+    });
+
+    it("should add only process-level custom attributes when the client is not registered", async () => {
+      initWith({ env: "prod" }, { app: "a" });
+      publishEvents("unknown");
+
+      const [dataPoint] = await collect(METRIC_NAMES.redisClientErrors);
+      assert.equal(dataPoint.attributes.env, "prod");
+      assert.equal(dataPoint.attributes.app, undefined);
+    });
+
   });
 });
 
@@ -1887,6 +2090,113 @@ describe("OTel Metrics E2E", function () {
         client: GLOBAL.SERVERS.OPEN,
         cluster: GLOBAL.CLUSTERS.OPEN,
       },
+    );
+  });
+
+  describe("Custom attributes", () => {
+    beforeEach(() => {
+      OTelMetrics.init({
+        api,
+        config: {
+          metrics: {
+            enabled: true,
+            meterProvider,
+            enabledMetricGroups: ["command", "connection-basic"],
+            customAttributes: { env: "test" },
+          },
+        },
+      });
+    });
+
+    const collect = async (metricName: string) => {
+      await meterProvider.forceFlush();
+      return getMetricDataPoints(exporter.getMetrics(), metricName);
+    };
+
+    const assertAppByCommand = async (expected: Record<string, string>) => {
+      const operations = await collect(METRIC_NAMES.dbClientOperationDuration);
+      for (const [command, app] of Object.entries(expected)) {
+        const points = operations.filter(
+          ({ attributes }) => attributes[OTEL_ATTRIBUTES.dbOperationName] === command,
+        );
+        assert.ok(points.length > 0, `expected ${command} data points`);
+        for (const { attributes } of points) {
+          assert.equal(attributes.app, app, command);
+          assert.equal(attributes.env, "test", command);
+        }
+      }
+    };
+
+    const assertAppByClientId = async (appByClientId: Map<string, string>) => {
+      const createTimes = await collect(METRIC_NAMES.dbClientConnectionCreateTime);
+      for (const [clientId, app] of appByClientId) {
+        const point = createTimes.find(
+          ({ attributes }) => attributes[OTEL_ATTRIBUTES.dbClientConnectionPoolName] === clientId,
+        );
+        assert.ok(point, `expected a create_time data point for ${clientId}`);
+        assert.equal(point.attributes.app, app, clientId);
+        assert.equal(point.attributes.env, "test", clientId);
+        assert.equal(
+          ClientRegistry.instance.getById(clientId)?.getAttributes().customAttributes?.app,
+          app,
+          clientId,
+        );
+      }
+    };
+
+    testUtils.testWithClient(
+      "should not mix custom attributes between two clients",
+      async (client) => {
+        const a = client.duplicate({ metrics: { customAttributes: { app: "a" } } });
+        const b = client.duplicate({ metrics: { customAttributes: { app: "b" } } });
+        await Promise.all([a.connect(), b.connect()]);
+
+        try {
+          await a.get("otel-custom-attributes");
+          await b.set("otel-custom-attributes", "value");
+
+          await assertAppByCommand({ GET: "a", SET: "b" });
+          await assertAppByClientId(new Map([[a._clientId, "a"], [b._clientId, "b"]]));
+        } finally {
+          a.destroy();
+          b.destroy();
+        }
+      },
+      GLOBAL.SERVERS.OPEN,
+    );
+
+    testUtils.testWithCluster(
+      "should not mix custom attributes between two clusters",
+      async (cluster) => {
+        const withApp = (app: string) => ({
+          defaults: { ...cluster._options.defaults, metrics: { customAttributes: { app } } },
+        });
+        const a = cluster.duplicate(withApp("a"));
+        const b = cluster.duplicate(withApp("b"));
+        await Promise.all([a.connect(), b.connect()]);
+
+        try {
+          // Enough keys to reach every shard.
+          const keys = Array.from({ length: 30 }, (_, i) => `otel-custom-attributes-${i}`);
+          await Promise.all(keys.map(key => a.get(key)));
+          await Promise.all(keys.map(key => b.set(key, "value")));
+
+          await assertAppByCommand({ GET: "a", SET: "b" });
+
+          const appByClientId = new Map<string, string>();
+          for (const [cluster, app] of [[a, "a"], [b, "b"]] as const) {
+            for (const master of cluster.masters) {
+              assert.ok(master.client, `expected a node client for ${master.address}`);
+              appByClientId.set(master.client._clientId, app);
+            }
+          }
+          await assertAppByClientId(appByClientId);
+        } finally {
+          a.destroy();
+          b.destroy();
+        }
+      },
+      GLOBAL.CLUSTERS.OPEN,
     );
   });
 });
