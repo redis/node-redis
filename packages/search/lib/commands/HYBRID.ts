@@ -3,12 +3,14 @@ import {
   RedisArgument,
   Command,
   TypeMapping,
+  BlobStringReply,
 } from "@redis/client/dist/lib/RESP/types";
 import {
   RedisVariadicArgument,
   parseOptionalVariadicArgument,
+  transformDoubleReply,
 } from "@redis/client/dist/lib/commands/generic-transformers";
-import { parseParamsArgument } from "./SEARCH";
+import { normalizeScoreExplain, parseParamsArgument } from "./SEARCH";
 import { GroupByReducers, parseGroupByReducer } from "./AGGREGATE";
 import {
   getMapValue,
@@ -169,6 +171,16 @@ export interface FtHybridOptions {
     /** Number of results to return */
     count: number | RedisArgument;
   };
+  /**
+   * Return an explanation of how each result's score was calculated.
+   * Each result then has `score` (a number, unless a DOUBLE type mapping says
+   * otherwise) and `scoreExplain` (the tree).
+   * A loaded field named `score` replaces the explanation, because the server
+   * uses the same key. Load it under an alias: `['@score', 'AS', 'doc_score']`.
+   * The server rejects this option together with `GROUPBY`.
+   * Requires Redis 8.10 or later.
+   */
+  EXPLAINSCORE?: boolean;
   /** Query parameters for parameterized queries */
   PARAMS?: Record<string, string | number | Buffer>;
   /** Query timeout in milliseconds */
@@ -387,6 +399,10 @@ function parseHybridOptions(parser: CommandParser, options: FtHybridOptions) {
     );
   }
 
+  if (options.EXPLAINSCORE) {
+    parser.push("EXPLAINSCORE");
+  }
+
   const hasParams = options.PARAMS && Object.keys(options.PARAMS).length > 0;
 
   parseParamsArgument(parser, hasParams ? options.PARAMS : undefined);
@@ -407,23 +423,27 @@ export default {
     parser.push("FT.HYBRID", index);
 
     parseHybridOptions(parser, options);
+    parser.preserve = { EXPLAINSCORE: Boolean(options.EXPLAINSCORE) };
   },
   transformReply: {
     2: (
       reply: unknown,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
-      _preserve?: any,
-      _typeMapping?: TypeMapping
+      preserve?: any,
+      typeMapping?: TypeMapping
     ): HybridSearchResult => {
-      return transformHybridSearchResults(reply);
+      return transformHybridSearchResults(reply, preserve, score =>
+        transformDoubleReply[2](score as BlobStringReply, undefined, typeMapping)
+      );
     },
     3: (
       reply: unknown,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches TransformReply contract
-      _preserve?: any,
+      preserve?: any,
       _typeMapping?: TypeMapping
     ): HybridSearchResult => {
-      return transformHybridSearchResults(reply);
+      // The RESP3 decoder has already applied the DOUBLE type mapping.
+      return transformHybridSearchResults(reply, preserve, score => score);
     },
   },
 } as const satisfies Command;
@@ -436,7 +456,11 @@ export interface HybridSearchResult {
   results: Record<string, any>[];
 }
 
-function transformHybridSearchResults(reply: unknown): HybridSearchResult {
+function transformHybridSearchResults(
+  reply: unknown,
+  preserve: { EXPLAINSCORE?: boolean } | undefined,
+  transformScore: (score: unknown) => unknown,
+): HybridSearchResult {
   const replyMap = parseReplyMap(reply);
 
   const totalResults = Number(
@@ -482,6 +506,15 @@ function transformHybridSearchResults(reply: unknown): HybridSearchResult {
 
       if (!Object.hasOwn(doc, key)) {
         doc[key] = value;
+      }
+    }
+
+    // With EXPLAINSCORE the server sends `score` as `[score, explanationNode]`.
+    if (preserve?.EXPLAINSCORE && Array.isArray(doc.score)) {
+      const [score, explain] = doc.score as [unknown, unknown];
+      doc.score = transformScore(score);
+      if (explain !== undefined) {
+        doc.scoreExplain = normalizeScoreExplain(explain);
       }
     }
 
