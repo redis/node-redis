@@ -1136,6 +1136,72 @@ describe('Cluster', () => {
       minimumDockerVersion: [7]
     });
 
+    // Regression for #3585: many sharded channels migrating at once. Each
+    // SUNSUBSCRIBE triggers rediscover(); coalesced discoveries can return a
+    // stale map so the resubscribe hits MOVED (or races an uncovered slot)
+    // and used to give up permanently. The moved handler must retry.
+    testUtils.testWithCluster('should keep all sharded subscriptions across a multi-slot reshard (#3585)', async cluster => {
+      const migrating = cluster.getSlotMaster(0),
+        importing = cluster.masters.find(master => master !== migrating)!;
+
+      const channels: string[] = [];
+      const slots: number[] = [];
+      const usedSlots = new Set<number>();
+      for (let i = 0; channels.length < 80; i++) {
+        const channel = `ch:${i}`;
+        const slot = calculateSlot(channel);
+        if (usedSlots.has(slot) || cluster.getSlotMaster(slot) !== migrating) continue;
+        usedSlots.add(slot);
+        channels.push(channel);
+        slots.push(slot);
+      }
+
+      const received = new Set<string>();
+      const movedErrors: unknown[] = [];
+      cluster.on('sharded-channel-moved-error', (err) => movedErrors.push(err));
+      await Promise.all(
+        channels.map(channel => cluster.sSubscribe(channel, (_message, ch) => {
+          received.add(ch);
+        }))
+      );
+
+      const [migratingClient, importingClient] = await Promise.all([
+        cluster.nodeClient(migrating),
+        cluster.nodeClient(importing)
+      ]);
+      const importingId = importing.id;
+
+      // Move many slots quickly so rediscover calls overlap.
+      const toMove = slots.slice(0, Math.floor(slots.length * 0.7));
+      for (const slot of toMove) {
+        await Promise.all([
+          migratingClient.clusterDelSlots(slot),
+          importingClient.clusterDelSlots(slot)
+        ]);
+        await importingClient.clusterAddSlots(slot);
+        await Promise.all([
+          migratingClient.clusterSetSlot(slot, 'NODE', importingId),
+          importingClient.clusterSetSlot(slot, 'NODE', importingId)
+        ]);
+      }
+
+      received.clear();
+      for (let round = 0; round < 40; round++) {
+        await Promise.all(channels.map(channel => cluster.sPublish(channel, 'm').catch(() => {})));
+        if (received.size === channels.length) break;
+        await setTimeout(100);
+      }
+
+      assert.equal(movedErrors.length, 0, `unexpected moved errors: ${movedErrors.slice(0, 3)}`);
+      assert.equal(received.size, channels.length);
+    }, {
+      serverArguments: [],
+      numberOfMasters: 3,
+      numberOfReplicas: 0,
+      minimumDockerVersion: [7],
+      testTimeout: 60000
+    });
+
     testUtils.testWithCluster('closes the sharded pub/sub client of a master demoted by a failover', async cluster => {
       await cluster.connect();
 

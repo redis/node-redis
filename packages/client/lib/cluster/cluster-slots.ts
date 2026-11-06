@@ -1452,20 +1452,63 @@ export default class RedisClusterSlots<
     return master.pubSub.connectPromise ?? Promise.resolve(master.pubSub.client);
   }
 
+  /**
+   * Wait for any in-flight rediscover to finish, then start a fresh one.
+   * Needed when a coalesced rediscover captured a slot map from before the
+   * slot that just moved (see #3585).
+   */
+  async #forceRediscover(startWith?: RedisClientType<M, F, S, RESP>): Promise<void> {
+    if (this.#runningRediscoverPromise) {
+      await this.#runningRediscoverPromise.catch(() => {});
+    }
+    return this.rediscover(startWith);
+  }
+
   async #initiateShardedPubSubClient(master: MasterNode<M, F, S, RESP, TYPE_MAPPING>) {
     const client = this.#createClient(master, false);
 
     client.on('sharded-channel-moved', async (channel, listeners) => {
-      try {
-        await this.rediscover(client);
-        const redirectTo = await this.getShardedPubSubClient(channel);
-        await redirectTo.extendPubSubChannelListeners(
-          PUBSUB_TYPE.SHARDED,
-          channel,
-          listeners
-        );
-      } catch (err) {
-        this.#emit('sharded-channel-moved-error', err, channel, listeners);
+      // During a live reshard, rediscover() may reuse an in-flight discovery
+      // that started before this channel's slot moved. Resubscribing then hits
+      // MOVED on the old master and used to give up (#3585). Retry with a
+      // forced rediscover, mirroring the SSUBSCRIBE MOVED loop.
+      const maxRedirections = this.#options.maxCommandRedirections ?? 16;
+      for (let i = 0; ; i++) {
+        try {
+          await this.rediscover(client);
+          let redirectTo = await this.getShardedPubSubClient(channel);
+
+          // Slot map still points at the client that just lost the channel —
+          // the rediscover was stale. Force a fresh discovery.
+          if (redirectTo === client) {
+            if (i >= maxRedirections) {
+              throw new Error(
+                `sharded channel "${channel}" still maps to the node that lost it after rediscover`
+              );
+            }
+            await this.#forceRediscover(client);
+            redirectTo = await this.getShardedPubSubClient(channel);
+            if (redirectTo === client) {
+              continue;
+            }
+          }
+
+          await redirectTo.extendPubSubChannelListeners(
+            PUBSUB_TYPE.SHARDED,
+            channel,
+            listeners
+          );
+          return;
+        } catch (err) {
+          // Retry any failure: MOVED from a stale slot map (#3585), or a
+          // rediscover that raced a mid-handoff uncovered slot. Giving up
+          // permanently drops the subscription.
+          if (i >= maxRedirections) {
+            this.#emit('sharded-channel-moved-error', err, channel, listeners);
+            return;
+          }
+          await this.#forceRediscover(client).catch(() => {});
+        }
       }
     });
 
