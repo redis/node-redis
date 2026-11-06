@@ -293,11 +293,12 @@ export function parseAggregateOptions(parser: CommandParser, options?: FtAggrega
             pushSortByProperty(args, step.BY);
           }
 
-          if (step.MAX) {
-            args.push('MAX', step.MAX.toString());
-          }
-
           parser.pushVariadicWithLength(args);
+
+          // MAX follows the SORTBY arguments and is not counted in nargs
+          if (step.MAX) {
+            parser.push('MAX', step.MAX.toString());
+          }
 
           break;
         }
