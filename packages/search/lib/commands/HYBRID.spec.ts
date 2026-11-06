@@ -1,6 +1,7 @@
 import { strict as assert } from "node:assert";
 import HYBRID, { FT_HYBRID_VECTOR_METHOD, FT_HYBRID_COMBINE_METHOD } from "./HYBRID";
 import { BasicCommandParser } from "@redis/client/lib/client/parser";
+import { RESP_TYPES } from "@redis/client";
 import testUtils, { GLOBAL } from "../test-utils";
 import { SCHEMA_VECTOR_FIELD_ALGORITHM } from "./CREATE";
 import { FT_AGGREGATE_GROUP_BY_REDUCERS } from "./AGGREGATE";
@@ -1124,6 +1125,30 @@ describe("FT.HYBRID", () => {
         assert.deepStrictEqual(result.results[0], expected);
       });
 
+      it("RESP2: honors a DOUBLE type mapping for the score", () => {
+        const reply = [
+          "results", [["score", ["0.0327", explain]]],
+        ];
+
+        const result = HYBRID.transformReply[2](
+          reply,
+          { EXPLAINSCORE: true },
+          { [RESP_TYPES.DOUBLE]: String },
+        );
+
+        assert.strictEqual(result.results[0].score, "0.0327");
+      });
+
+      it("RESP3: keeps the score the decoder produced", () => {
+        const reply = {
+          results: [{ score: ["0.0327", explain] }],
+        };
+
+        const result = HYBRID.transformReply[3](reply, { EXPLAINSCORE: true });
+
+        assert.strictEqual(result.results[0].score, "0.0327");
+      });
+
       it("leaves a document field named score alone without EXPLAINSCORE", () => {
         const reply = {
           total_results: 1,
@@ -2149,6 +2174,37 @@ describe("FT.HYBRID", () => {
           assert.ok(Array.isArray(doc.scoreExplain));
           assert.match(doc.scoreExplain[0], /^final score: /);
           assert.ok(Array.isArray(doc.scoreExplain[1]));
+        }
+      },
+      GLOBAL.SERVERS.OPEN,
+    );
+
+    testUtils.testWithClientIfVersionWithinRange(
+      [[8, 10], "LATEST"],
+      "hybrid search with EXPLAINSCORE and a DOUBLE type mapping",
+      async (client) => {
+        const indexName = "idx_explainscore_mapping";
+        await createHybridSearchIndex(client, indexName);
+        await addDataForHybridSearch(client);
+
+        const result = await client
+          .withTypeMapping({ [RESP_TYPES.DOUBLE]: String })
+          .ft.hybrid(indexName, {
+            SEARCH: { query: "shoes" },
+            VSIM: {
+              field: "@embedding",
+              vector: "$vec",
+            },
+            EXPLAINSCORE: true,
+            LIMIT: { offset: 0, count: 2 },
+            PARAMS: {
+              vec: createVectorBuffer([1, 2, 7, 8]),
+            },
+          });
+
+        for (const doc of result.results) {
+          assert.strictEqual(typeof doc.score, "string");
+          assert.ok(Array.isArray(doc.scoreExplain));
         }
       },
       GLOBAL.SERVERS.OPEN,
