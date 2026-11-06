@@ -647,6 +647,37 @@ describe("FT.HYBRID", () => {
       ]);
     });
 
+    it("with EXPLAINSCORE", () => {
+      const parser = new BasicCommandParser();
+      HYBRID.parseCommand(parser, "index", {
+        SEARCH: {
+          query: "shoes",
+        },
+        VSIM: {
+          field: "@embedding",
+          vector: "$vec",
+        },
+        EXPLAINSCORE: true,
+        PARAMS: {
+          vec: "BLOB_DATA",
+        },
+      });
+      assert.deepEqual(parser.redisArgs, [
+        "FT.HYBRID",
+        "index",
+        "SEARCH",
+        "shoes",
+        "VSIM",
+        "@embedding",
+        "$vec",
+        "EXPLAINSCORE",
+        "PARAMS",
+        "2",
+        "vec",
+        "BLOB_DATA",
+      ]);
+    });
+
     it("with SEARCH YIELD_SCORE_AS", () => {
       const parser = new BasicCommandParser();
       HYBRID.parseCommand(parser, "index", {
@@ -1041,6 +1072,73 @@ describe("FT.HYBRID", () => {
       assert.strictEqual(result.results.length, 1);
       assert.strictEqual(result.results[0].id, "item:0");
       assert.strictEqual(result.results[0].$, "not json");
+    });
+    describe("EXPLAINSCORE", () => {
+      const explain = [
+        "final score: 1 / (constant 60.00 + rank 1) + 1 / (constant 60.00 + rank 1) = 0.0327",
+        [
+          [
+            "Hybrid score (RRF: window=20, constant=60.00)",
+            [
+              ["text rank = 1", ["Text scorer: BM25STD"]],
+              ["vector branch (KNN)", ["vector rank = 1"]],
+            ],
+          ],
+        ],
+      ];
+
+      const expected = {
+        score: 0.0327,
+        scoreExplain: explain,
+        __key: "item:0",
+        __score: "0.0327",
+      };
+
+      it("RESP2: splits score into a number and an explanation", () => {
+        const reply = [
+          "total_results", 1,
+          "results", [
+            ["score", ["0.0327", explain], "__key", "item:0", "__score", "0.0327"],
+          ],
+          "warnings", [],
+          "execution_time", "0.5",
+        ];
+
+        const result = HYBRID.transformReply[2](reply, { EXPLAINSCORE: true });
+
+        assert.deepStrictEqual(result.results[0], expected);
+      });
+
+      it("RESP3: splits score into a number and an explanation", () => {
+        const reply = {
+          total_results: 1,
+          results: [
+            { score: [0.0327, explain], __key: "item:0", __score: "0.0327" },
+          ],
+          warnings: [],
+          execution_time: 0.5,
+        };
+
+        const result = HYBRID.transformReply[3](reply, { EXPLAINSCORE: true });
+
+        assert.deepStrictEqual(result.results[0], expected);
+      });
+
+      it("leaves a document field named score alone without EXPLAINSCORE", () => {
+        const reply = {
+          total_results: 1,
+          results: [{ __key: "item:0", score: ["a", "b"] }],
+          warnings: [],
+          execution_time: 0.5,
+        };
+
+        const result = HYBRID.transformReply[3](reply);
+
+        assert.deepStrictEqual(result.results[0], {
+          __key: "item:0",
+          score: ["a", "b"],
+        });
+      });
     });
   });
 
@@ -2020,6 +2118,38 @@ describe("FT.HYBRID", () => {
         assert.ok(result.results.length <= 3, "results should respect LIMIT");
         assert.ok(Array.isArray(result.warnings), "warnings should be an array");
         assert.ok(typeof result.executionTime === "number", "executionTime should be a number");
+      },
+      GLOBAL.SERVERS.OPEN,
+    );
+
+    testUtils.testWithClientIfVersionWithinRange(
+      [[8, 10], "LATEST"],
+      "hybrid search with EXPLAINSCORE",
+      async (client) => {
+        const indexName = "idx_explainscore";
+        await createHybridSearchIndex(client, indexName);
+        await addDataForHybridSearch(client);
+
+        const result = await client.ft.hybrid(indexName, {
+          SEARCH: { query: "shoes" },
+          VSIM: {
+            field: "@embedding",
+            vector: "$vec",
+          },
+          EXPLAINSCORE: true,
+          LIMIT: { offset: 0, count: 2 },
+          PARAMS: {
+            vec: createVectorBuffer([1, 2, 7, 8]),
+          },
+        });
+
+        assert.strictEqual(result.results.length, 2);
+        for (const doc of result.results) {
+          assert.strictEqual(typeof doc.score, "number");
+          assert.ok(Array.isArray(doc.scoreExplain));
+          assert.match(doc.scoreExplain[0], /^final score: /);
+          assert.ok(Array.isArray(doc.scoreExplain[1]));
+        }
       },
       GLOBAL.SERVERS.OPEN,
     );
