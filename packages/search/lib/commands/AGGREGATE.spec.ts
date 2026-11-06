@@ -569,7 +569,20 @@ describe('AGGREGATE', () => {
                 MAX: 1
               }]
             }),
-            ['FT.AGGREGATE', 'index', '*', 'SORTBY', '3', '@by', 'MAX', '1', 'DIALECT', DEFAULT_DIALECT]
+            ['FT.AGGREGATE', 'index', '*', 'SORTBY', '1', '@by', 'MAX', '1', 'DIALECT', DEFAULT_DIALECT]
+          );
+        });
+
+        it('with direction and MAX', () => {
+          assert.deepEqual(
+            parseArgs(AGGREGATE, 'index', '*', {
+              STEPS: [{
+                type: 'SORTBY',
+                BY: [{ BY: '@1', DIRECTION: 'DESC' }, '@2'],
+                MAX: 10
+              }]
+            }),
+            ['FT.AGGREGATE', 'index', '*', 'SORTBY', '3', '@1', 'DESC', '@2', 'MAX', '10', 'DIALECT', DEFAULT_DIALECT]
           );
         });
       });
@@ -745,6 +758,29 @@ describe('AGGREGATE', () => {
     assert.ok('results' in reply);
     assert.ok(Array.isArray(reply.results));
     assert.ok(reply.results.length > 0);
+  }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.ft.aggregate with SORTBY MAX', async client => {
+    await client.ft.create('index', {
+      field: 'NUMERIC'
+    });
+    await client.hSet('1', 'field', '1');
+    await client.hSet('2', 'field', '2');
+    await client.hSet('3', 'field', '3');
+
+    const reply = await client.ft.aggregate('index', '*', {
+      LOAD: '@field',
+      STEPS: [{
+        type: 'SORTBY',
+        BY: { BY: '@field', DIRECTION: 'DESC' },
+        MAX: 2
+      }]
+    });
+
+    assert.deepEqual(
+      reply.results.map(result => result.field),
+      ['3', '2']
+    );
   }, GLOBAL.SERVERS.OPEN);
 
   testUtils.testWithClient('client.ft.aggregate with RESP_TYPES.MAP: Array typeMapping', async client => {
