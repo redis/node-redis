@@ -19,6 +19,7 @@ export const RESP_TYPES = {
   ARRAY: 42, // *
   SET: 126, // ~
   MAP: 37, // %
+  ATTRIBUTE: 124, // |
   PUSH: 62 // >
 } as const;
 
@@ -66,6 +67,8 @@ function slowParseDouble(buffer, start, end) {
 export const PUSH_TYPE_MAPPING = {
   [RESP_TYPES.BLOB_STRING]: Buffer
 };
+
+function noop() {}
 
 // this was written with performance in mind, so it's not very readable... sorry :(
 
@@ -230,6 +233,13 @@ export class Decoder {
       case RESP_TYPES.MAP:
         return this.#handleDecodedValue(
           this.onReply,
+          this.#decodeMap(this.getTypeMapping(), chunk)
+        );
+
+      // attributes are not exposed, skip them and decode the reply that follows
+      case RESP_TYPES.ATTRIBUTE:
+        return this.#handleDecodedValue(
+          noop,
           this.#decodeMap(this.getTypeMapping(), chunk)
         );
 
@@ -690,9 +700,28 @@ export class Decoder {
       case RESP_TYPES.MAP:
         return this.#decodeMap(typeMapping, chunk);
 
+      case RESP_TYPES.ATTRIBUTE:
+        return this.#decodeAttribute(
+          this.#decodeMap(typeMapping, chunk),
+          this.#decodeNestedType.bind(this, typeMapping),
+          chunk
+        );
+
       default:
         throw new Error(`Unknown RESP type ${type} "${String.fromCharCode(type)}"`);
     }
+  }
+
+  #decodeAttribute(attribute, decodeNext, chunk) {
+    if (typeof attribute === 'function') {
+      return this.#continueDecodeAttribute.bind(this, attribute, decodeNext);
+    }
+
+    return this.#cursor >= chunk.length ? decodeNext : decodeNext(chunk);
+  }
+
+  #continueDecodeAttribute(attributeCb, decodeNext, chunk) {
+    return this.#decodeAttribute(attributeCb(chunk), decodeNext, chunk);
   }
 
   #decodeArray(typeMapping, chunk) {
@@ -974,6 +1003,14 @@ export class Decoder {
       // decode blob string map key as string (and not as buffer)
       case RESP_TYPES.BLOB_STRING:
         return this.#decodeBlobString(String, chunk);
+
+      // skip the attribute and decode the key that follows as a map key
+      case RESP_TYPES.ATTRIBUTE:
+        return this.#decodeAttribute(
+          this.#decodeMap(typeMapping, chunk),
+          this.#decodeMapKey.bind(this, typeMapping),
+          chunk
+        );
 
       default:
         return this.#decodeNestedTypeValue(type, typeMapping, chunk);
