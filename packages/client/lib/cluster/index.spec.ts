@@ -1,4 +1,5 @@
 import { strict as assert } from 'node:assert';
+import { once } from 'node:events';
 import { setTimeout } from 'node:timers/promises';
 import testUtils, { GLOBAL, blockSetImmediate, waitTillBeenCalled } from '../test-utils';
 import RedisCluster from '.';
@@ -9,6 +10,7 @@ import RedisClient from '../client';
 import { RESP_TYPES } from '../RESP/decoder';
 import calculateSlot from '../utils/calculate-slot';
 import { CommandParser } from '../client/parser';
+import { PUBSUB_TYPE } from '../client/pub-sub';
 
 describe('Cluster command lifecycle', () => {
   it('rejects commands before connect', async () => {
@@ -1131,6 +1133,61 @@ describe('Cluster', () => {
       }
 
       assert.ok(listener.calledWithExactly('message', 'channel'));
+    }, {
+      serverArguments: [],
+      minimumDockerVersion: [7]
+    });
+
+    // Regression for #3585: during a reshard, the moved channel can reuse a
+    // refresh that read the slot map before its own slot moved. Its subscribe
+    // then goes to the old owner and gets MOVED, which must be retried.
+    testUtils.testWithCluster('retries a moved sharded channel that gets MOVED from a stale slot map (#3585)', async cluster => {
+      const SLOT = 10328, // slot of `channel`
+        migrating = cluster.slots[SLOT].master,
+        importing = cluster.masters.find(master => master !== migrating)!,
+        [migratingClient, importingClient] = await Promise.all([
+          cluster.nodeClient(migrating),
+          cluster.nodeClient(importing)
+        ]);
+
+      const listener = spy();
+      await cluster.sSubscribe('channel', listener);
+
+      // the first refresh leaves the slot map as it was, like a refresh that
+      // read it before the slot moved
+      const slots = cluster._slots,
+        rediscover = slots.rediscover.bind(slots);
+      let stale = true;
+      slots.rediscover = (...args) => {
+        if (!stale) return rediscover(...args);
+        stale = false;
+        return Promise.resolve();
+      };
+
+      const errors: Array<unknown> = [];
+      cluster.on('sharded-channel-moved-error', err => errors.push(err));
+
+      // the new owner first, so the old owner answers MOVED once it lets go of
+      // the slot and pushes SUNSUBSCRIBE
+      const moved = once(migrating.pubSub!.client, 'sharded-channel-moved');
+      await importingClient.clusterSetSlot(SLOT, 'NODE', importing.id);
+      await migratingClient.clusterSetSlot(SLOT, 'NODE', importing.id);
+      await moved;
+      assert.equal(stale, false, 'the moved handler must get the stale refresh');
+
+      // sharded PubSub does not buffer, so publish until the listener receives
+      for (let i = 0; i < 50 && !listener.called && !errors.length; i++) {
+        await cluster.sPublish('channel', 'message');
+        await setTimeout(100);
+      }
+
+      assert.deepEqual(errors, []);
+      assert.ok(listener.calledWithExactly('message', 'channel'));
+      assert.equal(
+        migrating.pubSub?.client.getPubSubListeners(PUBSUB_TYPE.SHARDED).has('channel') ?? false,
+        false,
+        'the old owner must not keep the refused channel'
+      );
     }, {
       serverArguments: [],
       minimumDockerVersion: [7]

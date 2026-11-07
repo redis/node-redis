@@ -572,7 +572,7 @@ export default class RedisCommandsQueue {
             resolve();
           },
           reject: (err) => {
-            command.reject?.();
+            command.reject?.(err);
             this.#restoreDecoderIfPubSubInactive();
             // a teardown that carried this command's intent to another
             // member (multi-db move) is a success for the caller — the

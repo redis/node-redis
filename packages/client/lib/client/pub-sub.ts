@@ -1,4 +1,5 @@
 import { RedisArgument } from '../RESP/types';
+import { ErrorReply } from '../errors';
 import { CommandToWrite } from './commands-queue';
 import calculateSlot from '../utils/calculate-slot';
 import { publish, CHANNELS } from './tracing';
@@ -47,7 +48,7 @@ export type PubSubListeners = Record<PubSubType, PubSubTypeListeners>;
 
 export type PubSubCommand = (
   Required<Pick<CommandToWrite, 'args' | 'channelsCounter' | 'resolve'>> & {
-    reject: undefined | (() => unknown);
+    reject: undefined | ((err: unknown) => unknown);
     /**
      * True when a teardown carried this command's intent to another client
      * (multi-db move): the wire rejection is then a SUCCESS for the caller —
@@ -231,8 +232,13 @@ export class PubSub {
       ],
       channelsCounter: 1,
       resolve: () => this.#subscribing--,
-      reject: () => {
+      reject: (err: unknown) => {
         this.#subscribing--;
+        // the server refused the channel (e.g. MOVED), so this client is not
+        // subscribed to it; a lost connection keeps it for the resubscribe
+        if (err instanceof ErrorReply && this.listeners[type].get(channel) === listeners) {
+          this.listeners[type].delete(channel);
+        }
         this.#updateIsActive();
       }
     } satisfies PubSubCommand;

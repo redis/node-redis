@@ -1,5 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { PubSub, PUBSUB_TYPE } from './pub-sub';
+import { ErrorReply, SocketClosedUnexpectedlyError } from '../errors';
 
 describe('PubSub', () => {
   const TYPE = PUBSUB_TYPE.CHANNELS,
@@ -323,6 +324,40 @@ describe('PubSub', () => {
       carried.reject!();
 
       assert.ok(adopter.subscribe(TYPE, 'kept', () => {}), 'the adopter\'s unsubscribe is still in flight');
+    });
+  });
+
+  describe('a rejected extendChannelListeners', () => {
+    const SHARDED = PUBSUB_TYPE.SHARDED,
+      listeners = () => ({
+        unsubscribing: false,
+        buffers: new Set<() => void>(),
+        strings: new Set([() => {}])
+      });
+
+    it('drops the channel when the server refuses it', () => {
+      const pubSub = new PubSub(CLIENT_ID);
+      pubSub.extendChannelListeners(SHARDED, 'moved', listeners())!
+        .reject!(new ErrorReply('MOVED 1234 127.0.0.1:6380'));
+
+      assert.equal(pubSub.listeners[SHARDED].has('moved'), false);
+      assert.equal(pubSub.isActive, false);
+      assert.ok(
+        pubSub.extendChannelListeners(SHARDED, 'moved', listeners()),
+        'a later extend must hit the wire again'
+      );
+    });
+
+    it('keeps the channel when the connection fails, so the reconnect resubscribes it', () => {
+      const pubSub = new PubSub(CLIENT_ID);
+      pubSub.extendChannelListeners(SHARDED, 'kept', listeners())!
+        .reject!(new SocketClosedUnexpectedlyError());
+
+      assert.ok(pubSub.listeners[SHARDED].has('kept'));
+      assert.deepEqual(
+        pubSub.resubscribe().map(command => command.args.map(String)),
+        [['ssubscribe', 'kept']]
+      );
     });
   });
 
