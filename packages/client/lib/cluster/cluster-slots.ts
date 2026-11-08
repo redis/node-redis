@@ -632,6 +632,9 @@ export default class RedisClusterSlots<
 
       const { pubSub } = node as MasterNode<M, F, S, RESP, TYPE_MAPPING>;
       if (pubSub) {
+        // subscribe() can race rediscover and attach to an attempt node; move
+        // those listeners back onto the restored topology instead of dropping them.
+        this.#salvagePubSubListeners(pubSub.client);
         this.#reconnectionTracker.removeClient(pubSub.client._clientId);
         pubSub.client.destroy();
         (node as MasterNode<M, F, S, RESP, TYPE_MAPPING>).pubSub = undefined;
@@ -639,6 +642,7 @@ export default class RedisClusterSlots<
     }
 
     if (this.pubSubNode && this.pubSubNode !== snapshot?.pubSubNode) {
+      this.#salvagePubSubListeners(this.pubSubNode.client);
       this.#reconnectionTracker.removeClient(this.pubSubNode.client._clientId);
       this.pubSubNode.client.destroy();
       this.pubSubNode = snapshot?.pubSubNode;
@@ -655,10 +659,20 @@ export default class RedisClusterSlots<
     }
   }
 
+  #salvagePubSubListeners(
+    client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>
+  ) {
+    const listeners = client._getQueue().removeAllPubSubListeners();
+    if (listeners.CHANNELS.size || listeners.PATTERNS.size || listeners.SHARDED.size) {
+      this.#emit(RESUBSCRIBE_LISTENERS_EVENT, listeners);
+    }
+  }
+
   #destroyParkedPubSubNode() {
     if (!this.#parkedPubSubNode) return;
     const parked = this.#parkedPubSubNode;
     this.#parkedPubSubNode = undefined;
+    this.#salvagePubSubListeners(parked.client);
     this.#reconnectionTracker.removeClient(parked.client._clientId);
     parked.client.destroy();
   }
@@ -767,10 +781,7 @@ export default class RedisClusterSlots<
       if (inUse && !demotedWithPubSub) continue;
 
       if (pubSub) {
-        const listeners = pubSub.client._getQueue().removeAllPubSubListeners();
-        if (listeners.CHANNELS.size || listeners.PATTERNS.size || listeners.SHARDED.size) {
-          this.#emit(RESUBSCRIBE_LISTENERS_EVENT, listeners);
-        }
+        this.#salvagePubSubListeners(pubSub.client);
       }
 
       if (!inUse && node.client) {

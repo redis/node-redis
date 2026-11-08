@@ -3,11 +3,16 @@ import { EventEmitter, once } from 'node:events';
 import * as net from 'node:net';
 import { createServer, type AddressInfo, type Socket } from 'node:net';
 import { RedisClusterClientOptions } from './index';
-import RedisClusterSlots, { groupCommandsByDestination, splitInFlightChainTail } from './cluster-slots';
+import RedisClusterSlots, {
+  groupCommandsByDestination,
+  RESUBSCRIBE_LISTENERS_EVENT,
+  splitInFlightChainTail
+} from './cluster-slots';
 import type { MasterNode, Shard, ShardNode } from './cluster-slots';
 import type { CommandToWrite } from '../client/commands-queue';
 import { ClientClosedError } from '../errors';
 import { SMIGRATED_EVENT, type SMigratedEvent } from '../client/enterprise-maintenance-manager';
+import { PUBSUB_TYPE } from '../client/pub-sub';
 
 describe('RedisClusterSlots', () => {
   function createCommand(slotNumber?: number) {
@@ -552,6 +557,117 @@ describe('RedisClusterSlots', () => {
           'healthy node from the previous topology must survive a failed rediscover');
         assert.equal(slots.nodeByAddress.has('127.0.0.1:1'), false,
           'the unreachable master from the failed attempt must not stick around');
+      } finally {
+        slots.destroy();
+        for (const socket of sockets) socket.destroy();
+        server.close();
+        await once(server, 'close');
+      }
+    });
+
+    it('failed rediscover salvages pub/sub listeners attached during the attempt', async function () {
+      this.timeout(10000);
+
+      // subscribe() can race an in-flight rediscover and attach to a candidate
+      // pubSubNode. Rollback must emit those listeners for resubscribe instead
+      // of destroying them with the attempt client (Codex on #3597).
+      let slotsCalls = 0;
+      const sockets = new Set<Socket>();
+      let port = 0;
+      const server = createServer(socket => {
+        sockets.add(socket);
+        socket.on('close', () => sockets.delete(socket));
+        socket.on('data', chunk => {
+          for (const command of chunk.toString().split('*').filter(part => /^\d+\r\n\$/.test(part))) {
+            if (/CLUSTER\r\n\$5\r\nSLOTS/i.test(command)) {
+              slotsCalls++;
+              if (slotsCalls === 1) {
+                socket.write(
+                  `*1\r\n*3\r\n:0\r\n:16383\r\n*3\r\n$9\r\n127.0.0.1\r\n:${port}\r\n$5\r\nnode1\r\n`
+                );
+              } else {
+                socket.write(
+                  `*2\r\n` +
+                  `*3\r\n:0\r\n:8191\r\n*3\r\n$9\r\n127.0.0.1\r\n:${port}\r\n$5\r\nnode1\r\n` +
+                  `*3\r\n:8192\r\n:16383\r\n*3\r\n$9\r\n127.0.0.1\r\n:1\r\n$5\r\nnode2\r\n`
+                );
+              }
+            } else {
+              socket.write('+OK\r\n');
+            }
+          }
+        });
+      });
+      server.listen(0, '127.0.0.1');
+      await once(server, 'listening');
+      port = (server.address() as AddressInfo).port;
+
+      const salvaged: Array<unknown> = [];
+      const emit: EventEmitter['emit'] = (event, ...args) => {
+        if (event === RESUBSCRIBE_LISTENERS_EVENT) salvaged.push(args[0]);
+        return true;
+      };
+
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port } }],
+        minimizeConnections: false,
+        RESP: 2,
+        defaults: { disableClientInfo: true }
+      }, emit, 'test-cluster');
+
+      try {
+        await slots.connect();
+        assert.equal(slots.pubSubNode, undefined);
+
+        const rediscoverPromise = slots.rediscover();
+
+        // While eager connects are in flight, attach a dedicated pub/sub client
+        // the way subscribe() would during a race with rediscover.
+        await new Promise<void>((resolve, reject) => {
+          const started = Date.now();
+          const poll = () => {
+            if (slots.nodeByAddress.has('127.0.0.1:1')) {
+              resolve();
+              return;
+            }
+            if (Date.now() - started > 5000) {
+              reject(new Error('timed out waiting for rediscover attempt nodes'));
+              return;
+            }
+            setImmediate(poll);
+          };
+          poll();
+        });
+
+        let destroyed = false;
+        slots.pubSubNode = {
+          address: '127.0.0.1:1',
+          client: {
+            _clientId: 'attempt-pub-sub',
+            destroy() { destroyed = true; },
+            _getQueue() {
+              return {
+                removeAllPubSubListeners() {
+                  return {
+                    [PUBSUB_TYPE.CHANNELS]: new Map([['channel', new Set([() => {}])]]),
+                    [PUBSUB_TYPE.PATTERNS]: new Map(),
+                    [PUBSUB_TYPE.SHARDED]: new Map()
+                  };
+                }
+              };
+            }
+          }
+        } as unknown as NonNullable<typeof slots.pubSubNode>;
+
+        await assert.rejects(rediscoverPromise);
+        assert.equal(slots.isReady, true);
+        assert.equal(destroyed, true,
+          'the attempt pub/sub client must be destroyed on rollback');
+        assert.equal(salvaged.length, 1,
+          'listeners from the attempt pub/sub client must be salvaged for resubscribe');
+        assert.ok(
+          (salvaged[0] as { CHANNELS: Map<string, unknown> }).CHANNELS.has('channel')
+        );
       } finally {
         slots.destroy();
         for (const socket of sockets) socket.destroy();
