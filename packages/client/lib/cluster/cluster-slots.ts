@@ -837,27 +837,8 @@ export default class RedisClusterSlots<
     // shard stuck on it. This holds whether or not the role changed: a replica
     // promoted to master keeps the connection it already started, and the
     // branch above only builds a new one for a demotion.
-    //
-    // A node that connected on an earlier attempt and has since lost its socket
-    // reaches here with no promise at all. Its client is either still
-    // reconnecting or already closed; either way it is not serving, and leaving
-    // it out of the wait would report the cluster ready while that shard is
-    // offline.
-    if (eagerConnent) {
-      if (node.connectPromise) {
-        this.#trackPendingConnection(pending, address, node.connectPromise);
-      } else if (node.client && !node.client.isReady) {
-        if (node.client.isOpen) {
-          // Still reconnecting on its own: wait for that rather than cutting it
-          // off and starting a second socket to the same node.
-          this.#trackPendingConnection(pending, address, node.client.connect());
-        } else {
-          // Closed for good — the next nodeClient() call would build a fresh
-          // one, so do it here and put it in the wait.
-          node.client = undefined;
-          this.#trackPendingConnection(pending, address, this.#createNodeClient(node));
-        }
-      }
+    if (eagerConnent && node.connectPromise) {
+      this.#trackPendingConnection(pending, address, node.connectPromise);
     }
 
     if (!addressesInUse.has(address)) {
