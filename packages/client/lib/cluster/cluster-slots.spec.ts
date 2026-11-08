@@ -623,6 +623,7 @@ describe('RedisClusterSlots', () => {
 
         // While eager connects are in flight, attach a dedicated pub/sub client
         // the way subscribe() would during a race with rediscover.
+        const liveAddress = `127.0.0.1:${port}`;
         await new Promise<void>((resolve, reject) => {
           const started = Date.now();
           const poll = () => {
@@ -639,6 +640,9 @@ describe('RedisClusterSlots', () => {
           poll();
         });
 
+        assert.equal(slots.slots[0]?.master.address, liveAddress,
+          'committed slot map must keep serving the live master while rediscover stages');
+
         let destroyed = false;
         slots.pubSubNode = {
           address: '127.0.0.1:1',
@@ -649,7 +653,11 @@ describe('RedisClusterSlots', () => {
               return {
                 removeAllPubSubListeners() {
                   return {
-                    [PUBSUB_TYPE.CHANNELS]: new Map([['channel', new Set([() => {}])]]),
+                    [PUBSUB_TYPE.CHANNELS]: new Map([['channel', {
+                      unsubscribing: false,
+                      buffers: new Set(),
+                      strings: new Set([() => {}])
+                    }]]),
                     [PUBSUB_TYPE.PATTERNS]: new Map(),
                     [PUBSUB_TYPE.SHARDED]: new Map()
                   };
@@ -661,10 +669,12 @@ describe('RedisClusterSlots', () => {
 
         await assert.rejects(rediscoverPromise);
         assert.equal(slots.isReady, true);
+        assert.equal(slots.slots[0]?.master.address, liveAddress,
+          'failed rediscover must leave the committed slot map pointing at the live master');
         assert.equal(destroyed, true,
           'the attempt pub/sub client must be destroyed on rollback');
         assert.equal(salvaged.length, 1,
-          'listeners from the attempt pub/sub client must be salvaged for resubscribe');
+          'listeners from the attempt pub/sub client must be salvaged after topology restore');
         assert.ok(
           (salvaged[0] as { CHANNELS: Map<string, unknown> }).CHANNELS.has('channel')
         );

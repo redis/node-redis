@@ -388,25 +388,44 @@ export default class RedisClusterSlots<
       // destroy() may have run while the shards were in flight — building
       // node clients now would leak them past teardown
       if (!this.#isOpen) return false;
-      this.#resetSlots(); // Reset slots AFTER shards have been fetched to prevent a race condition
+
+      // Rediscover stages into these locals so live traffic keeps using the
+      // committed slot map until every eager connect (and pub/sub replace)
+      // succeeds. Initial connect still rebuilds `this.slots` in place.
+      const stagingSlots = previousTopology ?
+        new Array<Shard<M, F, S, RESP, TYPE_MAPPING>>(RedisClusterSlots.#SLOTS) :
+        undefined;
+      const stagingMasters = previousTopology ?
+        new Array<MasterNode<M, F, S, RESP, TYPE_MAPPING>>() :
+        undefined;
+      const stagingReplicas = previousTopology ?
+        new Array<ShardNode<M, F, S, RESP, TYPE_MAPPING>>() :
+        undefined;
+
+      if (!previousTopology) {
+        this.#resetSlots(); // Reset slots AFTER shards have been fetched to prevent a race condition
+      }
       rebuiltTopology = true;
       for (const { from, to, master, replicas } of shards) {
         const shard: Shard<M, F, S, RESP, TYPE_MAPPING> = {
           master: this.#initiateSlotNode(
-            master, false, eagerConnect, addressesInUse, promises, deferMutation, pendingDemotions
+            master, false, eagerConnect, addressesInUse, promises, deferMutation, pendingDemotions,
+            stagingMasters, stagingReplicas
           )
         };
 
         if (this.#options.useReplicas) {
           shard.replicas = replicas.map(replica =>
             this.#initiateSlotNode(
-              replica, true, eagerConnect, addressesInUse, promises, deferMutation, pendingDemotions
+              replica, true, eagerConnect, addressesInUse, promises, deferMutation, pendingDemotions,
+              stagingMasters, stagingReplicas
             )
           );
         }
 
+        const slotsTarget = stagingSlots ?? this.slots;
         for (let i = from; i <= to; i++) {
-          this.slots[i] = shard;
+          slotsTarget[i] = shard;
         }
       }
 
@@ -453,15 +472,20 @@ export default class RedisClusterSlots<
       }
 
       if (previousTopology) {
-        // Commit order matters: demotions/`#discardUnusedNodes` mutate shared
-        // node objects and cannot be undone by restoring array references.
-        // Replace dedicated pub/sub first so a failed replace still rolls back
-        // to writable masters with intact clients.
+        // Replace dedicated pub/sub while still serving the old slot map, then
+        // commit the staged topology. Demotions/discard mutate shared nodes and
+        // must run only after that commit.
         await this.#replaceStalePubSubNode(addressesInUse);
         if (!this.#isOpen) {
           this.#destroyAttemptClients(previousTopology);
           return false;
         }
+
+        this.slots = stagingSlots!;
+        this.masters = stagingMasters!;
+        this.replicas = stagingReplicas!;
+        this._randomNodeIterator = undefined;
+
         this.#applyDeferredDemotions(pendingDemotions, eagerConnect);
         this.#discardUnusedNodes(addressesInUse);
       }
@@ -595,7 +619,10 @@ export default class RedisClusterSlots<
       randomNodeIterator?: IterableIterator<ShardNode<M, F, S, RESP, TYPE_MAPPING>>;
     }
   ) {
-    this.#destroyAttemptClients(snapshot);
+    // Extract listeners first, restore the committed topology, then emit so
+    // resubscribe targets the restored clients — not the attempt socket about
+    // to be destroyed (Codex on #3597).
+    const salvaged = this.#destroyAttemptClients(snapshot);
 
     this.slots = snapshot.slots;
     this.masters = snapshot.masters;
@@ -608,18 +635,25 @@ export default class RedisClusterSlots<
     this._randomNodeIterator = snapshot.randomNodeIterator;
     this.#isReady = true;
     this.clientSideCache?.enable();
+
+    if (salvaged) {
+      this.#emit(RESUBSCRIBE_LISTENERS_EVENT, salvaged);
+    }
   }
 
   /**
    * Destroy clients created for a failed rediscover attempt. Leaves every
    * address that belonged to `snapshot` alone (those are still the live ones).
+   * Returns any pub/sub listeners that must be resubscribed after rollback.
    */
   #destroyAttemptClients(
     snapshot?: {
       nodeByAddress: Map<string, MasterNode<M, F, S, RESP, TYPE_MAPPING> | ShardNode<M, F, S, RESP, TYPE_MAPPING>>;
       pubSubNode?: PubSubNode<M, F, S, RESP, TYPE_MAPPING>;
     }
-  ) {
+  ): PubSubListeners | undefined {
+    let salvaged: PubSubListeners | undefined;
+
     for (const [address, node] of this.nodeByAddress) {
       if (snapshot?.nodeByAddress.has(address)) continue;
 
@@ -634,7 +668,7 @@ export default class RedisClusterSlots<
       if (pubSub) {
         // subscribe() can race rediscover and attach to an attempt node; move
         // those listeners back onto the restored topology instead of dropping them.
-        this.#salvagePubSubListeners(pubSub.client);
+        salvaged = this.#collectPubSubListeners(salvaged, pubSub.client);
         this.#reconnectionTracker.removeClient(pubSub.client._clientId);
         pubSub.client.destroy();
         (node as MasterNode<M, F, S, RESP, TYPE_MAPPING>).pubSub = undefined;
@@ -642,7 +676,7 @@ export default class RedisClusterSlots<
     }
 
     if (this.pubSubNode && this.pubSubNode !== snapshot?.pubSubNode) {
-      this.#salvagePubSubListeners(this.pubSubNode.client);
+      salvaged = this.#collectPubSubListeners(salvaged, this.pubSubNode.client);
       this.#reconnectionTracker.removeClient(this.pubSubNode.client._clientId);
       this.pubSubNode.client.destroy();
       this.pubSubNode = snapshot?.pubSubNode;
@@ -652,29 +686,65 @@ export default class RedisClusterSlots<
     // pub/sub; otherwise tear it down as an attempt-only socket.
     if (this.#parkedPubSubNode) {
       if (this.#parkedPubSubNode !== snapshot?.pubSubNode) {
-        this.#destroyParkedPubSubNode();
+        salvaged = this.#mergePubSubListeners(
+          salvaged,
+          this.#destroyParkedPubSubNode()
+        );
       } else {
         this.#parkedPubSubNode = undefined;
       }
     }
+
+    return salvaged;
   }
 
-  #salvagePubSubListeners(
+  #extractPubSubListeners(
     client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>
-  ) {
+  ): PubSubListeners | undefined {
     const listeners = client._getQueue().removeAllPubSubListeners();
     if (listeners.CHANNELS.size || listeners.PATTERNS.size || listeners.SHARDED.size) {
-      this.#emit(RESUBSCRIBE_LISTENERS_EVENT, listeners);
+      return listeners;
     }
   }
 
-  #destroyParkedPubSubNode() {
+  #collectPubSubListeners(
+    into: PubSubListeners | undefined,
+    client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>
+  ): PubSubListeners | undefined {
+    return this.#mergePubSubListeners(into, this.#extractPubSubListeners(client));
+  }
+
+  #mergePubSubListeners(
+    into: PubSubListeners | undefined,
+    from: PubSubListeners | undefined
+  ): PubSubListeners | undefined {
+    if (!from) return into;
+    if (!into) return from;
+
+    for (const type of [PUBSUB_TYPE.CHANNELS, PUBSUB_TYPE.PATTERNS, PUBSUB_TYPE.SHARDED] as const) {
+      for (const [channel, listeners] of from[type]) {
+        const existing = into[type].get(channel);
+        if (!existing) {
+          into[type].set(channel, listeners);
+          continue;
+        }
+        for (const listener of listeners.buffers) existing.buffers.add(listener);
+        for (const listener of listeners.strings) existing.strings.add(listener);
+        existing.unsubscribing = existing.unsubscribing || listeners.unsubscribing;
+      }
+    }
+
+    return into;
+  }
+
+  #destroyParkedPubSubNode(): PubSubListeners | undefined {
     if (!this.#parkedPubSubNode) return;
     const parked = this.#parkedPubSubNode;
     this.#parkedPubSubNode = undefined;
-    this.#salvagePubSubListeners(parked.client);
+    const listeners = this.#extractPubSubListeners(parked.client);
     this.#reconnectionTracker.removeClient(parked.client._clientId);
     parked.client.destroy();
+    return listeners;
   }
 
   #applyDeferredDemotions(
@@ -781,7 +851,8 @@ export default class RedisClusterSlots<
       if (inUse && !demotedWithPubSub) continue;
 
       if (pubSub) {
-        this.#salvagePubSubListeners(pubSub.client);
+        const listeners = this.#extractPubSubListeners(pubSub.client);
+        if (listeners) this.#emit(RESUBSCRIBE_LISTENERS_EVENT, listeners);
       }
 
       if (!inUse && node.client) {
@@ -1118,7 +1189,9 @@ export default class RedisClusterSlots<
     pendingDemotions?: Array<{
       node: ShardNode<M, F, S, RESP, TYPE_MAPPING>;
       readonly: boolean;
-    }>
+    }>,
+    targetMasters?: Array<MasterNode<M, F, S, RESP, TYPE_MAPPING>>,
+    targetReplicas?: Array<ShardNode<M, F, S, RESP, TYPE_MAPPING>>
   ) {
     const address = `${shard.host}:${shard.port}`;
 
@@ -1162,7 +1235,9 @@ export default class RedisClusterSlots<
 
     if (!addressesInUse.has(address)) {
       addressesInUse.add(address);
-      (readonly ? this.replicas : this.masters).push(node);
+      const masters = targetMasters ?? this.masters;
+      const replicas = targetReplicas ?? this.replicas;
+      (readonly ? replicas : masters).push(node);
     }
 
     return node;
@@ -1212,8 +1287,16 @@ export default class RedisClusterSlots<
       })
       .on(SMIGRATED_EVENT, this.#handleSmigrated)
       .on('__MOVED', async (allPubSubListeners: PubSubListeners) => {
-        await this.rediscover(client);
-        this.#emit(RESUBSCRIBE_LISTENERS_EVENT, allPubSubListeners);
+        try {
+          await this.rediscover(client);
+        } catch (err) {
+          // Per-attempt rollbacks can leave the cluster ready while rediscover
+          // still rejects after every root fails — never strand the listeners
+          // that were already stripped from this client for the MOVED handoff.
+          if (this.#isOpen) this.#emit('error', err);
+        } finally {
+          this.#emit(RESUBSCRIBE_LISTENERS_EVENT, allPubSubListeners);
+        }
       });
 
     return client;
