@@ -787,14 +787,6 @@ export default class RedisClusterSlots<
       }
 
       this.nodeByAddress.set(address, node);
-    } else if (node.connectPromise) {
-      // A previous connect() gave up on this node while its client kept
-      // reconnecting. Without requeueing that promise the fresh wait would see
-      // an empty list, report the cluster ready and leave commands for this
-      // shard stuck on it.
-      if (eagerConnent) {
-        this.#trackPendingConnection(pending, address, node.connectPromise);
-      }
     } else if (node.readonly !== readonly) {
       node.readonly = readonly;
 
@@ -807,6 +799,14 @@ export default class RedisClusterSlots<
         if (eagerConnent) {
           this.#trackPendingConnection(pending, address, this.#createNodeClient(node));
         }
+      }
+    } else if (node.connectPromise) {
+      // A previous connect() gave up on this node while its client kept
+      // reconnecting. Without requeueing that promise the fresh wait would see
+      // an empty list, report the cluster ready and leave commands for this
+      // shard stuck on it.
+      if (eagerConnent) {
+        this.#trackPendingConnection(pending, address, node.connectPromise);
       }
     }
 
@@ -828,7 +828,16 @@ export default class RedisClusterSlots<
     address: string,
     connection: Promise<unknown>
   ): Promise<unknown> {
+    // The same address can own several non-contiguous slot ranges, so this
+    // runs more than once for it. Replacing the entry would drop the promise
+    // tracked first, and a rejection on that one would go unhandled.
+    const existing = pending.get(address);
+    if (existing) return existing;
+
     const tracked = connection.finally(() => pending.delete(address));
+    // The entry can settle before the wait observes it; its rejection is
+    // reported through the wait, and must not surface as an unhandled one.
+    tracked.catch(() => {});
     pending.set(address, tracked);
     return tracked;
   }

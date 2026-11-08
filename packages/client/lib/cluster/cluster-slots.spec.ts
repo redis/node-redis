@@ -495,6 +495,38 @@ describe('RedisClusterSlots', () => {
       }
     });
 
+    it('tracks one connection when an address owns several slot ranges', async () => {
+      // CLUSTER SLOTS may name the same master under non-contiguous ranges.
+      // Tracking a second promise for that address would drop the first, and a
+      // rejection on the dropped one has no handler left.
+      const saved = SLOTS_RESPONSE;
+      SLOTS_RESPONSE =
+        '*2\r\n' +
+        '*3\r\n:0\r\n:8191\r\n*3\r\n$9\r\n127.0.0.1\r\n:1\r\n$5\r\nnode1\r\n' +
+        '*3\r\n:8192\r\n:16383\r\n*3\r\n$9\r\n127.0.0.1\r\n:1\r\n$5\r\nnode1\r\n';
+
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: mockPort } }],
+        defaults: { disableClientInfo: true },
+        connectTimeout: 500,
+        RESP: 2 as const,
+      }, () => true, 'test-cluster');
+
+      try {
+        await assert.rejects(
+          withDeadline(slots.connect(), 15_000, 'connect() did not settle'),
+          (err: Error) => {
+            assert.ok(err instanceof ClusterNodeUnreachableError, err.message);
+            assert.deepEqual(err.addresses, ['127.0.0.1:1']);
+            return true;
+          }
+        );
+      } finally {
+        SLOTS_RESPONSE = saved;
+        slots.destroy();
+      }
+    });
+
     it('settles instead of waiting for a node that never answers', async () => {
       // The default reconnect strategy retries forever, so a node that cannot
       // be reached never rejects its client's connect(). Awaiting it together
