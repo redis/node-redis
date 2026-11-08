@@ -469,6 +469,32 @@ describe('RedisClusterSlots', () => {
 
     after(done => mockServer.close(done));
 
+    it('does not report ready when retried against the same dead node', async () => {
+      // The first connect() gives up, but the node client keeps reconnecting.
+      // A retry must wait on it again rather than find nothing pending and
+      // report a cluster whose shard is still offline.
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: mockPort } }],
+        defaults: { disableClientInfo: true },
+        connectTimeout: 500,
+        RESP: 2 as const,
+      }, () => true, 'test-cluster');
+
+      try {
+        await assert.rejects(
+          withDeadline(slots.connect(), 15_000, 'first connect() did not settle'),
+          ClusterNodeUnreachableError
+        );
+        await assert.rejects(
+          withDeadline(slots.connect(), 15_000, 'second connect() did not settle'),
+          ClusterNodeUnreachableError
+        );
+        assert.equal(slots.isReady, false);
+      } finally {
+        slots.destroy();
+      }
+    });
+
     it('settles instead of waiting for a node that never answers', async () => {
       // The default reconnect strategy retries forever, so a node that cannot
       // be reached never rejects its client's connect(). Awaiting it together

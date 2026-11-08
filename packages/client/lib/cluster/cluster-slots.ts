@@ -787,6 +787,14 @@ export default class RedisClusterSlots<
       }
 
       this.nodeByAddress.set(address, node);
+    } else if (node.connectPromise) {
+      // A previous connect() gave up on this node while its client kept
+      // reconnecting. Without requeueing that promise the fresh wait would see
+      // an empty list, report the cluster ready and leave commands for this
+      // shard stuck on it.
+      if (eagerConnent) {
+        this.#trackPendingConnection(pending, address, node.connectPromise);
+      }
     } else if (node.readonly !== readonly) {
       node.readonly = readonly;
 
