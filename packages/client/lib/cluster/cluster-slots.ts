@@ -1,5 +1,5 @@
 import type { RedisClusterClientOptions, RedisClusterOptions } from '.';
-import { ClientClosedError, ClientOfflineError, DisconnectsClientError, RootNodesUnavailableError } from '../errors';
+import { ClientClosedError, ClientOfflineError, ClusterNodeUnreachableError, DisconnectsClientError, RootNodesUnavailableError } from '../errors';
 import RedisClient, { RedisClientOptions, RedisClientType } from '../client';
 import type { CommandToWrite } from '../client/commands-queue';
 import { EventEmitter } from 'node:stream';
@@ -12,6 +12,7 @@ import { SMIGRATED_EVENT, SMigratedEvent, dbgMaintenance } from '../client/enter
 import { ClientRole } from '../client/identity';
 import ClusterReconnectionTracker from './cluster-reconnection-tracker';
 import { FieldsetRegistry } from '../himport/registry';
+import { DEFAULT_CONNECT_TIMEOUT } from '../defaults';
 
 interface NodeAddress {
   host: string;
@@ -360,7 +361,7 @@ export default class RedisClusterSlots<
 
     try {
       const addressesInUse = new Set<string>(),
-        promises: Array<Promise<unknown>> = [],
+        pending: Map<string, Promise<unknown>> = new Map(),
         eagerConnect = this.#options.minimizeConnections !== true;
 
       const shards = await this.#getShards(rootNode);
@@ -370,12 +371,12 @@ export default class RedisClusterSlots<
       this.#resetSlots(); // Reset slots AFTER shards have been fetched to prevent a race condition
       for (const { from, to, master, replicas } of shards) {
         const shard: Shard<M, F, S, RESP, TYPE_MAPPING> = {
-          master: this.#initiateSlotNode(master, false, eagerConnect, addressesInUse, promises)
+          master: this.#initiateSlotNode(master, false, eagerConnect, addressesInUse, pending)
         };
 
         if (this.#options.useReplicas) {
           shard.replicas = replicas.map(replica =>
-            this.#initiateSlotNode(replica, true, eagerConnect, addressesInUse, promises)
+            this.#initiateSlotNode(replica, true, eagerConnect, addressesInUse, pending)
           );
         }
 
@@ -393,7 +394,8 @@ export default class RedisClusterSlots<
         this.pubSubNode = undefined;
 
         if (channelsListeners.size || patternsListeners.size) {
-          promises.push(
+          pending.set(
+            '__pubsub',
             this.#initiatePubSubClient({
               [PUBSUB_TYPE.CHANNELS]: channelsListeners,
               [PUBSUB_TYPE.PATTERNS]: patternsListeners
@@ -435,11 +437,15 @@ export default class RedisClusterSlots<
         if (!inUse) this.nodeByAddress.delete(address);
       }
 
-      await Promise.all(promises);
+      await this.#awaitNodeConnections(pending);
       this.clientSideCache?.enable();
 
       return true;
     } catch (err) {
+      // The topology was read; it is the nodes it named that stayed down.
+      // Trying another root node would discover the same topology, so report
+      // which addresses are unreachable instead of moving on.
+      if (err instanceof ClusterNodeUnreachableError) throw err;
       // after destroy() nobody may be listening for 'error' any more
       if (this.#isOpen) this.#emit('error', err);
       return false;
@@ -492,9 +498,9 @@ export default class RedisClusterSlots<
 
           // 2.1 Create new Master if needed
           if (!destMasterNode) {
-            const promises: Promise<unknown>[] = [];
-            destMasterNode = this.#initiateSlotNode({ host: host, port: port, id: `smigrated-${host}:${port}` }, false, true, new Set(), promises);
-            await Promise.all([...promises, this.#initiateShardedPubSubClient(destMasterNode)]);
+            const pending = new Map<string, Promise<unknown>>();
+            destMasterNode = this.#initiateSlotNode({ host: host, port: port, id: `smigrated-${host}:${port}` }, false, true, new Set(), pending);
+            await Promise.all([...pending.values(), this.#initiateShardedPubSubClient(destMasterNode)]);
             // Pause new destination until migration is complete
             destMasterNode.client?._pause();
             destMasterNode.pubSub?.client._pause();
@@ -759,7 +765,7 @@ export default class RedisClusterSlots<
     readonly: boolean,
     eagerConnent: boolean,
     addressesInUse: Set<string>,
-    promises: Array<Promise<unknown>>
+    pending: Map<string, Promise<unknown>>
   ) {
     const address = `${shard.host}:${shard.port}`;
 
@@ -774,7 +780,7 @@ export default class RedisClusterSlots<
       };
 
       if (eagerConnent) {
-        promises.push(this.#createNodeClient(node));
+        pending.set(address, this.#createNodeClient(node));
       }
 
       this.nodeByAddress.set(address, node);
@@ -788,7 +794,7 @@ export default class RedisClusterSlots<
         node.client = undefined;
 
         if (eagerConnent) {
-          promises.push(this.#createNodeClient(node));
+          pending.set(address, this.#createNodeClient(node));
         }
       }
     }
@@ -799,6 +805,36 @@ export default class RedisClusterSlots<
     }
 
     return node;
+  }
+
+  /**
+   * Awaits the node connections this refresh started, giving up on the ones
+   * that never answer.
+   *
+   * The default reconnect strategy retries a node forever, so a node that
+   * cannot be reached never rejects its `connect()` — waiting on all of them
+   * together would leave `connect()` pending for good. The wait is bounded by
+   * the client's `connectTimeout` and reports the addresses that stayed down.
+   */
+  async #awaitNodeConnections(
+    pending: Map<string, Promise<unknown>>
+  ): Promise<void> {
+    if (pending.size === 0) return;
+
+    const timeout = this.#options.defaults?.socket?.connectTimeout ?? DEFAULT_CONNECT_TIMEOUT;
+    let timer: NodeJS.Timeout | undefined;
+    const deadline = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        const unreachable = [...pending.keys()];
+        reject(new ClusterNodeUnreachableError(unreachable));
+      }, timeout);
+    });
+
+    try {
+      await Promise.race([Promise.all(pending.values()), deadline]);
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   #createClient(node: ShardNode<M, F, S, RESP, TYPE_MAPPING>, readonly = node.readonly) {

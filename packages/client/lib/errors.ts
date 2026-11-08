@@ -52,6 +52,12 @@ export class RootNodesUnavailableError extends Error {
   }
 }
 
+export class ClusterNodeUnreachableError extends Error {
+  constructor(readonly addresses: Array<string>) {
+    super(`Cluster node${addresses.length === 1 ? '' : 's'} ${addresses.join(', ')} did not connect`);
+  }
+}
+
 export class ScanIteratorInterruptedError extends Error {
   constructor(
     cause?: unknown,

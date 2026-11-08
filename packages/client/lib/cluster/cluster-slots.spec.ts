@@ -9,6 +9,18 @@ import type { CommandToWrite } from '../client/commands-queue';
 import { ClientClosedError } from '../errors';
 import { SMIGRATED_EVENT, type SMigratedEvent } from '../client/enterprise-maintenance-manager';
 
+async function withDeadline<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  let timer: NodeJS.Timeout;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), ms);
+  });
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    clearTimeout(timer!);
+  }
+}
+
 describe('RedisClusterSlots', () => {
   function createCommand(slotNumber?: number) {
     return {
@@ -426,6 +438,51 @@ describe('RedisClusterSlots', () => {
 
       assert.equal(destPauseCount, 1, 'destination should have been paused during migration');
       assert.equal(destUnpauseCount, 1, 'destination must be unpaused even when an error aborts the migration');
+    });
+  });
+
+  describe('connect() with an unreachable node', () => {
+    // Minimal CLUSTER SLOTS response: 1 shard [0-16383], master at 127.0.0.1:1 (dead port)
+    const SLOTS_RESPONSE =
+      '*1\r\n*3\r\n:0\r\n:16383\r\n*3\r\n$9\r\n127.0.0.1\r\n:1\r\n$5\r\nnode1\r\n';
+
+    let mockServer: net.Server;
+    let mockPort: number;
+
+    before(async () => {
+      mockServer = net.createServer(socket => {
+        socket.once('data', () => socket.write(SLOTS_RESPONSE));
+      });
+
+      await new Promise<void>((resolve, reject) => {
+        mockServer.on('error', reject);
+        mockServer.listen(0, '127.0.0.1', () => {
+          mockPort = (mockServer.address() as net.AddressInfo).port;
+          resolve();
+        });
+      });
+    });
+
+    after(done => mockServer.close(done));
+
+    it('settles instead of waiting for a node that never answers', async () => {
+      // The default reconnect strategy retries forever, so a node that cannot
+      // be reached never rejects its client's connect(). Awaiting it together
+      // with the reachable nodes left connect() pending for good.
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: mockPort } }],
+        defaults: { disableClientInfo: true, socket: { connectTimeout: 500 } },
+        RESP: 2 as const,
+      }, () => true, 'test-cluster');
+
+      try {
+        await assert.rejects(
+          withDeadline(slots.connect(), 15_000, 'connect() did not settle'),
+          /did not connect/i
+        );
+      } finally {
+        slots.destroy();
+      }
     });
   });
 
