@@ -3,11 +3,16 @@ import { EventEmitter, once } from 'node:events';
 import * as net from 'node:net';
 import { createServer, type AddressInfo, type Socket } from 'node:net';
 import { RedisClusterClientOptions } from './index';
-import RedisClusterSlots, { groupCommandsByDestination, splitInFlightChainTail } from './cluster-slots';
+import RedisClusterSlots, {
+  groupCommandsByDestination,
+  RESUBSCRIBE_LISTENERS_EVENT,
+  splitInFlightChainTail
+} from './cluster-slots';
 import type { MasterNode, Shard, ShardNode } from './cluster-slots';
 import type { CommandToWrite } from '../client/commands-queue';
 import { ClientClosedError } from '../errors';
 import { SMIGRATED_EVENT, type SMigratedEvent } from '../client/enterprise-maintenance-manager';
+import { PUBSUB_TYPE } from '../client/pub-sub';
 
 describe('RedisClusterSlots', () => {
   function createCommand(slotNumber?: number) {
@@ -429,6 +434,259 @@ describe('RedisClusterSlots', () => {
     });
   });
 
+  describe('connect() with an unreachable master (#3592)', () => {
+    // One live shard (this mock) plus one master on a dead port. With the default
+    // reconnectStrategy, eager connect used to hang forever on the dead master.
+    async function startTopologyServer() {
+      const sockets = new Set<Socket>();
+      let port = 0;
+      const server = createServer(socket => {
+        sockets.add(socket);
+        socket.on('close', () => sockets.delete(socket));
+        socket.on('data', chunk => {
+          for (const command of chunk.toString().split('*').filter(part => /^\d+\r\n\$/.test(part))) {
+            if (/CLUSTER\r\n\$5\r\nSLOTS/i.test(command)) {
+              socket.write(
+                `*2\r\n` +
+                `*3\r\n:0\r\n:8191\r\n*3\r\n$9\r\n127.0.0.1\r\n:${port}\r\n$5\r\nnode1\r\n` +
+                `*3\r\n:8192\r\n:16383\r\n*3\r\n$9\r\n127.0.0.1\r\n:1\r\n$5\r\nnode2\r\n`
+              );
+            } else {
+              socket.write('+OK\r\n');
+            }
+          }
+        });
+      });
+      server.listen(0, '127.0.0.1');
+      await once(server, 'listening');
+      port = (server.address() as AddressInfo).port;
+      return {
+        port,
+        async close() {
+          for (const socket of sockets) socket.destroy();
+          server.close();
+          await once(server, 'close');
+        }
+      };
+    }
+
+    it('rejects instead of hanging when a discovered master is unreachable', async function () {
+      this.timeout(10000);
+
+      const server = await startTopologyServer();
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: server.port } }],
+        // Default is false; keep it explicit — this is the hanging path.
+        minimizeConnections: false,
+        RESP: 2,
+        defaults: {
+          disableClientInfo: true
+          // Intentionally leave reconnectStrategy at the default (retry forever):
+          // with reconnectStrategy: false the dead master would reject on its own.
+        }
+      }, () => true, 'test-cluster');
+
+      try {
+        await assert.rejects(slots.connect());
+        assert.equal(slots.isOpen, false);
+        assert.equal(slots.isReady, false);
+        assert.equal(slots.nodeByAddress.size, 0,
+          'failed eager connects must be destroyed, not left reconnecting');
+      } finally {
+        slots.destroy();
+        await server.close();
+      }
+    });
+
+    it('rediscover rolls back to the previous topology when a new master is unreachable', async function () {
+      this.timeout(10000);
+
+      // First SLOTS reply: only the live mock. Second: live mock + dead :1.
+      let slotsCalls = 0;
+      const sockets = new Set<Socket>();
+      let port = 0;
+      const server = createServer(socket => {
+        sockets.add(socket);
+        socket.on('close', () => sockets.delete(socket));
+        socket.on('data', chunk => {
+          for (const command of chunk.toString().split('*').filter(part => /^\d+\r\n\$/.test(part))) {
+            if (/CLUSTER\r\n\$5\r\nSLOTS/i.test(command)) {
+              slotsCalls++;
+              if (slotsCalls === 1) {
+                socket.write(
+                  `*1\r\n*3\r\n:0\r\n:16383\r\n*3\r\n$9\r\n127.0.0.1\r\n:${port}\r\n$5\r\nnode1\r\n`
+                );
+              } else {
+                socket.write(
+                  `*2\r\n` +
+                  `*3\r\n:0\r\n:8191\r\n*3\r\n$9\r\n127.0.0.1\r\n:${port}\r\n$5\r\nnode1\r\n` +
+                  `*3\r\n:8192\r\n:16383\r\n*3\r\n$9\r\n127.0.0.1\r\n:1\r\n$5\r\nnode2\r\n`
+                );
+              }
+            } else {
+              socket.write('+OK\r\n');
+            }
+          }
+        });
+      });
+      server.listen(0, '127.0.0.1');
+      await once(server, 'listening');
+      port = (server.address() as AddressInfo).port;
+
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port } }],
+        minimizeConnections: false,
+        RESP: 2,
+        defaults: { disableClientInfo: true }
+      }, () => true, 'test-cluster');
+
+      try {
+        await slots.connect();
+        assert.equal(slots.isReady, true);
+        const liveAddress = `127.0.0.1:${port}`;
+        assert.ok(slots.nodeByAddress.get(liveAddress)?.client);
+
+        // A topology refresh that advertises an unreachable master must not
+        // take the already-working cluster offline (Codex/Bugbot on #3597).
+        // rediscover() itself may reject after every refresh path fails, but
+        // each failed attempt must roll back so the previous topology stays up.
+        await assert.rejects(slots.rediscover());
+        assert.equal(slots.isOpen, true);
+        assert.equal(slots.isReady, true);
+        assert.ok(slots.nodeByAddress.get(liveAddress)?.client,
+          'healthy node from the previous topology must survive a failed rediscover');
+        assert.equal(slots.nodeByAddress.has('127.0.0.1:1'), false,
+          'the unreachable master from the failed attempt must not stick around');
+      } finally {
+        slots.destroy();
+        for (const socket of sockets) socket.destroy();
+        server.close();
+        await once(server, 'close');
+      }
+    });
+
+    it('failed rediscover salvages pub/sub listeners attached during the attempt', async function () {
+      this.timeout(10000);
+
+      // subscribe() can race an in-flight rediscover and attach to a candidate
+      // pubSubNode. Rollback must emit those listeners for resubscribe instead
+      // of destroying them with the attempt client (Codex on #3597).
+      let slotsCalls = 0;
+      const sockets = new Set<Socket>();
+      let port = 0;
+      const server = createServer(socket => {
+        sockets.add(socket);
+        socket.on('close', () => sockets.delete(socket));
+        socket.on('data', chunk => {
+          for (const command of chunk.toString().split('*').filter(part => /^\d+\r\n\$/.test(part))) {
+            if (/CLUSTER\r\n\$5\r\nSLOTS/i.test(command)) {
+              slotsCalls++;
+              if (slotsCalls === 1) {
+                socket.write(
+                  `*1\r\n*3\r\n:0\r\n:16383\r\n*3\r\n$9\r\n127.0.0.1\r\n:${port}\r\n$5\r\nnode1\r\n`
+                );
+              } else {
+                socket.write(
+                  `*2\r\n` +
+                  `*3\r\n:0\r\n:8191\r\n*3\r\n$9\r\n127.0.0.1\r\n:${port}\r\n$5\r\nnode1\r\n` +
+                  `*3\r\n:8192\r\n:16383\r\n*3\r\n$9\r\n127.0.0.1\r\n:1\r\n$5\r\nnode2\r\n`
+                );
+              }
+            } else {
+              socket.write('+OK\r\n');
+            }
+          }
+        });
+      });
+      server.listen(0, '127.0.0.1');
+      await once(server, 'listening');
+      port = (server.address() as AddressInfo).port;
+
+      const salvaged: Array<unknown> = [];
+      const emit: EventEmitter['emit'] = (event, ...args) => {
+        if (event === RESUBSCRIBE_LISTENERS_EVENT) salvaged.push(args[0]);
+        return true;
+      };
+
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port } }],
+        minimizeConnections: false,
+        RESP: 2,
+        defaults: { disableClientInfo: true }
+      }, emit, 'test-cluster');
+
+      try {
+        await slots.connect();
+        assert.equal(slots.pubSubNode, undefined);
+
+        const rediscoverPromise = slots.rediscover();
+
+        // While eager connects are in flight, attach a dedicated pub/sub client
+        // the way subscribe() would during a race with rediscover.
+        const liveAddress = `127.0.0.1:${port}`;
+        await new Promise<void>((resolve, reject) => {
+          const started = Date.now();
+          const poll = () => {
+            if (slots.nodeByAddress.has('127.0.0.1:1')) {
+              resolve();
+              return;
+            }
+            if (Date.now() - started > 5000) {
+              reject(new Error('timed out waiting for rediscover attempt nodes'));
+              return;
+            }
+            setImmediate(poll);
+          };
+          poll();
+        });
+
+        assert.equal(slots.slots[0]?.master.address, liveAddress,
+          'committed slot map must keep serving the live master while rediscover stages');
+
+        let destroyed = false;
+        slots.pubSubNode = {
+          address: '127.0.0.1:1',
+          client: {
+            _clientId: 'attempt-pub-sub',
+            destroy() { destroyed = true; },
+            _getQueue() {
+              return {
+                removeAllPubSubListeners() {
+                  return {
+                    [PUBSUB_TYPE.CHANNELS]: new Map([['channel', {
+                      unsubscribing: false,
+                      buffers: new Set(),
+                      strings: new Set([() => {}])
+                    }]]),
+                    [PUBSUB_TYPE.PATTERNS]: new Map(),
+                    [PUBSUB_TYPE.SHARDED]: new Map()
+                  };
+                }
+              };
+            }
+          }
+        } as unknown as NonNullable<typeof slots.pubSubNode>;
+
+        await assert.rejects(rediscoverPromise);
+        assert.equal(slots.isReady, true);
+        assert.equal(slots.slots[0]?.master.address, liveAddress,
+          'failed rediscover must leave the committed slot map pointing at the live master');
+        assert.equal(destroyed, true,
+          'the attempt pub/sub client must be destroyed on rollback');
+        assert.equal(salvaged.length, 1,
+          'listeners from the attempt pub/sub client must be salvaged after topology restore');
+        assert.ok(
+          (salvaged[0] as { CHANNELS: Map<string, unknown> }).CHANNELS.has('channel')
+        );
+      } finally {
+        slots.destroy();
+        for (const socket of sockets) socket.destroy();
+        server.close();
+        await once(server, 'close');
+      }
+    });
+  });
+
   describe('pubSubNode stale pointer and callback guard', () => {
     // Minimal CLUSTER SLOTS response: 1 shard [0-16383], master at 127.0.0.1:1 (dead port)
     const SLOTS_RESPONSE =
@@ -558,6 +816,68 @@ describe('RedisClusterSlots', () => {
         'a stale connect rejection must not clear the replacement');
 
       slots.destroy();
+    });
+
+    // #replaceStalePubSubNode parks the old dedicated client while connecting a
+    // replacement. A failed replace must put that client back, not leave
+    // pubSubNode undefined or pointing at a destroyed socket (Codex/Bugbot #3597).
+    it('failed pub/sub replace restores the previous dedicated client', async function () {
+      this.timeout(5000);
+
+      const slots = createSlots();
+      await slots.connect();
+
+      let destroyed = false;
+      const oldClient = {
+        _clientId: 'old-dedicated-pub-sub',
+        destroy() { destroyed = true; },
+        getPubSubListeners: () => new Map([['channel', new Set()]])
+      };
+      const oldPubSub = {
+        address: '127.0.0.1:9999',
+        client: oldClient
+      } as unknown as NonNullable<typeof slots.pubSubNode>;
+      slots.pubSubNode = oldPubSub;
+
+      // Replacement targets the mock topology's dead :1 master and fails fast.
+      await assert.rejects(slots.rediscover());
+
+      assert.equal(slots.isOpen, true);
+      assert.equal(slots.isReady, true);
+      assert.equal(slots.pubSubNode, oldPubSub,
+        'failed replace must restore the previous dedicated pub/sub client');
+      assert.equal(destroyed, false,
+        'the previous dedicated pub/sub client must not be destroyed on a failed replace');
+
+      slots.destroy();
+    });
+
+    // While the old pub/sub client is parked (not on pubSubNode), destroy() must
+    // still reach it via #clients() — otherwise it keeps reconnecting (Bugbot #3597).
+    it('destroy reaches a dedicated pub/sub client parked during replacement', async function () {
+      this.timeout(5000);
+
+      const slots = createSlots();
+      await slots.connect();
+
+      let destroyed = false;
+      slots.pubSubNode = {
+        address: '127.0.0.1:9999',
+        client: {
+          _clientId: 'parked-pub-sub',
+          destroy() { destroyed = true; },
+          getPubSubListeners: () => new Map([['channel', new Set()]])
+        }
+      } as unknown as NonNullable<typeof slots.pubSubNode>;
+
+      const rediscoverPromise = slots.rediscover();
+      // Tear down while replacement connect is in flight / about to run.
+      slots.destroy();
+      await Promise.allSettled([rediscoverPromise]);
+
+      assert.equal(slots.pubSubNode, undefined);
+      assert.equal(destroyed, true,
+        'destroy() must tear down the parked dedicated pub/sub client');
     });
   });
 });
