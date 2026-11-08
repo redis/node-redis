@@ -358,6 +358,10 @@ export default class RedisClusterSlots<
     this.clientSideCache?.clear();
     this.clientSideCache?.disable();
 
+    // Set once `#resetSlots` runs so a failed `getShards` during rediscover
+    // does not tear down the topology that is still serving traffic.
+    let rebuiltTopology = false;
+
     try {
       const addressesInUse = new Set<string>(),
         promises: Array<Promise<unknown>> = [],
@@ -368,6 +372,7 @@ export default class RedisClusterSlots<
       // node clients now would leak them past teardown
       if (!this.#isOpen) return false;
       this.#resetSlots(); // Reset slots AFTER shards have been fetched to prevent a race condition
+      rebuiltTopology = true;
       for (const { from, to, master, replicas } of shards) {
         const shard: Shard<M, F, S, RESP, TYPE_MAPPING> = {
           master: this.#initiateSlotNode(master, false, eagerConnect, addressesInUse, promises)
@@ -393,11 +398,12 @@ export default class RedisClusterSlots<
         this.pubSubNode = undefined;
 
         if (channelsListeners.size || patternsListeners.size) {
+          const pubSubPromise = this.#initiatePubSubClient({
+            [PUBSUB_TYPE.CHANNELS]: channelsListeners,
+            [PUBSUB_TYPE.PATTERNS]: patternsListeners
+          });
           promises.push(
-            this.#initiatePubSubClient({
-              [PUBSUB_TYPE.CHANNELS]: channelsListeners,
-              [PUBSUB_TYPE.PATTERNS]: patternsListeners
-            }).catch(err => {
+            this.#connectOrFail(this.pubSubNode!.client, pubSubPromise).catch(err => {
               if (err instanceof ClientClosedError && this.#isOpen) return;
               throw err;
             })
@@ -437,13 +443,80 @@ export default class RedisClusterSlots<
 
       await Promise.all(promises);
       this.clientSideCache?.enable();
+      // Rediscover can clear `#isReady` in the failure path below; mark ready
+      // again once a topology has been fully rebuilt. Initial `connect()` also
+      // sets this after `#discoverWithRootNodes()` returns.
+      if (this.#isOpen) {
+        this.#isReady = true;
+      }
 
       return true;
     } catch (err) {
+      // Eager connects rejected by `#connectOrFail` leave clients retrying under
+      // the default reconnectStrategy. Tear them down before the next root
+      // attempt (or before `connect()` rejects) so they don't hang around.
+      if (rebuiltTopology) {
+        this.#destroyDiscoveryClients();
+        // `#destroyDiscoveryClients` empties the slot map. Drop readiness so a
+        // rediscover failure cannot leave `#assertReady` passing against an
+        // empty topology (commands would then throw TypeError on `.master`).
+        this.#isReady = false;
+      }
       // after destroy() nobody may be listening for 'error' any more
       if (this.#isOpen) this.#emit('error', err);
       return false;
     }
+  }
+
+  /**
+   * Waits for a node client's `connect()`, rejecting on the first connection
+   * error instead of waiting for the client to settle.
+   *
+   * Cluster node clients keep the caller's `reconnectStrategy`, which by
+   * default retries forever, so when a discovered master is unreachable their
+   * `connect()` promise never settles and `#discover`'s `Promise.all` waits
+   * indefinitely (#3592). Rejecting on the first error lets `connect()` /
+   * `rediscover()` fail the same way Sentinel does since #3331. Per-attempt
+   * errors are still surfaced through the existing `node-error` listeners.
+   */
+  #connectOrFail(
+    client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>,
+    connectPromise: Promise<unknown>
+  ) {
+    return new Promise<unknown>((resolve, reject) => {
+      const onError = (err: Error) => reject(err);
+      client.once('error', onError);
+      connectPromise
+        .then(resolve, reject)
+        .finally(() => client.off('error', onError));
+    });
+  }
+
+  #destroyDiscoveryClients() {
+    for (const node of this.nodeByAddress.values()) {
+      if (node.client) {
+        this.#reconnectionTracker.removeClient(node.client._clientId);
+        node.client.destroy();
+        node.client = undefined;
+      }
+      node.connectPromise = undefined;
+
+      const { pubSub } = node as MasterNode<M, F, S, RESP, TYPE_MAPPING>;
+      if (pubSub) {
+        this.#reconnectionTracker.removeClient(pubSub.client._clientId);
+        pubSub.client.destroy();
+        (node as MasterNode<M, F, S, RESP, TYPE_MAPPING>).pubSub = undefined;
+      }
+    }
+
+    if (this.pubSubNode) {
+      this.#reconnectionTracker.removeClient(this.pubSubNode.client._clientId);
+      this.pubSubNode.client.destroy();
+      this.pubSubNode = undefined;
+    }
+
+    this.#resetSlots();
+    this.nodeByAddress.clear();
   }
 
   #handleSmigrated = async (event: SMigratedEvent) => {
@@ -774,7 +847,8 @@ export default class RedisClusterSlots<
       };
 
       if (eagerConnent) {
-        promises.push(this.#createNodeClient(node));
+        const connectPromise = this.#createNodeClient(node);
+        promises.push(this.#connectOrFail(node.client!, connectPromise));
       }
 
       this.nodeByAddress.set(address, node);
@@ -788,7 +862,8 @@ export default class RedisClusterSlots<
         node.client = undefined;
 
         if (eagerConnent) {
-          promises.push(this.#createNodeClient(node));
+          const connectPromise = this.#createNodeClient(node);
+          promises.push(this.#connectOrFail(node.client!, connectPromise));
         }
       }
     }

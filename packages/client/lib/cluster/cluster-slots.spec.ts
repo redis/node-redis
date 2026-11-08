@@ -429,6 +429,71 @@ describe('RedisClusterSlots', () => {
     });
   });
 
+  describe('connect() with an unreachable master (#3592)', () => {
+    // One live shard (this mock) plus one master on a dead port. With the default
+    // reconnectStrategy, eager connect used to hang forever on the dead master.
+    async function startTopologyServer() {
+      const sockets = new Set<Socket>();
+      let port = 0;
+      const server = createServer(socket => {
+        sockets.add(socket);
+        socket.on('close', () => sockets.delete(socket));
+        socket.on('data', chunk => {
+          for (const command of chunk.toString().split('*').filter(part => /^\d+\r\n\$/.test(part))) {
+            if (/CLUSTER\r\n\$5\r\nSLOTS/i.test(command)) {
+              socket.write(
+                `*2\r\n` +
+                `*3\r\n:0\r\n:8191\r\n*3\r\n$9\r\n127.0.0.1\r\n:${port}\r\n$5\r\nnode1\r\n` +
+                `*3\r\n:8192\r\n:16383\r\n*3\r\n$9\r\n127.0.0.1\r\n:1\r\n$5\r\nnode2\r\n`
+              );
+            } else {
+              socket.write('+OK\r\n');
+            }
+          }
+        });
+      });
+      server.listen(0, '127.0.0.1');
+      await once(server, 'listening');
+      port = (server.address() as AddressInfo).port;
+      return {
+        port,
+        async close() {
+          for (const socket of sockets) socket.destroy();
+          server.close();
+          await once(server, 'close');
+        }
+      };
+    }
+
+    it('rejects instead of hanging when a discovered master is unreachable', async function () {
+      this.timeout(10000);
+
+      const server = await startTopologyServer();
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: server.port } }],
+        // Default is false; keep it explicit — this is the hanging path.
+        minimizeConnections: false,
+        RESP: 2,
+        defaults: {
+          disableClientInfo: true
+          // Intentionally leave reconnectStrategy at the default (retry forever):
+          // with reconnectStrategy: false the dead master would reject on its own.
+        }
+      }, () => true, 'test-cluster');
+
+      try {
+        await assert.rejects(slots.connect());
+        assert.equal(slots.isOpen, false);
+        assert.equal(slots.isReady, false);
+        assert.equal(slots.nodeByAddress.size, 0,
+          'failed eager connects must be destroyed, not left reconnecting');
+      } finally {
+        slots.destroy();
+        await server.close();
+      }
+    });
+  });
+
   describe('pubSubNode stale pointer and callback guard', () => {
     // Minimal CLUSTER SLOTS response: 1 shard [0-16383], master at 127.0.0.1:1 (dead port)
     const SLOTS_RESPONSE =
