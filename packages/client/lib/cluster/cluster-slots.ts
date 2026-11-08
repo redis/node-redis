@@ -472,19 +472,20 @@ export default class RedisClusterSlots<
       }
 
       if (previousTopology) {
-        // Replace dedicated pub/sub while still serving the old slot map, then
-        // commit the staged topology. Demotions/discard mutate shared nodes and
-        // must run only after that commit.
+        // Commit the staged node lists first so `#initiatePubSubClient` (used by
+        // pub/sub replace) picks from the new topology — not the outgoing masters
+        // that often include the unreachable node that triggered rediscover.
+        // Slot routing also switches only after every eager connect succeeded.
+        this.slots = stagingSlots!;
+        this.masters = stagingMasters!;
+        this.replicas = stagingReplicas!;
+        this._randomNodeIterator = undefined;
+
         await this.#replaceStalePubSubNode(addressesInUse);
         if (!this.#isOpen) {
           this.#destroyAttemptClients(previousTopology);
           return false;
         }
-
-        this.slots = stagingSlots!;
-        this.masters = stagingMasters!;
-        this.replicas = stagingReplicas!;
-        this._randomNodeIterator = undefined;
 
         this.#applyDeferredDemotions(pendingDemotions, eagerConnect);
         this.#discardUnusedNodes(addressesInUse);
@@ -599,10 +600,12 @@ export default class RedisClusterSlots<
     pubSubNode?: PubSubNode<M, F, S, RESP, TYPE_MAPPING>;
     randomNodeIterator?: IterableIterator<ShardNode<M, F, S, RESP, TYPE_MAPPING>>;
   } {
+    // Shallow-copy the arrays so a concurrent `#handleSmigrated` (or similar)
+    // cannot mutate the snapshot we may later roll back to.
     return {
-      slots: this.slots,
-      masters: this.masters,
-      replicas: this.replicas,
+      slots: this.slots.slice(),
+      masters: this.masters.slice(),
+      replicas: this.replicas.slice(),
       nodeByAddress: new Map(this.nodeByAddress),
       pubSubNode: this.pubSubNode,
       randomNodeIterator: this._randomNodeIterator
@@ -1458,7 +1461,16 @@ export default class RedisClusterSlots<
       const listeners = client._getQueue().removeAllPubSubListeners();
       for (const type of [PUBSUB_TYPE.CHANNELS, PUBSUB_TYPE.PATTERNS, PUBSUB_TYPE.SHARDED] as const) {
         for (const [channel, channelListeners] of listeners[type]) {
-          merged[type].set(channel, channelListeners);
+          const existing = merged[type].get(channel);
+          if (!existing) {
+            merged[type].set(channel, channelListeners);
+            continue;
+          }
+          // Mid pub/sub replace both `pubSubNode` and `#parkedPubSubNode` can
+          // hold the same channel — merge instead of letting the last drain win.
+          for (const listener of channelListeners.buffers) existing.buffers.add(listener);
+          for (const listener of channelListeners.strings) existing.strings.add(listener);
+          existing.unsubscribing = existing.unsubscribing || channelListeners.unsubscribing;
         }
       }
     };
@@ -1471,6 +1483,14 @@ export default class RedisClusterSlots<
       this.#reconnectionTracker.removeClient(this.pubSubNode.client._clientId);
       this.pubSubNode.client.destroy();
       this.pubSubNode = undefined;
+    }
+    if (this.#parkedPubSubNode) {
+      // Mid `#replaceStalePubSubNode` the live subscriber is only here — a
+      // multi-db failover must still collect and tear it down.
+      drain(this.#parkedPubSubNode.client);
+      this.#reconnectionTracker.removeClient(this.#parkedPubSubNode.client._clientId);
+      this.#parkedPubSubNode.client.destroy();
+      this.#parkedPubSubNode = undefined;
     }
     for (const master of this.masters) {
       if (master.pubSub) {
