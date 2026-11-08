@@ -841,11 +841,19 @@ export default class RedisClusterSlots<
 
     const timeout = this.#options.connectTimeout ?? DEFAULT_CLUSTER_CONNECT_TIMEOUT;
     let timer: NodeJS.Timeout | undefined;
-    const deadline = new Promise<never>((_, reject) => {
+    const deadline = new Promise<void>((resolve, reject) => {
       timer = setTimeout(() => {
+        // Only shard nodes decide whether the cluster is reachable. A pub/sub
+        // connection has no shard of its own to report, so failing over it
+        // would name no address at all and, when every shard already
+        // connected, reject a refresh that is otherwise fine.
         const unreachable = [...pending.keys()].filter(
           address => address !== PUBSUB_PENDING_KEY
         );
+        if (unreachable.length === 0) {
+          resolve();
+          return;
+        }
         reject(new ClusterNodeUnreachableError(unreachable));
       }, timeout);
     });
