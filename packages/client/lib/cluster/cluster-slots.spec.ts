@@ -6,7 +6,7 @@ import { RedisClusterClientOptions } from './index';
 import RedisClusterSlots, { groupCommandsByDestination, splitInFlightChainTail } from './cluster-slots';
 import type { MasterNode, Shard, ShardNode } from './cluster-slots';
 import type { CommandToWrite } from '../client/commands-queue';
-import { ClientClosedError } from '../errors';
+import { ClientClosedError, ClusterNodeUnreachableError } from '../errors';
 import { SMIGRATED_EVENT, type SMigratedEvent } from '../client/enterprise-maintenance-manager';
 
 async function withDeadline<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
@@ -442,9 +442,9 @@ describe('RedisClusterSlots', () => {
   });
 
   describe('connect() with an unreachable node', () => {
-    // Minimal CLUSTER SLOTS response: 1 shard [0-16383], master at 127.0.0.1:1 (dead port)
-    const SLOTS_RESPONSE =
-      '*1\r\n*3\r\n:0\r\n:16383\r\n*3\r\n$9\r\n127.0.0.1\r\n:1\r\n$5\r\nnode1\r\n';
+    // Two shards: the first master is the fake node itself (reachable), the
+    // second sits on a dead port.
+    let SLOTS_RESPONSE: string;
 
     let mockServer: net.Server;
     let mockPort: number;
@@ -458,6 +458,10 @@ describe('RedisClusterSlots', () => {
         mockServer.on('error', reject);
         mockServer.listen(0, '127.0.0.1', () => {
           mockPort = (mockServer.address() as net.AddressInfo).port;
+          SLOTS_RESPONSE =
+            '*2\r\n' +
+            `*3\r\n:0\r\n:8191\r\n*3\r\n$9\r\n127.0.0.1\r\n:${mockPort}\r\n$5\r\nnode1\r\n` +
+            '*3\r\n:8192\r\n:16383\r\n*3\r\n$9\r\n127.0.0.1\r\n:1\r\n$5\r\nnode2\r\n';
           resolve();
         });
       });
@@ -471,14 +475,21 @@ describe('RedisClusterSlots', () => {
       // with the reachable nodes left connect() pending for good.
       const slots = new RedisClusterSlots({
         rootNodes: [{ socket: { host: '127.0.0.1', port: mockPort } }],
-        defaults: { disableClientInfo: true, socket: { connectTimeout: 500 } },
+        defaults: { disableClientInfo: true },
+        connectTimeout: 500,
         RESP: 2 as const,
       }, () => true, 'test-cluster');
 
       try {
         await assert.rejects(
           withDeadline(slots.connect(), 15_000, 'connect() did not settle'),
-          /did not connect/i
+          (err: Error) => {
+            assert.ok(err instanceof ClusterNodeUnreachableError, err.message);
+            // Only the node on the dead port may be reported: the other one
+            // connected, and the pub/sub connection is not a node.
+            assert.deepEqual(err.addresses, ['127.0.0.1:1']);
+            return true;
+          }
         );
       } finally {
         slots.destroy();

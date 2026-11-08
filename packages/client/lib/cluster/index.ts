@@ -119,6 +119,13 @@ export interface RedisClusterOptions<
    */
   nodeAddressMap?: NodeAddressMap;
   /**
+   * How long `.connect()` waits for the nodes the discovered topology names before
+   * giving up on the ones that stayed unreachable, in milliseconds. Node clients keep
+   * reconnecting on their own strategy afterwards; this only bounds the initial wait,
+   * which would otherwise never end. Omitted or `undefined` uses the default of `30000`.
+   */
+  connectTimeout?: number;
+  /**
    * Client Side Caching configuration for the cluster.
    *
    * Enables Redis Servers and Clients to work together to cache results from commands

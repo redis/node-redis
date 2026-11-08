@@ -12,7 +12,7 @@ import { SMIGRATED_EVENT, SMigratedEvent, dbgMaintenance } from '../client/enter
 import { ClientRole } from '../client/identity';
 import ClusterReconnectionTracker from './cluster-reconnection-tracker';
 import { FieldsetRegistry } from '../himport/registry';
-import { DEFAULT_CONNECT_TIMEOUT } from '../defaults';
+import { DEFAULT_CLUSTER_CONNECT_TIMEOUT } from '../defaults';
 
 interface NodeAddress {
   host: string;
@@ -24,6 +24,10 @@ export type NodeAddressMap = {
 } | ((address: string) => NodeAddress | undefined);
 
 export const RESUBSCRIBE_LISTENERS_EVENT = '__resubscribeListeners'
+
+// Key for the pub/sub connection in the pending map. It is not a node address,
+// so a deadline must not report it as one.
+const PUBSUB_PENDING_KEY = '__pubsub';
 
 /**
  * Sticky-cursor binding: which node served a RediSearch cursor. FT.CURSOR
@@ -394,8 +398,7 @@ export default class RedisClusterSlots<
         this.pubSubNode = undefined;
 
         if (channelsListeners.size || patternsListeners.size) {
-          pending.set(
-            '__pubsub',
+          this.#trackPendingConnection(pending, PUBSUB_PENDING_KEY,
             this.#initiatePubSubClient({
               [PUBSUB_TYPE.CHANNELS]: channelsListeners,
               [PUBSUB_TYPE.PATTERNS]: patternsListeners
@@ -780,7 +783,7 @@ export default class RedisClusterSlots<
       };
 
       if (eagerConnent) {
-        pending.set(address, this.#createNodeClient(node));
+        this.#trackPendingConnection(pending, address, this.#createNodeClient(node));
       }
 
       this.nodeByAddress.set(address, node);
@@ -794,7 +797,7 @@ export default class RedisClusterSlots<
         node.client = undefined;
 
         if (eagerConnent) {
-          pending.set(address, this.#createNodeClient(node));
+          this.#trackPendingConnection(pending, address, this.#createNodeClient(node));
         }
       }
     }
@@ -805,6 +808,21 @@ export default class RedisClusterSlots<
     }
 
     return node;
+  }
+
+  /**
+   * Keeps `pending` holding only the connections still in flight, so a
+   * deadline reports the addresses that are actually down rather than every
+   * node the refresh touched. The tracked promise settles with the connection.
+   */
+  #trackPendingConnection(
+    pending: Map<string, Promise<unknown>>,
+    address: string,
+    connection: Promise<unknown>
+  ): Promise<unknown> {
+    const tracked = connection.finally(() => pending.delete(address));
+    pending.set(address, tracked);
+    return tracked;
   }
 
   /**
@@ -821,11 +839,13 @@ export default class RedisClusterSlots<
   ): Promise<void> {
     if (pending.size === 0) return;
 
-    const timeout = this.#options.defaults?.socket?.connectTimeout ?? DEFAULT_CONNECT_TIMEOUT;
+    const timeout = this.#options.connectTimeout ?? DEFAULT_CLUSTER_CONNECT_TIMEOUT;
     let timer: NodeJS.Timeout | undefined;
     const deadline = new Promise<never>((_, reject) => {
       timer = setTimeout(() => {
-        const unreachable = [...pending.keys()];
+        const unreachable = [...pending.keys()].filter(
+          address => address !== PUBSUB_PENDING_KEY
+        );
         reject(new ClusterNodeUnreachableError(unreachable));
       }, timeout);
     });
