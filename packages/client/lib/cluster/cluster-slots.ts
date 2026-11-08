@@ -935,7 +935,7 @@ export default class RedisClusterSlots<
 
   #createNodeClient(node: ShardNode<M, F, S, RESP, TYPE_MAPPING>, readonly?: boolean) {
     const client = node.client = this.#createClient(node, readonly);
-    return node.connectPromise = client.connect()
+    const connection = client.connect()
       .catch(err => {
         // Terminal connect failure (reconnectStrategy gave up). Drop the dead
         // client so the next nodeClient() call retries with a fresh one, and
@@ -945,8 +945,15 @@ export default class RedisClusterSlots<
         if (node.client === client) node.client = undefined;
         client.destroy();
         throw err;
-      })
-      .finally(() => node.connectPromise = undefined);
+      });
+    node.connectPromise = connection;
+    // Same guard against a replacement: a changed role swaps the client while
+    // this connect is still in flight, and clearing the field unconditionally
+    // would drop the replacement's promise.
+    connection.finally(() => {
+      if (node.connectPromise === connection) node.connectPromise = undefined;
+    }).catch(() => {});
+    return connection;
   }
 
   nodeClient(node: ShardNode<M, F, S, RESP, TYPE_MAPPING>): Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {
