@@ -364,7 +364,14 @@ export default class RedisClusterSlots<
     // When rediscovering an already-ready cluster, keep the previous topology
     // so a failed eager connect can roll back instead of wiping healthy nodes.
     const previousTopology = this.#isReady ? this.#snapshotTopology() : undefined;
-    let pendingPubSubResubscribe: PubSubToResubscribe | undefined;
+    const deferMutation = previousTopology !== undefined;
+    const pendingDemotions: Array<{
+      node: ShardNode<M, F, S, RESP, TYPE_MAPPING>;
+      readonly: boolean;
+    }> = [];
+    // CSC is disabled for the whole attempt; flip this once the success path
+    // (or rollback) has re-enabled it so `finally` does not double-toggle.
+    let clientSideCacheRestored = false;
 
     try {
       const addressesInUse = new Set<string>(),
@@ -379,12 +386,16 @@ export default class RedisClusterSlots<
       rebuiltTopology = true;
       for (const { from, to, master, replicas } of shards) {
         const shard: Shard<M, F, S, RESP, TYPE_MAPPING> = {
-          master: this.#initiateSlotNode(master, false, eagerConnect, addressesInUse, promises)
+          master: this.#initiateSlotNode(
+            master, false, eagerConnect, addressesInUse, promises, deferMutation, pendingDemotions
+          )
         };
 
         if (this.#options.useReplicas) {
           shard.replicas = replicas.map(replica =>
-            this.#initiateSlotNode(replica, true, eagerConnect, addressesInUse, promises)
+            this.#initiateSlotNode(
+              replica, true, eagerConnect, addressesInUse, promises, deferMutation, pendingDemotions
+            )
           );
         }
 
@@ -397,16 +408,7 @@ export default class RedisClusterSlots<
         const channelsListeners = this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.CHANNELS),
           patternsListeners = this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.PATTERNS);
 
-        if (previousTopology) {
-          // Defer destroying the live pub/sub client until the new topology
-          // has connected, so a failed rediscover can roll back.
-          if (channelsListeners.size || patternsListeners.size) {
-            pendingPubSubResubscribe = {
-              [PUBSUB_TYPE.CHANNELS]: channelsListeners,
-              [PUBSUB_TYPE.PATTERNS]: patternsListeners
-            };
-          }
-        } else {
+        if (!previousTopology) {
           this.#reconnectionTracker.removeClient(this.pubSubNode.client._clientId);
           this.pubSubNode.client.destroy();
           this.pubSubNode = undefined;
@@ -424,39 +426,34 @@ export default class RedisClusterSlots<
             );
           }
         }
+        // Rediscover: leave the live pub/sub client alone until node connects
+        // succeed, then replace it below. Rolling back must never restore a
+        // client we already destroyed.
       }
 
       if (!previousTopology) {
         // Initial connect: drop nodes that are no longer in the topology now.
-        // During rediscover this waits until after a successful Promise.all so
-        // a failed attempt can restore the previous working clients.
         this.#discardUnusedNodes(addressesInUse);
       }
 
       await Promise.all(promises);
+      // destroy() may have won the race while we awaited eager connects.
+      // Leave the in-memory slot maps alone here: teardown owns clearing them,
+      // and restoring the snapshot after destroy() finished would resurrect
+      // already-destroyed clients into `nodeByAddress`.
+      if (!this.#isOpen) {
+        this.#destroyAttemptClients(previousTopology);
+        return false;
+      }
 
       if (previousTopology) {
+        this.#applyDeferredDemotions(pendingDemotions, eagerConnect);
         this.#discardUnusedNodes(addressesInUse);
-
-        if (
-          this.pubSubNode &&
-          !addressesInUse.has(this.pubSubNode.address)
-        ) {
-          this.#reconnectionTracker.removeClient(this.pubSubNode.client._clientId);
-          this.pubSubNode.client.destroy();
-          this.pubSubNode = undefined;
-        }
-
-        if (pendingPubSubResubscribe) {
-          const pubSubPromise = this.#initiatePubSubClient(pendingPubSubResubscribe);
-          await this.#connectOrFail(this.pubSubNode!.client, pubSubPromise);
-        }
+        await this.#replaceStalePubSubNode(addressesInUse);
       }
 
       this.clientSideCache?.enable();
-      // Rediscover can clear `#isReady` in the failure path below; mark ready
-      // again once a topology has been fully rebuilt. Initial `connect()` also
-      // sets this after `#discoverWithRootNodes()` returns.
+      clientSideCacheRestored = true;
       if (this.#isOpen) {
         this.#isReady = true;
       }
@@ -468,20 +465,35 @@ export default class RedisClusterSlots<
       // attempt (or before `connect()` rejects) so they don't hang around.
       if (rebuiltTopology) {
         if (previousTopology) {
-          // Keep the cluster usable: restore the topology that was serving
-          // traffic and only destroy clients created for this failed attempt.
-          this.#rollbackTopology(previousTopology);
+          if (!this.#isOpen) {
+            // destroy()/close() already tore the cluster down — do not resurrect it
+            this.#destroyAttemptClients(previousTopology);
+          } else {
+            // Keep the cluster usable: restore the topology that was serving
+            // traffic and only destroy clients created for this failed attempt.
+            this.#rollbackTopology(previousTopology);
+            clientSideCacheRestored = true;
+          }
         } else {
           this.#destroyDiscoveryClients();
-          // `#destroyDiscoveryClients` empties the slot map. Drop readiness so a
-          // failed initial connect cannot leave `#assertReady` passing against an
-          // empty topology (commands would then throw TypeError on `.master`).
           this.#isReady = false;
         }
       }
       // after destroy() nobody may be listening for 'error' any more
       if (this.#isOpen) this.#emit('error', err);
       return false;
+    } finally {
+      // `#getShards` (or any failure before `#resetSlots`) leaves the previous
+      // topology serving traffic with CSC still disabled from entry — turn it
+      // back on so RESP3 client-side caching keeps working across a failed refresh.
+      if (
+        !clientSideCacheRestored &&
+        previousTopology &&
+        this.#isOpen &&
+        this.#isReady
+      ) {
+        this.clientSideCache?.enable();
+      }
     }
   }
 
@@ -564,26 +576,7 @@ export default class RedisClusterSlots<
       randomNodeIterator?: IterableIterator<ShardNode<M, F, S, RESP, TYPE_MAPPING>>;
     }
   ) {
-    for (const [address, node] of this.nodeByAddress) {
-      if (snapshot.nodeByAddress.has(address)) continue;
-
-      if (node.client) {
-        this.#reconnectionTracker.removeClient(node.client._clientId);
-        node.client.destroy();
-      }
-      node.connectPromise = undefined;
-
-      const { pubSub } = node as MasterNode<M, F, S, RESP, TYPE_MAPPING>;
-      if (pubSub) {
-        this.#reconnectionTracker.removeClient(pubSub.client._clientId);
-        pubSub.client.destroy();
-      }
-    }
-
-    if (this.pubSubNode && this.pubSubNode !== snapshot.pubSubNode) {
-      this.#reconnectionTracker.removeClient(this.pubSubNode.client._clientId);
-      this.pubSubNode.client.destroy();
-    }
+    this.#destroyAttemptClients(snapshot);
 
     this.slots = snapshot.slots;
     this.masters = snapshot.masters;
@@ -596,6 +589,107 @@ export default class RedisClusterSlots<
     this._randomNodeIterator = snapshot.randomNodeIterator;
     this.#isReady = true;
     this.clientSideCache?.enable();
+  }
+
+  /**
+   * Destroy clients created for a failed rediscover attempt. Leaves every
+   * address that belonged to `snapshot` alone (those are still the live ones).
+   */
+  #destroyAttemptClients(
+    snapshot?: {
+      nodeByAddress: Map<string, MasterNode<M, F, S, RESP, TYPE_MAPPING> | ShardNode<M, F, S, RESP, TYPE_MAPPING>>;
+      pubSubNode?: PubSubNode<M, F, S, RESP, TYPE_MAPPING>;
+    }
+  ) {
+    for (const [address, node] of this.nodeByAddress) {
+      if (snapshot?.nodeByAddress.has(address)) continue;
+
+      if (node.client) {
+        this.#reconnectionTracker.removeClient(node.client._clientId);
+        node.client.destroy();
+        node.client = undefined;
+      }
+      node.connectPromise = undefined;
+
+      const { pubSub } = node as MasterNode<M, F, S, RESP, TYPE_MAPPING>;
+      if (pubSub) {
+        this.#reconnectionTracker.removeClient(pubSub.client._clientId);
+        pubSub.client.destroy();
+        (node as MasterNode<M, F, S, RESP, TYPE_MAPPING>).pubSub = undefined;
+      }
+    }
+
+    if (this.pubSubNode && this.pubSubNode !== snapshot?.pubSubNode) {
+      this.#reconnectionTracker.removeClient(this.pubSubNode.client._clientId);
+      this.pubSubNode.client.destroy();
+      this.pubSubNode = snapshot?.pubSubNode;
+    }
+  }
+
+  #applyDeferredDemotions(
+    pendingDemotions: Array<{
+      node: ShardNode<M, F, S, RESP, TYPE_MAPPING>;
+      readonly: boolean;
+    }>,
+    eagerConnect: boolean
+  ) {
+    for (const { node, readonly } of pendingDemotions) {
+      if (node.readonly === readonly) continue;
+      node.readonly = readonly;
+
+      if (readonly && node.client) {
+        const { client } = node;
+        this.#reconnectionTracker.removeClient(client._clientId);
+        client.close().catch(() => client.destroy());
+        node.client = undefined;
+
+        if (eagerConnect) {
+          // Fire-and-forget: topology is already committed; a terminal failure
+          // here is handled by the normal nodeClient() retry path.
+          this.#createNodeClient(node).catch(() => {});
+        }
+      }
+    }
+  }
+
+  async #replaceStalePubSubNode(addressesInUse: Set<string>) {
+    if (!this.pubSubNode || addressesInUse.has(this.pubSubNode.address)) {
+      return;
+    }
+
+    const oldPubSub = this.pubSubNode;
+    const channelsListeners = oldPubSub.client.getPubSubListeners(PUBSUB_TYPE.CHANNELS),
+      patternsListeners = oldPubSub.client.getPubSubListeners(PUBSUB_TYPE.PATTERNS);
+
+    if (!channelsListeners.size && !patternsListeners.size) {
+      this.#reconnectionTracker.removeClient(oldPubSub.client._clientId);
+      oldPubSub.client.destroy();
+      if (this.pubSubNode === oldPubSub) this.pubSubNode = undefined;
+      return;
+    }
+
+    // Connect the replacement first; only destroy the old client on success so
+    // a failed rediscover cannot restore a destroyed pub/sub handle.
+    this.pubSubNode = undefined;
+    let replacement: PubSubNode<M, F, S, RESP, TYPE_MAPPING> | undefined;
+    try {
+      const pubSubPromise = this.#initiatePubSubClient({
+        [PUBSUB_TYPE.CHANNELS]: channelsListeners,
+        [PUBSUB_TYPE.PATTERNS]: patternsListeners
+      });
+      replacement = this.pubSubNode;
+      await this.#connectOrFail(replacement!.client, pubSubPromise);
+    } catch (err) {
+      if (replacement && replacement !== oldPubSub) {
+        this.#reconnectionTracker.removeClient(replacement.client._clientId);
+        replacement.client.destroy();
+      }
+      this.pubSubNode = oldPubSub;
+      throw err;
+    }
+
+    this.#reconnectionTracker.removeClient(oldPubSub.client._clientId);
+    oldPubSub.client.destroy();
   }
 
   #discardUnusedNodes(addressesInUse: Set<string>) {
@@ -942,7 +1036,12 @@ export default class RedisClusterSlots<
     readonly: boolean,
     eagerConnent: boolean,
     addressesInUse: Set<string>,
-    promises: Array<Promise<unknown>>
+    promises: Array<Promise<unknown>>,
+    deferMutation = false,
+    pendingDemotions?: Array<{
+      node: ShardNode<M, F, S, RESP, TYPE_MAPPING>;
+      readonly: boolean;
+    }>
   ) {
     const address = `${shard.host}:${shard.port}`;
 
@@ -963,17 +1062,23 @@ export default class RedisClusterSlots<
 
       this.nodeByAddress.set(address, node);
     } else if (node.readonly !== readonly) {
-      node.readonly = readonly;
+      if (deferMutation) {
+        // Do not close the live client until the new topology has connected;
+        // a failed rediscover must be able to roll back with the old client.
+        pendingDemotions?.push({ node, readonly });
+      } else {
+        node.readonly = readonly;
 
-      if (readonly && node.client) {
-        const { client } = node;
-        this.#reconnectionTracker.removeClient(client._clientId);
-        client.close().catch(() => client.destroy());
-        node.client = undefined;
+        if (readonly && node.client) {
+          const { client } = node;
+          this.#reconnectionTracker.removeClient(client._clientId);
+          client.close().catch(() => client.destroy());
+          node.client = undefined;
 
-        if (eagerConnent) {
-          const connectPromise = this.#createNodeClient(node);
-          promises.push(this.#connectOrFail(node.client!, connectPromise));
+          if (eagerConnent) {
+            const connectPromise = this.#createNodeClient(node);
+            promises.push(this.#connectOrFail(node.client!, connectPromise));
+          }
         }
       }
     }
@@ -1292,18 +1397,38 @@ export default class RedisClusterSlots<
   }
 
   *#clients() {
+    // Prefer nodeByAddress so destroy()/close() still reach clients that are
+    // only parked there during a rediscover (before discardUnusedNodes runs).
+    const seen = new Set<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>();
+
+    for (const node of this.nodeByAddress.values()) {
+      if (node.client && !seen.has(node.client)) {
+        seen.add(node.client);
+        yield node.client;
+      }
+
+      const { pubSub } = node as MasterNode<M, F, S, RESP, TYPE_MAPPING>;
+      if (pubSub?.client && !seen.has(pubSub.client)) {
+        seen.add(pubSub.client);
+        yield pubSub.client;
+      }
+    }
+
     for (const master of this.masters) {
-      if (master.client) {
+      if (master.client && !seen.has(master.client)) {
+        seen.add(master.client);
         yield master.client;
       }
 
-      if (master.pubSub) {
+      if (master.pubSub?.client && !seen.has(master.pubSub.client)) {
+        seen.add(master.pubSub.client);
         yield master.pubSub.client;
       }
     }
 
     for (const replica of this.replicas) {
-      if (replica.client) {
+      if (replica.client && !seen.has(replica.client)) {
+        seen.add(replica.client);
         yield replica.client;
       }
     }
