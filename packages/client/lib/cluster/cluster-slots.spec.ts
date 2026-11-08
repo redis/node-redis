@@ -492,6 +492,73 @@ describe('RedisClusterSlots', () => {
         await server.close();
       }
     });
+
+    it('rediscover rolls back to the previous topology when a new master is unreachable', async function () {
+      this.timeout(10000);
+
+      // First SLOTS reply: only the live mock. Second: live mock + dead :1.
+      let slotsCalls = 0;
+      const sockets = new Set<Socket>();
+      let port = 0;
+      const server = createServer(socket => {
+        sockets.add(socket);
+        socket.on('close', () => sockets.delete(socket));
+        socket.on('data', chunk => {
+          for (const command of chunk.toString().split('*').filter(part => /^\d+\r\n\$/.test(part))) {
+            if (/CLUSTER\r\n\$5\r\nSLOTS/i.test(command)) {
+              slotsCalls++;
+              if (slotsCalls === 1) {
+                socket.write(
+                  `*1\r\n*3\r\n:0\r\n:16383\r\n*3\r\n$9\r\n127.0.0.1\r\n:${port}\r\n$5\r\nnode1\r\n`
+                );
+              } else {
+                socket.write(
+                  `*2\r\n` +
+                  `*3\r\n:0\r\n:8191\r\n*3\r\n$9\r\n127.0.0.1\r\n:${port}\r\n$5\r\nnode1\r\n` +
+                  `*3\r\n:8192\r\n:16383\r\n*3\r\n$9\r\n127.0.0.1\r\n:1\r\n$5\r\nnode2\r\n`
+                );
+              }
+            } else {
+              socket.write('+OK\r\n');
+            }
+          }
+        });
+      });
+      server.listen(0, '127.0.0.1');
+      await once(server, 'listening');
+      port = (server.address() as AddressInfo).port;
+
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port } }],
+        minimizeConnections: false,
+        RESP: 2,
+        defaults: { disableClientInfo: true }
+      }, () => true, 'test-cluster');
+
+      try {
+        await slots.connect();
+        assert.equal(slots.isReady, true);
+        const liveAddress = `127.0.0.1:${port}`;
+        assert.ok(slots.nodeByAddress.get(liveAddress)?.client);
+
+        // A topology refresh that advertises an unreachable master must not
+        // take the already-working cluster offline (Codex/Bugbot on #3597).
+        // rediscover() itself may reject after every refresh path fails, but
+        // each failed attempt must roll back so the previous topology stays up.
+        await assert.rejects(slots.rediscover());
+        assert.equal(slots.isOpen, true);
+        assert.equal(slots.isReady, true);
+        assert.ok(slots.nodeByAddress.get(liveAddress)?.client,
+          'healthy node from the previous topology must survive a failed rediscover');
+        assert.equal(slots.nodeByAddress.has('127.0.0.1:1'), false,
+          'the unreachable master from the failed attempt must not stick around');
+      } finally {
+        slots.destroy();
+        for (const socket of sockets) socket.destroy();
+        server.close();
+        await once(server, 'close');
+      }
+    });
   });
 
   describe('pubSubNode stale pointer and callback guard', () => {
