@@ -837,8 +837,16 @@ export default class RedisClusterSlots<
     // shard stuck on it. This holds whether or not the role changed: a replica
     // promoted to master keeps the connection it already started, and the
     // branch above only builds a new one for a demotion.
-    if (eagerConnent && node.connectPromise) {
-      this.#trackPendingConnection(pending, address, node.connectPromise);
+    if (eagerConnent) {
+      if (node.connectPromise) {
+        this.#trackPendingConnection(pending, address, node.connectPromise);
+      } else if (!node.client) {
+        // The node keeps its place in the topology but has no client and no
+        // promise: its last connection failed for good and both were cleared.
+        // Without starting one here the wait has nothing to observe and the
+        // refresh reports the cluster ready while this shard is offline.
+        this.#trackPendingConnection(pending, address, this.#createNodeClient(node));
+      }
     }
 
     if (!addressesInUse.has(address)) {

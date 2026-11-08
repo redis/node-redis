@@ -706,6 +706,47 @@ describe('RedisClusterSlots', () => {
       }
     });
 
+    it('starts a new connection for a node whose last one failed for good', async () => {
+      // When a node's own reconnect strategy gives up, the client is dropped and
+      // its connect promise settles, so a retry finds neither. Without starting a
+      // connection there is nothing to wait for, and the cluster is reported ready
+      // while that shard is offline.
+      const saved = SLOTS_RESPONSE;
+      SLOTS_RESPONSE =
+        '*1\r\n*3\r\n:0\r\n:16383\r\n*3\r\n$9\r\n127.0.0.1\r\n:1\r\n$5\r\nnode1\r\n';
+
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: mockPort } }],
+        defaults: { disableClientInfo: true },
+        connectTimeout: 500,
+        RESP: 2 as const,
+      }, () => true, 'test-cluster');
+
+      try {
+        await assert.rejects(
+          withDeadline(slots.connect(), 15_000, 'first connect() did not settle'),
+          ClusterNodeUnreachableError
+        );
+
+        // Put the node in the state a terminal connect failure leaves behind:
+        // the client is gone and the promise has settled.
+        const node = slots.nodeByAddress.get('127.0.0.1:1');
+        assert.ok(node, 'the discovered node is remembered');
+        node.client?.destroy();
+        node.client = undefined;
+        node.connectPromise = undefined;
+
+        await assert.rejects(
+          withDeadline(slots.connect(), 15_000, 'second connect() did not settle'),
+          ClusterNodeUnreachableError
+        );
+        assert.equal(slots.isReady, false);
+      } finally {
+        SLOTS_RESPONSE = saved;
+        slots.destroy();
+      }
+    });
+
   });
 
   describe('pubSubNode stale pointer and callback guard', () => {

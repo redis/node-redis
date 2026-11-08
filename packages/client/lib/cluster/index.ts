@@ -119,10 +119,13 @@ export interface RedisClusterOptions<
    */
   nodeAddressMap?: NodeAddressMap;
   /**
-   * How long `.connect()` waits for the nodes the discovered topology names before
-   * giving up on the ones that stayed unreachable, in milliseconds. Node clients keep
-   * reconnecting on their own strategy afterwards; this only bounds the initial wait,
-   * which would otherwise never end. Omitted or `undefined` uses the default of `30000`.
+   * How long a discovery waits for the nodes the topology names before giving up on
+   * the ones that stayed unreachable, in milliseconds. Node clients keep reconnecting
+   * on their own strategy afterwards; this only bounds the wait for the nodes a
+   * discovery named, which would otherwise never end. It applies to every discovery,
+   * not just the initial `.connect()`: a topology refresh triggered by a redirection
+   * or a reconnection attempt reads the same value. Omitted or `undefined` uses the
+   * default of `30000`.
    */
   connectTimeout?: number;
   /**
