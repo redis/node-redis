@@ -3,7 +3,11 @@ import { EventEmitter, once } from 'node:events';
 import * as net from 'node:net';
 import { createServer, type AddressInfo, type Socket } from 'node:net';
 import { RedisClusterClientOptions } from './index';
-import RedisClusterSlots, { groupCommandsByDestination, splitInFlightChainTail } from './cluster-slots';
+import RedisClusterSlots, {
+  groupCommandsByDestination,
+  splitInFlightChainTail,
+  RESUBSCRIBE_LISTENERS_EVENT,
+} from './cluster-slots';
 import type { MasterNode, Shard, ShardNode } from './cluster-slots';
 import type { CommandToWrite } from '../client/commands-queue';
 import { ClientClosedError, ClusterNodeUnreachableError } from '../errors';
@@ -550,6 +554,101 @@ describe('RedisClusterSlots', () => {
           }
         );
       } finally {
+        slots.destroy();
+      }
+    });
+
+    it('requeues a node promoted while its connect was in flight', async () => {
+      // A replica that was still connecting comes back as a master. The role
+      // change alone does not produce a new connection, so the in-flight one
+      // has to be tracked again — otherwise the wait finds nothing pending and
+      // reports the cluster ready with that shard offline.
+      const saved = SLOTS_RESPONSE;
+      SLOTS_RESPONSE =
+        '*1\r\n*4\r\n:0\r\n:16383\r\n*3\r\n$9\r\n127.0.0.1\r\n' +
+        `:${mockPort}\r\n$5\r\nnode1\r\n` +
+        '*3\r\n$9\r\n127.0.0.1\r\n:1\r\n$5\r\nnode2\r\n';
+
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: mockPort } }],
+        defaults: { disableClientInfo: true },
+        connectTimeout: 500,
+        useReplicas: true,
+        RESP: 2 as const,
+      }, () => true, 'test-cluster');
+
+      try {
+        await assert.rejects(
+          withDeadline(slots.connect(), 15_000, 'first connect() did not settle'),
+          ClusterNodeUnreachableError
+        );
+
+        // Same address, now the master of the only shard.
+        SLOTS_RESPONSE =
+          '*1\r\n*3\r\n:0\r\n:16383\r\n*3\r\n$9\r\n127.0.0.1\r\n:1\r\n$5\r\nnode2\r\n';
+
+        await assert.rejects(
+          withDeadline(slots.connect(), 15_000, 'second connect() did not settle'),
+          (err: Error) => {
+            assert.ok(err instanceof ClusterNodeUnreachableError, err.message);
+            assert.deepEqual(err.addresses, ['127.0.0.1:1']);
+            return true;
+          }
+        );
+        assert.equal(slots.isReady, false);
+      } finally {
+        SLOTS_RESPONSE = saved;
+        slots.destroy();
+      }
+    });
+
+    it('keeps the pub/sub listeners when a moved handler meets an unreachable node', async () => {
+      // The topology is installed before the nodes are awaited, so a node that
+      // stays down must not abort the caller. `__MOVED` re-emits the listeners
+      // it took away after rediscovering; losing that would silently drop every
+      // subscription on a cluster that is otherwise serving traffic.
+      const saved = SLOTS_RESPONSE;
+      SLOTS_RESPONSE =
+        '*1\r\n*3\r\n:0\r\n:16383\r\n*3\r\n$9\r\n127.0.0.1\r\n' +
+        `:${mockPort}\r\n$5\r\nnode1\r\n`;
+
+      const emitted: Array<{ event: string, payload: unknown }> = [];
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: mockPort } }],
+        defaults: { disableClientInfo: true },
+        connectTimeout: 500,
+        RESP: 2 as const,
+      }, (event: string, payload: unknown) => {
+        emitted.push({ event, payload });
+        return true;
+      }, 'test-cluster');
+
+      try {
+        await withDeadline(slots.connect(), 15_000, 'connect() did not settle');
+
+        const [moved] = (slots.masters[0].client as EventEmitter)
+          .listeners('__MOVED') as [(listeners: unknown) => Promise<void>];
+        assert.ok(moved, 'master client registers a __MOVED handler');
+
+        // The refreshed topology names a node that never answers.
+        SLOTS_RESPONSE =
+          '*2\r\n*3\r\n:0\r\n:8191\r\n*3\r\n$9\r\n127.0.0.1\r\n' +
+          `:${mockPort}\r\n$5\r\nnode1\r\n` +
+          '*3\r\n:8192\r\n:16383\r\n*3\r\n$9\r\n127.0.0.1\r\n:1\r\n$5\r\nnode2\r\n';
+
+        const listeners = {
+          CHANNELS: new Map([['news', new Set<() => void>()]]),
+          PATTERNS: new Map(),
+          SHARDED: new Set(),
+        };
+        await withDeadline(moved(listeners), 15_000, '__MOVED handler did not settle');
+
+        const resubscribed = emitted.find(({ event }) => event === RESUBSCRIBE_LISTENERS_EVENT);
+        assert.ok(resubscribed,
+          'the listeners taken from the old topology must be handed back');
+        assert.equal(resubscribed.payload, listeners);
+      } finally {
+        SLOTS_RESPONSE = saved;
         slots.destroy();
       }
     });

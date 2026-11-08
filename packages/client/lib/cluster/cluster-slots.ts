@@ -244,6 +244,12 @@ export default class RedisClusterSlots<
   pubSubNode?: PubSubNode<M, F, S, RESP, TYPE_MAPPING>;
   clientSideCache?: PooledClientSideCacheProvider;
   /**
+   * Set by the last `#discover` whose topology named a node that would not
+   * connect. The refresh itself succeeded — the slots are installed and the
+   * reachable nodes are connected — so only `connect()` treats it as a failure.
+   */
+  #unreachableNodes?: ClusterNodeUnreachableError;
+  /**
    * One fieldset registry for the whole cluster: HIMPORT PREPARE fans out to all masters
    * via the policy layer, and every node client (including MOVED/rediscovered nodes and
    * SMIGRATED destinations) must lazily re-prepare from the same registrations.
@@ -321,6 +327,10 @@ export default class RedisClusterSlots<
       // resolution is stale and must not resurrect readiness for a session
       // that's already been torn down.
       if (this.#isOpen) {
+        // The topology was read but some of the nodes it named stayed down.
+        // There is no retrying against a different root node — it would read
+        // the same topology — so name the addresses instead.
+        if (this.#unreachableNodes) throw this.#unreachableNodes;
         this.#isReady = true;
         this.#emit('connect');
       }
@@ -328,6 +338,8 @@ export default class RedisClusterSlots<
       this.#isOpen = false;
       this.#isReady = false;
       throw err;
+    } finally {
+      this.#unreachableNodes = undefined;
     }
   }
 
@@ -335,14 +347,14 @@ export default class RedisClusterSlots<
     const start = Math.floor(Math.random() * this.#options.rootNodes.length);
     for (let i = start; i < this.#options.rootNodes.length; i++) {
       if (!this.#isOpen) throw new Error('Cluster closed');
-      if (await this.#discover(this.#options.rootNodes[i])) {
+      if (await this.#discover(this.#options.rootNodes[i], true)) {
         return;
       }
     }
 
     for (let i = 0; i < start; i++) {
       if (!this.#isOpen) throw new Error('Cluster closed');
-      if (await this.#discover(this.#options.rootNodes[i])) {
+      if (await this.#discover(this.#options.rootNodes[i], true)) {
         return;
       }
     }
@@ -359,9 +371,10 @@ export default class RedisClusterSlots<
     this._randomNodeIterator = undefined;
   }
 
-  async #discover(rootNode: RedisClusterClientOptions) {
+  async #discover(rootNode: RedisClusterClientOptions, duringConnect = false) {
     this.clientSideCache?.clear();
     this.clientSideCache?.disable();
+    this.#unreachableNodes = undefined;
 
     try {
       const addressesInUse = new Set<string>(),
@@ -446,9 +459,20 @@ export default class RedisClusterSlots<
       return true;
     } catch (err) {
       // The topology was read; it is the nodes it named that stayed down.
-      // Trying another root node would discover the same topology, so report
-      // which addresses are unreachable instead of moving on.
-      if (err instanceof ClusterNodeUnreachableError) throw err;
+      // The slots and clients above are already installed, so the refresh
+      // itself succeeded — throwing here would skip whatever the caller does
+      // next, such as handing back the pub/sub listeners a MOVED took away.
+      if (err instanceof ClusterNodeUnreachableError) {
+        if (duringConnect) {
+          // connect() is the caller that has to fail; name the addresses there.
+          this.#unreachableNodes = err;
+        } else if (this.#isOpen) {
+          // A refresh that runs on its own has no caller to fail, and staying
+          // quiet would leave the outage invisible.
+          this.#emit('error', err);
+        }
+        return true;
+      }
       // after destroy() nobody may be listening for 'error' any more
       if (this.#isOpen) this.#emit('error', err);
       return false;
@@ -800,14 +824,16 @@ export default class RedisClusterSlots<
           this.#trackPendingConnection(pending, address, this.#createNodeClient(node));
         }
       }
-    } else if (node.connectPromise) {
-      // A previous connect() gave up on this node while its client kept
-      // reconnecting. Without requeueing that promise the fresh wait would see
-      // an empty list, report the cluster ready and leave commands for this
-      // shard stuck on it.
-      if (eagerConnent) {
-        this.#trackPendingConnection(pending, address, node.connectPromise);
-      }
+    }
+
+    // A previous connect() gave up on this node while its client kept
+    // reconnecting. Without requeueing that promise the fresh wait would see
+    // an empty list, report the cluster ready and leave commands for this
+    // shard stuck on it. This holds whether or not the role changed: a replica
+    // promoted to master keeps the connection it already started, and the
+    // branch above only builds a new one for a demotion.
+    if (eagerConnent && node.connectPromise) {
+      this.#trackPendingConnection(pending, address, node.connectPromise);
     }
 
     if (!addressesInUse.has(address)) {
