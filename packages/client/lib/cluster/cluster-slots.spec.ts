@@ -11,6 +11,7 @@ import RedisClusterSlots, {
 import type { MasterNode, Shard, ShardNode } from './cluster-slots';
 import type { CommandToWrite } from '../client/commands-queue';
 import { ClientClosedError, ClusterNodeUnreachableError } from '../errors';
+
 import { SMIGRATED_EVENT, type SMigratedEvent } from '../client/enterprise-maintenance-manager';
 
 async function withDeadline<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
@@ -652,6 +653,59 @@ describe('RedisClusterSlots', () => {
         slots.destroy();
       }
     });
+
+    it('reports an unreachable node when a root-node refresh runs after connect', async () => {
+      // The root-node fallback is shared by the initial connect and by refreshes
+      // that find no usable known node. Only the first has a caller waiting for
+      // the addresses, so the context has to come from the caller rather than
+      // being assumed.
+      const saved = SLOTS_RESPONSE;
+      SLOTS_RESPONSE =
+        '*1\r\n*3\r\n:0\r\n:16383\r\n*3\r\n$9\r\n127.0.0.1\r\n' +
+        `:${mockPort}\r\n$5\r\nnode1\r\n`;
+
+      const emitted: Array<{ event: string, payload: unknown }> = [];
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: mockPort } }],
+        defaults: { disableClientInfo: true },
+        connectTimeout: 500,
+        RESP: 2 as const,
+      }, (event: string, payload: unknown) => {
+        emitted.push({ event, payload });
+        return true;
+      }, 'test-cluster');
+
+      try {
+        await withDeadline(slots.connect(), 15_000, 'connect() did not settle');
+
+        SLOTS_RESPONSE =
+          '*1\r\n*3\r\n:0\r\n:16383\r\n*3\r\n$9\r\n127.0.0.1\r\n:1\r\n$5\r\nnode2\r\n';
+
+        // No known node can serve the topology, so the refresh falls back to the
+        // root nodes — where the dead node is discovered. The per-address map is
+        // left alone: destroy() walks it, and entries dropped here would keep
+        // their clients reconnecting past teardown.
+        slots.masters.length = 0;
+        slots.replicas.length = 0;
+        for (const node of slots.nodeByAddress.values()) {
+          node.client?.destroy();
+          node.client = undefined;
+          node.connectPromise = undefined;
+        }
+
+        await withDeadline(slots.rediscover(), 15_000, 'rediscover() did not settle');
+
+        const reported = emitted.find(({ event }) => event === 'error');
+        assert.ok(reported,
+          'a refresh with no connect() waiting must report the outage');
+        assert.ok(reported.payload instanceof ClusterNodeUnreachableError,
+          String(reported.payload));
+      } finally {
+        SLOTS_RESPONSE = saved;
+        slots.destroy();
+      }
+    });
+
   });
 
   describe('pubSubNode stale pointer and callback guard', () => {

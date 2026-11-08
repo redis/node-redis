@@ -322,7 +322,7 @@ export default class RedisClusterSlots<
     this.#isOpen = true;
     this.#isReady = false;
     try {
-      await this.#discoverWithRootNodes();
+      await this.#discoverWithRootNodes(true);
       // `destroy()` may have run while discovery was in flight; if so, this
       // resolution is stale and must not resurrect readiness for a session
       // that's already been torn down.
@@ -343,18 +343,18 @@ export default class RedisClusterSlots<
     }
   }
 
-  async #discoverWithRootNodes() {
+  async #discoverWithRootNodes(duringConnect = false) {
     const start = Math.floor(Math.random() * this.#options.rootNodes.length);
     for (let i = start; i < this.#options.rootNodes.length; i++) {
       if (!this.#isOpen) throw new Error('Cluster closed');
-      if (await this.#discover(this.#options.rootNodes[i], true)) {
+      if (await this.#discover(this.#options.rootNodes[i], duringConnect)) {
         return;
       }
     }
 
     for (let i = 0; i < start; i++) {
       if (!this.#isOpen) throw new Error('Cluster closed');
-      if (await this.#discover(this.#options.rootNodes[i], true)) {
+      if (await this.#discover(this.#options.rootNodes[i], duringConnect)) {
         return;
       }
     }
@@ -463,6 +463,11 @@ export default class RedisClusterSlots<
       // itself succeeded — throwing here would skip whatever the caller does
       // next, such as handing back the pub/sub listeners a MOVED took away.
       if (err instanceof ClusterNodeUnreachableError) {
+        // The healthy shards start serving from here, so the cache disabled at
+        // the top of this method has to come back on; leaving it off would send
+        // every cacheable command to Redis until a later refresh happened to
+        // succeed.
+        this.clientSideCache?.enable();
         if (duringConnect) {
           // connect() is the caller that has to fail; name the addresses there.
           this.#unreachableNodes = err;
@@ -832,8 +837,27 @@ export default class RedisClusterSlots<
     // shard stuck on it. This holds whether or not the role changed: a replica
     // promoted to master keeps the connection it already started, and the
     // branch above only builds a new one for a demotion.
-    if (eagerConnent && node.connectPromise) {
-      this.#trackPendingConnection(pending, address, node.connectPromise);
+    //
+    // A node that connected on an earlier attempt and has since lost its socket
+    // reaches here with no promise at all. Its client is either still
+    // reconnecting or already closed; either way it is not serving, and leaving
+    // it out of the wait would report the cluster ready while that shard is
+    // offline.
+    if (eagerConnent) {
+      if (node.connectPromise) {
+        this.#trackPendingConnection(pending, address, node.connectPromise);
+      } else if (node.client && !node.client.isReady) {
+        if (node.client.isOpen) {
+          // Still reconnecting on its own: wait for that rather than cutting it
+          // off and starting a second socket to the same node.
+          this.#trackPendingConnection(pending, address, node.client.connect());
+        } else {
+          // Closed for good — the next nodeClient() call would build a fresh
+          // one, so do it here and put it in the wait.
+          node.client = undefined;
+          this.#trackPendingConnection(pending, address, this.#createNodeClient(node));
+        }
+      }
     }
 
     if (!addressesInUse.has(address)) {
