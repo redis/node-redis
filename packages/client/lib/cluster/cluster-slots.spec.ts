@@ -691,5 +691,67 @@ describe('RedisClusterSlots', () => {
 
       slots.destroy();
     });
+
+    // #replaceStalePubSubNode parks the old dedicated client while connecting a
+    // replacement. A failed replace must put that client back, not leave
+    // pubSubNode undefined or pointing at a destroyed socket (Codex/Bugbot #3597).
+    it('failed pub/sub replace restores the previous dedicated client', async function () {
+      this.timeout(5000);
+
+      const slots = createSlots();
+      await slots.connect();
+
+      let destroyed = false;
+      const oldClient = {
+        _clientId: 'old-dedicated-pub-sub',
+        destroy() { destroyed = true; },
+        getPubSubListeners: () => new Map([['channel', new Set()]])
+      };
+      const oldPubSub = {
+        address: '127.0.0.1:9999',
+        client: oldClient
+      } as unknown as NonNullable<typeof slots.pubSubNode>;
+      slots.pubSubNode = oldPubSub;
+
+      // Replacement targets the mock topology's dead :1 master and fails fast.
+      await assert.rejects(slots.rediscover());
+
+      assert.equal(slots.isOpen, true);
+      assert.equal(slots.isReady, true);
+      assert.equal(slots.pubSubNode, oldPubSub,
+        'failed replace must restore the previous dedicated pub/sub client');
+      assert.equal(destroyed, false,
+        'the previous dedicated pub/sub client must not be destroyed on a failed replace');
+
+      slots.destroy();
+    });
+
+    // While the old pub/sub client is parked (not on pubSubNode), destroy() must
+    // still reach it via #clients() — otherwise it keeps reconnecting (Bugbot #3597).
+    it('destroy reaches a dedicated pub/sub client parked during replacement', async function () {
+      this.timeout(5000);
+
+      const slots = createSlots();
+      await slots.connect();
+
+      let destroyed = false;
+      slots.pubSubNode = {
+        address: '127.0.0.1:9999',
+        client: {
+          _clientId: 'parked-pub-sub',
+          destroy() { destroyed = true; },
+          getPubSubListeners: () => new Map([['channel', new Set()]])
+        }
+      } as unknown as NonNullable<typeof slots.pubSubNode>;
+
+      const rediscoverPromise = slots.rediscover();
+      // Tear down while replacement connect is in flight / about to run.
+      slots.destroy();
+      await Promise.allSettled([rediscoverPromise]);
+
+      assert.equal(slots.pubSubNode, undefined);
+      assert.equal(destroyed, true,
+        'destroy() must tear down the parked dedicated pub/sub client');
+    });
   });
 });

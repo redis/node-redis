@@ -237,6 +237,12 @@ export default class RedisClusterSlots<
   replicas = new Array<ShardNode<M, F, S, RESP, TYPE_MAPPING>>();
   readonly nodeByAddress = new Map<string, MasterNode<M, F, S, RESP, TYPE_MAPPING> | ShardNode<M, F, S, RESP, TYPE_MAPPING>>();
   pubSubNode?: PubSubNode<M, F, S, RESP, TYPE_MAPPING>;
+  /**
+   * Dedicated pub/sub client held aside while `#replaceStalePubSubNode` connects
+   * a replacement. Must be reachable from `#clients()` / `destroy()` — parking
+   * it only in a local lets teardown leak the old reconnecting socket.
+   */
+  #parkedPubSubNode?: PubSubNode<M, F, S, RESP, TYPE_MAPPING>;
   clientSideCache?: PooledClientSideCacheProvider;
   /**
    * One fieldset registry for the whole cluster: HIMPORT PREPARE fans out to all masters
@@ -447,16 +453,27 @@ export default class RedisClusterSlots<
       }
 
       if (previousTopology) {
+        // Commit order matters: demotions/`#discardUnusedNodes` mutate shared
+        // node objects and cannot be undone by restoring array references.
+        // Replace dedicated pub/sub first so a failed replace still rolls back
+        // to writable masters with intact clients.
+        await this.#replaceStalePubSubNode(addressesInUse);
+        if (!this.#isOpen) {
+          this.#destroyAttemptClients(previousTopology);
+          return false;
+        }
         this.#applyDeferredDemotions(pendingDemotions, eagerConnect);
         this.#discardUnusedNodes(addressesInUse);
-        await this.#replaceStalePubSubNode(addressesInUse);
+      }
+
+      if (!this.#isOpen) {
+        this.#destroyAttemptClients(previousTopology);
+        return false;
       }
 
       this.clientSideCache?.enable();
       clientSideCacheRestored = true;
-      if (this.#isOpen) {
-        this.#isReady = true;
-      }
+      this.#isReady = true;
 
       return true;
     } catch (err) {
@@ -544,6 +561,8 @@ export default class RedisClusterSlots<
       this.pubSubNode = undefined;
     }
 
+    this.#destroyParkedPubSubNode();
+
     this.#resetSlots();
     this.nodeByAddress.clear();
   }
@@ -624,6 +643,24 @@ export default class RedisClusterSlots<
       this.pubSubNode.client.destroy();
       this.pubSubNode = snapshot?.pubSubNode;
     }
+
+    // Unpark without destroying when the parked client is the live snapshot
+    // pub/sub; otherwise tear it down as an attempt-only socket.
+    if (this.#parkedPubSubNode) {
+      if (this.#parkedPubSubNode !== snapshot?.pubSubNode) {
+        this.#destroyParkedPubSubNode();
+      } else {
+        this.#parkedPubSubNode = undefined;
+      }
+    }
+  }
+
+  #destroyParkedPubSubNode() {
+    if (!this.#parkedPubSubNode) return;
+    const parked = this.#parkedPubSubNode;
+    this.#parkedPubSubNode = undefined;
+    this.#reconnectionTracker.removeClient(parked.client._clientId);
+    parked.client.destroy();
   }
 
   #applyDeferredDemotions(
@@ -668,26 +705,55 @@ export default class RedisClusterSlots<
       return;
     }
 
-    // Connect the replacement first; only destroy the old client on success so
-    // a failed rediscover cannot restore a destroyed pub/sub handle.
+    // Park the old client on the instance so destroy()/close() can still reach
+    // it while the replacement connects. Only destroy it after the replacement
+    // succeeds, and never restore it onto a closed cluster.
+    this.#parkedPubSubNode = oldPubSub;
     this.pubSubNode = undefined;
+    // `#initiatePubSubClient` seats `this.pubSubNode` synchronously; keep a
+    // local because control-flow still sees the field as cleared above.
     let replacement: PubSubNode<M, F, S, RESP, TYPE_MAPPING> | undefined;
     try {
       const pubSubPromise = this.#initiatePubSubClient({
         [PUBSUB_TYPE.CHANNELS]: channelsListeners,
         [PUBSUB_TYPE.PATTERNS]: patternsListeners
       });
-      replacement = this.pubSubNode;
-      await this.#connectOrFail(replacement!.client, pubSubPromise);
+      replacement = this.pubSubNode as unknown as PubSubNode<M, F, S, RESP, TYPE_MAPPING>;
+      await this.#connectOrFail(replacement.client, pubSubPromise);
+
+      if (!this.#isOpen) {
+        // destroy()/close() may have finished before `#initiatePubSubClient`
+        // seated the replacement — tear down whatever is still live and do
+        // not leave handles on a closed cluster.
+        this.#reconnectionTracker.removeClient(replacement.client._clientId);
+        replacement.client.destroy();
+        if (this.pubSubNode === replacement) {
+          this.pubSubNode = undefined;
+        }
+        this.#destroyParkedPubSubNode();
+        return;
+      }
     } catch (err) {
       if (replacement && replacement !== oldPubSub) {
         this.#reconnectionTracker.removeClient(replacement.client._clientId);
         replacement.client.destroy();
       }
-      this.pubSubNode = oldPubSub;
+      if (replacement && this.pubSubNode === replacement) {
+        this.pubSubNode = undefined;
+      }
+
+      if (this.#isOpen) {
+        this.pubSubNode = oldPubSub;
+        this.#parkedPubSubNode = undefined;
+      } else {
+        // Cluster is closed: never reattach a live subscribed socket.
+        this.pubSubNode = undefined;
+        this.#destroyParkedPubSubNode();
+      }
       throw err;
     }
 
+    this.#parkedPubSubNode = undefined;
     this.#reconnectionTracker.removeClient(oldPubSub.client._clientId);
     oldPubSub.client.destroy();
   }
@@ -1386,9 +1452,11 @@ export default class RedisClusterSlots<
     }
 
     if (this.pubSubNode) {
+      this.#reconnectionTracker.removeClient(this.pubSubNode.client._clientId);
       this.pubSubNode.client.destroy();
       this.pubSubNode = undefined;
     }
+    this.#parkedPubSubNode = undefined;
 
     this.#resetSlots();
     this.nodeByAddress.clear();
@@ -1432,6 +1500,11 @@ export default class RedisClusterSlots<
         yield replica.client;
       }
     }
+
+    if (this.#parkedPubSubNode?.client && !seen.has(this.#parkedPubSubNode.client)) {
+      seen.add(this.#parkedPubSubNode.client);
+      yield this.#parkedPubSubNode.client;
+    }
   }
 
   async #destroy(fn: (client: RedisClientType<M, F, S, RESP>) => Promise<unknown>): Promise<void> {
@@ -1444,9 +1517,11 @@ export default class RedisClusterSlots<
     }
 
     if (this.pubSubNode) {
+      this.#reconnectionTracker.removeClient(this.pubSubNode.client._clientId);
       promises.push(fn(this.pubSubNode.client));
       this.pubSubNode = undefined;
     }
+    this.#parkedPubSubNode = undefined;
 
     this.#resetSlots();
     this.nodeByAddress.clear();
@@ -1711,7 +1786,7 @@ export default class RedisClusterSlots<
 
     pubSubNode.connectPromise = client.connect()
       .then(async client => {
-        if (this.pubSubNode !== pubSubNode) {
+        if (!this.#isOpen || this.pubSubNode !== pubSubNode) {
           client.destroy();
           throw new ClientClosedError();
         }
@@ -1722,7 +1797,7 @@ export default class RedisClusterSlots<
             client.extendPubSubListeners(PUBSUB_TYPE.PATTERNS, toResubscribe[PUBSUB_TYPE.PATTERNS])
           ]);
 
-          if (this.pubSubNode !== pubSubNode) {
+          if (!this.#isOpen || this.pubSubNode !== pubSubNode) {
             client.destroy();
             throw new ClientClosedError();
           }
