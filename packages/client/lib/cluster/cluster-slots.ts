@@ -1,5 +1,5 @@
 import type { RedisClusterClientOptions, RedisClusterOptions } from '.';
-import { ClientClosedError, ClientOfflineError, DisconnectsClientError, RootNodesUnavailableError } from '../errors';
+import { ClientClosedError, ClientOfflineError, DisconnectsClientError, ErrorReply, MaxCommandRedirectionsError, RootNodesUnavailableError } from '../errors';
 import RedisClient, { RedisClientOptions, RedisClientType } from '../client';
 import type { CommandToWrite } from '../client/commands-queue';
 import { EventEmitter } from 'node:stream';
@@ -1456,14 +1456,27 @@ export default class RedisClusterSlots<
     const client = this.#createClient(master, false);
 
     client.on('sharded-channel-moved', async (channel, listeners) => {
+      const maxCommandRedirections = this.#options.maxCommandRedirections ?? 16;
       try {
-        await this.rediscover(client);
-        const redirectTo = await this.getShardedPubSubClient(channel);
-        await redirectTo.extendPubSubChannelListeners(
-          PUBSUB_TYPE.SHARDED,
-          channel,
-          listeners
-        );
+        let refreshFrom = client;
+        for (let redirections = 0; ; redirections++) {
+          await this.rediscover(refreshFrom);
+          const redirectTo = await this.getShardedPubSubClient(channel);
+          try {
+            await redirectTo.extendPubSubChannelListeners(
+              PUBSUB_TYPE.SHARDED,
+              channel,
+              listeners
+            );
+            return;
+          } catch (err) {
+            // a refresh that was already running when the slot moved can
+            // return the old owner, which answers MOVED
+            if (!(err instanceof ErrorReply) || !err.message.startsWith('MOVED')) throw err;
+            if (redirections >= maxCommandRedirections) throw new MaxCommandRedirectionsError(err);
+            refreshFrom = redirectTo;
+          }
+        }
       } catch (err) {
         this.#emit('sharded-channel-moved-error', err, channel, listeners);
       }
