@@ -17,7 +17,7 @@ import { ScanOptions, ScanCommonOptions } from '../commands/SCAN';
 import { RedisLegacyClient, RedisLegacyClientType } from './legacy-mode';
 import { RedisPoolOptions, RedisClientPool } from './pool';
 import { RedisVariadicArgument, parseArgs } from '../commands/generic-transformers';
-import { BasicClientSideCache, CLIENT_SIDE_CACHE_TRACKING_MODES, ClientSideCacheConfig, ClientSideCacheProvider } from './cache';
+import { BasicClientSideCache, CLIENT_SIDE_CACHE_TRACKING_MODES, ClientSideCacheConfig, ClientSideCacheProvider, PooledClientSideCacheProvider } from './cache';
 import { BasicCommandParser, CommandParser, prefixKeys } from './parser';
 import SingleEntryCache from '../single-entry-cache';
 import { version } from '../../package.json'
@@ -1407,6 +1407,16 @@ export default class RedisClient<
       // A failed NO flag only costs wasted tracking; the reply is never stored here.
       (await this._self.#sendWithCaching(this, 'NO', parser, commandOptions)).reply :
       await fn();
+
+    // A pooled cache is shared by several connections, and the server only
+    // invalidates a key on the connection that cached it. That push can still
+    // be in flight when the next command reads the key from the cache, so drop
+    // the keys a command may have modified as soon as it succeeds.
+    if (csc instanceof PooledClientSideCacheProvider && !meta?.flags?.includes('readonly')) {
+      for (const key of parser.keys) {
+        csc.invalidate(key);
+      }
+    }
 
     const finalReply = transformReply ? transformReply(reply, parser.preserve, commandOptions?.typeMapping) : reply;
 

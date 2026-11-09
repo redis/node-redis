@@ -694,6 +694,36 @@ describe("Client Side Cache", () => {
       }
     })
 
+    testUtils.testWithClientPool('Reads its own writes through the shared cache', async client => {
+      csc.clear();
+
+      // Consecutive commands run on different pool clients, so the server's
+      // invalidation for a write may still be in flight on the client that
+      // cached the key when the next read is served from the shared cache.
+      for (let i = 0; i < 10; i++) {
+        await client.set('x', String(i));
+        assert.equal(await client.get('x'), String(i), `after SET ${i}`);
+      }
+
+      await client.incr('x');
+      assert.equal(await client.get('x'), '10', 'after INCR');
+
+      await client.del('x');
+      assert.equal(await client.get('x'), null, 'after DEL');
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      clientOptions: {
+        RESP: 3,
+      },
+      poolOptions: {
+        minimum: 5,
+        maximum: 5,
+        acquireTimeout: 0,
+        cleanupDelay: 1,
+        clientSideCache: csc
+      }
+    })
+
     testUtils.testWithClientPool('Basic Cache Manually Invalidate', async client => {
       csc.clear();
 
