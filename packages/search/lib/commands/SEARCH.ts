@@ -27,7 +27,7 @@ export function parseParamsArgument(parser: CommandParser, params?: FtSearchPara
   }
 }
 
-function normalizeScoreExplain(raw: unknown): ScoreExplain {
+export function normalizeScoreExplain(raw: unknown): ScoreExplain {
   if (Array.isArray(raw)) {
     const [summary, children] = raw;
     const normalizedSummary = Buffer.isBuffer(summary) ? summary : String(summary);
