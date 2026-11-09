@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import MGET from './MGET';
+import { RESP_TYPES } from '@redis/client';
 import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 
 describe('TS.MGET', () => {
@@ -19,6 +20,24 @@ describe('TS.MGET', () => {
         }),
         ['TS.MGET', 'LATEST', 'FILTER', 'label=value']
       );
+    });
+  });
+
+  describe('transformReply', () => {
+    it('RESP2 with Array type mapping matches RESP3 shape', () => {
+      const resp2 = MGET.transformReply[2](
+        [
+          ['sensor:1', [], [1000, '12.5']],
+          ['sensor:2', [], [1001, '25']]
+        ] as never,
+        undefined,
+        { [RESP_TYPES.MAP]: Array }
+      );
+      const resp3 = MGET.transformReply[3]([
+        'sensor:1', [[], [1000, 12.5]],
+        'sensor:2', [[], [1001, 25]]
+      ] as never);
+      assert.deepEqual(resp2, resp3);
     });
   });
 

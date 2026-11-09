@@ -280,11 +280,13 @@ export function resp2MapToValue<
       return ret as never;
     }
     case Array: {
+      // Flat [key, value, key, value, ...] to match the RESP3 MAP-as-Array shape
+      const ret: Array<BlobStringReply | TRANSFORMED> = [];
       for (const wrappedTuple of reply) {
         const tuple = wrappedTuple as unknown as UnwrapReply<typeof wrappedTuple>;
-        (tuple[1] as unknown as TRANSFORMED) = parseFunc(tuple);
+        ret.push(tuple[0], parseFunc(tuple));
       }
-      return reply as never;
+      return ret as never;
     }
     default: {
       const ret: Record<string, TRANSFORMED> = {};
