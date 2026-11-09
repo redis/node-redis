@@ -958,8 +958,8 @@ export default {
   /**
    * Returns the offsets of the set bits (or of the clear bits, with `ZEROS`) in a range of a string or bitmap, in ascending order
    * @param key - The key holding the string or bitmap
-   * @param start - Start of the range, inclusive. Negative values count from the end
-   * @param end - End of the range, inclusive. Negative values count from the end
+   * @param start - Start of the range, inclusive. Negative values count from the end. Pass a decimal string for offsets above `Number.MAX_SAFE_INTEGER`
+   * @param end - End of the range, inclusive. Negative values count from the end. Pass a decimal string for offsets above `Number.MAX_SAFE_INTEGER`
    * @param options - Optional parameters
    * @param options.mode - Whether `start` and `end` count bytes (`BYTE`, default) or bits (`BIT`)
    * @param options.LIMIT - Return only the lowest `LIMIT` offsets. In `BYTE` mode the reply also completes the byte that holds the last offset
@@ -971,8 +971,8 @@ export default {
   /**
    * Returns the offsets of the set bits (or of the clear bits, with `ZEROS`) in a range of a string or bitmap, in ascending order
    * @param key - The key holding the string or bitmap
-   * @param start - Start of the range, inclusive. Negative values count from the end
-   * @param end - End of the range, inclusive. Negative values count from the end
+   * @param start - Start of the range, inclusive. Negative values count from the end. Pass a decimal string for offsets above `Number.MAX_SAFE_INTEGER`
+   * @param end - End of the range, inclusive. Negative values count from the end. Pass a decimal string for offsets above `Number.MAX_SAFE_INTEGER`
    * @param options - Optional parameters
    * @param options.mode - Whether `start` and `end` count bytes (`BYTE`, default) or bits (`BIT`)
    * @param options.LIMIT - Return only the lowest `LIMIT` offsets. In `BYTE` mode the reply also completes the byte that holds the last offset

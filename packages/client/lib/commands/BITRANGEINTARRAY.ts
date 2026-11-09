@@ -18,8 +18,8 @@ export default {
   parseCommand(
     parser: CommandParser,
     key: RedisArgument,
-    start: number,
-    end: number,
+    start: number | string,
+    end: number | string,
     options?: BitRangeIntArrayOptions
   ) {
     parser.push('BITRANGEINTARRAY');

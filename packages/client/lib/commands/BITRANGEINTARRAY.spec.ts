@@ -41,6 +41,13 @@ describe('BITRANGEINTARRAY', () => {
       );
     });
 
+    it('with string bounds', () => {
+      assert.deepEqual(
+        parseArgs(BITRANGEINTARRAY, 'key', '9007199254740993', '-1', { mode: 'BIT' }),
+        ['BITRANGEINTARRAY', 'key', '9007199254740993', '-1', 'BIT']
+      );
+    });
+
     it('with mode, LIMIT and ZEROS', () => {
       assert.deepEqual(
         parseArgs(BITRANGEINTARRAY, 'key', 5, 10, { mode: 'BIT', LIMIT: 2, ZEROS: true }),
@@ -127,13 +134,21 @@ describe('BITRANGEINTARRAY', () => {
         'proto-max-bulk-len': '9223372036854775807'
       });
       try {
-        // 2^53 + 1 is not representable as a number, so set it as a string.
+        // 2^53 + 1 and 2^53 + 3 are not representable as numbers, so set them as strings.
         await client.sendCommand(['SETBIT', 'key', '9007199254740993', '1']);
+        await client.sendCommand(['SETBIT', 'key', '9007199254740995', '1']);
+
+        const stringClient = client.withTypeMapping({ [RESP_TYPES.NUMBER]: String });
 
         assert.deepEqual(
-          await client.withTypeMapping({ [RESP_TYPES.NUMBER]: String })
-            .bitRangeIntArray('key', 0, -1, { mode: 'BIT' }),
-          ['9007199254740993']
+          await stringClient.bitRangeIntArray('key', 0, -1, { mode: 'BIT' }),
+          ['9007199254740993', '9007199254740995']
+        );
+
+        // As a number, 2^53 + 3 rounds to 2^53 + 4 and the range would be empty.
+        assert.deepEqual(
+          await stringClient.bitRangeIntArray('key', '9007199254740995', '9007199254740995', { mode: 'BIT' }),
+          ['9007199254740995']
         );
       } finally {
         await client.configSet({
