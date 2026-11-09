@@ -73,10 +73,10 @@ export interface RedisSentinelOptions<
    */
   nodeAddressMap?: NodeAddressMap;
   /**
-   * Interval in milliseconds to periodically scan for changes in the sentinel topology.
-   * The client will query the sentinel for changes at this interval.
+   * Interval in milliseconds between periodic Sentinel topology scans.
+   * Set a positive value to enable scanning.
    *
-   * Default: 10000 (10 seconds)
+   * Default: 0 (disabled)
    */
   scanInterval?: number;
   /**
