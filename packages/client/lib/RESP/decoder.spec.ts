@@ -501,6 +501,27 @@ describe('RESP Decoder', () => {
     });
   });
 
+  describe('Attribute', () => {
+    test('DEBUG PROTOCOL attrib', {
+      toWrite: Buffer.from('|1\r\n$14\r\nkey-popularity\r\n*2\r\n$7\r\nkey:123\r\n:90\r\n$39\r\nSome real reply following the attribute\r\n'),
+      replies: ['Some real reply following the attribute']
+    });
+
+    test('on an array item', {
+      toWrite: Buffer.from('*2\r\n|1\r\n+a\r\n+b\r\n:1\r\n:2\r\n'),
+      replies: [[1, 2]]
+    });
+
+    test('on a map key as Map', {
+      typeMapping: {
+        [RESP_TYPES.SIMPLE_STRING]: Buffer,
+        [RESP_TYPES.MAP]: Map
+      },
+      toWrite: Buffer.from('%1\r\n|1\r\n+a\r\n+b\r\n+key\r\n:1\r\n'),
+      replies: [new Map([['key', 1]])]
+    });
+  });
+
   describe('Push', () => {
     test('[]', {
       toWrite: Buffer.from('>0\r\n'),
