@@ -2101,7 +2101,7 @@ describe("OTel Metrics E2E", function () {
           metrics: {
             enabled: true,
             meterProvider,
-            enabledMetricGroups: ["command", "connection-basic"],
+            enabledMetricGroups: ["command", "connection-basic", "connection-advanced", "client-side-caching"],
             customAttributes: { env: "test" },
           },
         },
@@ -2143,6 +2143,76 @@ describe("OTel Metrics E2E", function () {
         );
       }
     };
+
+    // Checks every data point of the metric, for clients that may already be unregistered.
+    const assertAppByPoolName = async (metricName: string, appByClientId: Map<string, string>) => {
+      const dataPoints = await collect(metricName);
+      for (const [clientId, app] of appByClientId) {
+        const clientPoints = dataPoints.filter(
+          ({ attributes }) => attributes[OTEL_ATTRIBUTES.dbClientConnectionPoolName] === clientId,
+        );
+        assert.ok(clientPoints.length > 0, `expected ${metricName} data points for ${clientId}`);
+        for (const { attributes } of clientPoints) {
+          assert.equal(attributes.app, app, clientId);
+          assert.equal(attributes.env, "test", clientId);
+        }
+      }
+      return dataPoints;
+    };
+
+    testUtils.testWithClient(
+      "should keep custom attributes on the closed metric after close()",
+      async (client) => {
+        const a = client.duplicate({ metrics: { customAttributes: { app: "a" } } });
+        await a.connect();
+
+        await a.close();
+
+        await assertAppByPoolName(
+          METRIC_NAMES.redisClientConnectionClosed,
+          new Map([[a._clientId, "a"]]),
+        );
+      },
+      GLOBAL.SERVERS.OPEN,
+    );
+
+    testUtils.testWithClient(
+      "should keep custom attributes on real cache evictions",
+      async (client) => {
+        const withApp = (app: string) => client.duplicate({
+          RESP: 3,
+          clientSideCache: { maxEntries: 1 },
+          metrics: { customAttributes: { app } },
+        });
+        const a = withApp("a");
+        const b = withApp("b");
+        await Promise.all([a.connect(), b.connect()]);
+
+        try {
+          for (const [cache, app] of [[a, "a"], [b, "b"]] as const) {
+            await cache.get(`otel-csc-${app}-1`);
+            // maxEntries is 1, so caching the second key evicts the first (full).
+            await cache.get(`otel-csc-${app}-2`);
+            // Writing the cached key makes the server invalidate it (invalidation).
+            await cache.set(`otel-csc-${app}-2`, "value");
+          }
+
+          const appByClientId = new Map([[a._clientId, "a"], [b._clientId, "b"]]);
+          const evictions = await assertAppByPoolName(METRIC_NAMES.redisClientCscEvictions, appByClientId);
+          for (const clientId of appByClientId.keys()) {
+            const reasons = evictions
+              .filter(({ attributes }) => attributes[OTEL_ATTRIBUTES.dbClientConnectionPoolName] === clientId)
+              .map(({ attributes }) => attributes[OTEL_ATTRIBUTES.redisClientCscReason])
+              .sort();
+            assert.deepEqual(reasons, [CSC_EVICTION_REASON.FULL, CSC_EVICTION_REASON.INVALIDATION], clientId);
+          }
+        } finally {
+          a.destroy();
+          b.destroy();
+        }
+      },
+      GLOBAL.SERVERS.OPEN,
+    );
 
     testUtils.testWithClient(
       "should not mix custom attributes between two clients",

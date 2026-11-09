@@ -801,10 +801,10 @@ export default class RedisClient<
 
         if (push[1] !== null) {
           for (const key of push[1]) {
-            this.#clientSideCache?.invalidate(key)
+            this.#clientSideCache?.invalidate(key, this._clientId)
           }
         } else {
-          this.#clientSideCache?.invalidate(null)
+          this.#clientSideCache?.invalidate(null, this._clientId)
         }
 
         return true
@@ -2371,9 +2371,11 @@ export default class RedisClient<
       this._self.#credentialsSubscription?.dispose();
       this._self.#credentialsSubscription = null;
 
+      // destroySocket() publishes CONNECTION_CLOSED, so unregister after it to keep
+      // this client's attributes on that metric.
       if (this._self.#queue.isEmpty()) {
-        this._self.#unregisterFromMetrics();
         this._self.#socket.destroySocket();
+        this._self.#unregisterFromMetrics();
         return resolve();
       }
 
@@ -2391,8 +2393,8 @@ export default class RedisClient<
 
         this._self.#socket.off('data', maybeClose);
         this._self.#socket.off('end', onEnd);
-        this._self.#unregisterFromMetrics();
         this._self.#socket.destroySocket();
+        this._self.#unregisterFromMetrics();
         resolve();
       };
       this._self.#socket.on('data', maybeClose);

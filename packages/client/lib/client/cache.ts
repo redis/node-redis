@@ -604,7 +604,10 @@ export abstract class ClientSideCacheProvider extends EventEmitter {
    */
   abstract handleCache(client: CachingClient, parser: BasicCommandParser, fn: CmdFunc, transformReply: TransformReply | undefined, typeMapping: TypeMapping | undefined, isStorable?: () => boolean): Promise<unknown>;
   abstract trackingOn(): Array<RedisArgument>;
-  abstract invalidate(key: RedisArgument | null): void;
+  /**
+   * @param clientId - The client that received the invalidation, for metrics.
+   */
+  abstract invalidate(key: RedisArgument | null, clientId?: string): void;
   abstract clear(): void;
   abstract stats(): CacheStats;
   abstract size(): number;
@@ -705,7 +708,7 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
     const clone = needsTypeAwareCopy(typeMapping) ? typeAwareCopy : structuredClone;
 
     // "2"
-    let cacheEntry = this.get(cacheKey);
+    let cacheEntry = this.get(cacheKey, client._clientId);
 
     if (cacheEntry) {
       // If instanceof is "too slow", can add a "type" and then use an "as" cast to call proper getters.
@@ -730,7 +733,7 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
       const promise = fn();
 
       cacheEntry = this.createPromiseEntry(client, promise);
-      this.set(cacheKey, cacheEntry, parser.keys);
+      this.set(cacheKey, cacheEntry, parser.keys, client._clientId);
 
       try {
         reply = await promise;
@@ -766,7 +769,7 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
     } else if (cacheEntry.validate()) { // revalidating promise entry (dont save value, if promise entry has been invalidated)
       // 3d
       cacheEntry = this.createValueEntry(client, val);
-      this.set(cacheKey, cacheEntry, parser.keys);
+      this.set(cacheKey, cacheEntry, parser.keys, client._clientId);
       this.emit("cached-key", cacheKey);
     } else {
       //   cache entry for key got invalidated between execution and saving, so not saving
@@ -796,14 +799,14 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
     return this.trackingMode !== CLIENT_SIDE_CACHE_TRACKING_MODES.OPTIN;
   }
 
-  override invalidate(key: RedisArgument | null) {
+  override invalidate(key: RedisArgument | null, clientId?: string) {
     if (key === null) {
       // Server requested to invalidate all keys
       const oldSize = this.size();
       this.clear(false);
       // Record invalidations as server-initiated evictions
       if (oldSize > 0) {
-        publish(CHANNELS.CACHE_EVICTION, () => ({ reason: 'invalidation', count: oldSize }));
+        publish(CHANNELS.CACHE_EVICTION, () => ({ reason: 'invalidation', count: oldSize, clientId }));
       }
       this.emit("invalidate", key);
 
@@ -825,7 +828,7 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
       this.#keyToCacheKeySetMap.delete(key.toString());
       if (deletedCount > 0) {
         // Record invalidations as server-initiated evictions
-        publish(CHANNELS.CACHE_EVICTION, () => ({ reason: 'invalidation', count: deletedCount }));
+        publish(CHANNELS.CACHE_EVICTION, () => ({ reason: 'invalidation', count: deletedCount, clientId }));
       }
     }
 
@@ -850,14 +853,14 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
     }
   }
 
-  get(cacheKey: string) {
+  get(cacheKey: string, clientId?: string) {
     const val = this.#cacheKeyToEntryMap.get(cacheKey);
 
     if (val && !val.validate()) {
       this.delete(cacheKey);
       this.#statsCounter.recordEvictions(1);
       // Entry failed validation - this is TTL expiry since invalidation marks are handled separately
-      publish(CHANNELS.CACHE_EVICTION, () => ({ reason: 'ttl', count: 1 }));
+      publish(CHANNELS.CACHE_EVICTION, () => ({ reason: 'ttl', count: 1, clientId }));
       this.emit("cache-evict", cacheKey);
 
       return undefined;
@@ -900,7 +903,7 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
     return this.#cacheKeyToEntryMap.has(cacheKey);
   }
 
-  set(cacheKey: string, cacheEntry: ClientSideCacheEntry, keys: Array<RedisArgument>) {
+  set(cacheKey: string, cacheEntry: ClientSideCacheEntry, keys: Array<RedisArgument>, clientId?: string) {
     let count = this.#cacheKeyToEntryMap.size;
     const oldEntry = this.#cacheKeyToEntryMap.get(cacheKey);
 
@@ -914,7 +917,7 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
       this.deleteOldest();
       this.#statsCounter.recordEvictions(1);
       // Eviction due to cache capacity limit
-      publish(CHANNELS.CACHE_EVICTION, () => ({ reason: 'full', count: 1 }));
+      publish(CHANNELS.CACHE_EVICTION, () => ({ reason: 'full', count: 1, clientId }));
     }
 
     this.#cacheKeyToEntryMap.set(cacheKey, cacheEntry);
@@ -999,12 +1002,12 @@ export abstract class PooledClientSideCacheProvider extends BasicClientSideCache
     this.#disabled = false;
   }
 
-  override get(cacheKey: string): ClientSideCacheEntry | undefined {
+  override get(cacheKey: string, clientId?: string): ClientSideCacheEntry | undefined {
     if (this.#disabled) {
       return undefined;
     }
 
-    return super.get(cacheKey);
+    return super.get(cacheKey, clientId);
   }
 
   override has(cacheKey: string): boolean {
