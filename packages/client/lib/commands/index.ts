@@ -41,6 +41,7 @@ import BITFIELD_RO from './BITFIELD_RO';
 import BITFIELD from './BITFIELD';
 import BITOP from './BITOP';
 import BITPOS from './BITPOS';
+import BITRANGEINTARRAY from './BITRANGEINTARRAY';
 import BLESS_GET from './BLESS_GET';
 import BLESS_SET from './BLESS_SET';
 import BLESS_CLEAR from './BLESS_CLEAR';
@@ -954,6 +955,32 @@ export default {
    * @param mode - Optional counting mode: BYTE or BIT
    */
   bitPos: BITPOS,
+  /**
+   * Returns the offsets of the set bits (or of the clear bits, with `ZEROS`) in a range of a string or bitmap, in ascending order
+   * @param key - The key holding the string or bitmap
+   * @param start - Start of the range, inclusive. Negative values count from the end
+   * @param end - End of the range, inclusive. Negative values count from the end
+   * @param options - Optional parameters
+   * @param options.mode - Whether `start` and `end` count bytes (`BYTE`, default) or bits (`BIT`)
+   * @param options.LIMIT - Return only the lowest `LIMIT` offsets. In `BYTE` mode the reply also completes the byte that holds the last offset
+   * @param options.ZEROS - Return the offsets of the clear bits instead of the set bits
+   * @since 8.12.0
+   * @remarks Returned offsets may exceed `Number.MAX_SAFE_INTEGER` (2^53-1). For full precision, use `client.withTypeMapping({ [RESP_TYPES.NUMBER]: String })`.
+   */
+  BITRANGEINTARRAY,
+  /**
+   * Returns the offsets of the set bits (or of the clear bits, with `ZEROS`) in a range of a string or bitmap, in ascending order
+   * @param key - The key holding the string or bitmap
+   * @param start - Start of the range, inclusive. Negative values count from the end
+   * @param end - End of the range, inclusive. Negative values count from the end
+   * @param options - Optional parameters
+   * @param options.mode - Whether `start` and `end` count bytes (`BYTE`, default) or bits (`BIT`)
+   * @param options.LIMIT - Return only the lowest `LIMIT` offsets. In `BYTE` mode the reply also completes the byte that holds the last offset
+   * @param options.ZEROS - Return the offsets of the clear bits instead of the set bits
+   * @since 8.12.0
+   * @remarks Returned offsets may exceed `Number.MAX_SAFE_INTEGER` (2^53-1). For full precision, use `client.withTypeMapping({ [RESP_TYPES.NUMBER]: String })`.
+   */
+  bitRangeIntArray: BITRANGEINTARRAY,
   /**
    * Gets the bless flags currently set on a key
    * @param key - The key to read bless flags from

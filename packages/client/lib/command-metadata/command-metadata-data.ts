@@ -1517,6 +1517,14 @@ export const COMMAND_METADATA: ModuleMetadataRecords = {
         "readonly"
       ]
     },
+    "bitrangeintarray": {
+      "request": "default-keyed",
+      "response": "default-keyed",
+      "isKeyless": false,
+      "flags": [
+        "readonly"
+      ]
+    },
     "bless": {
       "request": "default-keyless",
       "response": "default-keyless",
