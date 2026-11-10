@@ -160,7 +160,7 @@ createSentinel({
 
 ## Client Config
 
-Many of the [Client Configs](docs/client-configuration.md) work with sentinel mode for example passwords
+Many of the [Client Configs](client-configuration.md) work with sentinel mode for example passwords
 
 ```javascript
 createSentinel({
