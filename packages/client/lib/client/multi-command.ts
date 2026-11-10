@@ -116,7 +116,8 @@ export default class RedisClientMultiCommand<REPLIES = []> {
 
       return this.addCommand(
         redisArgs,
-        transformReply
+        transformReply,
+        parser.keys
       );
     };
   }
@@ -133,7 +134,8 @@ export default class RedisClientMultiCommand<REPLIES = []> {
 
       return this._self.addCommand(
         redisArgs,
-        transformReply
+        transformReply,
+        parser.keys
       );
     };
   }
@@ -152,7 +154,8 @@ export default class RedisClientMultiCommand<REPLIES = []> {
 
       return this._self.addCommand(
         redisArgs,
-        transformReply
+        transformReply,
+        parser.keys
       );
     };
   }
@@ -170,7 +173,8 @@ export default class RedisClientMultiCommand<REPLIES = []> {
       return this.#addScript(
         script,
         redisArgs,
-        transformReply
+        transformReply,
+        parser.keys
       );
     };
   }
@@ -214,17 +218,18 @@ export default class RedisClientMultiCommand<REPLIES = []> {
 
   select = this.SELECT;
 
-  addCommand(args: CommandArguments, transformReply?: TransformReply) {
-    this.#multi.addCommand(args, transformReply);
+  addCommand(args: CommandArguments, transformReply?: TransformReply, keys?: ReadonlyArray<RedisArgument>) {
+    this.#multi.addCommand(args, transformReply, keys);
     return this;
   }
 
   #addScript(
     script: RedisScript,
     args: CommandArguments,
-    transformReply?: TransformReply
+    transformReply?: TransformReply,
+    keys?: ReadonlyArray<RedisArgument>
   ) {
-    this.#multi.addScript(script, args, transformReply);
+    this.#multi.addScript(script, args, transformReply, keys);
 
     return this;
   }

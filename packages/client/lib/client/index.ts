@@ -363,6 +363,14 @@ export interface ScanIteratorOptions {
 
 export type MonitorCallback<TYPE_MAPPING extends TypeMapping = TypeMapping> = (reply: ReplyWithTypeMapping<SimpleStringReply, TYPE_MAPPING>) => unknown;
 
+function argsCommandIdentifier(args: ReadonlyArray<RedisArgument>) {
+  const [command, subcommand] = args;
+  return {
+    command: command instanceof Buffer ? command.toString() : command,
+    subcommand: subcommand instanceof Buffer ? subcommand.toString() : subcommand
+  };
+}
+
 /**
  * A `sendCommand` rejection that happened BEFORE the command reached the wire (client closed
  * or offline, an already-aborted signal, or a full queue — see `sendCommand`/`addCommand`).
@@ -1408,21 +1416,62 @@ export default class RedisClient<
       (await this._self.#sendWithCaching(this, 'NO', parser, commandOptions)).reply :
       await fn();
 
-    // A pooled cache is shared by several connections, and the server only
-    // invalidates a key on the connection that cached it. That push can still
-    // be in flight when the next command reads the key from the cache, so drop
-    // the keys a command may have modified as soon as it succeeds.
-    if (csc instanceof PooledClientSideCacheProvider && !meta?.flags?.includes('readonly')) {
-      for (const key of parser.keys) {
-        csc.invalidate(key);
-      }
-    }
+    this._self.#dropOwnWrites(parser.redisArgs, parser.keys, meta?.flags?.includes('readonly'));
 
     const finalReply = transformReply ? transformReply(reply, parser.preserve, commandOptions?.typeMapping) : reply;
 
     publish(CHANNELS.COMMAND_REPLY, () => ({ args: sanitizeArgs(parser.redisArgs), reply: finalReply, clientId: this._self._clientId }));
 
     return finalReply;
+  }
+
+  /**
+   * A pooled cache is shared by several connections, and the server only
+   * invalidates a key on the connection that cached it. That push can still be
+   * in flight when the next command reads the key from the cache, so once a
+   * command that may have written is answered, drop what it may have modified:
+   * its keys, or the whole cache for keyless writes (FLUSHDB, FLUSHALL, SWAPDB)
+   * and for raw MULTI/pipeline commands, whose keys are unknown.
+   *
+   * `keys` is `undefined` for raw commands; `isReadonly` falls back to the
+   * command metadata when the caller does not know.
+   */
+  #dropOwnWrites(
+    args: ReadonlyArray<RedisArgument>,
+    keys: ReadonlyArray<RedisArgument> | undefined,
+    isReadonly?: boolean
+  ) {
+    const csc = this.#clientSideCache;
+    if (!(csc instanceof PooledClientSideCacheProvider)) return;
+
+    // The metadata lookup decodes the command name, so skip it for the common
+    // case of a typed keyed command.
+    const meta = isReadonly === undefined || !keys?.length ?
+      defaultCommandMetadata.lookup(argsCommandIdentifier(args)) :
+      undefined;
+    if (isReadonly ?? meta?.flags?.includes('readonly')) return;
+
+    if (keys === undefined) {
+      if (!meta?.flags || meta.flags.includes('write') || meta.flags.includes('script_runner')) {
+        csc.invalidate(null);
+      }
+    } else if (keys.length === 0) {
+      if (meta?.flags?.includes('write')) {
+        csc.invalidate(null);
+      }
+    } else {
+      for (const key of keys) {
+        csc.invalidate(key);
+      }
+    }
+  }
+
+  #dropOwnBatchWrites(commands: Array<RedisMultiQueuedCommand>) {
+    if (!(this.#clientSideCache instanceof PooledClientSideCacheProvider)) return;
+
+    for (const { args, keys } of commands) {
+      this.#dropOwnWrites(args, keys);
+    }
   }
 
   /**
@@ -1709,6 +1758,10 @@ export default class RedisClient<
       }
     }
 
+    if (command === HIMPORT_SET) {
+      this.#dropOwnWrites(args, parser.keys, false);
+    }
+
     const finalReply = registryReply !== undefined
       ? registryReply
       : transformReply ? transformReply(reply, parser.preserve, commandOptions?.typeMapping) : reply;
@@ -1739,6 +1792,8 @@ export default class RedisClient<
       args[1] = script.SCRIPT;
       reply = await this.sendCommand(args, options);
     }
+
+    this._self.#dropOwnWrites(args, parser.keys, script.IS_READ_ONLY);
 
     return transformReply ?
       transformReply(reply, parser.preserve, options?.typeMapping) :
@@ -2041,9 +2096,15 @@ export default class RedisClient<
         );
         this._self.#scheduleWrite();
 
-        const result = await promise;
-
-        return result;
+        try {
+          return await promise;
+        } finally {
+          if (this._self.#clientSideCache instanceof PooledClientSideCacheProvider) {
+            // Commands after a failed one may still have written.
+            await Promise.allSettled(queued);
+            this._self.#dropOwnBatchWrites(commands);
+          }
+        }
       },
       () => ({
         batchMode: 'PIPELINE' as const,
@@ -2130,8 +2191,13 @@ export default class RedisClient<
 
         this._self.#scheduleWrite();
 
-        const results = await Promise.all(promises),
-          execResult = results[results.length - 1];
+        let results: Array<unknown>;
+        try {
+          results = await Promise.all(promises);
+        } finally {
+          this._self.#dropOwnBatchWrites(commands);
+        }
+        const execResult = results[results.length - 1];
 
         if (execResult === null) {
           throw new WatchError();

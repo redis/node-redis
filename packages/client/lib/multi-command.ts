@@ -1,4 +1,4 @@
-import { CommandArguments, RedisScript, ReplyUnion, TransformReply, TypeMapping } from './RESP/types';
+import { CommandArguments, RedisArgument, RedisScript, ReplyUnion, TransformReply, TypeMapping } from './RESP/types';
 import { ErrorReply, MultiErrorReply } from './errors';
 
 export type MULTI_REPLY = {
@@ -20,6 +20,11 @@ export type MultiReplyType<T extends MultiReply, REPLIES> = T extends MULTI_REPL
 export interface RedisMultiQueuedCommand {
   args: CommandArguments;
   transformReply?: TransformReply;
+  /**
+   * The keys of a typed command (`undefined` for raw commands), used to keep a
+   * pooled client-side cache consistent with the batch's writes.
+   */
+  keys?: ReadonlyArray<RedisArgument>;
 }
 
 export default class RedisMultiCommand {
@@ -33,14 +38,13 @@ export default class RedisMultiCommand {
 
   readonly scriptsInUse = new Set<string>();
 
-  addCommand(args: CommandArguments, transformReply?: TransformReply) {
-    this.queue.push({
-      args,
-      transformReply
-    });
+  addCommand(args: CommandArguments, transformReply?: TransformReply, keys?: ReadonlyArray<RedisArgument>) {
+    const command: RedisMultiQueuedCommand = { args, transformReply };
+    if (keys !== undefined) command.keys = keys;
+    this.queue.push(command);
   }
 
-  addScript(script: RedisScript, args: CommandArguments, transformReply?: TransformReply) {
+  addScript(script: RedisScript, args: CommandArguments, transformReply?: TransformReply, keys?: ReadonlyArray<RedisArgument>) {
     const redisArgs: CommandArguments = [];
     redisArgs.preserve = args.preserve;
     if (this.scriptsInUse.has(script.SHA1)) {
@@ -56,7 +60,7 @@ export default class RedisMultiCommand {
 
     redisArgs.push(...args);
 
-    this.addCommand(redisArgs, transformReply);
+    this.addCommand(redisArgs, transformReply, keys);
   }
   
   transformReplies(rawReplies: Array<unknown>): Array<unknown> {

@@ -130,7 +130,8 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
         firstKey,
         replicaSafe,
         redisArgs,
-        transformReply
+        transformReply,
+        parser.keys
       );
     };
   }
@@ -152,7 +153,8 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
         firstKey,
         replicaSafe,
         redisArgs,
-        transformReply
+        transformReply,
+        parser.keys
       );
     };
   }
@@ -174,7 +176,8 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
         firstKey,
         fn.IS_READ_ONLY,
         redisArgs,
-        transformReply
+        transformReply,
+        parser.keys
       );
     };
   }
@@ -195,7 +198,8 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
         script.IS_READ_ONLY,
         script,
         scriptArgs,
-        transformReply
+        transformReply,
+        parser.keys
       );
     };
   }
@@ -253,10 +257,11 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
     firstKey: RedisArgument | undefined,
     isReadonly: boolean | undefined,
     args: CommandArguments,
-    transformReply?: TransformReply
+    transformReply?: TransformReply,
+    keys?: ReadonlyArray<RedisArgument>
   ) {
     this.#setState(firstKey, isReadonly);
-    this.#multi.addCommand(args, transformReply);
+    this.#multi.addCommand(args, transformReply, keys);
     return this;
   }
 
@@ -265,10 +270,11 @@ export default class RedisClusterMultiCommand<REPLIES = []> {
     isReadonly: boolean | undefined,
     script: RedisScript,
     args: CommandArguments,
-    transformReply?: TransformReply
+    transformReply?: TransformReply,
+    keys?: ReadonlyArray<RedisArgument>
   ) {
     this.#setState(firstKey, isReadonly);
-    this.#multi.addScript(script, args, transformReply);
+    this.#multi.addScript(script, args, transformReply, keys);
 
     return this;
   }

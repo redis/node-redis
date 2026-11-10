@@ -4,10 +4,11 @@ import { BasicClientSideCache, BasicPooledClientSideCache, CacheStats } from "./
 import { REDIS_FLUSH_MODES } from "../commands/FLUSHALL";
 import { once } from 'events';
 import RedisClient from "./index";
-import { BasicCommandParser } from "./parser";
+import { BasicCommandParser, CommandParser } from "./parser";
 import { ClientSideCacheCommandError, ClientSideCacheMarkError } from "../errors";
 import { RESP_TYPES } from "../RESP/decoder";
-import { TypeMapping } from "../RESP/types";
+import { SimpleStringReply, TypeMapping } from "../RESP/types";
+import { defineScript } from "../lua-script";
 import { VerbatimString } from "../RESP/verbatim-string";
 
 describe("Client Side Cache", () => {
@@ -714,6 +715,64 @@ describe("Client Side Cache", () => {
       ...GLOBAL.SERVERS.OPEN,
       clientOptions: {
         RESP: 3,
+      },
+      poolOptions: {
+        minimum: 5,
+        maximum: 5,
+        acquireTimeout: 0,
+        cleanupDelay: 1,
+        clientSideCache: csc
+      }
+    })
+
+    testUtils.testWithClientPool('Drops what MULTI, pipelines, scripts and keyless writes modify', async client => {
+      // The server never invalidates these entries (no connection read the
+      // keys), so they only go away if the client drops its own writes.
+      const seed = () => {
+        csc.clear();
+        csc.set('x-entry', csc.createValueEntry(undefined as never, 'old'), ['x']);
+        csc.set('y-entry', csc.createValueEntry(undefined as never, 'old'), ['y']);
+      };
+      const cachedKeys = () => [...csc.keySetEntries()].map(([key]) => key).sort();
+
+      // One round trip on every pool client, so invalidations left over from
+      // the test setup (e.g. its FLUSHALL) cannot clear the seeded entries.
+      await Promise.all(Array.from({ length: 5 }, () => client.ping()));
+
+      const writes: Array<[string, () => Promise<unknown>, Array<string>]> = [
+        ['read-only MULTI', () => client.multi().get('y').exec(), ['x', 'y']],
+        ['read-only pipeline', () => client.multi().get('y').execAsPipeline(), ['x', 'y']],
+        ['MULTI', () => client.multi().set('x', '1').exec(), ['y']],
+        ['pipeline', () => client.multi().set('x', '1').execAsPipeline(), ['y']],
+        ['script', () => client.set_x('1'), ['y']],
+        // raw commands carry no keys, so the whole cache goes
+        ['raw MULTI command', () => client.multi().addCommand(['SET', 'x', '1']).exec(), []],
+        // keyless writes: the server sends no invalidation at all for SWAPDB
+        ['SWAPDB', () => client.swapDb(0, 1), []],
+        // last: the other clients' flush invalidations arrive after it resolves
+        ['FLUSHDB', () => client.flushDb(), []]
+      ];
+
+      for (const [name, write, expected] of writes) {
+        seed();
+        await write();
+        assert.deepEqual(cachedKeys(), expected, name);
+      }
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      clientOptions: {
+        RESP: 3,
+        scripts: {
+          set_x: defineScript({
+            SCRIPT: 'return redis.call("SET", KEYS[1], ARGV[1])',
+            NUMBER_OF_KEYS: 1,
+            parseCommand(parser: CommandParser, value: string) {
+              parser.pushKey('x');
+              parser.push(value);
+            },
+            transformReply: undefined as unknown as () => SimpleStringReply<'OK'>
+          })
+        }
       },
       poolOptions: {
         minimum: 5,
