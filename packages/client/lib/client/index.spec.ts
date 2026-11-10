@@ -2119,6 +2119,106 @@ describe('Client', () => {
     }
   });
 
+  describe('writing to the socket', () => {
+    // Long names make each SSUBSCRIBE big, so the batch fills the socket buffer many times
+    const channels = Array.from({ length: 2000 }, (_, i) => `${'channel'.repeat(20)}${i}`);
+
+    testUtils.testWithClient('sends commands that do not fit in the socket buffer', async client => {
+      const value = 'a'.repeat(1024);
+      const replies = await Promise.all(
+        Array.from({ length: 1000 }, (_, i) => client.set(`key${i}`, value))
+      );
+      assert.deepEqual(replies, Array(1000).fill('OK'));
+    }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('resubscribes sharded channels that do not fit in the socket buffer', async publisher => {
+      const subscriber = await publisher.duplicate().connect();
+
+      try {
+        // the forced reconnect can emit `error` more than once, see "should resubscribe"
+        let resolveFirstError!: () => void;
+        const firstError = new Promise<void>(resolve => {
+          resolveFirstError = resolve;
+        });
+        subscriber.on('error', () => resolveFirstError());
+
+        await subscriber.sSubscribe(channels, () => {});
+
+        await Promise.all([
+          firstError,
+          publisher.clientKill({
+            filter: 'SKIPME',
+            skipMe: true
+          })
+        ]);
+
+        // the socket is ready only once every SSUBSCRIBE has a reply
+        await once(subscriber, 'ready');
+        assert.equal((await publisher.pubSubShardChannels()).length, channels.length);
+      } finally {
+        subscriber.destroy();
+      }
+    }, GLOBAL.SERVERS.OPEN);
+
+    it('does not send a command before the handshake', async () => {
+      let written = '';
+      const server = net.createServer(socket => {
+        socket.on('data', (chunk: Buffer) => {
+          written += chunk.toString();
+          socket.write('+OK\r\n'.repeat(countRespCommands(chunk)));
+        });
+      });
+      const port = await getFreePortNumber();
+      await once(server.listen(port), 'listening');
+
+      let releaseCredentials!: () => void;
+      const credentialsReleased = new Promise<void>(resolve => {
+        releaseCredentials = resolve;
+      });
+      const client = createClient({
+        socket: { host: '127.0.0.1', port },
+        credentialsProvider: {
+          type: 'async-credentials-provider',
+          credentials: async () => {
+            await credentialsReleased;
+            return { username: 'user', password: 'secret' };
+          }
+        }
+      });
+
+      try {
+        const connected = client.connect();
+        // the TCP connection is up, and the handshake waits for the credentials
+        await once(client, 'connect');
+        const ping = client.ping();
+        await new Promise(resolve => setImmediate(resolve));
+        assert.equal(written, '');
+
+        releaseCredentials();
+        await connected;
+        assert.equal(await ping, 'OK');
+        assert.ok(written.indexOf('HELLO') !== -1);
+        assert.ok(written.indexOf('HELLO') < written.indexOf('PING'));
+      } finally {
+        client.destroy();
+        server.close();
+      }
+    });
+
+    testUtils.testWithClient('sends commands queued while paused once unpaused', async client => {
+      client._pause();
+      let settled = false;
+      const ping = client.ping().finally(() => {
+        settled = true;
+      });
+      await new Promise<void>(resolve => { globalThis.setTimeout(resolve, 10); });
+      assert.equal(settled, false);
+
+      client._unpause();
+      assert.equal(await ping, 'PONG');
+    }, GLOBAL.SERVERS.OPEN);
+  });
+
   describe('MONITOR', () => {
     testUtils.testWithClient('should be able to monitor commands', async client => {
       const duplicate = await client.duplicate().connect(),
