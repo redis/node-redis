@@ -749,6 +749,51 @@ describe('RedisClusterSlots', () => {
       }
     });
 
+    it('getRandomNode avoids reconnecting masters when none are ready yet', async function () {
+      this.timeout(15000);
+      let includeDead = true;
+      const live = await startLiveMaster(() => includeDead);
+      let nodeReconnecting = 0;
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: live.port } }],
+        defaults: {
+          socket: { reconnectStrategy: 20, connectTimeout: 100 },
+          disableClientInfo: true,
+          commandOptions: { timeout: 300 }
+        },
+        minimizeConnections: false,
+        RESP: 2 as const,
+      }, ((event: string) => {
+        if (event === 'node-reconnecting') nodeReconnecting++;
+        return true;
+      }) as never, 'test-cluster');
+
+      try {
+        await slots.connect();
+        // Wait until the dead master has entered reconnecting while the live
+        // master may still be mid-handshake (not ready yet).
+        for (let i = 0; i < 50 && nodeReconnecting === 0; i++) {
+          await new Promise(resolve => setTimeout(resolve, 20));
+        }
+        assert.ok(nodeReconnecting > 0, 'dead master should emit node-reconnecting');
+
+        const liveAddress = slots.slots[0].master.address;
+        const deadAddress = slots.slots[8192].master.address;
+        for (let i = 0; i < 12; i++) {
+          const node = slots.getRandomNode();
+          assert.notEqual(
+            node.address,
+            deadAddress,
+            'keyless routing must avoid a reconnecting unreachable master when another shard is hopeful'
+          );
+          assert.equal(node.address, liveAddress);
+        }
+      } finally {
+        slots.destroy();
+        await live.close();
+      }
+    });
+
     it('getSlotRandomNode prefers a ready master over a never-ready replica', async function () {
       this.timeout(15000);
       let includeDead = true;

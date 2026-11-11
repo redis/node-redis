@@ -1469,25 +1469,40 @@ export default class RedisClusterSlots<
 
   _randomNodeIterator?: IterableIterator<ShardNode<M, F, S, RESP, TYPE_MAPPING>>;
 
+  /**
+   * Prefer proven-ready nodes; when none are ready yet, prefer addresses that
+   * are not already in the reconnection tracker so keyless routing avoids a
+   * shard that already failed its first connect while another is still hopeful.
+   */
+  #preferredRoutingPool(
+    nodes: ReadonlyArray<ShardNode<M, F, S, RESP, TYPE_MAPPING>>
+  ): Array<ShardNode<M, F, S, RESP, TYPE_MAPPING>> {
+    const eligible = nodes.filter(node => !this.#retiredNodes.has(node));
+    const ready = eligible.filter(node => node.client?.isReady);
+    if (ready.length > 0) return ready;
+
+    const reconnecting = this.#reconnectionTracker.reconnectingAddresses;
+    const hopeful = eligible.filter(node => !reconnecting.has(node.address));
+    return hopeful.length > 0 ? hopeful : eligible;
+  }
+
   getRandomNode() {
     this.#assertReady();
 
     this._randomNodeIterator ??= this.#iterateAllNodes();
 
-    // Prefer ready shards so keyless commands do not land on a never-ready
-    // master still listed after non-blocking discover.
-    const poolSize = this.masters.length + this.replicas.length;
-    const ready = [...this.masters, ...this.replicas].filter(node => node.client?.isReady);
-    const maxAttempts = Math.max(1, poolSize) * 2;
+    const pool = this.#preferredRoutingPool([...this.masters, ...this.replicas]);
+    const poolSet = new Set(pool);
+    const maxAttempts = Math.max(1, pool.length) * 2;
     for (let i = 0; i < maxAttempts; i++) {
       const node = this._randomNodeIterator.next().value as ShardNode<M, F, S, RESP, TYPE_MAPPING>;
-      if (ready.length === 0 || node.client?.isReady) {
+      if (poolSet.has(node)) {
         return node;
       }
     }
 
-    if (ready.length > 0) {
-      return ready[Math.floor(Math.random() * ready.length)];
+    if (pool.length > 0) {
+      return pool[Math.floor(Math.random() * pool.length)];
     }
 
     return this._randomNodeIterator.next().value as ShardNode<M, F, S, RESP, TYPE_MAPPING>;
@@ -1519,19 +1534,18 @@ export default class RedisClusterSlots<
     const shard = slot as ShardWithReplicas<M, F, S, RESP, TYPE_MAPPING>;
     slot.nodesIterator ??= this.#slotNodesIterator(shard);
 
-    // Prefer ready nodes so readonly routing does not land on a never-ready
-    // replica while the master (or another replica) is already usable.
-    const ready = [shard.master, ...shard.replicas].filter(node => node.client?.isReady);
+    const pool = this.#preferredRoutingPool([shard.master, ...shard.replicas]);
+    const poolSet = new Set(pool);
     const maxAttempts = (1 + shard.replicas.length) * 2;
     for (let i = 0; i < maxAttempts; i++) {
       const node = slot.nodesIterator.next().value as ShardNode<M, F, S, RESP, TYPE_MAPPING>;
-      if (ready.length === 0 || node.client?.isReady) {
+      if (poolSet.has(node)) {
         return node;
       }
     }
 
-    if (ready.length > 0) {
-      return ready[Math.floor(Math.random() * ready.length)];
+    if (pool.length > 0) {
+      return pool[Math.floor(Math.random() * pool.length)];
     }
 
     return slot.nodesIterator.next().value as ShardNode<M, F, S, RESP, TYPE_MAPPING>;
@@ -1671,10 +1685,7 @@ export default class RedisClusterSlots<
       .filter(node => !this.#retiredNodes.has(node) && !exclude.has(node.address));
     if (candidates.length === 0) return undefined;
 
-    // Prefer addresses already proven reachable so subscribe cannot hang on a
-    // dead master that is still listed in the topology.
-    const ready = candidates.filter(node => node.client?.isReady);
-    const pool = ready.length > 0 ? ready : candidates;
+    const pool = this.#preferredRoutingPool(candidates);
     return pool[Math.floor(Math.random() * pool.length)];
   }
 
@@ -1683,7 +1694,8 @@ export default class RedisClusterSlots<
     previousClient?: RedisClientType<M, F, S, RESP, TYPE_MAPPING>
   ) {
     if (this.#pubSubInitiatePromise) {
-      return this.#pubSubInitiatePromise.then(async client => {
+      const joining = this.#pubSubInitiatePromise;
+      return joining.then(async client => {
         if (!toResubscribe && !previousClient) return client;
 
         const channels = mergePubSubTypeListeners(
@@ -1694,12 +1706,50 @@ export default class RedisClusterSlots<
           previousClient?.getPubSubListeners(PUBSUB_TYPE.PATTERNS),
           toResubscribe?.[PUBSUB_TYPE.PATTERNS]
         );
-        if (channels.size || patterns.size) {
-          await Promise.all([
-            client.extendPubSubListeners(PUBSUB_TYPE.CHANNELS, channels),
-            client.extendPubSubListeners(PUBSUB_TYPE.PATTERNS, patterns)
-          ]);
+        if (!channels.size && !patterns.size) return client;
+
+        // Stash on the current node so a rediscover mid-join still carries them.
+        if (this.pubSubNode) {
+          this.pubSubNode.pendingToResubscribe = {
+            [PUBSUB_TYPE.CHANNELS]: mergePubSubTypeListeners(
+              this.pubSubNode.pendingToResubscribe?.[PUBSUB_TYPE.CHANNELS],
+              channels
+            ),
+            [PUBSUB_TYPE.PATTERNS]: mergePubSubTypeListeners(
+              this.pubSubNode.pendingToResubscribe?.[PUBSUB_TYPE.PATTERNS],
+              patterns
+            )
+          };
         }
+
+        const handoff = {
+          [PUBSUB_TYPE.CHANNELS]: channels,
+          [PUBSUB_TYPE.PATTERNS]: patterns
+        };
+
+        const restartIfSuperseded = () => {
+          if (!this.#isOpen) throw new ClientClosedError();
+          if (this.pubSubNode?.client === client) return null;
+          // Drop the settled join handle so we start a fresh initiate instead of
+          // re-entering the same promise.
+          if (this.#pubSubInitiatePromise === joining) {
+            this.#pubSubInitiatePromise = undefined;
+          }
+          return this.#initiatePubSubClient(handoff);
+        };
+
+        // Shared initiate may have been destroyed/replaced before this .then.
+        const before = restartIfSuperseded();
+        if (before) return before;
+
+        await Promise.all([
+          client.extendPubSubListeners(PUBSUB_TYPE.CHANNELS, channels),
+          client.extendPubSubListeners(PUBSUB_TYPE.PATTERNS, patterns)
+        ]);
+
+        const after = restartIfSuperseded();
+        if (after) return after;
+
         return client;
       });
     }
