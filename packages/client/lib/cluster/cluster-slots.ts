@@ -1750,6 +1750,12 @@ export default class RedisClusterSlots<
         const after = restartIfSuperseded();
         if (after) return after;
 
+        // Applied to live maps — clear pending so a later rediscover cannot
+        // revive channels unsubscribed after this handoff.
+        if (this.pubSubNode?.client === client) {
+          this.pubSubNode.pendingToResubscribe = undefined;
+        }
+
         return client;
       });
     }
