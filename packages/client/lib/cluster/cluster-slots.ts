@@ -171,6 +171,26 @@ function mergePubSubTypeListeners(
   return merged;
 }
 
+function pubSubNodeListenersToCarry<
+  M extends RedisModules,
+  F extends RedisFunctions,
+  S extends RedisScripts,
+  RESP extends RespVersions,
+  TYPE_MAPPING extends TypeMapping
+>(pubSubNode: PubSubNode<M, F, S, RESP, TYPE_MAPPING>): PubSubToResubscribe {
+  const pending = pubSubNode.pendingToResubscribe;
+  return {
+    [PUBSUB_TYPE.CHANNELS]: mergePubSubTypeListeners(
+      pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.CHANNELS),
+      pending?.[PUBSUB_TYPE.CHANNELS]
+    ),
+    [PUBSUB_TYPE.PATTERNS]: mergePubSubTypeListeners(
+      pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.PATTERNS),
+      pending?.[PUBSUB_TYPE.PATTERNS]
+    )
+  };
+}
+
 export function groupCommandsByDestination<
   M extends RedisModules,
   F extends RedisFunctions,
@@ -263,6 +283,8 @@ export default class RedisClusterSlots<
   masters = new Array<MasterNode<M, F, S, RESP, TYPE_MAPPING>>();
   replicas = new Array<ShardNode<M, F, S, RESP, TYPE_MAPPING>>();
   readonly nodeByAddress = new Map<string, MasterNode<M, F, S, RESP, TYPE_MAPPING> | ShardNode<M, F, S, RESP, TYPE_MAPPING>>();
+  // Nodes dropped from the topology; fan-out may still hold them and must not reconnect.
+  readonly #retiredNodes = new WeakSet<ShardNode<M, F, S, RESP, TYPE_MAPPING>>();
   pubSubNode?: PubSubNode<M, F, S, RESP, TYPE_MAPPING>;
   clientSideCache?: PooledClientSideCacheProvider;
   /**
@@ -411,28 +433,20 @@ export default class RedisClusterSlots<
       }
 
       if (this.pubSubNode && !addressesInUse.has(this.pubSubNode.address)) {
-        const pending = this.pubSubNode.pendingToResubscribe;
         // Include pendingToResubscribe: listeners are only applied after connect,
         // so a second rediscover while still connecting must not drop them.
-        const channelsListeners = mergePubSubTypeListeners(
-          this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.CHANNELS),
-          pending?.[PUBSUB_TYPE.CHANNELS]
-        );
-        const patternsListeners = mergePubSubTypeListeners(
-          this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.PATTERNS),
-          pending?.[PUBSUB_TYPE.PATTERNS]
-        );
+        const toResubscribe = pubSubNodeListenersToCarry(this.pubSubNode);
 
         this.#reconnectionTracker.removeClient(this.pubSubNode.client._clientId);
         this.pubSubNode.client.destroy();
         this.pubSubNode = undefined;
 
-        if (channelsListeners.size || patternsListeners.size) {
+        if (
+          toResubscribe[PUBSUB_TYPE.CHANNELS].size ||
+          toResubscribe[PUBSUB_TYPE.PATTERNS].size
+        ) {
           // Do not await — an unreachable pub/sub target must not block topology install.
-          this.#initiatePubSubClient({
-            [PUBSUB_TYPE.CHANNELS]: channelsListeners,
-            [PUBSUB_TYPE.PATTERNS]: patternsListeners
-          }).catch(err => {
+          this.#initiatePubSubClient(toResubscribe).catch(err => {
             if (err instanceof ClientClosedError && this.#isOpen) return;
             if (this.#isOpen) this.#emit('error', err);
           });
@@ -466,7 +480,13 @@ export default class RedisClusterSlots<
           (node as MasterNode<M, F, S, RESP, TYPE_MAPPING>).pubSub = undefined;
         }
 
-        if (!inUse) this.nodeByAddress.delete(address);
+        if (!inUse) {
+          // Drop in-flight connect state and retire the handle so a fan-out
+          // still holding this object cannot reconnect or resolve undefined.
+          node.connectPromise = undefined;
+          this.#retiredNodes.add(node);
+          this.nodeByAddress.delete(address);
+        }
       }
 
       // Slot map is installed; node/pubsub connects run in the background so an
@@ -688,16 +708,14 @@ export default class RedisClusterSlots<
           // Handle pubSubNode replacement BEFORE destroying source connections
           // This ensures subscriptions are resubscribed on a new node before the old connection is lost
           if (this.pubSubNode?.address === sourceAddress) {
-            const channelsListeners = this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.CHANNELS),
-              patternsListeners = this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.PATTERNS);
-
+            const toResubscribe = pubSubNodeListenersToCarry(this.pubSubNode);
             const oldPubSubClient = this.pubSubNode.client;
 
-            if (channelsListeners.size || patternsListeners.size) {
-              await this.#initiatePubSubClient({
-                [PUBSUB_TYPE.CHANNELS]: channelsListeners,
-                [PUBSUB_TYPE.PATTERNS]: patternsListeners
-              });
+            if (
+              toResubscribe[PUBSUB_TYPE.CHANNELS].size ||
+              toResubscribe[PUBSUB_TYPE.PATTERNS].size
+            ) {
+              await this.#initiatePubSubClient(toResubscribe);
             } else {
               this.pubSubNode = undefined;
             }
@@ -930,17 +948,33 @@ export default class RedisClusterSlots<
   }
 
   nodeClient(node: ShardNode<M, F, S, RESP, TYPE_MAPPING>): Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {
+    if (this.#retiredNodes.has(node)) {
+      return Promise.reject(new ClientClosedError());
+    }
+
     if (!node.client) this.#startNodeClientInBackground(node);
 
     // With disableOfflineQueue, commands cannot wait in the offline queue while
     // the socket is connecting — wait for connect() instead.
-    if (node.connectPromise && this.#options.defaults?.disableOfflineQueue === true) {
+    // Also wait when the client was cleared mid-connect so we never resolve
+    // `undefined` into fan-out remapping.
+    if (
+      node.connectPromise &&
+      (
+        !node.client ||
+        this.#options.defaults?.disableOfflineQueue === true
+      )
+    ) {
       return node.connectPromise;
     }
 
-    // Otherwise return the client while connect() is still in flight so commands
-    // enter the offline queue and honor commandOptions.timeout.
-    return Promise.resolve(node.client!);
+    if (!node.client) {
+      return Promise.reject(new ClientClosedError());
+    }
+
+    // Return the client while connect() is still in flight so commands enter
+    // the offline queue and honor commandOptions.timeout.
+    return Promise.resolve(node.client);
   }
 
   #runningRediscoverPromise?: Promise<void>;
@@ -1078,7 +1112,19 @@ export default class RedisClusterSlots<
     };
 
     if (this.pubSubNode) {
+      // Capture listeners still waiting on connect before draining the client.
+      const pending = this.pubSubNode.pendingToResubscribe;
       drain(this.pubSubNode.client);
+      if (pending) {
+        merged[PUBSUB_TYPE.CHANNELS] = mergePubSubTypeListeners(
+          merged[PUBSUB_TYPE.CHANNELS],
+          pending[PUBSUB_TYPE.CHANNELS]
+        );
+        merged[PUBSUB_TYPE.PATTERNS] = mergePubSubTypeListeners(
+          merged[PUBSUB_TYPE.PATTERNS],
+          pending[PUBSUB_TYPE.PATTERNS]
+        );
+      }
       // server-side subscriber state is per-connection: destroy the drained
       // connection or the server keeps pushing every publish to a client with
       // zero listeners; a later subscribe recreates the node lazily

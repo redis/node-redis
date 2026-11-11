@@ -643,6 +643,37 @@ describe('RedisClusterSlots', () => {
       }
     });
 
+    it('nodeClient rejects a stale node removed by rediscover', async function () {
+      this.timeout(10000);
+      let includeDead = true;
+      const live = await startLiveMaster(() => includeDead);
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: live.port } }],
+        defaults: {
+          socket: { reconnectStrategy: 50, connectTimeout: 200 },
+          disableClientInfo: true,
+          commandOptions: { timeout: 300 }
+        },
+        minimizeConnections: false,
+        RESP: 2 as const,
+      }, () => true, 'test-cluster');
+
+      try {
+        await slots.connect();
+        const staleDead = slots.slots[8192].master;
+        assert.equal(staleDead.port, 1);
+
+        includeDead = false;
+        await slots.rediscover();
+
+        await assert.rejects(slots.nodeClient(staleDead), ClientClosedError);
+        await (await slots.nodeClient(slots.slots[8192].master)).ping();
+      } finally {
+        slots.destroy();
+        await live.close();
+      }
+    });
+
     it('nodeClient waits for connect when disableOfflineQueue is set', async function () {
       this.timeout(10000);
       let includeDead = false;
