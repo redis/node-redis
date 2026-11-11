@@ -868,8 +868,9 @@ export default class RedisClient<
       try {
         this.#queue.decoder.write(chunk);
       } catch (err) {
+        // the replies left in the stream can't be matched to their commands anymore
         this.#queue.resetDecoder();
-        this.emit('error', err);
+        socket.failConnection(err as Error);
       }
     })
     .on('error', err => {

@@ -1130,6 +1130,45 @@ describe('Client', () => {
     }, GLOBAL.SERVERS.OPEN);
   });
 
+  describe('a reply the decoder cannot parse', () => {
+    it('rejects the pending command and reconnects instead of shifting later replies', async () => {
+      let connections = 0,
+        corruptNextReply = false;
+      const server = net.createServer(socket => {
+        connections++;
+        socket.on('data', (chunk: Buffer) => {
+          // "D" is not a RESP type, like a byte corrupted in transit
+          const prefix = corruptNextReply ? 'D' : '';
+          corruptNextReply = false;
+          socket.write(prefix + '+OK\r\n'.repeat(countRespCommands(chunk)));
+        });
+      });
+      const port = await getFreePortNumber();
+      await once(server.listen(port), 'listening');
+
+      const client = createClient({
+        socket: { host: '127.0.0.1', port }
+      });
+      client.on('error', () => {});
+
+      try {
+        await client.connect();
+
+        corruptNextReply = true;
+        const first = client.ping();
+        await once(client, 'error');
+        const second = client.ping();
+
+        await assert.rejects(first, /Unknown RESP type 68 "D"/);
+        assert.equal(await second, 'OK');
+        assert.equal(connections, 2);
+      } finally {
+        client.destroy();
+        server.close();
+      }
+    });
+  });
+
   describe("socket errors during handshake", () => {
 
     it("should successfully connect when server accepts connection immediately", async () => {
@@ -1232,4 +1271,16 @@ async function blockSetImmediate(fn: () => Promise<unknown>) {
       setImmediateStub.restore();
     }
   }
+}
+
+function countRespCommands(chunk: Buffer): number {
+  let commands = 0;
+
+  for (let i = 0; i < chunk.length; i++) {
+    if (chunk[i] === 42 && (i === 0 || chunk[i - 1] === 10)) {
+      commands++;
+    }
+  }
+
+  return commands;
 }
