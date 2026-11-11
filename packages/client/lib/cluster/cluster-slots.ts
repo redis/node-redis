@@ -1938,11 +1938,18 @@ export default class RedisClusterSlots<
 
     const { master } = this.slots[calculateSlot(channel)];
     if (!master.pubSub) return this.#initiateShardedPubSubClient(master);
-    return master.pubSub.connectPromise ?? Promise.resolve(master.pubSub.client);
+    if (master.pubSub.connectPromise) {
+      // Bound the wait: an unreachable slot owner must not hang SSUBSCRIBE
+      // under a retrying reconnectStrategy.
+      return this.#awaitConnectWithTimeout(master.pubSub.connectPromise);
+    }
+    return Promise.resolve(master.pubSub.client);
   }
 
   async #initiateShardedPubSubClient(master: MasterNode<M, F, S, RESP, TYPE_MAPPING>) {
-    const client = this.#createClient(master, false);
+    // Fail fast like dedicated pub/sub — sharded ownership is fixed to this
+    // master, so an unreachable owner must reject instead of reconnect forever.
+    const client = this.#createClient(master, false, { reconnectStrategy: false });
 
     client.on('sharded-channel-moved', async (channel, listeners) => {
       const maxCommandRedirections = this.#options.maxCommandRedirections ?? 16;
@@ -1987,10 +1994,12 @@ export default class RedisClusterSlots<
         if (master.pubSub === pubSub) {
           master.pubSub = undefined;
         }
+        this.#reconnectionTracker.removeClient(client._clientId);
+        client.destroy();
         throw err;
       });
 
-    return pubSub.connectPromise;
+    return this.#awaitConnectWithTimeout(pubSub.connectPromise);
   }
 
 

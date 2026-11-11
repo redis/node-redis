@@ -679,6 +679,34 @@ describe('RedisClusterSlots', () => {
       }
     });
 
+    it('getShardedPubSubClient fails fast on an unreachable slot owner', async function () {
+      this.timeout(15000);
+      let includeDead = true;
+      const live = await startLiveMaster(() => includeDead);
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: live.port } }],
+        defaults: {
+          socket: { reconnectStrategy: 50, connectTimeout: 200 },
+          disableClientInfo: true,
+        },
+        minimizeConnections: false,
+        RESP: 2 as const,
+      }, () => true, 'test-cluster');
+
+      try {
+        await slots.connect();
+        // "dead" hashes to slot 14209, owned by the unreachable master.
+        assert.equal(slots.slots[14209].master.port, 1);
+
+        const started = Date.now();
+        await assert.rejects(slots.getShardedPubSubClient('dead'));
+        assert.ok(Date.now() - started < 2000, 'sharded pub/sub must not hang on a dead slot owner');
+      } finally {
+        slots.destroy();
+        await live.close();
+      }
+    });
+
     it('getPubSubClient recreates after a dedicated pub/sub client drops', async function () {
       this.timeout(15000);
       let includeDead = false;
