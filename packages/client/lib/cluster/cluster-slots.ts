@@ -572,9 +572,16 @@ export default class RedisClusterSlots<
                 })
               ]);
             } catch (err) {
-              // Drop the never-ready ghost so fan-out / getRandomNode cannot
-              // keep sampling a permanently reconnecting migration target.
-              this.#discardNode(destMasterNode);
+              // Drop the never-ready ghost only if a concurrent topology refresh
+              // has not already installed this node into the slot map — otherwise
+              // #discardNode leaves those slots pointing at a retired handle.
+              const installedInSlots = this.slots.some(shard =>
+                shard?.master === destMasterNode ||
+                shard?.replicas?.includes(destMasterNode)
+              );
+              if (!installedInSlots) {
+                this.#discardNode(destMasterNode);
+              }
               throw err;
             } finally {
               if (timeoutId !== undefined) clearTimeout(timeoutId);
@@ -985,9 +992,12 @@ export default class RedisClusterSlots<
   }
 
   #connectTimeoutMs() {
-    return typeof this.#options.defaults?.socket?.connectTimeout === 'number'
-      ? this.#options.defaults.socket.connectTimeout
-      : 5000;
+    const timeout = this.#options.defaults?.socket?.connectTimeout;
+    // 0 disables the socket timer — do not treat it as a 0ms cluster deadline.
+    if (typeof timeout === 'number' && timeout > 0) {
+      return timeout;
+    }
+    return 5000;
   }
 
   #awaitConnectWithTimeout(
@@ -1778,6 +1788,16 @@ export default class RedisClusterSlots<
           throw new ClientClosedError();
         }
 
+        // Attach before resubscribe so a drop during extendPubSubListeners is
+        // observed (reconnectStrategy is false — no automatic reconnect).
+        client.once('end', () => {
+          if (!this.#isOpen || this.pubSubNode !== pubSubNode) return;
+          this.#recreatePubSubClient().catch(err => {
+            if (err instanceof ClientClosedError && this.#isOpen) return;
+            if (this.#isOpen) this.#emit('error', err);
+          });
+        });
+
         if (toResubscribe || previousClient) {
           // Re-read previousClient so an UNSUBSCRIBE that completed while we
           // waited to connect is not silently resurrected from the snapshot.
@@ -1805,19 +1825,11 @@ export default class RedisClusterSlots<
           pubSubNode.pendingToResubscribe = undefined;
         }
 
-        // reconnectStrategy is false: recreate on unexpected drop.
-        client.once('end', () => {
-          if (!this.#isOpen || this.pubSubNode !== pubSubNode) return;
-          this.#recreatePubSubClient().catch(err => {
-            if (err instanceof ClientClosedError && this.#isOpen) return;
-            if (this.#isOpen) this.#emit('error', err);
-          });
-        });
-
         pubSubNode.connectPromise = undefined;
         return client;
       })
       .catch(err => {
+        // Clear before destroy so an `end` handler (if already attached) no-ops.
         if (this.pubSubNode === pubSubNode) {
           this.pubSubNode = undefined;
         }
