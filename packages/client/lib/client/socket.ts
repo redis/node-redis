@@ -525,6 +525,14 @@ export default class RedisSocket extends EventEmitter {
     this.emit('end');
   }
 
+  /**
+   * Destroys the current connection with `err`, which then goes through the
+   * same error and reconnect handling as a socket error.
+   */
+  failConnection(err: Error) {
+    this.#socket?.destroy(err);
+  }
+
   ref() {
     this.#isSocketUnrefed = false;
     this.#socket?.ref();
