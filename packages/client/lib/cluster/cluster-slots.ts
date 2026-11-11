@@ -436,10 +436,13 @@ export default class RedisClusterSlots<
         // Include pendingToResubscribe: listeners are only applied after connect,
         // so a second rediscover while still connecting must not drop them.
         const toResubscribe = pubSubNodeListenersToCarry(this.pubSubNode);
+        const dying = this.pubSubNode;
 
-        this.#reconnectionTracker.removeClient(this.pubSubNode.client._clientId);
-        this.pubSubNode.client.destroy();
+        // Clear before destroy so the dedicated pub/sub `end` handler does not
+        // treat this intentional teardown as an unexpected drop.
         this.pubSubNode = undefined;
+        this.#reconnectionTracker.removeClient(dying.client._clientId);
+        dying.client.destroy();
 
         if (
           toResubscribe[PUBSUB_TYPE.CHANNELS].size ||
@@ -708,16 +711,20 @@ export default class RedisClusterSlots<
           // Handle pubSubNode replacement BEFORE destroying source connections
           // This ensures subscriptions are resubscribed on a new node before the old connection is lost
           if (this.pubSubNode?.address === sourceAddress) {
-            const toResubscribe = pubSubNodeListenersToCarry(this.pubSubNode);
             const oldPubSubClient = this.pubSubNode.client;
+            // Pending-only: live maps are re-read from oldPubSubClient at apply
+            // time so an UNSUBSCRIBE that completes during the wait is not revived.
+            const pendingOnly = this.pubSubNode.pendingToResubscribe;
+            const hasListeners =
+              oldPubSubClient.getPubSubListeners(PUBSUB_TYPE.CHANNELS).size > 0 ||
+              oldPubSubClient.getPubSubListeners(PUBSUB_TYPE.PATTERNS).size > 0 ||
+              (pendingOnly?.[PUBSUB_TYPE.CHANNELS]?.size ?? 0) > 0 ||
+              (pendingOnly?.[PUBSUB_TYPE.PATTERNS]?.size ?? 0) > 0;
 
-            if (
-              toResubscribe[PUBSUB_TYPE.CHANNELS].size ||
-              toResubscribe[PUBSUB_TYPE.PATTERNS].size
-            ) {
-              await this.#initiatePubSubClient(toResubscribe);
-            } else {
-              this.pubSubNode = undefined;
+            this.pubSubNode = undefined;
+
+            if (hasListeners) {
+              await this.#initiatePubSubClient(pendingOnly, oldPubSubClient);
             }
 
             this.#reconnectionTracker.removeClient(oldPubSubClient._clientId);
@@ -1121,7 +1128,8 @@ export default class RedisClusterSlots<
     if (this.pubSubNode) {
       // Capture listeners still waiting on connect before draining the client.
       const pending = this.pubSubNode.pendingToResubscribe;
-      drain(this.pubSubNode.client);
+      const dying = this.pubSubNode;
+      drain(dying.client);
       if (pending) {
         merged[PUBSUB_TYPE.CHANNELS] = mergePubSubTypeListeners(
           merged[PUBSUB_TYPE.CHANNELS],
@@ -1132,12 +1140,13 @@ export default class RedisClusterSlots<
           pending[PUBSUB_TYPE.PATTERNS]
         );
       }
+      // Clear before destroy so the dedicated pub/sub `end` handler no-ops.
+      this.pubSubNode = undefined;
       // server-side subscriber state is per-connection: destroy the drained
       // connection or the server keeps pushing every publish to a client with
       // zero listeners; a later subscribe recreates the node lazily
-      this.#reconnectionTracker.removeClient(this.pubSubNode.client._clientId);
-      this.pubSubNode.client.destroy();
-      this.pubSubNode = undefined;
+      this.#reconnectionTracker.removeClient(dying.client._clientId);
+      dying.client.destroy();
     }
     for (const master of this.masters) {
       if (master.pubSub) {
@@ -1170,11 +1179,16 @@ export default class RedisClusterSlots<
         if (this.masters.length === 0) {
           promises.push(Promise.reject(new Error('cannot adopt pub/sub listeners: no known cluster nodes')));
         } else {
-          // sync side-effect: assigns this.pubSubNode with a connecting client
-          promises.push(this.#initiatePubSubClient());
+          // Pass listeners as toResubscribe so a failed first pick still carries
+          // them when #initiatePubSubClient retries on another shard. Assigns
+          // pubSubNode (+ pendingToResubscribe) synchronously for mid-adoption
+          // removeAllPubSubListeners visibility.
+          promises.push(this.#initiatePubSubClient({
+            [PUBSUB_TYPE.CHANNELS]: channels,
+            [PUBSUB_TYPE.PATTERNS]: patterns
+          }));
         }
-      }
-      if (this.pubSubNode) {
+      } else {
         promises.push(
           this.pubSubNode.client.extendPubSubListeners(PUBSUB_TYPE.CHANNELS, channels),
           this.pubSubNode.client.extendPubSubListeners(PUBSUB_TYPE.PATTERNS, patterns)
@@ -1213,8 +1227,9 @@ export default class RedisClusterSlots<
     }
 
     if (this.pubSubNode) {
-      this.pubSubNode.client.destroy();
+      const dying = this.pubSubNode;
       this.pubSubNode = undefined;
+      dying.client.destroy();
     }
 
     this.#resetSlots();
@@ -1372,6 +1387,21 @@ export default class RedisClusterSlots<
     this.#assertReady();
 
     this._randomNodeIterator ??= this.#iterateAllNodes();
+
+    // Prefer ready shards so keyless commands do not land on a never-ready
+    // master still listed after non-blocking discover.
+    const poolSize = this.masters.length + this.replicas.length;
+    const hasReady =
+      this.masters.some(node => node.client?.isReady) ||
+      this.replicas.some(node => node.client?.isReady);
+    const maxAttempts = Math.max(1, poolSize) * 2;
+    for (let i = 0; i < maxAttempts; i++) {
+      const node = this._randomNodeIterator.next().value as ShardNode<M, F, S, RESP, TYPE_MAPPING>;
+      if (!hasReady || node.client?.isReady) {
+        return node;
+      }
+    }
+
     return this._randomNodeIterator.next().value as ShardNode<M, F, S, RESP, TYPE_MAPPING>;
   }
 
@@ -1499,7 +1529,32 @@ export default class RedisClusterSlots<
 
     if (!this.pubSubNode) return this.#initiatePubSubClient();
 
+    // Dedicated pub/sub uses reconnectStrategy: false (fail-fast on pick). A
+    // later drop terminates the client; recreate with carried listeners.
+    if (!this.pubSubNode.client.isOpen && !this.pubSubNode.connectPromise) {
+      return this.#recreatePubSubClient();
+    }
+
     return this.pubSubNode.connectPromise ?? Promise.resolve(this.pubSubNode.client);
+  }
+
+  #recreatePubSubClient(): Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {
+    const dying = this.pubSubNode;
+    if (!dying) return this.#initiatePubSubClient();
+
+    const toResubscribe = pubSubNodeListenersToCarry(dying);
+    this.pubSubNode = undefined;
+    this.#reconnectionTracker.removeClient(dying.client._clientId);
+    dying.client.destroy();
+
+    if (
+      toResubscribe[PUBSUB_TYPE.CHANNELS].size ||
+      toResubscribe[PUBSUB_TYPE.PATTERNS].size
+    ) {
+      return this.#initiatePubSubClient(toResubscribe);
+    }
+
+    return this.#initiatePubSubClient();
   }
 
   #pickPubSubTarget(exclude: ReadonlySet<string>) {
@@ -1514,7 +1569,10 @@ export default class RedisClusterSlots<
     return pool[Math.floor(Math.random() * pool.length)];
   }
 
-  async #initiatePubSubClient(toResubscribe?: PubSubToResubscribe) {
+  async #initiatePubSubClient(
+    toResubscribe?: PubSubToResubscribe,
+    previousClient?: RedisClientType<M, F, S, RESP, TYPE_MAPPING>
+  ) {
     const tried = new Set<string>();
     let lastError: unknown;
 
@@ -1526,11 +1584,16 @@ export default class RedisClusterSlots<
       tried.add(node.address);
 
       try {
-        return await this.#connectPubSubClientOn(node, toResubscribe);
+        return await this.#connectPubSubClientOn(node, toResubscribe, previousClient);
       } catch (err) {
         lastError = err;
-        if (err instanceof ClientClosedError && !this.#isOpen) {
-          throw err;
+        if (err instanceof ClientClosedError) {
+          if (!this.#isOpen) throw err;
+          // Superseded by another initiate/rediscover — join the winner instead
+          // of overwriting pubSubNode and stealing its listeners.
+          if (this.pubSubNode) {
+            return this.pubSubNode.connectPromise ?? this.pubSubNode.client;
+          }
         }
         // Try another shard — an unreachable pick must not block pub/sub forever.
       }
@@ -1541,16 +1604,33 @@ export default class RedisClusterSlots<
 
   #connectPubSubClientOn(
     node: ShardNode<M, F, S, RESP, TYPE_MAPPING>,
-    toResubscribe?: PubSubToResubscribe
+    toResubscribe?: PubSubToResubscribe,
+    previousClient?: RedisClientType<M, F, S, RESP, TYPE_MAPPING>
   ) {
     // Fail this attempt quickly so we can fall back to another shard instead of
     // retrying forever under the default reconnectStrategy.
     const client = this.#createClient(node, false, { reconnectStrategy: false });
 
+    // When replacing an still-open previous client (SMIGRATED), seed pending with
+    // a live+pending merge so a mid-connect rediscover does not drop listeners.
+    // Apply-time re-reads previousClient so concurrent UNSUBSCRIBE wins.
+    const pendingToResubscribe = previousClient
+      ? {
+          [PUBSUB_TYPE.CHANNELS]: mergePubSubTypeListeners(
+            previousClient.getPubSubListeners(PUBSUB_TYPE.CHANNELS),
+            toResubscribe?.[PUBSUB_TYPE.CHANNELS]
+          ),
+          [PUBSUB_TYPE.PATTERNS]: mergePubSubTypeListeners(
+            previousClient.getPubSubListeners(PUBSUB_TYPE.PATTERNS),
+            toResubscribe?.[PUBSUB_TYPE.PATTERNS]
+          )
+        }
+      : toResubscribe;
+
     const pubSubNode: PubSubNode<M, F, S, RESP, TYPE_MAPPING> = {
       address: node.address,
       client,
-      pendingToResubscribe: toResubscribe
+      pendingToResubscribe
     };
 
     this.pubSubNode = pubSubNode;
@@ -1562,11 +1642,24 @@ export default class RedisClusterSlots<
           throw new ClientClosedError();
         }
 
-        if (toResubscribe) {
-          await Promise.all([
-            client.extendPubSubListeners(PUBSUB_TYPE.CHANNELS, toResubscribe[PUBSUB_TYPE.CHANNELS]),
-            client.extendPubSubListeners(PUBSUB_TYPE.PATTERNS, toResubscribe[PUBSUB_TYPE.PATTERNS])
-          ]);
+        if (toResubscribe || previousClient) {
+          // Re-read previousClient so an UNSUBSCRIBE that completed while we
+          // waited to connect is not silently resurrected from the snapshot.
+          const channels = mergePubSubTypeListeners(
+            previousClient?.getPubSubListeners(PUBSUB_TYPE.CHANNELS),
+            toResubscribe?.[PUBSUB_TYPE.CHANNELS]
+          );
+          const patterns = mergePubSubTypeListeners(
+            previousClient?.getPubSubListeners(PUBSUB_TYPE.PATTERNS),
+            toResubscribe?.[PUBSUB_TYPE.PATTERNS]
+          );
+
+          if (channels.size || patterns.size) {
+            await Promise.all([
+              client.extendPubSubListeners(PUBSUB_TYPE.CHANNELS, channels),
+              client.extendPubSubListeners(PUBSUB_TYPE.PATTERNS, patterns)
+            ]);
+          }
 
           if (this.pubSubNode !== pubSubNode) {
             client.destroy();
@@ -1575,6 +1668,15 @@ export default class RedisClusterSlots<
 
           pubSubNode.pendingToResubscribe = undefined;
         }
+
+        // reconnectStrategy is false: recreate on unexpected drop.
+        client.once('end', () => {
+          if (!this.#isOpen || this.pubSubNode !== pubSubNode) return;
+          this.#recreatePubSubClient().catch(err => {
+            if (err instanceof ClientClosedError && this.#isOpen) return;
+            if (this.#isOpen) this.#emit('error', err);
+          });
+        });
 
         pubSubNode.connectPromise = undefined;
         return client;
@@ -1599,8 +1701,9 @@ export default class RedisClusterSlots<
 
     if (!client.isPubSubActive) {
       this.#reconnectionTracker.removeClient(client._clientId);
-      client.destroy();
+      // Clear before destroy so the dedicated pub/sub `end` handler no-ops.
       this.pubSubNode = undefined;
+      client.destroy();
     }
   }
 

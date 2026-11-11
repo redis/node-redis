@@ -679,6 +679,76 @@ describe('RedisClusterSlots', () => {
       }
     });
 
+    it('getPubSubClient recreates after a dedicated pub/sub client drops', async function () {
+      this.timeout(15000);
+      let includeDead = false;
+      const live = await startLiveMaster(() => includeDead);
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: live.port } }],
+        defaults: {
+          socket: { reconnectStrategy: false, connectTimeout: 500 },
+          disableClientInfo: true,
+        },
+        minimizeConnections: true,
+        RESP: 2 as const,
+      }, () => true, 'test-cluster');
+
+      try {
+        await slots.connect();
+        const first = await slots.getPubSubClient();
+        assert.equal(first.isReady, true);
+
+        // Simulate an unexpected drop with reconnectStrategy: false.
+        first.destroy();
+        for (let i = 0; i < 50 && slots.pubSubNode?.client === first; i++) {
+          await new Promise(resolve => setTimeout(resolve, 20));
+        }
+
+        const second = await slots.getPubSubClient();
+        assert.notEqual(second, first, 'must not keep returning the destroyed pub/sub client');
+        assert.equal(second.isReady, true);
+        assert.equal(second.isOpen, true);
+      } finally {
+        slots.destroy();
+        await live.close();
+      }
+    });
+
+    it('getRandomNode prefers a ready master over a never-ready one', async function () {
+      this.timeout(15000);
+      let includeDead = true;
+      const live = await startLiveMaster(() => includeDead);
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: live.port } }],
+        defaults: {
+          socket: { reconnectStrategy: 50, connectTimeout: 200 },
+          disableClientInfo: true,
+          commandOptions: { timeout: 300 }
+        },
+        minimizeConnections: false,
+        RESP: 2 as const,
+      }, () => true, 'test-cluster');
+
+      try {
+        await slots.connect();
+        const liveNode = slots.slots[0].master;
+        await slots.nodeClient(liveNode);
+        for (let i = 0; i < 50 && !liveNode.client?.isReady; i++) {
+          await new Promise(resolve => setTimeout(resolve, 20));
+        }
+        assert.equal(liveNode.client?.isReady, true);
+
+        for (let i = 0; i < 8; i++) {
+          const node = slots.getRandomNode();
+          assert.equal(node.client?.isReady, true, 'keyless routing must prefer ready masters');
+          assert.equal(node.address, liveNode.address);
+        }
+      } finally {
+        slots.destroy();
+        await live.close();
+      }
+    });
+
     it('nodeClient rejects a stale node removed by rediscover', async function () {
       this.timeout(10000);
       let includeDead = true;
