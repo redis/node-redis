@@ -1,6 +1,14 @@
 import assert from 'node:assert';
-import RedisCommandsQueue from './commands-queue';
-import { AbortError, CommandTimeoutDuringMaintenanceError, DisconnectsClientError, TimeoutError } from '../errors';
+import RedisCommandsQueue, { pickBatchOptions } from './commands-queue';
+import {
+  AbortError,
+  AbortReadError,
+  CommandTimeoutDuringMaintenanceError,
+  CommandTimeoutReadDuringMaintenanceError,
+  DisconnectsClientError,
+  TimeoutError,
+  TimeoutReadError
+} from '../errors';
 import { PUBSUB_TYPE } from './pub-sub';
 import { useFakeTimers } from 'sinon';
 
@@ -302,6 +310,15 @@ describe('RedisCommandsQueue', () => {
 
       await assert.rejects(promise, RangeError);
       assert.strictEqual(queue.extractAllCommands().length, 0);
+    });
+
+    it('names the timeout when a queued command times out', async () => {
+      const queue = createQueue();
+
+      await assert.rejects(
+        queue.addCommand(['GET', 'k'], { timeout: 10 }),
+        (err: Error) => err instanceof TimeoutError && /10ms/.test(err.message)
+      );
     });
   });
 
@@ -1218,6 +1235,400 @@ describe('RedisCommandsQueue', () => {
       await unsubscribed;
 
       assert.deepStrictEqual(await monitorOneLine(queue), ['1 [0 127.0.0.1:1] "PING"']);
+    });
+  });
+
+  describe('rejectInFlight', () => {
+    function track(promise: Promise<unknown>) {
+      const state: { status: 'pending' | 'resolved' | 'rejected', value?: unknown, error?: Error } = { status: 'pending' };
+      promise.then(
+        value => Object.assign(state, { status: 'resolved', value }),
+        error => Object.assign(state, { status: 'rejected', error })
+      );
+      return state;
+    }
+
+    function drain(queue: RedisCommandsQueue) {
+      return [...queue.commandsToWrite()].map(chunks => chunks.join('')).join('');
+    }
+
+    function assertRejected(state: ReturnType<typeof track>, type: new (...args: never[]) => Error, message?: RegExp) {
+      assert.strictEqual(state.status, 'rejected');
+      assert.strictEqual(state.error?.constructor, type);
+      if (message) assert.match(state.error!.message, message);
+    }
+
+    describe('timeout', () => {
+      it('rejects a written command and drops its late reply', async () => {
+        const queue = createQueue();
+        const a = track(queue.addCommand(['GET', 'a'], { timeout: 20, rejectInFlight: true }));
+        const b = queue.addCommand(['GET', 'b']);
+        drain(queue);
+
+        await wait(40);
+        assertRejected(a, TimeoutReadError, /20ms/);
+
+        queue.decoder.write(Buffer.from('$1\r\n1\r\n$1\r\n2\r\n'));
+        assert.strictEqual(await b, '2');
+      });
+
+      it('has no effect on a written command without the flag', async () => {
+        const queue = createQueue();
+        const a = track(queue.addCommand(['GET', 'a'], { timeout: 20 }));
+        drain(queue);
+
+        await wait(40);
+        assert.strictEqual(a.status, 'pending');
+
+        queue.decoder.write(Buffer.from('$1\r\n1\r\n'));
+        await wait(0);
+        assert.deepStrictEqual(a, { status: 'resolved', value: '1' });
+      });
+
+      it('rejects a queued command with TimeoutError and never writes it', async () => {
+        const queue = createQueue();
+        const a = track(queue.addCommand(['GET', 'a'], { timeout: 20, rejectInFlight: true }));
+
+        await wait(40);
+        assertRejected(a, TimeoutError);
+        assert.strictEqual(drain(queue), '');
+      });
+
+      it('leaves the write queue intact', async () => {
+        const queue = createQueue();
+        const a = track(queue.addCommand(['GET', 'a'], { timeout: 20, rejectInFlight: true }));
+        queue.addCommand(['GET', 'c']).catch(() => {});
+        queue.addCommand(['GET', 'd']).catch(() => {});
+        const toWrite = queue.commandsToWrite();
+        toWrite.next();
+
+        await wait(40);
+        assertRejected(a, TimeoutReadError);
+        assert.deepStrictEqual(
+          [...toWrite].map(chunks => chunks.join('')),
+          ['*2\r\n$3\r\nGET\r\n$1\r\nc\r\n', '*2\r\n$3\r\nGET\r\n$1\r\nd\r\n']
+        );
+      });
+
+      it('stops the timer when the reply arrives', async () => {
+        const queue = createQueue();
+        const a = track(queue.addCommand(['GET', 'a'], { timeout: 20, rejectInFlight: true }));
+        drain(queue);
+        queue.decoder.write(Buffer.from('$1\r\n1\r\n'));
+
+        await wait(40);
+        assert.deepStrictEqual(a, { status: 'resolved', value: '1' });
+        assert.strictEqual(queue.isEmpty(), true);
+      });
+
+      it('keeps the read error when the read queue is flushed', async () => {
+        const queue = createQueue();
+        const a = track(queue.addCommand(['GET', 'a'], { timeout: 20, rejectInFlight: true }));
+        drain(queue);
+        await wait(40);
+
+        queue.flushWaitingForReply(new Error('closed'));
+        await wait(0);
+        assertRejected(a, TimeoutReadError);
+        assert.strictEqual(queue.isEmpty(), true);
+      });
+    });
+
+    describe('abort', () => {
+      it('rejects a written command and drops its late reply', async () => {
+        const queue = createQueue();
+        const controller = new AbortController();
+        const a = track(queue.addCommand(['GET', 'a'], { abortSignal: controller.signal, rejectInFlight: true }));
+        const b = queue.addCommand(['GET', 'b']);
+        drain(queue);
+
+        controller.abort();
+        await wait(0);
+        assertRejected(a, AbortReadError);
+
+        queue.decoder.write(Buffer.from('$1\r\n1\r\n$1\r\n2\r\n'));
+        assert.strictEqual(await b, '2');
+      });
+
+      it('rejects a queued command with AbortError and never writes it', async () => {
+        const queue = createQueue();
+        const controller = new AbortController();
+        const a = track(queue.addCommand(['GET', 'a'], { abortSignal: controller.signal, rejectInFlight: true }));
+
+        controller.abort();
+        await wait(0);
+        assertRejected(a, AbortError);
+        assert.strictEqual(drain(queue), '');
+      });
+
+      it('removes its listener from a shared signal when the reply arrives', async () => {
+        const queue = createQueue();
+        const controller = new AbortController();
+        const { signal } = controller;
+        let added = 0, removed = 0;
+        const { addEventListener, removeEventListener } = signal;
+        signal.addEventListener = (...args: Parameters<AbortSignal['addEventListener']>) => {
+          added++;
+          addEventListener.apply(signal, args);
+        };
+        signal.removeEventListener = (...args: Parameters<AbortSignal['removeEventListener']>) => {
+          removed++;
+          removeEventListener.apply(signal, args);
+        };
+
+        const states = Array.from({ length: 100 }, (_, i) =>
+          track(queue.addCommand(['GET', `k${i}`], { abortSignal: signal, rejectInFlight: true }))
+        );
+        drain(queue);
+        queue.decoder.write(Buffer.from('+OK\r\n'.repeat(100)));
+        controller.abort();
+        await wait(0);
+
+        assert.ok(states.every(state => state.status === 'resolved'));
+        assert.strictEqual(added, 100);
+        assert.strictEqual(removed, 100);
+      });
+
+      it('read errors are not the errors of commands that were never sent', () => {
+        assert.strictEqual(new AbortReadError() instanceof AbortError, false);
+        assert.strictEqual(new TimeoutReadError(1) instanceof TimeoutError, false);
+      });
+    });
+
+    describe('blocking commands', () => {
+      it('are not timed out after they are written', async () => {
+        const queue = createQueue();
+        const a = track(queue.addCommand(['BLPOP', 'q', '0'], { timeout: 20, rejectInFlight: true }));
+        drain(queue);
+
+        await wait(40);
+        assert.strictEqual(a.status, 'pending');
+
+        queue.decoder.write(Buffer.from('*-1\r\n'));
+        await wait(0);
+        assert.deepStrictEqual(a, { status: 'resolved', value: null });
+      });
+
+      it('still time out while queued', async () => {
+        const queue = createQueue();
+        const a = track(queue.addCommand(['BLPOP', 'q', '0'], { timeout: 20, rejectInFlight: true }));
+
+        await wait(40);
+        assertRejected(a, TimeoutError);
+      });
+
+      it('can still be aborted after they are written', async () => {
+        const queue = createQueue();
+        const controller = new AbortController();
+        const a = track(queue.addCommand(['BLPOP', 'q', '0'], { abortSignal: controller.signal, rejectInFlight: true }));
+        drain(queue);
+
+        controller.abort();
+        await wait(0);
+        assertRejected(a, AbortReadError);
+      });
+
+      it('are recognized by a lower-case or Buffer name', async () => {
+        const queue = createQueue();
+        const states = [
+          track(queue.addCommand(['blpop', 'q', '0'], { timeout: 20, rejectInFlight: true })),
+          track(queue.addCommand([Buffer.from('BLPOP'), 'q', '0'], { timeout: 20, rejectInFlight: true }))
+        ];
+        drain(queue);
+
+        await wait(40);
+        assert.deepStrictEqual(states.map(state => state.status), ['pending', 'pending']);
+        queue.flushWaitingForReply(new Error('closed'));
+      });
+
+      it('include XREAD without BLOCK', async () => {
+        const queue = createQueue();
+        const a = track(queue.addCommand(['XREAD', 'STREAMS', 's', '0'], { timeout: 20, rejectInFlight: true }));
+        drain(queue);
+
+        await wait(40);
+        assert.strictEqual(a.status, 'pending');
+        queue.flushWaitingForReply(new Error('closed'));
+      });
+    });
+
+    describe('batches', () => {
+      const MULTI = [{ args: ['MULTI'] }, { args: ['SET', 'a', '1'] }, { args: ['EXEC'] }];
+      const REPLIES = '+OK\r\n+QUEUED\r\n*1\r\n+OK\r\n';
+
+      function addMulti(queue: RedisCommandsQueue, options: { timeout?: number, abortSignal?: AbortSignal } = {}) {
+        let cancelled = 0;
+        const states = queue.addBatch(MULTI, {
+          chainId: Symbol('MULTI Chain'),
+          rejectInFlight: true,
+          onCancel: () => cancelled++,
+          ...options
+        }).map(track);
+        return { states, cancelled: () => cancelled };
+      }
+
+      it('are removed with TimeoutError when nothing is written', async () => {
+        const queue = createQueue();
+        const { states, cancelled } = addMulti(queue, { timeout: 20 });
+
+        await wait(40);
+        states.forEach(state => assertRejected(state, TimeoutError));
+        assert.strictEqual(cancelled(), 1);
+        assert.strictEqual(drain(queue), '');
+      });
+
+      it('reject every command with TimeoutReadError once written', async () => {
+        const queue = createQueue();
+        const { states, cancelled } = addMulti(queue, { timeout: 20 });
+        const b = queue.addCommand(['GET', 'b']);
+        drain(queue);
+
+        await wait(40);
+        states.forEach(state => assertRejected(state, TimeoutReadError));
+        assert.strictEqual(cancelled(), 0);
+
+        queue.decoder.write(Buffer.from(`${REPLIES}$1\r\n2\r\n`));
+        assert.strictEqual(await b, '2');
+      });
+
+      it('are still written in full when only part was written', async () => {
+        const queue = createQueue();
+        const { states } = addMulti(queue, { timeout: 20 });
+        queue.commandsToWrite().next();
+
+        await wait(40);
+        states.forEach(state => assertRejected(state, TimeoutReadError));
+        assert.strictEqual(
+          drain(queue),
+          '*3\r\n$3\r\nSET\r\n$1\r\na\r\n$1\r\n1\r\n*1\r\n$4\r\nEXEC\r\n'
+        );
+      });
+
+      it('reject every command with AbortReadError when aborted after part was written', async () => {
+        const queue = createQueue();
+        const controller = new AbortController();
+        const { states } = addMulti(queue, { abortSignal: controller.signal });
+        queue.commandsToWrite().next();
+
+        controller.abort();
+        await wait(0);
+        states.forEach(state => assertRejected(state, AbortReadError));
+        assert.match(drain(queue), /SET.*EXEC/s);
+      });
+
+      it('stop the timer when the last reply arrives', async () => {
+        const queue = createQueue();
+        const { states } = addMulti(queue, { timeout: 20 });
+        drain(queue);
+        queue.decoder.write(Buffer.from(REPLIES));
+
+        await wait(40);
+        assert.deepStrictEqual(states.map(state => state.status), ['resolved', 'resolved', 'resolved']);
+      });
+
+      it('pick up the flag from the options', () => {
+        assert.deepStrictEqual(pickBatchOptions({ timeout: 5, rejectInFlight: true }), { timeout: 5, rejectInFlight: true });
+        assert.strictEqual('rejectInFlight' in pickBatchOptions({}), false);
+      });
+    });
+
+    describe('maintenance timeout', () => {
+      it('re-arms a written command', async () => {
+        const queue = createQueue();
+        const a = track(queue.addCommand(['GET', 'a'], { timeout: 20, rejectInFlight: true }));
+        drain(queue);
+        queue.setMaintenanceCommandTimeout(80);
+
+        await wait(40);
+        assert.strictEqual(a.status, 'pending');
+
+        await wait(80);
+        assertRejected(a, CommandTimeoutReadDuringMaintenanceError, /80ms/);
+        assert.ok(a.error instanceof TimeoutReadError);
+      });
+
+      describe('of a batch', () => {
+        const MULTI = [{ args: ['MULTI'] }, { args: ['SET', 'a', '1'] }, { args: ['EXEC'] }];
+
+        function addMulti(queue: RedisCommandsQueue, chainId = Symbol('MULTI Chain')) {
+          return queue.addBatch(MULTI, { chainId, timeout: 20, rejectInFlight: true }).map(track);
+        }
+
+        async function assertRelaxed(states: Array<ReturnType<typeof track>>) {
+          await wait(40);
+          states.forEach(state => assert.strictEqual(state.status, 'pending'));
+
+          await wait(80);
+          states.forEach(state => assertRejected(state, CommandTimeoutReadDuringMaintenanceError, /80ms/));
+        }
+
+        it('re-arms the timer after the first command got its reply', async () => {
+          const queue = createQueue();
+          const [multi, ...rest] = addMulti(queue);
+          drain(queue);
+          queue.decoder.write(Buffer.from('+OK\r\n'));
+          queue.setMaintenanceCommandTimeout(80);
+
+          await assertRelaxed(rest);
+          assert.strictEqual(multi.status, 'resolved');
+        });
+
+        it('re-arms the timer when only the first command was written and got its reply', async () => {
+          const queue = createQueue();
+          const [multi, ...rest] = addMulti(queue);
+          queue.commandsToWrite().next();
+          queue.decoder.write(Buffer.from('+OK\r\n'));
+          queue.setMaintenanceCommandTimeout(80);
+
+          await assertRelaxed(rest);
+          assert.strictEqual(multi.status, 'resolved');
+          assert.match(drain(queue), /^\*3\r\n\$3\r\nSET\r\n.*\*1\r\n\$4\r\nEXEC\r\n$/s);
+        });
+
+        it('re-arms the timer when its chain started before its first command was written', async () => {
+          const queue = createQueue();
+          const chainId = Symbol('MULTI Chain');
+          queue.addCommand(['ASKING'], { chainId });
+          const states = addMulti(queue, chainId);
+          queue.commandsToWrite().next();
+          queue.setMaintenanceCommandTimeout(80);
+
+          await assertRelaxed(states);
+        });
+      });
+
+      it('does not re-arm a command that already settled', async () => {
+        const queue = createQueue();
+        const a = track(queue.addCommand(['GET', 'a'], { timeout: 20, rejectInFlight: true }));
+        drain(queue);
+        queue.decoder.write(Buffer.from('+OK\r\n'));
+        queue.setMaintenanceCommandTimeout(10);
+
+        await wait(30);
+        assert.strictEqual(a.status, 'resolved');
+      });
+
+      it('does not arm a timer on a written blocking command', async () => {
+        const queue = createQueue();
+        const a = track(queue.addCommand(['BLPOP', 'q', '0'], { timeout: 20, rejectInFlight: true }));
+        drain(queue);
+        queue.setMaintenanceCommandTimeout(10);
+
+        await wait(30);
+        assert.strictEqual(a.status, 'pending');
+        queue.flushWaitingForReply(new Error('closed'));
+      });
+
+      it('does not arm a timer on a written command without the flag', async () => {
+        const queue = createQueue();
+        const a = track(queue.addCommand(['GET', 'a'], { timeout: 20 }));
+        drain(queue);
+        queue.setMaintenanceCommandTimeout(10);
+
+        await wait(30);
+        assert.strictEqual(a.status, 'pending');
+        queue.flushWaitingForReply(new Error('closed'));
+      });
     });
   });
 });

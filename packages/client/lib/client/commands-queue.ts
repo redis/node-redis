@@ -3,10 +3,19 @@ import encodeCommand from '../RESP/encoder';
 import { Decoder, PUSH_TYPE_MAPPING, RESP_TYPES } from '../RESP/decoder';
 import { TypeMapping, ReplyUnion, RespVersions, RedisArgument } from '../RESP/types';
 import { ChannelListeners, PubSub, PubSubCommand, PubSubListener, PubSubType, PubSubTypeListeners } from './pub-sub';
-import { AbortError, ErrorReply, CommandTimeoutDuringMaintenanceError, TimeoutError } from '../errors';
+import {
+  AbortError,
+  AbortReadError,
+  ErrorReply,
+  CommandTimeoutDuringMaintenanceError,
+  CommandTimeoutReadDuringMaintenanceError,
+  TimeoutError,
+  TimeoutReadError
+} from '../errors';
 import { MonitorCallback } from '.';
 import { dbgMaintenance } from './enterprise-maintenance-manager';
 import { AdoptedItem, CommandDeadlines, DeadlineEntry } from './command-deadlines';
+import { defaultCommandMetadata, isBlocking } from '../command-metadata';
 
 /**
  * @internal
@@ -25,15 +34,44 @@ export interface CommandPrelude {
 export interface CommandOptions<T = TypeMapping> {
   chainId?: symbol;
   asap?: boolean;
+  /**
+   * Rejects the command when the signal aborts. Without `rejectInFlight`, only a command
+   * that was not sent yet is rejected (`AbortError`). With `rejectInFlight`, see
+   * `rejectInFlight`.
+   */
   abortSignal?: AbortSignal;
   /**
    * Maps between RESP and JavaScript types
    */
   typeMapping?: T;
   /**
-   * Timeout for the command in milliseconds
+   * Time in milliseconds after which the command is rejected. Without `rejectInFlight`, it
+   * applies only while the command waits to be sent: it then rejects with `TimeoutError`
+   * and the command is never sent. With `rejectInFlight`, it also applies after the
+   * command was sent; see `rejectInFlight`.
    */
   timeout?: number;
+  /**
+   * When `true`, `timeout` and `abortSignal` also reject a command that was already sent
+   * and is waiting for its reply. Such a command rejects with `TimeoutReadError` or
+   * `AbortReadError`: the server may have executed it, so retry only if it is idempotent.
+   * Its reply is discarded when it arrives; the connection stays open, and later commands
+   * still wait behind it on the server.
+   *
+   * Commands that block on the server (`BLPOP`, `XREAD`, `WAIT`, ...) are not timed out
+   * after they are sent; `abortSignal` still applies to them.
+   *
+   * For `multi().exec()` and `execAsPipeline()`, if `timeout` or `abortSignal` fires after
+   * part of the batch was sent, every pending command of the batch rejects with the read
+   * error, and the rest of the batch is still sent.
+   *
+   * After a read error, session state changed by the command (for example the database
+   * selected by `SELECT`) is unknown.
+   *
+   * Default `false`.
+   * @experimental
+   */
+  rejectInFlight?: boolean;
   /**
    * Client-side caching intent for this call: `true` caches the reply if the command is
    * eligible, `false` never caches it. Overrides the `cacheable` predicate and the tracking
@@ -65,9 +103,10 @@ export interface CommandOptions<T = TypeMapping> {
  * keeps the node client's own and `timeout: undefined` still opts out.
  */
 export function pickBatchOptions(options: CommandOptions = {}) {
-  const picked: Pick<CommandOptions, 'timeout' | 'abortSignal' | 'typeMapping'> = {};
+  const picked: Pick<CommandOptions, 'timeout' | 'abortSignal' | 'typeMapping' | 'rejectInFlight'> = {};
   if ('timeout' in options) picked.timeout = options.timeout;
   if ('abortSignal' in options) picked.abortSignal = options.abortSignal;
+  if ('rejectInFlight' in options) picked.rejectInFlight = options.rejectInFlight;
   if ('typeMapping' in options) picked.typeMapping = options.typeMapping;
   return picked;
 }
@@ -94,6 +133,14 @@ export interface CommandToWrite extends CommandWaitingForReply {
    */
   batch?: 'head' | 'member';
   onCancel?: () => void;
+  /** Keeps the timeout and abort listeners after the command is written. */
+  rejectInFlight?: boolean;
+  /** Set when the command moves to the read queue. */
+  written?: boolean;
+  /** On a batch head with `rejectInFlight`: every command of the batch, head included. */
+  batchEntries?: CommandToWrite[];
+  /** On the other commands of a batch with `rejectInFlight`: the batch head. */
+  batchHead?: CommandToWrite;
 }
 
 export interface BatchCommand {
@@ -106,6 +153,7 @@ export interface BatchOptions {
   slotNumber?: number;
   timeout?: number;
   abortSignal?: AbortSignal;
+  rejectInFlight?: boolean;
   /**
    * Called when the timeout or abort signal removes the batch before any of it is written.
    */
@@ -173,7 +221,8 @@ export default class RedisCommandsQueue {
     }
 
     let counter = 0;
-    const total = this.#toWrite.length;
+    const total = this.#toWrite.length + this.#waitingForReply.length;
+    const relaxedInFlight = new Set<CommandToWrite>();
 
     // Overwrite timeouts of all eligible toWrite commands
     for (const node of this.#toWrite.nodes()) {
@@ -181,14 +230,39 @@ export default class RedisCommandsQueue {
 
       // A batch shares the timer of its first command, and a batch whose first
       // command or a command of its chain is already written is not cancelled
-      // any more.
-      if (command.batch === 'member' || this.#isBatchStarted(command)) continue;
+      // any more. With `rejectInFlight` that timer still runs, so relax it.
+      if (command.batch === 'member' || this.#isBatchStarted(command)) {
+        const head = command.batchHead ?? command;
+        if (head.batchEntries && (head.written || this.#isBatchStarted(head))) {
+          this.#relaxInFlight(head, this.#maintenanceCommandTimeout, relaxedInFlight);
+        }
+        continue;
+      }
 
       counter++;
       // Overwrite the command's timeout
       this.#setDeadline(node, command, this.#maintenanceCommandTimeout, true);
     }
+
+    // Only `rejectInFlight` commands keep a timer after they are written. A batch's timer
+    // is on its head, which leaves the read queue at its own reply while the rest of the
+    // batch still waits, so it is reached through any pending command of the batch.
+    for (const entry of this.#waitingForReply) {
+      const command = entry as CommandToWrite;
+      this.#relaxInFlight(command.batchHead ?? command, this.#maintenanceCommandTimeout, relaxedInFlight);
+    }
+    counter += relaxedInFlight.size;
     dbgMaintenance(`Total of ${counter} of ${total} timeouts reset to ${ms}`);
+  }
+
+  /**
+   * Replaces the live timer of a command that may be on the wire with the maintenance
+   * timeout, once per `relaxed` set.
+   */
+  #relaxInFlight(command: CommandToWrite, ms: number, relaxed: Set<CommandToWrite>) {
+    if (!command.timerEntry || command.rejected || relaxed.has(command)) return;
+    relaxed.add(command);
+    this.#setDeadline(undefined, command, ms, true);
   }
 
   get isPubSubActive() {
@@ -346,23 +420,35 @@ export default class RedisCommandsQueue {
       value.chainId === this.#chainInExecution;
   }
 
+  /**
+   * Whether a fired listener must leave the command, or its batch, in place: it is
+   * written, or it is a `rejectInFlight` batch whose chain is already partly written.
+   */
+  #isInFlight(value: CommandToWrite) {
+    return value.written ||
+      (value.batchEntries !== undefined && this.#isBatchStarted(value));
+  }
+
   #createAbortListener(
     node: DoublyLinkedNode<CommandToWrite>,
     value: CommandToWrite,
   ) {
     return () => {
-      if (this.#isBatchStarted(value)) return;
-      this.#rejectCommand(node, value, new AbortError());
+      if (this.#isInFlight(value)) {
+        this.#rejectInFlight(value, new AbortReadError());
+      } else if (!this.#isBatchStarted(value)) {
+        this.#rejectCommand(node, value, new AbortError());
+      }
     };
   }
 
   readonly #deadlines = new CommandDeadlines<CommandToWrite>(
-    (value, node) => this.#onTimeout(node!, value)
+    (value, node) => this.#onTimeout(node, value)
   );
 
-  /** Every deadline is set while the command waits to be sent, so `node` is known. */
+  /** `node` may be omitted only for a command that `#isInFlight`. */
   #setDeadline(
-    node: DoublyLinkedNode<CommandToWrite>,
+    node: DoublyLinkedNode<CommandToWrite> | undefined,
     value: CommandToWrite,
     timeout: number,
     wasInMaintenance: boolean,
@@ -372,15 +458,41 @@ export default class RedisCommandsQueue {
     value.wasInMaintenance = wasInMaintenance;
   }
 
-  #onTimeout(node: DoublyLinkedNode<CommandToWrite>, value: CommandToWrite) {
-    if (this.#isBatchStarted(value)) return;
-    this.#rejectCommand(node, value, this.#timeoutError(value));
+  #onTimeout(node: DoublyLinkedNode<CommandToWrite> | undefined, value: CommandToWrite) {
+    if (this.#isInFlight(value)) {
+      this.#rejectInFlight(value, this.#timeoutReadError(value));
+    } else if (!this.#isBatchStarted(value)) {
+      this.#rejectCommand(node!, value, this.#timeoutError(value));
+    }
   }
 
   #timeoutError(value: CommandToWrite) {
     return value.wasInMaintenance
       ? new CommandTimeoutDuringMaintenanceError(value.effectiveTimeout!)
-      : new TimeoutError();
+      : new TimeoutError(`Command timed out after ${value.effectiveTimeout}ms waiting to be sent`);
+  }
+
+  #timeoutReadError(value: CommandToWrite) {
+    return value.wasInMaintenance
+      ? new CommandTimeoutReadDuringMaintenanceError(value.effectiveTimeout!)
+      : new TimeoutReadError(value.effectiveTimeout!);
+  }
+
+  /**
+   * Rejects a command that may be on the wire, or every pending command of its batch.
+   * Never touches `#toWrite`.
+   */
+  #rejectInFlight(value: CommandToWrite, err: Error) {
+    // A written command stays in the read queue, because replies are matched to commands
+    // by position; its reply is discarded when it arrives. The unwritten tail of a batch,
+    // `EXEC` included, stays queued and is still written, or the server would stay inside
+    // `MULTI` (`client/index.ts:_executeMulti` relies on this).
+    RedisCommandsQueue.#removeCommandListeners(value);
+    for (const entry of value.batchEntries ?? [value]) {
+      if (entry.rejected) continue;
+      entry.rejected = true;
+      entry.reject(err);
+    }
   }
 
   #rejectCommand(
@@ -462,6 +574,7 @@ export default class RedisCommandsQueue {
       };
       value.slotNumber = options?.slotNumber;
       value.prelude = options?.prelude;
+      value.rejectInFlight = options?.rejectInFlight;
 
       const node = this.#addToWrite(value, options?.asap);
 
@@ -504,12 +617,17 @@ export default class RedisCommandsQueue {
    * one abort listener, which stop when its first command is written. If either fires
    * first, and no command of its chain is written yet, every command of the batch
    * is removed from the queue and rejected.
+   *
+   * With `rejectInFlight`, the listeners stop only when the last command of the batch
+   * settles. If either fires after part of the chain is written, every pending command
+   * rejects with the read error, and the rest of the batch is still written.
    */
   addBatch(
     commands: ReadonlyArray<BatchCommand>,
     options: BatchOptions
   ): Array<Promise<unknown>> {
     let head: DoublyLinkedNode<CommandToWrite> | undefined;
+    const entries: CommandToWrite[] = [];
     const promises = commands.map(({ args, typeMapping }) => {
       if (!this.hasCapacity(1)) {
         return Promise.reject(new Error("The queue is full"));
@@ -528,12 +646,22 @@ export default class RedisCommandsQueue {
           slotNumber: options.slotNumber,
           batch: head ? 'member' : 'head'
         });
+        entries.push(node.value);
         head ??= node;
       });
     });
 
     if (head) {
-      head.value.onCancel = options.onCancel;
+      const headValue = head.value;
+      headValue.onCancel = options.onCancel;
+      if (options.rejectInFlight) {
+        headValue.rejectInFlight = true;
+        headValue.batchEntries = entries;
+        for (let i = 1; i < entries.length; i++) entries[i].batchHead = headValue;
+        RedisCommandsQueue.#beforeSettle(entries[entries.length - 1], () =>
+          RedisCommandsQueue.#removeCommandListeners(headValue)
+        );
+      }
       try {
         this.#arm(head, head.value, options.timeout, options.abortSignal);
       } catch (err) {
@@ -811,14 +939,19 @@ export default class RedisCommandsQueue {
         continue;
       }
 
+      if (toSend.rejectInFlight) {
+        RedisCommandsQueue.#keepListenersPastWrite(toSend);
+      } else {
+        if (toSend.abort) {
+          RedisCommandsQueue.#removeAbortListener(toSend);
+          toSend.abort = undefined;
+        }
+        // The timeout covers only the wait to be sent.
+        CommandDeadlines.end(toSend);
+      }
       // TODO reuse `toSend` or create new object?
       toSend.args = undefined;
-      if (toSend.abort) {
-        RedisCommandsQueue.#removeAbortListener(toSend);
-        toSend.abort = undefined;
-      }
-      // The timeout covers only the wait to be sent.
-      CommandDeadlines.end(toSend);
+      toSend.written = true;
       toSend.onCancel = undefined;
       this.#chainInExecution = toSend.chainId;
       toSend.chainId = undefined;
@@ -845,6 +978,47 @@ export default class RedisCommandsQueue {
       node.reject(err);
     }
     this.#waitingForReply.reset();
+  }
+
+  static #keepListenersPastWrite(command: CommandToWrite) {
+    // A batch head keeps its listeners until the last command of the batch settles (see
+    // `addBatch`). The blocking check does not apply to batches: commands inside `MULTI`
+    // do not block on the server.
+    if (command.batch === 'head') return;
+
+    if (
+      command.timerEntry &&
+      isBlocking(defaultCommandMetadata.lookup({ command: String(command.args![0]), subcommand: undefined }))
+    ) {
+      // The server keeps blocking after a client-side timeout, so a read timeout would
+      // only fail the call, not free the connection. The `blocking` flag comes from
+      // `command-metadata/predicates.ts:isBlocking`.
+      CommandDeadlines.end(command);
+    }
+
+    if (command.timerEntry || command.abort) {
+      // Every path that settles a read-queue entry (replies, error replies, RESP2 `PONG`,
+      // `RESET`, flushes) goes through `resolve` or `reject`.
+      RedisCommandsQueue.#beforeSettle(command, () =>
+        RedisCommandsQueue.#removeCommandListeners(command)
+      );
+    }
+  }
+
+  /**
+   * Runs `fn` before the command's promise settles. `fn` must read the command's
+   * listeners when it runs: the maintenance timeout replaces them.
+   */
+  static #beforeSettle(command: CommandWaitingForReply, fn: () => void) {
+    const { resolve, reject } = command;
+    command.resolve = reply => {
+      fn();
+      resolve(reply);
+    };
+    command.reject = err => {
+      fn();
+      reject(err);
+    };
   }
 
   static #removeAbortListener(command: CommandToWrite) {

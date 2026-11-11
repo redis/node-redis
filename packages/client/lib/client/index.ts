@@ -2020,7 +2020,8 @@ export default class RedisClient<
             chainId: Symbol('Pipeline Chain'),
             slotNumber,
             timeout: this._commandOptions?.timeout,
-            abortSignal: this._commandOptions?.abortSignal
+            abortSignal: this._commandOptions?.abortSignal,
+            rejectInFlight: this._commandOptions?.rejectInFlight
           }
         );
         const promise = Promise.all(
@@ -2122,6 +2123,9 @@ export default class RedisClient<
             slotNumber,
             timeout: this._commandOptions?.timeout,
             abortSignal: this._commandOptions?.abortSignal,
+            // Once any part of the batch is written, the queue writes all of it, so the
+            // server never stays inside MULTI (`commands-queue.ts:addBatch`).
+            rejectInFlight: this._commandOptions?.rejectInFlight,
             // Nothing reached the server, so its WATCH still holds, unless the
             // connection dropped after the batch was admitted. A reconnect keeps the
             // socket object and its epoch until it is ready again, so check readiness.

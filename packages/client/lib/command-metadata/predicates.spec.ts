@@ -1,5 +1,5 @@
 import { strict as assert } from 'node:assert';
-import { defaultCommandMetadata, isReplicaSafe, isCacheable } from '.';
+import { defaultCommandMetadata, isReplicaSafe, isCacheable, isBlocking } from '.';
 import type { CommandIdentifier } from '../client/parser';
 
 // Mirrors the readers in cluster/index.ts, sentinel/utils.ts and
@@ -11,6 +11,7 @@ const replicaSafe = (i: CommandIdentifier, override?: boolean) =>
   isReplicaSafe(defaultCommandMetadata.lookup(i), override);
 const cacheable = (i: CommandIdentifier, override?: boolean) =>
   isCacheable(defaultCommandMetadata.lookup(i), override);
+const blocking = (i: CommandIdentifier) => isBlocking(defaultCommandMetadata.lookup(i));
 
 describe('predicates (override-first)', () => {
   describe('isReplicaSafe', () => {
@@ -94,6 +95,23 @@ describe('predicates (override-first)', () => {
     it('unknown command: declared intent or not cacheable', () => {
       assert.equal(cacheable(id('definitelynotacommand')), false);
       assert.equal(cacheable(id('definitelynotacommand'), true), true);
+    });
+  });
+
+  describe('isBlocking', () => {
+    it('blocking flag derives blocking, whatever the case of the name', () => {
+      assert.equal(blocking(id('blpop')), true);
+      assert.equal(blocking(id('BLPOP')), true);
+      assert.equal(blocking(id('wait')), true);
+    });
+
+    it('XREAD is blocking even without BLOCK', () => {
+      assert.equal(blocking(id('xread')), true);
+    });
+
+    it('non-blocking and unknown commands are not blocking', () => {
+      assert.equal(blocking(id('get')), false);
+      assert.equal(blocking(id('nosuchcommand')), false);
     });
   });
 });
