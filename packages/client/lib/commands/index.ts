@@ -34,6 +34,12 @@ import ARSEEK from './ARSEEK';
 import ARSET from './ARSET';
 import ASKING from './ASKING';
 import AUTH from './AUTH';
+import BACKUP_ABORT from './BACKUP_ABORT';
+import BACKUP_CLEANUP from './BACKUP_CLEANUP';
+import BACKUP_LIST from './BACKUP_LIST';
+import BACKUP_SEAL from './BACKUP_SEAL';
+import BACKUP_START from './BACKUP_START';
+import BACKUP_STATUS from './BACKUP_STATUS';
 import BGREWRITEAOF from './BGREWRITEAOF';
 import BGSAVE from './BGSAVE';
 import BITCOUNT from './BITCOUNT';
@@ -861,6 +867,66 @@ export default {
    * @param options.password - Password for authentication
    */
   auth: AUTH,
+  /**
+   * Cancels a backup that has not been sealed yet
+   * @see https://redis.io/commands/backup-abort/
+   */
+  BACKUP_ABORT,
+  /**
+   * Cancels a backup that has not been sealed yet
+   * @see https://redis.io/commands/backup-abort/
+   */
+  backupAbort: BACKUP_ABORT,
+  /**
+   * Removes the files of a sealed backup and returns to the idle state
+   * @see https://redis.io/commands/backup-cleanup/
+   */
+  BACKUP_CLEANUP,
+  /**
+   * Removes the files of a sealed backup and returns to the idle state
+   * @see https://redis.io/commands/backup-cleanup/
+   */
+  backupCleanup: BACKUP_CLEANUP,
+  /**
+   * Returns the absolute paths of the backup files pinned so far
+   * @see https://redis.io/commands/backup-list/
+   */
+  BACKUP_LIST,
+  /**
+   * Returns the absolute paths of the backup files pinned so far
+   * @see https://redis.io/commands/backup-list/
+   */
+  backupList: BACKUP_LIST,
+  /**
+   * Freezes the current backup, so that the files listed by BACKUP LIST are complete
+   * @see https://redis.io/commands/backup-seal/
+   */
+  BACKUP_SEAL,
+  /**
+   * Freezes the current backup, so that the files listed by BACKUP LIST are complete
+   * @see https://redis.io/commands/backup-seal/
+   */
+  backupSeal: BACKUP_SEAL,
+  /**
+   * Starts a new backup into the directory set by the backupdirname configuration
+   * @see https://redis.io/commands/backup-start/
+   */
+  BACKUP_START,
+  /**
+   * Starts a new backup into the directory set by the backupdirname configuration
+   * @see https://redis.io/commands/backup-start/
+   */
+  backupStart: BACKUP_START,
+  /**
+   * Returns the state of the current backup, its error message if it failed, and its start and end times
+   * @see https://redis.io/commands/backup-status/
+   */
+  BACKUP_STATUS,
+  /**
+   * Returns the state of the current backup, its error message if it failed, and its start and end times
+   * @see https://redis.io/commands/backup-status/
+   */
+  backupStatus: BACKUP_STATUS,
   /**
    * Asynchronously rewrites the append-only file
    */
@@ -6435,8 +6501,20 @@ export default {
 import COMMANDS from './index';
 
 // TODO: Remove this workaround once the cluster properly implements session affinity (sticky connections).
-// HOTKEYS commands require a sticky connection to a single Redis node to function correctly.
+// HOTKEYS and BACKUP commands require a sticky connection to a single Redis node to function correctly.
 const {
+  BACKUP_ABORT: _BACKUP_ABORT,
+  backupAbort: _backupAbort,
+  BACKUP_CLEANUP: _BACKUP_CLEANUP,
+  backupCleanup: _backupCleanup,
+  BACKUP_LIST: _BACKUP_LIST,
+  backupList: _backupList,
+  BACKUP_SEAL: _BACKUP_SEAL,
+  backupSeal: _backupSeal,
+  BACKUP_START: _BACKUP_START,
+  backupStart: _backupStart,
+  BACKUP_STATUS: _BACKUP_STATUS,
+  backupStatus: _backupStatus,
   HOTKEYS_GET: _HOTKEYS_GET,
   hotkeysGet: _hotkeysGet,
   HOTKEYS_RESET: _HOTKEYS_RESET,
