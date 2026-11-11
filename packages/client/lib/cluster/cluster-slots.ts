@@ -360,7 +360,6 @@ export default class RedisClusterSlots<
 
     try {
       const addressesInUse = new Set<string>(),
-        promises: Array<Promise<unknown>> = [],
         eagerConnect = this.#options.minimizeConnections !== true;
 
       const shards = await this.#getShards(rootNode);
@@ -370,12 +369,12 @@ export default class RedisClusterSlots<
       this.#resetSlots(); // Reset slots AFTER shards have been fetched to prevent a race condition
       for (const { from, to, master, replicas } of shards) {
         const shard: Shard<M, F, S, RESP, TYPE_MAPPING> = {
-          master: this.#initiateSlotNode(master, false, eagerConnect, addressesInUse, promises)
+          master: this.#initiateSlotNode(master, false, eagerConnect, addressesInUse)
         };
 
         if (this.#options.useReplicas) {
           shard.replicas = replicas.map(replica =>
-            this.#initiateSlotNode(replica, true, eagerConnect, addressesInUse, promises)
+            this.#initiateSlotNode(replica, true, eagerConnect, addressesInUse)
           );
         }
 
@@ -393,15 +392,15 @@ export default class RedisClusterSlots<
         this.pubSubNode = undefined;
 
         if (channelsListeners.size || patternsListeners.size) {
-          promises.push(
-            this.#initiatePubSubClient({
-              [PUBSUB_TYPE.CHANNELS]: channelsListeners,
-              [PUBSUB_TYPE.PATTERNS]: patternsListeners
-            }).catch(err => {
-              if (err instanceof ClientClosedError && this.#isOpen) return;
-              throw err;
-            })
-          );
+          // Do not await — an unreachable pub/sub target must not block topology
+          // install / connect() the way node connects used to (#3592).
+          this.#initiatePubSubClient({
+            [PUBSUB_TYPE.CHANNELS]: channelsListeners,
+            [PUBSUB_TYPE.PATTERNS]: patternsListeners
+          }).catch(err => {
+            if (err instanceof ClientClosedError && this.#isOpen) return;
+            if (this.#isOpen) this.#emit('error', err);
+          });
         }
       }
 
@@ -435,7 +434,9 @@ export default class RedisClusterSlots<
         if (!inUse) this.nodeByAddress.delete(address);
       }
 
-      await Promise.all(promises);
+      // Slot map is installed; node/pubsub connects run in the background.
+      // Waiting here hung connect()/rediscover when any master was unreachable
+      // under the default reconnectStrategy (#3592).
       this.clientSideCache?.enable();
 
       return true;
@@ -492,9 +493,13 @@ export default class RedisClusterSlots<
 
           // 2.1 Create new Master if needed
           if (!destMasterNode) {
-            const promises: Promise<unknown>[] = [];
-            destMasterNode = this.#initiateSlotNode({ host: host, port: port, id: `smigrated-${host}:${port}` }, false, true, new Set(), promises);
-            await Promise.all([...promises, this.#initiateShardedPubSubClient(destMasterNode)]);
+            destMasterNode = this.#initiateSlotNode({ host: host, port: port, id: `smigrated-${host}:${port}` }, false, true, new Set());
+            // Eager connect is started in the background; wait for this dest (and its
+            // sharded pub/sub) so the migration can pause a live client.
+            await Promise.all([
+              destMasterNode.connectPromise ?? Promise.resolve(destMasterNode.client),
+              this.#initiateShardedPubSubClient(destMasterNode)
+            ]);
             // Pause new destination until migration is complete
             destMasterNode.client?._pause();
             destMasterNode.pubSub?.client._pause();
@@ -757,9 +762,8 @@ export default class RedisClusterSlots<
   #initiateSlotNode(
     shard: NodeAddress & { id: string; },
     readonly: boolean,
-    eagerConnent: boolean,
-    addressesInUse: Set<string>,
-    promises: Array<Promise<unknown>>
+    eagerConnect: boolean,
+    addressesInUse: Set<string>
   ) {
     const address = `${shard.host}:${shard.port}`;
 
@@ -773,22 +777,28 @@ export default class RedisClusterSlots<
         connectPromise: undefined
       };
 
-      if (eagerConnent) {
-        promises.push(this.#createNodeClient(node));
+      if (eagerConnect) {
+        this.#startNodeClientInBackground(node);
       }
 
       this.nodeByAddress.set(address, node);
     } else if (node.readonly !== readonly) {
       node.readonly = readonly;
 
-      if (readonly && node.client) {
+      if (readonly && (node.client || node.connectPromise)) {
         const { client } = node;
-        this.#reconnectionTracker.removeClient(client._clientId);
-        client.close().catch(() => client.destroy());
+        if (client) {
+          this.#reconnectionTracker.removeClient(client._clientId);
+          client.close().catch(() => client.destroy());
+        }
+        // Drop both so #startNodeClientInBackground can start a fresh connect.
+        // Leaving connectPromise set would no-op the restart and leave
+        // nodeClient() resolving to undefined (#3592 / demotion).
         node.client = undefined;
+        node.connectPromise = undefined;
 
-        if (eagerConnent) {
-          promises.push(this.#createNodeClient(node));
+        if (eagerConnect) {
+          this.#startNodeClientInBackground(node);
         }
       }
     }
@@ -811,7 +821,6 @@ export default class RedisClusterSlots<
     });
     const address = node.address;
     const emit = this.#emit;
-    let wasReady = false;
     const client = this.#clientFactory(this.#clientOptionsDefaults({
       clientSideCache: this.clientSideCache,
       // only when the cluster has a type mapping, so the node falls back to its own
@@ -828,13 +837,11 @@ export default class RedisClusterSlots<
       .on('error', error => emit('node-error', error, clientInfo))
       .on('reconnecting', () => {
         emit('node-reconnecting', clientInfo);
-
-        if (!wasReady) return;
-
+        // Include nodes that never became ready so an unreachable master still
+        // drives topologyRefreshOnReconnectionAttemptStrategy (#3592).
         this.#onNodeReconnectionAttempt(client._clientId, address);
       })
       .on('ready', () => {
-        wasReady = true;
         this.#reconnectionTracker.removeClient(client._clientId);
       })
       .on('ready', () => emit('node-ready', clientInfo))
@@ -854,7 +861,7 @@ export default class RedisClusterSlots<
 
   #createNodeClient(node: ShardNode<M, F, S, RESP, TYPE_MAPPING>, readonly?: boolean) {
     const client = node.client = this.#createClient(node, readonly);
-    return node.connectPromise = client.connect()
+    const connectPromise = node.connectPromise = client.connect()
       .catch(err => {
         // Terminal connect failure (reconnectStrategy gave up). Drop the dead
         // client so the next nodeClient() call retries with a fresh one, and
@@ -865,18 +872,38 @@ export default class RedisClusterSlots<
         client.destroy();
         throw err;
       })
-      .finally(() => node.connectPromise = undefined);
+      .finally(() => {
+        // Only clear if this attempt is still the current one — a demotion /
+        // rediscover may have already started a newer connectPromise.
+        if (node.connectPromise === connectPromise) {
+          node.connectPromise = undefined;
+        }
+      });
+    return connectPromise;
+  }
+
+  #startNodeClientInBackground(node: ShardNode<M, F, S, RESP, TYPE_MAPPING>) {
+    if (node.client || node.connectPromise) return;
+
+    this.#createNodeClient(node).catch(() => {
+      // Terminal failure already destroys/clears the client in #createNodeClient.
+      // Ongoing socket errors are emitted as node-error.
+    });
   }
 
   nodeClient(node: ShardNode<M, F, S, RESP, TYPE_MAPPING>): Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {
-    // if the node is connecting
-    if (node.connectPromise)
-      return node.connectPromise;
-    // if the node is connected
-    if (node.client)
-      return Promise.resolve(node.client);
-    // if the not is disconnected
-    return this.#createNodeClient(node)
+    if (!node.client) {
+      this.#startNodeClientInBackground(node);
+    }
+
+    // Return the client while connect() is still in flight so commands enter the
+    // offline queue and honor commandOptions.timeout instead of waiting forever
+    // on connectPromise under the default reconnectStrategy (#3592).
+    if (!node.client) {
+      return Promise.reject(new ClientClosedError());
+    }
+
+    return Promise.resolve(node.client);
   }
 
   #runningRediscoverPromise?: Promise<void>;

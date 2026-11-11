@@ -6,7 +6,7 @@ import { RedisClusterClientOptions } from './index';
 import RedisClusterSlots, { groupCommandsByDestination, splitInFlightChainTail } from './cluster-slots';
 import type { MasterNode, Shard, ShardNode } from './cluster-slots';
 import type { CommandToWrite } from '../client/commands-queue';
-import { ClientClosedError } from '../errors';
+import { ClientClosedError, TimeoutError } from '../errors';
 import { SMIGRATED_EVENT, type SMigratedEvent } from '../client/enterprise-maintenance-manager';
 
 describe('RedisClusterSlots', () => {
@@ -208,19 +208,25 @@ describe('RedisClusterSlots', () => {
       const slots = createSlots();
       const node = createNode();
 
-      // First attempt fails terminally, and must reject with the real connect
-      // error — not a ClientClosedError thrown by destroy() on the dead client
-      // (which would prove destroy() is not idempotent on a closed socket).
-      await assert.rejects(slots.nodeClient(node), (err: unknown) => {
+      // nodeClient returns the client immediately (commands use the offline queue).
+      // Capture connectPromise synchronously — it may settle before the await.
+      const clientPromise = slots.nodeClient(node);
+      const firstConnect = node.connectPromise;
+      const client = await clientPromise;
+      assert.ok(client);
+      assert.ok(firstConnect, 'connect() should have been started');
+      await assert.rejects(firstConnect, (err: unknown) => {
         assert(!(err instanceof ClientClosedError), 'should surface the real connect error, not ClientClosedError from destroy()');
         return true;
       });
-      // The dead client must not stay cached...
       assert.equal(node.client, undefined, 'dead client should be cleared, not cached');
 
-      // ...so the second call retries with a fresh client and fails again.
-      // Before the fix it resolved to the cached dead client (no rejection).
-      await assert.rejects(slots.nodeClient(node), 'second call must retry, not return the cached dead client');
+      const client2Promise = slots.nodeClient(node);
+      const secondConnect = node.connectPromise;
+      const client2 = await client2Promise;
+      assert.notEqual(client2, client, 'second call must retry with a fresh client');
+      assert.ok(secondConnect);
+      await assert.rejects(secondConnect);
       assert.equal(node.client, undefined);
     });
   });
@@ -369,13 +375,15 @@ describe('RedisClusterSlots', () => {
     it('unpauses destination nodes when an error is thrown after pausing them', async () => {
       const slots = createSlots();
 
-      // nodeClient() calls #createNodeClient which sets node.client synchronously
-      // before returning the connect Promise — grab the SMIGRATED listener before
-      // the terminal connect failure clears node.client.
+      // nodeClient() starts #createNodeClient (client set synchronously) and returns
+      // the client immediately — grab the SMIGRATED listener before the terminal
+      // connect failure clears node.client.
       const probe = createNode();
-      const connectPromise = slots.nodeClient(probe);
+      await slots.nodeClient(probe);
+      const connectPromise = probe.connectPromise;
+      assert.ok(connectPromise);
       const [handler] = (probe.client as EventEmitter).listeners(SMIGRATED_EVENT) as [(e: SMigratedEvent) => Promise<void>];
-      await assert.rejects(connectPromise as Promise<unknown>);
+      await assert.rejects(connectPromise);
 
       // Track pause/unpause calls on a mock destination node.
       let destPauseCount = 0;
@@ -426,6 +434,189 @@ describe('RedisClusterSlots', () => {
 
       assert.equal(destPauseCount, 1, 'destination should have been paused during migration');
       assert.equal(destUnpauseCount, 1, 'destination must be unpaused even when an error aborts the migration');
+    });
+  });
+
+  describe('unreachable master during connect (#3592)', () => {
+    // One live fake master covering slots 0-8191, plus a dead master for 8192-16383.
+    // CLUSTER SLOTS / other commands are answered by the live server; port 1 stays closed.
+    function slotsReply(livePort: number, includeDeadMaster: boolean) {
+      const live = `*3\r\n:0\r\n:8191\r\n*3\r\n$9\r\n127.0.0.1\r\n:${livePort}\r\n$4\r\nlive\r\n`;
+      if (!includeDeadMaster) {
+        // Failover: live master owns the full hash space
+        return `*1\r\n*3\r\n:0\r\n:16383\r\n*3\r\n$9\r\n127.0.0.1\r\n:${livePort}\r\n$4\r\nlive\r\n`;
+      }
+      const dead = `*3\r\n:8192\r\n:16383\r\n*3\r\n$9\r\n127.0.0.1\r\n:1\r\n$4\r\ndead\r\n`;
+      return `*2\r\n${live}${dead}`;
+    }
+
+    async function startLiveMaster(getIncludeDead: () => boolean) {
+      const sockets = new Set<Socket>();
+      const server = createServer(socket => {
+        sockets.add(socket);
+        socket.on('close', () => sockets.delete(socket));
+        socket.on('data', chunk => {
+          for (const command of chunk.toString().split('*').filter(part => /^\d+\r\n\$/.test(part))) {
+            if (/CLUSTER\r\n\$5\r\nSLOTS/i.test(command)) {
+              const { port } = server.address() as AddressInfo;
+              socket.write(slotsReply(port, getIncludeDead()));
+            } else if (/PING/i.test(command)) {
+              socket.write('+PONG\r\n');
+            } else if (/GET\r\n/i.test(command) || /SET\r\n/i.test(command)) {
+              socket.write('+OK\r\n');
+            } else {
+              socket.write('+OK\r\n');
+            }
+          }
+        });
+      });
+      server.listen(0, '127.0.0.1');
+      await once(server, 'listening');
+      return {
+        port: (server.address() as AddressInfo).port,
+        async close() {
+          for (const socket of sockets) socket.destroy();
+          server.close();
+          await once(server, 'close');
+        }
+      };
+    }
+
+    it('connect() resolves; live shard works; dead shard times out', async function () {
+      this.timeout(15000);
+      let includeDead = true;
+      const live = await startLiveMaster(() => includeDead);
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: live.port } }],
+        defaults: {
+          socket: { reconnectStrategy: 50, connectTimeout: 200 },
+          disableClientInfo: true,
+          commandOptions: { timeout: 300 }
+        },
+        minimizeConnections: false,
+        RESP: 2 as const,
+      }, () => true, 'test-cluster');
+
+      try {
+        const started = Date.now();
+        await slots.connect();
+        assert.ok(Date.now() - started < 2000, 'connect() must not wait on the dead master');
+        assert.equal(slots.isReady, true);
+
+        const liveNode = slots.slots[0].master;
+        const deadNode = slots.slots[8192].master;
+        assert.equal(liveNode.port, live.port);
+        assert.equal(deadNode.port, 1);
+
+        const liveClient = await slots.nodeClient(liveNode);
+        await liveClient.ping();
+
+        const deadClient = await slots.nodeClient(deadNode);
+        await assert.rejects(deadClient.ping(), TimeoutError);
+      } finally {
+        slots.destroy();
+        await live.close();
+      }
+    });
+
+    it('after failover rediscover, former dead slots succeed on the live master', async function () {
+      this.timeout(15000);
+      let includeDead = true;
+      const live = await startLiveMaster(() => includeDead);
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: live.port } }],
+        defaults: {
+          socket: { reconnectStrategy: 50, connectTimeout: 200 },
+          disableClientInfo: true,
+          commandOptions: { timeout: 300 }
+        },
+        minimizeConnections: false,
+        RESP: 2 as const,
+      }, () => true, 'test-cluster');
+
+      try {
+        await slots.connect();
+        assert.equal(slots.slots[8192].master.port, 1);
+
+        includeDead = false;
+        await slots.rediscover();
+        assert.equal(slots.slots[8192].master.port, live.port);
+
+        const client = await slots.nodeClient(slots.slots[8192].master);
+        await client.ping();
+      } finally {
+        slots.destroy();
+        await live.close();
+      }
+    });
+
+    it('MOVED rediscover that names an unreachable node still leaves live shards usable', async function () {
+      this.timeout(15000);
+      let includeDead = true;
+      const live = await startLiveMaster(() => includeDead);
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: live.port } }],
+        defaults: {
+          socket: { reconnectStrategy: 50, connectTimeout: 200 },
+          disableClientInfo: true,
+          commandOptions: { timeout: 300 }
+        },
+        minimizeConnections: false,
+        RESP: 2 as const,
+      }, () => true, 'test-cluster');
+
+      try {
+        await slots.connect();
+        // Simulate a MOVED-driven rediscover while topology still includes the dead master.
+        await slots.rediscover();
+        assert.equal(slots.isReady, true);
+
+        const liveClient = await slots.nodeClient(slots.slots[0].master);
+        await liveClient.ping();
+
+        await assert.rejects(
+          (await slots.nodeClient(slots.slots[8192].master)).ping(),
+          TimeoutError
+        );
+
+        // A later rediscover after failover still works.
+        includeDead = false;
+        await slots.rediscover();
+        await (await slots.nodeClient(slots.slots[8192].master)).ping();
+      } finally {
+        slots.destroy();
+        await live.close();
+      }
+    });
+
+    it('never-ready nodes still drive topologyRefreshOnReconnectionAttemptStrategy', async function () {
+      this.timeout(10000);
+      let includeDead = true;
+      const live = await startLiveMaster(() => includeDead);
+      let nodeReconnecting = 0;
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: live.port } }],
+        defaults: {
+          socket: { reconnectStrategy: 20, connectTimeout: 100 },
+          disableClientInfo: true,
+        },
+        minimizeConnections: false,
+        topologyRefreshOnReconnectionAttemptStrategy: 30,
+        RESP: 2 as const,
+      }, ((event: string) => {
+        if (event === 'node-reconnecting') nodeReconnecting++;
+        return true;
+      }) as never, 'test-cluster');
+
+      try {
+        await slots.connect();
+        // Give the dead master time to fail connectTimeout and emit reconnecting.
+        await new Promise(resolve => setTimeout(resolve, 400));
+        assert.ok(nodeReconnecting > 0, 'unreachable master should emit node-reconnecting before ready');
+      } finally {
+        slots.destroy();
+        await live.close();
+      }
     });
   });
 

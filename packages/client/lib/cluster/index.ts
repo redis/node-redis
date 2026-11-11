@@ -91,8 +91,11 @@ export interface RedisClusterOptions<
    */
   defaults?: Partial<RedisClusterClientOptions>;
   /**
-   * When `true`, `.connect()` will only discover the cluster topology, without actually connecting to all the nodes.
-   * Useful for short-term or PubSub-only connections.
+   * When `true`, `.connect()` only discovers the cluster topology and does not start
+   * connections to the nodes (lazy connect on first use). When `false` (default),
+   * `.connect()` still returns after topology discovery, but also starts connecting to
+   * every node in the background. An unreachable node does not block `.connect()`.
+   * Useful `true` for short-term or PubSub-only connections.
    */
   minimizeConnections?: boolean;
   /**
@@ -105,9 +108,9 @@ export interface RedisClusterOptions<
    */
   maxCommandRedirections?: number;
   /**
-   * The number of milliseconds after the first post-ready node reconnection attempt
-   * before background cluster topology refreshes are triggered. Omitted or `undefined`
-   * uses the default delay of `5000`.
+   * The number of milliseconds after the first node reconnection attempt (including
+   * nodes that never became ready) before background cluster topology refreshes are
+   * triggered. Omitted or `undefined` uses the default delay of `5000`.
    * Use `false` or `0` to disable reconnect-triggered topology refreshes. A function can
    * return the delay dynamically, or `false`/`undefined`/`0` to skip the refresh attempt.
    * Concurrent refreshes are de-duplicated.
