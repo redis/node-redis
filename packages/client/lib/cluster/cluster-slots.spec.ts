@@ -643,6 +643,42 @@ describe('RedisClusterSlots', () => {
       }
     });
 
+    it('getPubSubClient prefers a ready shard over an unreachable master', async function () {
+      this.timeout(15000);
+      let includeDead = true;
+      const live = await startLiveMaster(() => includeDead);
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: live.port } }],
+        defaults: {
+          socket: { reconnectStrategy: 50, connectTimeout: 200 },
+          disableClientInfo: true,
+          commandOptions: { timeout: 300 }
+        },
+        minimizeConnections: false,
+        RESP: 2 as const,
+      }, () => true, 'test-cluster');
+
+      try {
+        await slots.connect();
+        // Wait until the live shard is ready so pub/sub can prefer it.
+        const liveNode = slots.slots[0].master;
+        await slots.nodeClient(liveNode);
+        for (let i = 0; i < 50 && !liveNode.client?.isReady; i++) {
+          await new Promise(resolve => setTimeout(resolve, 20));
+        }
+        assert.equal(liveNode.client?.isReady, true);
+
+        const started = Date.now();
+        const pubSub = await slots.getPubSubClient();
+        assert.ok(Date.now() - started < 2000, 'pub/sub must not hang on the dead master');
+        assert.equal(slots.pubSubNode?.address, liveNode.address);
+        assert.equal(pubSub.isReady, true);
+      } finally {
+        slots.destroy();
+        await live.close();
+      }
+    });
+
     it('nodeClient rejects a stale node removed by rediscover', async function () {
       this.timeout(10000);
       let includeDead = true;

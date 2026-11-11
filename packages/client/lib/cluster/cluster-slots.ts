@@ -862,10 +862,14 @@ export default class RedisClusterSlots<
     return node;
   }
 
-  #createClient(node: ShardNode<M, F, S, RESP, TYPE_MAPPING>, readonly = node.readonly) {
+  #createClient(
+    node: ShardNode<M, F, S, RESP, TYPE_MAPPING>,
+    readonly = node.readonly,
+    socketOverrides?: { reconnectStrategy?: false }
+  ) {
     const socket =
       this.#getNodeAddress(node.address) ??
-      { host: node.host, port: node.port, };
+      { host: node.host, port: node.port };
     const clientInfo = Object.freeze({
       host: socket.host,
       port: socket.port,
@@ -880,7 +884,10 @@ export default class RedisClusterSlots<
       }),
       himportRegistry: this.#himportRegistry,
       RESP: this.#options.RESP,
-      socket,
+      socket: {
+        ...socket,
+        ...socketOverrides,
+      },
       readonly,
     }));
     client._setIdentity(ClientRole.CLUSTER_NODE, this.#clusterClientId);
@@ -1495,12 +1502,50 @@ export default class RedisClusterSlots<
     return this.pubSubNode.connectPromise ?? Promise.resolve(this.pubSubNode.client);
   }
 
+  #pickPubSubTarget(exclude: ReadonlySet<string>) {
+    const candidates = [...this.masters, ...this.replicas]
+      .filter(node => !this.#retiredNodes.has(node) && !exclude.has(node.address));
+    if (candidates.length === 0) return undefined;
+
+    // Prefer addresses already proven reachable so subscribe cannot hang on a
+    // dead master that is still listed in the topology.
+    const ready = candidates.filter(node => node.client?.isReady);
+    const pool = ready.length > 0 ? ready : candidates;
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
   async #initiatePubSubClient(toResubscribe?: PubSubToResubscribe) {
-    const index = Math.floor(Math.random() * (this.masters.length + this.replicas.length)),
-      node = index < this.masters.length ?
-        this.masters[index] :
-        this.replicas[index - this.masters.length],
-      client = this.#createClient(node, false);
+    const tried = new Set<string>();
+    let lastError: unknown;
+
+    while (this.#isOpen) {
+      const node = this.#pickPubSubTarget(tried);
+      if (!node) {
+        throw lastError ?? new ClientClosedError();
+      }
+      tried.add(node.address);
+
+      try {
+        return await this.#connectPubSubClientOn(node, toResubscribe);
+      } catch (err) {
+        lastError = err;
+        if (err instanceof ClientClosedError && !this.#isOpen) {
+          throw err;
+        }
+        // Try another shard — an unreachable pick must not block pub/sub forever.
+      }
+    }
+
+    throw lastError ?? new ClientClosedError();
+  }
+
+  #connectPubSubClientOn(
+    node: ShardNode<M, F, S, RESP, TYPE_MAPPING>,
+    toResubscribe?: PubSubToResubscribe
+  ) {
+    // Fail this attempt quickly so we can fall back to another shard instead of
+    // retrying forever under the default reconnectStrategy.
+    const client = this.#createClient(node, false, { reconnectStrategy: false });
 
     const pubSubNode: PubSubNode<M, F, S, RESP, TYPE_MAPPING> = {
       address: node.address,
@@ -1538,6 +1583,8 @@ export default class RedisClusterSlots<
         if (this.pubSubNode === pubSubNode) {
           this.pubSubNode = undefined;
         }
+        this.#reconnectionTracker.removeClient(client._clientId);
+        client.destroy();
         throw err;
       });
 
