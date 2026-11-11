@@ -607,7 +607,7 @@ describe('RedisClusterSlots', () => {
         await slots.connect();
 
         // Plant a connecting pubSubNode whose listeners are only pending
-        // (not yet applied on the client) — the race Bugbot flagged.
+        // (not yet applied on the client).
         const pendingListener = () => {};
         slots.pubSubNode = {
           address: '127.0.0.1:9999',

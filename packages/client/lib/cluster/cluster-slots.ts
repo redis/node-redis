@@ -428,8 +428,7 @@ export default class RedisClusterSlots<
         this.pubSubNode = undefined;
 
         if (channelsListeners.size || patternsListeners.size) {
-          // Do not await — an unreachable pub/sub target must not block topology
-          // install / connect() the way node connects used to (#3592).
+          // Do not await — an unreachable pub/sub target must not block topology install.
           this.#initiatePubSubClient({
             [PUBSUB_TYPE.CHANNELS]: channelsListeners,
             [PUBSUB_TYPE.PATTERNS]: patternsListeners
@@ -470,9 +469,8 @@ export default class RedisClusterSlots<
         if (!inUse) this.nodeByAddress.delete(address);
       }
 
-      // Slot map is installed; node/pubsub connects run in the background.
-      // Waiting here hung connect()/rediscover when any master was unreachable
-      // under the default reconnectStrategy (#3592).
+      // Slot map is installed; node/pubsub connects run in the background so an
+      // unreachable node cannot block connect()/rediscover under reconnectStrategy.
       this.clientSideCache?.enable();
 
       return true;
@@ -828,8 +826,7 @@ export default class RedisClusterSlots<
           client.close().catch(() => client.destroy());
         }
         // Drop both so #startNodeClientInBackground can start a fresh connect.
-        // Leaving connectPromise set would no-op the restart and leave
-        // nodeClient() resolving to undefined (#3592 / demotion).
+        // Leaving connectPromise set would no-op the restart.
         node.client = undefined;
         node.connectPromise = undefined;
 
@@ -874,7 +871,7 @@ export default class RedisClusterSlots<
       .on('reconnecting', () => {
         emit('node-reconnecting', clientInfo);
         // Include nodes that never became ready so an unreachable master still
-        // drives topologyRefreshOnReconnectionAttemptStrategy (#3592).
+        // drives topologyRefreshOnReconnectionAttemptStrategy.
         this.#onNodeReconnectionAttempt(client._clientId, address);
       })
       .on('ready', () => {
@@ -904,8 +901,6 @@ export default class RedisClusterSlots<
         // destroy it so its ClientRegistry entry and listeners don't leak.
         // Guard on identity: #discover may have swapped in a new client while
         // this connect was in flight — never clobber that one.
-        // Clear connectPromise in catch (before finally) so a concurrent
-        // nodeClient() in the catch→finally gap can start a fresh client.
         if (node.client === client) {
           node.client = undefined;
           if (node.connectPromise === connectPromise) {
@@ -935,32 +930,17 @@ export default class RedisClusterSlots<
   }
 
   nodeClient(node: ShardNode<M, F, S, RESP, TYPE_MAPPING>): Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {
-    if (!node.client) {
-      this.#startNodeClientInBackground(node);
-    }
+    if (!node.client) this.#startNodeClientInBackground(node);
 
     // With disableOfflineQueue, commands cannot wait in the offline queue while
-    // the socket is connecting — wait for connect() like we used to (#3592 review).
-    if (
-      node.connectPromise &&
-      this.#options.defaults?.disableOfflineQueue === true
-    ) {
+    // the socket is connecting — wait for connect() instead.
+    if (node.connectPromise && this.#options.defaults?.disableOfflineQueue === true) {
       return node.connectPromise;
     }
 
-    // Return the client while connect() is still in flight so commands enter the
-    // offline queue and honor commandOptions.timeout instead of waiting forever
-    // on connectPromise under the default reconnectStrategy (#3592).
-    if (!node.client) {
-      // catch→finally gap: try once more now that connectPromise may be cleared.
-      this.#startNodeClientInBackground(node);
-    }
-
-    if (!node.client) {
-      return Promise.reject(new ClientClosedError());
-    }
-
-    return Promise.resolve(node.client);
+    // Otherwise return the client while connect() is still in flight so commands
+    // enter the offline queue and honor commandOptions.timeout.
+    return Promise.resolve(node.client!);
   }
 
   #runningRediscoverPromise?: Promise<void>;
