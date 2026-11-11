@@ -1063,6 +1063,29 @@ describe('RedisClusterSlots', () => {
       slots.destroy();
     });
 
+    it('removeAllPubSubListeners aborts an in-flight pub/sub initiate retry', async function () {
+      this.timeout(5000);
+
+      const slots = createSlots();
+      await slots.connect();
+
+      // Start connect against the dead mock master, then tear down mid-flight
+      // (multi-db handoff). The initiate retry loop must not recreate pubSubNode.
+      const connectPromise = slots.getPubSubClient();
+      assert.ok(slots.pubSubNode);
+
+      slots.removeAllPubSubListeners();
+      assert.equal(slots.pubSubNode, undefined);
+
+      await connectPromise.then(() => {}, () => {});
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      assert.equal(slots.pubSubNode, undefined,
+        'initiate retry must not recreate pub/sub after removeAllPubSubListeners');
+
+      slots.destroy();
+    });
+
     // When a second topology rediscovery fires while the first pub-sub connection
     // is still connecting, the first connection's .catch must not null a newer
     // pubSubNode — and the initiate loop must join that winner instead of

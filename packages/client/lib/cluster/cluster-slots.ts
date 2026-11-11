@@ -289,6 +289,10 @@ export default class RedisClusterSlots<
   // Whole retry-loop promise so concurrent getPubSubClient callers join the
   // winner instead of rejecting on the first failed shard pick.
   #pubSubInitiatePromise?: Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>;
+  // Bumped when dedicated pub/sub is intentionally torn down (listener handoff /
+  // destroy) so an in-flight #runPubSubInitiate cannot recreate and reapply
+  // listeners that were already moved off this cluster.
+  #pubSubEpoch = 0;
   clientSideCache?: PooledClientSideCacheProvider;
   /**
    * One fieldset registry for the whole cluster: HIMPORT PREPARE fans out to all masters
@@ -1224,6 +1228,9 @@ export default class RedisClusterSlots<
           pending[PUBSUB_TYPE.PATTERNS]
         );
       }
+      // Invalidate in-flight initiate retries before destroy so they cannot
+      // reconnect and reapply listeners that are being handed off.
+      this.#invalidatePubSubInitiate();
       // Clear before destroy so the dedicated pub/sub `end` handler no-ops.
       this.pubSubNode = undefined;
       // server-side subscriber state is per-connection: destroy the drained
@@ -1305,7 +1312,7 @@ export default class RedisClusterSlots<
   destroy() {
     this.#isOpen = false;
     this.#isReady = false;
-    this.#pubSubInitiatePromise = undefined;
+    this.#invalidatePubSubInitiate();
 
     for (const client of this.#clients()) {
       client.destroy();
@@ -1344,7 +1351,7 @@ export default class RedisClusterSlots<
   async #destroy(fn: (client: RedisClientType<M, F, S, RESP>) => Promise<unknown>): Promise<void> {
     this.#isOpen = false;
     this.#isReady = false;
-    this.#pubSubInitiatePromise = undefined;
+    this.#invalidatePubSubInitiate();
 
     const promises = [];
     for (const client of this.#clients()) {
@@ -1770,14 +1777,26 @@ export default class RedisClusterSlots<
     return promise;
   }
 
+  #invalidatePubSubInitiate() {
+    this.#pubSubEpoch++;
+    this.#pubSubInitiatePromise = undefined;
+  }
+
   async #runPubSubInitiate(
     toResubscribe?: PubSubToResubscribe,
     previousClient?: RedisClientType<M, F, S, RESP, TYPE_MAPPING>
   ) {
+    const epoch = this.#pubSubEpoch;
     const tried = new Set<string>();
     let lastError: unknown;
 
     while (this.#isOpen) {
+      // Listener handoff / destroy bumped the epoch — stop retrying so we do
+      // not recreate pub/sub and reapply listeners already moved off this cluster.
+      if (this.#pubSubEpoch !== epoch) {
+        throw new ClientClosedError();
+      }
+
       const node = this.#pickPubSubTarget(tried);
       if (!node) {
         throw lastError ?? new ClientClosedError();
@@ -1785,10 +1804,10 @@ export default class RedisClusterSlots<
       tried.add(node.address);
 
       try {
-        return await this.#connectPubSubClientOn(node, toResubscribe, previousClient);
+        return await this.#connectPubSubClientOn(node, toResubscribe, previousClient, epoch);
       } catch (err) {
         lastError = err;
-        if (!this.#isOpen) {
+        if (!this.#isOpen || this.#pubSubEpoch !== epoch) {
           throw err instanceof ClientClosedError ? err : new ClientClosedError();
         }
         // Own attempt clears pubSubNode on failure. A remaining pubSubNode means
@@ -1807,7 +1826,8 @@ export default class RedisClusterSlots<
   #connectPubSubClientOn(
     node: ShardNode<M, F, S, RESP, TYPE_MAPPING>,
     toResubscribe?: PubSubToResubscribe,
-    previousClient?: RedisClientType<M, F, S, RESP, TYPE_MAPPING>
+    previousClient?: RedisClientType<M, F, S, RESP, TYPE_MAPPING>,
+    epoch = this.#pubSubEpoch
   ) {
     // Fail this attempt quickly so we can fall back to another shard instead of
     // retrying forever under the default reconnectStrategy.
@@ -1839,7 +1859,7 @@ export default class RedisClusterSlots<
 
     pubSubNode.connectPromise = client.connect()
       .then(async client => {
-        if (this.pubSubNode !== pubSubNode) {
+        if (this.pubSubNode !== pubSubNode || this.#pubSubEpoch !== epoch) {
           client.destroy();
           throw new ClientClosedError();
         }
@@ -1847,7 +1867,9 @@ export default class RedisClusterSlots<
         // Attach before resubscribe so a drop during extendPubSubListeners is
         // observed (reconnectStrategy is false — no automatic reconnect).
         client.once('end', () => {
-          if (!this.#isOpen || this.pubSubNode !== pubSubNode) return;
+          if (!this.#isOpen || this.#pubSubEpoch !== epoch || this.pubSubNode !== pubSubNode) {
+            return;
+          }
           this.#recreatePubSubClient().catch(err => {
             if (err instanceof ClientClosedError && this.#isOpen) return;
             if (this.#isOpen) this.#emit('error', err);
@@ -1873,7 +1895,7 @@ export default class RedisClusterSlots<
             ]);
           }
 
-          if (this.pubSubNode !== pubSubNode) {
+          if (this.pubSubNode !== pubSubNode || this.#pubSubEpoch !== epoch) {
             client.destroy();
             throw new ClientClosedError();
           }
