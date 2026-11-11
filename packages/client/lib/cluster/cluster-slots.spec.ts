@@ -589,6 +589,86 @@ describe('RedisClusterSlots', () => {
       }
     });
 
+    it('preserves pending pub/sub listeners across a rediscover before connect finishes', async function () {
+      this.timeout(15000);
+      let includeDead = true;
+      const live = await startLiveMaster(() => includeDead);
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: live.port } }],
+        defaults: {
+          socket: { reconnectStrategy: false, connectTimeout: 200 },
+          disableClientInfo: true,
+        },
+        minimizeConnections: true,
+        RESP: 2 as const,
+      }, () => true, 'test-cluster');
+
+      try {
+        await slots.connect();
+
+        // Plant a connecting pubSubNode whose listeners are only pending
+        // (not yet applied on the client) — the race Bugbot flagged.
+        const pendingListener = () => {};
+        slots.pubSubNode = {
+          address: '127.0.0.1:9999',
+          client: {
+            _clientId: 'pending-pub-sub',
+            destroy() {},
+            getPubSubListeners: () => new Map(),
+          },
+          pendingToResubscribe: {
+            CHANNELS: new Map([['chan', {
+              unsubscribing: false,
+              buffers: new Set(),
+              strings: new Set([pendingListener]),
+            }]]),
+            PATTERNS: new Map(),
+          },
+          connectPromise: new Promise(() => {}),
+        } as unknown as NonNullable<typeof slots.pubSubNode>;
+
+        await slots.rediscover();
+
+        // #initiatePubSubClient sets pubSubNode synchronously with the pending
+        // listeners carried over from the destroyed node.
+        assert.ok(slots.pubSubNode, 'pub/sub node should be recreated with pending listeners');
+        assert.ok(
+          slots.pubSubNode.pendingToResubscribe?.CHANNELS?.has('chan') ||
+            slots.pubSubNode.client.getPubSubListeners('CHANNELS' as never).has('chan'),
+          'pending channel listeners must survive rediscover before connect finishes'
+        );
+      } finally {
+        slots.destroy();
+        await live.close();
+      }
+    });
+
+    it('nodeClient waits for connect when disableOfflineQueue is set', async function () {
+      this.timeout(10000);
+      let includeDead = false;
+      const live = await startLiveMaster(() => includeDead);
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: live.port } }],
+        defaults: {
+          socket: { reconnectStrategy: false, connectTimeout: 500 },
+          disableClientInfo: true,
+          disableOfflineQueue: true,
+        },
+        minimizeConnections: true,
+        RESP: 2 as const,
+      }, () => true, 'test-cluster');
+
+      try {
+        await slots.connect();
+        const client = await slots.nodeClient(slots.slots[0].master);
+        assert.equal(client.isReady, true, 'must wait until ready when offline queue is disabled');
+        await client.ping();
+      } finally {
+        slots.destroy();
+        await live.close();
+      }
+    });
+
     it('never-ready nodes still drive topologyRefreshOnReconnectionAttemptStrategy', async function () {
       this.timeout(10000);
       let includeDead = true;

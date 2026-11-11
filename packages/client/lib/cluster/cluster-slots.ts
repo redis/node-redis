@@ -136,13 +136,40 @@ type PubSubNode<
   TYPE_MAPPING extends TypeMapping
 > = (
     Omit<Node<M, F, S, RESP, TYPE_MAPPING>, 'client'> &
-    Required<Pick<Node<M, F, S, RESP, TYPE_MAPPING>, 'client'>>
+    Required<Pick<Node<M, F, S, RESP, TYPE_MAPPING>, 'client'>> & {
+      // Listeners waiting to be applied after connect. Kept here so a later
+      // rediscover can still recover them if connect has not finished yet.
+      pendingToResubscribe?: PubSubToResubscribe;
+    }
   );
 
 type PubSubToResubscribe = Record<
   PUBSUB_TYPE['CHANNELS'] | PUBSUB_TYPE['PATTERNS'],
   PubSubTypeListeners
 >;
+
+function mergePubSubTypeListeners(
+  ...sources: Array<PubSubTypeListeners | undefined>
+): PubSubTypeListeners {
+  const merged: PubSubTypeListeners = new Map();
+  for (const source of sources) {
+    if (!source?.size) continue;
+    for (const [channel, listeners] of source) {
+      const existing = merged.get(channel);
+      if (!existing) {
+        merged.set(channel, {
+          unsubscribing: false,
+          buffers: new Set(listeners.buffers),
+          strings: new Set(listeners.strings)
+        });
+        continue;
+      }
+      for (const listener of listeners.buffers) existing.buffers.add(listener);
+      for (const listener of listeners.strings) existing.strings.add(listener);
+    }
+  }
+  return merged;
+}
 
 export function groupCommandsByDestination<
   M extends RedisModules,
@@ -384,8 +411,17 @@ export default class RedisClusterSlots<
       }
 
       if (this.pubSubNode && !addressesInUse.has(this.pubSubNode.address)) {
-        const channelsListeners = this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.CHANNELS),
-          patternsListeners = this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.PATTERNS);
+        const pending = this.pubSubNode.pendingToResubscribe;
+        // Include pendingToResubscribe: listeners are only applied after connect,
+        // so a second rediscover while still connecting must not drop them.
+        const channelsListeners = mergePubSubTypeListeners(
+          this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.CHANNELS),
+          pending?.[PUBSUB_TYPE.CHANNELS]
+        );
+        const patternsListeners = mergePubSubTypeListeners(
+          this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.PATTERNS),
+          pending?.[PUBSUB_TYPE.PATTERNS]
+        );
 
         this.#reconnectionTracker.removeClient(this.pubSubNode.client._clientId);
         this.pubSubNode.client.destroy();
@@ -868,7 +904,14 @@ export default class RedisClusterSlots<
         // destroy it so its ClientRegistry entry and listeners don't leak.
         // Guard on identity: #discover may have swapped in a new client while
         // this connect was in flight — never clobber that one.
-        if (node.client === client) node.client = undefined;
+        // Clear connectPromise in catch (before finally) so a concurrent
+        // nodeClient() in the catch→finally gap can start a fresh client.
+        if (node.client === client) {
+          node.client = undefined;
+          if (node.connectPromise === connectPromise) {
+            node.connectPromise = undefined;
+          }
+        }
         client.destroy();
         throw err;
       })
@@ -896,9 +939,23 @@ export default class RedisClusterSlots<
       this.#startNodeClientInBackground(node);
     }
 
+    // With disableOfflineQueue, commands cannot wait in the offline queue while
+    // the socket is connecting — wait for connect() like we used to (#3592 review).
+    if (
+      node.connectPromise &&
+      this.#options.defaults?.disableOfflineQueue === true
+    ) {
+      return node.connectPromise;
+    }
+
     // Return the client while connect() is still in flight so commands enter the
     // offline queue and honor commandOptions.timeout instead of waiting forever
     // on connectPromise under the default reconnectStrategy (#3592).
+    if (!node.client) {
+      // catch→finally gap: try once more now that connectPromise may be cleared.
+      this.#startNodeClientInBackground(node);
+    }
+
     if (!node.client) {
       return Promise.reject(new ClientClosedError());
     }
@@ -1421,7 +1478,8 @@ export default class RedisClusterSlots<
 
     const pubSubNode: PubSubNode<M, F, S, RESP, TYPE_MAPPING> = {
       address: node.address,
-      client
+      client,
+      pendingToResubscribe: toResubscribe
     };
 
     this.pubSubNode = pubSubNode;
@@ -1443,6 +1501,8 @@ export default class RedisClusterSlots<
             client.destroy();
             throw new ClientClosedError();
           }
+
+          pubSubNode.pendingToResubscribe = undefined;
         }
 
         pubSubNode.connectPromise = undefined;
