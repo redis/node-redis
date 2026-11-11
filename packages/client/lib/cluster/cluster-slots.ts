@@ -1,5 +1,5 @@
 import type { RedisClusterClientOptions, RedisClusterOptions } from '.';
-import { ClientClosedError, ClientOfflineError, DisconnectsClientError, ErrorReply, MaxCommandRedirectionsError, RootNodesUnavailableError } from '../errors';
+import { ClientClosedError, ClientOfflineError, DisconnectsClientError, ErrorReply, MaxCommandRedirectionsError, RootNodesUnavailableError, TimeoutError } from '../errors';
 import RedisClient, { RedisClientOptions, RedisClientType } from '../client';
 import type { CommandToWrite } from '../client/commands-queue';
 import { EventEmitter } from 'node:stream';
@@ -286,6 +286,9 @@ export default class RedisClusterSlots<
   // Nodes dropped from the topology; fan-out may still hold them and must not reconnect.
   readonly #retiredNodes = new WeakSet<ShardNode<M, F, S, RESP, TYPE_MAPPING>>();
   pubSubNode?: PubSubNode<M, F, S, RESP, TYPE_MAPPING>;
+  // Whole retry-loop promise so concurrent getPubSubClient callers join the
+  // winner instead of rejecting on the first failed shard pick.
+  #pubSubInitiatePromise?: Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>;
   clientSideCache?: PooledClientSideCacheProvider;
   /**
    * One fieldset registry for the whole cluster: HIMPORT PREPARE fans out to all masters
@@ -551,12 +554,31 @@ export default class RedisClusterSlots<
           // 2.1 Create new Master if needed
           if (!destMasterNode) {
             destMasterNode = this.#initiateSlotNode({ host: host, port: port, id: `smigrated-${host}:${port}` }, false, true, new Set());
-            // Eager connect is started in the background; wait for this dest (and its
-            // sharded pub/sub) so the migration can pause a live client.
-            await Promise.all([
-              destMasterNode.connectPromise ?? Promise.resolve(destMasterNode.client),
-              this.#initiateShardedPubSubClient(destMasterNode)
-            ]);
+            // Eager connect is started in the background; wait briefly so the
+            // migration can pause a live client — but do not hang forever under
+            // default reconnectStrategy when the destination is unreachable.
+            let timeoutId: ReturnType<typeof setTimeout> | undefined;
+            try {
+              await Promise.race([
+                Promise.all([
+                  destMasterNode.connectPromise ?? Promise.resolve(destMasterNode.client),
+                  this.#initiateShardedPubSubClient(destMasterNode)
+                ]),
+                new Promise<never>((_, reject) => {
+                  timeoutId = setTimeout(
+                    () => reject(new TimeoutError()),
+                    this.#connectTimeoutMs()
+                  );
+                })
+              ]);
+            } catch (err) {
+              // Drop the never-ready ghost so fan-out / getRandomNode cannot
+              // keep sampling a permanently reconnecting migration target.
+              this.#discardNode(destMasterNode);
+              throw err;
+            } finally {
+              if (timeoutId !== undefined) clearTimeout(timeoutId);
+            }
             // Pause new destination until migration is complete
             destMasterNode.client?._pause();
             destMasterNode.pubSub?.client._pause();
@@ -918,6 +940,7 @@ export default class RedisClusterSlots<
       .on(SMIGRATED_EVENT, this.#handleSmigrated)
       .on('__MOVED', async (allPubSubListeners: PubSubListeners) => {
         await this.rediscover(client);
+        if (!this.#isOpen) return;
         this.#emit(RESUBSCRIBE_LISTENERS_EVENT, allPubSubListeners);
       });
 
@@ -961,6 +984,52 @@ export default class RedisClusterSlots<
     });
   }
 
+  #connectTimeoutMs() {
+    return typeof this.#options.defaults?.socket?.connectTimeout === 'number'
+      ? this.#options.defaults.socket.connectTimeout
+      : 5000;
+  }
+
+  #awaitConnectWithTimeout(
+    connectPromise: Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>
+  ) {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    return Promise.race([
+      connectPromise,
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(
+          () => reject(new TimeoutError()),
+          this.#connectTimeoutMs()
+        );
+      })
+    ]).finally(() => {
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
+    });
+  }
+
+  #discardNode(node: ShardNode<M, F, S, RESP, TYPE_MAPPING>) {
+    this.masters = this.masters.filter(master => master !== node);
+    this.replicas = this.replicas.filter(replica => replica !== node);
+    if (this.nodeByAddress.get(node.address) === node) {
+      this.nodeByAddress.delete(node.address);
+    }
+    node.connectPromise = undefined;
+    this.#retiredNodes.add(node);
+
+    if (node.client) {
+      this.#reconnectionTracker.removeClient(node.client._clientId);
+      node.client.destroy();
+      node.client = undefined;
+    }
+
+    const master = node as MasterNode<M, F, S, RESP, TYPE_MAPPING>;
+    if (master.pubSub) {
+      this.#reconnectionTracker.removeClient(master.pubSub.client._clientId);
+      master.pubSub.client.destroy();
+      master.pubSub = undefined;
+    }
+  }
+
   nodeClient(node: ShardNode<M, F, S, RESP, TYPE_MAPPING>): Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {
     if (this.#retiredNodes.has(node)) {
       return Promise.reject(new ClientClosedError());
@@ -979,6 +1048,11 @@ export default class RedisClusterSlots<
         this.#options.defaults?.disableOfflineQueue === true
       )
     ) {
+      // Bound the wait: with a retrying reconnectStrategy an unreachable node
+      // never rejects connectPromise, which would hang getClientForKey forever.
+      if (this.#options.defaults?.disableOfflineQueue === true) {
+        return this.#awaitConnectWithTimeout(node.connectPromise);
+      }
       return node.connectPromise;
     }
 
@@ -1221,6 +1295,7 @@ export default class RedisClusterSlots<
   destroy() {
     this.#isOpen = false;
     this.#isReady = false;
+    this.#pubSubInitiatePromise = undefined;
 
     for (const client of this.#clients()) {
       client.destroy();
@@ -1259,6 +1334,7 @@ export default class RedisClusterSlots<
   async #destroy(fn: (client: RedisClientType<M, F, S, RESP>) => Promise<unknown>): Promise<void> {
     this.#isOpen = false;
     this.#isReady = false;
+    this.#pubSubInitiatePromise = undefined;
 
     const promises = [];
     for (const client of this.#clients()) {
@@ -1391,15 +1467,17 @@ export default class RedisClusterSlots<
     // Prefer ready shards so keyless commands do not land on a never-ready
     // master still listed after non-blocking discover.
     const poolSize = this.masters.length + this.replicas.length;
-    const hasReady =
-      this.masters.some(node => node.client?.isReady) ||
-      this.replicas.some(node => node.client?.isReady);
+    const ready = [...this.masters, ...this.replicas].filter(node => node.client?.isReady);
     const maxAttempts = Math.max(1, poolSize) * 2;
     for (let i = 0; i < maxAttempts; i++) {
       const node = this._randomNodeIterator.next().value as ShardNode<M, F, S, RESP, TYPE_MAPPING>;
-      if (!hasReady || node.client?.isReady) {
+      if (ready.length === 0 || node.client?.isReady) {
         return node;
       }
+    }
+
+    if (ready.length > 0) {
+      return ready[Math.floor(Math.random() * ready.length)];
     }
 
     return this._randomNodeIterator.next().value as ShardNode<M, F, S, RESP, TYPE_MAPPING>;
@@ -1428,7 +1506,24 @@ export default class RedisClusterSlots<
       return slot.master;
     }
 
-    slot.nodesIterator ??= this.#slotNodesIterator(slot as ShardWithReplicas<M, F, S, RESP, TYPE_MAPPING>);
+    const shard = slot as ShardWithReplicas<M, F, S, RESP, TYPE_MAPPING>;
+    slot.nodesIterator ??= this.#slotNodesIterator(shard);
+
+    // Prefer ready nodes so readonly routing does not land on a never-ready
+    // replica while the master (or another replica) is already usable.
+    const ready = [shard.master, ...shard.replicas].filter(node => node.client?.isReady);
+    const maxAttempts = (1 + shard.replicas.length) * 2;
+    for (let i = 0; i < maxAttempts; i++) {
+      const node = slot.nodesIterator.next().value as ShardNode<M, F, S, RESP, TYPE_MAPPING>;
+      if (ready.length === 0 || node.client?.isReady) {
+        return node;
+      }
+    }
+
+    if (ready.length > 0) {
+      return ready[Math.floor(Math.random() * ready.length)];
+    }
+
     return slot.nodesIterator.next().value as ShardNode<M, F, S, RESP, TYPE_MAPPING>;
   }
 
@@ -1527,6 +1622,10 @@ export default class RedisClusterSlots<
   getPubSubClient(): Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {
     this.#assertReady();
 
+    // Join an in-flight retry loop so concurrent callers do not reject on the
+    // first failed shard pick while initiate is still falling back.
+    if (this.#pubSubInitiatePromise) return this.#pubSubInitiatePromise;
+
     if (!this.pubSubNode) return this.#initiatePubSubClient();
 
     // Dedicated pub/sub uses reconnectStrategy: false (fail-fast on pick). A
@@ -1569,7 +1668,43 @@ export default class RedisClusterSlots<
     return pool[Math.floor(Math.random() * pool.length)];
   }
 
-  async #initiatePubSubClient(
+  #initiatePubSubClient(
+    toResubscribe?: PubSubToResubscribe,
+    previousClient?: RedisClientType<M, F, S, RESP, TYPE_MAPPING>
+  ) {
+    if (this.#pubSubInitiatePromise) {
+      return this.#pubSubInitiatePromise.then(async client => {
+        if (!toResubscribe && !previousClient) return client;
+
+        const channels = mergePubSubTypeListeners(
+          previousClient?.getPubSubListeners(PUBSUB_TYPE.CHANNELS),
+          toResubscribe?.[PUBSUB_TYPE.CHANNELS]
+        );
+        const patterns = mergePubSubTypeListeners(
+          previousClient?.getPubSubListeners(PUBSUB_TYPE.PATTERNS),
+          toResubscribe?.[PUBSUB_TYPE.PATTERNS]
+        );
+        if (channels.size || patterns.size) {
+          await Promise.all([
+            client.extendPubSubListeners(PUBSUB_TYPE.CHANNELS, channels),
+            client.extendPubSubListeners(PUBSUB_TYPE.PATTERNS, patterns)
+          ]);
+        }
+        return client;
+      });
+    }
+
+    const promise = this.#runPubSubInitiate(toResubscribe, previousClient)
+      .finally(() => {
+        if (this.#pubSubInitiatePromise === promise) {
+          this.#pubSubInitiatePromise = undefined;
+        }
+      });
+    this.#pubSubInitiatePromise = promise;
+    return promise;
+  }
+
+  async #runPubSubInitiate(
     toResubscribe?: PubSubToResubscribe,
     previousClient?: RedisClientType<M, F, S, RESP, TYPE_MAPPING>
   ) {
@@ -1587,13 +1722,14 @@ export default class RedisClusterSlots<
         return await this.#connectPubSubClientOn(node, toResubscribe, previousClient);
       } catch (err) {
         lastError = err;
-        if (err instanceof ClientClosedError) {
-          if (!this.#isOpen) throw err;
-          // Superseded by another initiate/rediscover — join the winner instead
-          // of overwriting pubSubNode and stealing its listeners.
-          if (this.pubSubNode) {
-            return this.pubSubNode.connectPromise ?? this.pubSubNode.client;
-          }
+        if (!this.#isOpen) {
+          throw err instanceof ClientClosedError ? err : new ClientClosedError();
+        }
+        // Own attempt clears pubSubNode on failure. A remaining pubSubNode means
+        // another initiate/rediscover won — join it for any error class, not only
+        // ClientClosedError (socket errors while superseded must not steal it).
+        if (this.pubSubNode) {
+          return this.pubSubNode.connectPromise ?? this.pubSubNode.client;
         }
         // Try another shard — an unreachable pick must not block pub/sub forever.
       }

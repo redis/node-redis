@@ -749,6 +749,93 @@ describe('RedisClusterSlots', () => {
       }
     });
 
+    it('getSlotRandomNode prefers a ready master over a never-ready replica', async function () {
+      this.timeout(15000);
+      let includeDead = true;
+      const live = await startLiveMaster(() => includeDead);
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: live.port } }],
+        defaults: {
+          socket: { reconnectStrategy: 50, connectTimeout: 200 },
+          disableClientInfo: true,
+          commandOptions: { timeout: 300 }
+        },
+        minimizeConnections: false,
+        useReplicas: true,
+        RESP: 2 as const,
+      }, () => true, 'test-cluster');
+
+      try {
+        await slots.connect();
+        const liveNode = slots.slots[0].master;
+        await slots.nodeClient(liveNode);
+        for (let i = 0; i < 50 && !liveNode.client?.isReady; i++) {
+          await new Promise(resolve => setTimeout(resolve, 20));
+        }
+        assert.equal(liveNode.client?.isReady, true);
+
+        // Plant a never-ready replica on the live shard so readonly routing
+        // would otherwise sample it.
+        const deadReplica = {
+          address: '127.0.0.1:1',
+          host: '127.0.0.1',
+          port: 1,
+          client: { isReady: false },
+        } as unknown as NonNullable<typeof slots.slots[0]['replicas']>[number];
+        const shard = slots.slots[0] as typeof slots.slots[0] & {
+          replicas: NonNullable<typeof slots.slots[0]['replicas']>;
+          nodesIterator?: IterableIterator<unknown>;
+        };
+        shard.replicas = [deadReplica];
+        shard.nodesIterator = undefined;
+
+        for (let i = 0; i < 8; i++) {
+          const node = slots.getSlotRandomNode(0);
+          assert.equal(node.client?.isReady, true, 'readonly slot routing must prefer ready nodes');
+          assert.equal(node.address, liveNode.address);
+        }
+      } finally {
+        slots.destroy();
+        await live.close();
+      }
+    });
+
+    it('concurrent getPubSubClient callers join the retry loop', async function () {
+      this.timeout(15000);
+      let includeDead = true;
+      const live = await startLiveMaster(() => includeDead);
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: live.port } }],
+        defaults: {
+          socket: { reconnectStrategy: false, connectTimeout: 200 },
+          disableClientInfo: true,
+        },
+        minimizeConnections: true,
+        RESP: 2 as const,
+      }, () => true, 'test-cluster');
+
+      try {
+        await slots.connect();
+        const liveNode = slots.slots[0].master;
+        await slots.nodeClient(liveNode);
+        for (let i = 0; i < 50 && !liveNode.client?.isReady; i++) {
+          await new Promise(resolve => setTimeout(resolve, 20));
+        }
+
+        const [a, b, c] = await Promise.all([
+          slots.getPubSubClient(),
+          slots.getPubSubClient(),
+          slots.getPubSubClient()
+        ]);
+        assert.equal(a.isReady, true);
+        assert.equal(b, a, 'concurrent callers must share the winning pub/sub client');
+        assert.equal(c, a);
+      } finally {
+        slots.destroy();
+        await live.close();
+      }
+    });
+
     it('nodeClient rejects a stale node removed by rediscover', async function () {
       this.timeout(10000);
       let includeDead = true;
@@ -800,6 +887,32 @@ describe('RedisClusterSlots', () => {
         const client = await slots.nodeClient(slots.slots[0].master);
         assert.equal(client.isReady, true, 'must wait until ready when offline queue is disabled');
         await client.ping();
+      } finally {
+        slots.destroy();
+        await live.close();
+      }
+    });
+
+    it('nodeClient times out waiting on an unreachable node when disableOfflineQueue is set', async function () {
+      this.timeout(10000);
+      let includeDead = true;
+      const live = await startLiveMaster(() => includeDead);
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: live.port } }],
+        defaults: {
+          socket: { reconnectStrategy: 50, connectTimeout: 200 },
+          disableClientInfo: true,
+          disableOfflineQueue: true,
+        },
+        minimizeConnections: false,
+        RESP: 2 as const,
+      }, () => true, 'test-cluster');
+
+      try {
+        await slots.connect();
+        const dead = slots.slots[8192].master;
+        assert.equal(dead.port, 1);
+        await assert.rejects(slots.nodeClient(dead), TimeoutError);
       } finally {
         slots.destroy();
         await live.close();
@@ -906,8 +1019,9 @@ describe('RedisClusterSlots', () => {
     });
 
     // When a second topology rediscovery fires while the first pub-sub connection
-    // is still connecting, the first connection's .catch callback must not null a
-    // newer pubSubNode that was set by the second rediscovery.
+    // is still connecting, the first connection's .catch must not null a newer
+    // pubSubNode — and the initiate loop must join that winner instead of
+    // retrying over it.
     it('catch callback does not clear a newer pubSubNode', async function () {
       this.timeout(5000);
 
@@ -915,21 +1029,23 @@ describe('RedisClusterSlots', () => {
       await slots.connect();
 
       // Triggers #initiatePubSubClient() → picks the single master at 127.0.0.1:1
-      // (dead port). The method sets slots.pubSubNode synchronously, then returns
-      // a connectPromise that will reject with ECONNREFUSED.
+      // (dead port). The method sets slots.pubSubNode synchronously.
       const connectPromise = slots.getPubSubClient();
       const originalPubSubNode = slots.pubSubNode;
       assert.ok(originalPubSubNode, 'pubSubNode set synchronously by #initiatePubSubClient');
 
       // Simulate a concurrent topology rediscovery replacing pubSubNode before
       // the in-flight connection fails.
-      const mockNewerNode = { address: '127.0.0.1:2', client: { destroy() {} } } as unknown as NonNullable<typeof slots.pubSubNode>;
+      const mockClient = { destroy() {} };
+      const mockNewerNode = { address: '127.0.0.1:2', client: mockClient } as unknown as NonNullable<typeof slots.pubSubNode>;
       slots.pubSubNode = mockNewerNode;
 
-      // Let the original connection attempt reject (ECONNREFUSED to port 1).
-      await assert.rejects(connectPromise);
+      // Original attempt fails (ECONNREFUSED), but initiate joins the winner.
+      const joined = await connectPromise;
+      assert.equal(joined, mockClient as never,
+        'superseded initiate must join the replacement pub/sub client');
 
-      // The guard in #initiatePubSubClient's .catch:
+      // The guard in #connectPubSubClientOn's .catch:
       //   if (this.pubSubNode === pubSubNode) { this.pubSubNode = undefined; }
       // must NOT have fired because this.pubSubNode was already replaced.
       assert.equal(slots.pubSubNode, mockNewerNode,
