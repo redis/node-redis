@@ -2169,7 +2169,7 @@ describe('legacy tests', () => {
 
       // Listen for manifest change events
       sentinel.on('topology-change', (event: RedisSentinelEvent) => {
-        if (event.type === "MASTER_CHANGE") {
+        if (event.type === "MASTER_CHANGE" && event.node.port !== originalMaster!.port) {
           masterChangeDetected = true;
           tracer.push(`Master change detected during scan: ${event.node.port}`);
           if (masterChangeResolve) masterChangeResolve();
