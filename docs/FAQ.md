@@ -48,7 +48,7 @@ Keep the client open while the application needs it and close it when the applic
 
 ## `RedisClientType`
 
-Redis has support for [modules](https://redis.io/modules) and running [Lua scripts](../README.md#lua-scripts) within the Redis context. To take advantage of typing within these scenarios, `RedisClient` and `RedisCluster` should be used with [typeof](https://www.typescriptlang.org/docs/handbook/2/typeof-types.html), rather than the base types `RedisClientType` and `RedisClusterType`.
+Redis has support for [modules](https://redis.io/modules) and running [Lua scripts](./programmability.md#lua-scripts) within the Redis context. To take advantage of typing within these scenarios, `RedisClient` and `RedisCluster` should be used with [typeof](https://www.typescriptlang.org/docs/handbook/2/typeof-types.html), rather than the base types `RedisClientType` and `RedisClusterType`.
 
 ```typescript
 import { createClient } from '@redis/client';
