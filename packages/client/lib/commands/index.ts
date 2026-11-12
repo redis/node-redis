@@ -58,6 +58,7 @@ import BLMPOP from './BLMPOP';
 import BLPOP from './BLPOP';
 import BRPOP from './BRPOP';
 import BRPOPLPUSH from './BRPOPLPUSH';
+import BZMOVE from './BZMOVE';
 import BZMPOP from './BZMPOP';
 import BZPOPMAX from './BZPOPMAX';
 import BZPOPMIN from './BZPOPMIN';
@@ -381,6 +382,8 @@ import ZINTER from './ZINTER';
 import ZINTERCARD from './ZINTERCARD';
 import ZINTERSTORE from './ZINTERSTORE';
 import ZLEXCOUNT from './ZLEXCOUNT';
+import ZMOVE from './ZMOVE';
+import ZMOVEMEMBER from './ZMOVEMEMBER';
 import ZMPOP from './ZMPOP';
 import ZMSCORE from './ZMSCORE';
 import ZPOPMAX_COUNT from './ZPOPMAX_COUNT';
@@ -1195,6 +1198,28 @@ export default {
    * @param timeout - Maximum seconds to block, 0 to block indefinitely
    */
   brPopLPush: BRPOPLPUSH,
+  /**
+   * Moves members with the lowest (MIN) or highest (MAX) scores from one sorted set to another, keeping their scores; blocks until the source has a member
+   * @param source - Key of the source sorted set. Deleted when its last member is moved
+   * @param destination - Key of the destination sorted set
+   * @param side - Move the lowest (MIN) or highest (MAX) scores
+   * @param timeout - Maximum seconds to block, 0 to block indefinitely
+   * @param options - Optional parameters
+   * @param options.COUNT - Maximum number of members to move (default 1). Does not wait for a full batch
+   * @since 8.12.0
+   */
+  BZMOVE,
+  /**
+   * Moves members with the lowest (MIN) or highest (MAX) scores from one sorted set to another, keeping their scores; blocks until the source has a member
+   * @param source - Key of the source sorted set. Deleted when its last member is moved
+   * @param destination - Key of the destination sorted set
+   * @param side - Move the lowest (MIN) or highest (MAX) scores
+   * @param timeout - Maximum seconds to block, 0 to block indefinitely
+   * @param options - Optional parameters
+   * @param options.COUNT - Maximum number of members to move (default 1). Does not wait for a full batch
+   * @since 8.12.0
+   */
+  bzMove: BZMOVE,
   /**
    * Removes and returns members from one or more sorted sets in the specified order; blocks until elements are available
    * @param timeout - Maximum seconds to block, 0 to block indefinitely
@@ -5895,6 +5920,46 @@ export default {
    * @param max - Maximum lexicographical value (inclusive).
    */
   zLexCount: ZLEXCOUNT,
+  /**
+   * Moves members with the lowest (MIN) or highest (MAX) scores, or all members in a score range, from one sorted set to another, keeping their scores
+   * @param source - Key of the source sorted set. Deleted when its last member is moved
+   * @param destination - Key of the destination sorted set
+   * @param selection - `MIN`, `MAX`, or a `{ min, max }` score range (ZRANGEBYSCORE syntax)
+   * @param options - Optional parameters
+   * @param options.COUNT - Maximum number of members to move. Defaults to 1 for MIN/MAX and to the whole range for a score range
+   * @since 8.12.0
+   */
+  ZMOVE,
+  /**
+   * Moves members with the lowest (MIN) or highest (MAX) scores, or all members in a score range, from one sorted set to another, keeping their scores
+   * @param source - Key of the source sorted set. Deleted when its last member is moved
+   * @param destination - Key of the destination sorted set
+   * @param selection - `MIN`, `MAX`, or a `{ min, max }` score range (ZRANGEBYSCORE syntax)
+   * @param options - Optional parameters
+   * @param options.COUNT - Maximum number of members to move. Defaults to 1 for MIN/MAX and to the whole range for a score range
+   * @since 8.12.0
+   */
+  zMove: ZMOVE,
+  /**
+   * Moves the given members from one sorted set to another, keeping their scores
+   * @param source - Key of the source sorted set. Deleted when its last member is moved
+   * @param destination - Key of the destination sorted set
+   * @param members - Member or members to move. Missing members are skipped and duplicates move once
+   * @param options - Optional parameters
+   * @param options.condition - `NX` moves only members absent from the destination; `XX` only members already in it
+   * @since 8.12.0
+   */
+  ZMOVEMEMBER,
+  /**
+   * Moves the given members from one sorted set to another, keeping their scores
+   * @param source - Key of the source sorted set. Deleted when its last member is moved
+   * @param destination - Key of the destination sorted set
+   * @param members - Member or members to move. Missing members are skipped and duplicates move once
+   * @param options - Optional parameters
+   * @param options.condition - `NX` moves only members absent from the destination; `XX` only members already in it
+   * @since 8.12.0
+   */
+  zMoveMember: ZMOVEMEMBER,
   /**
    * Removes and returns up to count members with the highest/lowest scores from the first non-empty sorted set.
    * @param keys - Keys of the sorted sets to pop from.
