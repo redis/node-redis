@@ -670,6 +670,32 @@ describe("Client Side Cache", () => {
           clientSideCache: csc
         }
       });
+
+      testUtils.testWithClient('MEMORY USAGE after a consumer group is created', async client => {
+        csc.clear();
+        const writer = client.duplicate({ clientSideCache: undefined });
+        await writer.connect();
+
+        try {
+          await client.xAdd('stream', '*', { field: 'value' });
+          const before = await client.memoryUsage('stream');
+
+          await writer.xGroupCreate('stream', 'group', '0');
+
+          const after = await writer.memoryUsage('stream');
+          assert.notEqual(after, before, 'the group changes the memory usage');
+          assert.equal(await client.memoryUsage('stream'), after);
+          assert.equal(csc.size(), 0, 'Cache Size');
+        } finally {
+          writer.destroy();
+        }
+      }, {
+        ...GLOBAL.SERVERS.OPEN,
+        clientOptions: {
+          RESP: 3,
+          clientSideCache: csc
+        }
+      });
     });
   });
 
