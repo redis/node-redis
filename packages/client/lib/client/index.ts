@@ -23,6 +23,7 @@ import SingleEntryCache from '../single-entry-cache';
 import { version } from '../../package.json'
 import EnterpriseMaintenanceManager, { MaintenanceUpdate, MovingEndpointType, SMIGRATED_EVENT, SMigratedEvent } from './enterprise-maintenance-manager';
 import { ClientMetricsHandle, ClientRegistry } from '../opentelemetry';
+import type { ClientMetricConfig } from '../opentelemetry/types';
 import { ClientIdentity, ClientRole, generateClientId } from './identity';
 import { trace, sanitizeArgs, publish, CHANNELS, type CommandTraceContext } from './tracing';
 import { DEFAULT_COMMAND_TIMEOUT } from '../defaults';
@@ -278,6 +279,13 @@ export interface RedisClientOptions<
    * The default is 10000
    */
   maintRelaxedSocketTimeout?: number;
+  /**
+   * OpenTelemetry metrics options for this client.
+   *
+   * `customAttributes` are added to every metric data point this client emits,
+   * and override the process-level `customAttributes` set in `OpenTelemetry.init`.
+   */
+  metrics?: ClientMetricConfig;
 };
 
 /**
@@ -691,6 +699,7 @@ export default class RedisClient<
         clientId: this._self.#clientIdentity.id,
         parentId: this._self.#clientIdentity.parentId,
         isPubSub: this._self.#queue.isPubSubActive,
+        customAttributes: this._self.#options.metrics?.customAttributes,
       }),
       getPendingRequests: () => this._self.#queue.pendingCount,
       getCacheItemCount: () => this._self.#clientSideCache?.size() ?? 0,
@@ -792,10 +801,10 @@ export default class RedisClient<
 
         if (push[1] !== null) {
           for (const key of push[1]) {
-            this.#clientSideCache?.invalidate(key)
+            this.#clientSideCache?.invalidate(key, this._clientId)
           }
         } else {
-          this.#clientSideCache?.invalidate(null)
+          this.#clientSideCache?.invalidate(null, this._clientId)
         }
 
         return true
@@ -2365,9 +2374,11 @@ export default class RedisClient<
       this._self.#credentialsSubscription?.dispose();
       this._self.#credentialsSubscription = null;
 
+      // destroySocket() publishes CONNECTION_CLOSED, so unregister after it to keep
+      // this client's attributes on that metric.
       if (this._self.#queue.isEmpty()) {
-        this._self.#unregisterFromMetrics();
         this._self.#socket.destroySocket();
+        this._self.#unregisterFromMetrics();
         return resolve();
       }
 
@@ -2385,8 +2396,8 @@ export default class RedisClient<
 
         this._self.#socket.off('data', maybeClose);
         this._self.#socket.off('end', onEnd);
-        this._self.#unregisterFromMetrics();
         this._self.#socket.destroySocket();
+        this._self.#unregisterFromMetrics();
         resolve();
       };
       this._self.#socket.on('data', maybeClose);

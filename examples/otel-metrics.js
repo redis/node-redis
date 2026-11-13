@@ -25,10 +25,14 @@ OpenTelemetry.init({
   metrics: {
     enabled: true,
     enabledMetricGroups: ['command', 'connection-basic', 'resiliency'],
+    customAttributes: { 'deployment.environment': 'example' },
   }
 });
 
-const client = createClient();
+// Client-level attributes override the process-level ones above.
+const client = createClient({
+  metrics: { customAttributes: { app: 'otel-example' } },
+});
 
 client.on('error', (err) => {
   console.error('Redis client error:', err);

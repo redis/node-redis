@@ -99,6 +99,20 @@ export interface MetricConfig {
   bucketsConnectionCreateTime?: number[];
   bucketsConnectionWaitTime?: number[];
   bucketsStreamProcessingDuration?: number[];
+  customAttributes?: Attributes;
+}
+
+/**
+ * Per-client metrics options. For a cluster, set them in `defaults`; for a sentinel, in
+ * `nodeClientOptions` and `sentinelClientOptions`.
+ */
+export interface ClientMetricConfig {
+  /**
+   * Attributes added to every metric data point this client emits. They
+   * override `OpenTelemetry.init` `metrics.customAttributes` and the attributes
+   * node-redis sets. Keep the cardinality low.
+   */
+  customAttributes?: Attributes;
 }
 
 export interface OTelClientAttributes {
@@ -108,6 +122,7 @@ export interface OTelClientAttributes {
   clientId?: string;
   parentId?: string;
   isPubSub?: boolean;
+  customAttributes?: Attributes;
 }
 
 export interface ObservabilityConfig {
@@ -118,6 +133,7 @@ export interface MetricOptions extends Required<
   Omit<MetricConfig, "meterProvider" | "includeCommands" | "excludeCommands">
 > {
   attributes: Attributes;
+  hasCustomAttributes: boolean;
   meterProvider?: MeterProvider;
   includeCommands: Record<string, true>;
   excludeCommands: Record<string, true>;
