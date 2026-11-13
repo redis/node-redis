@@ -587,6 +587,90 @@ describe("Client Side Cache", () => {
         clientSideCache: csc
       }
     });
+
+    // The server sends no invalidation for the state these replies depend on,
+    // so a cached reply would never be refreshed.
+    describe('replies the server does not invalidate are not cached', () => {
+      testUtils.testWithClient('SORT_RO with BY and GET', async client => {
+        csc.clear();
+        const writer = client.duplicate({ clientSideCache: undefined });
+        await writer.connect();
+
+        try {
+          await client.rPush('list', ['1', '2']);
+          await client.mSet({ weight_1: '1', weight_2: '2', object_1: 'a', object_2: 'b' });
+
+          assert.deepEqual(await client.sortRo('list', { BY: 'weight_*' }), ['1', '2']);
+          assert.deepEqual(await client.sortRo('list', { GET: 'object_*' }), ['a', 'b']);
+
+          await writer.set('weight_1', '3');
+          await writer.set('object_1', 'changed');
+
+          assert.deepEqual(await client.sortRo('list', { BY: 'weight_*' }), ['2', '1']);
+          assert.deepEqual(await client.sortRo('list', { GET: 'object_*' }), ['changed', 'b']);
+          assert.equal(csc.size(), 0, 'Cache Size');
+        } finally {
+          writer.destroy();
+        }
+      }, {
+        ...GLOBAL.SERVERS.OPEN,
+        clientOptions: {
+          RESP: 3,
+          clientSideCache: csc
+        }
+      });
+
+      testUtils.testWithClient('XINFO GROUPS after a consumer group read', async client => {
+        csc.clear();
+        const writer = client.duplicate({ clientSideCache: undefined });
+        await writer.connect();
+
+        try {
+          await client.xAdd('stream', '*', { field: 'value' });
+          await client.xGroupCreate('stream', 'group', '0');
+
+          assert.equal((await client.xInfoGroups('stream'))[0].pending, 0);
+
+          await writer.xReadGroup('group', 'consumer', { key: 'stream', id: '>' });
+
+          assert.equal((await client.xInfoGroups('stream'))[0].pending, 1);
+          assert.equal(csc.size(), 0, 'Cache Size');
+        } finally {
+          writer.destroy();
+        }
+      }, {
+        ...GLOBAL.SERVERS.OPEN,
+        clientOptions: {
+          RESP: 3,
+          clientSideCache: csc
+        }
+      });
+
+      testUtils.testWithClient('XINFO STREAM after a consumer group is created', async client => {
+        csc.clear();
+        const writer = client.duplicate({ clientSideCache: undefined });
+        await writer.connect();
+
+        try {
+          await client.xAdd('stream', '*', { field: 'value' });
+
+          assert.equal((await client.xInfoStream('stream')).groups, 0);
+
+          await writer.xGroupCreate('stream', 'group', '0');
+
+          assert.equal((await client.xInfoStream('stream')).groups, 1);
+          assert.equal(csc.size(), 0, 'Cache Size');
+        } finally {
+          writer.destroy();
+        }
+      }, {
+        ...GLOBAL.SERVERS.OPEN,
+        clientOptions: {
+          RESP: 3,
+          clientSideCache: csc
+        }
+      });
+    });
   });
 
   describe("Pooled Cache", () => {

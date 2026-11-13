@@ -16,6 +16,11 @@ export type XInfoGroupsReply = ArrayReply<TuplesToMapReply<[
 ]>>;
 
 export default {
+  // The server metadata makes XINFO GROUPS look cacheable (readonly + keyed,
+  // no tips), but consumer group changes (XREADGROUP, XACK, XGROUP ...) send
+  // no invalidation, so a cached reply would keep stale `pending`, `lag` and
+  // group lists until the stream itself is written.
+  CACHEABLE: false,
   parseCommand(parser: CommandParser, key: RedisArgument) {
     parser.push('XINFO', 'GROUPS');
     parser.pushKey(key);
