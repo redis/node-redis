@@ -1,6 +1,6 @@
 import assert from 'node:assert';
 import RedisCommandsQueue from './commands-queue';
-import { AbortError, DisconnectsClientError, TimeoutError } from '../errors';
+import { AbortError, CommandTimeoutDuringMaintenanceError, DisconnectsClientError, TimeoutError } from '../errors';
 import { PUBSUB_TYPE } from './pub-sub';
 
 describe('RedisCommandsQueue', () => {
@@ -304,6 +304,145 @@ describe('RedisCommandsQueue', () => {
     });
   });
 
+  describe('timeout', () => {
+    function track(promise: Promise<unknown>) {
+      const state: { status: 'pending' | 'resolved' | 'rejected', value?: unknown, error?: Error } = { status: 'pending' };
+      promise.then(
+        value => Object.assign(state, { status: 'resolved', value }),
+        error => Object.assign(state, { status: 'rejected', error })
+      );
+      return state;
+    }
+
+    function drain(queue: RedisCommandsQueue) {
+      return [...queue.commandsToWrite()].map(chunks => chunks.join('')).join('');
+    }
+
+    function assertRejected(state: ReturnType<typeof track>, type: new (...args: never[]) => Error) {
+      assert.strictEqual(state.status, 'rejected');
+      assert.strictEqual(state.error?.constructor, type);
+    }
+
+    const GET_B = '*2\r\n$3\r\nGET\r\n$1\r\nb\r\n';
+
+    it('rejects a command that is not written in time, and never writes it', async () => {
+      const queue = createQueue();
+      const a = track(queue.addCommand(['GET', 'a'], { timeout: 20 }));
+
+      await wait(40);
+      assertRejected(a, TimeoutError);
+      assert.strictEqual(drain(queue), '');
+    });
+
+    it('stops once the command is written', async () => {
+      const queue = createQueue();
+      const a = track(queue.addCommand(['GET', 'a'], { timeout: 20 }));
+      drain(queue);
+
+      await wait(40);
+      assert.strictEqual(a.status, 'pending');
+      queue.decoder.write(Buffer.from('$1\r\n1\r\n'));
+      await wait(0);
+      assert.deepStrictEqual(a, { status: 'resolved', value: '1' });
+    });
+
+    it('times out each timeout value in its own order', async () => {
+      const queue = createQueue();
+      const a = track(queue.addCommand(['GET', 'a'], { timeout: 80 }));
+      const b = track(queue.addCommand(['GET', 'b'], { timeout: 20 }));
+      const c = track(queue.addCommand(['GET', 'c'], { timeout: 80 }));
+      const d = track(queue.addCommand(['GET', 'd'], { timeout: 20 }));
+
+      await wait(50);
+      assertRejected(b, TimeoutError);
+      assertRejected(d, TimeoutError);
+      assert.strictEqual(a.status, 'pending');
+      assert.strictEqual(c.status, 'pending');
+
+      await wait(60);
+      assertRejected(a, TimeoutError);
+      assertRejected(c, TimeoutError);
+      assert.strictEqual(drain(queue), '');
+    });
+
+    it('times out a command queued behind commands that were written', async () => {
+      const queue = createQueue();
+      const a = track(queue.addCommand(['GET', 'a'], { timeout: 30 }));
+      drain(queue);
+      const b = track(queue.addCommand(['GET', 'b'], { timeout: 30 }));
+
+      await wait(60);
+      assert.strictEqual(a.status, 'pending');
+      assertRejected(b, TimeoutError);
+      assert.strictEqual(drain(queue), '');
+    });
+
+    it('times out again after every deadline passed', async () => {
+      const queue = createQueue();
+      const a = track(queue.addCommand(['GET', 'a'], { timeout: 20 }));
+      await wait(40);
+      assertRejected(a, TimeoutError);
+
+      const b = track(queue.addCommand(['GET', 'b'], { timeout: 20 }));
+      await wait(40);
+      assertRejected(b, TimeoutError);
+      assert.strictEqual(drain(queue), '');
+    });
+
+    it('times out a new command after flushAll', async () => {
+      const queue = createQueue();
+      const a = track(queue.addCommand(['GET', 'a'], { timeout: 20 }));
+      queue.flushAll(new Error('closed'));
+      const b = track(queue.addCommand(['GET', 'b'], { timeout: 20 }));
+
+      await wait(40);
+      assert.strictEqual(a.error?.message, 'closed');
+      assertRejected(b, TimeoutError);
+    });
+
+    it('keeps the queue whole when a command with a timeout fails to encode', async () => {
+      const queue = createQueue();
+      const a = track(queue.addCommand(['GET', {} as never], { timeout: 20 }));
+      drain(queue);
+      await wait(0);
+      const encodeError = a.error;
+      assert.ok(encodeError !== undefined && !(encodeError instanceof TimeoutError));
+
+      const b = track(queue.addCommand(['GET', 'b'], { timeout: 60 }));
+      await wait(40);
+      assert.strictEqual(a.error, encodeError);
+      assert.strictEqual(b.status, 'pending');
+      assert.strictEqual(drain(queue), GET_B);
+    });
+
+    it('ignores the old deadline after a maintenance relax to the same value', async () => {
+      const queue = createQueue();
+      const a = track(queue.addCommand(['GET', 'a'], { timeout: 40 }));
+      await wait(20);
+      queue.setMaintenanceCommandTimeout(40);
+
+      await wait(35);
+      assert.strictEqual(a.status, 'pending');
+      await wait(40);
+      assertRejected(a, CommandTimeoutDuringMaintenanceError);
+    });
+
+    it('keeps the older deadline of a command moved from another queue', async () => {
+      const source = createQueue();
+      const destination = createQueue();
+      const a = track(source.addCommand(['GET', 'a'], { timeout: 60 }));
+      await wait(30);
+      const b = track(destination.addCommand(['GET', 'b'], { timeout: 60 }));
+      destination.prependCommandsToWrite(source.extractAllCommands());
+
+      await wait(45);
+      assertRejected(a, TimeoutError);
+      assert.strictEqual(b.status, 'pending');
+      assert.strictEqual(drain(source), '');
+      assert.strictEqual(drain(destination), GET_B);
+    });
+  });
+
   describe('rejectCommands', () => {
     // Mirrors cluster-slots.ts's full-node-loss path: extractAllCommands()
     // drains everything, then rejects it when no destination client exists.
@@ -446,10 +585,10 @@ describe('RedisCommandsQueue', () => {
 
       const [command] = source.extractCommandsForSlots(new Set([1]));
       await wait(5);
-      // Confirm the timeout actually already fired, so prependCommandsToWrite
-      // is exercising the "reject immediately" branch below and not just
-      // rebinding a listener that happens to fire before the final assert.
-      assert.strictEqual(command.timeout?.signal.aborted, true);
+      // Confirm the deadline already passed, so prependCommandsToWrite is
+      // exercising the "reject immediately" branch below and not just moving
+      // a deadline that happens to pass before the final assert.
+      assert.ok(command.timerEntry!.deadline <= performance.now());
       destination.prependCommandsToWrite([command]);
 
       await assert.rejects(promise, TimeoutError);
@@ -494,10 +633,10 @@ describe('RedisCommandsQueue', () => {
 
       const [command] = source.extractCommandsForSlots(new Set([1]));
       await wait(5);
-      // Confirm the timeout actually already fired before prepend, so the
-      // abort listener removed below is the one attached at addCommand time,
-      // not a listener that would have been rebound had we hit that branch.
-      assert.strictEqual(command.timeout?.signal.aborted, true);
+      // Confirm the deadline already passed before prepend, so the abort
+      // listener removed below is the one attached at addCommand time, not a
+      // listener that would have been rebound had we hit that branch.
+      assert.ok(command.timerEntry!.deadline <= performance.now());
 
       destination.prependCommandsToWrite([command]);
       await assert.rejects(promise, TimeoutError);
@@ -718,9 +857,9 @@ describe('RedisCommandsQueue', () => {
       }).forEach(promise => promise.catch(() => {}));
 
       const [head, ...rest] = queue.extractAllCommands();
-      assert.ok(head.timeout);
+      assert.ok(head.timerEntry);
       assert.ok(head.abort);
-      assert.deepStrictEqual(rest.map(command => [command.timeout, command.abort]), [[undefined, undefined], [undefined, undefined]]);
+      assert.deepStrictEqual(rest.map(command => [command.timerEntry, command.abort]), [[undefined, undefined], [undefined, undefined]]);
     });
 
     it('stops the timer once the first command is written', async () => {
@@ -833,8 +972,8 @@ describe('RedisCommandsQueue', () => {
         queue.setMaintenanceCommandTimeout(1);
 
         const [head] = queue.extractAllCommands();
-        assert.strictEqual(head.timeout?.effectiveTimeout, 1000);
-        assert.strictEqual(head.timeout?.wasInMaintenance, false);
+        assert.strictEqual(head.effectiveTimeout, 1000);
+        assert.strictEqual(head.wasInMaintenance, false);
       });
     });
 
