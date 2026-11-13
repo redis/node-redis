@@ -149,6 +149,12 @@ The error tells you whether the command reached the server:
 | `TimeoutReadError` | Yes; may have run | Only if idempotent |
 | `AbortReadError` | Yes; may have run | Only if idempotent |
 | `CommandTimeoutReadDuringMaintenanceError` (extends `TimeoutReadError`) | Yes; may have run | Only if idempotent |
+| `SocketTimeoutDuringMaintenanceError` (extends `TimeoutReadError`) | Yes; may have run | Only if idempotent |
+
+Two read errors do not need `rejectInFlight`:
+
+- `TimeoutReadError`: a cluster slot migration waits up to 5 seconds for the replies of the source node, then rejects the commands that are still waiting.
+- `SocketTimeoutDuringMaintenanceError`: the socket received no data for the maintenance timeout and was closed. In earlier versions this error extended `TimeoutError`.
 
 `TimeoutReadError` is not an instance of `TimeoutError`, and `AbortReadError` is not an instance of `AbortError`.
 

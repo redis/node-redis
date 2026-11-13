@@ -83,7 +83,8 @@ export class TimeoutError extends Error {}
 /**
  * A command timed out after it was sent, while it waited for its reply. The server may
  * have executed it: retry only if the command is idempotent. Not a `TimeoutError`, which
- * means the command was never sent. Thrown only with `rejectInFlight: true`.
+ * means the command was never sent. Thrown with `rejectInFlight: true`, and when a
+ * cluster slot migration stops waiting for the replies of the source node.
  * @experimental
  */
 export class TimeoutReadError extends Error {
@@ -105,9 +106,15 @@ export class AbortReadError extends Error {
   }
 }
 
-export class SocketTimeoutDuringMaintenanceError extends TimeoutError {
+/**
+ * The socket received no data for the relaxed maintenance timeout and was closed. Commands
+ * that waited for a reply reject with this error. The server may have executed them: retry
+ * only if the command is idempotent.
+ */
+export class SocketTimeoutDuringMaintenanceError extends TimeoutReadError {
   constructor(timeout: number) {
-    super(`Socket timeout during maintenance. Expecting data, but didn't receive any in ${timeout}ms.`);
+    super(timeout);
+    this.message = `Socket timeout during maintenance. Expecting data, but didn't receive any in ${timeout}ms.`;
   }
 }
 

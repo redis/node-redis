@@ -6,6 +6,7 @@ import {
   CommandTimeoutDuringMaintenanceError,
   CommandTimeoutReadDuringMaintenanceError,
   DisconnectsClientError,
+  SocketTimeoutDuringMaintenanceError,
   TimeoutError,
   TimeoutReadError
 } from '../errors';
@@ -477,6 +478,23 @@ describe('RedisCommandsQueue', () => {
       assert.strictEqual(b.status, 'pending');
       assert.strictEqual(drain(source), '');
       assert.strictEqual(drain(destination), GET_B);
+    });
+  });
+
+  describe('waitForInflightCommandsToComplete', () => {
+    it('rejects written commands with TimeoutReadError when it flushes on timeout', async () => {
+      const queue = createQueue();
+      const written = queue.addCommand(['INCR', 'key']);
+      written.catch(() => {});
+      Array.from(queue.commandsToWrite());
+
+      await queue.waitForInflightCommandsToComplete({ timeoutMs: 10, flushOnTimeout: true });
+
+      await assert.rejects(written, err => {
+        assert.strictEqual(err.constructor, TimeoutReadError);
+        assert.strictEqual(err instanceof TimeoutError, false);
+        return true;
+      });
     });
   });
 
@@ -1392,6 +1410,8 @@ describe('RedisCommandsQueue', () => {
       it('read errors are not the errors of commands that were never sent', () => {
         assert.strictEqual(new AbortReadError() instanceof AbortError, false);
         assert.strictEqual(new TimeoutReadError(1) instanceof TimeoutError, false);
+        assert.strictEqual(new SocketTimeoutDuringMaintenanceError(1) instanceof TimeoutError, false);
+        assert.ok(new SocketTimeoutDuringMaintenanceError(1) instanceof TimeoutReadError);
       });
     });
 

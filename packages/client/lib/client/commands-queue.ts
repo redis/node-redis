@@ -407,7 +407,8 @@ export default class RedisCommandsQueue {
             dbgMaintenance(
               `Flushing ${pendingCount} commands that timed out waiting for reply`,
             );
-            this.#flushWaitingForReply(new TimeoutError());
+            // These commands were written: the server may have executed them.
+            this.#flushWaitingForReply(new TimeoutReadError(timeoutMs));
           }
           resolve(); // Resolve instead of reject - we don't want to fail the migration
         }, timeoutMs);
