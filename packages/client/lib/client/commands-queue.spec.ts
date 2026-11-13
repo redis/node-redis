@@ -1526,6 +1526,59 @@ describe('RedisCommandsQueue', () => {
         assert.deepStrictEqual(states.map(state => state.status), ['resolved', 'resolved', 'resolved']);
       });
 
+      describe('with a blocking command', () => {
+        const BATCH = [{ args: ['SET', 'a', '1'] }, { args: ['BLPOP', 'q', '0'] }];
+
+        function addBlocking(queue: RedisCommandsQueue, options: { pipeline?: boolean, timeout?: number, abortSignal?: AbortSignal }) {
+          return queue.addBatch(BATCH, {
+            chainId: Symbol('Chain'),
+            rejectInFlight: true,
+            ...options
+          }).map(track);
+        }
+
+        it('do not time out a pipeline after it is written', async () => {
+          const queue = createQueue();
+          const states = addBlocking(queue, { pipeline: true, timeout: 20 });
+          drain(queue);
+
+          await wait(40);
+          assert.deepStrictEqual(states.map(state => state.status), ['pending', 'pending']);
+
+          queue.decoder.write(Buffer.from('+OK\r\n*-1\r\n'));
+          await wait(0);
+          assert.deepStrictEqual(states.map(state => state.status), ['resolved', 'resolved']);
+        });
+
+        it('still time out a pipeline while queued', async () => {
+          const queue = createQueue();
+          const states = addBlocking(queue, { pipeline: true, timeout: 20 });
+
+          await wait(40);
+          states.forEach(state => assertRejected(state, TimeoutError));
+        });
+
+        it('can still abort a pipeline after it is written', async () => {
+          const queue = createQueue();
+          const controller = new AbortController();
+          const states = addBlocking(queue, { pipeline: true, abortSignal: controller.signal });
+          drain(queue);
+
+          controller.abort();
+          await wait(0);
+          states.forEach(state => assertRejected(state, AbortReadError));
+        });
+
+        it('still time out a MULTI after it is written', async () => {
+          const queue = createQueue();
+          const states = addBlocking(queue, { timeout: 20 });
+          drain(queue);
+
+          await wait(40);
+          states.forEach(state => assertRejected(state, TimeoutReadError));
+        });
+      });
+
       it('pick up the flag from the options', () => {
         assert.deepStrictEqual(pickBatchOptions({ timeout: 5, rejectInFlight: true }), { timeout: 5, rejectInFlight: true });
         assert.strictEqual('rejectInFlight' in pickBatchOptions({}), false);
@@ -1616,6 +1669,21 @@ describe('RedisCommandsQueue', () => {
 
         await wait(30);
         assert.strictEqual(a.status, 'pending');
+        queue.flushWaitingForReply(new Error('closed'));
+      });
+
+      it('does not arm a timer on a partly written pipeline with a blocking command', async () => {
+        const queue = createQueue();
+        const states = queue.addBatch(
+          [{ args: ['SET', 'a', '1'] }, { args: ['BLPOP', 'q', '0'] }],
+          { chainId: Symbol('Pipeline Chain'), pipeline: true, timeout: 20, rejectInFlight: true }
+        ).map(track);
+        queue.commandsToWrite().next();
+        queue.setMaintenanceCommandTimeout(10);
+
+        await wait(30);
+        assert.deepStrictEqual(states.map(state => state.status), ['pending', 'pending']);
+        drain(queue);
         queue.flushWaitingForReply(new Error('closed'));
       });
 

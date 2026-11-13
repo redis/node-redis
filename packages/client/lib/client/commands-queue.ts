@@ -141,6 +141,8 @@ export interface CommandToWrite extends CommandWaitingForReply {
   batchEntries?: CommandToWrite[];
   /** On the other commands of a batch with `rejectInFlight`: the batch head. */
   batchHead?: CommandToWrite;
+  /** On a batch head with `rejectInFlight`: the batch is a pipeline, not a `MULTI`. */
+  pipeline?: boolean;
 }
 
 export interface BatchCommand {
@@ -154,6 +156,12 @@ export interface BatchOptions {
   timeout?: number;
   abortSignal?: AbortSignal;
   rejectInFlight?: boolean;
+  /**
+   * The batch is a pipeline, not a `MULTI`, so its blocking commands block on the server.
+   * With `rejectInFlight`, a pipeline that holds a blocking command stops its timeout
+   * when its first command is written, like a single blocking command.
+   */
+  pipeline?: boolean;
   /**
    * Called when the timeout or abort signal removes the batch before any of it is written.
    */
@@ -657,6 +665,7 @@ export default class RedisCommandsQueue {
       if (options.rejectInFlight) {
         headValue.rejectInFlight = true;
         headValue.batchEntries = entries;
+        headValue.pipeline = options.pipeline;
         for (let i = 1; i < entries.length; i++) entries[i].batchHead = headValue;
         RedisCommandsQueue.#beforeSettle(entries[entries.length - 1], () =>
           RedisCommandsQueue.#removeCommandListeners(headValue)
@@ -980,21 +989,31 @@ export default class RedisCommandsQueue {
     this.#waitingForReply.reset();
   }
 
-  static #keepListenersPastWrite(command: CommandToWrite) {
-    // A batch head keeps its listeners until the last command of the batch settles (see
-    // `addBatch`). The blocking check does not apply to batches: commands inside `MULTI`
-    // do not block on the server.
-    if (command.batch === 'head') return;
+  /**
+   * Whether the server can block on the command, or on any command of the pipeline it
+   * heads. Must run before the command is written: it reads `args`. The `blocking` flag
+   * comes from `command-metadata/predicates.ts:isBlocking`.
+   */
+  static #blocksOnServer(command: CommandToWrite) {
+    // Commands inside `MULTI` do not block on the server.
+    if (command.batch === 'head' && !command.pipeline) return false;
 
-    if (
-      command.timerEntry &&
-      isBlocking(defaultCommandMetadata.lookup({ command: String(command.args![0]), subcommand: undefined }))
-    ) {
+    return (command.batchEntries ?? [command]).some(({ args }) =>
+      isBlocking(defaultCommandMetadata.lookup({ command: String(args![0]), subcommand: undefined }))
+    );
+  }
+
+  static #keepListenersPastWrite(command: CommandToWrite) {
+    if (command.timerEntry && RedisCommandsQueue.#blocksOnServer(command)) {
       // The server keeps blocking after a client-side timeout, so a read timeout would
-      // only fail the call, not free the connection. The `blocking` flag comes from
-      // `command-metadata/predicates.ts:isBlocking`.
+      // only fail the call, not free the connection. A pipeline has one timer, so one
+      // blocking command stops it for the whole pipeline.
       CommandDeadlines.end(command);
     }
+
+    // A batch head keeps its listeners until the last command of the batch settles (see
+    // `addBatch`).
+    if (command.batch === 'head') return;
 
     if (command.timerEntry || command.abort) {
       // Every path that settles a read-queue entry (replies, error replies, RESP2 `PONG`,

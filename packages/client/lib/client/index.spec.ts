@@ -2712,6 +2712,24 @@ describe('Client', () => {
       }
     }, GLOBAL.SERVERS.OPEN);
 
+    testUtils.testWithClient('does not time out a pipeline with a blocking command after it is sent', async client => {
+      const start = Date.now();
+      assert.deepEqual(
+        await client.multi().set('x', '1').blPop('q-rif', 1).execAsPipeline(),
+        ['OK', null]
+      );
+      assert.ok(Date.now() - start >= 900);
+      assert.equal(await client.get('x'), '1');
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      clientOptions: {
+        commandOptions: {
+          rejectInFlight: true,
+          timeout: 100
+        }
+      }
+    });
+
     testUtils.testWithClient('does not time out a blocking command after it is sent', async client => {
       const start = Date.now();
       assert.equal(await client.blPop('q-rif', 1), null);

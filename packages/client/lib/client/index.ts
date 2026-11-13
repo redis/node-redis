@@ -2018,6 +2018,7 @@ export default class RedisClient<
           commands.map(({ args }) => ({ args, typeMapping })),
           {
             chainId: Symbol('Pipeline Chain'),
+            pipeline: true,
             slotNumber,
             timeout: this._commandOptions?.timeout,
             abortSignal: this._commandOptions?.abortSignal,
