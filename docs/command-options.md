@@ -9,10 +9,12 @@ Command Options are used to create "proxy clients" that change the behavior of e
 Some [RESP types](./RESP.md) can be mapped to more than one JavaScript type. For example, "Blob String" can be mapped to `string` or `Buffer`. You can override the default type mapping using the `withTypeMapping` function:
 
 ```javascript
+import { RESP_TYPES } from 'redis';
+
 await client.get('key'); // `string | null`
 
 const proxyClient = client.withTypeMapping({
-  [TYPES.BLOB_STRING]: Buffer
+  [RESP_TYPES.BLOB_STRING]: Buffer
 });
 
 await proxyClient.get('key'); // `Buffer | null`
@@ -57,10 +59,10 @@ The client [batches commands](./FAQ.md#how-are-commands-batched) before sending 
 
 ```javascript
 const controller = new AbortController(),
-  client = client.withAbortSignal(controller.signal);
+  abortableClient = client.withAbortSignal(controller.signal);
 
 try {
-  const promise = client.get('key');
+  const promise = abortableClient.get('key');
   controller.abort();
   await promise;
 } catch (err) {
