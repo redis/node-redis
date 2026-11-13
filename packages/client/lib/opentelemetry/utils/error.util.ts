@@ -5,8 +5,8 @@ import {
   SocketTimeoutError,
   SocketClosedUnexpectedlyError,
   ReconnectStrategyError,
-  SocketTimeoutDuringMaintenanceError,
-  CommandTimeoutDuringMaintenanceError,
+  TimeoutError,
+  TimeoutReadError,
 } from "../../errors";
 
 /**
@@ -134,8 +134,9 @@ function isNodeRedisNetworkError(error: Error): boolean {
     error instanceof ConnectionTimeoutError ||
     error instanceof SocketTimeoutError ||
     error instanceof SocketClosedUnexpectedlyError ||
-    error instanceof SocketTimeoutDuringMaintenanceError ||
-    error instanceof CommandTimeoutDuringMaintenanceError
+    // These two cover every command timeout, including the maintenance subclasses.
+    error instanceof TimeoutError ||
+    error instanceof TimeoutReadError
   );
 }
 
