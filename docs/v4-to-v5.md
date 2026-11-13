@@ -41,11 +41,13 @@ This has a couple of flaws:
 With the new API, instead of passing the options directly to the commands we use a "proxy client" to store them:
 
 ```javascript
+import { RESP_TYPES } from 'redis';
+
 await client.get('key'); // `string | null`
 
 const proxyClient = client.withCommandOptions({
   typeMapping: {
-    [TYPES.BLOB_STRING]: Buffer
+    [RESP_TYPES.BLOB_STRING]: Buffer
   }
 });
 
@@ -168,10 +170,10 @@ In v5, any unwritten commands (in the same pipeline) will be discarded.
 - `LCS IDX`: `length` has been changed to `len`, `matches` has been changed from `Array<{ key1: RangeReply; key2: RangeReply; }>` to `Array<[key1: RangeReply, key2: RangeReply]>`
 
 
-- `ZINTER`: instead of `client.ZINTER('key', { WEIGHTS: [1] })` use `client.ZINTER({ key: 'key', weight: 1 }])`
-- `ZINTER_WITHSCORES`: instead of `client.ZINTER_WITHSCORES('key', { WEIGHTS: [1] })` use `client.ZINTER_WITHSCORES({ key: 'key', weight: 1 }])`
-- `ZUNION`: instead of `client.ZUNION('key', { WEIGHTS: [1] })` use `client.ZUNION({ key: 'key', weight: 1 }])`
-- `ZUNION_WITHSCORES`: instead of `client.ZUNION_WITHSCORES('key', { WEIGHTS: [1] })` use `client.ZUNION_WITHSCORES({ key: 'key', weight: 1 }])`
+- `ZINTER`: instead of `client.ZINTER('key', { WEIGHTS: [1] })` use `client.ZINTER([{ key: 'key', weight: 1 }])`
+- `ZINTER_WITHSCORES`: instead of `client.ZINTER_WITHSCORES('key', { WEIGHTS: [1] })` use `client.ZINTER_WITHSCORES([{ key: 'key', weight: 1 }])`
+- `ZUNION`: instead of `client.ZUNION('key', { WEIGHTS: [1] })` use `client.ZUNION([{ key: 'key', weight: 1 }])`
+- `ZUNION_WITHSCORES`: instead of `client.ZUNION_WITHSCORES('key', { WEIGHTS: [1] })` use `client.ZUNION_WITHSCORES([{ key: 'key', weight: 1 }])`
 - `ZMPOP`: `{ elements: Array<{ member: string; score: number; }>; }` -> `{ members: Array<{ value: string; score: number; }>; }` to match other sorted set commands (e.g. `ZRANGE`, `ZSCAN`)
 
 - `MOVE`: `boolean` -> `number` [^boolean-to-number]
@@ -191,7 +193,7 @@ In v5, any unwritten commands (in the same pipeline) will be discarded.
 - `GEORADIUSSTORE` -> `GEORADIUS_STORE`
 - `GEORADIUSBYMEMBERSTORE` -> `GEORADIUSBYMEMBER_STORE`
 - `XACK`: `boolean` -> `number` [^boolean-to-number]
-- `XADD`: the `INCR` option has been removed, use `XADD_INCR` instead
+- `ZADD`: the `INCR` option has been removed, use `ZADD_INCR` instead
 - `LASTSAVE`: `Date` -> `number` (unix timestamp)
 - `HELLO`: `protover` moved from the options object to it's own argument, `auth` -> `AUTH`, `clientName` -> `SETNAME`
 - `MODULE LIST`: `version` -> `ver` [^map-keys]
@@ -223,6 +225,7 @@ In v5, any unwritten commands (in the same pipeline) will be discarded.
 
 - `FT.SUGDEL`: [^boolean-to-number]
 - `FT.CURSOR READ`: `cursor` type changed from `number` to `string` (in and out) to avoid issues when the number is bigger than `Number.MAX_SAFE_INTEGER`. See [here](https://github.com/redis/node-redis/issues/2561).
+- `FT.SYNDUMP`: `Array<string | Array<string>>` -> `Record<string, Array<string>>`
 - `AggregateGroupByReducers` -> `FT_AGGREGATE_GROUP_BY_REDUCERS` [^enum-to-constants]
 - `AggregateSteps` -> `FT_AGGREGATE_STEPS` [^enum-to-constants]
 - `RedisSearchLanguages` -> `REDISEARCH_LANGUAGE` [^enum-to-constants]
@@ -235,7 +238,6 @@ In v5, any unwritten commands (in the same pipeline) will be discarded.
 
 - `TS.ADD`: `boolean` -> `number` [^boolean-to-number]
 - `TS.[M][REV]RANGE`: the `ALIGN` argument has been moved into `AGGREGATION`
-- `TS.SYNUPDATE`: `Array<string | Array<string>>` -> `Record<string, Array<string>>`
 - `TimeSeriesDuplicatePolicies` -> `TIME_SERIES_DUPLICATE_POLICIES` [^enum-to-constants]
 - `TimeSeriesEncoding` -> `TIME_SERIES_ENCODING` [^enum-to-constants]
 - `TimeSeriesAggregationType` -> `TIME_SERIES_AGGREGATION_TYPE` [^enum-to-constants]
