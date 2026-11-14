@@ -105,6 +105,8 @@ export interface MasterNode<
   pubSub?: {
     connectPromise?: Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>;
     client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>;
+    /** see {@link RedisClusterSlots.executeShardedSubscribeCommand} */
+    pendingSubscribes: number;
   };
 }
 
@@ -136,7 +138,11 @@ type PubSubNode<
   TYPE_MAPPING extends TypeMapping
 > = (
     Omit<Node<M, F, S, RESP, TYPE_MAPPING>, 'client'> &
-    Required<Pick<Node<M, F, S, RESP, TYPE_MAPPING>, 'client'>>
+    Required<Pick<Node<M, F, S, RESP, TYPE_MAPPING>, 'client'>> &
+    {
+      /** see {@link RedisClusterSlots.executeSubscribeCommand} */
+      pendingSubscribes: number;
+    }
   );
 
 type PubSubToResubscribe = Record<
@@ -1394,7 +1400,8 @@ export default class RedisClusterSlots<
 
     const pubSubNode: PubSubNode<M, F, S, RESP, TYPE_MAPPING> = {
       address: node.address,
-      client
+      client,
+      pendingSubscribes: 0
     };
 
     this.pubSubNode = pubSubNode;
@@ -1431,16 +1438,45 @@ export default class RedisClusterSlots<
     return pubSubNode.connectPromise!;
   }
 
+  /**
+   * Runs `subscribe` on the pub/sub client. From the moment the client is
+   * requested until `subscribe` has queued its command the client has no
+   * pending subscription of its own, so the request is counted on the node:
+   * a concurrent {@link executeUnsubscribeCommand} that drops the last
+   * listener in that window must not destroy the client.
+   */
+  async executeSubscribeCommand(
+    subscribe: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>) => Promise<void>
+  ): Promise<void> {
+    const clientPromise = this.getPubSubClient(),
+      pubSubNode = this.pubSubNode;
+    // not seated only if creating the client threw; `clientPromise` rejects with that
+    if (!pubSubNode) return subscribe(await clientPromise);
+
+    pubSubNode.pendingSubscribes++;
+    try {
+      // not `return await`: once `subscribe` has queued its command the
+      // client counts it as subscribing, so the hold can end right here
+      return subscribe(await clientPromise);
+    } finally {
+      pubSubNode.pendingSubscribes--;
+    }
+  }
+
   async executeUnsubscribeCommand(
     unsubscribe: (client: RedisClientType<M, F, S, RESP>) => Promise<void>
   ): Promise<void> {
-    const client = await this.getPubSubClient();
+    const clientPromise = this.getPubSubClient(),
+      pubSubNode = this.pubSubNode;
+    const client = await clientPromise;
     await unsubscribe(client);
 
-    if (!client.isPubSubActive) {
+    if (!client.isPubSubActive && !pubSubNode?.pendingSubscribes) {
       this.#reconnectionTracker.removeClient(client._clientId);
       client.destroy();
-      this.pubSubNode = undefined;
+      if (this.pubSubNode === pubSubNode) {
+        this.pubSubNode = undefined;
+      }
     }
   }
 
@@ -1461,20 +1497,21 @@ export default class RedisClusterSlots<
         let refreshFrom = client;
         for (let redirections = 0; ; redirections++) {
           await this.rediscover(refreshFrom);
-          const redirectTo = await this.getShardedPubSubClient(channel);
           try {
-            await redirectTo.extendPubSubChannelListeners(
-              PUBSUB_TYPE.SHARDED,
-              channel,
-              listeners
-            );
+            await this.executeShardedSubscribeCommand(channel, redirectTo => {
+              refreshFrom = redirectTo;
+              return redirectTo.extendPubSubChannelListeners(
+                PUBSUB_TYPE.SHARDED,
+                channel,
+                listeners
+              );
+            });
             return;
           } catch (err) {
             // a refresh that was already running when the slot moved can
-            // return the old owner, which answers MOVED
+            // return the old owner (now `refreshFrom`), which answers MOVED
             if (!(err instanceof ErrorReply) || !err.message.startsWith('MOVED')) throw err;
             if (redirections >= maxCommandRedirections) throw new MaxCommandRedirectionsError(err);
-            refreshFrom = redirectTo;
           }
         }
       } catch (err) {
@@ -1483,7 +1520,10 @@ export default class RedisClusterSlots<
     });
 
 
-    const pubSub: NonNullable<MasterNode<M, F, S, RESP, TYPE_MAPPING>['pubSub']> = { client };
+    const pubSub: NonNullable<MasterNode<M, F, S, RESP, TYPE_MAPPING>['pubSub']> = {
+      client,
+      pendingSubscribes: 0
+    };
     master.pubSub = pubSub;
 
     // a pub/sub move can destroy this client mid-connect and seat a
@@ -1506,23 +1546,50 @@ export default class RedisClusterSlots<
 
 
 
+  /**
+   * The sharded counterpart of {@link executeSubscribeCommand}: counts the
+   * request on the master's pub/sub entry so a concurrent
+   * {@link executeShardedUnsubscribeCommand} does not destroy the client
+   * before `subscribe` has queued its command.
+   */
+  async executeShardedSubscribeCommand(
+    channel: string,
+    subscribe: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>) => Promise<void>
+  ): Promise<void> {
+    const clientPromise = this.getShardedPubSubClient(channel),
+      { pubSub } = this.slots[calculateSlot(channel)].master;
+    // see executeSubscribeCommand
+    if (!pubSub) return subscribe(await clientPromise);
+
+    pubSub.pendingSubscribes++;
+    try {
+      // see executeSubscribeCommand
+      return subscribe(await clientPromise);
+    } finally {
+      pubSub.pendingSubscribes--;
+    }
+  }
+
   async executeShardedUnsubscribeCommand(
     channel: string,
     unsubscribe: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>) => Promise<void>
   ) {
-    const { master } = this.slots[calculateSlot(channel)];
-    if (!master.pubSub) return;
+    const { master } = this.slots[calculateSlot(channel)],
+      { pubSub } = master;
+    if (!pubSub) return;
 
-    const client = master.pubSub.connectPromise ?
-      await master.pubSub.connectPromise :
-      master.pubSub.client;
+    const client = pubSub.connectPromise ?
+      await pubSub.connectPromise :
+      pubSub.client;
 
     await unsubscribe(client);
 
-    if (!client.isPubSubActive) {
+    if (!client.isPubSubActive && pubSub.pendingSubscribes === 0) {
       this.#reconnectionTracker.removeClient(client._clientId);
       client.destroy();
-      master.pubSub = undefined;
+      if (master.pubSub === pubSub) {
+        master.pubSub = undefined;
+      }
     }
   }
 }

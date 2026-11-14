@@ -1006,8 +1006,9 @@ export default class RedisCluster<
     listener: PubSubListener<T>,
     bufferMode?: T
   ) {
-    return (await this._self._slots.getPubSubClient())
-      .SUBSCRIBE(channels, listener, bufferMode);
+    return this._self._slots.executeSubscribeCommand(client =>
+      client.SUBSCRIBE(channels, listener, bufferMode)
+    );
   }
 
   subscribe = this.SUBSCRIBE;
@@ -1029,8 +1030,9 @@ export default class RedisCluster<
     listener: PubSubListener<T>,
     bufferMode?: T
   ) {
-    return (await this._self._slots.getPubSubClient())
-      .PSUBSCRIBE(patterns, listener, bufferMode);
+    return this._self._slots.executeSubscribeCommand(client =>
+      client.PSUBSCRIBE(patterns, listener, bufferMode)
+    );
   }
 
   pSubscribe = this.PSUBSCRIBE;
@@ -1054,10 +1056,12 @@ export default class RedisCluster<
   ) {
     const maxCommandRedirections = this._self._options.maxCommandRedirections ?? 16,
       firstChannel = Array.isArray(channels) ? channels[0] : channels;
-    let client = await this._self._slots.getShardedPubSubClient(firstChannel);
+    let client: RedisClientType<M, F, S, RESP, TYPE_MAPPING> | undefined;
     for (let i = 0; ; i++) {
       try {
-        return await client.SSUBSCRIBE(channels, listener, bufferMode);
+        return await this._self._slots.executeShardedSubscribeCommand(firstChannel, pubSubClient =>
+          (client = pubSubClient).SSUBSCRIBE(channels, listener, bufferMode)
+        );
       } catch (err) {
         if (!(err instanceof ErrorReply)) {
           throw err;
@@ -1074,7 +1078,6 @@ export default class RedisCluster<
 
         if (isRedirect) {
           await this._self._slots.rediscover(client);
-          client = await this._self._slots.getShardedPubSubClient(firstChannel);
           continue;
         }
 
