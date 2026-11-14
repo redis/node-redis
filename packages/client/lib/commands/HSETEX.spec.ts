@@ -65,6 +65,12 @@ describe('HSETEX parseCommand', () => {
     HSETEX.parseCommand(parser, 'key', ['field', 'value'], {mode: 'FXX', expiration: {type: 'EX', value: 500}});
     assert.deepEqual(parser.redisArgs, ['HSETEX', 'key', 'FXX', 'EX', '500', 'FIELDS', '1', 'field', 'value']);
   });
+
+  it('hSetEx parseCommand expiration with an undefined value is ignored', () => {
+    const parser = new BasicCommandParser;
+    HSETEX.parseCommand(parser, 'key', ['field', 'value'], {expiration: {type: 'PX', value: undefined as unknown as number}});
+    assert.deepEqual(parser.redisArgs, ['HSETEX', 'key', 'FIELDS', '1', 'field', 'value']);
+  });
 });
 
 
