@@ -5,7 +5,7 @@ import testUtils, { GLOBAL, blockSetImmediate, waitTillBeenCalled } from '../tes
 import RedisCluster from '.';
 import { SQUARE_SCRIPT } from '../client/index.spec';
 import { AbortError, ClientClosedError, ClientOfflineError, RootNodesUnavailableError, MaxCommandRedirectionsError, ScanIteratorInterruptedError, TimeoutError } from '../errors';
-import { spy } from 'sinon';
+import { spy, stub } from 'sinon';
 import RedisClient from '../client';
 import { RESP_TYPES } from '../RESP/decoder';
 import calculateSlot from '../utils/calculate-slot';
@@ -978,6 +978,76 @@ describe('Cluster', () => {
       assert.equal(cluster.pubSubNode, undefined);
     }, GLOBAL.CLUSTERS.OPEN);
 
+    // An UNSUBSCRIBE that drops the last listener destroys the pub/sub client
+    // once its reply lands. A SUBSCRIBE that already obtained that client but
+    // has not issued its command yet must not be left on the destroyed client.
+    // `onUnsubscribeReply` runs `then` in the same tick the reply resolves,
+    // ahead of the cluster's check whether the client went idle.
+    function onUnsubscribeReply(client: object, command: string, then: () => void) {
+      const unsubscribe = stub(client as Record<string, (...args: Array<unknown>) => Promise<void>>, command)
+        .callsFake(function (this: unknown, ...args) {
+          const reply = unsubscribe.wrappedMethod.apply(this, args);
+          reply.then(then);
+          return reply;
+        });
+      return unsubscribe;
+    }
+
+    function settledWithin(promise: Promise<void>, ms: number) {
+      return Promise.race([promise.then(() => 'subscribed'), setTimeout(ms, 'pending')]);
+    }
+
+    testUtils.testWithCluster('subscribe racing an unsubscribe of the last channel', async cluster => {
+      const listener = spy();
+      await cluster.subscribe('channel', listener);
+
+      let subscribed!: Promise<void>;
+      const unsubscribe = onUnsubscribeReply(cluster.pubSubNode!.client, 'UNSUBSCRIBE', () => {
+        subscribed = cluster.subscribe('channel2', listener);
+      });
+      try {
+        await cluster.unsubscribe('channel', listener);
+        assert.equal(await settledWithin(subscribed, 1000), 'subscribed');
+      } finally {
+        unsubscribe.restore();
+      }
+
+      await Promise.all([
+        waitTillBeenCalled(listener),
+        cluster.publish('channel2', 'message')
+      ]);
+      assert.ok(listener.calledOnceWithExactly('message', 'channel2'));
+
+      // the subscribe no longer holds the client once it is done
+      await cluster.unsubscribe('channel2', listener);
+      assert.equal(cluster.pubSubNode, undefined);
+    }, GLOBAL.CLUSTERS.OPEN);
+
+    testUtils.testWithCluster('psubscribe racing a punsubscribe of the last pattern', async cluster => {
+      const listener = spy();
+      await cluster.pSubscribe('channe*', listener);
+
+      let subscribed!: Promise<void>;
+      const pUnsubscribe = onUnsubscribeReply(cluster.pubSubNode!.client, 'PUNSUBSCRIBE', () => {
+        subscribed = cluster.pSubscribe('other*', listener);
+      });
+      try {
+        await cluster.pUnsubscribe('channe*', listener);
+        assert.equal(await settledWithin(subscribed, 1000), 'subscribed');
+      } finally {
+        pUnsubscribe.restore();
+      }
+
+      await Promise.all([
+        waitTillBeenCalled(listener),
+        cluster.publish('other', 'message')
+      ]);
+      assert.ok(listener.calledOnceWithExactly('message', 'other'));
+
+      await cluster.pUnsubscribe('other*', listener);
+      assert.equal(cluster.pubSubNode, undefined);
+    }, GLOBAL.CLUSTERS.OPEN);
+
     testUtils.testWithCluster('should move listeners when PubSub node disconnects from the cluster', async cluster => {
       const listener = spy();
       await cluster.subscribe('channel', listener);
@@ -1057,6 +1127,38 @@ describe('Cluster', () => {
 
       // 10328 is the slot of `channel`
       assert.equal(cluster.slots[10328].master.pubSub, undefined);
+    }, {
+      ...GLOBAL.CLUSTERS.OPEN,
+      minimumDockerVersion: [7]
+    });
+
+    // Same race on a sharded pub/sub client (one per master).
+    testUtils.testWithCluster('ssubscribe racing an sunsubscribe of the last channel on the same master', async cluster => {
+      const listener = spy();
+      // the hash tag puts both channels in one slot, so they share a client
+      await cluster.sSubscribe('{channel}a', listener);
+
+      const { master } = cluster.slots[calculateSlot('{channel}a')];
+      let subscribed!: Promise<void>;
+      const sUnsubscribe = onUnsubscribeReply(master.pubSub!.client, 'SUNSUBSCRIBE', () => {
+        subscribed = cluster.sSubscribe('{channel}b', listener);
+      });
+      try {
+        await cluster.sUnsubscribe('{channel}a', listener);
+        assert.equal(await settledWithin(subscribed, 1000), 'subscribed');
+      } finally {
+        sUnsubscribe.restore();
+      }
+
+      await Promise.all([
+        waitTillBeenCalled(listener),
+        cluster.sPublish('{channel}b', 'message')
+      ]);
+      assert.ok(listener.calledOnceWithExactly('message', '{channel}b'));
+
+      // the subscribe no longer holds the client once it is done
+      await cluster.sUnsubscribe('{channel}b', listener);
+      assert.equal(master.pubSub, undefined);
     }, {
       ...GLOBAL.CLUSTERS.OPEN,
       minimumDockerVersion: [7]
