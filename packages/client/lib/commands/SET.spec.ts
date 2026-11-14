@@ -55,6 +55,18 @@ describe('SET', () => {
         );
       });
 
+      it("{ type: 'EX', value: undefined } is ignored, like { EX: undefined }", () => {
+        assert.deepEqual(
+          parseArgs(SET, 'key', 'value', {
+            expiration: {
+              type: 'EX',
+              value: undefined as unknown as number
+            }
+          }),
+          ['SET', 'key', 'value']
+        );
+      });
+
       it('with EX (backwards compatibility)', () => {
         assert.deepEqual(
           parseArgs(SET, 'key', 'value', {

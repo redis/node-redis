@@ -102,7 +102,11 @@ export default {
       parser.push(options.mode);
     }
 
-    if (options?.expiration) {
+    // An expiration whose value is undefined is ignored, as SET ignores it
+    if (
+      options?.expiration &&
+      !("value" in options.expiration && options.expiration.value === undefined)
+    ) {
       switch (options.expiration.type) {
         case ExpirationMode.EXAT:
           parser.push(
@@ -123,7 +127,7 @@ export default {
         case ExpirationMode.PX:
           parser.push(
             options.expiration.type,
-            options.expiration.value?.toString()
+            options.expiration.value.toString()
           );
           break;
       }

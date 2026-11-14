@@ -213,6 +213,22 @@ describe("MSETEX", () => {
       );
     });
 
+    for (const type of [
+      ExpirationMode.EX,
+      ExpirationMode.PX,
+      ExpirationMode.EXAT,
+      ExpirationMode.PXAT,
+    ]) {
+      it(`with ${type} expiration and an undefined value (ignored)`, () => {
+        assert.deepEqual(
+          parseArgs(MSETEX, ["key1", "value1"], {
+            expiration: { type, value: undefined as unknown as number },
+          }),
+          ["MSETEX", "1", "key1", "value1"]
+        );
+      });
+    }
+
     it("with empty expiration object", () => {
       assert.deepEqual(
         parseArgs(
