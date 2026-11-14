@@ -1,4 +1,3 @@
-
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import SET from './SET';
@@ -52,6 +51,18 @@ describe('SET', () => {
             }
           }),
           ['SET', 'key', 'value', 'EX', '0']
+        );
+      });
+
+      it('{ type: \'EX\', value: undefined }', () => {
+        assert.deepEqual(
+          parseArgs(SET, 'key', 'value', {
+            expiration: {
+              type: 'EX',
+              value: undefined as unknown as number
+            }
+          }),
+          ['SET', 'key', 'value']
         );
       });
 

@@ -71,7 +71,7 @@ export default {
         parser.push(options.expiration);
       } else if (options.expiration.type === 'KEEPTTL') {
         parser.push('KEEPTTL');
-      } else {
+      } else if (options.expiration.value !== undefined) {
         parser.push(
           options.expiration.type,
           options.expiration.value.toString()

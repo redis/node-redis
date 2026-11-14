@@ -26,7 +26,7 @@ export default {
           parser.push(options.expiration);
         } else if (options.expiration.type === 'PERSIST') {
           parser.push('PERSIST');
-        } else {
+        } else if (options.expiration.value !== undefined) {
           parser.push(
             options.expiration.type,
             options.expiration.value.toString()
