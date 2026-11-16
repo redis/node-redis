@@ -1882,6 +1882,32 @@ describe('Client', () => {
       }
     }, GLOBAL.SERVERS.OPEN);
 
+    for (const resp of [2, 3] as const) {
+      testUtils.testWithClient(`should stop decoding when a listener destroys the client (RESP${resp})`, async publisher => {
+        const subscriber = await publisher.duplicate().connect(),
+          errors: Array<unknown> = [],
+          messages: Array<string> = [];
+        subscriber.on('error', err => errors.push(err));
+
+        await subscriber.subscribe('channel', message => {
+          messages.push(message);
+          // only the first call destroys, so a regression shows up as extra
+          // messages instead of an endless loop
+          if (messages.length === 1) subscriber.destroy();
+        });
+        const end = once(subscriber, 'end');
+        // published in one pipeline, both messages reach the subscriber in one chunk
+        await Promise.all(['1', '2'].map(message => publisher.publish('channel', message)));
+        await end;
+
+        assert.deepEqual(messages, ['1']);
+        assert.deepEqual(errors, []);
+      }, {
+        ...GLOBAL.SERVERS.OPEN,
+        clientOptions: { ...GLOBAL.SERVERS.OPEN.clientOptions, RESP: resp }
+      });
+    }
+
     testUtils.testWithClient('should be able to quit in PubSub mode', async client => {
       await client.subscribe('channel', () => {
         // noop

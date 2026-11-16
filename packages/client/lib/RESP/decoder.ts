@@ -87,6 +87,11 @@ export class Decoder {
   #cursor = 0;
   #next;
   #callbackErrors?: Array<unknown>;
+  // Set by reset(). A callback can reset the decoder in the middle of a chunk
+  // (a pub/sub listener that calls client.destroy(), for example). #write
+  // checks it after each callback, so it stops there instead of decoding the
+  // chunk again from the new cursor.
+  #isReset = false;
 
   constructor(config: DecoderOptions) {
     this.onReply = config.onReply;
@@ -98,10 +103,12 @@ export class Decoder {
   reset() {
     this.#cursor = 0;
     this.#next = undefined;
+    this.#isReset = true;
   }
 
   write(chunk) {
     this.#callbackErrors = undefined;
+    this.#isReset = false;
     this.#write(chunk);
     return this.#callbackErrors;
   }
@@ -116,6 +123,8 @@ export class Decoder {
       if (this.#next(chunk) || this.#cursor >= chunk.length) {
         this.#cursor -= chunk.length;
         return;
+      } else if (this.#isReset) {
+        return;
       }
     }
 
@@ -128,6 +137,8 @@ export class Decoder {
 
       if (this.#decodeTypeValue(type, chunk)) {
         break;
+      } else if (this.#isReset) {
+        return;
       }
     } while (this.#cursor < chunk.length);
     this.#cursor -= chunk.length;

@@ -560,4 +560,39 @@ describe('RESP Decoder', () => {
     assert.deepEqual(onPush.args, [[['message', '1']], [['message', '2']]]);
     assert.deepEqual(onReply.args, [[1], [null], ['v1']]);
   });
+
+  it('stops decoding the chunk when a callback resets the decoder', () => {
+    // Regression: a reset from a callback (client.destroy() in a pub/sub
+    // listener) moved the cursor back to 0 and the chunk was decoded again.
+    // Only the first push of each step resets, so a regression shows up as
+    // extra callbacks instead of an endless loop.
+    let resetOnPush = true;
+    const onReply = spy(),
+      onPush = spy(() => {
+        if (!resetOnPush) return;
+        resetOnPush = false;
+        decoder.reset();
+      }),
+      decoder = new Decoder({
+        getTypeMapping: () => ({}),
+        onReply,
+        onErrorReply: spy(),
+        onPush
+      });
+
+    decoder.write(Buffer.from('>2\r\n+message\r\n+1\r\n>2\r\n+message\r\n+2\r\n:1\r\n'));
+    assert.deepEqual(onPush.args, [[['message', '1']]]);
+    assert.equal(onReply.callCount, 0);
+
+    // a push that ends in a later chunk
+    resetOnPush = true;
+    decoder.write(Buffer.from('>2\r\n+mess'));
+    decoder.write(Buffer.from('age\r\n+3\r\n:1\r\n'));
+    assert.deepEqual(onPush.args, [[['message', '1']], [['message', '3']]]);
+    assert.equal(onReply.callCount, 0);
+
+    // the next chunk is decoded from its start
+    decoder.write(Buffer.from(':2\r\n'));
+    assert.deepEqual(onReply.args, [[2]]);
+  });
 });
