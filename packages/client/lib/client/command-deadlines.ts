@@ -8,8 +8,8 @@ const MAX_TIMER_DELAY = 2 ** 31 - 1;
 const MAX_TIMEOUT = 2 ** 32 - 1;
 
 /**
- * One deadline. It is live while its item's `timerEntry` points at it, so ending a timeout
- * or giving the item a new deadline never has to find the old entry.
+ * One deadline. While it is in a list, its item's `timerEntry` points at it, so every entry
+ * in a list is live.
  */
 export interface DeadlineEntry<T> {
   item: T;
@@ -17,19 +17,14 @@ export interface DeadlineEntry<T> {
   deadline: number;
   /** The item's node in the write queue. Read only while the item waits to be sent. */
   node: DoublyLinkedNode<T> | undefined;
+  previous: DeadlineEntry<T> | undefined;
   next: DeadlineEntry<T> | undefined;
   /** The list that holds the entry; `undefined` while the item moves between queues. */
-  list: ListEnds<T> | undefined;
+  list: DeadlineList<T> | undefined;
 }
 
 export interface HasDeadline<T> {
   timerEntry: DeadlineEntry<T> | undefined;
-}
-
-/** The part of a `DeadlineList` that `CommandDeadlines.end` changes. */
-interface ListEnds<T> {
-  head: DeadlineEntry<T> | undefined;
-  tail: DeadlineEntry<T> | undefined;
 }
 
 /**
@@ -37,7 +32,7 @@ interface ListEnds<T> {
  * timeout is the same, the order they are added is the order they expire, so only the
  * head can be the next to expire.
  */
-class DeadlineList<T extends HasDeadline<T>> implements ListEnds<T> {
+class DeadlineList<T> {
   head: DeadlineEntry<T> | undefined = undefined;
   tail: DeadlineEntry<T> | undefined = undefined;
   timer: ReturnType<typeof setTimeout> | undefined = undefined;
@@ -47,6 +42,8 @@ class DeadlineList<T extends HasDeadline<T>> implements ListEnds<T> {
   constructor(readonly timeout: number) {}
 
   push(entry: DeadlineEntry<T>) {
+    entry.list = this;
+    entry.previous = this.tail;
     if (this.tail === undefined) {
       this.head = entry;
     } else {
@@ -55,12 +52,19 @@ class DeadlineList<T extends HasDeadline<T>> implements ListEnds<T> {
     this.tail = entry;
   }
 
-  /** Drops the dead entries at the head. */
-  trim() {
-    let head = this.head;
-    while (head !== undefined && head.item.timerEntry !== head) head = head.next;
-    this.head = head;
-    if (head === undefined) this.tail = undefined;
+  remove(entry: DeadlineEntry<T>) {
+    const { previous, next } = entry;
+    if (previous === undefined) {
+      this.head = next;
+    } else {
+      previous.next = next;
+    }
+    if (next === undefined) {
+      this.tail = previous;
+    } else {
+      next.previous = previous;
+    }
+    entry.previous = entry.next = entry.list = undefined;
   }
 
   /**
@@ -68,20 +72,21 @@ class DeadlineList<T extends HasDeadline<T>> implements ListEnds<T> {
    * deadline is older than the ones added here; it usually lands near the head.
    */
   insert(entry: DeadlineEntry<T>) {
-    entry.list = this;
-    if (this.head === undefined || this.head.deadline > entry.deadline) {
-      entry.next = this.head;
-      this.head = entry;
-      if (this.tail === undefined) this.tail = entry;
+    let next = this.head;
+    while (next !== undefined && next.deadline <= entry.deadline) next = next.next;
+    if (next === undefined) {
+      this.push(entry);
       return;
     }
-    let previous = this.head;
-    while (previous.next !== undefined && previous.next.deadline <= entry.deadline) {
-      previous = previous.next;
+    entry.list = this;
+    entry.next = next;
+    entry.previous = next.previous;
+    if (next.previous === undefined) {
+      this.head = entry;
+    } else {
+      next.previous.next = entry;
     }
-    entry.next = previous.next;
-    previous.next = entry;
-    if (entry.next === undefined) this.tail = entry;
+    next.previous = entry;
   }
 }
 
@@ -90,12 +95,10 @@ class DeadlineList<T extends HasDeadline<T>> implements ListEnds<T> {
  *
  * - Adding a deadline costs a push. A later deadline of the same list never needs an
  *   earlier timer, so commands that arrive fast cause no timer calls.
- * - Ending a timeout is one field write. The entry stays in its list as a dead entry, and
- *   leaves when it is at the head, which is the usual case because commands are written
- *   in order.
- * - The timer is never cleared when a timeout ends. When it fires, it takes the dead and
- *   expired entries from the head and stops at the first live one that has not expired,
- *   so it never walks the items that are still waiting. A timeout never fires early.
+ * - Ending a timeout unlinks its entry from its list.
+ * - The timer is never cleared when a timeout ends. When it fires, it takes the expired
+ *   entries from the head and stops at the first one that has not expired, so it never
+ *   walks the items that are still waiting. A timeout never fires early.
  */
 export class CommandDeadlines<T extends HasDeadline<T>> {
   readonly #lists = new Map<number, DeadlineList<T>>();
@@ -122,9 +125,16 @@ export class CommandDeadlines<T extends HasDeadline<T>> {
       throw new RangeError(`The value of "timeout" is out of range. It must be an integer >= 0 && <= ${MAX_TIMEOUT}. Received ${ms}`);
     }
 
+    CommandDeadlines.end(item);
     const list = this.#list(ms);
-    list.trim();
-    const entry: DeadlineEntry<T> = { item, deadline: performance.now() + ms, node, next: undefined, list };
+    const entry: DeadlineEntry<T> = {
+      item,
+      deadline: performance.now() + ms,
+      node,
+      previous: undefined,
+      next: undefined,
+      list: undefined
+    };
     item.timerEntry = entry;
     list.push(entry);
     if (list.timer === undefined) this.#arm(list, entry.deadline);
@@ -135,21 +145,18 @@ export class CommandDeadlines<T extends HasDeadline<T>> {
     const entry = item.timerEntry;
     if (entry === undefined) return;
     item.timerEntry = undefined;
-    const list = entry.list;
-    if (list !== undefined && list.head === entry) {
-      list.head = entry.next;
-      if (list.head === undefined) list.tail = undefined;
-    }
+    entry.list?.remove(entry);
   }
 
   /**
-   * For an item that leaves its queue: gives it an entry of its own, outside the queue's
-   * lists, so that queue's timer no longer sees it. The queue it moves to calls `adopt`.
+   * For an item that leaves its queue: takes its entry out of the queue's lists, so that
+   * queue's timer no longer sees it. The queue it moves to calls `adopt`.
    */
   static detach<T extends HasDeadline<T>>(item: T) {
     const entry = item.timerEntry;
     if (entry === undefined) return;
-    item.timerEntry = { item, deadline: entry.deadline, node: undefined, next: undefined, list: undefined };
+    entry.list?.remove(entry);
+    entry.node = undefined;
   }
 
   /**
@@ -165,7 +172,6 @@ export class CommandDeadlines<T extends HasDeadline<T>> {
       return false;
     }
     entry.node = node;
-    entry.next = undefined;
     const list = this.#list(ms);
     list.insert(entry);
     this.#arm(list, entry.deadline);
@@ -214,19 +220,24 @@ export class CommandDeadlines<T extends HasDeadline<T>> {
     const now = performance.now();
     let expired: DeadlineEntry<T>[] | undefined;
     let entry = list.head;
-    while (entry !== undefined) {
-      if (entry.item.timerEntry === entry) {
-        if (entry.deadline > now) break;
-        entry.item.timerEntry = undefined;
-        (expired ??= []).push(entry);
-      }
+    while (entry !== undefined && entry.deadline <= now) {
+      entry.item.timerEntry = undefined;
+      entry.list = undefined;
+      (expired ??= []).push(entry);
       entry = entry.next;
     }
-    list.head = entry;
+    if (expired !== undefined) {
+      // Cut the expired entries off at once; nothing unlinks them one by one.
+      list.head = entry;
+      if (entry === undefined) {
+        list.tail = undefined;
+      } else {
+        entry.previous = undefined;
+      }
+    }
     if (entry !== undefined) {
       this.#arm(list, entry.deadline);
     } else {
-      list.tail = undefined;
       if (this.#lists.get(list.timeout) === list) this.#lists.delete(list.timeout);
       if (this.#lastList === list) this.#lastList = undefined;
     }

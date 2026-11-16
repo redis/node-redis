@@ -66,6 +66,32 @@ describe('CommandDeadlines', () => {
     assert.strictEqual(b.timerEntry, undefined);
   });
 
+  it('unlinks an entry at once when its timeout ends, is replaced, or moves away', () => {
+    const { deadlines, add } = setup();
+    const [a, b, c, d] = ['a', 'b', 'c', 'd'].map(name => add(item(name), 20));
+    const [entryA, entryB, entryC, entryD] = [a, b, c, d].map(value => value.timerEntry!);
+
+    CommandDeadlines.end(b);
+    assert.strictEqual(entryA.next, entryC);
+    assert.strictEqual(entryC.previous, entryA);
+    assert.strictEqual(entryB.list, undefined);
+
+    add(c, 20);
+    assert.strictEqual(entryC.list, undefined);
+    assert.strictEqual(entryA.next, entryD);
+
+    CommandDeadlines.detach(d);
+    assert.strictEqual(d.timerEntry, entryD);
+    assert.strictEqual(entryD.list, undefined);
+    assert.strictEqual(entryA.next, c.timerEntry);
+
+    CommandDeadlines.end(a);
+    CommandDeadlines.end(c);
+    assert.strictEqual(entryA.list, undefined);
+    assert.strictEqual(c.timerEntry, undefined);
+    deadlines.clear();
+  });
+
   it('ignores `end` on an item without a timeout', () => {
     CommandDeadlines.end(item('a'));
   });
