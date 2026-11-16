@@ -210,6 +210,41 @@ describe('sentinel pub-sub-proxy', function () {
     await assert.rejects(subscribePromise);
   });
 
+  it('a subscribe carried by extract is not sent again when its stale connect fails after a move back', async () => {
+    const live = { host: '127.0.0.1', port: server.port };
+    const proxyA = new PubSubProxy({
+      socket: {
+        // the dead member gives up after a few retries
+        reconnectStrategy: (retries, cause) => cause.message.endsWith(':1') && retries >= 3 ? new Error('give up') : 100
+      }
+    }, () => {});
+
+    await proxyA.changeNode({ host: '127.0.0.1', port: 1 });
+    const staleSubscribe = proxyA.subscribe('carried-channel', () => {});
+    const proxyB = new PubSubProxy({}, () => {});
+    await proxyB.changeNode(live);
+    await proxyB.adoptListeners(proxyA.extractListeners());
+
+    // B drops the carried channel and keeps another one for the move back
+    await proxyB.unsubscribe('carried-channel');
+    await proxyB.subscribe('kept-channel', () => {});
+    const extracted = proxyB.extractListeners();
+    await proxyA.changeNode(live);
+    await proxyA.adoptListeners(extracted);
+    await staleSubscribe;
+
+    const publisher = RedisClient.create({ socket: live });
+    await publisher.connect();
+    try {
+      const counts = await publisher.pubSubNumSub(['carried-channel', 'kept-channel']);
+      assert.equal(counts['kept-channel'], 1);
+      assert.equal(counts['carried-channel'], 0, 'the carried subscribe must not be sent again');
+    } finally {
+      publisher.destroy();
+      proxyA.destroy();
+    }
+  });
+
   it('a stale connect failure does not orphan the client a later adopt seated', async () => {
     const live = { host: '127.0.0.1', port: server.port };
     const proxy = new PubSubProxy({ socket: { reconnectStrategy: false } }, () => {});

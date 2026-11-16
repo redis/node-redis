@@ -299,6 +299,8 @@ export class PubSubProxy extends EventEmitter {
     this.#pendingOps.add(pending);
     try {
       return await this.#executeCommand(client => {
+        // extractListeners already replayed it onto the snapshot it handed off
+        if (pending.carried) return;
         pending.dispatched = true;
         return fn(client);
       });
