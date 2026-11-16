@@ -87,6 +87,63 @@ describe("MSETEX", () => {
       );
     });
 
+    it("with EXAT expiration undefined value", () => {
+      assert.deepEqual(
+        parseArgs(
+          MSETEX,
+          {
+            key1: "value1",
+            key2: "value2",
+          },
+          {
+            expiration: {
+              type: ExpirationMode.EXAT,
+              value: undefined as unknown as number,
+            },
+          }
+        ),
+        ["MSETEX", "2", "key1", "value1", "key2", "value2"]
+      );
+    });
+
+    it("with PXAT expiration undefined value", () => {
+      assert.deepEqual(
+        parseArgs(
+          MSETEX,
+          {
+            key1: "value1",
+            key2: "value2",
+          },
+          {
+            expiration: {
+              type: ExpirationMode.PXAT,
+              value: undefined as unknown as number,
+            },
+          }
+        ),
+        ["MSETEX", "2", "key1", "value1", "key2", "value2"]
+      );
+    });
+
+    it("with KEEPTTL expiration and undefined value", () => {
+      assert.deepEqual(
+        parseArgs(
+          MSETEX,
+          {
+            key1: "value1",
+            key2: "value2",
+          },
+          {
+            expiration: {
+              type: ExpirationMode.KEEPTTL,
+              value: undefined,
+            } as unknown as { type: typeof ExpirationMode.KEEPTTL },
+          }
+        ),
+        ["MSETEX", "2", "key1", "value1", "key2", "value2", "KEEPTTL"]
+      );
+    });
+
     it("with NX set mode", () => {
       assert.deepEqual(
         parseArgs(
@@ -241,7 +298,7 @@ describe("MSETEX", () => {
             ["key2", "value2"],
           ],
           {
-            expiration: {} as ExpirationOption,
+            expiration: {},
           }
         ),
         ["MSETEX", "2", "key1", "value1", "key2", "value2"]
@@ -291,6 +348,12 @@ describe("MSETEX", () => {
     }
   );
 
+  // MSETEX is curated out of multi_shard (NX/XX is all-or-nothing across ALL
+  // keys and cannot be evaluated per shard): the cluster must route it to the
+  // first key's node as a single command, never split it per slot. Assert the
+  // routing policy directly — server-independent, so it holds on every version
+  // (the previous cross-slot-CROSSSLOT check depended on 8.8+ server
+  // enforcement and spuriously failed on older servers).
   it("is routed single-node (default-keyed), never multi_shard", () => {
     const meta = defaultCommandMetadata.lookup({
       command: "MSETEX",
