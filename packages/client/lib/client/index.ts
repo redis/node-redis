@@ -889,7 +889,7 @@ export default class RedisClient<
       this.#maybeScheduleWrite();
     })
     .on('reconnecting', () => this.emit('reconnecting'))
-    .on('drain', () => this.#maybeScheduleWrite())
+    .on('drain', () => this.#scheduleWrite())
     .on('end', () => this.emit('end'));
   }
 
@@ -1189,7 +1189,7 @@ export default class RedisClient<
         };
 
         const promise = this._self.#queue.addCommand<T>(args, opts);
-        this._self.#scheduleWrite();
+        this._self.#maybeScheduleWrite();
         return promise;
       },
       () => this._self.#commandTraceContext(args)
@@ -1227,7 +1227,7 @@ export default class RedisClient<
   #pubSubCommand<T>(promise: Promise<T> | undefined) {
     if (promise === undefined) return Promise.resolve();
 
-    this.#scheduleWrite();
+    this.#maybeScheduleWrite();
     return promise;
   }
 
@@ -1381,7 +1381,7 @@ export default class RedisClient<
   #scheduledWrite?: NodeJS.Immediate;
 
   #scheduleWrite() {
-    if (!this.#socket.isReady || this.#scheduledWrite) return;
+    if (this.#scheduledWrite) return;
 
     this.#scheduledWrite = setImmediate(() => {
       this.#write();
@@ -1389,8 +1389,10 @@ export default class RedisClient<
     });
   }
 
+  // New work waits for the socket to be ready, so it never reaches the server before the
+  // handshake. `drain` skips this: it only continues a write that already started.
   #maybeScheduleWrite() {
-    if (!this.#queue.isWaitingToWrite()) return;
+    if (!this.#socket.isReady || !this.#queue.isWaitingToWrite()) return;
 
     this.#scheduleWrite();
   }
@@ -1431,7 +1433,7 @@ export default class RedisClient<
             return traced;
           })
         );
-        this._self.#scheduleWrite();
+        this._self.#maybeScheduleWrite();
 
         const result = await promise;
 
@@ -1498,7 +1500,7 @@ export default class RedisClient<
           this._self.#queue.addCommand(['EXEC'], { chainId })
         );
 
-        this._self.#scheduleWrite();
+        this._self.#maybeScheduleWrite();
 
         const results = await Promise.all(promises),
           execResult = results[results.length - 1];
@@ -1615,7 +1617,7 @@ export default class RedisClient<
     const promise = this._self.#queue.monitor(callback, {
       typeMapping: this._commandOptions?.typeMapping
     });
-    this._self.#scheduleWrite();
+    this._self.#maybeScheduleWrite();
     await promise;
     this._self.#monitorCallback = callback;
   }
@@ -1632,7 +1634,7 @@ export default class RedisClient<
     this._self.#credentialsSubscription?.dispose();
     this._self.#credentialsSubscription = null;
     promises.push(...(await this._self.#handshake(chainId, false)));
-    this._self.#scheduleWrite();
+    this._self.#maybeScheduleWrite();
     await Promise.all(promises);
     this._self.#selectedDB = selectedDB;
     this._self.#monitorCallback = undefined;
@@ -1681,7 +1683,7 @@ export default class RedisClient<
     return this._self.#socket.quit(async () => {
       clearTimeout(this._self.#pingTimer);
       const quitPromise = this._self.#queue.addCommand<string>(['QUIT']);
-      this._self.#scheduleWrite();
+      this._self.#maybeScheduleWrite();
       this._self.#unregisterFromMetrics();
       return quitPromise;
     });
