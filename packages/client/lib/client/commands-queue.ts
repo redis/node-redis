@@ -901,6 +901,14 @@ export default class RedisCommandsQueue {
   }
 
   /**
+   * Stops the deadline timers when no command is left. For a socket that closed: an armed
+   * timer would keep the queue, and the client that owns it, alive until it fires.
+   */
+  clearDeadlinesIfEmpty() {
+    if (this.isEmpty()) this.#deadlines.clear();
+  }
+
+  /**
    *
    * Extracts commands for the given slots from the toWrite queue.
    * Some commands don't have "slotNumber", which means they are not designated to particular slot/node.

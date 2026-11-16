@@ -2,6 +2,7 @@ import assert from 'node:assert';
 import RedisCommandsQueue from './commands-queue';
 import { AbortError, CommandTimeoutDuringMaintenanceError, DisconnectsClientError, TimeoutError } from '../errors';
 import { PUBSUB_TYPE } from './pub-sub';
+import { useFakeTimers } from 'sinon';
 
 describe('RedisCommandsQueue', () => {
   function createQueue() {
@@ -332,6 +333,25 @@ describe('RedisCommandsQueue', () => {
       await wait(40);
       assertRejected(a, TimeoutError);
       assert.strictEqual(drain(queue), '');
+    });
+
+    it('stops the deadline timers once no command is left', () => {
+      const clock = useFakeTimers();
+      try {
+        const queue = createQueue();
+        queue.addCommand(['GET', 'a'], { timeout: 1000 });
+        queue.clearDeadlinesIfEmpty();
+        assert.strictEqual(clock.countTimers(), 1);
+
+        drain(queue);
+        queue.decoder.write(Buffer.from('$1\r\n1\r\n'));
+        // The timer outlives the timeout it was armed for.
+        assert.strictEqual(clock.countTimers(), 1);
+        queue.clearDeadlinesIfEmpty();
+        assert.strictEqual(clock.countTimers(), 0);
+      } finally {
+        clock.uninstall();
+      }
     });
 
     it('stops once the command is written', async () => {
