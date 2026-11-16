@@ -27,6 +27,13 @@ export interface HasDeadline<T> {
   timerEntry: DeadlineEntry<T> | undefined;
 }
 
+/** An item moved into a queue: its timeout and its node in the new write queue. */
+export interface AdoptedItem<T> {
+  item: T;
+  ms: number;
+  node: DoublyLinkedNode<T>;
+}
+
 /**
  * The deadlines of the items that share one timeout value, oldest first. Because the
  * timeout is the same, the order they are added is the order they expire, so only the
@@ -68,11 +75,11 @@ class DeadlineList<T> {
   }
 
   /**
-   * Inserts an entry in deadline order. Only for an item moved from another queue, whose
-   * deadline is older than the ones added here; it usually lands near the head.
+   * Inserts an entry in deadline order. Only for an item moved from another queue. The walk
+   * starts behind `after`, an entry of this list whose deadline is not later, if given.
    */
-  insert(entry: DeadlineEntry<T>) {
-    let next = this.head;
+  insert(entry: DeadlineEntry<T>, after?: DeadlineEntry<T>) {
+    let next = after === undefined ? this.head : after.next;
     while (next !== undefined && next.deadline <= entry.deadline) next = next.next;
     if (next === undefined) {
       this.push(entry);
@@ -150,7 +157,7 @@ export class CommandDeadlines<T extends HasDeadline<T>> {
 
   /**
    * For an item that leaves its queue: takes its entry out of the queue's lists, so that
-   * queue's timer no longer sees it. The queue it moves to calls `adopt`.
+   * queue's timer no longer sees it. The queue it moves to calls `adoptAll`.
    */
   static detach<T extends HasDeadline<T>>(item: T) {
     const entry = item.timerEntry;
@@ -160,22 +167,33 @@ export class CommandDeadlines<T extends HasDeadline<T>> {
   }
 
   /**
-   * Takes over the timeout of an item that `detach` moved out of another queue. The item
-   * keeps its deadline. Returns `false`, and ends the timeout, when that deadline already
-   * passed.
+   * Takes over the timeouts of items that `detach` moved out of another queue. Each item
+   * keeps its deadline; items without a timeout are skipped. Returns the moves whose
+   * deadline already passed, with their timeouts ended. Runs no callback.
+   *
+   * Pass the moves oldest deadline first: each list is then merged in one walk.
    */
-  adopt(item: T, ms: number, node: DoublyLinkedNode<T>): boolean {
-    const entry = item.timerEntry;
-    if (entry === undefined) return true;
-    if (entry.deadline <= performance.now()) {
-      item.timerEntry = undefined;
-      return false;
+  adoptAll<M extends AdoptedItem<T>>(moves: ReadonlyArray<M>): M[] {
+    const now = performance.now();
+    const expired: M[] = [];
+    // The entry inserted last in each list. Nothing can unlink it during this call.
+    const lastInserted = new Map<DeadlineList<T>, DeadlineEntry<T>>();
+    for (const move of moves) {
+      const entry = move.item.timerEntry;
+      if (entry === undefined) continue;
+      if (entry.deadline <= now) {
+        move.item.timerEntry = undefined;
+        expired.push(move);
+        continue;
+      }
+      entry.node = move.node;
+      const list = this.#list(move.ms);
+      const previous = lastInserted.get(list);
+      list.insert(entry, previous !== undefined && previous.deadline <= entry.deadline ? previous : undefined);
+      lastInserted.set(list, entry);
     }
-    entry.node = node;
-    const list = this.#list(ms);
-    list.insert(entry);
-    this.#arm(list, entry.deadline);
-    return true;
+    for (const list of lastInserted.keys()) this.#arm(list, list.head!.deadline);
+    return expired;
   }
 
   /** Stops every timer. For a queue whose items were all settled. */

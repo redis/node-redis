@@ -6,7 +6,7 @@ import { ChannelListeners, PubSub, PubSubCommand, PubSubListener, PubSubType, Pu
 import { AbortError, ErrorReply, CommandTimeoutDuringMaintenanceError, TimeoutError } from '../errors';
 import { MonitorCallback } from '.';
 import { dbgMaintenance } from './enterprise-maintenance-manager';
-import { CommandDeadlines, DeadlineEntry } from './command-deadlines';
+import { AdoptedItem, CommandDeadlines, DeadlineEntry } from './command-deadlines';
 
 /**
  * @internal
@@ -992,6 +992,8 @@ export default class RedisCommandsQueue {
       return;
     }
 
+    // Newest first, so each command lands in front of the ones behind it.
+    const moves: AdoptedItem<CommandToWrite>[] = [];
     for (let i = commands.length - 1; i >= 0; i--) {
       const value = commands[i];
       const node = this.#insertAtFront(value);
@@ -1001,10 +1003,18 @@ export default class RedisCommandsQueue {
         continue;
       }
 
-      if (value.timerEntry && !this.#deadlines.adopt(value, value.effectiveTimeout!, node)) {
-        this.#rejectCommand(node, value, this.#timeoutError(value));
-        continue;
-      }
+      moves.push({ item: value, ms: value.effectiveTimeout!, node });
+    }
+
+    // Oldest first, so each deadline list is merged in one walk. Rejecting a command
+    // changes the lists, so nothing is rejected before the merge ends.
+    moves.reverse();
+    for (const { item, node } of this.#deadlines.adoptAll(moves)) {
+      this.#rejectCommand(node, item, this.#timeoutError(item));
+    }
+
+    for (const { item: value, node } of moves) {
+      if (value.rejected) continue;
 
       if (value.abort) {
         RedisCommandsQueue.#removeAbortListener(value);

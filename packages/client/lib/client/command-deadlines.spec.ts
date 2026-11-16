@@ -150,7 +150,7 @@ describe('CommandDeadlines', () => {
 
     CommandDeadlines.detach(a);
     const node = new DoublyLinkedList<Item>().push(a);
-    assert.strictEqual(destination.deadlines.adopt(a, 40, node), true);
+    assert.deepStrictEqual(destination.deadlines.adoptAll([{ item: a, ms: 40, node }]), []);
 
     await wait(30);
     assert.deepStrictEqual(source.names(), []);
@@ -165,18 +165,45 @@ describe('CommandDeadlines', () => {
     CommandDeadlines.detach(a);
     await wait(20);
 
-    const node = new DoublyLinkedList<Item>().push(a);
-    assert.strictEqual(destination.deadlines.adopt(a, 10, node), false);
+    const move = { item: a, ms: 10, node: new DoublyLinkedList<Item>().push(a) };
+    assert.deepStrictEqual(destination.deadlines.adoptAll([move]), [move]);
     assert.strictEqual(a.timerEntry, undefined);
     await wait(20);
     assert.deepStrictEqual(source.names(), []);
     assert.deepStrictEqual(destination.names(), []);
   });
 
+  it('merges moved deadlines into a list in one walk', () => {
+    const source = setup(), destination = setup();
+    const M = 200, N = 200;
+    // Count the reads of the older deadlines: a walk from the head per moved item reads M x N.
+    let reads = 0;
+    const older = Array.from({ length: M }, (_, i) => {
+      const entry = destination.add(item(`d${i}`), 1000).timerEntry!;
+      const { deadline } = entry;
+      Object.defineProperty(entry, 'deadline', { get: () => (reads++, deadline) });
+      return entry;
+    });
+    const moved = Array.from({ length: N }, (_, i) => source.add(item(`s${i}`), 1000));
+    moved.forEach(value => CommandDeadlines.detach(value));
+
+    const list = new DoublyLinkedList<Item>();
+    assert.deepStrictEqual(destination.deadlines.adoptAll(moved.map(value => ({ item: value, ms: 1000, node: list.push(value) }))), []);
+    assert.ok(reads <= M + N, `read ${reads} deadlines`);
+
+    const names: string[] = [];
+    for (let entry: DeadlineEntry<Item> | undefined = older[0]; entry !== undefined; entry = entry.next) {
+      names.push(entry.item.name);
+    }
+    assert.deepStrictEqual(names, [...older.map(entry => entry.item.name), ...moved.map(value => value.name)]);
+    source.deadlines.clear();
+    destination.deadlines.clear();
+  });
+
   it('adopts an item without a timeout', () => {
     const { deadlines } = setup();
     const a = item('a');
-    assert.strictEqual(deadlines.adopt(a, 10, new DoublyLinkedList<Item>().push(a)), true);
+    assert.deepStrictEqual(deadlines.adoptAll([{ item: a, ms: 10, node: new DoublyLinkedList<Item>().push(a) }]), []);
     assert.strictEqual(a.timerEntry, undefined);
   });
 

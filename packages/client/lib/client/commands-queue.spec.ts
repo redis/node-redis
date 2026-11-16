@@ -520,6 +520,25 @@ describe('RedisCommandsQueue', () => {
 
   describe('prependCommandsToWrite', () => {
 
+    it('merges the moved deadlines with older ones, and times out each in deadline order', async () => {
+      const source = createQueue();
+      const destination = createQueue();
+      const order: string[] = [];
+      const add = (queue: RedisCommandsQueue, name: string) =>
+        queue.addCommand(['GET', name], { timeout: 30 }).catch(() => order.push(name));
+      add(destination, 'd1');
+      add(source, 's1');
+      await wait(5);
+      add(destination, 'd2');
+      add(source, 's2');
+      await wait(5);
+      add(source, 's3');
+
+      destination.prependCommandsToWrite(source.extractAllCommands());
+      await wait(60);
+      assert.deepStrictEqual(order, ['d1', 's1', 'd2', 's2', 's3']);
+    });
+
     it('rebinds an abort listener so it removes the command from its new queue', async () => {
       const source = createQueue();
       const destination = createQueue();
