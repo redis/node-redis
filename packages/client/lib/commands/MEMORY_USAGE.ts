@@ -10,6 +10,11 @@ export interface MemoryUsageOptions {
 }
 
 export default {
+  // The server metadata makes MEMORY USAGE look cacheable (readonly + keyed,
+  // no tips), but some changes to a key's memory send no invalidation (for
+  // example XGROUP CREATE on a stream), so a cached reply would stay stale
+  // until the key itself is written.
+  CACHEABLE: false,
   parseCommand(parser: CommandParser, key: RedisArgument, options?: MemoryUsageOptions) {
     parser.push('MEMORY', 'USAGE');
     parser.pushKey(key);

@@ -52,6 +52,11 @@ export type XInfoStreamReply = TuplesToMapReply<[
 ]>;
 
 export default {
+  // The server metadata makes XINFO STREAM look cacheable (readonly + keyed,
+  // no tips), but creating or destroying a consumer group sends no
+  // invalidation, so a cached reply would keep a stale `groups` count until
+  // the stream itself is written.
+  CACHEABLE: false,
   parseCommand(parser: CommandParser, key: RedisArgument) {
     parser.push('XINFO', 'STREAM');
     parser.pushKey(key);

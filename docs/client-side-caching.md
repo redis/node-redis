@@ -144,7 +144,7 @@ Whether a reply is cached is resolved in this order:
 2. The `cacheable` function, if configured.
 3. The mode default: `"optin"` caches nothing, `"plain"` and `"optout"` cache every eligible reply.
 
-Only eligible commands can be cached. Writes, scripts, and commands whose replies are not safe to cache (for example `TOUCH` or `XPENDING`) are never cached. `sendCommand`, `multi()`, and pipelines bypass the cache. `cache: false` does not remove an entry that is already cached.
+Only eligible commands can be cached. Writes, scripts, and commands whose replies are not safe to cache (for example `TOUCH`, `XPENDING`, `SORT_RO` or `XINFO GROUPS`) are never cached. `sendCommand`, `multi()`, and pipelines bypass the cache. `cache: false` does not remove an entry that is already cached.
 
 Replies are cached only with the client's default [type mapping](./command-options.md#type-mapping). A call made with a different type mapping, for example through `withTypeMapping()` or `withCommandOptions({ typeMapping })`, bypasses the cache, even with `cache: true`, and no warning is logged. To cache replies with a custom type mapping, set it on the client with `createClient({ commandOptions: { typeMapping } })`.
 
