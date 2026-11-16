@@ -104,6 +104,8 @@ export class PubSubProxy extends EventEmitter {
   #subscriptions?: Subscriptions;
   /** in-flight ops in issuance order — see {@link PubSubProxy.prototype.extractListeners} */
   readonly #pendingOps = new Set<PendingOp>();
+  /** bumped by destroy(), so a stale connect never follows a reopened session */
+  #session = 0;
 
   constructor(
     clientOptions: AnyRedisClientOptions,
@@ -133,6 +135,7 @@ export class PubSubProxy extends EventEmitter {
   async #initiatePubSubClient(withSubscriptions = false) {
     const client = this.#createClient()
       .on('error', this.#onError);
+    const session = this.#session;
 
     const connectPromise = client.connect()
       .then(async client => {
@@ -164,9 +167,14 @@ export class PubSubProxy extends EventEmitter {
         // a destroyed or replaced client can still fail its connect, and a
         // later adopt or changeNode may have seated a replacement: clear the
         // state only if it is still ours, otherwise follow the replacement
+        // while it is still open and from the same session
         if (this.#state?.client === client) {
           this.#state = undefined;
-        } else if (this.#state) {
+        } else if (
+          this.#state &&
+          this.#session === session &&
+          (this.#state.connectPromise || this.#state.client.isOpen)
+        ) {
           return this.#state.connectPromise ?? this.#state.client;
         }
         throw err;
@@ -276,13 +284,16 @@ export class PubSubProxy extends EventEmitter {
       return fn(client);
     }
 
+    const state = this.#state;
     return client.then(client => {
       // if pubsub was deactivated while connecting
       if (client === undefined) return;
 
       return fn(client);
     }).catch(err => {
-      if (this.#state?.client.isPubSubActive) {
+      // a stale connect failing after a destroy and reopen must not tear
+      // down the session that replaced it
+      if (this.#state === state && this.#state?.client.isPubSubActive) {
         // destroy() clears #state AND the adopted #subscriptions snapshot; a
         // bare client.destroy() would strand the snapshot for extractListeners
         // to resurrect on the next move
@@ -396,6 +407,7 @@ export class PubSubProxy extends EventEmitter {
   }
 
   destroy() {
+    this.#session++;
     this.#subscriptions = undefined;
     if (this.#state === undefined) return;
     

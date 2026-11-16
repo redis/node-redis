@@ -245,6 +245,73 @@ describe('sentinel pub-sub-proxy', function () {
     }
   });
 
+  it('a parked subscribe rejects when the replacement closed before the stale connect failed', async () => {
+    const live = { host: '127.0.0.1', port: server.port };
+    let onConnectError!: () => void;
+    const connectFailed = new Promise<void>(resolve => { onConnectError = resolve; });
+    const proxy = new PubSubProxy({
+      socket: {
+        // retry the old master slowly, give up on the replacement once it drops
+        reconnectStrategy: (_retries, cause) => cause.message.endsWith(':1') ? 1_000 : false
+      }
+    }, () => onConnectError());
+
+    await proxy.changeNode({ host: '127.0.0.1', port: 1 });
+    const subscribePromise = proxy.subscribe('closed-channel', () => {});
+    await connectFailed;
+
+    await proxy.changeNode(live);
+    const killer = RedisClient.create({ socket: live });
+    await killer.connect();
+    try {
+      await killer.sendCommand(['CLIENT', 'KILL', 'TYPE', 'normal', 'SKIPME', 'yes']);
+    } finally {
+      killer.destroy();
+    }
+
+    try {
+      const outcome = await Promise.race([
+        subscribePromise.then(() => 'resolved', () => 'rejected'),
+        new Promise(resolve => setTimeout(resolve, 3_000, 'pending'))
+      ]);
+      assert.equal(outcome, 'rejected', 'the parked subscribe must not wait on a closed replacement');
+    } finally {
+      proxy.destroy();
+    }
+  });
+
+  it('a subscribe parked before destroy is not sent on the reopened session', async () => {
+    const live = { host: '127.0.0.1', port: server.port };
+    let onConnectError!: () => void;
+    const connectFailed = new Promise<void>(resolve => { onConnectError = resolve; });
+    const proxy = new PubSubProxy({
+      socket: {
+        // the dead master gives up after a few retries
+        reconnectStrategy: (retries, cause) => cause.message.endsWith(':1') && retries >= 3 ? new Error('give up') : 100
+      }
+    }, () => onConnectError());
+
+    await proxy.changeNode({ host: '127.0.0.1', port: 1 });
+    const staleSubscribe = proxy.subscribe('stale-channel', () => {});
+    await connectFailed;
+    proxy.destroy();
+
+    await proxy.changeNode(live);
+    await proxy.subscribe('fresh-channel', () => {});
+    await assert.rejects(staleSubscribe);
+
+    const publisher = RedisClient.create({ socket: live });
+    await publisher.connect();
+    try {
+      const counts = await publisher.pubSubNumSub(['stale-channel', 'fresh-channel']);
+      assert.equal(counts['stale-channel'], 0, 'the subscribe parked before destroy must not be sent');
+      assert.equal(counts['fresh-channel'], 1, 'the stale failure must not tear down the new session');
+    } finally {
+      publisher.destroy();
+      proxy.destroy();
+    }
+  });
+
   it('a stale connect failure does not orphan the client a later adopt seated', async () => {
     const live = { host: '127.0.0.1', port: server.port };
     const proxy = new PubSubProxy({ socket: { reconnectStrategy: false } }, () => {});
