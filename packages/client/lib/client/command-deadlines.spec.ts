@@ -217,13 +217,23 @@ describe('CommandDeadlines', () => {
     assert.deepStrictEqual(names(), []);
   });
 
-  it('rejects a timeout that `AbortSignal.timeout` rejected, and keeps the item unchanged', () => {
+  it('throws the error `AbortSignal.timeout` throws for an invalid timeout, and keeps the item unchanged', () => {
     const { deadlines } = setup();
     const a = item('a');
-    assert.throws(() => deadlines.add(a, -1, undefined), RangeError);
-    assert.throws(() => deadlines.add(a, 1.5, undefined), RangeError);
-    assert.throws(() => deadlines.add(a, 2 ** 32, undefined), RangeError);
-    assert.throws(() => deadlines.add(a, '10' as never, undefined), TypeError);
+    for (const ms of [-1, 1.5, 2 ** 32, Infinity, '10', 10n, true, {}]) {
+      let expected: (Error & { code?: string }) | undefined;
+      try {
+        AbortSignal.timeout(ms as never);
+      } catch (err) {
+        expected = err as Error;
+      }
+      assert.ok(expected, `AbortSignal.timeout accepted ${String(ms)}`);
+      assert.throws(
+        () => deadlines.add(a, ms as never, undefined),
+        (err: Error & { code?: string }) =>
+          err.constructor === expected!.constructor && err.code === expected!.code && err.message === expected!.message
+      );
+    }
     assert.strictEqual(a.timerEntry, undefined);
   });
 

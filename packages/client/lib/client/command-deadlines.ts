@@ -4,7 +4,7 @@ import { DoublyLinkedNode } from './linked-list';
 // runs before the deadline, so a longer timeout still works.
 const MAX_TIMER_DELAY = 2 ** 31 - 1;
 
-// The largest timeout `AbortSignal.timeout` accepted, which the queue used before.
+// The largest timeout `AbortSignal.timeout` accepts, which the queue used before.
 const MAX_TIMEOUT = 2 ** 32 - 1;
 
 /**
@@ -123,13 +123,13 @@ export class CommandDeadlines<T extends HasDeadline<T>> {
 
   /**
    * Starts a timeout of `ms` for `item`. Replaces the item's earlier timeout, if any.
-   * Throws, and changes nothing, when `ms` is not an integer from 0 to 2^32 - 1.
+   * Throws, and changes nothing, when `ms` is not an integer from 0 to 2^32 - 1: the same
+   * error `AbortSignal.timeout(ms)` throws, which the queue used before.
    */
   add(item: T, ms: number, node: DoublyLinkedNode<T> | undefined) {
-    if (typeof ms !== 'number') {
-      throw new TypeError(`The "timeout" option must be of type number. Received ${typeof ms}`);
-    } else if (!Number.isInteger(ms) || ms < 0 || ms > MAX_TIMEOUT) {
-      throw new RangeError(`The value of "timeout" is out of range. It must be an integer >= 0 && <= ${MAX_TIMEOUT}. Received ${ms}`);
+    if (typeof ms !== 'number' || !Number.isInteger(ms) || ms < 0 || ms > MAX_TIMEOUT) {
+      AbortSignal.timeout(ms);
+      throw new RangeError(`Invalid timeout: ${String(ms)}`);
     }
 
     CommandDeadlines.end(item);
