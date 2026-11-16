@@ -161,11 +161,11 @@ export class PubSubProxy extends EventEmitter {
         return client;
       })
       .catch(err => {
-        // destroy() leaves a connecting client to finish on its own, so a
+        // a destroyed or replaced client can still fail its connect, and a
         // later adopt or changeNode may have seated a replacement: clear the
-        // state only if it is still ours, or the stale rejection orphans it
+        // state only if it is still ours, otherwise follow the replacement
         if (this.#state?.client !== client) {
-          return this.#state?.connectPromise;
+          return this.#state?.connectPromise ?? this.#state?.client;
         }
 
         this.#state = undefined;

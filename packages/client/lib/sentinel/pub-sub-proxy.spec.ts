@@ -166,11 +166,14 @@ describe('sentinel pub-sub-proxy', function () {
 
   it('changeNode moves a subscribe parked behind a still-connecting client to the new node', async () => {
     const live = { host: '127.0.0.1', port: server.port };
-    const proxy = new PubSubProxy({ socket: { reconnectStrategy: 100 } }, () => {});
+    let onConnectError!: () => void;
+    const connectFailed = new Promise<void>(resolve => { onConnectError = resolve; });
+    const proxy = new PubSubProxy({ socket: { reconnectStrategy: 100 } }, () => onConnectError());
 
     // the old master is down, so its client keeps reconnecting
     await proxy.changeNode({ host: '127.0.0.1', port: 1 });
     const subscribePromise = proxy.subscribe('moved-channel', () => {});
+    await connectFailed;
 
     await proxy.changeNode(live);
     await subscribePromise;
@@ -178,7 +181,11 @@ describe('sentinel pub-sub-proxy', function () {
     const publisher = RedisClient.create({ socket: live });
     await publisher.connect();
     try {
-      assert.equal((await publisher.pubSubNumSub('moved-channel'))['moved-channel'], 1);
+      assert.equal(
+        (await publisher.pubSubNumSub('moved-channel'))['moved-channel'],
+        1,
+        'the parked subscribe must land on the new node'
+      );
     } finally {
       publisher.destroy();
       proxy.destroy();
