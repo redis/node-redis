@@ -200,9 +200,11 @@ export class PubSubProxy extends EventEmitter {
         [PUBSUB_TYPE.PATTERNS]: this.#state.client.getPubSubListeners(PUBSUB_TYPE.PATTERNS),
         [PUBSUB_TYPE.SHARDED]: this.#state.client.getPubSubListeners(PUBSUB_TYPE.SHARDED)
       };
-
-      this.#state.client.destroy();
     }
+
+    // Destroy even while `connectPromise` is set. A node that stays down never
+    // resolves connect(), so the superseded client would reconnect forever.
+    this.#state.client.destroy();
 
     await this.#initiatePubSubClient(true);
   }
