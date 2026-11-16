@@ -2,6 +2,7 @@
   "npm": {
     "publish": true,
     "skipChecks": true,
+    "tag": "maintenance-v5",
     "publishArgs": ["--access", "public"]
   },
   "git": {
