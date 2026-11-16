@@ -164,11 +164,11 @@ export class PubSubProxy extends EventEmitter {
         // a destroyed or replaced client can still fail its connect, and a
         // later adopt or changeNode may have seated a replacement: clear the
         // state only if it is still ours, otherwise follow the replacement
-        if (this.#state?.client !== client) {
-          return this.#state?.connectPromise ?? this.#state?.client;
+        if (this.#state?.client === client) {
+          this.#state = undefined;
+        } else if (this.#state) {
+          return this.#state.connectPromise ?? this.#state.client;
         }
-
-        this.#state = undefined;
         throw err;
       });
 

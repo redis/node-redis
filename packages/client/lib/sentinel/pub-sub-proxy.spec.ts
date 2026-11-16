@@ -192,6 +192,24 @@ describe('sentinel pub-sub-proxy', function () {
     }
   });
 
+  it('a subscribe parked behind a still-connecting client rejects when the replacement fails too', async () => {
+    let onConnectError!: () => void;
+    const connectFailed = new Promise<void>(resolve => { onConnectError = resolve; });
+    const proxy = new PubSubProxy({
+      socket: {
+        // keep retrying the old master, give up on the replacement
+        reconnectStrategy: (_retries, cause) => cause.message.endsWith(':1') ? 100 : false
+      }
+    }, () => onConnectError());
+
+    await proxy.changeNode({ host: '127.0.0.1', port: 1 });
+    const subscribePromise = proxy.subscribe('lost-channel', () => {});
+    await connectFailed;
+
+    await proxy.changeNode({ host: '127.0.0.1', port: 2 }).catch(() => {});
+    await assert.rejects(subscribePromise);
+  });
+
   it('a stale connect failure does not orphan the client a later adopt seated', async () => {
     const live = { host: '127.0.0.1', port: server.port };
     const proxy = new PubSubProxy({ socket: { reconnectStrategy: false } }, () => {});
