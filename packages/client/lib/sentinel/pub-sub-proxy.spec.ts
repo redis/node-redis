@@ -164,6 +164,27 @@ describe('sentinel pub-sub-proxy', function () {
     adopter.destroy();
   });
 
+  it('changeNode moves a subscribe parked behind a still-connecting client to the new node', async () => {
+    const live = { host: '127.0.0.1', port: server.port };
+    const proxy = new PubSubProxy({ socket: { reconnectStrategy: 100 } }, () => {});
+
+    // the old master is down, so its client keeps reconnecting
+    await proxy.changeNode({ host: '127.0.0.1', port: 1 });
+    const subscribePromise = proxy.subscribe('moved-channel', () => {});
+
+    await proxy.changeNode(live);
+    await subscribePromise;
+
+    const publisher = RedisClient.create({ socket: live });
+    await publisher.connect();
+    try {
+      assert.equal((await publisher.pubSubNumSub('moved-channel'))['moved-channel'], 1);
+    } finally {
+      publisher.destroy();
+      proxy.destroy();
+    }
+  });
+
   it('a stale connect failure does not orphan the client a later adopt seated', async () => {
     const live = { host: '127.0.0.1', port: server.port };
     const proxy = new PubSubProxy({ socket: { reconnectStrategy: false } }, () => {});

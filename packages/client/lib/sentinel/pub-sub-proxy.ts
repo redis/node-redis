@@ -164,9 +164,11 @@ export class PubSubProxy extends EventEmitter {
         // destroy() leaves a connecting client to finish on its own, so a
         // later adopt or changeNode may have seated a replacement: clear the
         // state only if it is still ours, or the stale rejection orphans it
-        if (this.#state?.client === client) {
-          this.#state = undefined;
+        if (this.#state?.client !== client) {
+          return this.#state?.connectPromise;
         }
+
+        this.#state = undefined;
         throw err;
       });
 
@@ -200,10 +202,9 @@ export class PubSubProxy extends EventEmitter {
         [PUBSUB_TYPE.PATTERNS]: this.#state.client.getPubSubListeners(PUBSUB_TYPE.PATTERNS),
         [PUBSUB_TYPE.SHARDED]: this.#state.client.getPubSubListeners(PUBSUB_TYPE.SHARDED)
       };
-
-      this.#state.client.destroy();
     }
 
+    this.#state.client.destroy();
     await this.#initiatePubSubClient(true);
   }
 
