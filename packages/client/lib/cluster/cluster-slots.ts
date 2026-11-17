@@ -786,6 +786,8 @@ export default class RedisClusterSlots<
         this.#reconnectionTracker.removeClient(client._clientId);
         client.close().catch(() => client.destroy());
         node.client = undefined;
+        // the pending connect belongs to the client just closed
+        node.connectPromise = undefined;
 
         if (eagerConnent) {
           promises.push(this.#createNodeClient(node));
@@ -854,7 +856,7 @@ export default class RedisClusterSlots<
 
   #createNodeClient(node: ShardNode<M, F, S, RESP, TYPE_MAPPING>, readonly?: boolean) {
     const client = node.client = this.#createClient(node, readonly);
-    return node.connectPromise = client.connect()
+    const connectPromise: Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> = node.connectPromise = client.connect()
       .catch(err => {
         // Terminal connect failure (reconnectStrategy gave up). Drop the dead
         // client so the next nodeClient() call retries with a fresh one, and
@@ -865,18 +867,46 @@ export default class RedisClusterSlots<
         client.destroy();
         throw err;
       })
-      .finally(() => node.connectPromise = undefined);
+      .finally(() => {
+        // a newer client of this node may own `connectPromise` by now
+        if (node.connectPromise === connectPromise) node.connectPromise = undefined;
+      });
+    return connectPromise;
   }
 
   nodeClient(node: ShardNode<M, F, S, RESP, TYPE_MAPPING>): Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {
     // if the node is connecting
     if (node.connectPromise)
-      return node.connectPromise;
+      return this.#waitForNodeClient(node, node.client, node.connectPromise);
     // if the node is connected
     if (node.client)
       return Promise.resolve(node.client);
-    // if the not is disconnected
-    return this.#createNodeClient(node)
+    // if the node is disconnected
+    const connectPromise = this.#createNodeClient(node);
+    return this.#waitForNodeClient(node, node.client, connectPromise);
+  }
+
+  async #waitForNodeClient(
+    node: ShardNode<M, F, S, RESP, TYPE_MAPPING>,
+    client: RedisClientType<M, F, S, RESP, TYPE_MAPPING> | undefined,
+    connectPromise: Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>
+  ): Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {
+    try {
+      return await connectPromise;
+    } catch (err) {
+      // A refresh closed this client before it connected because the node
+      // changed role. The node is still in the cluster, so use its new client.
+      if (
+        err instanceof ClientClosedError &&
+        this.#isOpen &&
+        node.client !== client &&
+        this.nodeByAddress.get(node.address) === node
+      ) {
+        return this.nodeClient(node);
+      }
+
+      throw err;
+    }
   }
 
   #runningRediscoverPromise?: Promise<void>;

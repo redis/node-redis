@@ -1,11 +1,12 @@
 import { strict as assert } from 'node:assert';
 import { once } from 'node:events';
+import net from 'node:net';
 import { setTimeout } from 'node:timers/promises';
 import testUtils, { GLOBAL, blockSetImmediate, waitTillBeenCalled } from '../test-utils';
 import RedisCluster from '.';
 import { SQUARE_SCRIPT } from '../client/index.spec';
 import { AbortError, ClientClosedError, ClientOfflineError, RootNodesUnavailableError, MaxCommandRedirectionsError, ScanIteratorInterruptedError, TimeoutError } from '../errors';
-import { spy } from 'sinon';
+import { spy, stub } from 'sinon';
 import RedisClient from '../client';
 import { RESP_TYPES } from '../RESP/decoder';
 import calculateSlot from '../utils/calculate-slot';
@@ -1225,6 +1226,71 @@ describe('Cluster', () => {
         assert.equal(cluster.slots[SLOT].replicas![0].address, previousMaster.address);
         assert.equal(pubSubClient.isOpen, false);
       } finally {
+        cluster.destroy();
+      }
+    }, {
+      serverArguments: [],
+      numberOfMasters: 2,
+      numberOfReplicas: 1,
+      minimumDockerVersion: [7],
+      disableClusterSetup: true,
+      clusterConfiguration: {
+        useReplicas: true
+      },
+      testTimeout: 30000
+    });
+
+    // A command that reaches a node before the slot map learns of a failover
+    // opens that node's client lazily. If the refresh then demotes the node and
+    // closes the client before it connects, the command must move on to the
+    // node's new client instead of failing with "The client is closed".
+    testUtils.testWithCluster('retries a node connect cut short by a failover demoting the node', async cluster => {
+      await cluster.connect();
+
+      const SLOT = 10328, // slot of `channel`
+        previousMaster = cluster.slots[SLOT].master,
+        replicaClient = await cluster.nodeClient(cluster.slots[SLOT].replicas![0]);
+
+      await replicaClient.clusterFailover();
+
+      // wait until the new master reports the old one as its replica, so the
+      // refresh below demotes it
+      for (let i = 0; ; i++) {
+        const [shard] = (await replicaClient.clusterSlots()).filter(({ from, to }) => from <= SLOT && SLOT <= to);
+        if (shard.replicas.some(({ port }) => port === previousMaster.port)) break;
+        if (i === 199) assert.fail('Cluster failover did not complete');
+        await setTimeout(50);
+      }
+
+      // hold the TCP connect of any new client to the old master
+      let release!: () => void;
+      const gate = new Promise<void>(resolve => release = resolve),
+        createConnection = net.createConnection,
+        connectStub = stub(net, 'createConnection').callsFake(((options: net.NetConnectOpts) => {
+          if ((options as net.TcpNetConnectOpts).port !== previousMaster.port) {
+            return createConnection(options);
+          }
+
+          const socket = new net.Socket(options);
+          gate.then(() => socket.connect(options));
+          return socket;
+        }) as typeof net.createConnection);
+
+      try {
+        // the slot map is stale, so this opens a client to the old master
+        const reply = cluster.set('channel', 'value');
+        for (let i = 0; !connectStub.called; i++) {
+          if (i === 99) assert.fail('The command did not open a client to the old master');
+          await setTimeout(10);
+        }
+
+        // demote the old master while its client is still connecting
+        await cluster._slots.rediscover(replicaClient);
+        release();
+
+        assert.equal(await reply, 'OK');
+      } finally {
+        connectStub.restore();
         cluster.destroy();
       }
     }, {
