@@ -890,7 +890,11 @@ export default class RedisClient<
     })
     .on('reconnecting', () => this.emit('reconnecting'))
     .on('drain', () => this.#scheduleWrite())
-    .on('end', () => this.emit('end'));
+    .on('end', () => {
+      // close() and QUIT never reach flushAll, which is the only other place that stops them.
+      this.#queue.clearDeadlinesIfEmpty();
+      this.emit('end');
+    });
   }
 
   #initiateSocket(clientId: string): RedisSocket {
