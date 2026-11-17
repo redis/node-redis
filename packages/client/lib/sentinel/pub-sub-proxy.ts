@@ -140,7 +140,9 @@ export class PubSubProxy extends EventEmitter {
           // if pubsub was deactivated while connecting (`this.#pubSubClient === undefined`)
           // or if the node changed (`this.#pubSubClient.client !== client`)
           client.destroy();
-          return this.#state?.connectPromise;
+          // `connectPromise` is cleared once the replacement is connected, so
+          // fall back to that client or the waiting op is dropped.
+          return this.#state?.connectPromise ?? this.#state?.client;
         }
 
         if (withSubscriptions && this.#subscriptions) {
@@ -154,7 +156,7 @@ export class PubSubProxy extends EventEmitter {
         if (this.#state.client !== client) {
           // if the node changed (`this.#pubSubClient.client !== client`)
           client.destroy();
-          return this.#state?.connectPromise;
+          return this.#state?.connectPromise ?? this.#state?.client;
         }
 
         this.#state!.connectPromise = undefined;
@@ -163,10 +165,19 @@ export class PubSubProxy extends EventEmitter {
       .catch(err => {
         // destroy() leaves a connecting client to finish on its own, so a
         // later adopt or changeNode may have seated a replacement: clear the
-        // state only if it is still ours, or the stale rejection orphans it
+        // state only if it is still ours, or the stale rejection orphans it.
+        // A superseded connect must not fail the op waiting on it. Hand that
+        // op to the replacement: its connectPromise while it is still
+        // connecting, otherwise the client itself.
         if (this.#state?.client === client) {
           this.#state = undefined;
+          throw err;
         }
+
+        if (this.#state) {
+          return this.#state.connectPromise ?? this.#state.client;
+        }
+
         throw err;
       });
 
@@ -277,16 +288,22 @@ export class PubSubProxy extends EventEmitter {
       return fn(client);
     }
 
-    return client.then(client => {
+    // A rejection before `fn` runs belongs to the client this promise is
+    // connecting. Once `fn` runs, a superseded connect may have handed the op
+    // to the replacement, and that is the client a failure belongs to.
+    let failed: Client | undefined = this.#state?.client;
+    return client.then(resolved => {
       // if pubsub was deactivated while connecting
-      if (client === undefined) return;
+      if (resolved === undefined) return;
 
-      return fn(client);
+      failed = resolved;
+      return fn(resolved);
     }).catch(err => {
-      if (this.#state?.client.isPubSubActive) {
-        // destroy() clears #state AND the adopted #subscriptions snapshot; a
-        // bare client.destroy() would strand the snapshot for extractListeners
-        // to resurrect on the next move
+      // destroy() clears #state AND the adopted #subscriptions snapshot; a
+      // bare client.destroy() would strand the snapshot for extractListeners
+      // to resurrect on the next move. Only the client that actually failed,
+      // and only while it is still current, may take the proxy down.
+      if (failed !== undefined && this.#state?.client === failed && failed.isPubSubActive) {
         this.destroy();
       }
 
