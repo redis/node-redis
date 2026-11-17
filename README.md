@@ -241,6 +241,7 @@ using [async iterators](https://developer.mozilla.org/en-US/docs/Web/JavaScript/
 
 ```typescript
 for await (const keys of client.scanIterator()) {
+  if (keys.length === 0) continue;
   console.log(keys, await client.mGet(keys));
 }
 ```
