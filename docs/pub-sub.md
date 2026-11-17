@@ -79,14 +79,16 @@ await client.unsubscribe('channel', listener);
 
 ## Buffers
 
-Publishing and subscribing using `Buffer`s is also supported:
+Messages can be published as `Buffer`s, and subscribers can receive both the message and channel as `Buffer`s:
 
 ```javascript
 await subscriber.subscribe('channel', message => {
   console.log(message); // <Buffer 6d 65 73 73 61 67 65>
 }, true); // true = subscribe in `Buffer` mode.
 
-await subscriber.publish(Buffer.from('channel'), Buffer.from('message'));
+await client.publish(Buffer.from('channel'), Buffer.from('message'));
 ```
 
-> NOTE: Buffers and strings are supported both for the channel name and the message. You can mix and match these as desired.
+Use the separate `client` to publish so this also works when `subscriber` uses RESP2.
+
+> NOTE: `publish` accepts both strings and Buffers for the channel and message. Subscription methods such as `subscribe` expect string channel names; the `true` argument controls whether the listener receives Buffers.
