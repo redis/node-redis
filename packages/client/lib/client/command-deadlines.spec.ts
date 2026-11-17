@@ -1,4 +1,5 @@
 import assert from 'node:assert';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { CommandDeadlines, DeadlineEntry } from './command-deadlines';
 import { DoublyLinkedList } from './linked-list';
 
@@ -235,6 +236,20 @@ describe('CommandDeadlines', () => {
       );
     }
     assert.strictEqual(a.timerEntry, undefined);
+  });
+
+  it('runs the callback outside the async context of the caller that armed the timer', async () => {
+    const storage = new AsyncLocalStorage<string>();
+    const seen: Array<string | undefined> = [];
+    const deadlines = new CommandDeadlines<Item>(() => seen.push(storage.getStore()));
+    // `a` arms the timer inside the caller's context. `b` shares the list, so the
+    // handler arms the next timer for it from inside the first one.
+    storage.run('caller', () => deadlines.add(item('a'), 10, undefined));
+    await wait(5);
+    deadlines.add(item('b'), 10, undefined);
+
+    await wait(40);
+    assert.deepStrictEqual(seen, [undefined, undefined]);
   });
 
   it('keeps a timeout longer than the longest `setTimeout` delay', () => {

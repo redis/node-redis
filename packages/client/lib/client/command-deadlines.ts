@@ -1,8 +1,19 @@
+import { AsyncResource } from 'node:async_hooks';
 import { DoublyLinkedNode } from './linked-list';
 
 // `setTimeout` fires at once for a longer delay. The timer handler arms again when it
 // runs before the deadline, so a longer timeout still works.
 const MAX_TIMER_DELAY = 2 ** 31 - 1;
+
+// A timer keeps the async context (the `AsyncLocalStorage` stores) of the code that
+// creates it, and runs its callback in that context. A list's timer serves the items of
+// many callers, and the handler arms the next timer from inside the last one, so a plain
+// `setTimeout` would keep the first caller's stores alive while the list stays busy.
+// Bound once at load, this creates every timer in the context of the module load instead.
+const setDetachedTimeout = AsyncResource.bind(
+  <T>(callback: (list: DeadlineList<T>) => void, ms: number, list: DeadlineList<T>) =>
+    setTimeout(callback, ms, list)
+);
 
 // The largest timeout `AbortSignal.timeout` accepts, which the queue used before.
 const MAX_TIMEOUT = 2 ** 32 - 1;
@@ -225,7 +236,7 @@ export class CommandDeadlines<T extends HasDeadline<T>> {
       clearTimeout(list.timer);
     }
     list.armedFor = deadline;
-    list.timer = setTimeout(
+    list.timer = setDetachedTimeout(
       this.#onTimer,
       Math.min(MAX_TIMER_DELAY, Math.max(1, Math.ceil(deadline - performance.now()))),
       list
