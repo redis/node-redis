@@ -6,6 +6,7 @@ import { ChannelListeners, PubSub, PubSubCommand, PubSubListener, PubSubType, Pu
 import { AbortError, ErrorReply, CommandTimeoutDuringMaintenanceError, TimeoutError } from '../errors';
 import { MonitorCallback } from '.';
 import { dbgMaintenance } from './enterprise-maintenance-manager';
+import { AdoptedItem, CommandDeadlines, DeadlineEntry } from './command-deadlines';
 
 export interface CommandOptions<T = TypeMapping> {
   chainId?: symbol;
@@ -33,11 +34,12 @@ export interface CommandToWrite extends CommandWaitingForReply {
     signal: AbortSignal;
     listener: () => unknown;
   } | undefined;
-  timeout: {
-    signal: AbortSignal;
-    listener: () => unknown;
-    originalTimeout: number | undefined;
-  } | undefined;
+  /** The command's live deadline in the queue's `CommandDeadlines`, if it has a timeout. */
+  timerEntry: DeadlineEntry<CommandToWrite> | undefined;
+  /** The timeout of the command's deadline, in milliseconds. */
+  effectiveTimeout?: number;
+  /** The deadline was set while the maintenance timeout was in force. */
+  wasInMaintenance?: boolean;
   slotNumber?: number
 }
 
@@ -105,27 +107,9 @@ export default class RedisCommandsQueue {
 
     // Overwrite timeouts of all eligible toWrite commands
     for (const node of this.#toWrite.nodes()) {
-      const command = node.value;
-
-      // Remove timeout listener if it exists
-      RedisCommandsQueue.#removeTimeoutListener(command);
-
       counter++;
-      const newTimeout = this.#maintenanceCommandTimeout;
-
       // Overwrite the command's timeout
-      const signal = AbortSignal.timeout(newTimeout);
-      command.timeout = {
-        signal,
-        listener: () => {
-          this.#toWrite.remove(node);
-          command.reject(new CommandTimeoutDuringMaintenanceError(newTimeout));
-        },
-        originalTimeout: command.timeout?.originalTimeout,
-      };
-      signal.addEventListener("abort", command.timeout.listener, {
-        once: true,
-      });
+      this.#setDeadline(node, node.value, this.#maintenanceCommandTimeout, true);
     }
     dbgMaintenance(`Total of ${counter} of ${total} timeouts reset to ${ms}`);
   }
@@ -248,6 +232,37 @@ export default class RedisCommandsQueue {
     });
   }
 
+  readonly #deadlines = new CommandDeadlines<CommandToWrite>(
+    (value, node) => this.#onTimeout(node!, value)
+  );
+
+  /** Every deadline is set while the command waits to be sent, so `node` is known. */
+  #setDeadline(
+    node: DoublyLinkedNode<CommandToWrite>,
+    value: CommandToWrite,
+    timeout: number,
+    wasInMaintenance: boolean,
+  ) {
+    this.#deadlines.add(value, timeout, node);
+    value.effectiveTimeout = timeout;
+    value.wasInMaintenance = wasInMaintenance;
+  }
+
+  #onTimeout(node: DoublyLinkedNode<CommandToWrite>, value: CommandToWrite) {
+    if (value.abort) {
+      RedisCommandsQueue.#removeAbortListener(value);
+      value.abort = undefined;
+    }
+    this.#toWrite.remove(node);
+    value.reject(this.#timeoutError(value));
+  }
+
+  #timeoutError(value: CommandToWrite) {
+    return value.wasInMaintenance
+      ? new CommandTimeoutDuringMaintenanceError(value.effectiveTimeout!)
+      : new TimeoutError();
+  }
+
   addCommand<T>(
     args: ReadonlyArray<RedisArgument>,
     options?: CommandOptions,
@@ -262,12 +277,13 @@ export default class RedisCommandsQueue {
     }
 
     return new Promise((resolve, reject) => {
-      let node: DoublyLinkedNode<CommandToWrite>;
       const value: CommandToWrite = {
         args,
         chainId: options?.chainId,
         abort: undefined,
-        timeout: undefined,
+        timerEntry: undefined,
+        effectiveTimeout: undefined,
+        wasInMaintenance: undefined,
         resolve,
         reject,
         channelsCounter: undefined,
@@ -275,27 +291,20 @@ export default class RedisCommandsQueue {
       };
       value.slotNumber = options?.slotNumber;
 
+      const node = this.#toWrite.add(value, options?.asap);
+
       // If #maintenanceCommandTimeout was explicitly set, we should
       // use it instead of the timeout provided by the command
       const timeout = this.#maintenanceCommandTimeout ?? options?.timeout;
       const wasInMaintenance = this.#maintenanceCommandTimeout !== undefined;
       if (timeout) {
-        const signal = AbortSignal.timeout(timeout);
-        value.timeout = {
-          signal,
-          listener: () => {
-            this.#toWrite.remove(node);
-            value.reject(
-              wasInMaintenance
-                ? new CommandTimeoutDuringMaintenanceError(timeout)
-                : new TimeoutError(),
-            );
-          },
-          originalTimeout: options?.timeout,
-        };
-        signal.addEventListener("abort", value.timeout.listener, {
-          once: true,
-        });
+        try {
+          this.#setDeadline(node, value, timeout, wasInMaintenance);
+        } catch (err) {
+          this.#toWrite.remove(node);
+          reject(err);
+          return;
+        }
       }
 
       const signal = options?.abortSignal;
@@ -303,14 +312,13 @@ export default class RedisCommandsQueue {
         value.abort = {
           signal,
           listener: () => {
+            CommandDeadlines.end(value);
             this.#toWrite.remove(node);
             value.reject(new AbortError());
           },
         };
         signal.addEventListener("abort", value.abort.listener, { once: true });
       }
-
-      node = this.#toWrite.add(value, options?.asap);
     });
   }
 
@@ -321,7 +329,7 @@ export default class RedisCommandsQueue {
           args: command.args,
           chainId,
           abort: undefined,
-          timeout: undefined,
+          timerEntry: undefined,
           resolve() {
             command.resolve();
             resolve();
@@ -474,7 +482,7 @@ export default class RedisCommandsQueue {
           args: ["MONITOR"],
           chainId: options?.chainId,
           abort: undefined,
-          timeout: undefined,
+          timerEntry: undefined,
           // using `resolve` instead of using `.then`/`await` to make sure it'll be called before processing the next reply
           resolve: () => {
             // after running `MONITOR` only `MONITOR` and `RESET` replies are expected
@@ -530,7 +538,7 @@ export default class RedisCommandsQueue {
         args: ["RESET"],
         chainId,
         abort: undefined,
-        timeout: undefined,
+        timerEntry: undefined,
         resolve,
         reject,
         channelsCounter: undefined,
@@ -550,6 +558,7 @@ export default class RedisCommandsQueue {
       try {
         encoded = encodeCommand(toSend.args);
       } catch (err) {
+        CommandDeadlines.end(toSend);
         toSend.reject(err);
         toSend = this.#toWrite.shift();
         continue;
@@ -561,10 +570,8 @@ export default class RedisCommandsQueue {
         RedisCommandsQueue.#removeAbortListener(toSend);
         toSend.abort = undefined;
       }
-      if (toSend.timeout) {
-        RedisCommandsQueue.#removeTimeoutListener(toSend);
-        toSend.timeout = undefined;
-      }
+      // The timeout covers only the wait to be sent.
+      CommandDeadlines.end(toSend);
       this.#chainInExecution = toSend.chainId;
       toSend.chainId = undefined;
       this.#waitingForReply.push(toSend);
@@ -585,20 +592,11 @@ export default class RedisCommandsQueue {
     command.abort!.signal.removeEventListener("abort", command.abort!.listener);
   }
 
-  static #removeTimeoutListener(command: CommandToWrite) {
-    command.timeout?.signal.removeEventListener(
-      "abort",
-      command.timeout!.listener,
-    );
-  }
-
   static #flushToWrite(toBeSent: CommandToWrite, err: Error) {
     if (toBeSent.abort) {
       RedisCommandsQueue.#removeAbortListener(toBeSent);
     }
-    if (toBeSent.timeout) {
-      RedisCommandsQueue.#removeTimeoutListener(toBeSent);
-    }
+    CommandDeadlines.end(toBeSent);
 
     toBeSent.reject(err);
   }
@@ -626,10 +624,20 @@ export default class RedisCommandsQueue {
       RedisCommandsQueue.#flushToWrite(node, err);
     }
     this.#toWrite.reset();
+    // No command is left, so no deadline is either.
+    this.#deadlines.clear();
   }
 
   isEmpty() {
     return this.#toWrite.length === 0 && this.#waitingForReply.length === 0;
+  }
+
+  /**
+   * Stops the deadline timers when no command is left. For a socket that closed: an armed
+   * timer would keep the queue, and the client that owns it, alive until it fires.
+   */
+  clearDeadlinesIfEmpty() {
+    if (this.isEmpty()) this.#deadlines.clear();
   }
 
   /**
@@ -646,6 +654,7 @@ export default class RedisCommandsQueue {
         current.value.slotNumber !== undefined &&
         slots.has(current.value.slotNumber)
       ) {
+        CommandDeadlines.detach(current.value);
         result.push(current.value);
         const toRemove = current;
         current = current.next;
@@ -665,6 +674,7 @@ export default class RedisCommandsQueue {
     const result: CommandToWrite[] = [];
     let current = this.#toWrite.head;
     while (current) {
+      CommandDeadlines.detach(current.value);
       result.push(current.value);
       this.#toWrite.remove(current);
       current = current.next;
@@ -674,14 +684,28 @@ export default class RedisCommandsQueue {
 
   /**
    * Prepends commands to the write queue in reverse.
+   *
+   * Commands arriving here come from `extractAllCommands`/`extractCommandsForSlots` on
+   * another queue. A timeout keeps its deadline and moves to this queue's timer.
    */
   prependCommandsToWrite(commands: CommandToWrite[]) {
     if (!commands.length) {
       return;
     }
 
+    // Newest first, so each command lands in front of the ones behind it.
+    const moves: AdoptedItem<CommandToWrite>[] = [];
     for (let i = commands.length - 1; i >= 0; i--) {
-      this.#toWrite.unshift(commands[i]);
+      const value = commands[i];
+      const node = this.#toWrite.unshift(value);
+      moves.push({ item: value, ms: value.effectiveTimeout!, node });
+    }
+
+    // Oldest first, so each deadline list is merged in one walk. Rejecting a command
+    // changes the lists, so nothing is rejected before the merge ends.
+    moves.reverse();
+    for (const { item, node } of this.#deadlines.adoptAll(moves)) {
+      this.#onTimeout(node, item);
     }
   }
 }
