@@ -29,6 +29,12 @@ describe('HGETEX parseCommand', () => {
     assert.deepEqual(parser.redisArgs, ['HGETEX', 'key', 'EX', '1000', 'FIELDS', '1', 'field']);
   });
 
+  it('hGetEx parseCommand expiration EX obj undefined value', () => {
+    const parser = new BasicCommandParser;
+    HGETEX.parseCommand(parser, 'key', 'field', {expiration: {type: 'EX', value: undefined as unknown as number}});
+    assert.deepEqual(parser.redisArgs, ['HGETEX', 'key', 'FIELDS', '1', 'field']);
+  });
+
   it('hGetEx parseCommand expiration EXAT obj variadic', () => {
     const parser = new BasicCommandParser;
     HGETEX.parseCommand(parser, 'key', ['field1', 'field2'], {expiration: {type: 'EXAT', value: 1000}});

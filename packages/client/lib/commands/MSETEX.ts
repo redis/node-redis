@@ -105,26 +105,32 @@ export default {
     if (options?.expiration) {
       switch (options.expiration.type) {
         case ExpirationMode.EXAT:
-          parser.push(
-            ExpirationMode.EXAT,
-            transformEXAT(options.expiration.value)
-          );
+          if (options.expiration.value !== undefined) {
+            parser.push(
+              ExpirationMode.EXAT,
+              transformEXAT(options.expiration.value)
+            );
+          }
           break;
         case ExpirationMode.PXAT:
-          parser.push(
-            ExpirationMode.PXAT,
-            transformPXAT(options.expiration.value)
-          );
+          if (options.expiration.value !== undefined) {
+            parser.push(
+              ExpirationMode.PXAT,
+              transformPXAT(options.expiration.value)
+            );
+          }
           break;
         case ExpirationMode.KEEPTTL:
           parser.push(ExpirationMode.KEEPTTL);
           break;
         case ExpirationMode.EX:
         case ExpirationMode.PX:
-          parser.push(
-            options.expiration.type,
-            options.expiration.value?.toString()
-          );
+          if (options.expiration.value !== undefined) {
+            parser.push(
+              options.expiration.type,
+              options.expiration.value.toString()
+            );
+          }
           break;
       }
     }

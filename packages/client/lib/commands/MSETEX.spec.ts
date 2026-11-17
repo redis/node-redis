@@ -68,6 +68,82 @@ describe("MSETEX", () => {
       );
     });
 
+    it("with EX expiration undefined value", () => {
+      assert.deepEqual(
+        parseArgs(
+          MSETEX,
+          {
+            key1: "value1",
+            key2: "value2",
+          },
+          {
+            expiration: {
+              type: ExpirationMode.EX,
+              value: undefined as unknown as number,
+            },
+          }
+        ),
+        ["MSETEX", "2", "key1", "value1", "key2", "value2"]
+      );
+    });
+
+    it("with EXAT expiration undefined value", () => {
+      assert.deepEqual(
+        parseArgs(
+          MSETEX,
+          {
+            key1: "value1",
+            key2: "value2",
+          },
+          {
+            expiration: {
+              type: ExpirationMode.EXAT,
+              value: undefined as unknown as number,
+            },
+          }
+        ),
+        ["MSETEX", "2", "key1", "value1", "key2", "value2"]
+      );
+    });
+
+    it("with PXAT expiration undefined value", () => {
+      assert.deepEqual(
+        parseArgs(
+          MSETEX,
+          {
+            key1: "value1",
+            key2: "value2",
+          },
+          {
+            expiration: {
+              type: ExpirationMode.PXAT,
+              value: undefined as unknown as number,
+            },
+          }
+        ),
+        ["MSETEX", "2", "key1", "value1", "key2", "value2"]
+      );
+    });
+
+    it("with KEEPTTL expiration and undefined value", () => {
+      assert.deepEqual(
+        parseArgs(
+          MSETEX,
+          {
+            key1: "value1",
+            key2: "value2",
+          },
+          {
+            expiration: {
+              type: ExpirationMode.KEEPTTL,
+              value: undefined,
+            } as unknown as { type: typeof ExpirationMode.KEEPTTL },
+          }
+        ),
+        ["MSETEX", "2", "key1", "value1", "key2", "value2", "KEEPTTL"]
+      );
+    });
+
     it("with NX set mode", () => {
       assert.deepEqual(
         parseArgs(
