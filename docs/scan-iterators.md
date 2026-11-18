@@ -6,11 +6,14 @@
 
 ```javascript
 for await (const keys of client.scanIterator()) {
+  if (keys.length === 0) continue;
   const values = await client.mGet(keys);
 }
 ```
 
 > :warning: **`keyPrefix` gotcha:** When the client is configured with a [`keyPrefix`](./client-configuration.md#key-prefixing), `scanIterator` yields the **already-prefixed** keys as stored on the server (replies are never un-prefixed). Passing them straight back into a key-prefixing command — like the `mGet(keys)` above — prefixes them a **second** time. For example, with `keyPrefix: 'app:'` a yielded `'app:foo'` becomes `'app:app:foo'`, so the `mGet` silently reads the wrong keys. Strip the prefix before reusing the keys, or read them with a separate client that has no `keyPrefix`. (This affects only `scanIterator`; `HSCAN`/`SSCAN`/`ZSCAN` yield fields/members, which are not keys.)
+
+`SCAN` can return an empty page even before the iteration is complete. Skip empty pages before calling `mGet`, which requires at least one key.
 
 This works with `HSCAN`, `SSCAN`, and `ZSCAN` too:
 

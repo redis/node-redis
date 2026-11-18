@@ -76,6 +76,7 @@ This mismatch can be awkward and makes "multi-key" commands like `MGET`, `UNLINK
 
 ```javascript
 for await (const keys of client.scanIterator()) {
+  if (keys.length === 0) continue;
   // we can now meaningfully utilize "multi-key" commands
   console.log(keys, await client.mGet(keys));
 }
