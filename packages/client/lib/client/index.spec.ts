@@ -2715,35 +2715,23 @@ describe('Client', () => {
     testUtils.testWithClient('does not time out a pipeline with a blocking command after it is sent', async client => {
       const start = Date.now();
       assert.deepEqual(
-        await client.multi().set('x', '1').blPop('q-rif', 1).execAsPipeline(),
+        await client.withCommandOptions({ timeout: 100, rejectInFlight: true })
+          .multi().set('x', '1').blPop('q-rif', 1).execAsPipeline(),
         ['OK', null]
       );
       assert.ok(Date.now() - start >= 900);
       assert.equal(await client.get('x'), '1');
-    }, {
-      ...GLOBAL.SERVERS.OPEN,
-      clientOptions: {
-        commandOptions: {
-          rejectInFlight: true,
-          timeout: 100
-        }
-      }
-    });
+    }, GLOBAL.SERVERS.OPEN);
 
     testUtils.testWithClient('does not time out a blocking command after it is sent', async client => {
       const start = Date.now();
-      assert.equal(await client.blPop('q-rif', 1), null);
+      assert.equal(
+        await client.withCommandOptions({ timeout: 100, rejectInFlight: true }).blPop('q-rif', 1),
+        null
+      );
       assert.ok(Date.now() - start >= 900);
       assert.equal(await client.set('x', '1'), 'OK');
-    }, {
-      ...GLOBAL.SERVERS.OPEN,
-      clientOptions: {
-        commandOptions: {
-          rejectInFlight: true,
-          timeout: 100
-        }
-      }
-    });
+    }, GLOBAL.SERVERS.OPEN);
 
     testUtils.testWithClient('rejects a slow MULTI with TimeoutReadError and leaves the connection outside MULTI', async client => {
       const pauser = await pause(client, 500);
