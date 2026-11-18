@@ -48,6 +48,43 @@ describe('MIGRATE', () => {
         );
       });
 
+      it('an empty username uses AUTH2', () => {
+        assert.deepEqual(
+          parseArgs(MIGRATE, '127.0.0.1', 6379, 'key', 0, 10, {
+            AUTH: { username: '', password: 'password' }
+          }),
+          ['MIGRATE', '127.0.0.1', '6379', 'key', '0', '10', 'AUTH2', '', 'password']
+        );
+      });
+
+      it('an empty Buffer username uses AUTH2', () => {
+        const username = Buffer.alloc(0);
+        assert.deepEqual(
+          parseArgs(MIGRATE, '127.0.0.1', 6379, 'key', 0, 10, {
+            AUTH: { username, password: 'password' }
+          }),
+          ['MIGRATE', '127.0.0.1', '6379', 'key', '0', '10', 'AUTH2', username, 'password']
+        );
+      });
+
+      it('an undefined username uses password-only AUTH', () => {
+        assert.deepEqual(
+          parseArgs(MIGRATE, '127.0.0.1', 6379, 'key', 0, 10, {
+            AUTH: { username: undefined, password: 'password' }
+          }),
+          ['MIGRATE', '127.0.0.1', '6379', 'key', '0', '10', 'AUTH', 'password']
+        );
+      });
+
+      it('an empty username is retained with multiple keys', () => {
+        assert.deepEqual(
+          parseArgs(MIGRATE, '127.0.0.1', 6379, ['a', 'b'], 0, 10, {
+            AUTH: { username: '', password: 'password' }
+          }),
+          ['MIGRATE', '127.0.0.1', '6379', '', '0', '10', 'AUTH2', '', 'password', 'KEYS', 'a', 'b']
+        );
+      });
+
       it('username & password', () => {
         assert.deepEqual(
           parseArgs(MIGRATE, '127.0.0.1', 6379, 'key', 0, 10, {

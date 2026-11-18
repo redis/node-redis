@@ -41,7 +41,7 @@ export default {
     }
   
     if (options?.AUTH) {
-      if (options.AUTH.username) {
+      if (options.AUTH.username !== undefined) {
         parser.push(
           'AUTH2',
           options.AUTH.username,
