@@ -317,6 +317,9 @@ export class PubSubProxy extends EventEmitter {
     this.#pendingOps.add(pending);
     try {
       return await this.#executeCommand(client => {
+        // extractListeners already moved this op. A handshake that finishes
+        // afterwards must not dispatch it onto whoever holds the proxy now.
+        if (pending.carried) return undefined;
         pending.dispatched = true;
         return fn(client);
       });

@@ -1,8 +1,19 @@
 import { strict as assert } from 'node:assert';
 import net from 'node:net';
+import { PUBSUB_TYPE } from '../client/pub-sub';
 import { PubSubProxy } from './pub-sub-proxy';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+async function waitUntil(label: string, predicate: () => boolean) {
+  const deadline = Date.now() + 2_000;
+  while (!predicate()) {
+    if (Date.now() >= deadline) {
+      throw new Error(`timed out waiting until ${label}`);
+    }
+    await sleep(10);
+  }
+}
 
 /**
  * Closed ports on ::1 refuse immediately, the same stand-in #3624 uses for a
@@ -193,30 +204,130 @@ describe('PubSubProxy.changeNode while the subscriber is still connecting', func
       await Promise.all(pending);
     }
   });
+
+  // A's subscribe stays parked on a held handshake while extract carries it to
+  // B. B drops one channel and the rest is adopted back onto A before that
+  // handshake is released. The late connect used to run the original subscribe
+  // on A's replacement and put the removed channel back.
+  it('does not redispatch a carried subscribe after the channel was removed', async () => {
+    const REDISPATCH_SLACK_MS = 400;
+    const stubA = await startRespStub({ holdFirstHandshake: true });
+    const stubB = await startRespStub();
+    const proxyOptions = {
+      maintNotifications: 'disabled' as const,
+      socket: { reconnectStrategy: false as const }
+    };
+    const proxyA = new PubSubProxy(proxyOptions, () => {});
+    const proxyB = new PubSubProxy(proxyOptions, () => {});
+    const pending: Array<Promise<unknown>> = [];
+
+    try {
+      await proxyA.changeNode(stubA.node);
+      const subscribingKeep = proxyA.subscribe('keep', () => {});
+      const subscribingX = proxyA.subscribe('x', () => {});
+      pending.push(subscribingKeep.catch(() => {}), subscribingX.catch(() => {}));
+
+      // Seat the held socket before anyone else dials stub A, so the adopt
+      // below is the connection that is allowed to finish immediately.
+      await waitUntil('A accepts the held connection', () => stubA.connections.length === 1);
+
+      const moved = proxyA.extractListeners();
+      assert.deepEqual(
+        [...moved[PUBSUB_TYPE.CHANNELS].keys()].sort(),
+        ['keep', 'x'],
+        'both parked subscribes must be carried off A'
+      );
+
+      await proxyB.changeNode(stubB.node);
+      await proxyB.adoptListeners(moved);
+      await waitUntil('B subscribes to the carried channels', () => {
+        const channels = stubB.connections.flatMap(connection => connection.channels);
+        return channels.includes('keep') && channels.includes('x');
+      });
+
+      await proxyB.unsubscribe('x');
+      const remaining = proxyB.extractListeners();
+      assert.deepEqual(
+        [...remaining[PUBSUB_TYPE.CHANNELS].keys()],
+        ['keep'],
+        'the unsubscribe on B must leave only the channel that stays'
+      );
+
+      await proxyA.adoptListeners(remaining);
+      assert.equal(stubA.connections.length, 2, 'adopt must open a second connection on A');
+      const adopted = stubA.connections[1];
+      assert.deepEqual(
+        adopted.channels,
+        ['keep'],
+        'the replacement must subscribe only to the channels still held'
+      );
+
+      const commandsAtAdopt = stubA.connections.map(connection => connection.commands.length);
+      stubA.releaseHandshake();
+      await assert.doesNotReject(subscribingKeep);
+      await assert.doesNotReject(subscribingX);
+      // The superseded-connect case waits out its backoff plus slack. Give a
+      // late redispatch the same chance to hit the wire before asserting.
+      await sleep(REDISPATCH_SLACK_MS);
+
+      assert.equal(adopted.socket.destroyed, false, 'the replacement subscriber must stay up');
+      assert.deepEqual(
+        adopted.channels,
+        ['keep'],
+        'releasing the original handshake must not restore the removed channel'
+      );
+      for (let i = 0; i < stubA.connections.length; i++) {
+        const late = stubA.connections[i].commands.slice(commandsAtAdopt[i] ?? 0);
+        const resubscribedX = late.some(args =>
+          args[0]?.toLowerCase() === 'subscribe' && args.slice(1).includes('x')
+        );
+        assert.equal(
+          resubscribedX,
+          false,
+          'a carried subscribe must not be written again after the adopt'
+        );
+      }
+    } finally {
+      proxyA.destroy();
+      proxyB.destroy();
+      stubA.close();
+      stubB.close();
+      await sleep(50);
+      await Promise.all(pending);
+    }
+  });
 });
 
 /**
  * One local socket that speaks just enough RESP for a subscriber handshake:
- * `HELLO` and `CLIENT` get `+OK`, `SUBSCRIBE` gets a RESP3 push per channel.
+ * `HELLO` and `CLIENT` get `+OK`, subscribe and unsubscribe get a RESP3 push
+ * per channel. `holdFirstHandshake` answers nothing on the first connection
+ * until `releaseHandshake()`, so a connect can be parked without racing the
+ * event loop. Later connections on the same stub are answered immediately.
  */
-async function startRespStub() {
+async function startRespStub(options?: { holdFirstHandshake?: boolean }) {
   type Connection = {
     socket: net.Socket;
     channels: Array<string>;
+    commands: Array<Array<string>>;
   };
 
   const connections: Array<Connection> = [];
+  let holdNext = options?.holdFirstHandshake === true;
+  let openHeldGate: (() => void) | undefined;
+
   const server = net.createServer(socket => {
     socket.on('error', () => {});
-    const connection: Connection = { socket, channels: [] };
+    const connection: Connection = { socket, channels: [], commands: [] };
     connections.push(connection);
 
     let pending = Buffer.alloc(0);
-    socket.on('data', (chunk: Buffer) => {
+    const feed = (chunk: Buffer) => {
       pending = pending.length === 0 ? chunk : Buffer.concat([pending, chunk]);
       const parsed = takeRespCommands(pending);
       pending = parsed.rest;
       for (const args of parsed.commands) {
+        connection.commands.push(args);
         const name = args[0]?.toLowerCase();
         if (name === 'subscribe' || name === 'psubscribe' || name === 'ssubscribe') {
           const channels = args.slice(1);
@@ -226,9 +337,41 @@ async function startRespStub() {
           }
           continue;
         }
+        if (name === 'unsubscribe' || name === 'punsubscribe' || name === 'sunsubscribe') {
+          const channels = args.length > 1 ? args.slice(1) : connection.channels.slice();
+          for (const channel of channels) {
+            const index = connection.channels.indexOf(channel);
+            if (index !== -1) connection.channels.splice(index, 1);
+            socket.write(subscribePush(name, channel));
+          }
+          continue;
+        }
         socket.write('+OK\r\n');
       }
+    };
+
+    const shouldHold = holdNext;
+    if (shouldHold) holdNext = false;
+    if (!shouldHold) {
+      socket.on('data', (chunk: Buffer) => feed(chunk));
+      return;
+    }
+
+    const queued: Array<Buffer> = [];
+    let open = false;
+    socket.on('data', (chunk: Buffer) => {
+      if (!open) {
+        queued.push(chunk);
+        return;
+      }
+      feed(chunk);
     });
+    openHeldGate = () => {
+      if (open) return;
+      open = true;
+      for (const chunk of queued) feed(chunk);
+      queued.length = 0;
+    };
   });
 
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
@@ -240,6 +383,11 @@ async function startRespStub() {
   return {
     connections,
     node: { host: '127.0.0.1', port: address.port },
+    releaseHandshake() {
+      // A release that wins the race with accept must not hold a later socket.
+      holdNext = false;
+      openHeldGate?.();
+    },
     close() {
       for (const connection of connections) connection.socket.destroy();
       server.close();
