@@ -93,6 +93,55 @@ describe('RedisCommandsQueue', () => {
     });
   });
 
+  describe('waitForInflightCommandsToComplete', () => {
+    it('resolves false when there is nothing in flight', async () => {
+      const queue = createQueue();
+      assert.strictEqual(
+        await queue.waitForInflightCommandsToComplete({ timeoutMs: 10, flushOnTimeout: true }),
+        false
+      );
+    });
+
+    it('resolves false when the in-flight commands complete within the timeout', async () => {
+      const queue = createQueue();
+      const reply = queue.addCommand(['GET', 'a']);
+      queue.commandsToWrite().next(); // "sends" GET a
+
+      const settled = queue.waitForInflightCommandsToComplete({ timeoutMs: 100, flushOnTimeout: true });
+      queue.decoder.write(Buffer.from('$1\r\n1\r\n'));
+
+      assert.strictEqual(await settled, false);
+      assert.strictEqual(await reply, '1');
+    });
+
+    it('resolves true when the timeout flushes pending commands (#3635)', async () => {
+      // The caller must know the flush happened: the server may still send the
+      // replies for the flushed commands, and with RESP pairing being
+      // positional they would resolve whatever is sent on the socket next, so
+      // the connection cannot be kept as is.
+      const queue = createQueue();
+      const reply = queue.addCommand(['GET', 'a']);
+      queue.commandsToWrite().next(); // "sends" GET a
+
+      assert.strictEqual(
+        await queue.waitForInflightCommandsToComplete({ timeoutMs: 10, flushOnTimeout: true }),
+        true
+      );
+      await assert.rejects(reply, TimeoutError);
+    });
+
+    it('resolves false on timeout when flushOnTimeout is not set', async () => {
+      const queue = createQueue();
+      queue.addCommand(['GET', 'a']).catch(() => {});
+      queue.commandsToWrite().next();
+
+      assert.strictEqual(
+        await queue.waitForInflightCommandsToComplete({ timeoutMs: 10 }),
+        false
+      );
+    });
+  });
+
   describe('extractCommandsForSlots', () => {
     it('leaves the queued tail of an in-flight chain and everything after it in place', () => {
       const queue = createQueue();

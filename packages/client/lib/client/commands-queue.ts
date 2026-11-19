@@ -297,19 +297,25 @@ export default class RedisCommandsQueue {
     this.#pushHandlers.push(handler);
   }
 
+  /**
+   * Resolves `true` when the timeout fired and pending commands were flushed:
+   * the server may still send their replies, so the socket's reply stream can
+   * no longer be matched to the commands behind it and the caller must not
+   * keep using the connection as is. Resolves `false` otherwise.
+   */
   async waitForInflightCommandsToComplete(options?: {
     timeoutMs?: number;
     flushOnTimeout?: boolean;
-  }): Promise<void> {
+  }): Promise<boolean> {
     // In-flight commands already completed
     if (this.#waitingForReply.length === 0) {
-      return;
+      return false;
     }
     // Otherwise wait for in-flight commands to fire `empty` event
     return new Promise((resolve) => {
       const onEmpty = () => {
         if (timeoutId) clearTimeout(timeoutId);
-        resolve();
+        resolve(false);
       };
 
       let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -326,8 +332,11 @@ export default class RedisCommandsQueue {
               `Flushing ${pendingCount} commands that timed out waiting for reply`,
             );
             this.#flushWaitingForReply(new TimeoutError());
+            // Resolve instead of reject - we don't want to fail the migration
+            resolve(true);
+            return;
           }
-          resolve(); // Resolve instead of reject - we don't want to fail the migration
+          resolve(false); // Resolve instead of reject - we don't want to fail the migration
         }, timeoutMs);
       }
 

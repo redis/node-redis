@@ -1,5 +1,5 @@
 import type { RedisClusterClientOptions, RedisClusterOptions } from '.';
-import { ClientClosedError, ClientOfflineError, DisconnectsClientError, ErrorReply, MaxCommandRedirectionsError, RootNodesUnavailableError } from '../errors';
+import { ClientClosedError, ClientOfflineError, DisconnectsClientError, ErrorReply, MaxCommandRedirectionsError, RootNodesUnavailableError, TimeoutError } from '../errors';
 import RedisClient, { RedisClientOptions, RedisClientType } from '../client';
 import type { CommandToWrite } from '../client/commands-queue';
 import { EventEmitter } from 'node:stream';
@@ -570,17 +570,25 @@ export default class RedisClusterSlots<
 
         // 6. Wait for inflight commands on source to complete (with timeout to prevent hangs)
         const INFLIGHT_TIMEOUT_MS = 5000; // 5 seconds max wait for inflight commands
-        const inflightPromises: Promise<void>[] = [];
+        const inflightClients: Array<{ client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>, promise: Promise<boolean> }> = [];
         const inflightOptions = { timeoutMs: INFLIGHT_TIMEOUT_MS, flushOnTimeout: true };
 
-        inflightPromises.push(sourceNode.client._getQueue().waitForInflightCommandsToComplete(inflightOptions));
+        inflightClients.push({ client: sourceNode.client, promise: sourceNode.client._getQueue().waitForInflightCommandsToComplete(inflightOptions) });
         if ('pubSub' in sourceNode && sourceNode.pubSub !== undefined) {
-          inflightPromises.push(sourceNode.pubSub.client._getQueue().waitForInflightCommandsToComplete(inflightOptions));
+          inflightClients.push({ client: sourceNode.pubSub.client, promise: sourceNode.pubSub.client._getQueue().waitForInflightCommandsToComplete(inflightOptions) });
         }
         if (this.pubSubNode?.address === sourceAddress) {
-          inflightPromises.push(this.pubSubNode.client._getQueue().waitForInflightCommandsToComplete(inflightOptions));
+          inflightClients.push({ client: this.pubSubNode.client, promise: this.pubSubNode.client._getQueue().waitForInflightCommandsToComplete(inflightOptions) });
         }
-        await Promise.all(inflightPromises);
+        const flushedOnTimeout = await Promise.all(inflightClients.map(({ promise }) => promise));
+        // A client whose pending commands were flushed must not keep reading from
+        // the same socket: the server may still send the replies for the flushed
+        // commands, and the queue would hand them to whatever was sent after the
+        // flush (replies carry no correlation to their commands). Dropping the
+        // connection lets the regular reconnect handling bring up a clean one.
+        // Irrelevant for a source that lost all its slots - its clients are
+        // destroyed in step 7.
+        const desyncedClients = inflightClients.filter((_, i) => flushedOnTimeout[i]).map(({ client }) => client);
 
         // 7. Handle source cleanup
         const sourceStillHasSlots = this.slots.find(slot => slot.master.address === sourceAddress) !== undefined;
@@ -590,6 +598,13 @@ export default class RedisClusterSlots<
           if ('pubSub' in sourceNode) {
             const listeners = sourceNode.pubSub?.client._getQueue().removeShardedPubSubListenersForSlots(allMovingSlots);
             this.#emit(RESUBSCRIBE_LISTENERS_EVENT, listeners);
+          }
+
+          // The source keeps serving its remaining slots, so a desynced
+          // connection would get reused - drop it before unpausing (see step 6)
+          for (const client of desyncedClients) {
+            dbgMaintenance(`[CSlots]: Dropping connection of ${sourceAddress} client after inflight flush, late replies can no longer be matched to commands`);
+            client._resetDesyncedConnection(new TimeoutError('Connection dropped after in-flight commands were flushed during slot migration: late replies can no longer be matched to their commands'));
           }
 
           // Unpause source since it still has slots
