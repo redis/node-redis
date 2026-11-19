@@ -199,8 +199,8 @@ export default class RedisClientMultiCommand<REPLIES = []> {
 
   #selectedDB?: number;
 
-  constructor(executeMulti: ExecuteMulti, executePipeline: ExecuteMulti, typeMapping?: TypeMapping, keyPrefix?: RedisArgument) {
-    this.#multi = new RedisMultiCommand(typeMapping);
+  constructor(executeMulti: ExecuteMulti, executePipeline: ExecuteMulti, typeMapping?: TypeMapping, keyPrefix?: RedisArgument, knownScripts?: Set<string>) {
+    this.#multi = new RedisMultiCommand(typeMapping, knownScripts);
     this.#executeMulti = executeMulti;
     this.#executePipeline = executePipeline;
     this.#keyPrefix = keyPrefix;
@@ -232,9 +232,9 @@ export default class RedisClientMultiCommand<REPLIES = []> {
   async exec<T extends MultiReply = MULTI_REPLY['GENERIC']>(execAsPipeline = false): Promise<MultiReplyType<T, REPLIES>> {
     if (execAsPipeline) return this.execAsPipeline<T>();
 
-    return this.#multi.transformReplies(
-      await this.#executeMulti(this.#multi.queue, this.#selectedDB)
-    ) as MultiReplyType<T, REPLIES>;
+    const rawReplies = await this.#executeMulti(this.#multi.queue, this.#selectedDB);
+    this.#multi.updateKnownScripts(rawReplies);
+    return this.#multi.transformReplies(rawReplies) as MultiReplyType<T, REPLIES>;
   }
 
   EXEC = this.exec;
@@ -246,9 +246,9 @@ export default class RedisClientMultiCommand<REPLIES = []> {
   async execAsPipeline<T extends MultiReply = MULTI_REPLY['GENERIC']>(): Promise<MultiReplyType<T, REPLIES>> {
     if (this.#multi.queue.length === 0) return [] as MultiReplyType<T, REPLIES>;
 
-    return this.#multi.transformReplies(
-      await this.#executePipeline(this.#multi.queue, this.#selectedDB)
-    ) as MultiReplyType<T, REPLIES>;
+    const rawReplies = await this.#executePipeline(this.#multi.queue, this.#selectedDB);
+    this.#multi.updateKnownScripts(rawReplies);
+    return this.#multi.transformReplies(rawReplies) as MultiReplyType<T, REPLIES>;
   }
 
   execAsPipelineTyped() {

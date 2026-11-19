@@ -627,6 +627,13 @@ export default class RedisClient<
   #socket: RedisSocket;
   readonly #queue: RedisCommandsQueue;
   #selectedDB = 0;
+  /**
+   * SHA1s of scripts this connection has seen cached on the server, shared
+   * with every multi/pipeline so a script's source is uploaded once instead
+   * of once per batch (#2084). Cleared on reconnect: a server restart loses
+   * the script cache, and an `EVALSHA` inside `MULTI..EXEC` cannot fall back.
+   */
+  readonly #knownScripts = new Set<string>();
   #monitorCallback?: MonitorCallback<TYPE_MAPPING>;
   private _self = this;
   private _commandOptions?: CommandOptions<TYPE_MAPPING>;
@@ -1109,6 +1116,8 @@ export default class RedisClient<
     })
     .on('connect', () => this.emit('connect'))
     .on('ready', () => {
+      // a reconnect may be a server restart, which loses the script cache
+      this.#knownScripts.clear();
       this.emit('ready');
       this.#setPingTimer();
       this.#maybeScheduleWrite();
@@ -2193,7 +2202,8 @@ export default class RedisClient<
       this._executeMulti.bind(this),
       this._executePipeline.bind(this),
       this._commandOptions?.typeMapping,
-      this._self._keyPrefix
+      this._self._keyPrefix,
+      this._self.#knownScripts
     );
   }
 

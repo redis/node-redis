@@ -24,14 +24,25 @@ export interface RedisMultiQueuedCommand {
 
 export default class RedisMultiCommand {
   private readonly typeMapping?: TypeMapping;
+  /**
+   * SHA1s of scripts known to be cached on the server, shared across batches
+   * by the owning client (#2084). A script in this set is sent as `EVALSHA`
+   * right away instead of re-uploading its source with `EVAL` on the first
+   * use of every batch. Updated from the replies in `updateKnownScripts`.
+   */
+  private readonly knownScripts?: Set<string>;
 
-  constructor(typeMapping?: TypeMapping) {
+  constructor(typeMapping?: TypeMapping, knownScripts?: Set<string>) {
     this.typeMapping = typeMapping;
+    this.knownScripts = knownScripts;
   }
 
   readonly queue: Array<RedisMultiQueuedCommand> = [];
 
   readonly scriptsInUse = new Set<string>();
+
+  /** The queue positions of script commands and how each was sent; see `updateKnownScripts`. */
+  private readonly scriptCommands: Array<{ index: number; sha: string; viaSha: boolean }> = [];
 
   addCommand(args: CommandArguments, transformReply?: TransformReply) {
     this.queue.push({
@@ -43,7 +54,12 @@ export default class RedisMultiCommand {
   addScript(script: RedisScript, args: CommandArguments, transformReply?: TransformReply) {
     const redisArgs: CommandArguments = [];
     redisArgs.preserve = args.preserve;
-    if (this.scriptsInUse.has(script.SHA1)) {
+    // `scriptsInUse` orders within the batch: an `EVAL` earlier in the same
+    // batch is guaranteed to run first on the connection, so later uses can
+    // ride its cache entry even before the batch settles.
+    const viaSha = this.scriptsInUse.has(script.SHA1) || this.knownScripts?.has(script.SHA1) === true;
+    this.scriptCommands.push({ index: this.queue.length, sha: script.SHA1, viaSha });
+    if (viaSha) {
       redisArgs.push(script.IS_READ_ONLY ? 'EVALSHA_RO' : 'EVALSHA', script.SHA1);
     } else {
       this.scriptsInUse.add(script.SHA1);
@@ -59,6 +75,28 @@ export default class RedisMultiCommand {
     this.addCommand(redisArgs, transformReply);
   }
   
+  /**
+   * Updates the shared known-scripts set from the batch's raw replies: a
+   * script uploaded with `EVAL` that did not fail is now cached on the
+   * server, and an `EVALSHA` answered with `NOSCRIPT` (the server lost its
+   * cache, e.g. `SCRIPT FLUSH`) is forgotten so the next batch re-uploads.
+   */
+  updateKnownScripts(rawReplies: Array<unknown>): void {
+    const knownScripts = this.knownScripts;
+    if (!knownScripts) return;
+
+    for (const { index, sha, viaSha } of this.scriptCommands) {
+      const reply = rawReplies[index];
+      if (viaSha) {
+        if (reply instanceof ErrorReply && reply.message.startsWith('NOSCRIPT')) {
+          knownScripts.delete(sha);
+        }
+      } else if (!(reply instanceof ErrorReply)) {
+        knownScripts.add(sha);
+      }
+    }
+  }
+
   transformReplies(rawReplies: Array<unknown>): Array<unknown> {
     const errorIndexes: Array<number> = [],
       replies = rawReplies.map((reply, i) => {

@@ -1,5 +1,6 @@
 import { strict as assert } from 'node:assert';
 import RedisMultiCommand from './multi-command';
+import { ErrorReply } from './errors';
 import { SQUARE_SCRIPT } from './client/index.spec';
 
 describe('Multi Command', () => {
@@ -91,5 +92,68 @@ describe('Multi Command', () => {
       multi.transformReplies(['PONG']),
       ['PO']
     );
+  });
+
+  describe('known scripts shared across batches (#2084)', () => {
+    it('a later batch uses EVALSHA once an earlier batch uploaded the script', () => {
+      const knownScripts = new Set<string>();
+
+      const first = new RedisMultiCommand(undefined, knownScripts);
+      first.addScript(SQUARE_SCRIPT, ['1']);
+      assert.equal(first.queue[0].args[0], 'EVAL', 'first batch uploads the source');
+      first.updateKnownScripts([1]);
+
+      const second = new RedisMultiCommand(undefined, knownScripts);
+      second.addScript(SQUARE_SCRIPT, ['2']);
+      assert.deepEqual(
+        Array.from(second.queue[0].args),
+        ['EVALSHA', SQUARE_SCRIPT.SHA1, '1', '2'],
+        'second batch rides the server cache'
+      );
+    });
+
+    it('an EVAL whose reply is an error does not mark the script as loaded', () => {
+      const knownScripts = new Set<string>();
+
+      const multi = new RedisMultiCommand(undefined, knownScripts);
+      multi.addScript(SQUARE_SCRIPT, ['1']);
+      multi.updateKnownScripts([new ErrorReply('ERR user_script error')]);
+
+      assert.equal(knownScripts.size, 0);
+    });
+
+    it('a NOSCRIPT reply to an EVALSHA forgets the script, so the next batch re-uploads', () => {
+      const knownScripts = new Set<string>([SQUARE_SCRIPT.SHA1]);
+
+      const multi = new RedisMultiCommand(undefined, knownScripts);
+      multi.addScript(SQUARE_SCRIPT, ['1']);
+      assert.equal(multi.queue[0].args[0], 'EVALSHA');
+      multi.updateKnownScripts([new ErrorReply('NOSCRIPT No matching script. Please use EVAL.')]);
+
+      assert.equal(knownScripts.size, 0, 'SCRIPT FLUSH on the server self-heals');
+      const next = new RedisMultiCommand(undefined, knownScripts);
+      next.addScript(SQUARE_SCRIPT, ['2']);
+      assert.equal(next.queue[0].args[0], 'EVAL');
+    });
+
+    it('a non-NOSCRIPT error on an EVALSHA keeps the script marked as loaded', () => {
+      const knownScripts = new Set<string>([SQUARE_SCRIPT.SHA1]);
+
+      const multi = new RedisMultiCommand(undefined, knownScripts);
+      multi.addScript(SQUARE_SCRIPT, ['1']);
+      multi.updateKnownScripts([new ErrorReply('ERR user_script error')]);
+
+      assert.equal(knownScripts.size, 1);
+    });
+
+    it('without a shared set, batches keep the old per-batch behavior', () => {
+      const multi = new RedisMultiCommand();
+      multi.addScript(SQUARE_SCRIPT, ['1']);
+      multi.updateKnownScripts([1]);
+
+      const next = new RedisMultiCommand();
+      next.addScript(SQUARE_SCRIPT, ['2']);
+      assert.equal(next.queue[0].args[0], 'EVAL');
+    });
   });
 });
