@@ -23,6 +23,34 @@ describe('FUNCTION LIST', () => {
         ['FUNCTION', 'LIST', 'LIBRARYNAME', 'patter*']
       );
     });
+
+    it('with an empty LIBRARYNAME', () => {
+      assert.deepEqual(
+        parseArgs(FUNCTION_LIST, {
+          LIBRARYNAME: ''
+        }),
+        ['FUNCTION', 'LIST', 'LIBRARYNAME', '']
+      );
+    });
+
+    it('with an empty Buffer LIBRARYNAME', () => {
+      const libraryName = Buffer.alloc(0);
+      assert.deepEqual(
+        parseArgs(FUNCTION_LIST, {
+          LIBRARYNAME: libraryName
+        }),
+        ['FUNCTION', 'LIST', 'LIBRARYNAME', libraryName]
+      );
+    });
+
+    it('omits an undefined LIBRARYNAME', () => {
+      assert.deepEqual(
+        parseArgs(FUNCTION_LIST, {
+          LIBRARYNAME: undefined
+        }),
+        ['FUNCTION', 'LIST']
+      );
+    });
   });
 
   testUtils.testWithClient('client.functionList', async client => {

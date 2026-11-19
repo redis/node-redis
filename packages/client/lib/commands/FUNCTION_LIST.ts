@@ -22,7 +22,7 @@ export default {
   parseCommand(parser: CommandParser, options?: FunctionListOptions) {
     parser.push('FUNCTION', 'LIST');
 
-    if (options?.LIBRARYNAME) {
+    if (options?.LIBRARYNAME !== undefined) {
       parser.push('LIBRARYNAME', options.LIBRARYNAME);
     }
   },
