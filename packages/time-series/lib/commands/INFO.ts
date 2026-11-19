@@ -125,7 +125,9 @@ function normalizeInfoRules(rules: unknown): Array<[key: BlobStringReply, timeBu
     ];
   };
 
-  if (!Array.isArray(rules)) {
+  // A flat `[key, value, ...]` Array (MAP mapped to Array) has string keys
+  // between the values, unlike a list of rule tuples.
+  if (!Array.isArray(rules) || rules.some(rule => typeof rule === 'string' || rule instanceof Buffer)) {
     for (const [key, value] of mapLikeEntries(rules)) {
       if (Array.isArray(value)) {
         const timeBucket = value.find(item => typeof item === 'number') ?? Number(value[0]);
@@ -177,10 +179,8 @@ function normalizeInfoRules(rules: unknown): Array<[key: BlobStringReply, timeBu
 }
 
 function normalizeInfoRawReply(reply: ReplyUnion): InfoRawReply {
-  if (Array.isArray(reply)) {
-    return reply as unknown as InfoRawReply;
-  }
-
+  // An Array here is a map under `typeMapping[RESP_TYPES.MAP] = Array`, so
+  // walk its key/value pairs and normalize labels and rules like a Map.
   const normalized: Array<unknown> = [];
   for (const [key, value] of mapLikeEntries(reply)) {
     switch (key) {

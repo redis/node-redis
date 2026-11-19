@@ -4,12 +4,38 @@ import testUtils, { GLOBAL } from '../test-utils';
 import INFO, { InfoReply } from './INFO';
 import { TIME_SERIES_AGGREGATION_TYPE } from './CREATERULE';
 import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
+import { RESP_TYPES } from '@redis/client';
 
 describe('TS.INFO', () => {
     it('transformArguments', () => {
         assert.deepEqual(
             parseArgs(INFO, 'key'),
             ['TS.INFO', 'key']
+        );
+    });
+
+    it('transformReply RESP3 with Array type mapping matches the default shape', () => {
+        const reply = (labels: unknown, rules: unknown) => [
+            'totalSamples', 0,
+            'labels', labels,
+            'sourceKey', null,
+            'rules', rules,
+            'ignoreMaxValDiff', 0
+        ];
+
+        assert.deepEqual(
+            INFO.transformReply[3](
+                reply(['a', 'x', 'b', 'z'], ['t2', [60000, 'AVG', 0]]) as never,
+                undefined,
+                { [RESP_TYPES.MAP]: Array }
+            ),
+            INFO.transformReply[3]({
+                totalSamples: 0,
+                labels: { a: 'x', b: 'z' },
+                sourceKey: null,
+                rules: { t2: [60000, 'AVG', 0] },
+                ignoreMaxValDiff: 0
+            } as never)
         );
     });
 
