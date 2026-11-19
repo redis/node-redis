@@ -40,7 +40,7 @@ export default {
     );
 
     if (mode) {
-      if (options?.REDIRECT) {
+      if (options?.REDIRECT !== undefined) {
         parser.push(
           'REDIRECT',
           options.REDIRECT.toString()
@@ -50,7 +50,7 @@ export default {
       if (isBroadcast(options)) {
         parser.push('BCAST');
 
-        if (options?.PREFIX) {
+        if (options?.PREFIX !== undefined) {
           if (Array.isArray(options.PREFIX)) {
             for (const prefix of options.PREFIX) {
               parser.push('PREFIX', prefix);

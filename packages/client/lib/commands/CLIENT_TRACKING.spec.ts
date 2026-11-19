@@ -24,6 +24,15 @@ describe('CLIENT TRACKING', () => {
         );
       });
 
+      it('with REDIRECT 0', () => {
+        assert.deepEqual(
+          parseArgs(CLIENT_TRACKING, true, {
+            REDIRECT: 0
+          }),
+          ['CLIENT', 'TRACKING', 'ON', 'REDIRECT', '0']
+        );
+      });
+
       describe('with BCAST', () => {
         it('simple', () => {
           assert.deepEqual(
@@ -42,6 +51,16 @@ describe('CLIENT TRACKING', () => {
                 PREFIX: 'prefix'
               }),
               ['CLIENT', 'TRACKING', 'ON', 'BCAST', 'PREFIX', 'prefix']
+            );
+          });
+
+          it('empty string', () => {
+            assert.deepEqual(
+              parseArgs(CLIENT_TRACKING, true, {
+                BCAST: true,
+                PREFIX: ''
+              }),
+              ['CLIENT', 'TRACKING', 'ON', 'BCAST', 'PREFIX', '']
             );
           });
 
