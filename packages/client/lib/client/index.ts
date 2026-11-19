@@ -1338,6 +1338,19 @@ export default class RedisClient<
 
    /**
     * @internal
+    * Drops the current connection and lets it go through the regular
+    * error-and-reconnect handling. For a socket whose in-flight commands were
+    * flushed while it stayed open: RESP pairing is positional, so replies the
+    * server may still send for them would resolve the wrong commands. Same
+    * treatment as a decoder error.
+    */
+   _resetDesyncedConnection(err: Error) {
+     this._self.#queue.resetDecoder();
+     this._self.#socket.failConnection(err);
+   }
+
+   /**
+    * @internal
     */
    _handleSmigrated(smigratedEvent: SMigratedEvent) {
      this._self.emit(SMIGRATED_EVENT, smigratedEvent);
