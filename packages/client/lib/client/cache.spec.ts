@@ -699,6 +699,75 @@ describe("Client Side Cache", () => {
     });
   });
 
+  describe('selected database changes empty the cache (#3631)', () => {
+    // Cache keys do not include the database and invalidation messages carry
+    // only the key name, so a database change must empty the cache: otherwise
+    // reads keep being served from entries cached in the previous database.
+    const csc = new BasicClientSideCache({ maxEntries: 10 });
+    const cacheClientOptions = {
+      ...GLOBAL.SERVERS.OPEN,
+      clientOptions: {
+        RESP: 3 as const,
+        clientSideCache: csc
+      }
+    };
+
+    testUtils.testWithClient('select() empties the cache', async client => {
+      csc.clear();
+
+      await client.set('key', 'db 0');
+      assert.equal(await client.get('key'), 'db 0');
+      assert.equal(csc.size(), 1);
+
+      await client.select(1);
+      assert.equal(csc.size(), 0, 'cache emptied on database change');
+      assert.equal(await client.get('key'), null, 'served from database 1, not from the stale entry');
+
+      // selecting the database that is already selected keeps the cache
+      const sizeBefore = csc.size();
+      await client.select(1);
+      assert.equal(csc.size(), sizeBefore);
+    }, cacheClientOptions);
+
+    testUtils.testWithClient('SELECT inside a pipeline empties the cache', async client => {
+      csc.clear();
+
+      await client.set('key', 'db 0');
+      assert.equal(await client.get('key'), 'db 0');
+      assert.equal(csc.size(), 1);
+
+      await client.multi().select(1).execAsPipeline();
+      assert.equal(csc.size(), 0, 'cache emptied on database change');
+      assert.equal(await client.get('key'), null, 'served from database 1, not from the stale entry');
+    }, cacheClientOptions);
+
+    testUtils.testWithClient('SELECT inside multi() empties the cache', async client => {
+      csc.clear();
+
+      await client.set('key', 'db 0');
+      assert.equal(await client.get('key'), 'db 0');
+      assert.equal(csc.size(), 1);
+
+      await client.multi().select(1).exec();
+      assert.equal(csc.size(), 0, 'cache emptied on database change');
+      assert.equal(await client.get('key'), null, 'served from database 1, not from the stale entry');
+    }, cacheClientOptions);
+
+    testUtils.testWithClient('reset() always empties the cache', async client => {
+      csc.clear();
+
+      await client.set('key', 'value');
+      assert.equal(await client.get('key'), 'value');
+      assert.equal(csc.size(), 1);
+
+      // RESET turns client tracking off on the server, so entries cached before
+      // it would never get invalidated — the cache is emptied even though the
+      // selected database does not change.
+      await client.reset();
+      assert.equal(csc.size(), 0, 'reset() empties the cache');
+    }, cacheClientOptions);
+  });
+
   describe("Pooled Cache", () => {
     const csc = new BasicPooledClientSideCache();
 

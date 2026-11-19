@@ -1804,9 +1804,22 @@ export default class RedisClient<
     };
   }
 
+  /**
+   * Records the selected database and, when it changed, empties the client-side
+   * cache: cache keys do not include the database, and invalidation messages
+   * carry only the key name, so entries cached in another database would
+   * otherwise keep being served.
+   */
+  #setSelectedDB(db: number) {
+    if (this._self.#selectedDB !== db) {
+      this._self.#selectedDB = db;
+      this._self.#clientSideCache?.invalidate(null, this._self._clientId);
+    }
+  }
+
   async SELECT(db: number): Promise<void> {
     await this.sendCommand(['SELECT', db.toString()]);
-    this._self.#selectedDB = db;
+    this._self.#setSelectedDB(db);
   }
 
   select = this.SELECT;
@@ -2039,7 +2052,7 @@ export default class RedisClient<
             traced.catch(noop);
             if (String(args[0]).toUpperCase() === 'SELECT') {
               traced.then(() => {
-                this._self.#selectedDB = Number(args[1]);
+                this._self.#setSelectedDB(Number(args[1]));
               }, noop);
             }
             return traced;
@@ -2145,7 +2158,7 @@ export default class RedisClient<
 
         commands.forEach(({ args }, i) => {
           if (String(args[0]).toUpperCase() === 'SELECT' && !((execResult as Array<unknown>)[i] instanceof ErrorReply)) {
-            this._self.#selectedDB = Number(args[1]);
+            this._self.#setSelectedDB(Number(args[1]));
           }
         });
 
@@ -2292,6 +2305,10 @@ export default class RedisClient<
     // BEHIND the RESET — onto the wiped session. With the entry-time clear it re-injects
     // PREPARE, which queues behind RESET too, in the correct order.
     this._self.#preparedFieldsets.clear();
+    // RESET turns client tracking off on the server, so entries cached before it
+    // would never get invalidated: always empty the cache, even when the
+    // selected database does not change.
+    this._self.#clientSideCache?.invalidate(null, this._self._clientId);
     const chainId = Symbol('Reset Chain'),
       promises = [this._self.#queue.reset(chainId)],
       selectedDB = this._self.#options?.database ?? 0;
