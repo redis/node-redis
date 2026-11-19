@@ -56,6 +56,15 @@ describe('FAILOVER', () => {
       );
     });
 
+    it('with TIMEOUT 0', () => {
+      assert.deepEqual(
+        parseArgs(FAILOVER, {
+          TIMEOUT: 0
+        }),
+        ['FAILOVER', 'TIMEOUT', '0']
+      );
+    });
+
     it('with TO, ABORT, TIMEOUT', () => {
       assert.deepEqual(
         parseArgs(FAILOVER, {

@@ -27,7 +27,7 @@ export default {
       parser.push('ABORT');
     }
 
-    if (options?.TIMEOUT) {
+    if (options?.TIMEOUT !== undefined) {
       parser.push('TIMEOUT', options.TIMEOUT.toString());
     }
   },
