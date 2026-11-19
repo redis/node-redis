@@ -178,9 +178,24 @@ function normalizeInfoRules(rules: unknown): Array<[key: BlobStringReply, timeBu
   return normalized;
 }
 
+function isFlatKeyValueArray(value: unknown): boolean {
+  return Array.isArray(value) && value.some(item => typeof item === 'string' || item instanceof Buffer);
+}
+
 function normalizeInfoRawReply(reply: ReplyUnion): InfoRawReply {
-  // An Array here is a map under `typeMapping[RESP_TYPES.MAP] = Array`, so
-  // walk its key/value pairs and normalize labels and rules like a Map.
+  // A RESP2-shaped Array keeps `labels` and `rules` as lists of tuples. Under
+  // `typeMapping[RESP_TYPES.MAP] = Array` they arrive as flat `[key, value, ...]`
+  // arrays instead, so only then walk the reply like a Map.
+  if (Array.isArray(reply)) {
+    const entries = mapLikeEntries(reply);
+    const isMapMappedToArray = entries.some(([key, value]) => {
+      return (key === 'labels' || key === 'rules') && isFlatKeyValueArray(value);
+    });
+    if (!isMapMappedToArray) {
+      return reply as unknown as InfoRawReply;
+    }
+  }
+
   const normalized: Array<unknown> = [];
   for (const [key, value] of mapLikeEntries(reply)) {
     switch (key) {

@@ -14,6 +14,21 @@ describe('TS.INFO', () => {
         );
     });
 
+    it('transformReply RESP3 keeps a RESP2-shaped Array reply positional', () => {
+        const reply = [
+            'totalSamples', 0,
+            'labels', [['sensor', 'a']],
+            'sourceKey', null,
+            'rules', [['sum', 60000, 'AVG', 0]],
+            'ignoreMaxValDiff', 0
+        ];
+
+        assert.deepEqual(
+            INFO.transformReply[3](reply as never),
+            INFO.transformReply[2](reply as never)
+        );
+    });
+
     it('transformReply RESP3 with Array type mapping matches the default shape', () => {
         const reply = (labels: unknown, rules: unknown) => [
             'totalSamples', 0,
