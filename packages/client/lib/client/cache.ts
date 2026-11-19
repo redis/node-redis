@@ -4,6 +4,7 @@ import { RedisArgument, ReplyUnion, TransformReply, TypeMapping } from '../RESP/
 import { RESP_TYPES } from '../RESP/decoder';
 import { VerbatimString } from '../RESP/verbatim-string';
 import { BasicCommandParser } from './parser';
+import { AbortError, AbortReadError } from '../errors';
 import { publish, CHANNELS } from './tracing';
 
 /**
@@ -704,6 +705,7 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
   2. check if cacheKey is in our cache
     2b1. if its a value cacheEntry - return it
     2b2. if it's a promise cache entry - wait on promise and then go to 3b.
+         if its caller aborted that load, the abort is not ours - load again ("3")
   3. if cacheEntry is not in cache
     3a. send the command save the promise into a a cacheEntry and then wait on result
     3b. transform reply (if required) based on transformReply
@@ -719,7 +721,7 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
     transformReply?: TransformReply,
     typeMapping?: TypeMapping,
     isStorable?: () => boolean
-  ) {
+  ): Promise<unknown> {
     let reply: ReplyUnion;
 
     const cacheKey = generateCacheKey(parser.redisArgs);
@@ -739,7 +741,15 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
         // This counts as a miss since the value hasn't been fully loaded yet.
         this.#statsCounter.recordMisses(1);
         publish(CHANNELS.CACHE_REQUEST, () => ({ result: 'miss', clientId: client._clientId }));
-        reply = await cacheEntry.promise;
+        try {
+          reply = await cacheEntry.promise;
+        } catch (err) {
+          if (err instanceof AbortError || err instanceof AbortReadError) {
+            if (cacheEntry.validate()) this.delete(cacheKey);
+            return this.handleCache(client, parser, fn, transformReply, typeMapping, isStorable);
+          }
+          throw err;
+        }
       } else {
         throw new Error("unknown cache entry type");
       }
