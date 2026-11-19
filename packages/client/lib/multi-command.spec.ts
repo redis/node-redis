@@ -146,6 +146,29 @@ describe('Multi Command', () => {
       assert.equal(knownScripts.size, 1);
     });
 
+    it('a batch that rejects with NOSCRIPT forgets the SHAs it relied on (pipelines reject on the first error)', () => {
+      const knownScripts = new Set<string>([SQUARE_SCRIPT.SHA1]);
+
+      const multi = new RedisMultiCommand(undefined, knownScripts);
+      multi.addScript(SQUARE_SCRIPT, ['1']);
+      multi.handleExecError(new ErrorReply('NOSCRIPT No matching script. Please use EVAL.'));
+
+      assert.equal(knownScripts.size, 0);
+      const next = new RedisMultiCommand(undefined, knownScripts);
+      next.addScript(SQUARE_SCRIPT, ['2']);
+      assert.equal(next.queue[0].args[0], 'EVAL', 'the next batch re-uploads');
+    });
+
+    it('a batch that rejects with an unrelated error keeps the known set', () => {
+      const knownScripts = new Set<string>([SQUARE_SCRIPT.SHA1]);
+
+      const multi = new RedisMultiCommand(undefined, knownScripts);
+      multi.addScript(SQUARE_SCRIPT, ['1']);
+      multi.handleExecError(new Error('Socket closed unexpectedly'));
+
+      assert.equal(knownScripts.size, 1);
+    });
+
     it('without a shared set, batches keep the old per-batch behavior', () => {
       const multi = new RedisMultiCommand();
       multi.addScript(SQUARE_SCRIPT, ['1']);

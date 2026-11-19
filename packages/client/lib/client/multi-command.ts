@@ -232,7 +232,13 @@ export default class RedisClientMultiCommand<REPLIES = []> {
   async exec<T extends MultiReply = MULTI_REPLY['GENERIC']>(execAsPipeline = false): Promise<MultiReplyType<T, REPLIES>> {
     if (execAsPipeline) return this.execAsPipeline<T>();
 
-    const rawReplies = await this.#executeMulti(this.#multi.queue, this.#selectedDB);
+    let rawReplies: Array<unknown>;
+    try {
+      rawReplies = await this.#executeMulti(this.#multi.queue, this.#selectedDB);
+    } catch (err) {
+      this.#multi.handleExecError(err);
+      throw err;
+    }
     this.#multi.updateKnownScripts(rawReplies);
     return this.#multi.transformReplies(rawReplies) as MultiReplyType<T, REPLIES>;
   }
@@ -246,7 +252,14 @@ export default class RedisClientMultiCommand<REPLIES = []> {
   async execAsPipeline<T extends MultiReply = MULTI_REPLY['GENERIC']>(): Promise<MultiReplyType<T, REPLIES>> {
     if (this.#multi.queue.length === 0) return [] as MultiReplyType<T, REPLIES>;
 
-    const rawReplies = await this.#executePipeline(this.#multi.queue, this.#selectedDB);
+    let rawReplies: Array<unknown>;
+    try {
+      rawReplies = await this.#executePipeline(this.#multi.queue, this.#selectedDB);
+    } catch (err) {
+      // a pipeline rejects on the first error reply; see handleExecError
+      this.#multi.handleExecError(err);
+      throw err;
+    }
     this.#multi.updateKnownScripts(rawReplies);
     return this.#multi.transformReplies(rawReplies) as MultiReplyType<T, REPLIES>;
   }

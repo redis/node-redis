@@ -1122,7 +1122,12 @@ export default class RedisClient<
       this.#setPingTimer();
       this.#maybeScheduleWrite();
     })
-    .on('reconnecting', () => this.emit('reconnecting'))
+    .on('reconnecting', () => {
+      // cleared at disconnect time, not just on 'ready': a batch built while
+      // offline must not encode EVALSHA from the dead connection's cache
+      this.#knownScripts.clear();
+      this.emit('reconnecting');
+    })
     .on('terminated', cause => this.emit('terminated', cause))
     .on('drain', () => this.#scheduleWrite())
     .on('end', () => {

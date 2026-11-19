@@ -97,6 +97,23 @@ export default class RedisMultiCommand {
     }
   }
 
+  /**
+   * Called when executing the batch threw instead of returning replies — a
+   * pipeline rejects on the first error reply, so `updateKnownScripts` never
+   * sees the array. A `NOSCRIPT` means the server lost a script this batch
+   * sent as `EVALSHA`: forget every SHA the batch relied on, so the next
+   * batch re-uploads. Over-forgetting is harmless (one extra `EVAL`).
+   */
+  handleExecError(err: unknown): void {
+    const knownScripts = this.knownScripts;
+    if (!knownScripts) return;
+    if (!(err instanceof ErrorReply && err.message.startsWith('NOSCRIPT'))) return;
+
+    for (const { sha, viaSha } of this.scriptCommands) {
+      if (viaSha) knownScripts.delete(sha);
+    }
+  }
+
   transformReplies(rawReplies: Array<unknown>): Array<unknown> {
     const errorIndexes: Array<number> = [],
       replies = rawReplies.map((reply, i) => {
