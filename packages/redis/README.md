@@ -167,7 +167,7 @@ await client.sendCommand(["HGETALL", "key"]); // ['key1', 'field1', 'key2', 'fie
 
 ### Transactions (Multi/Exec)
 
-Start a [transaction](https://redis.io/topics/transactions) by calling `.multi()`, then chaining your commands. When
+Start a [transaction](https://redis.io/docs/latest/develop/using-commands/transactions/) by calling `.multi()`, then chaining your commands. When
 you're done, call `.exec()` and you'll get an array back with your results:
 
 ```typescript
@@ -180,7 +180,7 @@ const [setKeyReply, otherKeyValue] = await client
   .exec(); // ['OK', 'another-value']
 ```
 
-You can also [watch](https://redis.io/topics/transactions#optimistic-locking-using-check-and-set) keys by calling
+You can also [watch](https://redis.io/docs/latest/develop/using-commands/transactions/#optimistic-locking-using-check-and-set) keys by calling
 `.watch()`. Your transaction will abort if any of the watched keys change.
 
 
