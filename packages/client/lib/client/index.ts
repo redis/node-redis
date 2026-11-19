@@ -97,7 +97,7 @@ export interface RedisClientOptions<
    */
   socket?: SocketOptions;
   /**
-   * ACL username ([see ACL guide](https://redis.io/topics/acl))
+   * ACL username ([see ACL guide](https://redis.io/docs/latest/operate/oss_and_stack/management/security/acl/))
    */
   username?: string;
   /**
