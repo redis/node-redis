@@ -163,6 +163,7 @@ Things to know:
 - **The connection stays open.** The client keeps the rejected command's place in the reply order and drops its reply when it arrives. Later commands on the same connection still wait behind it on the server: a command whose reply never comes keeps them waiting.
 - **Blocking commands** (`BLPOP`, `XREAD`, `WAIT`, ...) are not timed out after they are sent, because the server keeps blocking anyway. Use the command's own timeout argument. `abortSignal` still applies to them. `XREAD` and `XREADGROUP` count as blocking even without `BLOCK`.
 - **Session state is unknown after a read error.** If the command changes connection state (for example `SELECT`), repeat it, or turn the flag off for that call.
+- **Commands split across cluster shards.** A multi-key command such as `MSET` or `DEL` runs as one command per shard. If one part fails, the others may already have run, even when the error is `TimeoutError` or `AbortError`.
 - **Event-loop stalls.** If the event loop is blocked for longer than the timeout, a command can reject with a read error even though its reply already arrived.
 
 ## ASAP
