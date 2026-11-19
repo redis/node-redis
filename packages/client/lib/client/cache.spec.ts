@@ -699,6 +699,22 @@ describe("Client Side Cache", () => {
     });
   });
 
+  describe('clear() invalidates outstanding entries', () => {
+    it('a load in flight during the clear must not re-insert its stale value', () => {
+      // handleCache() re-validates the promise entry before saving the loaded
+      // value (step 3d), so invalidating entries on clear() is what keeps a
+      // reply from before the clear out of the emptied cache.
+      const cache = new BasicClientSideCache();
+      const entry = cache.createPromiseEntry(undefined as never, Promise.resolve('stale'));
+      cache.set('get_k', entry, ['k']);
+
+      cache.clear();
+
+      assert.equal(entry.validate(), false);
+      assert.equal(cache.size(), 0);
+    });
+  });
+
   describe('selected database changes empty the cache (#3631)', () => {
     // Cache keys do not include the database and invalidation messages carry
     // only the key name, so a database change must empty the cache: otherwise
