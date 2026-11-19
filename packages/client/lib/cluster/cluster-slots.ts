@@ -435,7 +435,16 @@ export default class RedisClusterSlots<
         if (!inUse) this.nodeByAddress.delete(address);
       }
 
-      await Promise.all(promises);
+      // Install the slot map without waiting for the node and pub/sub
+      // connections (#3592): one unreachable node must cost only its own
+      // shard, not hang `connect()` or a topology refresh. The connects keep
+      // warming in the background; their failures surface through the
+      // clients' own `node-error` events and, for a node that never becomes
+      // ready, through `topologyRefreshOnReconnectionAttemptStrategy`. The
+      // catch only keeps a detached connect rejection from going unhandled.
+      for (const promise of promises) {
+        promise.catch(() => {});
+      }
       this.clientSideCache?.enable();
 
       return true;
@@ -828,7 +837,6 @@ export default class RedisClusterSlots<
     });
     const address = node.address;
     const emit = this.#emit;
-    let wasReady = false;
     const client = this.#clientFactory(this.#clientOptionsDefaults({
       clientSideCache: this.clientSideCache,
       // only when the cluster has a type mapping, so the node falls back to its own
@@ -846,12 +854,12 @@ export default class RedisClusterSlots<
       .on('reconnecting', () => {
         emit('node-reconnecting', clientInfo);
 
-        if (!wasReady) return;
-
+        // A node that never became ready counts too (#3592): without this, a
+        // node that is down from the start never triggers the topology
+        // refresh that would move its slots after a failover.
         this.#onNodeReconnectionAttempt(client._clientId, address);
       })
       .on('ready', () => {
-        wasReady = true;
         this.#reconnectionTracker.removeClient(client._clientId);
       })
       .on('ready', () => emit('node-ready', clientInfo))

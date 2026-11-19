@@ -105,8 +105,10 @@ export interface RedisClusterOptions<
    */
   maxCommandRedirections?: number;
   /**
-   * The number of milliseconds after the first post-ready node reconnection attempt
-   * before background cluster topology refreshes are triggered. Omitted or `undefined`
+   * The number of milliseconds after a node's first reconnection attempt
+   * before background cluster topology refreshes are triggered. A node that
+   * never connected counts too, so the slots of a node that is down from the
+   * start can move once a failover promotes a replica. Omitted or `undefined`
    * uses the default delay of `5000`.
    * Use `false` or `0` to disable reconnect-triggered topology refreshes. A function can
    * return the delay dynamically, or `false`/`undefined`/`0` to skip the refresh attempt.
