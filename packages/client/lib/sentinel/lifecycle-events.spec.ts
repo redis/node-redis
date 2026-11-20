@@ -165,13 +165,18 @@ describe('RedisSentinel lifecycle events', () => {
       .on('error', () => { });
     await sentinel.connect();
 
+    // The reentrant destroy() must await the reentrant connect()'s in-flight topology
+    // discovery before it can tear down, and that discovery's duration is not bounded by
+    // any constant — so await the teardown itself rather than a fixed delay, which raced
+    // it (isOpen still true from the reopen's #setOpen(true)) under load (#3650).
+    let reentrantTeardown: Promise<unknown> | undefined;
     sentinel.once('end', () => {
       sentinel.connect().catch(() => { });
-      sentinel.destroy().catch(() => { });
+      reentrantTeardown = sentinel.destroy().catch(() => { });
     });
 
     await sentinel.close();
-    await setTimeout(100);
+    await reentrantTeardown;
 
     assert.equal(sentinel.isOpen, false);
     assert.equal(sentinel.isReady, false);
