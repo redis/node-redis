@@ -3,6 +3,7 @@ import testUtils, { GLOBAL } from '../test-utils';
 import SEARCH from './SEARCH';
 import { SCHEMA_FIELD_TYPE, REDISEARCH_LANGUAGE } from './CREATE';
 import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
+import { BasicCommandParser } from '@redis/client/lib/client/parser';
 import { DEFAULT_DIALECT } from '../dialect/default';
 import { RESP_TYPES } from '@redis/client';
 
@@ -124,6 +125,19 @@ describe('FT.SEARCH', () => {
         })),
         ['FT.SEARCH', 'index', 'query', 'INKEYS', '1', 'key', 'DIALECT', DEFAULT_DIALECT]
       );
+    });
+
+    it('applies keyPrefix to INKEYS without registering routing keys', () => {
+      const parser = new BasicCommandParser('prefix:');
+      SEARCH.parseCommand(parser, 'index', 'query', {
+        INKEYS: ['a', 'b']
+      });
+      assert.deepEqual(
+        parser.redisArgs,
+        ['FT.SEARCH', 'index', 'query', 'INKEYS', '2', 'prefix:a', 'prefix:b', 'DIALECT', DEFAULT_DIALECT]
+      );
+      // Stay keyless for cluster MOVED / policy routing.
+      assert.deepEqual(parser.keys, []);
     });
 
     it('with INFIELDS', () => {
@@ -452,6 +466,31 @@ describe('FT.SEARCH', () => {
         }
       );
     }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('INKEYS with keyPrefix', async client => {
+      await client.ft.create('index', {
+        field: 'TEXT'
+      }, {
+        PREFIX: 'prefix:'
+      });
+      await client.hSet('1', 'field', 'hello');
+      await client.hSet('2', 'field', 'world');
+
+      // Without keyPrefix on INKEYS this would search the bare key `1` and miss
+      // the prefixed document the client just wrote.
+      const reply = await client.ft.search('index', '*', {
+        INKEYS: '1'
+      });
+
+      assert.equal(reply.total, 1);
+      assert.equal(reply.documents[0]?.id, 'prefix:1');
+    }, {
+      ...GLOBAL.SERVERS.OPEN,
+      clientOptions: {
+        ...GLOBAL.SERVERS.OPEN.clientOptions,
+        keyPrefix: 'prefix:'
+      }
+    });
 
     testUtils.testWithClient('RETURN []', async client => {
       await Promise.all([

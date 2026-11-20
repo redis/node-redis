@@ -115,6 +115,15 @@ describe('BasicCommandParser', () => {
       assert.deepEqual(parser.keys, ['app:a', 'app:b']);
     });
 
+    it('pushPrefixedVariadicWithLength prefixes on the wire without routing keys', () => {
+      const parser = new BasicCommandParser('app:');
+      parser.push('FT.SEARCH', 'index', '*', 'INKEYS');
+      parser.pushPrefixedVariadicWithLength(['a', 'b']);
+      assert.deepEqual(parser.redisArgs, ['FT.SEARCH', 'index', '*', 'INKEYS', '2', 'app:a', 'app:b']);
+      assert.deepEqual(parser.keys, []);
+      assert.equal(parser.firstKey, undefined);
+    });
+
     it('does not prefix non-key arguments (push / pushVariadic)', () => {
       const parser = new BasicCommandParser('app:');
       parser.push('SET');
