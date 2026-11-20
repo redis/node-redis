@@ -8,7 +8,7 @@ import RedisClusterSlots, { NodeAddressMap, RESUBSCRIBE_LISTENERS_EVENT, ShardNo
 import RedisClusterMultiCommand, { RedisClusterMultiCommandType } from './multi-command';
 import { MULTI_MODE, MultiMode } from '../multi-command';
 import { PubSubListener, PubSubListeners } from '../client/pub-sub';
-import { ErrorReply, MaxCommandRedirectionsError, ScanIteratorInterruptedError } from '../errors';
+import { ClientClosedError, ErrorReply, MaxCommandRedirectionsError, ScanIteratorInterruptedError } from '../errors';
 import { ScanOptions, ScanCommonOptions } from '../commands/SCAN';
 import { RedisTcpSocketOptions } from '../client/socket';
 import { ClientSideCacheConfig, PooledClientSideCacheProvider } from '../client/cache';
@@ -105,8 +105,10 @@ export interface RedisClusterOptions<
    */
   maxCommandRedirections?: number;
   /**
-   * The number of milliseconds after the first post-ready node reconnection attempt
-   * before background cluster topology refreshes are triggered. Omitted or `undefined`
+   * The number of milliseconds after a node's first reconnection attempt
+   * before background cluster topology refreshes are triggered. A node that
+   * never connected counts too, so the slots of a node that is down from the
+   * start can move once a failover promotes a replica. Omitted or `undefined`
    * uses the default delay of `5000`.
    * Use `false` or `0` to disable reconnect-triggered topology refreshes. A function can
    * return the delay dynamically, or `false`/`undefined`/`0` to skip the refresh attempt.
@@ -784,6 +786,23 @@ export default class RedisCluster<
                 continue;
               }
             }
+            client = (await this._slots.getClientAndSlotNumber(parser.firstKey, isReadonly)).client;
+            continue;
+          }
+
+          // A topology refresh closed the node's client while this command sat
+          // in its queue - a role change caught mid-connect (#3628) or a node
+          // swap. The node's current client (or a MOVED from the demoted node)
+          // serves the retry. Pinned plans target one specific client, so they
+          // keep the error.
+          if (err instanceof ClientClosedError && !pinnedClient) {
+            publish(CHANNELS.ERROR, () => ({
+              error: err,
+              origin: 'cluster',
+              internal: true,
+              clientId: client._clientId,
+              retryCount: i,
+            }));
             client = (await this._slots.getClientAndSlotNumber(parser.firstKey, isReadonly)).client;
             continue;
           }
