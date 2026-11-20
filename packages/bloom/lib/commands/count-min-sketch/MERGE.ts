@@ -19,10 +19,10 @@ export default {
     parser.push(source.length.toString());
 
     if (isPlainSketches(source)) {
-      parser.pushVariadic(source);
+      parser.pushKeys(source);
     } else {
       for (let i = 0; i < source.length; i++) {
-        parser.push(source[i].name);
+        parser.pushKey(source[i].name);
       }
       parser.push('WEIGHTS');
       for (let i = 0; i < source.length; i++) {
