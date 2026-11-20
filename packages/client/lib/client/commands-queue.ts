@@ -124,7 +124,6 @@ export interface CommandToWrite extends CommandWaitingForReply {
   effectiveTimeout?: number;
   /** The deadline was set while the maintenance timeout was in force. */
   wasInMaintenance?: boolean;
-  rejected?: boolean;
   slotNumber?: number;
   prelude?: CommandPrelude;
   /**
@@ -171,6 +170,8 @@ export interface BatchOptions {
 interface CommandWaitingForReply {
   resolve(reply?: unknown): void;
   reject(err: unknown): void;
+  /** Already rejected; a sent command keeps its read-queue place until its reply. */
+  rejected?: boolean;
   channelsCounter: number | undefined;
   typeMapping: TypeMapping | undefined;
 }
@@ -994,6 +995,8 @@ export default class RedisCommandsQueue {
 
   #flushWaitingForReply(err: Error): void {
     for (const node of this.#waitingForReply) {
+      // A `rejectInFlight` entry that already rejected stays only to keep reply order.
+      if (node.rejected) continue;
       node.reject(err);
     }
     this.#waitingForReply.reset();
