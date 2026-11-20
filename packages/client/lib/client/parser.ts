@@ -54,6 +54,12 @@ export interface CommandParser {
   pushKey: (key: RedisArgument, applyPrefix?: boolean) => unknown; // normal push of keys
   pushKeys: (keys: RedisVariadicArgument) => unknown; // push multiple keys at a time
   pushKeysLength: (keys: RedisVariadicArgument) => unknown; // push multiple keys at a time
+  /**
+   * Like {@link pushVariadicWithLength}, but prepends `keyPrefix` to each value.
+   * Does **not** register the values as routing keys — for keyless commands
+   * (e.g. `FT.SEARCH … INKEYS`) that still need the configured prefix on the wire.
+   */
+  pushPrefixedVariadicWithLength: (vals: RedisVariadicArgument) => unknown;
 }
 
 export class BasicCommandParser implements CommandParser {
@@ -182,6 +188,18 @@ export class BasicCommandParser implements CommandParser {
       }
     } else {
       this.#addKey(keys, true);
+    }
+  }
+
+  pushPrefixedVariadicWithLength(vals: RedisVariadicArgument) {
+    if (Array.isArray(vals)) {
+      this.#redisArgs.push(vals.length.toString());
+      for (const val of vals) {
+        this.#redisArgs.push(prefixKey(this.#keyPrefix, val));
+      }
+    } else {
+      this.#redisArgs.push('1');
+      this.#redisArgs.push(prefixKey(this.#keyPrefix, vals));
     }
   }
 }

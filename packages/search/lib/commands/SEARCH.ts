@@ -168,7 +168,13 @@ export function parseSearchOptions(parser: CommandParser, options?: FtSearchOpti
     }
   }
 
-  parseOptionalVariadicArgument(parser, 'INKEYS', options?.INKEYS);
+  // INKEYS are Redis document keys: apply keyPrefix on the wire, but do not
+  // register them as routing keys — FT.SEARCH/FT.PROFILE SEARCH are keyless
+  // and MOVED handling must stay keyless when INKEYS is set.
+  if (options?.INKEYS !== undefined) {
+    parser.push('INKEYS');
+    parser.pushPrefixedVariadicWithLength(options.INKEYS);
+  }
   parseOptionalVariadicArgument(parser, 'INFIELDS', options?.INFIELDS);
   parseOptionalVariadicArgument(parser, 'RETURN', options?.RETURN);
 
