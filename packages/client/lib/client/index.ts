@@ -508,7 +508,7 @@ export default class RedisClient<
   } {
     // unix:// URIs use a non-special scheme; WHATWG URL refuses to parse an
     // authority (e.g. `user:pass@`) without a host, so handle it separately.
-    if (url.startsWith('unix:')) {
+    if (/^unix:/i.test(url)) {
       return RedisClient.#parseUnixURL(url);
     }
 
@@ -556,8 +556,9 @@ export default class RedisClient<
     }
 
     if (pathname.length > 1) {
-      const database = Number(pathname.substring(1));
-      if (isNaN(database)) {
+      const rawDatabase = pathname.substring(1);
+      const database = Number(rawDatabase);
+      if (!rawDatabase.trim() || !Number.isInteger(database) || database < 0) {
         throw new TypeError('Invalid pathname');
       }
 
@@ -573,7 +574,7 @@ export default class RedisClient<
     }
   } {
     // unix://[user[:password]@]/path/to/sock[?db=N]
-    const match = /^unix:\/\/(?:([^:@/]*)(?::([^@/]*))?@)?(\/[^?#]*)(?:\?([^#]*))?(?:#.*)?$/.exec(url);
+    const match = /^unix:\/\/(?:([^:@/]*)(?::([^@/]*))?@)?(\/[^?#]*)(?:\?([^#]*))?(?:#.*)?$/i.exec(url);
     if (!match || match[3] === '/') {
       throw new TypeError('Invalid unix URL');
     }
@@ -613,7 +614,7 @@ export default class RedisClient<
       const db = new URLSearchParams(rawQuery).get('db');
       if (db !== null) {
         const database = Number(db);
-        if (isNaN(database)) {
+        if (!db.trim() || !Number.isInteger(database) || database < 0) {
           throw new TypeError('Invalid db query parameter');
         }
         parsed.database = database;

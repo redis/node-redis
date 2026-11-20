@@ -455,12 +455,36 @@ describe('Client', () => {
         );
       });
 
-      it('invalid db query parameter is rejected', () => {
-        assert.throws(
-          () => RedisClient.parseURL('unix:///tmp/redis.sock?db=NaN'),
-          TypeError
+      it('uppercase unix scheme is accepted', () => {
+        assert.deepEqual(
+          RedisClient.parseURL('UNIX:///tmp/redis.sock?db=2'),
+          {
+            socket: {
+              path: '/tmp/redis.sock',
+              tls: false
+            },
+            database: 2
+          }
         );
       });
+
+      it('invalid db query parameter is rejected', () => {
+        for (const badDb of ['NaN', '', ' ', '-1', '1.5', 'Infinity']) {
+          assert.throws(
+            () => RedisClient.parseURL(`unix:///tmp/redis.sock?db=${encodeURIComponent(badDb)}`),
+            TypeError
+          );
+        }
+      });
+    });
+
+    it('invalid non-integer or negative pathname database is rejected', () => {
+      for (const badPath of ['-1', '1.5', 'Infinity']) {
+        assert.throws(
+          () => RedisClient.parseURL(`redis://localhost/${badPath}`),
+          TypeError
+        );
+      }
     });
   });
 
