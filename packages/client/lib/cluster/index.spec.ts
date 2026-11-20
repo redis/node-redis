@@ -1244,6 +1244,124 @@ describe('Cluster', () => {
     // opens that node's client lazily. If the refresh then demotes the node and
     // closes the client before it connects, the command must move on to the
     // node's new client instead of failing with "The client is closed".
+    // #3592: one unreachable master must cost only its own shard. connect()
+    // resolves on topology, a command for a live shard succeeds, and a command
+    // for the dead shard rejects on the command timeout instead of waiting on
+    // the node's connect forever.
+    testUtils.testWithCluster('connect() resolves while one master is unreachable (#3592)', async cluster => {
+      await cluster.connect();
+
+      const masters = [...new Set(cluster.slots.map(shard => shard.master))];
+      assert.ok(masters.length >= 2, 'needs two masters');
+      const deadMaster = masters[1];
+
+      // keys owned by a live shard and by the dead master's shard
+      let liveKey!: string, deadKey!: string;
+      for (let i = 0; !(liveKey && deadKey); i++) {
+        const key = `k3592-${i}`, owner = cluster.slots[calculateSlot(key)].master;
+        if (owner === deadMaster) deadKey ??= key;
+        else if (owner === masters[0]) liveKey ??= key;
+      }
+
+      // new connections to the dead master's port never complete
+      const createConnection = net.createConnection,
+        connectStub = stub(net, 'createConnection').callsFake(((options: net.NetConnectOpts) => {
+          if ((options as net.TcpNetConnectOpts).port !== deadMaster.port) {
+            return createConnection(options);
+          }
+          return new net.Socket(options);
+        }) as typeof net.createConnection);
+
+      const dup = cluster.duplicate({ commandOptions: { timeout: 1000 } });
+      try {
+        // point 1: topology is installed without waiting for the dead node
+        await dup.connect();
+
+        assert.equal(await dup.set(liveKey, 'v'), 'OK', 'a live shard serves commands');
+
+        // point 2: the dead shard's command sits in that node client's queue,
+        // so the command timeout applies instead of an unbounded connect wait
+        await assert.rejects(dup.get(deadKey), TimeoutError, 'the dead shard rejects on the command timeout');
+      } finally {
+        connectStub.restore();
+        dup.destroy();
+      }
+    }, {
+      serverArguments: [],
+      numberOfMasters: 2,
+      numberOfReplicas: 1,
+      minimumDockerVersion: [7],
+      disableClusterSetup: true,
+      clusterConfiguration: {
+        useReplicas: true
+      },
+      testTimeout: 30000
+    });
+
+    // #3592: a node that never connected counts for
+    // topologyRefreshOnReconnectionAttemptStrategy, so a failover that promotes
+    // its replica moves the shard's slots and its commands succeed again.
+    testUtils.testWithCluster('a failover moves the slots of a never-connected master (#3592)', async cluster => {
+      await cluster.connect();
+
+      const masters = [...new Set(cluster.slots.map(shard => shard.master))];
+      const deadMaster = masters[1];
+      let deadKey!: string;
+      for (let i = 0; !deadKey; i++) {
+        const key = `k3592b-${i}`;
+        if (cluster.slots[calculateSlot(key)].master === deadMaster) deadKey = key;
+      }
+      const replicaClient = await cluster.nodeClient(cluster.slots[calculateSlot(deadKey)].replicas![0]);
+
+      const createConnection = net.createConnection,
+        connectStub = stub(net, 'createConnection').callsFake(((options: net.NetConnectOpts) => {
+          if ((options as net.TcpNetConnectOpts).port !== deadMaster.port) {
+            return createConnection(options);
+          }
+          return new net.Socket(options);
+        }) as typeof net.createConnection);
+
+      const dup = cluster.duplicate({
+        commandOptions: { timeout: 1000 },
+        topologyRefreshOnReconnectionAttemptStrategy: 100
+      });
+      try {
+        await dup.connect();
+
+        // promote the replica on the real cluster (its connections predate the stub)
+        await replicaClient.clusterFailover();
+
+        // the dead master's background connect keeps retrying; each attempt
+        // counts for the refresh strategy, which rediscovers through the live
+        // nodes and installs the promoted replica as the shard's master
+        for (let i = 0; ; i++) {
+          try {
+            assert.equal(await dup.set(deadKey, 'v'), 'OK');
+            break;
+          } catch (err) {
+            if (i === 20) throw err;
+            await setTimeout(500);
+          }
+        }
+
+        // later commands keep routing correctly after the refresh
+        assert.equal(await dup.get(deadKey), 'v');
+      } finally {
+        connectStub.restore();
+        dup.destroy();
+      }
+    }, {
+      serverArguments: [],
+      numberOfMasters: 2,
+      numberOfReplicas: 1,
+      minimumDockerVersion: [7],
+      disableClusterSetup: true,
+      clusterConfiguration: {
+        useReplicas: true
+      },
+      testTimeout: 30000
+    });
+
     testUtils.testWithCluster('retries a node connect cut short by a failover demoting the node', async cluster => {
       await cluster.connect();
 
