@@ -98,3 +98,17 @@ export function isCacheable(
 export function isTrackable(meta: CommandMetadata | undefined): boolean {
   return !!meta?.flags?.includes('readonly') && !meta.isKeyless;
 }
+
+/**
+ * Whether a command can block on the server waiting for data or an event
+ * (`BLPOP`, `WAIT`, `XREAD`, ...). The flag comes from the server's command
+ * table, which marks `XREAD` and `XREADGROUP` as blocking even without `BLOCK`.
+ *
+ * Unknown commands are treated as not blocking.
+ *
+ * `client/commands-queue.ts` uses it to skip the read timeout of `rejectInFlight`
+ * commands, because the server keeps blocking after a client-side timeout.
+ */
+export function isBlocking(meta: CommandMetadata | undefined): boolean {
+  return !!meta?.flags?.includes('blocking');
+}

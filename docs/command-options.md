@@ -70,10 +70,12 @@ try {
 }
 ```
 
+Without [`rejectInFlight`](#in-flight-commands-rejectinflight), aborting has no effect on a command that was already written.
+
 
 ## Timeout
 
-This option is similar to the Abort Signal one, but provides an easier way to set timeout for commands. Again, this applies to commands that haven't been written to the socket yet.
+This option is similar to the Abort Signal one, but provides an easier way to set timeout for commands. Again, without [`rejectInFlight`](#in-flight-commands-rejectinflight), this applies only to commands that haven't been written to the socket yet. Such a command rejects with `TimeoutError` and is never sent.
 
 Since v6, `commandOptions.timeout` defaults to `5000` (5 seconds). Set it to `undefined` (or `0`) to disable.
 
@@ -89,6 +91,8 @@ const client = createClient({
 
 `multi().exec()` and `multi().execAsPipeline()` apply the timeout and the abort signal to the batch as a whole. If either fires before the first command of the batch is written, every command of the batch is rejected and nothing is sent. Once the batch starts writing, it runs to the end. A transaction cancelled this way keeps the client's `WATCH` state.
 
+With [`rejectInFlight`](#in-flight-commands-rejectinflight), the timeout and the abort signal stay active until the last reply of the batch. If either fires after part of the batch was written, every pending command of the batch rejects with the read error, and the rest of the batch is still written. The connection is never left inside `MULTI`.
+
 ```javascript
 await client.withCommandOptions({ timeout: 1000 })
   .multi()
@@ -96,6 +100,71 @@ await client.withCommandOptions({ timeout: 1000 })
   .get('counter')
   .exec();
 ```
+
+## In-flight commands (`rejectInFlight`)
+
+> :warning: Experimental. The API can change in a minor release.
+
+By default, `timeout` and `abortSignal` stop at the moment a command is written to the socket. If the reply is slow, the call waits for it. Set `rejectInFlight: true` to make them apply until the reply arrives:
+
+```javascript
+import { TimeoutReadError } from 'redis';
+
+try {
+  await client.withCommandOptions({ timeout: 1000, rejectInFlight: true }).get('key');
+} catch (err) {
+  if (err instanceof TimeoutReadError) {
+    // The command was sent and may have been executed.
+  }
+}
+```
+
+You can also set it for every command of a client, cluster, sentinel or pool:
+
+```javascript
+const client = createClient({
+  commandOptions: {
+    timeout: 1000,
+    rejectInFlight: true
+  }
+});
+```
+
+| `rejectInFlight` | Fires while | Command kind | Result |
+|---|---|---|---|
+| `false` / unset | waiting to be sent | any | `TimeoutError` / `AbortError`, never sent |
+| `false` / unset | sent, waiting for reply | any | no effect |
+| `true` | waiting to be sent | any | `TimeoutError` / `AbortError`, never sent |
+| `true` | sent, waiting for reply | non-blocking | `TimeoutReadError` / `AbortReadError`, reply dropped |
+| `true` | sent, waiting for reply | blocking | timeout: no effect; abort: `AbortReadError`, reply dropped |
+| `true` | sent, during maintenance | non-blocking | `CommandTimeoutReadDuringMaintenanceError` |
+
+The error tells you whether the command reached the server:
+
+| Error | Sent to server? | Safe to retry? |
+|---|---|---|
+| `TimeoutError` | No | Yes |
+| `AbortError` | No | Yes |
+| `CommandTimeoutDuringMaintenanceError` (extends `TimeoutError`) | No | Yes |
+| `TimeoutReadError` | Yes; may have run | Only if idempotent |
+| `AbortReadError` | Yes; may have run | Only if idempotent |
+| `CommandTimeoutReadDuringMaintenanceError` (extends `TimeoutReadError`) | Yes; may have run | Only if idempotent |
+| `SocketTimeoutDuringMaintenanceError` (extends `TimeoutReadError`) | Yes; may have run | Only if idempotent |
+
+Two read errors do not need `rejectInFlight`:
+
+- `TimeoutReadError`: a cluster slot migration waits up to 5 seconds for the replies of the source node, then rejects the commands that are still waiting.
+- `SocketTimeoutDuringMaintenanceError`: the socket received no data for the maintenance timeout and was closed. In earlier versions this error extended `TimeoutError`.
+
+`TimeoutReadError` is not an instance of `TimeoutError`, and `AbortReadError` is not an instance of `AbortError`.
+
+Things to know:
+
+- **The connection stays open.** The client keeps the rejected command's place in the reply order and drops its reply when it arrives. Later commands on the same connection still wait behind it on the server: a command whose reply never comes keeps them waiting.
+- **Blocking commands** (`BLPOP`, `XREAD`, `WAIT`, ...) are not timed out after they are sent, because the server keeps blocking anyway. Use the command's own timeout argument. `abortSignal` still applies to them. `XREAD` and `XREADGROUP` count as blocking even without `BLOCK`.
+- **Session state is unknown after a read error.** If the command changes connection state (for example `SELECT`), repeat it, or turn the flag off for that call.
+- **Commands split across cluster shards.** A multi-key command such as `MSET` or `DEL` runs as one command per shard. If one part fails, the others may already have run, even when the error is `TimeoutError` or `AbortError`.
+- **Event-loop stalls.** If the event loop is blocked for longer than the timeout, a command can reject with a read error even though its reply already arrived.
 
 ## ASAP
 
