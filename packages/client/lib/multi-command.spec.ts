@@ -169,6 +169,17 @@ describe('Multi Command', () => {
       assert.equal(knownScripts.size, 1);
     });
 
+    it('a script with no reply in the result set is not recorded', () => {
+      // e.g. appended to the builder while an execution was already pending
+      const knownScripts = new Set<string>();
+
+      const multi = new RedisMultiCommand(undefined, knownScripts);
+      multi.addScript(SQUARE_SCRIPT, ['1']);
+      multi.updateKnownScripts([]);
+
+      assert.equal(knownScripts.size, 0);
+    });
+
     it('without a shared set, batches keep the old per-batch behavior', () => {
       const multi = new RedisMultiCommand();
       multi.addScript(SQUARE_SCRIPT, ['1']);

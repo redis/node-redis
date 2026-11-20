@@ -86,6 +86,9 @@ export default class RedisMultiCommand {
     if (!knownScripts) return;
 
     for (const { index, sha, viaSha } of this.scriptCommands) {
+      // A script appended while an execution was already pending has no reply
+      // in this result set - it was never sent, so it must not be recorded
+      if (index >= rawReplies.length) continue;
       const reply = rawReplies[index];
       if (viaSha) {
         if (reply instanceof ErrorReply && reply.message.startsWith('NOSCRIPT')) {

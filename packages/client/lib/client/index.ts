@@ -1320,6 +1320,10 @@ export default class RedisClient<
      // A swapped-in socket carries a fresh server session with no other observable signal
      // on this client — the explicit wipe is the only fieldset-invalidation mechanism here.
      this._self.#preparedFieldsets.clear();
+     // Same for the script cache: the new server (e.g. after a MOVING handoff)
+     // may not have the old server's scripts, and no 'ready' or 'reconnecting'
+     // fires on this client for a swapped-in, already-ready socket.
+     this._self.#knownScripts.clear();
      if (this._self.#watchEpoch !== undefined) {
        this._self.#dirtyWatch ??= 'Client reconnected after WATCH';
      }
