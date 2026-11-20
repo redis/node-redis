@@ -78,7 +78,7 @@ export default {
     parser.push('SCAN');
     parseScanArguments(parser, cursor, options);
 
-    if (options?.TYPE) {
+    if (options?.TYPE !== undefined) {
       parser.push('TYPE', options.TYPE);
     }
   },

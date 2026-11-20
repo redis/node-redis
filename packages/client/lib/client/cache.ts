@@ -866,6 +866,13 @@ export class BasicClientSideCache extends ClientSideCacheProvider {
 
   override clear(resetStats = true) {
     const oldSize = this.#cacheKeyToEntryMap.size;
+    // Invalidate the entries, not just the maps: a load that is in flight
+    // during the clear holds its promise entry and would otherwise pass
+    // `validate()` when its reply arrives, re-inserting a value from before
+    // the clear into the emptied cache (`handleCache()` step 3d).
+    for (const entry of this.#cacheKeyToEntryMap.values()) {
+      entry.invalidate();
+    }
     this.#cacheKeyToEntryMap.clear();
     this.#keyToCacheKeySetMap.clear();
     this.#cacheKeyToKeysMap.clear();
