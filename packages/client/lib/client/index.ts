@@ -1831,6 +1831,15 @@ export default class RedisClient<
   }
 
   async SELECT(db: number): Promise<void> {
+    // Empty the cache the moment SELECT is issued, not after its reply arrives.
+    // Cache keys do not include the database, so a cacheable read that races the
+    // in-flight SELECT would otherwise be served the previous database's cached
+    // value (handleCache() consults the cache synchronously, before #setSelectedDB
+    // runs on the reply). #setSelectedDB still empties it on the reply for the
+    // pipeline/MULTI SELECT paths that cannot invalidate at issue time.
+    if (this._self.#selectedDB !== db) {
+      this._self.#clientSideCache?.invalidate(null, this._self._clientId);
+    }
     await this.sendCommand(['SELECT', db.toString()]);
     this._self.#setSelectedDB(db);
   }
