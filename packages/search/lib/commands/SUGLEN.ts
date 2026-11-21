@@ -3,7 +3,8 @@ import { RedisArgument, NumberReply, Command } from '@redis/client/dist/lib/RESP
 
 export default {
   parseCommand(parser: CommandParser, key: RedisArgument) {
-    parser.push('FT.SUGLEN', key);
+    parser.push('FT.SUGLEN');
+    parser.pushKey(key);
   },
   transformReply: undefined as unknown as () => NumberReply
 } as const satisfies Command;
