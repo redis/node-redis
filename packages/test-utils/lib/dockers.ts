@@ -733,6 +733,9 @@ async function waitForSentinelMasterElectable(
         password,
         commandOptions: { timeout: remainingMs },
       });
+      // Swallow socket errors so a mid-probe disconnect is caught/retried
+      // instead of throwing from EventEmitter with no listener.
+      client.on('error', () => {});
       try {
         const info = await raceAgainstDeadline(
           (async () => {
