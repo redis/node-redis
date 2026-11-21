@@ -30,6 +30,28 @@ describe("Client Side Cache", () => {
     assert.ok(cache.get("k"), "a never-connected client must not flush the shared cache");
   });
 
+  it("SELECT empties the cache when issued, not only after the reply", () => {
+    // Cache keys do not include the database, so a cacheable read that races an
+    // in-flight select() must not be served the previous database's value. The
+    // cache is emptied the moment SELECT is issued (synchronously), before the
+    // reply reaches #setSelectedDB.
+    const cache = new BasicClientSideCache();
+    const client = RedisClient.create({ RESP: 3, clientSideCache: cache });
+
+    cache.set("GET_key", cache.createValueEntry(client as never, "db 0"), ["key"]);
+    assert.equal(cache.size(), 1);
+
+    // Never connected, so sendCommand rejects — but the issue-time invalidate has
+    // already run synchronously by the time select() yields at its first await.
+    client.select(1).catch(() => { });
+    assert.equal(cache.size(), 0, "cache must be emptied the moment select() is issued");
+
+    // Selecting the database that is already current leaves the cache alone.
+    cache.set("GET_key", cache.createValueEntry(client as never, "reseed"), ["key"]);
+    client.select(0).catch(() => { });
+    assert.equal(cache.size(), 1, "selecting the current database must not empty the cache");
+  });
+
   describe('key index', () => {
     const setEntry = (cache: BasicClientSideCache, cacheKey: string, keys: Array<string | Buffer>) =>
       cache.set(cacheKey, cache.createValueEntry(undefined as never, cacheKey), keys);
