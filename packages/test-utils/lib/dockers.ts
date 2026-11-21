@@ -665,6 +665,47 @@ function sentinelMasterInfo(reply: unknown): Record<string, string> {
 }
 
 /**
+ * Resolves `promise` or rejects when `ms` elapses. Clears the timer on settle
+ * so a late timeout cannot become an unhandled rejection.
+ */
+async function raceAgainstDeadline<T>(
+  promise: Promise<T>,
+  ms: number,
+  onTimeout: () => void,
+): Promise<T> {
+  let timer: ReturnType<typeof globalThis.setTimeout> | undefined;
+  // Swallow late rejections from `promise` after the timer wins — otherwise
+  // destroy()-aborted connect/sendCommand can become an unhandled rejection.
+  const guarded = promise.then(
+    value => ({ ok: true as const, value }),
+    error => ({ ok: false as const, error }),
+  );
+  try {
+    const result = await Promise.race([
+      guarded,
+      new Promise<never>((_, reject) => {
+        timer = globalThis.setTimeout(() => {
+          try {
+            onTimeout();
+          } catch {
+            // ignore destroy errors during timeout
+          }
+          reject(new Error(`timed out after ${ms}ms`));
+        }, ms);
+      }),
+    ]);
+    if (!result.ok) {
+      throw result.error;
+    }
+    return result.value;
+  } finally {
+    if (timer !== undefined) {
+      globalThis.clearTimeout(timer);
+    }
+  }
+}
+
+/**
  * Polls the spawned sentinels until one reports an electable master for
  * `masterName` (same flags check the sentinel client uses in `parseNode`).
  */
@@ -679,8 +720,9 @@ async function waitForSentinelMasterElectable(
 
   while (Date.now() < deadline) {
     for (const sentinel of sentinels) {
-      // Bound each probe by the remaining deadline and disable reconnects so a
-      // half-open sentinel cannot hang connect() past the wait / Mocha budget.
+      // Bound each probe by the remaining deadline and disable reconnects.
+      // `connectTimeout` only covers TCP; HELLO/AUTH can still hang, so race
+      // the whole handshake + SENTINEL MASTER against the deadline.
       const remainingMs = Math.max(1, deadline - Date.now());
       const client = createClient({
         socket: {
@@ -689,12 +731,19 @@ async function waitForSentinelMasterElectable(
           connectTimeout: remainingMs,
         },
         password,
+        commandOptions: { timeout: remainingMs },
       });
       try {
-        await client.connect();
-        // sendCommand returns RESP3 Maps by default — do not assume a flat array.
-        const info = sentinelMasterInfo(
-          await client.sendCommand(['SENTINEL', 'MASTER', masterName])
+        const info = await raceAgainstDeadline(
+          (async () => {
+            await client.connect();
+            // sendCommand returns RESP3 Maps by default — do not assume a flat array.
+            return sentinelMasterInfo(
+              await client.sendCommand(['SENTINEL', 'MASTER', masterName])
+            );
+          })(),
+          remainingMs,
+          () => client.destroy(),
         );
 
         const flags = info.flags ?? '';
