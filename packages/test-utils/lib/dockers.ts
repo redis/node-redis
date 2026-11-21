@@ -777,18 +777,32 @@ async function spawnRedisSentinelDockers(
     );
   }
 
-  const sentinelNodes = await Promise.all(sentinelPromises);
+  try {
+    const sentinelNodes = await Promise.all(sentinelPromises);
 
-  // Containers can be up before any sentinel has an electable master (and
-  // before the suite's first SENTINEL MASTER probe). Wait so callers don't
-  // cascade on "no valid master node" / before-hook timeouts (#3650 A).
-  await waitForSentinelMasterElectable(sentinelNodes, 'mymaster', password);
+    // Containers can be up before any sentinel has an electable master (and
+    // before the suite's first SENTINEL MASTER probe). Wait so callers don't
+    // cascade on "no valid master node" / before-hook timeouts (#3650 A).
+    await waitForSentinelMasterElectable(sentinelNodes, 'mymaster', password);
 
-  if (tmpDir) {
     fs.rmSync(tmpDir, { recursive: true });
+    return sentinelNodes;
+  } catch (err) {
+    // Tear down everything started for this attempt so a failed readiness wait
+    // (or mid-flight sentinel spawn) does not leak containers. Master/replicas
+    // are already in RUNNING_NODES; remove them too or a retry would orphan the
+    // first batch when it overwrites that entry.
+    const startedSentinels = (
+      await Promise.allSettled(sentinelPromises)
+    ).flatMap(result => result.status === 'fulfilled' ? [result.value] : []);
+    await Promise.allSettled([
+      ...startedSentinels.map(({ dockerId }) => dockerRemove(dockerId)),
+      ...redisNodes.map(({ dockerId }) => dockerRemove(dockerId)),
+    ]);
+    RUNNING_NODES.delete(serverArguments);
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    throw err;
   }
-
-  return sentinelNodes;
 }
 
 export function spawnRedisSentinel(
@@ -803,7 +817,13 @@ export function spawnRedisSentinel(
   // Register the in-flight promise immediately (same pattern as
   // spawnRedisCluster) so overlapping callers share one topology — especially
   // important now that we wait for an electable master before resolving.
-  const dockersPromise = spawnRedisSentinelDockers(dockerConfigs, serverArguments);
+  // Evict on rejection so a transient failure does not poison later suites
+  // that reuse the same serverArguments array.
+  const dockersPromise = spawnRedisSentinelDockers(dockerConfigs, serverArguments)
+    .catch(err => {
+      RUNNING_SENTINELS.delete(serverArguments);
+      throw err;
+    });
   RUNNING_SENTINELS.set(serverArguments, dockersPromise);
   return dockersPromise;
 }
@@ -820,9 +840,14 @@ after(function() {
     ...Array.from(RUNNING_NODES.values()).map(dockersPromise =>
       Promise.all(dockersPromise.map(({ dockerId }) => dockerRemove(dockerId)))
     ),
-    ...Array.from(RUNNING_SENTINELS.values()).map(async dockersPromise =>
-      Promise.all((await dockersPromise).map(({ dockerId }) => dockerRemove(dockerId)))
-    ),
+    ...Array.from(RUNNING_SENTINELS.values()).map(async dockersPromise => {
+      try {
+        const nodes = await dockersPromise;
+        await Promise.all(nodes.map(({ dockerId }) => dockerRemove(dockerId)));
+      } catch {
+        // Spawn failed and already cleaned up / was evicted from the map.
+      }
+    }),
     ...Array.from(RUNNING_PROXIED_SERVERS.values()).map(async dockerPromise =>
       dockerRemove((await dockerPromise).dockerId)
     )
