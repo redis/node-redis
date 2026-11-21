@@ -3,7 +3,7 @@ import {
   DoublyLinkedList,
   EmptyAwareSinglyLinkedList,
 } from "./linked-list";
-import { equal, deepEqual } from "assert/strict";
+import { equal, deepEqual, throws } from "assert/strict";
 
 describe("DoublyLinkedList", () => {
   const list = new DoublyLinkedList<number>();
@@ -167,6 +167,25 @@ describe("DoublyLinkedList", () => {
     equal(list.length, 1);
     deepEqual(Array.from(list), [3]);
   });
+
+  it("should unlink nodes on reset so removing stale nodes does not corrupt the list", () => {
+    const fresh = new DoublyLinkedList<number>();
+    const a = fresh.push(1);
+    const b = fresh.push(2);
+    fresh.reset();
+    equal(a.previous, undefined);
+    equal(a.next, undefined);
+    equal(b.previous, undefined);
+    equal(b.next, undefined);
+
+    const c = fresh.push(3);
+    fresh.remove(a);
+    fresh.remove(b);
+    equal(fresh.length, 1);
+    equal(fresh.head, c);
+    equal(fresh.tail, c);
+    deepEqual(Array.from(fresh), [3]);
+  });
 });
 
 describe("DoublyLinkedList.insertAfter", () => {
@@ -265,6 +284,19 @@ describe("SinglyLinkedList", () => {
     equal(list.length, 0);
     equal(list.head, undefined);
     equal(list.tail, undefined);
+  });
+
+  it("should mark nodes as removed on reset so stale removes fail cleanly", () => {
+    const fresh = new SinglyLinkedList<number>();
+    const a = fresh.push(1);
+    const b = fresh.push(2);
+    fresh.reset();
+    equal(a.removed, true);
+    equal(a.next, undefined);
+    equal(b.removed, true);
+    equal(b.next, undefined);
+    throws(() => fresh.remove(a, undefined), /node already removed/);
+    equal(fresh.length, 0);
   });
 });
 
