@@ -125,6 +125,13 @@ export class DoublyLinkedList<T> {
   }
 
   reset() {
+    let node = this.#head;
+    while (node !== undefined) {
+      const next = node.next;
+      node.previous = undefined;
+      node.next = undefined;
+      node = next;
+    }
     this.#length = 0;
     this.#head = this.#tail = undefined;
   }
@@ -225,6 +232,13 @@ export class SinglyLinkedList<T> {
   }
 
   reset() {
+    let node = this.#head;
+    while (node !== undefined) {
+      const next = node.next;
+      node.next = undefined;
+      node.removed = true;
+      node = next;
+    }
     this.#length = 0;
     this.#head = this.#tail = undefined;
   }
