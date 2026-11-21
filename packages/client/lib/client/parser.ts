@@ -4,12 +4,12 @@ import { RedisVariadicArgument } from '../commands/generic-transformers';
 /**
  * Prepends `keyPrefix` to `key`.
  *
- * Returns `key` unchanged when `keyPrefix` is `undefined` (the no-prefix hot path).
+ * Returns `key` unchanged when `keyPrefix` is `undefined` or empty (the no-prefix hot path).
  * Uses a plain string concatenation when both sides are strings, and falls back to
  * `Buffer.concat` when either side is a `Buffer`.
  */
 export function prefixKey(keyPrefix: RedisArgument | undefined, key: RedisArgument): RedisArgument {
-  if (keyPrefix === undefined) return key;
+  if (keyPrefix === undefined || keyPrefix.length === 0) return key;
 
   if (typeof keyPrefix === 'string' && typeof key === 'string') {
     return keyPrefix + key;
