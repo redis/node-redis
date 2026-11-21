@@ -893,6 +893,16 @@ export default class RedisClusterSlots<
     // if the node is connecting
     if (node.connectPromise)
       return this.#waitForNodeClient(node, node.client, node.connectPromise);
+    // if the node's client connected and later gave up for good (its
+    // reconnectStrategy stopped, e.g. after a socket timeout), it stays closed
+    // forever. Drop and destroy it so a fresh client connects below, instead of
+    // failing every command for the node's slots with ClientClosedError.
+    if (this.#isOpen && node.client && !node.client.isOpen) {
+      const { client } = node;
+      node.client = undefined;
+      this.#reconnectionTracker.removeClient(client._clientId);
+      client.destroy();
+    }
     // if the node is connected
     if (node.client)
       return Promise.resolve(node.client);

@@ -225,6 +225,96 @@ describe('RedisClusterSlots', () => {
     });
   });
 
+  describe('nodeClient after a connected node gives up', () => {
+    // A minimal RESP2 server: +OK to every command and a one-shard CLUSTER
+    // SLOTS reply pointing at itself, so the cluster connects for real.
+    async function startFakeNode() {
+      const sockets = new Set<Socket>();
+      const server = createServer(socket => {
+        sockets.add(socket);
+        socket.on('close', () => sockets.delete(socket));
+        socket.on('data', chunk => {
+          for (const command of chunk.toString().split('*').filter(part => /^\d+\r\n\$/.test(part))) {
+            if (/CLUSTER\r\n\$5\r\nSLOTS/i.test(command)) {
+              const { port } = server.address() as AddressInfo;
+              socket.write(`*1\r\n*3\r\n:0\r\n:16383\r\n*3\r\n$9\r\n127.0.0.1\r\n:${port}\r\n$2\r\nid\r\n`);
+            } else {
+              socket.write('+OK\r\n');
+            }
+          }
+        });
+      });
+      server.listen(0, '127.0.0.1');
+      await once(server, 'listening');
+      return {
+        port: (server.address() as AddressInfo).port,
+        dropConnections() {
+          for (const socket of sockets) socket.destroy();
+        },
+        async close() {
+          for (const socket of sockets) socket.destroy();
+          server.close();
+          await once(server, 'close');
+        }
+      };
+    }
+
+    it('replaces a node client whose reconnectStrategy gave up after it connected', async () => {
+      const server = await startFakeNode();
+      // reconnectStrategy: false makes the dropped connection terminal, as a
+      // socket timeout is with the default strategy
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: server.port } }],
+        defaults: { socket: { reconnectStrategy: false } },
+        RESP: 2
+      }, () => true, 'test-cluster');
+
+      try {
+        await slots.connect();
+        const node = slots.masters[0];
+        const first = await slots.nodeClient(node);
+        assert.ok(first.isOpen);
+
+        const terminated = once(first, 'terminated');
+        server.dropConnections();
+        await terminated;
+        assert.equal(first.isOpen, false);
+
+        // Before the fix this resolved to the same closed client, so every
+        // command for the node's slots failed with ClientClosedError.
+        const second = await slots.nodeClient(node);
+        assert.notEqual(second, first, 'the closed client must be replaced');
+        assert.ok(second.isOpen, 'the replacement must be connected');
+        assert.equal(node.client, second);
+      } finally {
+        slots.destroy();
+        await server.close();
+      }
+    });
+
+    it('does not reconnect a closed node client after the cluster is destroyed', async () => {
+      const server = await startFakeNode();
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: server.port } }],
+        defaults: { socket: { reconnectStrategy: false } },
+        RESP: 2
+      }, () => true, 'test-cluster');
+
+      try {
+        await slots.connect();
+        const node = slots.masters[0];
+        const first = await slots.nodeClient(node);
+        slots.destroy();
+
+        assert.equal(await slots.nodeClient(node), first, 'a destroyed cluster must not open new connections');
+        assert.equal(first.isOpen, false);
+      } finally {
+        slots.destroy();
+        await server.close();
+      }
+    });
+  });
+
   describe('destroy() during discovery', () => {
     // A minimal RESP2 server: +OK to every command and a one-shard CLUSTER
     // SLOTS reply pointing at itself. With `hold` set the slots reply waits
