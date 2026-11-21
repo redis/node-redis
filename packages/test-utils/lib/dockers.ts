@@ -679,8 +679,15 @@ async function waitForSentinelMasterElectable(
 
   while (Date.now() < deadline) {
     for (const sentinel of sentinels) {
+      // Bound each probe by the remaining deadline and disable reconnects so a
+      // half-open sentinel cannot hang connect() past the wait / Mocha budget.
+      const remainingMs = Math.max(1, deadline - Date.now());
       const client = createClient({
-        socket: { port: sentinel.port },
+        socket: {
+          port: sentinel.port,
+          reconnectStrategy: false,
+          connectTimeout: remainingMs,
+        },
         password,
       });
       try {
@@ -705,9 +712,7 @@ async function waitForSentinelMasterElectable(
       } catch (err) {
         lastError = err;
       } finally {
-        if (client.isOpen) {
-          client.destroy();
-        }
+        client.destroy();
       }
     }
 
@@ -777,16 +782,14 @@ async function spawnRedisSentinelDockers(
     );
   }
 
+  let sentinelNodes: Array<RedisServerDocker>;
   try {
-    const sentinelNodes = await Promise.all(sentinelPromises);
+    sentinelNodes = await Promise.all(sentinelPromises);
 
     // Containers can be up before any sentinel has an electable master (and
     // before the suite's first SENTINEL MASTER probe). Wait so callers don't
     // cascade on "no valid master node" / before-hook timeouts (#3650 A).
     await waitForSentinelMasterElectable(sentinelNodes, 'mymaster', password);
-
-    fs.rmSync(tmpDir, { recursive: true });
-    return sentinelNodes;
   } catch (err) {
     // Tear down everything started for this attempt so a failed readiness wait
     // (or mid-flight sentinel spawn) does not leak containers. Master/replicas
@@ -803,6 +806,15 @@ async function spawnRedisSentinelDockers(
     fs.rmSync(tmpDir, { recursive: true, force: true });
     throw err;
   }
+
+  // Temp-dir cleanup is best-effort and outside the failure catch so a delete
+  // error cannot tear down an already-electable topology.
+  try {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  } catch {
+    // ignore
+  }
+  return sentinelNodes;
 }
 
 export function spawnRedisSentinel(
