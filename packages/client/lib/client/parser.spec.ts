@@ -8,6 +8,14 @@ describe('prefixKey', () => {
     assert.equal(prefixKey(undefined, buf), buf);
   });
 
+  it('returns the key unchanged when prefix is an empty string or empty Buffer', () => {
+    const buf = Buffer.from('key');
+    assert.equal(prefixKey('', 'key'), 'key');
+    assert.equal(prefixKey('', buf), buf);
+    assert.equal(prefixKey(Buffer.alloc(0), 'key'), 'key');
+    assert.equal(prefixKey(Buffer.alloc(0), buf), buf);
+  });
+
   it('concatenates two strings into a string', () => {
     const result = prefixKey('app:', 'key');
     assert.equal(typeof result, 'string');
