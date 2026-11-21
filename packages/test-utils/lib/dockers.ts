@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { createConnection } from 'node:net';
 import { once } from 'node:events';
 import { createClient } from '@redis/client/index';
+import { mapLikeToObject } from '@redis/client/dist/lib/commands/reply-utils';
 import { setTimeout } from 'node:timers/promises';
 // import { ClusterSlotsReply } from '@redis/client/dist/lib/commands/CLUSTER_SLOTS';
 import { execFile as execFileCallback } from 'node:child_process';
@@ -646,77 +647,249 @@ export function spawnRedisCluster(
 
 
 const RUNNING_NODES = new Map<Array<string>, Array<RedisServerDocker>>();
-const RUNNING_SENTINELS = new Map<Array<string>, Array<RedisServerDocker>>();
+const RUNNING_SENTINELS = new Map<Array<string>, Promise<Array<RedisServerDocker>>>();
 
-export async function spawnRedisSentinel(
+/**
+ * Normalizes a raw `SENTINEL MASTER` reply into a string record.
+ *
+ * RESP2 returns a flat tuple array. RESP3 returns a map — by default as a
+ * plain object (`#decodeMapAsObject`), or as a `Map` when type-mapped.
+ * `mapLikeToObject` covers all three shapes.
+ */
+function sentinelMasterInfo(reply: unknown): Record<string, string> {
+  const info: Record<string, string> = {};
+  for (const [key, value] of Object.entries(mapLikeToObject(reply))) {
+    info[key] = String(value);
+  }
+  return info;
+}
+
+/**
+ * Resolves `promise` or rejects when `ms` elapses. Clears the timer on settle
+ * so a late timeout cannot become an unhandled rejection.
+ */
+async function raceAgainstDeadline<T>(
+  promise: Promise<T>,
+  ms: number,
+  onTimeout: () => void,
+): Promise<T> {
+  let timer: ReturnType<typeof globalThis.setTimeout> | undefined;
+  // Swallow late rejections from `promise` after the timer wins — otherwise
+  // destroy()-aborted connect/sendCommand can become an unhandled rejection.
+  const guarded = promise.then(
+    value => ({ ok: true as const, value }),
+    error => ({ ok: false as const, error }),
+  );
+  try {
+    const result = await Promise.race([
+      guarded,
+      new Promise<never>((_, reject) => {
+        timer = globalThis.setTimeout(() => {
+          try {
+            onTimeout();
+          } catch {
+            // ignore destroy errors during timeout
+          }
+          reject(new Error(`timed out after ${ms}ms`));
+        }, ms);
+      }),
+    ]);
+    if (!result.ok) {
+      throw result.error;
+    }
+    return result.value;
+  } finally {
+    if (timer !== undefined) {
+      globalThis.clearTimeout(timer);
+    }
+  }
+}
+
+/**
+ * Polls the spawned sentinels until one reports an electable master for
+ * `masterName` (same flags check the sentinel client uses in `parseNode`).
+ */
+async function waitForSentinelMasterElectable(
+  sentinels: Array<RedisServerDocker>,
+  masterName: string,
+  password?: string,
+  timeoutMs = 30_000,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  let lastError: unknown;
+
+  while (Date.now() < deadline) {
+    for (const sentinel of sentinels) {
+      // Bound each probe by the remaining deadline and disable reconnects.
+      // `connectTimeout` only covers TCP; HELLO/AUTH can still hang, so race
+      // the whole handshake + SENTINEL MASTER against the deadline.
+      const remainingMs = Math.max(1, deadline - Date.now());
+      const client = createClient({
+        socket: {
+          port: sentinel.port,
+          reconnectStrategy: false,
+          connectTimeout: remainingMs,
+        },
+        password,
+        commandOptions: { timeout: remainingMs },
+      });
+      // Swallow socket errors so a mid-probe disconnect is caught/retried
+      // instead of throwing from EventEmitter with no listener.
+      client.on('error', () => {});
+      try {
+        const info = await raceAgainstDeadline(
+          (async () => {
+            await client.connect();
+            // sendCommand returns RESP3 Maps by default — do not assume a flat array.
+            return sentinelMasterInfo(
+              await client.sendCommand(['SENTINEL', 'MASTER', masterName])
+            );
+          })(),
+          remainingMs,
+          () => client.destroy(),
+        );
+
+        const flags = info.flags ?? '';
+        if (
+          info.ip &&
+          info.port &&
+          !flags.includes('s_down') &&
+          !flags.includes('disconnected') &&
+          !flags.includes('failover_in_progress')
+        ) {
+          return;
+        }
+
+        lastError = new Error(`master not electable yet (flags=${flags || 'missing'})`);
+      } catch (err) {
+        lastError = err;
+      } finally {
+        client.destroy();
+      }
+    }
+
+    await setTimeout(100);
+  }
+
+  throw new Error(
+    `Timed out waiting for sentinel master "${masterName}" to become electable: ${
+      lastError instanceof Error ? lastError.message : String(lastError)
+    }`
+  );
+}
+
+async function spawnRedisSentinelDockers(
   dockerConfigs: RedisServerDockerOptions,
   serverArguments: Array<string>,
 ): Promise<Array<RedisServerDocker>> {
-    const runningNodes = RUNNING_SENTINELS.get(serverArguments);
-    if (runningNodes) {
-      return runningNodes;
-    }
+  const passIndex = serverArguments.indexOf('--requirepass') + 1;
+  let password: string | undefined = undefined;
+  if (passIndex != 0) {
+    password = serverArguments[passIndex];
+  }
 
-    const passIndex = serverArguments.indexOf('--requirepass')+1;
-    let password: string | undefined = undefined;
-    if (passIndex != 0) {
-      password = serverArguments[passIndex];
-    }
+  const master = await spawnRedisServerDocker(dockerConfigs, serverArguments);
+  const redisNodes: Array<RedisServerDocker> = [master];
+  const replicaPromises: Array<Promise<RedisServerDocker>> = [];
 
-    const master = await spawnRedisServerDocker(dockerConfigs, serverArguments);
-    const redisNodes: Array<RedisServerDocker> = [master];
-    const replicaPromises: Array<Promise<RedisServerDocker>> = [];
+  const replicasCount = 2;
+  for (let i = 0; i < replicasCount; i++) {
+    replicaPromises.push((async () => {
+      const replica = await spawnRedisServerDocker(dockerConfigs, serverArguments);
+      const client = createClient({
+        socket: {
+          port: replica.port
+        },
+        password: password
+      });
 
-    const replicasCount = 2;
-    for (let i = 0; i < replicasCount; i++) {
-      replicaPromises.push((async () => {
-        const replica = await spawnRedisServerDocker(dockerConfigs, serverArguments);
-        const client = createClient({
-          socket: {
-            port: replica.port
-          },
-          password: password
-        });
+      await client.connect();
+      await client.replicaOf('127.0.0.1', master.port);
+      await client.close();
 
-        await client.connect();
-        await client.replicaOf("127.0.0.1", master.port);
-        await client.close();
+      return replica;
+    })());
+  }
 
-        return replica;
-      })());
-    }
+  const replicas = await Promise.all(replicaPromises);
+  redisNodes.push(...replicas);
+  RUNNING_NODES.set(serverArguments, redisNodes);
 
-    const replicas = await Promise.all(replicaPromises);
-    redisNodes.push(...replicas);
-    RUNNING_NODES.set(serverArguments, redisNodes);
+  const sentinelPromises: Array<Promise<RedisServerDocker>> = [];
+  const sentinelCount = 3;
 
-    const sentinelPromises: Array<Promise<RedisServerDocker>> = [];
-    const sentinelCount = 3;
+  const appPrefix = 'sentinel-config-dir';
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), appPrefix));
 
-    const appPrefix = 'sentinel-config-dir';
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), appPrefix));
+  for (let i = 0; i < sentinelCount; i++) {
+    sentinelPromises.push(
+      spawnSentinelNode(
+        dockerConfigs,
+        serverArguments,
+        master.port,
+        'mymaster',
+        path.join(tmpDir, i.toString()),
+        password,
+      ),
+    );
+  }
 
-    for (let i = 0; i < sentinelCount; i++) {
-      sentinelPromises.push(
-        spawnSentinelNode(
-          dockerConfigs,
-          serverArguments,
-          master.port,
-          "mymaster",
-          path.join(tmpDir, i.toString()),
-          password,
-        ),
-      )
-    }
+  let sentinelNodes: Array<RedisServerDocker>;
+  try {
+    sentinelNodes = await Promise.all(sentinelPromises);
 
-    const sentinelNodes = await Promise.all(sentinelPromises);
-    RUNNING_SENTINELS.set(serverArguments, sentinelNodes);
+    // Containers can be up before any sentinel has an electable master (and
+    // before the suite's first SENTINEL MASTER probe). Wait so callers don't
+    // cascade on "no valid master node" / before-hook timeouts (#3650 A).
+    await waitForSentinelMasterElectable(sentinelNodes, 'mymaster', password);
+  } catch (err) {
+    // Tear down everything started for this attempt so a failed readiness wait
+    // (or mid-flight sentinel spawn) does not leak containers. Master/replicas
+    // are already in RUNNING_NODES; remove them too or a retry would orphan the
+    // first batch when it overwrites that entry.
+    const startedSentinels = (
+      await Promise.allSettled(sentinelPromises)
+    ).flatMap(result => result.status === 'fulfilled' ? [result.value] : []);
+    await Promise.allSettled([
+      ...startedSentinels.map(({ dockerId }) => dockerRemove(dockerId)),
+      ...redisNodes.map(({ dockerId }) => dockerRemove(dockerId)),
+    ]);
+    RUNNING_NODES.delete(serverArguments);
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    throw err;
+  }
 
-    if (tmpDir) {
-      fs.rmSync(tmpDir, { recursive: true });
-    }
+  // Temp-dir cleanup is best-effort and outside the failure catch so a delete
+  // error cannot tear down an already-electable topology.
+  try {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  } catch {
+    // ignore
+  }
+  return sentinelNodes;
+}
 
-    return sentinelNodes;
+export function spawnRedisSentinel(
+  dockerConfigs: RedisServerDockerOptions,
+  serverArguments: Array<string>,
+): Promise<Array<RedisServerDocker>> {
+  const running = RUNNING_SENTINELS.get(serverArguments);
+  if (running) {
+    return running;
+  }
+
+  // Register the in-flight promise immediately (same pattern as
+  // spawnRedisCluster) so overlapping callers share one topology — especially
+  // important now that we wait for an electable master before resolving.
+  // Evict on rejection so a transient failure does not poison later suites
+  // that reuse the same serverArguments array.
+  const dockersPromise = spawnRedisSentinelDockers(dockerConfigs, serverArguments)
+    .catch(err => {
+      RUNNING_SENTINELS.delete(serverArguments);
+      throw err;
+    });
+  RUNNING_SENTINELS.set(serverArguments, dockersPromise);
+  return dockersPromise;
 }
 
 after(function() {
@@ -731,9 +904,14 @@ after(function() {
     ...Array.from(RUNNING_NODES.values()).map(dockersPromise =>
       Promise.all(dockersPromise.map(({ dockerId }) => dockerRemove(dockerId)))
     ),
-    ...Array.from(RUNNING_SENTINELS.values()).map(dockersPromise =>
-      Promise.all(dockersPromise.map(({ dockerId }) => dockerRemove(dockerId)))
-    ),
+    ...Array.from(RUNNING_SENTINELS.values()).map(async dockersPromise => {
+      try {
+        const nodes = await dockersPromise;
+        await Promise.all(nodes.map(({ dockerId }) => dockerRemove(dockerId)));
+      } catch {
+        // Spawn failed and already cleaned up / was evicted from the map.
+      }
+    }),
     ...Array.from(RUNNING_PROXIED_SERVERS.values()).map(async dockerPromise =>
       dockerRemove((await dockerPromise).dockerId)
     )
@@ -762,11 +940,9 @@ sentinel failover-timeout ${sentinelName} 1000
   }
 
   const dir = fs.mkdtempSync(tmpDir);
-  fs.writeFile(`${dir}/redis.conf`, sentinelConfig, err => {
-    if (err) {
-      console.error("failed to create temporary config file", err);
-    }
-  });
+  // Must be sync: the config is bind-mounted into the container next, and an
+  // async writeFile can leave an empty/missing file when the sentinel starts.
+  fs.writeFileSync(`${dir}/redis.conf`, sentinelConfig);
 
   return await spawnRedisServerDocker(
     {
