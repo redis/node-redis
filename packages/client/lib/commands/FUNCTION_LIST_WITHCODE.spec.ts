@@ -23,6 +23,15 @@ describe('FUNCTION LIST WITHCODE', () => {
         ['FUNCTION', 'LIST', 'LIBRARYNAME', 'patter*', 'WITHCODE']
       );
     });
+
+    it('with an empty LIBRARYNAME', () => {
+      assert.deepEqual(
+        parseArgs(FUNCTION_LIST_WITHCODE, {
+          LIBRARYNAME: ''
+        }),
+        ['FUNCTION', 'LIST', 'LIBRARYNAME', '', 'WITHCODE']
+      );
+    });
   });
 
   testUtils.testWithClient('client.functionListWithCode', async client => {
@@ -31,10 +40,6 @@ describe('FUNCTION LIST WITHCODE', () => {
       client.functionListWithCode()
     ]);
 
-    const a = reply[0];
-
-    const b = a.functions[0].description;
-    
     assert.deepEqual(reply, [{
       library_name: MATH_FUNCTION.name,
       engine: MATH_FUNCTION.engine,
