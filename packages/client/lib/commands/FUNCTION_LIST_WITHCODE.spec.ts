@@ -40,10 +40,6 @@ describe('FUNCTION LIST WITHCODE', () => {
       client.functionListWithCode()
     ]);
 
-    const a = reply[0];
-
-    const b = a.functions[0].description;
-    
     assert.deepEqual(reply, [{
       library_name: MATH_FUNCTION.name,
       engine: MATH_FUNCTION.engine,

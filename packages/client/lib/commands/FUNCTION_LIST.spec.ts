@@ -59,8 +59,6 @@ describe('FUNCTION LIST', () => {
       client.functionList()
     ]);
 
-    reply[0].library_name;
-
     assert.deepEqual(reply, [{
       library_name: MATH_FUNCTION.name,
       engine: MATH_FUNCTION.engine,
