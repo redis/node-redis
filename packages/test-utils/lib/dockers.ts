@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { createConnection } from 'node:net';
 import { once } from 'node:events';
 import { createClient } from '@redis/client/index';
+import { mapLikeToObject } from '@redis/client/dist/lib/commands/reply-utils';
 import { setTimeout } from 'node:timers/promises';
 // import { ClusterSlotsReply } from '@redis/client/dist/lib/commands/CLUSTER_SLOTS';
 import { execFile as execFileCallback } from 'node:child_process';
@@ -649,6 +650,21 @@ const RUNNING_NODES = new Map<Array<string>, Array<RedisServerDocker>>();
 const RUNNING_SENTINELS = new Map<Array<string>, Promise<Array<RedisServerDocker>>>();
 
 /**
+ * Normalizes a raw `SENTINEL MASTER` reply into a string record.
+ *
+ * RESP2 returns a flat tuple array. RESP3 returns a map — by default as a
+ * plain object (`#decodeMapAsObject`), or as a `Map` when type-mapped.
+ * `mapLikeToObject` covers all three shapes.
+ */
+function sentinelMasterInfo(reply: unknown): Record<string, string> {
+  const info: Record<string, string> = {};
+  for (const [key, value] of Object.entries(mapLikeToObject(reply))) {
+    info[key] = String(value);
+  }
+  return info;
+}
+
+/**
  * Polls the spawned sentinels until one reports an electable master for
  * `masterName` (same flags check the sentinel client uses in `parseNode`).
  */
@@ -669,16 +685,10 @@ async function waitForSentinelMasterElectable(
       });
       try {
         await client.connect();
-        const reply = await client.sendCommand([
-          'SENTINEL',
-          'MASTER',
-          masterName,
-        ]) as Array<string | Buffer>;
-
-        const info: Record<string, string> = {};
-        for (let i = 0; i + 1 < reply.length; i += 2) {
-          info[String(reply[i])] = String(reply[i + 1]);
-        }
+        // sendCommand returns RESP3 Maps by default — do not assume a flat array.
+        const info = sentinelMasterInfo(
+          await client.sendCommand(['SENTINEL', 'MASTER', masterName])
+        );
 
         const flags = info.flags ?? '';
         if (
