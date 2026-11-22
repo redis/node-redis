@@ -107,7 +107,10 @@ export default {
 } as const satisfies Command;
 
 function parseTerms(parser: CommandParser, { mode, dictionary }: Terms) {
-  parser.push('TERMS', mode, dictionary);
+  parser.push('TERMS', mode);
+  // Dictionary names are Redis keys (same as FT.DICT*). SPELLCHECK is
+  // cluster-keyless — prefix on the wire without registering a routing key.
+  parser.pushPrefixed(dictionary);
 }
 
 type SpellCheckRawReply = Array<[

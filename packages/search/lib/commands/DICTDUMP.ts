@@ -7,7 +7,10 @@ export default {
   // pre-derivation master behavior).
   IS_READ_ONLY: true,
   parseCommand(parser: CommandParser, dictionary: RedisArgument) {
-    parser.push('FT.DICTDUMP', dictionary);
+    parser.push('FT.DICTDUMP');
+    // Dictionary names are Redis keys, but FT.DICT* is cluster-keyless — prefix
+    // on the wire without registering a routing key.
+    parser.pushPrefixed(dictionary);
   },
   transformReply: {
     2: undefined as unknown as () => ArrayReply<BlobStringReply>,

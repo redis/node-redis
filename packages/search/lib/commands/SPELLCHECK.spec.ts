@@ -3,6 +3,7 @@ import testUtils, { GLOBAL } from '../test-utils';
 import SPELLCHECK from './SPELLCHECK';
 import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
 import { DEFAULT_DIALECT } from '../dialect/default';
+import { BasicCommandParser } from '@redis/client/lib/client/parser';
 
 describe('FT.SPELLCHECK', () => {
   describe('transformArguments', () => {
@@ -48,6 +49,22 @@ describe('FT.SPELLCHECK', () => {
           }),
           ['FT.SPELLCHECK', 'index', 'query', 'TERMS', 'INCLUDE', 'include', 'TERMS', 'EXCLUDE', 'exclude', 'DIALECT', DEFAULT_DIALECT]
         );
+      });
+
+      it('applies keyPrefix to the dictionary key without registering routing keys', () => {
+        const parser = new BasicCommandParser('prefix:');
+        SPELLCHECK.parseCommand(parser, 'index', 'query', {
+          TERMS: {
+            mode: 'INCLUDE',
+            dictionary: 'dictionary'
+          }
+        });
+        assert.deepEqual(
+          parser.redisArgs,
+          ['FT.SPELLCHECK', 'index', 'query', 'TERMS', 'INCLUDE', 'prefix:dictionary', 'DIALECT', DEFAULT_DIALECT]
+        );
+        assert.deepEqual(parser.keys, []);
+        assert.equal(parser.firstKey, undefined);
       });
     });
 

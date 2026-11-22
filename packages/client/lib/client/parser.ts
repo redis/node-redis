@@ -54,6 +54,12 @@ export interface CommandParser {
   pushKey: (key: RedisArgument, applyPrefix?: boolean) => unknown; // normal push of keys
   pushKeys: (keys: RedisVariadicArgument) => unknown; // push multiple keys at a time
   pushKeysLength: (keys: RedisVariadicArgument) => unknown; // push multiple keys at a time
+  /**
+   * Push a key onto the wire with `keyPrefix` applied, without registering it
+   * for cluster routing. For commands that are policy-keyless but still take
+   * Redis key arguments (e.g. `FT.DICT*`).
+   */
+  pushPrefixed: (key: RedisArgument) => unknown;
 }
 
 export class BasicCommandParser implements CommandParser {
@@ -153,6 +159,14 @@ export class BasicCommandParser implements CommandParser {
 
   pushKey(key: RedisArgument, applyPrefix = true) {
     this.#addKey(key, applyPrefix);
+  }
+
+  /**
+   * Wire-only keyPrefix: prefixes the argument for the server, but leaves
+   * `keys` / `firstKey` untouched so cluster-keyless commands stay keyless.
+   */
+  pushPrefixed(key: RedisArgument) {
+    this.#redisArgs.push(prefixKey(this.#keyPrefix, key));
   }
 
   /**

@@ -161,6 +161,25 @@ describe('BasicCommandParser', () => {
     });
   });
 
+  describe('pushPrefixed', () => {
+    it('prefixes on the wire without registering a routing key', () => {
+      const parser = new BasicCommandParser('prefix:');
+      parser.push('FT.DICTDUMP');
+      parser.pushPrefixed('dictionary');
+
+      assert.deepEqual(parser.redisArgs, ['FT.DICTDUMP', 'prefix:dictionary']);
+      assert.deepEqual(parser.keys, []);
+      assert.equal(parser.firstKey, undefined);
+    });
+
+    it('is a no-op prefix when keyPrefix is unset', () => {
+      const parser = new BasicCommandParser();
+      parser.pushPrefixed('dictionary');
+      assert.deepEqual(parser.redisArgs, ['dictionary']);
+      assert.deepEqual(parser.keys, []);
+    });
+  });
+
   describe('markRoutingKey', () => {
     it('sets firstKey without appending to redisArgs', () => {
       const parser = new BasicCommandParser();
