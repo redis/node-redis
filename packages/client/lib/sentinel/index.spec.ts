@@ -267,6 +267,29 @@ describe('RedisSentinel', () => {
         },
       })
 
+      testUtils.testWithClientSentinel('should use the client-side cache with a type mapping', async sentinel => {
+        await sentinel.set('key', 'value');
+
+        for (let i = 0; i < 2; i++) {
+          const value = await sentinel.get('key');
+          assert.ok(Buffer.isBuffer(value), `get, call ${i + 1}`);
+          assert.equal(value.toString(), 'value');
+        }
+
+        // The second get is served from the cache, as in a cluster
+        // (https://github.com/redis/node-redis/issues/3549)
+        const stats = sentinel.clientSideCache!.stats();
+        assert.equal(stats.missCount, 1, 'Cache Misses');
+        assert.equal(stats.hitCount, 1, 'Cache Hits');
+      }, {
+        ...GLOBAL.SENTINEL.OPEN,
+        sentinelOptions: {
+          RESP: 3,
+          clientSideCache: { ttl: 0, maxEntries: 0 },
+          commandOptions: { typeMapping: { [RESP_TYPES.BLOB_STRING]: Buffer } }
+        }
+      })
+
     });
 
     describe('nodeAddressMap', () => {

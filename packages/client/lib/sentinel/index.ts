@@ -961,6 +961,9 @@ export class RedisSentinelInternal<
     // a failover must be transparently re-preparable on the promoted master's connections.
     // (Sentinel-monitor clients use #sentinelClientOptions and never run HIMPORT.)
     this.#nodeClientOptions.himportRegistry = new FieldsetRegistry();
+    if (options.commandOptions?.typeMapping !== undefined) {
+      this.#nodeClientOptions.cacheTypeMapping = options.commandOptions.typeMapping;
+    }
 
     if (options.clientSideCache) {
       if (options.clientSideCache instanceof PooledClientSideCacheProvider) {
