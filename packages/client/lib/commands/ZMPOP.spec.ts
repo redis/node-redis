@@ -22,6 +22,24 @@ describe('ZMPOP', () => {
         ['ZMPOP', '1', 'key', 'MIN', 'COUNT', '2']
       );
     });
+
+    it('with COUNT 0', () => {
+      assert.deepEqual(
+        parseArgs(ZMPOP, 'key', 'MIN', {
+          COUNT: 0
+        }),
+        ['ZMPOP', '1', 'key', 'MIN', 'COUNT', '0']
+      );
+    });
+
+    it('omits an undefined COUNT', () => {
+      assert.deepEqual(
+        parseArgs(ZMPOP, 'key', 'MIN', {
+          COUNT: undefined
+        }),
+        ['ZMPOP', '1', 'key', 'MIN']
+      );
+    });
   });
 
   testUtils.testAll('zmPop - null', async client => {

@@ -34,7 +34,7 @@ export default {
 
     parser.push('IDX');
 
-    if (options?.MINMATCHLEN) {
+    if (options?.MINMATCHLEN !== undefined) {
       parser.push('MINMATCHLEN', options.MINMATCHLEN.toString());
     }
   },

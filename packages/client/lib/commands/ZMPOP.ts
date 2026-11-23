@@ -24,7 +24,7 @@ export function parseZMPopArguments(
 
   parser.push(side);
 
-  if (options?.COUNT) {
+  if (options?.COUNT !== undefined) {
     parser.push('COUNT', options.COUNT.toString());
   }
 }

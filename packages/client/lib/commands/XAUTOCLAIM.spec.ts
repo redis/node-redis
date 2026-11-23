@@ -22,6 +22,24 @@ describe('XAUTOCLAIM', () => {
         ['XAUTOCLAIM', 'key', 'group', 'consumer', '1', '0-0', 'COUNT', '1']
       );
     });
+
+    it('with COUNT 0', () => {
+      assert.deepEqual(
+        parseArgs(XAUTOCLAIM, 'key', 'group', 'consumer', 1, '0-0', {
+          COUNT: 0
+        }),
+        ['XAUTOCLAIM', 'key', 'group', 'consumer', '1', '0-0', 'COUNT', '0']
+      );
+    });
+
+    it('omits an undefined COUNT', () => {
+      assert.deepEqual(
+        parseArgs(XAUTOCLAIM, 'key', 'group', 'consumer', 1, '0-0', {
+          COUNT: undefined
+        }),
+        ['XAUTOCLAIM', 'key', 'group', 'consumer', '1', '0-0']
+      );
+    });
   });
 
   testUtils.testAll('xAutoClaim', async client => {

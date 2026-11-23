@@ -22,6 +22,24 @@ describe('BZMPOP', () => {
         ['BZMPOP', '0', '1', 'key', 'MIN', 'COUNT', '2']
       );
     });
+
+    it('with COUNT 0', () => {
+      assert.deepEqual(
+        parseArgs(BZMPOP, 0, 'key', 'MIN', {
+          COUNT: 0
+        }),
+        ['BZMPOP', '0', '1', 'key', 'MIN', 'COUNT', '0']
+      );
+    });
+
+    it('omits an undefined COUNT', () => {
+      assert.deepEqual(
+        parseArgs(BZMPOP, 0, 'key', 'MIN', {
+          COUNT: undefined
+        }),
+        ['BZMPOP', '0', '1', 'key', 'MIN']
+      );
+    });
   });
 
   testUtils.testAll('bzmPop - null', async client => {

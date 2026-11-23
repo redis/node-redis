@@ -38,7 +38,7 @@ export default {
     parser.pushKey(key);
     parser.push(group, consumer, minIdleTime.toString(), start);
 
-    if (options?.COUNT) {
+    if (options?.COUNT !== undefined) {
       parser.push('COUNT', options.COUNT.toString());
     }
   },
