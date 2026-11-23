@@ -6,7 +6,7 @@ import { RedisClusterClientOptions } from './index';
 import RedisClusterSlots, { groupCommandsByDestination, splitInFlightChainTail } from './cluster-slots';
 import type { MasterNode, Shard, ShardNode } from './cluster-slots';
 import type { CommandToWrite } from '../client/commands-queue';
-import { ClientClosedError } from '../errors';
+import { ClientClosedError, TimeoutError } from '../errors';
 import { SMIGRATED_EVENT, type SMigratedEvent } from '../client/enterprise-maintenance-manager';
 
 describe('RedisClusterSlots', () => {
@@ -80,6 +80,62 @@ describe('RedisClusterSlots', () => {
         }, () => true)
         assert.throws(() => slots.getRandomNode(), ClientClosedError)
       });
+  });
+
+  describe('waiting for a connecting node', () => {
+    type TestNode = ShardNode<
+      Record<string, never>,
+      Record<string, never>,
+      Record<string, never>,
+      3,
+      Record<string, never>
+    >;
+
+    // a node whose connect never settles, so the only thing that can settle
+    // nodeClient() is the connect-wait timeout itself
+    function neverConnecting(address: string) {
+      return {
+        address,
+        connectPromise: new Promise(() => {})
+      } as unknown as TestNode;
+    }
+
+    function raceSettled(promise: Promise<unknown>, ms: number) {
+      return Promise.race([
+        promise.then(() => 'settled', () => 'settled'),
+        new Promise(resolve => setTimeout(() => resolve('pending'), ms))
+      ]);
+    }
+
+    // `commandOptions.timeout: 0` disables the command timeout
+    // (docs/command-options.md) and the command queue already skips its timer
+    // for it, so the wait for a connecting node must stay unbounded too —
+    // otherwise `setTimeout(..., 0)` rejects every command to a node that is
+    // still connecting, the moment it is issued.
+    it('treats a zero command timeout as disabled, like undefined', async () => {
+      const slots = new RedisClusterSlots({
+        rootNodes: [],
+        commandOptions: { timeout: 0 }
+      }, () => true);
+
+      assert.equal(
+        await raceSettled(slots.nodeClient(neverConnecting('127.0.0.1:1')), 50),
+        'pending',
+        'a zero timeout must leave the connect wait unbounded'
+      );
+    });
+
+    it('still bounds the wait when a command timeout is set', async () => {
+      const slots = new RedisClusterSlots({
+        rootNodes: [],
+        commandOptions: { timeout: 20 }
+      }, () => true);
+
+      await assert.rejects(
+        slots.nodeClient(neverConnecting('127.0.0.1:2')),
+        TimeoutError
+      );
+    });
   });
 
   describe('groupCommandsByDestination', () => {

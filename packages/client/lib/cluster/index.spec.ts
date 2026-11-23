@@ -1280,8 +1280,11 @@ describe('Cluster', () => {
         assert.equal(await dup.set(liveKey, 'v'), 'OK', 'a live shard serves commands');
 
         // point 2: the wait for the dead node's connect is raced against the
-        // cluster's command timeout, instead of being unbounded
-        await assert.rejects(dup.get(deadKey), TimeoutError, 'the dead shard rejects on the command timeout');
+        // cluster's command timeout, instead of being unbounded.
+        // Must be a write: the fixture enables `useReplicas`, so a read-only
+        // command could be served by the dead master's healthy replica and
+        // resolve without ever touching the unreachable connection.
+        await assert.rejects(dup.set(deadKey, 'v'), TimeoutError, 'the dead shard rejects on the command timeout');
       } finally {
         connectStub.restore();
         dup.destroy();
@@ -1438,7 +1441,19 @@ describe('Cluster', () => {
         .on('node-connect', () => log.push('node-connect'))
         .on('node-disconnect', () => log.push('node-disconnect'))
 
+      // #3592 point 1 runs the node connects in the background, so `connect()`
+      // can resolve before either handshake finishes. Destroying there would
+      // race them and lose the node-connect/node-ready pairs this asserts, so
+      // wait for both nodes to report ready first.
+      const bothReady = new Promise<void>(resolve => {
+        let ready = 0;
+        cluster.on('node-ready', () => {
+          if (++ready === 2) resolve();
+        });
+      });
+
       await cluster.connect();
+      await bothReady;
       cluster.destroy();
 
       // #3592 point 1 detaches the node connects from `connect()`: the slot map

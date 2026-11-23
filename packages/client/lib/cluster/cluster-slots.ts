@@ -710,8 +710,17 @@ export default class RedisClusterSlots<
           // Handle pubSubNode replacement BEFORE destroying source connections
           // This ensures subscriptions are resubscribed on a new node before the old connection is lost
           if (this.pubSubNode?.address === sourceAddress) {
-            const channelsListeners = this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.CHANNELS),
-              patternsListeners = this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.PATTERNS);
+            // a refresh in the connect window parks the listeners on
+            // `toResubscribe`, where the live client cannot report them
+            const pending = this.pubSubNode.toResubscribe,
+              channelsListeners = mergePubSubTypeListeners(
+                this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.CHANNELS),
+                pending?.[PUBSUB_TYPE.CHANNELS]
+              ),
+              patternsListeners = mergePubSubTypeListeners(
+                this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.PATTERNS),
+                pending?.[PUBSUB_TYPE.PATTERNS]
+              );
 
             const oldPubSubClient = this.pubSubNode.client;
 
@@ -947,13 +956,15 @@ export default class RedisClusterSlots<
   }
 
   // Waiting for a connecting node is bounded by the cluster's command timeout
-  // (#3592): unbounded, an unreachable node held its commands forever. An
-  // explicit `commandOptions.timeout: undefined` keeps the unbounded wait.
+  // (#3592): unbounded, an unreachable node held its commands forever. A
+  // `commandOptions.timeout` of `undefined` or `0` disables the command
+  // timeout, so it keeps the unbounded wait here too — the command queue
+  // skips its own timer for both.
   #raceConnectTimeout(
     connectPromise: Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>
   ): Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {
     const { timeout } = { timeout: DEFAULT_COMMAND_TIMEOUT, ...this.#options?.commandOptions };
-    if (timeout === undefined) return connectPromise;
+    if (!timeout) return connectPromise;
 
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => reject(new TimeoutError()), timeout);
@@ -1129,6 +1140,14 @@ export default class RedisClusterSlots<
 
     if (this.pubSubNode) {
       drain(this.pubSubNode.client);
+      // listeners parked by a refresh that is still connecting live on
+      // `toResubscribe`, not on the client, so drain them too
+      const pending = this.pubSubNode.toResubscribe;
+      if (pending) {
+        for (const type of [PUBSUB_TYPE.CHANNELS, PUBSUB_TYPE.PATTERNS] as const) {
+          mergePubSubTypeListeners(merged[type], pending[type]);
+        }
+      }
       // server-side subscriber state is per-connection: destroy the drained
       // connection or the server keeps pushing every publish to a client with
       // zero listeners; a later subscribe recreates the node lazily
