@@ -5,7 +5,7 @@ import { REDIS_FLUSH_MODES } from "../commands/FLUSHALL";
 import { once } from 'events';
 import RedisClient from "./index";
 import { BasicCommandParser } from "./parser";
-import { ClientSideCacheCommandError, ClientSideCacheMarkError } from "../errors";
+import { AbortError, AbortReadError, ClientSideCacheCommandError, ClientSideCacheMarkError, TimeoutReadError } from "../errors";
 import { RESP_TYPES } from "../RESP/decoder";
 import { TypeMapping } from "../RESP/types";
 import { VerbatimString } from "../RESP/verbatim-string";
@@ -298,6 +298,59 @@ describe("Client Side Cache", () => {
         assert.ok(!(1 in array));
         assert.ok(Buffer.isBuffer(array[0]) && Buffer.isBuffer(array[2]));
       }
+    });
+  });
+
+  describe('handleCache() when the first caller of a shared load fails', () => {
+    function getParser() {
+      const parser = new BasicCommandParser();
+      parser.push('GET');
+      parser.pushKey('k');
+      return parser;
+    }
+
+    function deferred() {
+      let reject!: (err: Error) => void;
+      const promise = new Promise<never>((_, rej) => reject = rej);
+      return { promise, reject };
+    }
+
+    for (const ErrorClass of [AbortError, AbortReadError]) {
+      it(`waiters load again after the first caller's ${ErrorClass.name}`, async () => {
+        const cache = new BasicClientSideCache(),
+          first = deferred();
+        let loads = 0;
+        const load = () => {
+          loads++;
+          return Promise.resolve('v');
+        };
+
+        const p1 = cache.handleCache({} as never, getParser(), (() => first.promise) as never),
+          p2 = cache.handleCache({} as never, getParser(), load as never),
+          p3 = cache.handleCache({} as never, getParser(), load as never);
+
+        first.reject(new ErrorClass());
+
+        await assert.rejects(p1, ErrorClass);
+        assert.equal(await p2, 'v');
+        assert.equal(await p3, 'v');
+        assert.equal(loads, 1, 'the waiters share one new load');
+      });
+    }
+
+    it('waiters still get any other error', async () => {
+      const cache = new BasicClientSideCache(),
+        first = deferred();
+      let loads = 0;
+
+      const p1 = cache.handleCache({} as never, getParser(), (() => first.promise) as never),
+        p2 = cache.handleCache({} as never, getParser(), (() => ++loads) as never);
+
+      first.reject(new TimeoutReadError(10));
+
+      await assert.rejects(p1, TimeoutReadError);
+      await assert.rejects(p2, TimeoutReadError);
+      assert.equal(loads, 0);
     });
   });
 

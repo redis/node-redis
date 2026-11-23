@@ -80,15 +80,60 @@ export class BlobError extends ErrorReply {}
 
 export class TimeoutError extends Error {}
 
-export class SocketTimeoutDuringMaintenanceError extends TimeoutError {
+/**
+ * A command timed out after it was sent, while it waited for its reply. The server may
+ * have executed it: retry only if the command is idempotent. Not a `TimeoutError`, which
+ * means the command was never sent. Thrown with `rejectInFlight: true`, and when a
+ * cluster slot migration stops waiting for the replies of the source node.
+ * @experimental
+ */
+export class TimeoutReadError extends Error {
   constructor(timeout: number) {
-    super(`Socket timeout during maintenance. Expecting data, but didn't receive any in ${timeout}ms.`);
+    super(`Command timed out after ${timeout}ms waiting for a reply; it may have been executed`);
+  }
+}
+
+/**
+ * A command was aborted after it was sent, while it waited for its reply. The server may
+ * have executed it: retry only if the command is idempotent. Not an `AbortError`, which
+ * means the command was never sent. Thrown only with `rejectInFlight: true`.
+ * @experimental
+ */
+export class AbortReadError extends Error {
+  // `multi-db/error-filter.ts:defaultErrorFilter` must skip this error like `AbortError`.
+  constructor() {
+    super('Command aborted while waiting for a reply; it may have been executed');
+  }
+}
+
+/**
+ * The socket received no data for the relaxed maintenance timeout and was closed. Commands
+ * that waited for a reply reject with this error. The server may have executed them: retry
+ * only if the command is idempotent.
+ */
+export class SocketTimeoutDuringMaintenanceError extends TimeoutReadError {
+  constructor(timeout: number) {
+    super(timeout);
+    this.message = `Socket timeout during maintenance. Expecting data, but didn't receive any in ${timeout}ms.`;
   }
 }
 
 export class CommandTimeoutDuringMaintenanceError extends TimeoutError {
   constructor(timeout: number) {
     super(`Command timeout during maintenance. Waited to write command for more than ${timeout}ms.`);
+  }
+}
+
+/**
+ * A command sent during a maintenance window timed out while it waited for its reply,
+ * using the relaxed maintenance timeout. The server may have executed it: retry only if
+ * the command is idempotent. Thrown only with `rejectInFlight: true`.
+ * @experimental
+ */
+export class CommandTimeoutReadDuringMaintenanceError extends TimeoutReadError {
+  constructor(timeout: number) {
+    super(timeout);
+    this.message = `Command timeout during maintenance. Waited for a reply for more than ${timeout}ms; it may have been executed.`;
   }
 }
 

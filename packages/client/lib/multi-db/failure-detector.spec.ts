@@ -4,10 +4,13 @@ import { DefaultFailureDetector } from './failure-detector';
 import { defaultErrorFilter } from './error-filter';
 import {
   AbortError,
+  AbortReadError,
+  CommandTimeoutReadDuringMaintenanceError,
   MultiErrorReply,
   SimpleError,
   SocketClosedUnexpectedlyError,
   TimeoutError,
+  TimeoutReadError,
   WatchError
 } from '../errors';
 
@@ -140,6 +143,7 @@ describe('DefaultFailureDetector', () => {
       ['BUSYKEY (not BUSY)', reply('BUSYKEY Target key name already exists.')],
       ['WatchError', new WatchError()],
       ['AbortError', new AbortError()],
+      ['AbortReadError', new AbortReadError()],
       ['MultiErrorReply of command errors', new MultiErrorReply([reply('WRONGTYPE x')], [0])]
     ] as const) {
       it(`ignores ${name}`, () => {
@@ -157,6 +161,8 @@ describe('DefaultFailureDetector', () => {
       ['MISCONF', reply('MISCONF Redis is configured to save RDB snapshots')],
       ['SocketClosedUnexpectedlyError', new SocketClosedUnexpectedlyError()],
       ['TimeoutError', new TimeoutError()],
+      ['TimeoutReadError', new TimeoutReadError(1)],
+      ['CommandTimeoutReadDuringMaintenanceError', new CommandTimeoutReadDuringMaintenanceError(1)],
       ['ECONNRESET', connReset],
       ['MultiErrorReply with a server-state reply', new MultiErrorReply([reply('WRONGTYPE x'), reply('LOADING y')], [0, 1])]
     ] as const) {

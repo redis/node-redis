@@ -1,7 +1,7 @@
 import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL, blockSetImmediate, waitTillBeenCalled } from '../test-utils';
 import RedisClient, { RedisClientOptions, RedisClientType } from '.';
-import { AbortError, ClientClosedError, ClientOfflineError, ConnectionTimeoutError, DisconnectsClientError, ErrorReply, MultiErrorReply, TimeoutError, WatchError } from '../errors';
+import { AbortError, AbortReadError, ClientClosedError, ClientOfflineError, ConnectionTimeoutError, DisconnectsClientError, ErrorReply, MultiErrorReply, TimeoutError, TimeoutReadError, WatchError } from '../errors';
 import { defineScript } from '../lua-script';
 import { spy } from 'sinon';
 import EventEmitter, { once } from 'node:events';
@@ -2663,6 +2663,104 @@ describe('Client', () => {
 
       assert.equal(listeners.size, 0);
     });
+  });
+  describe('rejectInFlight', () => {
+    async function pause(client: RedisClientType, ms: number) {
+      const pauser = await client.duplicate().connect();
+      await pauser.sendCommand(['CLIENT', 'PAUSE', ms.toString(), 'ALL']);
+      return pauser;
+    }
+
+    testUtils.testWithClient('rejects a slow reply with TimeoutReadError, and the next commands get their own replies', async client => {
+      const pauser = await pause(client, 500);
+      try {
+        const start = Date.now();
+        await assert.rejects(
+          client.withCommandOptions({ timeout: 100, rejectInFlight: true }).get('k'),
+          TimeoutReadError
+        );
+        assert.ok(Date.now() - start < 300);
+
+        assert.equal(await client.set('k2', 'v'), 'OK');
+        assert.equal(await client.get('k2'), 'v');
+      } finally {
+        pauser.destroy();
+      }
+    }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('without the flag, a slow reply still resolves', async client => {
+      const pauser = await pause(client, 500);
+      try {
+        assert.equal(await client.withCommandOptions({ timeout: 100 }).get('k'), null);
+      } finally {
+        pauser.destroy();
+      }
+    }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('rejects an aborted sent command with AbortReadError', async client => {
+      await client.set('k', 'v');
+      const pauser = await pause(client, 500);
+      try {
+        const controller = new AbortController();
+        const promise = client.withCommandOptions({ abortSignal: controller.signal, rejectInFlight: true }).get('k');
+        setTimeout(() => controller.abort(), 50);
+        await assert.rejects(promise, AbortReadError);
+
+        assert.equal(await client.get('k'), 'v');
+      } finally {
+        pauser.destroy();
+      }
+    }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('does not time out a pipeline with a blocking command after it is sent', async client => {
+      const start = Date.now();
+      assert.deepEqual(
+        await client.withCommandOptions({ timeout: 100, rejectInFlight: true })
+          .multi().set('x', '1').blPop('q-rif', 1).execAsPipeline(),
+        ['OK', null]
+      );
+      assert.ok(Date.now() - start >= 900);
+      assert.equal(await client.get('x'), '1');
+    }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('does not time out a blocking command after it is sent', async client => {
+      const start = Date.now();
+      assert.equal(
+        await client.withCommandOptions({ timeout: 100, rejectInFlight: true }).blPop('q-rif', 1),
+        null
+      );
+      assert.ok(Date.now() - start >= 900);
+      assert.equal(await client.set('x', '1'), 'OK');
+    }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('rejects a slow MULTI with TimeoutReadError and leaves the connection outside MULTI', async client => {
+      const pauser = await pause(client, 500);
+      try {
+        await assert.rejects(
+          client.withCommandOptions({ timeout: 100, rejectInFlight: true }).multi().set('m', '1').get('m').exec(),
+          TimeoutReadError
+        );
+
+        assert.equal(await client.get('m'), '1');
+        assert.equal(await client.ping(), 'PONG');
+      } finally {
+        pauser.destroy();
+      }
+    }, GLOBAL.SERVERS.OPEN);
+
+    testUtils.testWithClient('rejects a slow pipeline with TimeoutReadError', async client => {
+      const pauser = await pause(client, 500);
+      try {
+        await assert.rejects(
+          client.withCommandOptions({ timeout: 100, rejectInFlight: true }).multi().set('p', '1').get('p').execAsPipeline(),
+          TimeoutReadError
+        );
+
+        assert.equal(await client.get('p'), '1');
+      } finally {
+        pauser.destroy();
+      }
+    }, GLOBAL.SERVERS.OPEN);
   });
 });
 

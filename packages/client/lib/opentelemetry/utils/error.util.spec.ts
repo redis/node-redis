@@ -9,6 +9,11 @@ import {
   ReconnectStrategyError,
   SocketTimeoutDuringMaintenanceError,
   CommandTimeoutDuringMaintenanceError,
+  CommandTimeoutReadDuringMaintenanceError,
+  TimeoutError,
+  TimeoutReadError,
+  AbortError,
+  AbortReadError,
   SimpleError,
   BlobError,
 } from "../../errors";
@@ -52,6 +57,30 @@ describe("getErrorInfo", () => {
       const info = getErrorInfo(error);
       assert.strictEqual(info.category, ERROR_CATEGORY.NETWORK);
       assert.strictEqual(info.errorType, "CommandTimeoutDuringMaintenanceError");
+      assert.strictEqual(info.statusCode, undefined);
+    });
+
+    it("should return correct info for CommandTimeoutReadDuringMaintenanceError", () => {
+      const error = new CommandTimeoutReadDuringMaintenanceError(5000);
+      const info = getErrorInfo(error);
+      assert.strictEqual(info.category, ERROR_CATEGORY.NETWORK);
+      assert.strictEqual(info.errorType, "CommandTimeoutReadDuringMaintenanceError");
+      assert.strictEqual(info.statusCode, undefined);
+    });
+
+    it("should return correct info for TimeoutError", () => {
+      const error = new TimeoutError();
+      const info = getErrorInfo(error);
+      assert.strictEqual(info.category, ERROR_CATEGORY.NETWORK);
+      assert.strictEqual(info.errorType, "TimeoutError");
+      assert.strictEqual(info.statusCode, undefined);
+    });
+
+    it("should return correct info for TimeoutReadError", () => {
+      const error = new TimeoutReadError(5000);
+      const info = getErrorInfo(error);
+      assert.strictEqual(info.category, ERROR_CATEGORY.NETWORK);
+      assert.strictEqual(info.errorType, "TimeoutReadError");
       assert.strictEqual(info.statusCode, undefined);
     });
 
@@ -263,6 +292,11 @@ describe("getErrorInfo", () => {
   });
 
   describe("other errors", () => {
+    it("should keep abort errors out of the network category", () => {
+      assert.strictEqual(getErrorInfo(new AbortError()).category, ERROR_CATEGORY.OTHER);
+      assert.strictEqual(getErrorInfo(new AbortReadError()).category, ERROR_CATEGORY.OTHER);
+    });
+
     it("should return correct info for generic Error", () => {
       const error = new Error("Something went wrong");
       const info = getErrorInfo(error);
