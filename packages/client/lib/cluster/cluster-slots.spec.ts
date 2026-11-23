@@ -225,6 +225,66 @@ describe('RedisClusterSlots', () => {
     });
   });
 
+  describe('getClientAndSlotNumber with an empty-string key', () => {
+    // A minimal RESP2 node that owns every slot, so slots[0].master is itself.
+    async function startFakeNode() {
+      const sockets = new Set<Socket>();
+      const server = createServer(socket => {
+        sockets.add(socket);
+        socket.on('close', () => sockets.delete(socket));
+        socket.on('data', chunk => {
+          for (const command of chunk.toString().split('*').filter(part => /^\d+\r\n\$/.test(part))) {
+            if (/CLUSTER\r\n\$5\r\nSLOTS/i.test(command)) {
+              const { port } = server.address() as AddressInfo;
+              socket.write(`*1\r\n*3\r\n:0\r\n:16383\r\n*3\r\n$9\r\n127.0.0.1\r\n:${port}\r\n$2\r\nid\r\n`);
+            } else {
+              socket.write('+OK\r\n');
+            }
+          }
+        });
+      });
+      server.listen(0, '127.0.0.1');
+      await once(server, 'listening');
+      return {
+        port: (server.address() as AddressInfo).port,
+        async close() {
+          for (const socket of sockets) socket.destroy();
+          server.close();
+          await once(server, 'close');
+        }
+      };
+    }
+
+    // `""` is a valid Redis key (slot 0). `!firstKey` wrongly classified it as
+    // keyless and routed it to a random node, dropping the slot; a `MOVED` storm
+    // (or MaxCommandRedirectionsError on a large cluster) followed. It must route
+    // by slot like any other key.
+    it('routes the empty-string key by its slot, not as keyless', async () => {
+      const server = await startFakeNode();
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: server.port } }],
+        RESP: 2
+      }, () => true, 'test-cluster');
+
+      try {
+        await slots.connect();
+
+        // The keyed path sets slotNumber; the keyless random-node branch leaves
+        // it undefined, so slotNumber is the signal that `""` routed correctly.
+        const empty = await slots.getClientAndSlotNumber('', false);
+        assert.equal(empty.slotNumber, 0, 'empty-string key must resolve its slot');
+        assert.equal(empty.client, slots.slots[0].master.client);
+
+        // A genuinely keyless command still goes to a random node with no slot.
+        const keyless = await slots.getClientAndSlotNumber(undefined, false);
+        assert.equal(keyless.slotNumber, undefined);
+      } finally {
+        slots.destroy();
+        await server.close();
+      }
+    });
+  });
+
   describe('destroy() during discovery', () => {
     // A minimal RESP2 server: +OK to every command and a one-shard CLUSTER
     // SLOTS reply pointing at itself. With `hold` set the slots reply waits

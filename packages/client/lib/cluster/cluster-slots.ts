@@ -1231,7 +1231,11 @@ export default class RedisClusterSlots<
   }> {
     this.#assertReady();
 
-    if (!firstKey) {
+    // Only a keyless command (firstKey === undefined) goes to a random node.
+    // The empty string is a valid Redis key, so `!firstKey` would wrongly route
+    // it as keyless; use `=== undefined` to match the pinned-client path and the
+    // parser's own checks.
+    if (firstKey === undefined) {
       return {
         client: await this.nodeClient(this.getRandomNode())
       };
