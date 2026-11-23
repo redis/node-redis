@@ -12,6 +12,7 @@ import { SMIGRATED_EVENT, SMigratedEvent, dbgMaintenance } from '../client/enter
 import { ClientRole } from '../client/identity';
 import ClusterReconnectionTracker from './cluster-reconnection-tracker';
 import { FieldsetRegistry } from '../himport/registry';
+import { DEFAULT_COMMAND_TIMEOUT } from '../defaults';
 
 interface NodeAddress {
   host: string;
@@ -136,13 +137,39 @@ type PubSubNode<
   TYPE_MAPPING extends TypeMapping
 > = (
     Omit<Node<M, F, S, RESP, TYPE_MAPPING>, 'client'> &
-    Required<Pick<Node<M, F, S, RESP, TYPE_MAPPING>, 'client'>>
+    Required<Pick<Node<M, F, S, RESP, TYPE_MAPPING>, 'client'>> &
+    { toResubscribe?: PubSubToResubscribe }
   );
 
 type PubSubToResubscribe = Record<
   PUBSUB_TYPE['CHANNELS'] | PUBSUB_TYPE['PATTERNS'],
   PubSubTypeListeners
 >;
+
+// Listeners move to the new pub/sub client only once its connect resolves, so
+// between `#initiatePubSubClient()` and that point they live nowhere the client
+// can report them. A refresh landing in that window used to read an empty set
+// and drop them; `pubSubNode.toResubscribe` keeps them recoverable until the
+// resubscribe actually lands.
+function mergePubSubTypeListeners(
+  into: PubSubTypeListeners,
+  from?: PubSubTypeListeners
+): PubSubTypeListeners {
+  if (!from) return into;
+
+  for (const [channel, listeners] of from.entries()) {
+    const existing = into.get(channel);
+    if (!existing) {
+      into.set(channel, listeners);
+      continue;
+    }
+
+    for (const listener of listeners.buffers) existing.buffers.add(listener);
+    for (const listener of listeners.strings) existing.strings.add(listener);
+  }
+
+  return into;
+}
 
 export function groupCommandsByDestination<
   M extends RedisModules,
@@ -385,8 +412,15 @@ export default class RedisClusterSlots<
       }
 
       if (this.pubSubNode && !addressesInUse.has(this.pubSubNode.address)) {
-        const channelsListeners = this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.CHANNELS),
-          patternsListeners = this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.PATTERNS);
+        const pending = this.pubSubNode.toResubscribe,
+          channelsListeners = mergePubSubTypeListeners(
+            this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.CHANNELS),
+            pending?.[PUBSUB_TYPE.CHANNELS]
+          ),
+          patternsListeners = mergePubSubTypeListeners(
+            this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.PATTERNS),
+            pending?.[PUBSUB_TYPE.PATTERNS]
+          );
 
         this.#reconnectionTracker.removeClient(this.pubSubNode.client._clientId);
         this.pubSubNode.client.destroy();
@@ -398,8 +432,10 @@ export default class RedisClusterSlots<
               [PUBSUB_TYPE.CHANNELS]: channelsListeners,
               [PUBSUB_TYPE.PATTERNS]: patternsListeners
             }).catch(err => {
+              // A superseded attempt is expected; anything else means the
+              // listeners are gone and the caller has to hear about it.
               if (err instanceof ClientClosedError && this.#isOpen) return;
-              throw err;
+              if (this.#isOpen) this.#emit('error', err);
             })
           );
         }
@@ -440,8 +476,9 @@ export default class RedisClusterSlots<
       // shard, not hang `connect()` or a topology refresh. The connects keep
       // warming in the background; their failures surface through the
       // clients' own `node-error` events and, for a node that never becomes
-      // ready, through `topologyRefreshOnReconnectionAttemptStrategy`. The
-      // catch only keeps a detached connect rejection from going unhandled.
+      // ready, through `topologyRefreshOnReconnectionAttemptStrategy`. A
+      // pub/sub resubscribe failure is emitted by its own catch above, so this
+      // only keeps a detached node connect rejection from going unhandled.
       for (const promise of promises) {
         promise.catch(() => {});
       }
@@ -909,13 +946,37 @@ export default class RedisClusterSlots<
     return this.#waitForNodeClient(node, node.client, connectPromise);
   }
 
+  // Waiting for a connecting node is bounded by the cluster's command timeout
+  // (#3592): unbounded, an unreachable node held its commands forever. An
+  // explicit `commandOptions.timeout: undefined` keeps the unbounded wait.
+  #raceConnectTimeout(
+    connectPromise: Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>
+  ): Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {
+    const { timeout } = { timeout: DEFAULT_COMMAND_TIMEOUT, ...this.#options?.commandOptions };
+    if (timeout === undefined) return connectPromise;
+
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new TimeoutError()), timeout);
+      connectPromise.then(
+        client => {
+          clearTimeout(timer);
+          resolve(client);
+        },
+        err => {
+          clearTimeout(timer);
+          reject(err);
+        }
+      );
+    });
+  }
+
   async #waitForNodeClient(
     node: ShardNode<M, F, S, RESP, TYPE_MAPPING>,
     client: RedisClientType<M, F, S, RESP, TYPE_MAPPING> | undefined,
     connectPromise: Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>
   ): Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {
     try {
-      return await connectPromise;
+      return await this.#raceConnectTimeout(connectPromise);
     } catch (err) {
       // A refresh closed this client before it connected because the node
       // changed role. The node is still in the cluster, so use its new client.
@@ -1450,6 +1511,7 @@ export default class RedisClusterSlots<
       client
     };
 
+    pubSubNode.toResubscribe = toResubscribe;
     this.pubSubNode = pubSubNode;
 
     pubSubNode.connectPromise = client.connect()
@@ -1472,6 +1534,7 @@ export default class RedisClusterSlots<
         }
 
         pubSubNode.connectPromise = undefined;
+        pubSubNode.toResubscribe = undefined;
         return client;
       })
       .catch(err => {
