@@ -16,7 +16,7 @@ export default {
       parser.push('INCR');
     }
 
-    if (options?.PAYLOAD) {
+    if (options?.PAYLOAD !== undefined) {
       parser.push('PAYLOAD', options.PAYLOAD);
     }
   },

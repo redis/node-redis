@@ -25,6 +25,28 @@ describe('FT.SUGADD', () => {
         ['FT.SUGADD', 'key', 'string', '1', 'PAYLOAD', 'payload']
       );
     });
+
+    it('with an empty string PAYLOAD', () => {
+      assert.deepEqual(
+        parseArgs(SUGADD, 'key', 'string', 1, { PAYLOAD: '' }),
+        ['FT.SUGADD', 'key', 'string', '1', 'PAYLOAD', '']
+      );
+    });
+
+    it('with an empty Buffer PAYLOAD', () => {
+      const payload = Buffer.alloc(0);
+      assert.deepEqual(
+        parseArgs(SUGADD, 'key', 'string', 1, { PAYLOAD: payload }),
+        ['FT.SUGADD', 'key', 'string', '1', 'PAYLOAD', payload]
+      );
+    });
+
+    it('omits an undefined PAYLOAD', () => {
+      assert.deepEqual(
+        parseArgs(SUGADD, 'key', 'string', 1, { PAYLOAD: undefined }),
+        ['FT.SUGADD', 'key', 'string', '1']
+      );
+    });
   });
 
   testUtils.testWithClient('client.ft.sugAdd', async client => {

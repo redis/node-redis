@@ -22,6 +22,24 @@ describe('FT.SPELLCHECK', () => {
       );
     });
 
+    it('with DISTANCE 0', () => {
+      assert.deepEqual(
+        parseArgs(SPELLCHECK, 'index', 'query', {
+          DISTANCE: 0
+        }),
+        ['FT.SPELLCHECK', 'index', 'query', 'DISTANCE', '0', 'DIALECT', DEFAULT_DIALECT]
+      );
+    });
+
+    it('omits an undefined DISTANCE', () => {
+      assert.deepEqual(
+        parseArgs(SPELLCHECK, 'index', 'query', {
+          DISTANCE: undefined
+        }),
+        ['FT.SPELLCHECK', 'index', 'query', 'DIALECT', DEFAULT_DIALECT]
+      );
+    });
+
     describe('with TERMS', () => {
       it('single', () => {
         assert.deepEqual(
@@ -57,6 +75,15 @@ describe('FT.SPELLCHECK', () => {
           DIALECT: 1
         }),
         ['FT.SPELLCHECK', 'index', 'query', 'DIALECT', '1']
+      );
+    });
+
+    it('with DIALECT 0', () => {
+      assert.deepEqual(
+        parseArgs(SPELLCHECK, 'index', 'query', {
+          DIALECT: 0
+        }),
+        ['FT.SPELLCHECK', 'index', 'query', 'DIALECT', '0']
       );
     });
   });

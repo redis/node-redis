@@ -72,7 +72,7 @@ export default {
   parseCommand(parser: CommandParser, index: RedisArgument, query: RedisArgument, options?: FtSpellCheckOptions) {
     parser.push('FT.SPELLCHECK', index, query);
 
-    if (options?.DISTANCE) {
+    if (options?.DISTANCE !== undefined) {
       parser.push('DISTANCE', options.DISTANCE.toString());
     }
 
@@ -86,7 +86,7 @@ export default {
       }
     }
 
-    if (options?.DIALECT) {
+    if (options?.DIALECT !== undefined) {
       parser.push('DIALECT', options.DIALECT.toString());
     } else {
       parser.push('DIALECT', DEFAULT_DIALECT);
