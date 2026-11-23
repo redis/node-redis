@@ -681,7 +681,9 @@ export default class TestUtils {
     if (!isReCluster() && this.isVersionGreaterThan(options.minimumDockerVersion)) {
       const dockerImage = this.#DOCKER_IMAGE;
       before(function () {
-        this.timeout(30000);
+        // Docker spawn (master + replicas + sentinels) plus the electability
+        // wait can exceed a single 30s budget on a slow host (#3650 A).
+        this.timeout(60000);
         dockerPromises = spawnRedisSentinel(dockerImage, options.serverArguments);
         return dockerPromises;
       });
