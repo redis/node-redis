@@ -41,6 +41,11 @@ npm install redis
 > "redis" is the "whole in one" package that includes all the other packages. If you only need a subset of the commands,
 > you can install the individual packages. See the list below.
 
+### Requirements
+
+- **Node.js**: `>= 20.0.0`
+- **TypeScript**: `>= 4.9` (if using TypeScript; `^5.x` recommended)
+
 ## Packages
 
 | Name                                           | Description                                                                                 |
