@@ -1541,10 +1541,24 @@ export default class RedisClusterSlots<
         }
 
         if (toResubscribe) {
-          await Promise.all([
-            client.extendPubSubListeners(PUBSUB_TYPE.CHANNELS, toResubscribe[PUBSUB_TYPE.CHANNELS]),
-            client.extendPubSubListeners(PUBSUB_TYPE.PATTERNS, toResubscribe[PUBSUB_TYPE.PATTERNS])
-          ]);
+          try {
+            await Promise.all([
+              client.extendPubSubListeners(PUBSUB_TYPE.CHANNELS, toResubscribe[PUBSUB_TYPE.CHANNELS]),
+              client.extendPubSubListeners(PUBSUB_TYPE.PATTERNS, toResubscribe[PUBSUB_TYPE.PATTERNS])
+            ]);
+          } catch (err) {
+            // A newer attempt superseding this one destroys this client, and
+            // destroy() flushes the in-flight subscribe with
+            // DisconnectsClientError. The newer attempt already carries these
+            // listeners, so report the supersession rather than that error —
+            // the caller only treats ClientClosedError as expected.
+            if (this.pubSubNode !== pubSubNode) {
+              client.destroy();
+              throw new ClientClosedError();
+            }
+
+            throw err;
+          }
 
           if (this.pubSubNode !== pubSubNode) {
             client.destroy();
