@@ -1564,9 +1564,18 @@ export default class RedisClusterSlots<
   getPubSubClient(): Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {
     this.#assertReady();
 
-    if (!this.pubSubNode) return this.#initiatePubSubClient();
+    // Bound these the same way commands are (#3592): `connect()` now resolves
+    // without waiting for the node connections, so an unreachable node can
+    // still be in the topology when the pub/sub node is picked. Awaiting its
+    // connect raw would move the hang this PR removes onto `subscribe()`.
+    // Only the caller's wait is bounded — `#initiatePubSubClient()` keeps its
+    // own unbounded promise, so a refresh resubscribing through it is
+    // unaffected.
+    if (!this.pubSubNode) return this.#raceConnectTimeout(this.#initiatePubSubClient());
 
-    return this.pubSubNode.connectPromise ?? Promise.resolve(this.pubSubNode.client);
+    return this.pubSubNode.connectPromise ?
+      this.#raceConnectTimeout(this.pubSubNode.connectPromise) :
+      Promise.resolve(this.pubSubNode.client);
   }
 
   async #initiatePubSubClient(toResubscribe?: PubSubToResubscribe) {
@@ -1648,8 +1657,11 @@ export default class RedisClusterSlots<
     this.#assertReady();
 
     const { master } = this.slots[calculateSlot(channel)];
-    if (!master.pubSub) return this.#initiateShardedPubSubClient(master);
-    return master.pubSub.connectPromise ?? Promise.resolve(master.pubSub.client);
+    // bounded for the same reason as getPubSubClient()
+    if (!master.pubSub) return this.#raceConnectTimeout(this.#initiateShardedPubSubClient(master));
+    return master.pubSub.connectPromise ?
+      this.#raceConnectTimeout(master.pubSub.connectPromise) :
+      Promise.resolve(master.pubSub.client);
   }
 
   async #initiateShardedPubSubClient(master: MasterNode<M, F, S, RESP, TYPE_MAPPING>) {
