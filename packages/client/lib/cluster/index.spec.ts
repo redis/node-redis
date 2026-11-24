@@ -1280,7 +1280,12 @@ describe('Cluster', () => {
         // runner can let the default 5s connect timeout land before the 1s
         // command timeout is reached, and the command rejects with
         // ConnectionTimeoutError instead.
-        defaults: { socket: { connectTimeout: 60_000 } }
+        defaults: { socket: { connectTimeout: 60_000 } },
+        // That long timeout applies to discovery too, and
+        // #discoverWithRootNodes starts at a random root, so leaving the dead
+        // master in the list would let a root attempt against the blocked port
+        // outlast the test. Point discovery at the live master instead.
+        rootNodes: [{ socket: { host: masters[0].host, port: masters[0].port } }]
       });
       try {
         // point 1: topology is installed without waiting for the dead node
@@ -1336,9 +1341,12 @@ describe('Cluster', () => {
       const dup = cluster.duplicate({
         commandOptions: { timeout: 1000 },
         topologyRefreshOnReconnectionAttemptStrategy: 100,
-        // same reason as the test above: the stub's socket must not give up on
-        // its own and turn a bounded wait into a ConnectionTimeoutError
-        defaults: { socket: { connectTimeout: 60_000 } }
+        // Keep the default connect timeout here. This test needs the dead
+        // node's connect to give up and start reconnecting, because that
+        // `reconnecting` event is what drives
+        // topologyRefreshOnReconnectionAttemptStrategy — stretching it would
+        // stop the refresh under test from ever firing.
+        rootNodes: [{ socket: { host: masters[0].host, port: masters[0].port } }]
       });
       try {
         await dup.connect();
