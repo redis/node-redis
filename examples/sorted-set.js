@@ -1,5 +1,5 @@
 // Add several values with their scores to a Sorted Set,
-// then retrieve them all using ZSCAN.
+// then retrieve them using ZSCAN, ZRANGE, and ZINTER.
 
 import { createClient } from 'redis';
 
@@ -31,6 +31,14 @@ for await (const membersWithScores of client.zScanIterator('mysortedset')) {
     console.log('Individual member with score:', memberWithScore);
   }
 }
+
+// Get all values and scores from the sorted set in reverse order
+// (highest score first) using ZRANGE with the REV modifier:
+// https://redis.io/commands/zrange
+const reverseOrder = await client.zRangeWithScores('mysortedset', 0, -1, {
+  REV: true
+});
+console.log('Sorted set in reverse order (REV):', reverseOrder);
 
 await client.zAdd('anothersortedset', [
   {
