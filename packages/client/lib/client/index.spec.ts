@@ -2413,6 +2413,111 @@ describe('Client', () => {
       teardown();
     });
 
+    describe("a server that accepts the connection but never replies", () => {
+      // Each accepted connection takes the next behaviour from `modes`; once
+      // the list is used up, connections are answered.
+      async function setupSilent(
+        modes: Array<"silent" | "answer">,
+        socketOptions: Partial<RedisSocketOptions> = {},
+        clientOptions: Partial<RedisClientOptions> = {},
+      ) {
+        const sockets: net.Socket[] = [];
+        const server = net.createServer((socket) => {
+          sockets.push(socket);
+          socket.on("error", () => {});
+          if (modes.shift() === "silent") return;
+          socket.on("data", (chunk: Buffer) => {
+            socket.write("+OK\r\n".repeat(countRespCommands(chunk)));
+          });
+        });
+        const port = await getFreePortNumber();
+        await once(server.listen(port), "listening");
+        const client = createClient({
+          socket: { host: "localhost", port, connectTimeout: 100, ...socketOptions },
+          ...clientOptions,
+        });
+        const errors: Error[] = [];
+        client.on("error", (err) => errors.push(err));
+        const log = setupLog(client);
+        return {
+          client,
+          errors,
+          log,
+          sockets,
+          teardown() {
+            client.destroy();
+            server.close();
+          },
+        };
+      }
+
+      it("rejects connect() with ConnectionTimeoutError after connectTimeout", async () => {
+        const { client, errors, teardown } = await setupSilent(["silent"], {
+          reconnectStrategy: false,
+        });
+        try {
+          await assert.rejects(client.connect(), ConnectionTimeoutError);
+          assert.equal(client.isOpen, false);
+          assert.ok(errors[0] instanceof ConnectionTimeoutError);
+        } finally {
+          teardown();
+        }
+      });
+
+      it("retries and connects once the server answers", async () => {
+        const { client, errors, log, teardown } = await setupSilent(["silent", "silent"]);
+        try {
+          await client.connect();
+          assert.deepEqual(log, [
+            "connect", "error", "reconnecting",
+            "connect", "error", "reconnecting",
+            "connect", "ready",
+          ]);
+          assert.equal(errors.length, 2);
+          assert.ok(errors.every((err) => err instanceof ConnectionTimeoutError));
+        } finally {
+          teardown();
+        }
+      });
+
+      it("doesn't count a slow credentials provider against connectTimeout", async () => {
+        const { client, errors, teardown } = await setupSilent([], {
+          reconnectStrategy: false,
+        }, {
+          credentialsProvider: {
+            type: "async-credentials-provider",
+            credentials: async () => {
+              await new Promise((resolve) => globalThis.setTimeout(resolve, 300));
+              return { username: "user", password: "pass" };
+            },
+          },
+        });
+        try {
+          await client.connect();
+          assert.equal(client.isReady, true);
+          assert.equal(errors.length, 0);
+        } finally {
+          teardown();
+        }
+      });
+
+      it("recovers when a reconnect after a lost connection gets no reply", async () => {
+        const { client, errors, sockets, teardown } = await setupSilent(["answer", "silent"]);
+        try {
+          await client.connect();
+          // not events.once(): it rejects on the 'error' events emitted on the way
+          const ready = new Promise((resolve) => client.once("ready", resolve));
+          sockets[0].destroy();
+          await ready;
+          assert.equal(await client.ping(), "OK");
+          assert.equal(sockets.length, 3);
+          assert.ok(errors.some((err) => err instanceof ConnectionTimeoutError));
+        } finally {
+          teardown();
+        }
+      });
+    });
+
     async function setup(
       socketOptions: Partial<RedisSocketOptions>,
       dropCount: number,

@@ -70,6 +70,9 @@ export default class RedisSocket extends EventEmitter {
 
   #maintenanceTimeout: number | undefined;
 
+  // Set while the handshake runs; the first write starts its timeout.
+  #onHandshakeWrite?: () => void;
+
   #socket?: net.Socket | tls.TLSSocket;
 
   #isOpen = false;
@@ -326,6 +329,15 @@ export default class RedisSocket extends EventEmitter {
    * resolution or an async credentials provider), commands it enqueues
    * afterwards are never written nor flushed — without this guard `#connect`
    * would stay suspended forever without emitting a terminal event.
+   *
+   * The handshake gets its own `connectTimeout` window: a server that accepts
+   * the connection but never replies (a frozen server, a proxy with no
+   * backend) would otherwise keep `connect()` pending forever. The window
+   * starts when the handshake is written, so time spent in an async
+   * credentials provider before that doesn't count. On expiry the socket is
+   * destroyed with a `ConnectionTimeoutError`, so the attempt fails like any
+   * other socket error during the handshake and `reconnectStrategy` decides
+   * what happens next.
    */
   #initiateWhileSocketAlive(socket: net.Socket | tls.TLSSocket) {
     let onSocketDied!: (err?: unknown) => void;
@@ -337,6 +349,19 @@ export default class RedisSocket extends EventEmitter {
       socket.once('close', onSocketDied);
     });
 
+    let handshakeTimer: NodeJS.Timeout | undefined;
+    if (this.#connectTimeout) {
+      const connectTimeout = this.#connectTimeout;
+      this.#onHandshakeWrite = () => {
+        this.#onHandshakeWrite = undefined;
+        // unref: the socket itself decides whether the process stays alive
+        handshakeTimer = globalThis.setTimeout(
+          () => socket.destroy(new ConnectionTimeoutError()),
+          connectTimeout
+        ).unref();
+      };
+    }
+
     // Defer into a microtask so a synchronous throw from the initiator becomes
     // a rejection routed through the race below, instead of escaping before the
     // socketDied listeners are registered and cleaned up (which would leak them
@@ -347,6 +372,8 @@ export default class RedisSocket extends EventEmitter {
     initiated.catch(() => {});
 
     return Promise.race([initiated, socketDied]).finally(() => {
+      this.#onHandshakeWrite = undefined;
+      globalThis.clearTimeout(handshakeTimer);
       socket.removeListener('error', onSocketDied);
       socket.removeListener('close', onSocketDied);
     });
@@ -454,6 +481,8 @@ export default class RedisSocket extends EventEmitter {
 
   write(iterable: Iterable<ReadonlyArray<RedisArgument>>) {
     if (!this.#socket || !this.#socket.writable) return;
+
+    this.#onHandshakeWrite?.();
 
     this.#socket.cork();
     try {
