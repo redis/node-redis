@@ -5,7 +5,7 @@ import net from 'node:net';
 import RedisSocket, { RedisSocketOptions } from './socket';
 import testUtils, { GLOBAL } from '../test-utils';
 import { setTimeout } from 'timers/promises';
-import { ClientClosedError, ReconnectStrategyError } from '../errors';
+import { ClientClosedError, ConnectionTimeoutError, ReconnectStrategyError } from '../errors';
 
 describe('Socket', () => {
   const CLIENT_ID = 'test-client-id';
@@ -734,6 +734,54 @@ describe('Socket', () => {
         // @ts-expect-error - @types/node omits keepAliveInitialDelay
         assert.equal(options.keepAliveInitialDelay, 1234);
       });
+    });
+  });
+
+  describe('connectTimeout', () => {
+    it('should time out if TCP connects but the handshake never completes (#3665)', async () => {
+      const connections: net.Socket[] = [];
+      const server = net.createServer(conn => {
+        conn.on('error', () => { /* ignore */ });
+        connections.push(conn);
+      });
+      await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+      const { port } = server.address() as net.AddressInfo;
+
+      try {
+        const socket = new RedisSocket(() => new Promise(() => { /* hang like a frozen handshake */ }), CLIENT_ID, {
+          host: '127.0.0.1',
+          port,
+          connectTimeout: 50,
+          reconnectStrategy: false
+        });
+        socket.on('error', () => { /* ignore */ });
+
+        const connecting = socket.connect();
+        let result: unknown;
+        try {
+          result = await Promise.race([
+            connecting.then(
+              () => 'connected',
+              (err: unknown) => err
+            ),
+            setTimeout(200).then(() => 'pending')
+          ]);
+        } finally {
+          socket.destroy();
+        }
+
+        assert.ok(
+          result instanceof ConnectionTimeoutError,
+          result === 'pending'
+            ? 'connect() still pending after handshake exceeded connectTimeout'
+            : `expected ConnectionTimeoutError, got ${result}`
+        );
+        assert.equal(socket.isOpen, false);
+        assert.equal(socket.isReady, false);
+      } finally {
+        for (const conn of connections) conn.destroy();
+        await new Promise<void>(resolve => server.close(() => resolve()));
+      }
     });
   });
 

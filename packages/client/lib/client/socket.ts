@@ -68,6 +68,8 @@ export default class RedisSocket extends EventEmitter {
   readonly #socketTimeout;
   readonly #clientId: string;
 
+  #connectTimeoutListener?: () => void;
+
   #maintenanceTimeout: number | undefined;
 
   #socket?: net.Socket | tls.TLSSocket;
@@ -290,6 +292,7 @@ export default class RedisSocket extends EventEmitter {
           this.#socket = undefined;
           throw err;
         }
+        this.#armSocketTimeout(socket);
         this.#isReady = true;
         this.#socketEpoch++;
         publish(CHANNELS.CONNECTION_READY, () => ({
@@ -373,10 +376,9 @@ export default class RedisSocket extends EventEmitter {
   async #createSocket(): Promise<net.Socket | tls.TLSSocket> {
     const socket = this.#socketFactory.create();
 
-    let onTimeout;
     if (this.#connectTimeout !== undefined) {
-      onTimeout = () => socket.destroy(new ConnectionTimeoutError());
-      socket.once('timeout', onTimeout);
+      this.#connectTimeoutListener = () => socket.destroy(new ConnectionTimeoutError());
+      socket.once('timeout', this.#connectTimeoutListener);
       socket.setTimeout(this.#connectTimeout);
     }
 
@@ -386,19 +388,8 @@ export default class RedisSocket extends EventEmitter {
 
     await once(socket, this.#socketFactory.event);
 
-    if (onTimeout) {
-      socket.removeListener('timeout', onTimeout);
-    }
-
-    if (this.#socketTimeout) {
-      socket.once('timeout', () => {
-        const error = this.#maintenanceTimeout
-          ? new SocketTimeoutDuringMaintenanceError(this.#maintenanceTimeout)
-          : new SocketTimeoutError(this.#socketTimeout!)
-        socket.destroy(error);
-      });
-      socket.setTimeout(this.#socketTimeout);
-    }
+    // Keep connectTimeout armed until AUTH/HELLO (the initiator) finishes.
+    // socketTimeout is installed after the handshake succeeds.
 
     socket
       .once('error', err => this.#onSocketError(err))
@@ -410,6 +401,23 @@ export default class RedisSocket extends EventEmitter {
       .on('data', data => this.emit('data', data));
 
     return socket;
+  }
+
+  #armSocketTimeout(socket: net.Socket | tls.TLSSocket) {
+    if (this.#connectTimeoutListener) {
+      socket.removeListener('timeout', this.#connectTimeoutListener);
+      this.#connectTimeoutListener = undefined;
+    }
+
+    if (this.#socketTimeout) {
+      socket.once('timeout', () => {
+        const error = this.#maintenanceTimeout
+          ? new SocketTimeoutDuringMaintenanceError(this.#maintenanceTimeout)
+          : new SocketTimeoutError(this.#socketTimeout!)
+        socket.destroy(error);
+      });
+      socket.setTimeout(this.#socketTimeout);
+    }
   }
 
   #onSocketError(err: Error): void {
