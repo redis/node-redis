@@ -137,6 +137,24 @@ describe('RedisClusterSlots', () => {
       );
     });
 
+    // `setTimeout` silently collapses a delay past 2**31-1 into 1ms, so a
+    // cluster configured with a very long command timeout would have had every
+    // command to a connecting node reject almost at once — the opposite of
+    // what the timeout asks for. The command queue's deadlines already arm in
+    // steps for these, and this wait has to match.
+    it('does not reject at once for a timeout past the timer limit', async () => {
+      const slots = new RedisClusterSlots({
+        rootNodes: [],
+        commandOptions: { timeout: 2 ** 31 }
+      }, () => true);
+
+      assert.equal(
+        await raceSettled(slots.nodeClient(neverConnecting('127.0.0.1:5')), 50),
+        'pending',
+        'a timeout past the timer limit must not reject at once'
+      );
+    });
+
     // Every command that waits on an unreachable node used to attach its own
     // handler to the shared connect promise, and because `client.connect()`
     // only settles once the reconnect strategy gives up, those handlers were

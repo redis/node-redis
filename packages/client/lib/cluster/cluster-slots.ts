@@ -146,6 +146,10 @@ type PubSubToResubscribe = Record<
   PubSubTypeListeners
 >;
 
+// `setTimeout` fires at once for a longer delay, so a long connect deadline
+// arms in steps and re-arms until it really passes (as command-deadlines.ts does).
+const MAX_TIMER_DELAY = 2 ** 31 - 1;
+
 // One command waiting on a node's in-flight connect, with its own deadline.
 type ConnectWaiter<
   M extends RedisModules,
@@ -1011,11 +1015,23 @@ export default class RedisClusterSlots<
 
     const set = waiters;
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        // drop this waiter so an outage does not accumulate them
-        set.delete(waiter);
-        reject(new TimeoutError());
-      }, timeout);
+      // `setTimeout` fires at once for a delay past MAX_TIMER_DELAY, so a long
+      // timeout arms in steps and re-arms until the deadline really passes,
+      // the way the command queue's deadlines do.
+      const deadline = performance.now() + timeout;
+      let timer: ReturnType<typeof setTimeout>;
+
+      const arm = () => {
+        const remaining = deadline - performance.now();
+        if (remaining <= 0) {
+          // drop this waiter so an outage does not accumulate them
+          set.delete(waiter);
+          reject(new TimeoutError());
+          return;
+        }
+
+        timer = setTimeout(arm, Math.min(MAX_TIMER_DELAY, Math.max(1, Math.ceil(remaining))));
+      };
 
       const waiter: ConnectWaiter<M, F, S, RESP, TYPE_MAPPING> = {
         resolve: client => {
@@ -1028,6 +1044,7 @@ export default class RedisClusterSlots<
         }
       };
 
+      arm();
       set.add(waiter);
     });
   }
@@ -1631,9 +1648,14 @@ export default class RedisClusterSlots<
         return client;
       })
       .catch(err => {
-        if (this.pubSubNode === pubSubNode) {
-          this.pubSubNode = undefined;
-        }
+        // Same supersession rule as the resubscribe phase above, for a
+        // handshake cut short: a newer re-init destroys this client, so
+        // connect() rejects with DisconnectsClientError. The replacement
+        // already carries the listeners, so report the supersession rather
+        // than a failure the caller would surface as a cluster `error`.
+        if (this.pubSubNode !== pubSubNode) throw new ClientClosedError();
+
+        this.pubSubNode = undefined;
         throw err;
       });
 
@@ -1656,11 +1678,26 @@ export default class RedisClusterSlots<
   getShardedPubSubClient(channel: string): Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {
     this.#assertReady();
 
-    const { master } = this.slots[calculateSlot(channel)];
     // bounded for the same reason as getPubSubClient()
-    if (!master.pubSub) return this.#raceConnectTimeout(this.#initiateShardedPubSubClient(master));
+    return this.#shardedPubSubClient(channel, true);
+  }
+
+  // `sharded-channel-moved` recovery takes `bounded: false`. By the time it
+  // runs, the old queue has already handed over its listeners, so a timeout
+  // would leave the replacement client ready with an empty listener map and
+  // nothing left to resubscribe from — the subscription would be lost for
+  // good. A caller-facing ssubscribe/sunsubscribe can safely fail instead.
+  #shardedPubSubClient(
+    channel: string,
+    bounded: boolean
+  ): Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {
+    const { master } = this.slots[calculateSlot(channel)];
+    const wait = (connectPromise: Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>) =>
+      bounded ? this.#raceConnectTimeout(connectPromise) : connectPromise;
+
+    if (!master.pubSub) return wait(this.#initiateShardedPubSubClient(master));
     return master.pubSub.connectPromise ?
-      this.#raceConnectTimeout(master.pubSub.connectPromise) :
+      wait(master.pubSub.connectPromise) :
       Promise.resolve(master.pubSub.client);
   }
 
@@ -1673,7 +1710,8 @@ export default class RedisClusterSlots<
         let refreshFrom = client;
         for (let redirections = 0; ; redirections++) {
           await this.rediscover(refreshFrom);
-          const redirectTo = await this.getShardedPubSubClient(channel);
+          // unbounded: see #shardedPubSubClient
+          const redirectTo = await this.#shardedPubSubClient(channel, false);
           try {
             await redirectTo.extendPubSubChannelListeners(
               PUBSUB_TYPE.SHARDED,

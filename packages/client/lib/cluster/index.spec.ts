@@ -1347,8 +1347,11 @@ describe('Cluster', () => {
           }
         }
 
-        // later commands keep routing correctly after the refresh
-        assert.equal(await dup.get(deadKey), 'v');
+        // Later commands keep routing correctly after the refresh. Must be a
+        // write: the demoted master is now this shard's replica and its port
+        // is still blocked, so with `useReplicas` a read could be routed there
+        // and time out even though the failover recovered correctly.
+        assert.equal(await dup.set(deadKey, 'v2'), 'OK');
       } finally {
         connectStub.restore();
         dup.destroy();
