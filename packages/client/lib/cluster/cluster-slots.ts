@@ -405,6 +405,7 @@ export default class RedisClusterSlots<
       const addressesInUse = new Set<string>(),
         promises: Array<Promise<unknown>> = [],
         eagerConnect = this.#options.minimizeConnections !== true;
+      let pubSubResubscribe: Promise<unknown> | undefined;
 
       const shards = await this.#getShards(rootNode);
       // destroy() may have run while the shards were in flight — building
@@ -443,17 +444,25 @@ export default class RedisClusterSlots<
         this.pubSubNode = undefined;
 
         if (channelsListeners.size || patternsListeners.size) {
-          promises.push(
+          // Unlike the node connects, this one is awaited below: a subscriber
+          // whose pub/sub node left the topology would otherwise miss
+          // everything published between the refresh returning and the
+          // resubscribe landing. Bounded so an unreachable replacement cannot
+          // hang the refresh, which is the whole point of #3592.
+          pubSubResubscribe = this.#raceConnectTimeout(
             this.#initiatePubSubClient({
               [PUBSUB_TYPE.CHANNELS]: channelsListeners,
               [PUBSUB_TYPE.PATTERNS]: patternsListeners
-            }).catch(err => {
-              // A superseded attempt is expected; anything else means the
-              // listeners are gone and the caller has to hear about it.
-              if (err instanceof ClientClosedError && this.#isOpen) return;
-              if (this.#isOpen) this.#emit('error', err);
             })
-          );
+          ).catch(err => {
+            // A superseded attempt is expected; anything else means the
+            // listeners are gone and the caller has to hear about it.
+            if (err instanceof ClientClosedError && this.#isOpen) return;
+            // The wait ran out, not the resubscribe: it is still in flight and
+            // delivery resumes when it lands, so do not report a loss.
+            if (err instanceof TimeoutError) return;
+            if (this.#isOpen) this.#emit('error', err);
+          });
         }
       }
 
@@ -498,6 +507,10 @@ export default class RedisClusterSlots<
       for (const promise of promises) {
         promise.catch(() => {});
       }
+
+      // The node connects stay detached (#3592); this one does not — see above.
+      if (pubSubResubscribe) await pubSubResubscribe;
+
       this.clientSideCache?.enable();
 
       return true;

@@ -1272,7 +1272,16 @@ describe('Cluster', () => {
           return new net.Socket(options);
         }) as typeof net.createConnection);
 
-      const dup = cluster.duplicate({ commandOptions: { timeout: 1000 } });
+      const dup = cluster.duplicate({
+        commandOptions: { timeout: 1000 },
+        // The stubbed socket never connects. Keep its own connect timeout far
+        // above the command timeout so this asserts the bounded wait rather
+        // than a connect that happened to give up first — otherwise a slow
+        // runner can let the default 5s connect timeout land before the 1s
+        // command timeout is reached, and the command rejects with
+        // ConnectionTimeoutError instead.
+        defaults: { socket: { connectTimeout: 60_000 } }
+      });
       try {
         // point 1: topology is installed without waiting for the dead node
         await dup.connect();
@@ -1326,7 +1335,10 @@ describe('Cluster', () => {
 
       const dup = cluster.duplicate({
         commandOptions: { timeout: 1000 },
-        topologyRefreshOnReconnectionAttemptStrategy: 100
+        topologyRefreshOnReconnectionAttemptStrategy: 100,
+        // same reason as the test above: the stub's socket must not give up on
+        // its own and turn a bounded wait into a ConnectionTimeoutError
+        defaults: { socket: { connectTimeout: 60_000 } }
       });
       try {
         await dup.connect();
