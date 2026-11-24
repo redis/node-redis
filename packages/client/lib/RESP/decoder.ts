@@ -38,6 +38,16 @@ type StringMapping = TypeMapping[
   | typeof RESP_TYPES.VERBATIM_STRING
 ];
 
+// The `type` a string helper accepts.
+type StringType = StringMapping | StringConstructor | BufferConstructor;
+
+// What a string helper returns for `type`: a string for `String` (or no
+// mapping), a Buffer for `Buffer`, either for a mapping only known at runtime.
+type StringResult<M extends StringType> =
+  M extends StringConstructor | undefined ? string :
+  M extends BufferConstructor ? Buffer :
+  string | Buffer;
+
 // https://github.com/redis/redis-specifications/blob/master/protocol/RESP3.md
 export const RESP_TYPES = {
   NULL: 95, // _
@@ -505,7 +515,7 @@ export class Decoder {
     const buffer = this.#continueDecodeSimpleString(chunks, Buffer, chunk);
     return typeof buffer === 'function' ?
       this.#continueDecodeDouble.bind(this, chunks) :
-      slowParseDouble(buffer as Buffer, 0, buffer.length);
+      slowParseDouble(buffer, 0, buffer.length);
   }
 
   #findCRLF(chunk: Buffer, cursor: number): number {
@@ -520,11 +530,11 @@ export class Decoder {
     return cursor;
   }
 
-  #decodeSimpleString(type: StringMapping, chunk: Buffer): DecodeStep<string | Buffer> {
+  #decodeSimpleString<M extends StringType>(type: M, chunk: Buffer): DecodeStep<StringResult<M>> {
     const start = this.#cursor,
       crlfIndex = this.#findCRLF(chunk, start);
     if (crlfIndex === -1) {
-      return this.#continueDecodeSimpleString.bind(
+      return (this.#continueDecodeSimpleString<M>).bind(
         this,
         [chunk.subarray(start)],
         type
@@ -532,29 +542,29 @@ export class Decoder {
     }
 
     const slice = chunk.subarray(start, crlfIndex);
-    return type === Buffer ?
+    return (type === Buffer ?
       slice :
-      slice.toString();
+      slice.toString()) as StringResult<M>;
   }
 
-  #continueDecodeSimpleString(
+  #continueDecodeSimpleString<M extends StringType>(
     chunks: Array<Buffer>,
-    type: StringMapping,
+    type: M,
     chunk: Buffer
-  ): DecodeStep<string | Buffer> {
+  ): DecodeStep<StringResult<M>> {
     const start = this.#cursor,
       crlfIndex = this.#findCRLF(chunk, start);
     if (crlfIndex === -1) {
       chunks.push(chunk.subarray(start));
-      return this.#continueDecodeSimpleString.bind(this, chunks, type);
+      return (this.#continueDecodeSimpleString<M>).bind(this, chunks, type);
     }
 
     chunks.push(chunk.subarray(start, crlfIndex));
     const buffer = Buffer.concat(chunks);
-    return type === Buffer ? buffer : buffer.toString();
+    return (type === Buffer ? buffer : buffer.toString()) as StringResult<M>;
   }
 
-  #decodeBlobString(type: StringMapping, chunk: Buffer): DecodeStep<string | Buffer | null> {
+  #decodeBlobString<M extends StringType>(type: M, chunk: Buffer): DecodeStep<StringResult<M> | null> {
     // RESP 2 bulk string null
     // https://github.com/redis/redis-specifications/blob/master/protocol/RESP2.md#resp-bulk-strings
     if (chunk[this.#cursor] === ASCII['-']) {
@@ -564,40 +574,40 @@ export class Decoder {
 
     const length = this.#decodeUnsingedNumber(0, chunk);
     if (typeof length === 'function') {
-      return this.#continueDecodeBlobStringLength.bind(this, length, type);
+      return (this.#continueDecodeBlobStringLength<M>).bind(this, length, type);
     } else if (this.#cursor >= chunk.length) {
-      return this.#decodeBlobStringWithLength.bind(this, length, type);
+      return (this.#decodeBlobStringWithLength<M>).bind(this, length, type);
     }
 
     return this.#decodeBlobStringWithLength(length, type, chunk);
   }
 
-  #continueDecodeBlobStringLength(
+  #continueDecodeBlobStringLength<M extends StringType>(
     lengthCb: Continuation<number>,
-    type: StringMapping,
+    type: M,
     chunk: Buffer
-  ): DecodeStep<string | Buffer> {
+  ): DecodeStep<StringResult<M>> {
     const length = lengthCb(chunk);
     if (typeof length === 'function') {
-      return this.#continueDecodeBlobStringLength.bind(this, length, type);
+      return (this.#continueDecodeBlobStringLength<M>).bind(this, length, type);
     } else if (this.#cursor >= chunk.length) {
-      return this.#decodeBlobStringWithLength.bind(this, length, type);
+      return (this.#decodeBlobStringWithLength<M>).bind(this, length, type);
     }
 
     return this.#decodeBlobStringWithLength(length, type, chunk);
   }
 
-  #decodeStringWithLength(
+  #decodeStringWithLength<M extends StringType>(
     length: number,
     skip: number,
-    type: StringMapping,
+    type: M,
     chunk: Buffer
-  ): DecodeStep<string | Buffer> {
+  ): DecodeStep<StringResult<M>> {
     const end = this.#cursor + length;
     if (end >= chunk.length) {
       const slice = chunk.subarray(this.#cursor);
       this.#cursor = chunk.length;
-      return this.#continueDecodeStringWithLength.bind(
+      return (this.#continueDecodeStringWithLength<M>).bind(
         this,
         length - slice.length,
         [slice],
@@ -608,24 +618,24 @@ export class Decoder {
 
     const slice = chunk.subarray(this.#cursor, end);
     this.#cursor = end + skip;
-    return type === Buffer ?
+    return (type === Buffer ?
       slice :
-      slice.toString();
+      slice.toString()) as StringResult<M>;
   }
 
-  #continueDecodeStringWithLength(
+  #continueDecodeStringWithLength<M extends StringType>(
     length: number,
     chunks: Array<Buffer>,
     skip: number,
-    type: StringMapping,
+    type: M,
     chunk: Buffer
-  ): DecodeStep<string | Buffer> {
+  ): DecodeStep<StringResult<M>> {
     const end = this.#cursor + length;
     if (end >= chunk.length) {
       const slice = chunk.subarray(this.#cursor);
       chunks.push(slice);
       this.#cursor = chunk.length;
-      return this.#continueDecodeStringWithLength.bind(
+      return (this.#continueDecodeStringWithLength<M>).bind(
         this,
         length - slice.length,
         chunks,
@@ -637,14 +647,14 @@ export class Decoder {
     chunks.push(chunk.subarray(this.#cursor, end));
     this.#cursor = end + skip;
     const buffer = Buffer.concat(chunks);
-    return type === Buffer ? buffer : buffer.toString();
+    return (type === Buffer ? buffer : buffer.toString()) as StringResult<M>;
   }
 
-  #decodeBlobStringWithLength(
+  #decodeBlobStringWithLength<M extends StringType>(
     length: number,
-    type: StringMapping,
+    type: M,
     chunk: Buffer
-  ): DecodeStep<string | Buffer> {
+  ): DecodeStep<StringResult<M>> {
     return this.#decodeStringWithLength(length, 2, type, chunk);
   }
 
@@ -682,12 +692,12 @@ export class Decoder {
 
     this.#cursor += 4; // skip <format>:
     return this.#cursor >= chunk.length ?
-      this.#decodeBlobStringWithLength.bind(this, stringLength, type) :
+      (this.#decodeBlobStringWithLength<StringMapping>).bind(this, stringLength, type) :
       this.#decodeBlobStringWithLength(stringLength, type, chunk);
   }
 
   #decodeVerbatimStringFormat(stringLength: number, chunk: Buffer): DecodeStep<VerbatimString> {
-    const formatCb = this.#decodeStringWithLength.bind(this, 3, 1, String);
+    const formatCb = (this.#decodeStringWithLength<StringConstructor>).bind(this, 3, 1, String);
     return this.#cursor >= chunk.length ?
       this.#continueDecodeVerbatimStringFormat.bind(this, stringLength, formatCb) :
       this.#continueDecodeVerbatimStringFormat(stringLength, formatCb, chunk);
@@ -695,7 +705,7 @@ export class Decoder {
 
   #continueDecodeVerbatimStringFormat(
     stringLength: number,
-    formatCb: Continuation<string | Buffer>,
+    formatCb: Continuation<string>,
     chunk: Buffer
   ): DecodeStep<VerbatimString> {
     const format = formatCb(chunk);
@@ -706,42 +716,42 @@ export class Decoder {
 
   #decodeVerbatimStringWithFormat(
     stringLength: number,
-    format: string | Buffer,
+    format: string,
     chunk: Buffer
   ): DecodeStep<VerbatimString> {
     return this.#continueDecodeVerbatimStringWithFormat(
       format,
-      this.#decodeBlobStringWithLength.bind(this, stringLength, String),
+      (this.#decodeBlobStringWithLength<StringConstructor>).bind(this, stringLength, String),
       chunk
     );
   }
 
   #continueDecodeVerbatimStringWithFormat(
-    format: string | Buffer,
-    stringCb: Continuation<string | Buffer>,
+    format: string,
+    stringCb: Continuation<string>,
     chunk: Buffer
   ): DecodeStep<VerbatimString> {
     const string = stringCb(chunk);
     return typeof string === 'function' ?
       this.#continueDecodeVerbatimStringWithFormat.bind(this, format, string) :
-      new VerbatimString(format as string, string as string);
+      new VerbatimString(format, string);
   }
 
   #decodeSimpleError(chunk: Buffer): DecodeStep<SimpleError> {
     const string = this.#decodeSimpleString(String, chunk);
     return typeof string === 'function' ?
       this.#continueDecodeSimpleError.bind(this, string) :
-      new SimpleError(string as string);
+      new SimpleError(string);
   }
 
   #continueDecodeSimpleError(
-    stringCb: Continuation<string | Buffer>,
+    stringCb: Continuation<string>,
     chunk: Buffer
   ): DecodeStep<SimpleError> {
     const string = stringCb(chunk);
     return typeof string === 'function' ?
       this.#continueDecodeSimpleError.bind(this, string) :
-      new SimpleError(string as string);
+      new SimpleError(string);
   }
 
   #decodeBlobError(chunk: Buffer): DecodeStep<BlobError> {
@@ -752,7 +762,7 @@ export class Decoder {
   }
 
   #continueDecodeBlobError(
-    stringCb: Continuation<string | Buffer | null>,
+    stringCb: Continuation<string | null>,
     chunk: Buffer
   ): DecodeStep<BlobError> {
     const string = stringCb(chunk);
