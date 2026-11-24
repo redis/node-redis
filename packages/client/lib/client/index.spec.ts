@@ -2446,6 +2446,8 @@ describe('Client', () => {
           sockets,
           teardown() {
             client.destroy();
+            // server.close() leaves accepted connections open
+            for (const socket of sockets) socket.destroy();
             server.close();
           },
         };
