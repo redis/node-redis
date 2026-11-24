@@ -1725,8 +1725,12 @@ export default class RedisClusterSlots<
     const { master } = this.slots[calculateSlot(channel)];
     if (!master.pubSub) return;
 
+    // bounded like getShardedPubSubClient(): once ssubscribe has timed out on
+    // an unreachable master, `master.pubSub` is already seated, so waiting on
+    // its connect raw would hang sunsubscribe on exactly the dead node the
+    // subscribe side now gives up on
     const client = master.pubSub.connectPromise ?
-      await master.pubSub.connectPromise :
+      await this.#raceConnectTimeout(master.pubSub.connectPromise) :
       master.pubSub.client;
 
     await unsubscribe(client);
