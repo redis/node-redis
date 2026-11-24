@@ -80,6 +80,30 @@ await client.hDel('key', ['field1', 'field2']);
 
 Passing the values as separate arguments in V4, including by spreading an array (`client.hDel('key', ...fields)`), sends only the first value and silently ignores the rest.
 
+### `batch()` removed in favor of `multi().execAsPipeline()`
+
+In V3, `client.batch()` was used to buffer and send multiple commands in a single network pipeline without wrapping them in a `MULTI`/`EXEC` transaction block.
+
+In V4+, `client.batch()` has been removed. To pipeline commands without an atomic `MULTI`/`EXEC` transaction block, use `.execAsPipeline()` on a `multi()` chain:
+
+```typescript
+// V3
+client.batch()
+    .set('key1', 'value1')
+    .set('key2', 'value2')
+    .exec((err, replies) => {
+        // ...
+    });
+
+// V4+
+const [set1, set2] = await client.multi()
+    .set('key1', 'value1')
+    .set('key2', 'value2')
+    .execAsPipeline();
+```
+
+If you require an atomic Redis transaction block, use `.exec()` instead of `.execAsPipeline()`.
+
 ## Legacy Mode
 
 Use legacy mode to preserve the backwards compatibility of commands while still getting access to the updated experience:
