@@ -146,6 +146,18 @@ type PubSubToResubscribe = Record<
   PubSubTypeListeners
 >;
 
+// One command waiting on a node's in-flight connect, with its own deadline.
+type ConnectWaiter<
+  M extends RedisModules,
+  F extends RedisFunctions,
+  S extends RedisScripts,
+  RESP extends RespVersions,
+  TYPE_MAPPING extends TypeMapping
+> = {
+  resolve: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>) => void;
+  reject: (err: unknown) => void;
+};
+
 // Listeners move to the new pub/sub client only once its connect resolves, so
 // between `#initiatePubSubClient()` and that point they live nowhere the client
 // can report them. A refresh landing in that window used to read an empty set
@@ -955,6 +967,15 @@ export default class RedisClusterSlots<
     return this.#waitForNodeClient(node, node.client, connectPromise);
   }
 
+  // One settlement handler per `connectPromise`, fanned out to its waiters.
+  // Attaching per waiter instead would retain a handler for every command
+  // that waited on an unreachable node until its connect finally settles,
+  // and a caller retrying after each timeout would add another every time.
+  #connectWaiters = new WeakMap<
+    Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>,
+    Set<ConnectWaiter<M, F, S, RESP, TYPE_MAPPING>>
+  >();
+
   // Waiting for a connecting node is bounded by the cluster's command timeout
   // (#3592): unbounded, an unreachable node held its commands forever. A
   // `commandOptions.timeout` of `undefined` or `0` disables the command
@@ -966,18 +987,48 @@ export default class RedisClusterSlots<
     const { timeout } = { timeout: DEFAULT_COMMAND_TIMEOUT, ...this.#options?.commandOptions };
     if (!timeout) return connectPromise;
 
-    return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new TimeoutError()), timeout);
+    let waiters = this.#connectWaiters.get(connectPromise);
+    if (!waiters) {
+      const set = waiters = new Set<ConnectWaiter<M, F, S, RESP, TYPE_MAPPING>>();
+      this.#connectWaiters.set(connectPromise, set);
+
+      const settle = (
+        notify: (waiter: ConnectWaiter<M, F, S, RESP, TYPE_MAPPING>) => void
+      ) => {
+        this.#connectWaiters.delete(connectPromise);
+        // copy first: notifying resolves each waiter's promise, and a
+        // continuation must not mutate the set being iterated
+        const settling = [...set];
+        set.clear();
+        for (const waiter of settling) notify(waiter);
+      };
+
       connectPromise.then(
-        client => {
+        client => settle(waiter => waiter.resolve(client)),
+        err => settle(waiter => waiter.reject(err))
+      );
+    }
+
+    const set = waiters;
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        // drop this waiter so an outage does not accumulate them
+        set.delete(waiter);
+        reject(new TimeoutError());
+      }, timeout);
+
+      const waiter: ConnectWaiter<M, F, S, RESP, TYPE_MAPPING> = {
+        resolve: client => {
           clearTimeout(timer);
           resolve(client);
         },
-        err => {
+        reject: err => {
           clearTimeout(timer);
           reject(err);
         }
-      );
+      };
+
+      set.add(waiter);
     });
   }
 

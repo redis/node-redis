@@ -136,6 +136,61 @@ describe('RedisClusterSlots', () => {
         TimeoutError
       );
     });
+
+    // Every command that waits on an unreachable node used to attach its own
+    // handler to the shared connect promise, and because `client.connect()`
+    // only settles once the reconnect strategy gives up, those handlers were
+    // retained for the whole outage — a caller retrying after each timeout
+    // added one more every attempt.
+    it('attaches one settlement handler per connect, however many commands wait', async () => {
+      const slots = new RedisClusterSlots({
+        rootNodes: [],
+        commandOptions: { timeout: 500 }
+      }, () => true);
+
+      let connected!: (client: unknown) => void;
+      const settled = new Promise(resolve => { connected = resolve; });
+      let attachments = 0;
+      const connectPromise = {
+        then(onFulfilled: unknown, onRejected: unknown) {
+          attachments++;
+          return settled.then(onFulfilled as never, onRejected as never);
+        }
+      };
+
+      const node = {
+        address: '127.0.0.1:3',
+        connectPromise
+      } as unknown as TestNode;
+
+      const waiting = [slots.nodeClient(node), slots.nodeClient(node), slots.nodeClient(node)];
+      assert.equal(attachments, 1, 'three waiters must share a single attachment');
+
+      const client = { tag: 'connected' };
+      connected(client);
+      assert.deepEqual(await Promise.all(waiting), [client, client, client]);
+    });
+
+    it('drops a waiter that timed out and still serves later ones', async () => {
+      const slots = new RedisClusterSlots({
+        rootNodes: [],
+        commandOptions: { timeout: 20 }
+      }, () => true);
+
+      let connected!: (client: unknown) => void;
+      const connectPromise = new Promise(resolve => { connected = resolve; });
+      const node = {
+        address: '127.0.0.1:4',
+        connectPromise
+      } as unknown as TestNode;
+
+      await assert.rejects(slots.nodeClient(node), TimeoutError);
+
+      const client = { tag: 'late' };
+      const later = slots.nodeClient(node);
+      connected(client);
+      assert.equal(await later, client);
+    });
   });
 
   describe('groupCommandsByDestination', () => {
