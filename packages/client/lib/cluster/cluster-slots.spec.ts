@@ -6,7 +6,7 @@ import { RedisClusterClientOptions } from './index';
 import RedisClusterSlots, { groupCommandsByDestination, splitInFlightChainTail } from './cluster-slots';
 import type { MasterNode, Shard, ShardNode } from './cluster-slots';
 import type { CommandToWrite } from '../client/commands-queue';
-import { ClientClosedError } from '../errors';
+import { ClientClosedError, TimeoutError } from '../errors';
 import { SMIGRATED_EVENT, type SMigratedEvent } from '../client/enterprise-maintenance-manager';
 
 describe('RedisClusterSlots', () => {
@@ -80,6 +80,151 @@ describe('RedisClusterSlots', () => {
         }, () => true)
         assert.throws(() => slots.getRandomNode(), ClientClosedError)
       });
+  });
+
+  describe('waiting for a connecting node', () => {
+    type TestNode = ShardNode<
+      Record<string, never>,
+      Record<string, never>,
+      Record<string, never>,
+      3,
+      Record<string, never>
+    >;
+
+    // a node whose connect never settles, so the only thing that can settle
+    // nodeClient() is the connect-wait timeout itself
+    function neverConnecting(address: string) {
+      return {
+        address,
+        connectPromise: new Promise(() => {})
+      } as unknown as TestNode;
+    }
+
+    function raceSettled(promise: Promise<unknown>, ms: number) {
+      return Promise.race([
+        promise.then(() => 'settled', () => 'settled'),
+        new Promise(resolve => setTimeout(() => resolve('pending'), ms))
+      ]);
+    }
+
+    // `commandOptions.timeout: 0` disables the command timeout
+    // (docs/command-options.md) and the command queue already skips its timer
+    // for it, so the wait for a connecting node must stay unbounded too —
+    // otherwise `setTimeout(..., 0)` rejects every command to a node that is
+    // still connecting, the moment it is issued.
+    it('treats a zero command timeout as disabled, like undefined', async () => {
+      const slots = new RedisClusterSlots({
+        rootNodes: [],
+        commandOptions: { timeout: 0 }
+      }, () => true);
+
+      assert.equal(
+        await raceSettled(slots.nodeClient(neverConnecting('127.0.0.1:1')), 50),
+        'pending',
+        'a zero timeout must leave the connect wait unbounded'
+      );
+    });
+
+    it('still bounds the wait when a command timeout is set', async () => {
+      const slots = new RedisClusterSlots({
+        rootNodes: [],
+        commandOptions: { timeout: 20 }
+      }, () => true);
+
+      await assert.rejects(
+        slots.nodeClient(neverConnecting('127.0.0.1:2')),
+        TimeoutError
+      );
+    });
+
+    // `setTimeout` silently collapses a delay past 2**31-1 into 1ms, so a
+    // cluster configured with a very long command timeout would have had every
+    // command to a connecting node reject almost at once — the opposite of
+    // what the timeout asks for. The command queue's deadlines already arm in
+    // steps for these, and this wait has to match.
+    it('does not reject at once for a timeout past the timer limit', async () => {
+      const slots = new RedisClusterSlots({
+        rootNodes: [],
+        commandOptions: { timeout: 2 ** 31 }
+      }, () => true);
+
+      // settle the connect at the end rather than leaving it pending: the
+      // waiter's timer is armed for the ~25 day deadline, and resolving is
+      // what clears it
+      let connected!: (client: unknown) => void;
+      const connectPromise = new Promise(resolve => { connected = resolve; });
+      const node = {
+        address: '127.0.0.1:5',
+        connectPromise
+      } as unknown as TestNode;
+
+      const waiting = slots.nodeClient(node);
+
+      assert.equal(
+        await raceSettled(waiting, 50),
+        'pending',
+        'a timeout past the timer limit must not reject at once'
+      );
+
+      const client = { tag: 'late' };
+      connected(client);
+      assert.equal(await waiting, client);
+    });
+
+    // Every command that waits on an unreachable node used to attach its own
+    // handler to the shared connect promise, and because `client.connect()`
+    // only settles once the reconnect strategy gives up, those handlers were
+    // retained for the whole outage — a caller retrying after each timeout
+    // added one more every attempt.
+    it('attaches one settlement handler per connect, however many commands wait', async () => {
+      const slots = new RedisClusterSlots({
+        rootNodes: [],
+        commandOptions: { timeout: 500 }
+      }, () => true);
+
+      let connected!: (client: unknown) => void;
+      const settled = new Promise(resolve => { connected = resolve; });
+      let attachments = 0;
+      const connectPromise = {
+        then(onFulfilled: unknown, onRejected: unknown) {
+          attachments++;
+          return settled.then(onFulfilled as never, onRejected as never);
+        }
+      };
+
+      const node = {
+        address: '127.0.0.1:3',
+        connectPromise
+      } as unknown as TestNode;
+
+      const waiting = [slots.nodeClient(node), slots.nodeClient(node), slots.nodeClient(node)];
+      assert.equal(attachments, 1, 'three waiters must share a single attachment');
+
+      const client = { tag: 'connected' };
+      connected(client);
+      assert.deepEqual(await Promise.all(waiting), [client, client, client]);
+    });
+
+    it('drops a waiter that timed out and still serves later ones', async () => {
+      const slots = new RedisClusterSlots({
+        rootNodes: [],
+        commandOptions: { timeout: 20 }
+      }, () => true);
+
+      let connected!: (client: unknown) => void;
+      const connectPromise = new Promise(resolve => { connected = resolve; });
+      const node = {
+        address: '127.0.0.1:4',
+        connectPromise
+      } as unknown as TestNode;
+
+      await assert.rejects(slots.nodeClient(node), TimeoutError);
+
+      const client = { tag: 'late' };
+      const later = slots.nodeClient(node);
+      connected(client);
+      assert.equal(await later, client);
+    });
   });
 
   describe('groupCommandsByDestination', () => {

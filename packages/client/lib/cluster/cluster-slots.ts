@@ -12,6 +12,7 @@ import { SMIGRATED_EVENT, SMigratedEvent, dbgMaintenance } from '../client/enter
 import { ClientRole } from '../client/identity';
 import ClusterReconnectionTracker from './cluster-reconnection-tracker';
 import { FieldsetRegistry } from '../himport/registry';
+import { DEFAULT_COMMAND_TIMEOUT } from '../defaults';
 
 interface NodeAddress {
   host: string;
@@ -136,13 +137,55 @@ type PubSubNode<
   TYPE_MAPPING extends TypeMapping
 > = (
     Omit<Node<M, F, S, RESP, TYPE_MAPPING>, 'client'> &
-    Required<Pick<Node<M, F, S, RESP, TYPE_MAPPING>, 'client'>>
+    Required<Pick<Node<M, F, S, RESP, TYPE_MAPPING>, 'client'>> &
+    { toResubscribe?: PubSubToResubscribe }
   );
 
 type PubSubToResubscribe = Record<
   PUBSUB_TYPE['CHANNELS'] | PUBSUB_TYPE['PATTERNS'],
   PubSubTypeListeners
 >;
+
+// `setTimeout` fires at once for a longer delay, so a long connect deadline
+// arms in steps and re-arms until it really passes (as command-deadlines.ts does).
+const MAX_TIMER_DELAY = 2 ** 31 - 1;
+
+// One command waiting on a node's in-flight connect, with its own deadline.
+type ConnectWaiter<
+  M extends RedisModules,
+  F extends RedisFunctions,
+  S extends RedisScripts,
+  RESP extends RespVersions,
+  TYPE_MAPPING extends TypeMapping
+> = {
+  resolve: (client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>) => void;
+  reject: (err: unknown) => void;
+};
+
+// Listeners move to the new pub/sub client only once its connect resolves, so
+// between `#initiatePubSubClient()` and that point they live nowhere the client
+// can report them. A refresh landing in that window used to read an empty set
+// and drop them; `pubSubNode.toResubscribe` keeps them recoverable until the
+// resubscribe actually lands.
+function mergePubSubTypeListeners(
+  into: PubSubTypeListeners,
+  from?: PubSubTypeListeners
+): PubSubTypeListeners {
+  if (!from) return into;
+
+  for (const [channel, listeners] of from.entries()) {
+    const existing = into.get(channel);
+    if (!existing) {
+      into.set(channel, listeners);
+      continue;
+    }
+
+    for (const listener of listeners.buffers) existing.buffers.add(listener);
+    for (const listener of listeners.strings) existing.strings.add(listener);
+  }
+
+  return into;
+}
 
 export function groupCommandsByDestination<
   M extends RedisModules,
@@ -362,6 +405,7 @@ export default class RedisClusterSlots<
       const addressesInUse = new Set<string>(),
         promises: Array<Promise<unknown>> = [],
         eagerConnect = this.#options.minimizeConnections !== true;
+      let pubSubResubscribe: Promise<unknown> | undefined;
 
       const shards = await this.#getShards(rootNode);
       // destroy() may have run while the shards were in flight — building
@@ -385,23 +429,43 @@ export default class RedisClusterSlots<
       }
 
       if (this.pubSubNode && !addressesInUse.has(this.pubSubNode.address)) {
-        const channelsListeners = this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.CHANNELS),
-          patternsListeners = this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.PATTERNS);
+        const pending = this.pubSubNode.toResubscribe,
+          channelsListeners = mergePubSubTypeListeners(
+            this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.CHANNELS),
+            pending?.[PUBSUB_TYPE.CHANNELS]
+          ),
+          patternsListeners = mergePubSubTypeListeners(
+            this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.PATTERNS),
+            pending?.[PUBSUB_TYPE.PATTERNS]
+          );
 
         this.#reconnectionTracker.removeClient(this.pubSubNode.client._clientId);
         this.pubSubNode.client.destroy();
         this.pubSubNode = undefined;
 
         if (channelsListeners.size || patternsListeners.size) {
-          promises.push(
-            this.#initiatePubSubClient({
-              [PUBSUB_TYPE.CHANNELS]: channelsListeners,
-              [PUBSUB_TYPE.PATTERNS]: patternsListeners
-            }).catch(err => {
-              if (err instanceof ClientClosedError && this.#isOpen) return;
-              throw err;
-            })
-          );
+          const resubscribe = this.#initiatePubSubClient({
+            [PUBSUB_TYPE.CHANNELS]: channelsListeners,
+            [PUBSUB_TYPE.PATTERNS]: patternsListeners
+          });
+
+          // Report on the re-init itself, so a failure is heard whenever it
+          // lands — including after the bounded wait below has given up. A
+          // superseded attempt is expected; anything else means the listeners
+          // are gone and the caller has to hear about it.
+          resubscribe.catch(err => {
+            if (err instanceof ClientClosedError && this.#isOpen) return;
+            if (this.#isOpen) this.#emit('error', err);
+          });
+
+          // Unlike the node connects, this one is awaited below: a subscriber
+          // whose pub/sub node left the topology would otherwise miss
+          // everything published between the refresh returning and the
+          // resubscribe landing. The wait is bounded so an unreachable
+          // replacement cannot hang the refresh, which is the point of #3592 —
+          // running out of patience here is not a failure, and the catch above
+          // still reports one if the re-init genuinely fails.
+          pubSubResubscribe = this.#raceConnectTimeout(resubscribe).catch(() => {});
         }
       }
 
@@ -435,7 +499,21 @@ export default class RedisClusterSlots<
         if (!inUse) this.nodeByAddress.delete(address);
       }
 
-      await Promise.all(promises);
+      // Install the slot map without waiting for the node and pub/sub
+      // connections (#3592): one unreachable node must cost only its own
+      // shard, not hang `connect()` or a topology refresh. The connects keep
+      // warming in the background; their failures surface through the
+      // clients' own `node-error` events and, for a node that never becomes
+      // ready, through `topologyRefreshOnReconnectionAttemptStrategy`. A
+      // pub/sub resubscribe failure is emitted by its own catch above, so this
+      // only keeps a detached node connect rejection from going unhandled.
+      for (const promise of promises) {
+        promise.catch(() => {});
+      }
+
+      // The node connects stay detached (#3592); this one does not — see above.
+      if (pubSubResubscribe) await pubSubResubscribe;
+
       this.clientSideCache?.enable();
 
       return true;
@@ -664,8 +742,17 @@ export default class RedisClusterSlots<
           // Handle pubSubNode replacement BEFORE destroying source connections
           // This ensures subscriptions are resubscribed on a new node before the old connection is lost
           if (this.pubSubNode?.address === sourceAddress) {
-            const channelsListeners = this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.CHANNELS),
-              patternsListeners = this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.PATTERNS);
+            // a refresh in the connect window parks the listeners on
+            // `toResubscribe`, where the live client cannot report them
+            const pending = this.pubSubNode.toResubscribe,
+              channelsListeners = mergePubSubTypeListeners(
+                this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.CHANNELS),
+                pending?.[PUBSUB_TYPE.CHANNELS]
+              ),
+              patternsListeners = mergePubSubTypeListeners(
+                this.pubSubNode.client.getPubSubListeners(PUBSUB_TYPE.PATTERNS),
+                pending?.[PUBSUB_TYPE.PATTERNS]
+              );
 
             const oldPubSubClient = this.pubSubNode.client;
 
@@ -828,7 +915,6 @@ export default class RedisClusterSlots<
     });
     const address = node.address;
     const emit = this.#emit;
-    let wasReady = false;
     const client = this.#clientFactory(this.#clientOptionsDefaults({
       clientSideCache: this.clientSideCache,
       // only when the cluster has a type mapping, so the node falls back to its own
@@ -846,12 +932,12 @@ export default class RedisClusterSlots<
       .on('reconnecting', () => {
         emit('node-reconnecting', clientInfo);
 
-        if (!wasReady) return;
-
+        // A node that never became ready counts too (#3592): without this, a
+        // node that is down from the start never triggers the topology
+        // refresh that would move its slots after a failover.
         this.#onNodeReconnectionAttempt(client._clientId, address);
       })
       .on('ready', () => {
-        wasReady = true;
         this.#reconnectionTracker.removeClient(client._clientId);
       })
       .on('ready', () => emit('node-ready', clientInfo))
@@ -901,13 +987,91 @@ export default class RedisClusterSlots<
     return this.#waitForNodeClient(node, node.client, connectPromise);
   }
 
+  // One settlement handler per `connectPromise`, fanned out to its waiters.
+  // Attaching per waiter instead would retain a handler for every command
+  // that waited on an unreachable node until its connect finally settles,
+  // and a caller retrying after each timeout would add another every time.
+  #connectWaiters = new WeakMap<
+    Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>,
+    Set<ConnectWaiter<M, F, S, RESP, TYPE_MAPPING>>
+  >();
+
+  // Waiting for a connecting node is bounded by the cluster's command timeout
+  // (#3592): unbounded, an unreachable node held its commands forever. A
+  // `commandOptions.timeout` of `undefined` or `0` disables the command
+  // timeout, so it keeps the unbounded wait here too — the command queue
+  // skips its own timer for both.
+  #raceConnectTimeout(
+    connectPromise: Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>
+  ): Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {
+    const { timeout } = { timeout: DEFAULT_COMMAND_TIMEOUT, ...this.#options?.commandOptions };
+    if (!timeout) return connectPromise;
+
+    let waiters = this.#connectWaiters.get(connectPromise);
+    if (!waiters) {
+      const set = waiters = new Set<ConnectWaiter<M, F, S, RESP, TYPE_MAPPING>>();
+      this.#connectWaiters.set(connectPromise, set);
+
+      const settle = (
+        notify: (waiter: ConnectWaiter<M, F, S, RESP, TYPE_MAPPING>) => void
+      ) => {
+        this.#connectWaiters.delete(connectPromise);
+        // copy first: notifying resolves each waiter's promise, and a
+        // continuation must not mutate the set being iterated
+        const settling = [...set];
+        set.clear();
+        for (const waiter of settling) notify(waiter);
+      };
+
+      connectPromise.then(
+        client => settle(waiter => waiter.resolve(client)),
+        err => settle(waiter => waiter.reject(err))
+      );
+    }
+
+    const set = waiters;
+    return new Promise((resolve, reject) => {
+      // `setTimeout` fires at once for a delay past MAX_TIMER_DELAY, so a long
+      // timeout arms in steps and re-arms until the deadline really passes,
+      // the way the command queue's deadlines do.
+      const deadline = performance.now() + timeout;
+      let timer: ReturnType<typeof setTimeout>;
+
+      const arm = () => {
+        const remaining = deadline - performance.now();
+        if (remaining <= 0) {
+          // drop this waiter so an outage does not accumulate them
+          set.delete(waiter);
+          reject(new TimeoutError());
+          return;
+        }
+
+        timer = setTimeout(arm, Math.min(MAX_TIMER_DELAY, Math.max(1, Math.ceil(remaining))));
+      };
+
+      const waiter: ConnectWaiter<M, F, S, RESP, TYPE_MAPPING> = {
+        resolve: client => {
+          clearTimeout(timer);
+          resolve(client);
+        },
+        reject: err => {
+          clearTimeout(timer);
+          reject(err);
+        }
+      };
+
+      arm();
+      set.add(waiter);
+    });
+  }
+
   async #waitForNodeClient(
     node: ShardNode<M, F, S, RESP, TYPE_MAPPING>,
     client: RedisClientType<M, F, S, RESP, TYPE_MAPPING> | undefined,
     connectPromise: Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>
   ): Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {
     try {
-      return await connectPromise;
+      return await this.#raceConnectTimeout(connectPromise);
     } catch (err) {
       // A refresh closed this client before it connected because the node
       // changed role. The node is still in the cluster, so use its new client.
@@ -1060,6 +1224,14 @@ export default class RedisClusterSlots<
 
     if (this.pubSubNode) {
       drain(this.pubSubNode.client);
+      // listeners parked by a refresh that is still connecting live on
+      // `toResubscribe`, not on the client, so drain them too
+      const pending = this.pubSubNode.toResubscribe;
+      if (pending) {
+        for (const type of [PUBSUB_TYPE.CHANNELS, PUBSUB_TYPE.PATTERNS] as const) {
+          mergePubSubTypeListeners(merged[type], pending[type]);
+        }
+      }
       // server-side subscriber state is per-connection: destroy the drained
       // connection or the server keeps pushing every publish to a client with
       // zero listeners; a later subscribe recreates the node lazily
@@ -1426,12 +1598,25 @@ export default class RedisClusterSlots<
     return this.masters.find(master => !visited.has(master.address))?.address;
   }
 
-  getPubSubClient(): Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {
+  /**
+   * `bounded` is the rule for every pub/sub wait here: a call the user made
+   * races the command timeout (#3592), so an unreachable node cannot hang
+   * `subscribe()` the way it used to hang `connect()`. Internal recovery —
+   * resubscribing after a failover, a `MOVED`, or a slot migration — passes
+   * `false` and waits as long as it takes, because the old queue has already
+   * given up its listeners by then and a timeout would drop them for good.
+   */
+  getPubSubClient(bounded = true): Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {
     this.#assertReady();
 
-    if (!this.pubSubNode) return this.#initiatePubSubClient();
+    const wait = (connectPromise: Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>) =>
+      bounded ? this.#raceConnectTimeout(connectPromise) : connectPromise;
 
-    return this.pubSubNode.connectPromise ?? Promise.resolve(this.pubSubNode.client);
+    if (!this.pubSubNode) return wait(this.#initiatePubSubClient());
+
+    return this.pubSubNode.connectPromise ?
+      wait(this.pubSubNode.connectPromise) :
+      Promise.resolve(this.pubSubNode.client);
   }
 
   async #initiatePubSubClient(toResubscribe?: PubSubToResubscribe) {
@@ -1446,6 +1631,7 @@ export default class RedisClusterSlots<
       client
     };
 
+    pubSubNode.toResubscribe = toResubscribe;
     this.pubSubNode = pubSubNode;
 
     pubSubNode.connectPromise = client.connect()
@@ -1456,10 +1642,24 @@ export default class RedisClusterSlots<
         }
 
         if (toResubscribe) {
-          await Promise.all([
-            client.extendPubSubListeners(PUBSUB_TYPE.CHANNELS, toResubscribe[PUBSUB_TYPE.CHANNELS]),
-            client.extendPubSubListeners(PUBSUB_TYPE.PATTERNS, toResubscribe[PUBSUB_TYPE.PATTERNS])
-          ]);
+          try {
+            await Promise.all([
+              client.extendPubSubListeners(PUBSUB_TYPE.CHANNELS, toResubscribe[PUBSUB_TYPE.CHANNELS]),
+              client.extendPubSubListeners(PUBSUB_TYPE.PATTERNS, toResubscribe[PUBSUB_TYPE.PATTERNS])
+            ]);
+          } catch (err) {
+            // A newer attempt superseding this one destroys this client, and
+            // destroy() flushes the in-flight subscribe with
+            // DisconnectsClientError. The newer attempt already carries these
+            // listeners, so report the supersession rather than that error —
+            // the caller only treats ClientClosedError as expected.
+            if (this.pubSubNode !== pubSubNode) {
+              client.destroy();
+              throw new ClientClosedError();
+            }
+
+            throw err;
+          }
 
           if (this.pubSubNode !== pubSubNode) {
             client.destroy();
@@ -1468,12 +1668,18 @@ export default class RedisClusterSlots<
         }
 
         pubSubNode.connectPromise = undefined;
+        pubSubNode.toResubscribe = undefined;
         return client;
       })
       .catch(err => {
-        if (this.pubSubNode === pubSubNode) {
-          this.pubSubNode = undefined;
-        }
+        // Same supersession rule as the resubscribe phase above, for a
+        // handshake cut short: a newer re-init destroys this client, so
+        // connect() rejects with DisconnectsClientError. The replacement
+        // already carries the listeners, so report the supersession rather
+        // than a failure the caller would surface as a cluster `error`.
+        if (this.pubSubNode !== pubSubNode) throw new ClientClosedError();
+
+        this.pubSubNode = undefined;
         throw err;
       });
 
@@ -1493,12 +1699,30 @@ export default class RedisClusterSlots<
     }
   }
 
-  getShardedPubSubClient(channel: string): Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {
+  /** See `getPubSubClient()` for what `bounded` means. */
+  getShardedPubSubClient(channel: string, bounded = true): Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {
     this.#assertReady();
 
+    return this.#shardedPubSubClient(channel, bounded);
+  }
+
+  // `sharded-channel-moved` recovery takes `bounded: false`. By the time it
+  // runs, the old queue has already handed over its listeners, so a timeout
+  // would leave the replacement client ready with an empty listener map and
+  // nothing left to resubscribe from — the subscription would be lost for
+  // good. A caller-facing ssubscribe/sunsubscribe can safely fail instead.
+  #shardedPubSubClient(
+    channel: string,
+    bounded: boolean
+  ): Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {
     const { master } = this.slots[calculateSlot(channel)];
-    if (!master.pubSub) return this.#initiateShardedPubSubClient(master);
-    return master.pubSub.connectPromise ?? Promise.resolve(master.pubSub.client);
+    const wait = (connectPromise: Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>) =>
+      bounded ? this.#raceConnectTimeout(connectPromise) : connectPromise;
+
+    if (!master.pubSub) return wait(this.#initiateShardedPubSubClient(master));
+    return master.pubSub.connectPromise ?
+      wait(master.pubSub.connectPromise) :
+      Promise.resolve(master.pubSub.client);
   }
 
   async #initiateShardedPubSubClient(master: MasterNode<M, F, S, RESP, TYPE_MAPPING>) {
@@ -1510,7 +1734,8 @@ export default class RedisClusterSlots<
         let refreshFrom = client;
         for (let redirections = 0; ; redirections++) {
           await this.rediscover(refreshFrom);
-          const redirectTo = await this.getShardedPubSubClient(channel);
+          // unbounded: see #shardedPubSubClient
+          const redirectTo = await this.#shardedPubSubClient(channel, false);
           try {
             await redirectTo.extendPubSubChannelListeners(
               PUBSUB_TYPE.SHARDED,
@@ -1562,8 +1787,12 @@ export default class RedisClusterSlots<
     const { master } = this.slots[calculateSlot(channel)];
     if (!master.pubSub) return;
 
+    // bounded like getShardedPubSubClient(): once ssubscribe has timed out on
+    // an unreachable master, `master.pubSub` is already seated, so waiting on
+    // its connect raw would hang sunsubscribe on exactly the dead node the
+    // subscribe side now gives up on
     const client = master.pubSub.connectPromise ?
-      await master.pubSub.connectPromise :
+      await this.#raceConnectTimeout(master.pubSub.connectPromise) :
       master.pubSub.client;
 
     await unsubscribe(client);

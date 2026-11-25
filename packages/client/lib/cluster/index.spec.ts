@@ -1244,6 +1244,150 @@ describe('Cluster', () => {
     // opens that node's client lazily. If the refresh then demotes the node and
     // closes the client before it connects, the command must move on to the
     // node's new client instead of failing with "The client is closed".
+    // #3592: one unreachable master must cost only its own shard. connect()
+    // resolves on topology, a command for a live shard succeeds, and a command
+    // for the dead shard rejects on the command timeout instead of waiting on
+    // the node's connect forever.
+    testUtils.testWithCluster('connect() resolves while one master is unreachable (#3592)', async cluster => {
+      await cluster.connect();
+
+      const masters = [...new Set(cluster.slots.map(shard => shard.master))];
+      assert.ok(masters.length >= 2, 'needs two masters');
+      const deadMaster = masters[1];
+
+      // keys owned by a live shard and by the dead master's shard
+      let liveKey!: string, deadKey!: string;
+      for (let i = 0; !(liveKey && deadKey); i++) {
+        const key = `k3592-${i}`, owner = cluster.slots[calculateSlot(key)].master;
+        if (owner === deadMaster) deadKey ??= key;
+        else if (owner === masters[0]) liveKey ??= key;
+      }
+
+      // new connections to the dead master's port never complete
+      const createConnection = net.createConnection,
+        connectStub = stub(net, 'createConnection').callsFake(((options: net.NetConnectOpts) => {
+          if ((options as net.TcpNetConnectOpts).port !== deadMaster.port) {
+            return createConnection(options);
+          }
+          return new net.Socket(options);
+        }) as typeof net.createConnection);
+
+      const dup = cluster.duplicate({
+        commandOptions: { timeout: 1000 },
+        // The stubbed socket never connects. Keep its own connect timeout far
+        // above the command timeout so this asserts the bounded wait rather
+        // than a connect that happened to give up first — otherwise a slow
+        // runner can let the default 5s connect timeout land before the 1s
+        // command timeout is reached, and the command rejects with
+        // ConnectionTimeoutError instead.
+        defaults: { socket: { connectTimeout: 60_000 } },
+        // That long timeout applies to discovery too, and
+        // #discoverWithRootNodes starts at a random root, so leaving the dead
+        // master in the list would let a root attempt against the blocked port
+        // outlast the test. Point discovery at the live master instead.
+        rootNodes: [{ socket: { host: masters[0].host, port: masters[0].port } }]
+      });
+      try {
+        // point 1: topology is installed without waiting for the dead node
+        await dup.connect();
+
+        assert.equal(await dup.set(liveKey, 'v'), 'OK', 'a live shard serves commands');
+
+        // point 2: the wait for the dead node's connect is raced against the
+        // cluster's command timeout, instead of being unbounded.
+        // Must be a write: the fixture enables `useReplicas`, so a read-only
+        // command could be served by the dead master's healthy replica and
+        // resolve without ever touching the unreachable connection.
+        await assert.rejects(dup.set(deadKey, 'v'), TimeoutError, 'the dead shard rejects on the command timeout');
+      } finally {
+        connectStub.restore();
+        dup.destroy();
+      }
+    }, {
+      serverArguments: [],
+      numberOfMasters: 2,
+      numberOfReplicas: 1,
+      minimumDockerVersion: [7],
+      disableClusterSetup: true,
+      clusterConfiguration: {
+        useReplicas: true
+      },
+      testTimeout: 30000
+    });
+
+    // #3592: a node that never connected counts for
+    // topologyRefreshOnReconnectionAttemptStrategy, so a failover that promotes
+    // its replica moves the shard's slots and its commands succeed again.
+    testUtils.testWithCluster('a failover moves the slots of a never-connected master (#3592)', async cluster => {
+      await cluster.connect();
+
+      const masters = [...new Set(cluster.slots.map(shard => shard.master))];
+      const deadMaster = masters[1];
+      let deadKey!: string;
+      for (let i = 0; !deadKey; i++) {
+        const key = `k3592b-${i}`;
+        if (cluster.slots[calculateSlot(key)].master === deadMaster) deadKey = key;
+      }
+      const replicaClient = await cluster.nodeClient(cluster.slots[calculateSlot(deadKey)].replicas![0]);
+
+      const createConnection = net.createConnection,
+        connectStub = stub(net, 'createConnection').callsFake(((options: net.NetConnectOpts) => {
+          if ((options as net.TcpNetConnectOpts).port !== deadMaster.port) {
+            return createConnection(options);
+          }
+          return new net.Socket(options);
+        }) as typeof net.createConnection);
+
+      const dup = cluster.duplicate({
+        commandOptions: { timeout: 1000 },
+        topologyRefreshOnReconnectionAttemptStrategy: 100,
+        // Keep the default connect timeout here. This test needs the dead
+        // node's connect to give up and start reconnecting, because that
+        // `reconnecting` event is what drives
+        // topologyRefreshOnReconnectionAttemptStrategy — stretching it would
+        // stop the refresh under test from ever firing.
+        rootNodes: [{ socket: { host: masters[0].host, port: masters[0].port } }]
+      });
+      try {
+        await dup.connect();
+
+        // promote the replica on the real cluster (its connections predate the stub)
+        await replicaClient.clusterFailover();
+
+        // the dead master's background connect keeps retrying; each attempt
+        // counts for the refresh strategy, which rediscovers through the live
+        // nodes and installs the promoted replica as the shard's master
+        for (let i = 0; ; i++) {
+          try {
+            assert.equal(await dup.set(deadKey, 'v'), 'OK');
+            break;
+          } catch (err) {
+            if (i === 20) throw err;
+            await setTimeout(500);
+          }
+        }
+
+        // Later commands keep routing correctly after the refresh. Must be a
+        // write: the demoted master is now this shard's replica and its port
+        // is still blocked, so with `useReplicas` a read could be routed there
+        // and time out even though the failover recovered correctly.
+        assert.equal(await dup.set(deadKey, 'v2'), 'OK');
+      } finally {
+        connectStub.restore();
+        dup.destroy();
+      }
+    }, {
+      serverArguments: [],
+      numberOfMasters: 2,
+      numberOfReplicas: 1,
+      minimumDockerVersion: [7],
+      disableClusterSetup: true,
+      clusterConfiguration: {
+        useReplicas: true
+      },
+      testTimeout: 30000
+    });
+
     testUtils.testWithCluster('retries a node connect cut short by a failover demoting the node', async cluster => {
       await cluster.connect();
 
@@ -1320,19 +1464,42 @@ describe('Cluster', () => {
         .on('node-connect', () => log.push('node-connect'))
         .on('node-disconnect', () => log.push('node-disconnect'))
 
+      // #3592 point 1 runs the node connects in the background, so `connect()`
+      // can resolve before either handshake finishes. Destroying there would
+      // race them and lose the node-connect/node-ready pairs this asserts, so
+      // wait for both nodes to report ready first.
+      const bothReady = new Promise<void>(resolve => {
+        let ready = 0;
+        cluster.on('node-ready', () => {
+          if (++ready === 2) resolve();
+        });
+      });
+
       await cluster.connect();
+      await bothReady;
       cluster.destroy();
 
-      assert.deepEqual(log, [
-        'node-connect',
-        'node-connect',
-        'node-ready',
-        'node-ready',
-        'connect',
-        'node-disconnect',
-        'node-disconnect',
-        'disconnect',
-      ]);
+      // #3592 point 1 detaches the node connects from `connect()`: the slot map
+      // installs without waiting for them, so `connect` no longer has a fixed
+      // position relative to `node-ready`. Assert what the events mean rather
+      // than an interleaving that is now a race.
+      const counts = log.reduce<Record<string, number>>((acc, event) => {
+        acc[event] = (acc[event] ?? 0) + 1;
+        return acc;
+      }, {});
+
+      assert.deepEqual(counts, {
+        'node-connect': 2,
+        'node-ready': 2,
+        'connect': 1,
+        'node-disconnect': 2,
+        'disconnect': 1
+      });
+      assert.equal(log.at(-1), 'disconnect', 'disconnect closes the log');
+      assert.ok(
+        log.indexOf('node-connect') < log.indexOf('node-ready'),
+        'a node connects before it is ready'
+      );
     }, {
       ...GLOBAL.CLUSTERS.OPEN,
       disableClusterSetup: true,
