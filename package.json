@@ -28,7 +28,7 @@
   "devDependencies": {
     "@eslint/js": "^9.39.4",
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
-    "@release-it/bumper": "^7.0.5",
+    "@release-it/bumper": "^8.0.1",
     "@types/mocha": "^10.0.6",
     "@types/node": "^20.11.16",
     "eslint": "^9.39.4",
@@ -38,7 +38,7 @@
     "mocha-junit-reporter": "^2.2.1",
     "mocha-multi-reporters": "^1.5.1",
     "nyc": "^18.0.0",
-    "release-it": "^19.0.2",
+    "release-it": "^21.1.3",
     "ts-node": "^10.9.2",
     "tsx": "^4.23.0",
     "typedoc": "^0.25.7",
