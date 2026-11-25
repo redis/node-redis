@@ -6,7 +6,7 @@ import { RedisClusterClientOptions } from './index';
 import RedisClusterSlots, { groupCommandsByDestination, splitInFlightChainTail } from './cluster-slots';
 import type { MasterNode, Shard, ShardNode } from './cluster-slots';
 import type { CommandToWrite } from '../client/commands-queue';
-import { ClientClosedError, TimeoutError } from '../errors';
+import { ClientClosedError, SocketClosedUnexpectedlyError, TimeoutError } from '../errors';
 import { SMIGRATED_EVENT, type SMigratedEvent } from '../client/enterprise-maintenance-manager';
 
 describe('RedisClusterSlots', () => {
@@ -552,6 +552,125 @@ describe('RedisClusterSlots', () => {
         slots.destroy();
         await server.close();
       }
+    });
+
+    it('rejects pending commands with the socket failure when the node gives up', async () => {
+      const server = await startFakeNode({ holdPings: true });
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: server.port } }],
+        defaults: { socket: { reconnectStrategy: false } },
+        RESP: 2
+      }, () => true, 'test-cluster');
+
+      try {
+        await slots.connect();
+        const client = await slots.nodeClient(slots.masters[0]);
+        client.on('error', () => {});
+
+        const held = once(server.pingHeld, 'held');
+        const ping = client.ping();
+        await held;
+        server.dropConnections();
+
+        // destroying the client synchronously on 'terminated' rejected it with
+        // DisconnectsClientError, hiding the cause
+        await assert.rejects(ping, SocketClosedUnexpectedlyError);
+      } finally {
+        slots.destroy();
+        await server.close();
+      }
+    });
+
+    it('does not open a node connection after the cluster is destroyed, once the node gave up', async () => {
+      const server = await startFakeNode();
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: server.port } }],
+        defaults: { socket: { reconnectStrategy: false } },
+        RESP: 2
+      }, () => true, 'test-cluster');
+
+      try {
+        await slots.connect();
+        const node = slots.masters[0];
+        const first = await slots.nodeClient(node);
+        const terminated = once(first, 'terminated');
+        server.dropConnections();
+        await terminated;
+        assert.equal(node.client, undefined);
+
+        // a caller still holding the node after teardown
+        slots.destroy();
+        await assert.rejects(slots.nodeClient(node), ClientClosedError);
+        assert.equal(node.client, undefined, 'no replacement must be created');
+      } finally {
+        slots.destroy();
+        await server.close();
+      }
+    });
+
+    it('finishes a slot migration whose source client terminates mid-migration', async () => {
+      const errors: unknown[] = [];
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: 1 } }],
+        defaults: { socket: { host: '127.0.0.1', port: 1, reconnectStrategy: false, connectTimeout: 100 } },
+      }, (event: string, err: unknown) => {
+        if (event === 'error') errors.push(err);
+        return true;
+      }, 'test-cluster');
+
+      // grab the bound SMIGRATED handler, as in '#handleSmigrated error recovery'
+      const probe = {
+        address: '127.0.0.1:1', host: '127.0.0.1', port: 1, id: 'handler-probe', readonly: false,
+      } as ShardNode<Record<string, never>, Record<string, never>, Record<string, never>, 3, Record<string, never>>;
+      const connectPromise = slots.nodeClient(probe);
+      const [handler] = (probe.client as EventEmitter).listeners(SMIGRATED_EVENT) as [(e: SMigratedEvent) => Promise<void>];
+      await assert.rejects(connectPromise as Promise<unknown>);
+
+      const destNode = {
+        address: 'dest:6379', host: 'dest', port: 6379,
+        client: { _pause: () => {}, _unpause: () => {} },
+      } as unknown as MasterNode<Record<string, never>, Record<string, never>, Record<string, never>, 3, Record<string, never>>;
+      let destroyed = 0;
+      const sourceNode = {
+        address: 'source:6379', host: 'source', port: 6379,
+        client: {
+          _clientId: 'source-client',
+          _pause: () => {},
+          _unpause: () => {},
+          destroy: () => { destroyed++; },
+          _getQueue: () => ({
+            extractCommandsForSlots: () => [],
+            // the source terminates while the migration awaits its in-flight
+            // replies, and the 'terminated' handler clears sourceNode.client
+            waitForInflightCommandsToComplete: async () => {
+              sourceNode.client = undefined;
+              return false;
+            },
+            extractAllCommands: () => [],
+          }),
+        } as unknown,
+      } as unknown as MasterNode<Record<string, never>, Record<string, never>, Record<string, never>, 3, Record<string, never>>;
+
+      slots.nodeByAddress.set('source:6379', sourceNode);
+      slots.nodeByAddress.set('dest:6379', destNode);
+      slots.masters.push(sourceNode, destNode);
+      slots.slots.fill({ master: sourceNode });
+      slots.slots[16383] = { master: destNode };
+
+      await handler({
+        seqId: 1,
+        entries: [{
+          source: { host: 'source', port: 6379 },
+          destinations: [{ addr: { host: 'dest', port: 6379 }, slots: [[0, 16382]] }],
+        }],
+      } as SMigratedEvent);
+
+      // reading sourceNode.client after the await threw a TypeError, so the
+      // emptied source stayed in masters and nodeByAddress
+      assert.deepEqual(errors, []);
+      assert.equal(slots.nodeByAddress.has('source:6379'), false);
+      assert.equal(slots.masters.includes(sourceNode), false);
+      assert.equal(destroyed, 1);
     });
   });
 

@@ -306,6 +306,9 @@ export default class RedisClusterSlots<
   #topologyRefreshPromise?: Promise<boolean | void>;
 
   #isOpen = false;
+  // set by close()/destroy(), cleared by connect(): unlike !#isOpen, it isn't
+  // set before the first connect()
+  #shutDown = false;
 
   get isOpen() {
     return this.#isOpen;
@@ -353,6 +356,7 @@ export default class RedisClusterSlots<
 
     this.#isOpen = true;
     this.#isReady = false;
+    this.#shutDown = false;
     try {
       await this.#discoverWithRootNodes();
       // `destroy()` may have run while discovery was in flight; if so, this
@@ -545,6 +549,9 @@ export default class RedisClusterSlots<
         dbgMaintenance(`[CSlots]: Node for ${sourceAddress} does not have a client, skipping this entry`);
         continue;
       }
+      // Keep the source's client for the whole migration: if it terminates while
+      // we await below, the 'terminated' handler clears sourceNode.client.
+      const sourceClient = sourceNode.client;
 
       // Track all slots being moved for this entry (used for pubsub listener handling)
       const allMovingSlots = new Set<number>();
@@ -554,7 +561,7 @@ export default class RedisClusterSlots<
       try {
         // 1. Pausing
         // 1.1 Normal
-        sourceNode.client?._pause();
+        sourceClient._pause();
         // 1.2 Sharded pubsub
         if ('pubSub' in sourceNode) {
           sourceNode.pubSub?.client._pause();
@@ -627,13 +634,13 @@ export default class RedisClusterSlots<
           // transaction on that connection. Instead, extractCommandsForSlots()
           // itself leaves an in-flight chain's tail (and anything queued after
           // it) on source to preserve ordering; see its docstring.
-          const commandsForDestination = sourceNode.client._getQueue().extractCommandsForSlots(destinationSlots);
+          const commandsForDestination = sourceClient._getQueue().extractCommandsForSlots(destinationSlots);
           if (commandsForDestination.length > 0) {
             if (destMasterNode.client) {
               destMasterNode.client._getQueue().prependCommandsToWrite(commandsForDestination);
               dbgMaintenance(`[CSlots]: Extracted ${commandsForDestination.length} commands for ${destinationSlots.size} slots, prepended to ${destMasterNode.address}`);
             } else {
-              sourceNode.client._getQueue().rejectCommands(commandsForDestination, new DisconnectsClientError());
+              sourceClient._getQueue().rejectCommands(commandsForDestination, new DisconnectsClientError());
               dbgMaintenance(`[CSlots]: Rejected ${commandsForDestination.length} commands for ${destinationSlots.size} slots because ${destMasterNode.address} has no client`);
             }
           }
@@ -651,7 +658,7 @@ export default class RedisClusterSlots<
         const inflightClients: Array<{ client: RedisClientType<M, F, S, RESP, TYPE_MAPPING>, promise: Promise<boolean> }> = [];
         const inflightOptions = { timeoutMs: INFLIGHT_TIMEOUT_MS, flushOnTimeout: true };
 
-        inflightClients.push({ client: sourceNode.client, promise: sourceNode.client._getQueue().waitForInflightCommandsToComplete(inflightOptions) });
+        inflightClients.push({ client: sourceClient, promise: sourceClient._getQueue().waitForInflightCommandsToComplete(inflightOptions) });
         if ('pubSub' in sourceNode && sourceNode.pubSub !== undefined) {
           inflightClients.push({ client: sourceNode.pubSub.client, promise: sourceNode.pubSub.client._getQueue().waitForInflightCommandsToComplete(inflightOptions) });
         }
@@ -686,24 +693,24 @@ export default class RedisClusterSlots<
           }
 
           // Unpause source since it still has slots
-          sourceNode.client?._unpause();
+          sourceClient._unpause();
           if ('pubSub' in sourceNode) {
             sourceNode.pubSub?.client._unpause();
           }
         } else {
           // Source has no slots left - move remaining commands to their current slot owners
-          const remainingCommands = sourceNode.client._getQueue().extractAllCommands();
+          const remainingCommands = sourceClient._getQueue().extractAllCommands();
           if (remainingCommands.length > 0) {
             // A chain (MULTI/pipeline) that's already partially written to the
             // socket has the rest of its commands sitting in `#waitingForReply`,
             // out of view. The tail still in `#toWrite` can't be safely
             // relocated on its own - it would run as a fragment of the
             // transaction on a different node than the part already sent.
-            const chainInExecution = sourceNode.client._getQueue().chainInExecution;
+            const chainInExecution = sourceClient._getQueue().chainInExecution;
             const { inFlightChainTail, relocatable } = splitInFlightChainTail(remainingCommands, chainInExecution);
 
             if (inFlightChainTail.length > 0) {
-              sourceNode.client._getQueue().rejectCommands(inFlightChainTail, new DisconnectsClientError());
+              sourceClient._getQueue().rejectCommands(inFlightChainTail, new DisconnectsClientError());
               dbgMaintenance(`[CSlots]: Rejected ${inFlightChainTail.length} commands from a chain already partially sent to the server, can't be safely relocated`);
             }
 
@@ -711,7 +718,7 @@ export default class RedisClusterSlots<
               const { byDestination: commandsByDestination, unrouted } = groupCommandsByDestination(relocatable, this.slots, lastDestNode);
 
               if (unrouted.length > 0) {
-                sourceNode.client._getQueue().rejectCommands(unrouted, new DisconnectsClientError());
+                sourceClient._getQueue().rejectCommands(unrouted, new DisconnectsClientError());
                 dbgMaintenance(`[CSlots]: Rejected ${unrouted.length} commands with no resolvable slot owner and no fallback destination`);
               }
 
@@ -722,7 +729,7 @@ export default class RedisClusterSlots<
                   destNode.client._unpause();
                   dbgMaintenance(`[CSlots]: Moved ${commands.length} remaining commands to ${destNode.address}`);
                 } else {
-                  sourceNode.client._getQueue().rejectCommands(commands, new DisconnectsClientError());
+                  sourceClient._getQueue().rejectCommands(commands, new DisconnectsClientError());
                   dbgMaintenance(`[CSlots]: Rejected ${commands.length} remaining commands because ${destNode.address} has no client`);
                 }
               }
@@ -771,8 +778,8 @@ export default class RedisClusterSlots<
 
           // Destroy source connections (use destroy() instead of close() since the node is being removed
           // and close() can hang if the server is not responding)
-          this.#reconnectionTracker.removeClient(sourceNode.client?._clientId);
-          sourceNode.client.destroy();
+          this.#reconnectionTracker.removeClient(sourceClient._clientId);
+          sourceClient.destroy();
           if ('pubSub' in sourceNode && sourceNode.pubSub) {
             this.#reconnectionTracker.removeClient(sourceNode.pubSub.client._clientId);
             sourceNode.pubSub.client.destroy();
@@ -781,7 +788,7 @@ export default class RedisClusterSlots<
       } catch (err: unknown) {
         dbgMaintenance(`[CSlots]: Error during SMIGRATED handling for source ${sourceAddress}: ${err}`);
         // Ensure we unpause source on error to prevent deadlock
-        sourceNode.client?._unpause();
+        sourceClient._unpause();
         if ('pubSub' in sourceNode) {
           sourceNode.pubSub?.client._unpause();
         }
@@ -948,10 +955,15 @@ export default class RedisClusterSlots<
         // ClientClosedError. 'terminated' never fires on close() or QUIT, so a
         // client still draining is left alone. Guard on identity: #discover may
         // have swapped in a newer client for this node.
+        // Only a node's data client is handled here: for the pub/sub clients this
+        // method also builds, node.client is the data client, so this returns.
         if (node.client !== client) return;
         node.client = undefined;
         this.#reconnectionTracker.removeClient(client._clientId);
-        client.destroy();
+        // 'terminated' is emitted just before the socket error that rejects the
+        // pending commands with the real cause; destroy after that, or they'd
+        // get DisconnectsClientError instead.
+        queueMicrotask(() => client.destroy());
       })
       .on('connect', () => emit('node-connect', clientInfo))
       .once('end', () => {
@@ -994,6 +1006,10 @@ export default class RedisClusterSlots<
     // if the node is connected
     if (node.client)
       return Promise.resolve(node.client);
+    // a caller still holding a node (e.g. an in-flight scan) must not open a
+    // connection once the cluster is shut down: nothing would track or close it
+    if (this.#shutDown)
+      return Promise.reject(new ClientClosedError());
     // if the node is disconnected
     const connectPromise = this.#createNodeClient(node);
     return this.#waitForNodeClient(node, node.client, connectPromise);
@@ -1319,6 +1335,7 @@ export default class RedisClusterSlots<
   destroy() {
     this.#isOpen = false;
     this.#isReady = false;
+    this.#shutDown = true;
 
     for (const client of this.#clients()) {
       client.destroy();
@@ -1356,6 +1373,7 @@ export default class RedisClusterSlots<
   async #destroy(fn: (client: RedisClientType<M, F, S, RESP>) => Promise<unknown>): Promise<void> {
     this.#isOpen = false;
     this.#isReady = false;
+    this.#shutDown = true;
 
     const promises = [];
     for (const client of this.#clients()) {
