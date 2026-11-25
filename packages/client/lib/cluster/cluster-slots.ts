@@ -941,6 +941,18 @@ export default class RedisClusterSlots<
         this.#reconnectionTracker.removeClient(client._clientId);
       })
       .on('ready', () => emit('node-ready', clientInfo))
+      .on('terminated', () => {
+        // reconnectStrategy gave up (e.g. after a socket timeout), so this client
+        // is closed for good. Drop it so the next nodeClient() call connects a
+        // fresh one, instead of failing every command for the node's slots with
+        // ClientClosedError. 'terminated' never fires on close() or QUIT, so a
+        // client still draining is left alone. Guard on identity: #discover may
+        // have swapped in a newer client for this node.
+        if (node.client !== client) return;
+        node.client = undefined;
+        this.#reconnectionTracker.removeClient(client._clientId);
+        client.destroy();
+      })
       .on('connect', () => emit('node-connect', clientInfo))
       .once('end', () => {
         this.#reconnectionTracker.removeClient(client._clientId);
