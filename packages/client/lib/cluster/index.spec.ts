@@ -5,6 +5,8 @@ import { SQUARE_SCRIPT } from '../client/index.spec';
 import { RootNodesUnavailableError } from '../errors';
 import { spy } from 'sinon';
 import RedisClient from '../client';
+import calculateSlot from 'cluster-key-slot';
+import { setTimeout } from 'node:timers/promises';
 
 describe('Cluster', () => {
   it('should not have HOTKEYS commands (requires session affinity)', () => {
@@ -177,6 +179,49 @@ describe('Cluster', () => {
     assert.equal(cluster.replicas.length, numberOfReplicas * numberOfMasters);
     assert.equal(cluster.nodeByAddress.size, numberOfMasters + numberOfMasters * numberOfReplicas);
   }, GLOBAL.CLUSTERS.WITH_REPLICAS);
+
+  testUtils.testWithCluster('serves reads from a master demoted to replica by a failover', async cluster => {
+    const key = 'demoted-master-key',
+      slot = calculateSlot(key);
+
+    await cluster.set(key, 'value');
+
+    const previousMaster = cluster.slots[slot].master,
+      replica = cluster.slots[slot].replicas![0],
+      [previousMasterClient, replicaClient] = await Promise.all([
+        cluster.nodeClient(previousMaster),
+        cluster.nodeClient(replica)
+      ]);
+
+    assert.equal(await previousMasterClient.wait(1, 5000), 1);
+    await replicaClient.clusterFailover();
+
+    for (let i = 0; ; i++) {
+      const info = await previousMasterClient.sendCommand<string>(['INFO', 'replication']);
+      if (info.includes('role:slave')) break;
+      if (i === 199) assert.fail('Cluster failover did not complete');
+      await setTimeout(50);
+    }
+
+    // the write lands on the previous master, whose MOVED reply triggers the rediscovery
+    await cluster.set(key, 'value');
+
+    const demoted = cluster.slots[slot].replicas![0];
+    assert.equal(demoted.address, previousMaster.address);
+    assert.equal(await (await cluster.nodeClient(demoted)).get(key), 'value');
+    assert.equal(demoted.readonly, true);
+    assert.equal(previousMasterClient.isOpen, false);
+    assert.equal(cluster.slots[slot].master.readonly, false);
+    assert.equal(await cluster.nodeClient(cluster.slots[slot].master), replicaClient);
+  }, {
+    serverArguments: [],
+    numberOfMasters: 2,
+    numberOfReplicas: 1,
+    clusterConfiguration: {
+      useReplicas: true
+    },
+    testTimeout: 30000
+  });
 
   testUtils.testWithCluster('getMasters should be backwards competiable (without `minimizeConnections`)', async cluster => {
     const masters = cluster.getMasters();
