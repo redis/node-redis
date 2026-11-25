@@ -468,10 +468,11 @@ describe('FT.SEARCH', () => {
     }, GLOBAL.SERVERS.OPEN);
 
     testUtils.testWithClient('INKEYS with keyPrefix', async client => {
+      // Empty relative PREFIX + client keyPrefix → wire PREFIX `prefix:`.
       await client.ft.create('index', {
         field: 'TEXT'
       }, {
-        PREFIX: 'prefix:'
+        PREFIX: ''
       });
       await client.hSet('1', 'field', 'hello');
       await client.hSet('2', 'field', 'world');

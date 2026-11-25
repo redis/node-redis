@@ -2,6 +2,7 @@ import { strict as assert } from 'node:assert';
 import testUtils, { GLOBAL } from '../test-utils';
 import CREATE, { SCHEMA_FIELD_TYPE, SCHEMA_TEXT_FIELD_PHONETIC, SCHEMA_VECTOR_FIELD_ALGORITHM, REDISEARCH_LANGUAGE, VAMANA_COMPRESSION_ALGORITHM } from './CREATE';
 import { parseArgs } from '@redis/client/lib/commands/generic-transformers';
+import { BasicCommandParser } from '@redis/client/lib/client/parser';
 
 describe('FT.CREATE', () => {
   describe('transformArguments', () => {
@@ -461,6 +462,19 @@ describe('FT.CREATE', () => {
           ['FT.CREATE', 'index', 'PREFIX', '2', '1', '2', 'SCHEMA']
         );
       });
+
+      it('applies keyPrefix without registering routing keys', () => {
+        const parser = new BasicCommandParser('app:');
+        CREATE.parseCommand(parser, 'index', {}, {
+          PREFIX: ['user:', 'post:']
+        });
+        assert.deepEqual(
+          parser.redisArgs,
+          ['FT.CREATE', 'index', 'PREFIX', '2', 'app:user:', 'app:post:', 'SCHEMA']
+        );
+        assert.deepEqual(parser.keys, []);
+        assert.equal(parser.firstKey, undefined);
+      });
     });
 
     it('with FILTER', () => {
@@ -626,6 +640,31 @@ describe('FT.CREATE', () => {
       'OK'
     );
   }, GLOBAL.SERVERS.OPEN);
+
+  testUtils.testWithClient('client.ft.create PREFIX with keyPrefix', async client => {
+    // Relative PREFIX + client keyPrefix should index the same keys the client writes.
+    assert.equal(
+      await client.ft.create('index', {
+        field: SCHEMA_FIELD_TYPE.TEXT
+      }, {
+        PREFIX: 'doc:'
+      }),
+      'OK'
+    );
+
+    await client.hSet('doc:1', 'field', 'hello');
+    await client.hSet('other:1', 'field', 'skip');
+
+    const reply = await client.ft.search('index', '*');
+    assert.equal(reply.total, 1);
+    assert.equal(reply.documents[0]?.id, 'prefix:doc:1');
+  }, {
+    ...GLOBAL.SERVERS.OPEN,
+    clientOptions: {
+      ...GLOBAL.SERVERS.OPEN.clientOptions,
+      keyPrefix: 'prefix:'
+    }
+  });
 
   testUtils.testWithClientIfVersionWithinRange([[7], 'LATEST'], 'client.ft.create vector types big floats', async client => {
     assert.equal(

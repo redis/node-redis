@@ -450,7 +450,13 @@ export default {
       parser.push('ON', options.ON);
     }
 
-    parseOptionalVariadicArgument(parser, 'PREFIX', options?.PREFIX);
+    // PREFIX values are document key prefixes (same keyspace as keyPrefix /
+    // INKEYS). Apply keyPrefix on the wire, but do not register routing keys —
+    // FT.CREATE is cluster-keyless.
+    if (options?.PREFIX !== undefined) {
+      parser.push('PREFIX');
+      parser.pushPrefixedVariadicWithLength(options.PREFIX);
+    }
 
     if (options?.FILTER) {
       parser.push('FILTER', options.FILTER);
