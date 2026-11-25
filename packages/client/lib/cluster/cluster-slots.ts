@@ -444,25 +444,28 @@ export default class RedisClusterSlots<
         this.pubSubNode = undefined;
 
         if (channelsListeners.size || patternsListeners.size) {
+          const resubscribe = this.#initiatePubSubClient({
+            [PUBSUB_TYPE.CHANNELS]: channelsListeners,
+            [PUBSUB_TYPE.PATTERNS]: patternsListeners
+          });
+
+          // Report on the re-init itself, so a failure is heard whenever it
+          // lands — including after the bounded wait below has given up. A
+          // superseded attempt is expected; anything else means the listeners
+          // are gone and the caller has to hear about it.
+          resubscribe.catch(err => {
+            if (err instanceof ClientClosedError && this.#isOpen) return;
+            if (this.#isOpen) this.#emit('error', err);
+          });
+
           // Unlike the node connects, this one is awaited below: a subscriber
           // whose pub/sub node left the topology would otherwise miss
           // everything published between the refresh returning and the
-          // resubscribe landing. Bounded so an unreachable replacement cannot
-          // hang the refresh, which is the whole point of #3592.
-          pubSubResubscribe = this.#raceConnectTimeout(
-            this.#initiatePubSubClient({
-              [PUBSUB_TYPE.CHANNELS]: channelsListeners,
-              [PUBSUB_TYPE.PATTERNS]: patternsListeners
-            })
-          ).catch(err => {
-            // A superseded attempt is expected; anything else means the
-            // listeners are gone and the caller has to hear about it.
-            if (err instanceof ClientClosedError && this.#isOpen) return;
-            // The wait ran out, not the resubscribe: it is still in flight and
-            // delivery resumes when it lands, so do not report a loss.
-            if (err instanceof TimeoutError) return;
-            if (this.#isOpen) this.#emit('error', err);
-          });
+          // resubscribe landing. The wait is bounded so an unreachable
+          // replacement cannot hang the refresh, which is the point of #3592 —
+          // running out of patience here is not a failure, and the catch above
+          // still reports one if the re-init genuinely fails.
+          pubSubResubscribe = this.#raceConnectTimeout(resubscribe).catch(() => {});
         }
       }
 
@@ -1591,20 +1594,24 @@ export default class RedisClusterSlots<
     return this.masters.find(master => !visited.has(master.address))?.address;
   }
 
-  getPubSubClient(): Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {
+  /**
+   * `bounded` is the rule for every pub/sub wait here: a call the user made
+   * races the command timeout (#3592), so an unreachable node cannot hang
+   * `subscribe()` the way it used to hang `connect()`. Internal recovery —
+   * resubscribing after a failover, a `MOVED`, or a slot migration — passes
+   * `false` and waits as long as it takes, because the old queue has already
+   * given up its listeners by then and a timeout would drop them for good.
+   */
+  getPubSubClient(bounded = true): Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {
     this.#assertReady();
 
-    // Bound these the same way commands are (#3592): `connect()` now resolves
-    // without waiting for the node connections, so an unreachable node can
-    // still be in the topology when the pub/sub node is picked. Awaiting its
-    // connect raw would move the hang this PR removes onto `subscribe()`.
-    // Only the caller's wait is bounded — `#initiatePubSubClient()` keeps its
-    // own unbounded promise, so a refresh resubscribing through it is
-    // unaffected.
-    if (!this.pubSubNode) return this.#raceConnectTimeout(this.#initiatePubSubClient());
+    const wait = (connectPromise: Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>>) =>
+      bounded ? this.#raceConnectTimeout(connectPromise) : connectPromise;
+
+    if (!this.pubSubNode) return wait(this.#initiatePubSubClient());
 
     return this.pubSubNode.connectPromise ?
-      this.#raceConnectTimeout(this.pubSubNode.connectPromise) :
+      wait(this.pubSubNode.connectPromise) :
       Promise.resolve(this.pubSubNode.client);
   }
 
@@ -1688,11 +1695,11 @@ export default class RedisClusterSlots<
     }
   }
 
-  getShardedPubSubClient(channel: string): Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {
+  /** See `getPubSubClient()` for what `bounded` means. */
+  getShardedPubSubClient(channel: string, bounded = true): Promise<RedisClientType<M, F, S, RESP, TYPE_MAPPING>> {
     this.#assertReady();
 
-    // bounded for the same reason as getPubSubClient()
-    return this.#shardedPubSubClient(channel, true);
+    return this.#shardedPubSubClient(channel, bounded);
   }
 
   // `sharded-channel-moved` recovery takes `bounded: false`. By the time it

@@ -1006,9 +1006,14 @@ export default class RedisCluster<
   async SUBSCRIBE<T extends boolean = false>(
     channels: string | Array<string>,
     listener: PubSubListener<T>,
-    bufferMode?: T
+    bufferMode?: T,
+    /**
+     * @internal `false` is used by the resubscribe that follows a failover,
+     * a `MOVED` or a slot migration, which must not give up on a slow connect.
+     */
+    bounded = true
   ) {
-    return (await this._self._slots.getPubSubClient())
+    return (await this._self._slots.getPubSubClient(bounded))
       .SUBSCRIBE(channels, listener, bufferMode);
   }
 
@@ -1029,9 +1034,14 @@ export default class RedisCluster<
   async PSUBSCRIBE<T extends boolean = false>(
     patterns: string | Array<string>,
     listener: PubSubListener<T>,
-    bufferMode?: T
+    bufferMode?: T,
+    /**
+     * @internal `false` is used by the resubscribe that follows a failover,
+     * a `MOVED` or a slot migration, which must not give up on a slow connect.
+     */
+    bounded = true
   ) {
-    return (await this._self._slots.getPubSubClient())
+    return (await this._self._slots.getPubSubClient(bounded))
       .PSUBSCRIBE(patterns, listener, bufferMode);
   }
 
@@ -1052,11 +1062,16 @@ export default class RedisCluster<
   async SSUBSCRIBE<T extends boolean = false>(
     channels: string | Array<string>,
     listener: PubSubListener<T>,
-    bufferMode?: T
+    bufferMode?: T,
+    /**
+     * @internal `false` is used by the resubscribe that follows a failover,
+     * a `MOVED` or a slot migration, which must not give up on a slow connect.
+     */
+    bounded = true
   ) {
     const maxCommandRedirections = this._self._options.maxCommandRedirections ?? 16,
       firstChannel = Array.isArray(channels) ? channels[0] : channels;
-    let client = await this._self._slots.getShardedPubSubClient(firstChannel);
+    let client = await this._self._slots.getShardedPubSubClient(firstChannel, bounded);
     for (let i = 0; ; i++) {
       try {
         return await client.SSUBSCRIBE(channels, listener, bufferMode);
@@ -1076,7 +1091,7 @@ export default class RedisCluster<
 
         if (isRedirect) {
           await this._self._slots.rediscover(client);
-          client = await this._self._slots.getShardedPubSubClient(firstChannel);
+          client = await this._self._slots.getShardedPubSubClient(firstChannel, bounded);
           continue;
         }
 
@@ -1100,14 +1115,19 @@ export default class RedisCluster<
 
   resubscribeAllPubSubListeners(allListeners: Partial<PubSubListeners>): Promise<unknown> {
     const promises: Array<Promise<unknown>> = [];
+    // This is internal recovery, not a call the user made: a failover, a
+    // `MOVED` or a slot migration has already taken these listeners off the
+    // old queue, so giving up on a slow connect would drop them for good.
+    // Wait without a limit and let the failure be reported instead.
+    const UNBOUNDED = false;
 
     if (allListeners.CHANNELS) {
       for(const [channel, listeners] of allListeners.CHANNELS) {
         listeners.buffers.forEach(bufListener => {
-          promises.push(this.subscribe(channel, bufListener, true));
+          promises.push(this.subscribe(channel, bufListener, true, UNBOUNDED));
         });
         listeners.strings.forEach(strListener => {
-          promises.push(this.subscribe(channel, strListener));
+          promises.push(this.subscribe(channel, strListener, undefined, UNBOUNDED));
         });
       }
     }
@@ -1115,10 +1135,10 @@ export default class RedisCluster<
     if (allListeners.PATTERNS) {
       for (const [channel, listeners] of allListeners.PATTERNS) {
         listeners.buffers.forEach(bufListener => {
-          promises.push(this.pSubscribe(channel, bufListener, true));
+          promises.push(this.pSubscribe(channel, bufListener, true, UNBOUNDED));
         });
         listeners.strings.forEach(strListener => {
-          promises.push(this.pSubscribe(channel, strListener));
+          promises.push(this.pSubscribe(channel, strListener, undefined, UNBOUNDED));
         });
       }
     }
@@ -1126,10 +1146,10 @@ export default class RedisCluster<
     if (allListeners.SHARDED) {
       for (const [channel, listeners] of allListeners.SHARDED) {
         listeners.buffers.forEach(bufListener => {
-          promises.push(this.sSubscribe(channel, bufListener, true));
+          promises.push(this.sSubscribe(channel, bufListener, true, UNBOUNDED));
         });
         listeners.strings.forEach(strListener => {
-          promises.push(this.sSubscribe(channel, strListener));
+          promises.push(this.sSubscribe(channel, strListener, undefined, UNBOUNDED));
         });
       }
     }

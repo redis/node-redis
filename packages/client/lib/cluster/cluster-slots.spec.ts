@@ -148,11 +148,27 @@ describe('RedisClusterSlots', () => {
         commandOptions: { timeout: 2 ** 31 }
       }, () => true);
 
+      // settle the connect at the end rather than leaving it pending: the
+      // waiter's timer is armed for the ~25 day deadline, and resolving is
+      // what clears it
+      let connected!: (client: unknown) => void;
+      const connectPromise = new Promise(resolve => { connected = resolve; });
+      const node = {
+        address: '127.0.0.1:5',
+        connectPromise
+      } as unknown as TestNode;
+
+      const waiting = slots.nodeClient(node);
+
       assert.equal(
-        await raceSettled(slots.nodeClient(neverConnecting('127.0.0.1:5')), 50),
+        await raceSettled(waiting, 50),
         'pending',
         'a timeout past the timer limit must not reject at once'
       );
+
+      const client = { tag: 'late' };
+      connected(client);
+      assert.equal(await waiting, client);
     });
 
     // Every command that waits on an unreachable node used to attach its own
