@@ -111,6 +111,85 @@ describe('Client', () => {
     assert.equal((proxy as unknown as WithNamespace).fakeModule, proxyNamespace);
   });
 
+  describe('event listeners', () => {
+    // Nothing listens on a freshly freed port, so `connect()` fails and the client emits `error`
+    async function connectToClosedPort(client: RedisClientType) {
+      await assert.rejects(client.connect());
+      client.destroy();
+    }
+
+    async function closedPortClient() {
+      return createClient({
+        socket: {
+          port: await getFreePortNumber(),
+          reconnectStrategy: false
+        }
+      }) as RedisClientType;
+    }
+
+    it('a listener added after removing the last one receives errors', async () => {
+      const client = await closedPortClient();
+      const removed = spy();
+      const added = spy();
+      client.on('error', removed);
+      client.removeListener('error', removed);
+      client.on('error', added);
+
+      await connectToClosedPort(client);
+      assert.equal(removed.callCount, 0);
+      assert.ok(added.called);
+    });
+
+    it('off() and removeAllListeners() remove listeners the client emits to', async () => {
+      for (const remove of [
+        (client: RedisClientType, listener: () => void) => client.off('error', listener),
+        (client: RedisClientType) => client.removeAllListeners('error'),
+        (client: RedisClientType) => client.removeAllListeners()
+      ]) {
+        const client = await closedPortClient();
+        const removed = spy();
+        const added = spy();
+        client.on('error', removed);
+        remove(client, removed);
+        client.on('error', added);
+        assert.equal(client.listenerCount('error'), 1);
+
+        await connectToClosedPort(client);
+        assert.equal(removed.callCount, 0);
+        assert.ok(added.called);
+      }
+    });
+
+    it('listeners added through a withTypeMapping() view fire', async () => {
+      const client = await closedPortClient();
+      const view = client.withTypeMapping({});
+      const removed = spy();
+      const added = spy();
+      view.on('error', removed);
+      view.removeListener('error', removed);
+      view.once('error', added);
+      assert.equal(client.listenerCount('error'), 1);
+
+      await connectToClosedPort(client);
+      assert.equal(removed.callCount, 0);
+      assert.equal(added.callCount, 1);
+    });
+
+    it('listener methods return the view they were called on', () => {
+      const client = RedisClient.create({});
+      const view = client.withTypeMapping({});
+      const listener = () => {};
+      assert.equal(client.on('error', listener), client);
+      assert.equal(view.on('error', listener), view);
+      assert.equal(view.prependListener('error', listener), view);
+      assert.equal(view.removeListener('error', listener), view);
+      assert.equal(view.setMaxListeners(20), view);
+      assert.equal(client.getMaxListeners(), 20);
+      assert.equal(view.removeAllListeners(), view);
+      assert.equal(client.listenerCount('error'), 0);
+    });
+  });
+
   describe('initialization', () => {
     describe('clientSideCache validation', () => {
       const clientSideCacheConfig = { ttl: 0, maxEntries: 0 };

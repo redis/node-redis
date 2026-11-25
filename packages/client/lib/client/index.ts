@@ -1184,6 +1184,58 @@ export default class RedisClient<
     }, this.#options.pingInterval);
   }
 
+  // `createClient()` and the `with*()` helpers hand out `Object.create()` views of the
+  // client, but events are emitted on the client itself. `EventEmitter` keeps listeners in
+  // `this._events` and assigns a new object when the last listener of the emitter is removed
+  // (and on `removeAllListeners()`). Called on a view, that assignment lands on the view, so the
+  // client keeps the removed listener and later listeners go to an object nothing emits on.
+  // Run the methods that change listener state on the client, and return the view for chaining.
+  override on(...args: Parameters<EventEmitter['on']>) {
+    super.on.apply(this._self, args);
+    return this;
+  }
+
+  override addListener(...args: Parameters<EventEmitter['addListener']>) {
+    super.addListener.apply(this._self, args);
+    return this;
+  }
+
+  override prependListener(...args: Parameters<EventEmitter['prependListener']>) {
+    super.prependListener.apply(this._self, args);
+    return this;
+  }
+
+  override once(...args: Parameters<EventEmitter['once']>) {
+    super.once.apply(this._self, args);
+    return this;
+  }
+
+  override prependOnceListener(...args: Parameters<EventEmitter['prependOnceListener']>) {
+    super.prependOnceListener.apply(this._self, args);
+    return this;
+  }
+
+  override off(...args: Parameters<EventEmitter['off']>) {
+    super.off.apply(this._self, args);
+    return this;
+  }
+
+  override removeListener(...args: Parameters<EventEmitter['removeListener']>) {
+    super.removeListener.apply(this._self, args);
+    return this;
+  }
+
+  // `removeAllListeners()` checks `arguments.length`, so the arguments are passed on as they are
+  override removeAllListeners(...args: Parameters<EventEmitter['removeAllListeners']>) {
+    super.removeAllListeners.apply(this._self, args);
+    return this;
+  }
+
+  override setMaxListeners(...args: Parameters<EventEmitter['setMaxListeners']>) {
+    super.setMaxListeners.apply(this._self, args);
+    return this;
+  }
+
   withCommandOptions<
     OPTIONS extends CommandOptions<TYPE_MAPPING>,
     TYPE_MAPPING extends TypeMapping
