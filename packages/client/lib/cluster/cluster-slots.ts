@@ -780,6 +780,16 @@ export default class RedisClusterSlots<
           // and close() can hang if the server is not responding)
           this.#reconnectionTracker.removeClient(sourceClient._clientId);
           sourceClient.destroy();
+          // If the source terminated while we awaited, a concurrent nodeClient()
+          // may have connected a replacement. The node is gone from masters and
+          // nodeByAddress now, so nothing else would ever close it.
+          const replacement = sourceNode.client;
+          if (replacement !== undefined && replacement !== sourceClient) {
+            sourceNode.client = undefined;
+            sourceNode.connectPromise = undefined;
+            this.#reconnectionTracker.removeClient(replacement._clientId);
+            replacement.destroy();
+          }
           if ('pubSub' in sourceNode && sourceNode.pubSub) {
             this.#reconnectionTracker.removeClient(sourceNode.pubSub.client._clientId);
             sourceNode.pubSub.client.destroy();
