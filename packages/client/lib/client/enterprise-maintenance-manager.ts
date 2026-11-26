@@ -8,6 +8,7 @@ import { RedisTcpSocketOptions } from "./socket";
 import diagnostics_channel from "node:diagnostics_channel";
 import { RedisArgument, DEFAULT_RESP } from "../RESP/types";
 import { publish, CHANNELS } from "./tracing";
+import { ClientClosedError } from "../errors";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- variance markers for RedisClient generics
 type RedisType = RedisClient<any, any, any, any, any>;
@@ -240,8 +241,8 @@ export default class EnterpriseMaintenanceManager {
       const waitTime = (afterSeconds * 1000) / 2;
       dbgMaintenance(`Wait for ${waitTime}ms`);
       await setTimeout(waitTime);
-      if (!this.#client.isOpen) {
-        dbgMaintenance("Client is no longer open, skipping handoff");
+      if (this.#hasEnded()) {
+        dbgMaintenance("Client has ended, skipping handoff");
         this.#onMigrated();
         return;
       }
@@ -294,13 +295,13 @@ export default class EnterpriseMaintenanceManager {
       `Connected to tmp client in ${(performance.now() - start).toFixed(2)}ms`,
     );
     // 3 [EVENT] New socket connected
-    if (!this.#client.isOpen) return this.#abortHandoff(tmpClient);
+    if (this.#hasEnded()) return this.#abortHandoff(tmpClient);
 
     dbgMaintenance(`Wait for all in-flight commands to complete`);
     await this.#commandsQueue.waitForInflightCommandsToComplete();
     dbgMaintenance(`In-flight commands completed`);
     // 4 [EVENT] In-flight commands completed
-    if (!this.#client.isOpen) return this.#abortHandoff(tmpClient);
+    if (this.#hasEnded()) return this.#abortHandoff(tmpClient);
 
     dbgMaintenance("Swap client sockets...");
     const oldSocket = this.#client._ejectSocket();
@@ -316,12 +317,20 @@ export default class EnterpriseMaintenanceManager {
     publish(CHANNELS.CONNECTION_HANDOFF, () => ({ clientId: this.#client._clientId }));
   };
 
-  // The client was destroyed, closed, or its reconnectStrategy gave up while the
-  // handoff awaited. Swapping the new socket in would reopen a client its owner
-  // has already let go of, and nothing would close that connection.
+  // Destroyed, or its reconnectStrategy gave up, while the handoff awaited. A
+  // client still draining after close() has not ended: the handoff goes ahead
+  // and the close carries over to the new socket.
+  #hasEnded() {
+    return !this.#client.isOpen && !this.#client._isClosing;
+  }
+
+  // Swapping the new socket into an ended client would reopen it, with a
+  // connection nothing would close. Nothing will write what is still queued
+  // either (writing was paused for the handoff), so reject it.
   #abortHandoff(tmpClient: RedisType) {
-    dbgMaintenance("Client is no longer open, dropping the handoff socket");
+    dbgMaintenance("Client has ended, dropping the handoff socket");
     tmpClient.destroy();
+    this.#commandsQueue.flushAll(new ClientClosedError());
     this.#client._unpause();
     this.#onMigrated();
   }

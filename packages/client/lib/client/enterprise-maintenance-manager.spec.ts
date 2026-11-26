@@ -240,9 +240,19 @@ describe("EnterpriseMaintenanceManager MOVING handoff", () => {
   type FakeNode = Awaited<ReturnType<typeof startFakeNode>>;
   type Client = ReturnType<typeof createClient>;
 
+  function raceSettled<T>(promise: Promise<T>, ms: number): Promise<T> {
+    return Promise.race([
+      promise,
+      sleep(ms).then(() => { throw new Error(`still pending after ${ms}ms`); }),
+    ]);
+  }
+
   // Starts a MOVING handoff and runs `interrupt` while the new socket is
-  // still connecting, then lets the handoff finish.
-  async function interruptHandoff(interrupt: (client: Client, source: FakeNode) => Promise<void>) {
+  // still connecting, then lets the handoff finish and runs `afterRelease`.
+  async function interruptHandoff(
+    interrupt: (client: Client, source: FakeNode) => Promise<void>,
+    afterRelease: () => Promise<void> = async () => {},
+  ) {
     const source = await startFakeNode();
     const target = await startFakeNode({ holdHandshake: true });
     const client = createClient({
@@ -260,6 +270,7 @@ describe("EnterpriseMaintenanceManager MOVING handoff", () => {
 
       await interrupt(client, source);
       target.releaseHandshake();
+      await afterRelease();
 
       // let the handoff finish; the server sees a close a moment later
       for (let i = 0; i < 50 && (i < 5 || target.openConnections() > 0); i++) {
@@ -283,21 +294,43 @@ describe("EnterpriseMaintenanceManager MOVING handoff", () => {
     assert.equal(targetConnections, 0);
   });
 
-  it("does not reopen a client closed during the handoff", async () => {
-    let closed: Promise<void> | undefined;
-    const { isOpen, targetConnections } = await interruptHandoff(async client => {
-      closed = client.close();
-    });
-    await closed;
-    assert.equal(isOpen, false);
-    assert.equal(targetConnections, 0);
-  });
-
   it("does not reopen a client whose reconnectStrategy gave up during the handoff", async () => {
     const { isOpen, targetConnections } = await interruptHandoff(async (client, source) => {
       const terminated = once(client, "terminated");
       source.dropConnections();
       await terminated;
+    });
+    assert.equal(isOpen, false);
+    assert.equal(targetConnections, 0);
+  });
+
+  it("finishes commands queued before close() during the handoff, and closes", async () => {
+    let ping: Promise<unknown> | undefined;
+    let closed: Promise<void> | undefined;
+    const { isOpen, targetConnections } = await interruptHandoff(async client => {
+      // queued while the handoff has writing paused, then a graceful close
+      ping = client.ping();
+      closed = client.close();
+    }, async () => {
+      // the source keeps serving through the MOVING grace period
+      assert.equal(await raceSettled(ping!, 1000), "OK");
+      await raceSettled(closed!, 1000);
+    });
+    assert.equal(isOpen, false);
+    assert.equal(targetConnections, 0);
+  });
+
+  it("finishes commands queued before close() on the target when the source goes away during the handoff", async () => {
+    let ping: Promise<unknown> | undefined;
+    let closed: Promise<void> | undefined;
+    const { isOpen, targetConnections } = await interruptHandoff(async (client, source) => {
+      ping = client.ping();
+      closed = client.close();
+      source.dropConnections();
+    }, async () => {
+      // the close carries over to the new socket, so the queued work completes there
+      assert.equal(await raceSettled(ping!, 1000), "OK");
+      await raceSettled(closed!, 1000);
     });
     assert.equal(isOpen, false);
     assert.equal(targetConnections, 0);
