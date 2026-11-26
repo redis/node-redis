@@ -1,7 +1,7 @@
 import { NON_STICKY_COMMANDS } from '../commands';
 import { Command, CommandSignature, RedisArgument, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, RespVersions, TypeMapping } from '../RESP/types';
 import RedisClient, { RedisClientType, RedisClientOptions, WithModules, WithFunctions, WithScripts } from '.';
-import { EventEmitter } from 'node:events';
+import { WrapperSafeEmitter } from '../wrapper-safe-emitter';
 import { performance } from 'node:perf_hooks';
 import { DoublyLinkedNode, DoublyLinkedList, SinglyLinkedList } from './linked-list';
 import { ClientClosedError, TimeoutError } from '../errors';
@@ -115,7 +115,7 @@ export class RedisClientPool<
   S extends RedisScripts = {},
   RESP extends RespVersions = 3,
   TYPE_MAPPING extends TypeMapping = {}
-> extends EventEmitter {
+> extends WrapperSafeEmitter {
   static #createCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
 

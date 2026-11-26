@@ -23,7 +23,8 @@ export type NodeAddressMap = {
   [address: string]: NodeAddress;
 } | ((address: string) => NodeAddress | undefined);
 
-export const RESUBSCRIBE_LISTENERS_EVENT = '__resubscribeListeners'
+/** Subscribes again, on the nodes that now own them, the listeners taken off a node. */
+export type ResubscribeListeners = (listeners: Partial<PubSubListeners>) => void;
 
 /**
  * Sticky-cursor binding: which node served a RediSearch cursor. FT.CURSOR
@@ -273,6 +274,7 @@ export default class RedisClusterSlots<
   readonly #options;
   readonly #clientFactory;
   readonly #emit: EventEmitter['emit'];
+  readonly #resubscribe: ResubscribeListeners;
   readonly #clusterClientId: string;
   readonly #reconnectionTracker: ClusterReconnectionTracker;
   slots = new Array<Shard<M, F, S, RESP, TYPE_MAPPING>>(RedisClusterSlots.#SLOTS);
@@ -326,7 +328,8 @@ export default class RedisClusterSlots<
   constructor(
     options: RedisClusterOptions<M, F, S, RESP, TYPE_MAPPING>,
     emit: EventEmitter['emit'],
-    clusterClientId: string
+    clusterClientId: string,
+    resubscribe: ResubscribeListeners = () => {}
   ) {
     this.#validateOptions(options);
     this.#options = options;
@@ -344,6 +347,7 @@ export default class RedisClusterSlots<
 
     this.#clientFactory = RedisClient.factory(this.#options);
     this.#emit = emit;
+    this.#resubscribe = resubscribe;
   }
 
   async connect() {
@@ -480,7 +484,7 @@ export default class RedisClusterSlots<
         if (pubSub) {
           const listeners = pubSub.client._getQueue().removeAllPubSubListeners();
           if (listeners.CHANNELS.size || listeners.PATTERNS.size || listeners.SHARDED.size) {
-            this.#emit(RESUBSCRIBE_LISTENERS_EVENT, listeners);
+            this.#resubscribe(listeners);
           }
         }
 
@@ -675,7 +679,7 @@ export default class RedisClusterSlots<
           // Handle sharded pubsub listeners for moving slots
           if ('pubSub' in sourceNode) {
             const listeners = sourceNode.pubSub?.client._getQueue().removeShardedPubSubListenersForSlots(allMovingSlots);
-            this.#emit(RESUBSCRIBE_LISTENERS_EVENT, listeners);
+            if (listeners) this.#resubscribe(listeners);
           }
 
           // The source keeps serving its remaining slots, so a desynced
@@ -731,7 +735,7 @@ export default class RedisClusterSlots<
 
           if ('pubSub' in sourceNode) {
             const listeners = sourceNode.pubSub?.client._getQueue().removeAllPubSubListeners();
-            this.#emit(RESUBSCRIBE_LISTENERS_EVENT, listeners);
+            if (listeners) this.#resubscribe(listeners);
           }
 
           // Remove all local references to the dying shard's clients
@@ -949,7 +953,7 @@ export default class RedisClusterSlots<
       .on(SMIGRATED_EVENT, this.#handleSmigrated)
       .on('__MOVED', async (allPubSubListeners: PubSubListeners) => {
         await this.rediscover(client);
-        this.#emit(RESUBSCRIBE_LISTENERS_EVENT, allPubSubListeners);
+        this.#resubscribe(allPubSubListeners);
       });
 
     return client;

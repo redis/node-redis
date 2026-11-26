@@ -13,6 +13,42 @@ import calculateSlot from '../utils/calculate-slot';
 import { CommandParser } from '../client/parser';
 import { PUBSUB_TYPE } from '../client/pub-sub';
 
+describe('Cluster pub/sub resubscribe wiring', () => {
+  const NOWHERE = { host: '127.0.0.1', port: 1 };
+
+  it('keeps no listener of its own on the emitter callers use', () => {
+    const cluster = RedisCluster.create({ rootNodes: [{ socket: NOWHERE }] });
+    assert.deepEqual(cluster.eventNames(), []);
+  });
+
+  it('still resubscribes after the caller removes all listeners', async () => {
+    const cluster = RedisCluster.create({
+      rootNodes: [{ socket: NOWHERE }],
+      defaults: { socket: { reconnectStrategy: false, connectTimeout: 100 } }
+    });
+    const resubscribe = stub(Object.getPrototypeOf(cluster), 'resubscribeAllPubSubListeners').resolves();
+    const rediscover = stub(cluster._slots, 'rediscover').resolves();
+
+    cluster.on('error', () => {});
+    cluster.removeAllListeners();
+
+    // a node client as the cluster wires it; it never connects (nothing listens there)
+    const node = { ...NOWHERE, address: '127.0.0.1:1', id: 'node', readonly: false } as
+      Parameters<typeof cluster._slots.nodeClient>[0];
+    const connecting = cluster._slots.nodeClient(node);
+    const client = node.client!;
+    await assert.rejects(connecting);
+
+    // what the node client emits when the server answers a pub/sub command with MOVED
+    const listeners = { CHANNELS: new Map(), PATTERNS: new Map(), SHARDED: new Map() };
+    client.emit('__MOVED', listeners);
+    await setTimeout(0);
+
+    assert.ok(rediscover.calledOnceWithExactly(client));
+    assert.ok(resubscribe.calledOnceWithExactly(listeners));
+  });
+});
+
 describe('Cluster command lifecycle', () => {
   it('rejects commands before connect', async () => {
     const cluster = RedisCluster.create({ rootNodes: [] });
