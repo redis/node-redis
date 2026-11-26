@@ -240,6 +240,11 @@ export default class EnterpriseMaintenanceManager {
       const waitTime = (afterSeconds * 1000) / 2;
       dbgMaintenance(`Wait for ${waitTime}ms`);
       await setTimeout(waitTime);
+      if (!this.#client.isOpen) {
+        dbgMaintenance("Client is no longer open, skipping handoff");
+        this.#onMigrated();
+        return;
+      }
     } else {
       const split = url.split(":");
       host = split[0];
@@ -289,11 +294,13 @@ export default class EnterpriseMaintenanceManager {
       `Connected to tmp client in ${(performance.now() - start).toFixed(2)}ms`,
     );
     // 3 [EVENT] New socket connected
+    if (!this.#client.isOpen) return this.#abortHandoff(tmpClient);
 
     dbgMaintenance(`Wait for all in-flight commands to complete`);
     await this.#commandsQueue.waitForInflightCommandsToComplete();
     dbgMaintenance(`In-flight commands completed`);
     // 4 [EVENT] In-flight commands completed
+    if (!this.#client.isOpen) return this.#abortHandoff(tmpClient);
 
     dbgMaintenance("Swap client sockets...");
     const oldSocket = this.#client._ejectSocket();
@@ -308,6 +315,16 @@ export default class EnterpriseMaintenanceManager {
     this.#onMigrated();
     publish(CHANNELS.CONNECTION_HANDOFF, () => ({ clientId: this.#client._clientId }));
   };
+
+  // The client was destroyed, closed, or its reconnectStrategy gave up while the
+  // handoff awaited. Swapping the new socket in would reopen a client its owner
+  // has already let go of, and nothing would close that connection.
+  #abortHandoff(tmpClient: RedisType) {
+    dbgMaintenance("Client is no longer open, dropping the handoff socket");
+    tmpClient.destroy();
+    this.#client._unpause();
+    this.#onMigrated();
+  }
 
   #onMigrating = () => {
     this.#isMaintenance++;

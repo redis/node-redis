@@ -1,6 +1,9 @@
 import assert from "node:assert";
 import { createClient } from "../../";
 import EnterpriseMaintenanceManager from "./enterprise-maintenance-manager";
+import { EventEmitter, once } from "node:events";
+import { createServer, type AddressInfo, type Socket } from "node:net";
+import { setTimeout as sleep } from "node:timers/promises";
 
 describe("EnterpriseMaintenanceManager does not prevent proper options parsing", () => {
   it("should not throw when initializing without options", async () => {
@@ -179,5 +182,124 @@ describe("EnterpriseMaintenanceManager.parseSMigratedPush", () => {
     assert.strictEqual(result.entries.length, 1);
     assert.deepStrictEqual(result.entries[0].source, { host: "127.0.0.1", port: 6379 });
     assert.deepStrictEqual(result.entries[0].destinations[0].slots, [123, 456]);
+  });
+});
+
+describe("EnterpriseMaintenanceManager MOVING handoff", () => {
+  // A minimal RESP3 server: an empty map for HELLO, +OK for anything else.
+  // With `holdHandshake` set, HELLO waits until releaseHandshake().
+  async function startFakeNode({ holdHandshake = false } = {}) {
+    const sockets = new Set<Socket>();
+    const held: Array<() => void> = [];
+    const events = new EventEmitter();
+    const server = createServer(socket => {
+      sockets.add(socket);
+      socket.on("close", () => sockets.delete(socket));
+      socket.on("data", chunk => {
+        for (const command of chunk.toString().split("*").filter(part => /^\d+\r\n\$/.test(part))) {
+          if (/^\d+\r\n\$5\r\nHELLO/i.test(command)) {
+            const reply = () => socket.write("%0\r\n");
+            if (holdHandshake) {
+              held.push(reply);
+              events.emit("handshake");
+            } else {
+              reply();
+            }
+          } else {
+            socket.write("+OK\r\n");
+          }
+        }
+      });
+    });
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    return {
+      port: (server.address() as AddressInfo).port,
+      events,
+      openConnections: () => sockets.size,
+      sendMoving(toPort: number) {
+        const url = `127.0.0.1:${toPort}`;
+        for (const socket of sockets) {
+          socket.write(`>4\r\n$6\r\nMOVING\r\n:1\r\n:15\r\n$${url.length}\r\n${url}\r\n`);
+        }
+      },
+      releaseHandshake() {
+        for (const reply of held.splice(0)) reply();
+      },
+      dropConnections() {
+        for (const socket of sockets) socket.destroy();
+      },
+      async close() {
+        for (const socket of sockets) socket.destroy();
+        server.close();
+        await once(server, "close");
+      },
+    };
+  }
+
+  type FakeNode = Awaited<ReturnType<typeof startFakeNode>>;
+  type Client = ReturnType<typeof createClient>;
+
+  // Starts a MOVING handoff and runs `interrupt` while the new socket is
+  // still connecting, then lets the handoff finish.
+  async function interruptHandoff(interrupt: (client: Client, source: FakeNode) => Promise<void>) {
+    const source = await startFakeNode();
+    const target = await startFakeNode({ holdHandshake: true });
+    const client = createClient({
+      RESP: 3,
+      maintNotifications: "enabled",
+      socket: { host: "127.0.0.1", port: source.port, reconnectStrategy: false },
+    });
+    client.on("error", () => {});
+
+    try {
+      await client.connect();
+      const handshake = once(target.events, "handshake");
+      source.sendMoving(target.port);
+      await handshake;
+
+      await interrupt(client, source);
+      target.releaseHandshake();
+
+      // let the handoff finish; the server sees a close a moment later
+      for (let i = 0; i < 50 && (i < 5 || target.openConnections() > 0); i++) {
+        await sleep(10);
+      }
+      return { isOpen: client.isOpen, targetConnections: target.openConnections() };
+    } finally {
+      if (client.isOpen) client.destroy();
+      await source.close();
+      await target.close();
+    }
+  }
+
+  it("does not reopen a client destroyed during the handoff", async () => {
+    const { isOpen, targetConnections } = await interruptHandoff(async client => {
+      client.destroy();
+    });
+    // before the fix the handoff swapped the new socket into the destroyed
+    // client, which then held an open connection nothing would close
+    assert.equal(isOpen, false);
+    assert.equal(targetConnections, 0);
+  });
+
+  it("does not reopen a client closed during the handoff", async () => {
+    let closed: Promise<void> | undefined;
+    const { isOpen, targetConnections } = await interruptHandoff(async client => {
+      closed = client.close();
+    });
+    await closed;
+    assert.equal(isOpen, false);
+    assert.equal(targetConnections, 0);
+  });
+
+  it("does not reopen a client whose reconnectStrategy gave up during the handoff", async () => {
+    const { isOpen, targetConnections } = await interruptHandoff(async (client, source) => {
+      const terminated = once(client, "terminated");
+      source.dropConnections();
+      await terminated;
+    });
+    assert.equal(isOpen, false);
+    assert.equal(targetConnections, 0);
   });
 });
