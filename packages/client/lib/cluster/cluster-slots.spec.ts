@@ -616,13 +616,17 @@ describe('RedisClusterSlots', () => {
     // connection drops while the migration awaits its in-flight replies.
     // reconnectStrategy: false makes the drop terminal, so the client emits a
     // real 'terminated' and the listener clears node.client. `whileTerminated`
-    // runs at that point, before the migration resumes.
-    async function migrateAwayFromTerminatingSource(
-      whileTerminated: (
-        slots: RedisClusterSlots<Record<string, never>, Record<string, never>, Record<string, never>, 2, Record<string, never>>,
-        sourceNode: MasterNode<Record<string, never>, Record<string, never>, Record<string, never>, 2, Record<string, never>>
-      ) => Promise<void> = async () => {}
-    ) {
+    // runs at that point, before the migration resumes; `beforeMigration` runs
+    // just before the SMIGRATED handler.
+    type TestSlots = RedisClusterSlots<Record<string, never>, Record<string, never>, Record<string, never>, 2, Record<string, never>>;
+    type TestNode = MasterNode<Record<string, never>, Record<string, never>, Record<string, never>, 2, Record<string, never>>;
+    async function migrateAwayFromTerminatingSource({
+      whileTerminated = async () => {},
+      beforeMigration = () => {},
+    }: {
+      whileTerminated?: (slots: TestSlots, sourceNode: TestNode) => Promise<void>;
+      beforeMigration?: (slots: TestSlots, sourceNode: TestNode) => void;
+    } = {}) {
       const server = await startFakeNode();
       const errors: unknown[] = [];
       const slots = new RedisClusterSlots<Record<string, never>, Record<string, never>, Record<string, never>, 2, Record<string, never>>({
@@ -658,6 +662,7 @@ describe('RedisClusterSlots', () => {
         slots.masters.push(destNode);
         slots.slots.fill({ master: sourceNode });
         slots.slots[16383] = { master: destNode };
+        beforeMigration(slots, sourceNode);
 
         await handler({
           seqId: 1,
@@ -692,10 +697,12 @@ describe('RedisClusterSlots', () => {
 
     it('closes a node client opened for the source while it was migrating away', async () => {
       let replacement: Awaited<ReturnType<RedisClusterSlots['nodeClient']>> | undefined;
-      const { errors, slots, sourceNode, server } = await migrateAwayFromTerminatingSource(async (slots, sourceNode) => {
-        // a command routed to the source while the migration waits
-        replacement = await slots.nodeClient(sourceNode);
-        assert.ok(replacement.isOpen);
+      const { errors, slots, sourceNode, server } = await migrateAwayFromTerminatingSource({
+        whileTerminated: async (slots, sourceNode) => {
+          // a command routed to the source while the migration waits
+          replacement = await slots.nodeClient(sourceNode);
+          assert.ok(replacement.isOpen);
+        },
       });
       try {
         assert.deepEqual(errors, []);
@@ -704,6 +711,56 @@ describe('RedisClusterSlots', () => {
         assert.equal(replacement.isOpen, false, 'the replacement must be closed with the removed node');
         assert.equal(sourceNode.client, undefined);
         // the server sees the close a moment later
+        for (let i = 0; server.openConnections() > 0 && i < 50; i++) {
+          await sleep(10);
+        }
+        assert.equal(server.openConnections(), 0);
+      } finally {
+        slots.destroy();
+        await server.close();
+      }
+    });
+
+    it('closes that node client when the migration fails after removing the source', async () => {
+      let replacement: Awaited<ReturnType<RedisClusterSlots['nodeClient']>> | undefined;
+      const { errors, slots, sourceNode, server } = await migrateAwayFromTerminatingSource({
+        whileTerminated: async (slots, sourceNode) => {
+          replacement = await slots.nodeClient(sourceNode);
+        },
+        // the source also serves pub/sub, and moving its listeners throws
+        // after the node has been removed from the topology
+        beforeMigration: (slots, sourceNode) => {
+          slots.pubSubNode = {
+            address: sourceNode.address,
+            client: {
+              _clientId: 'pubsub-client',
+              _pause: () => {},
+              _unpause: () => {},
+              _getQueue: () => ({ waitForInflightCommandsToComplete: async () => false }),
+              getPubSubListeners: () => { throw new Error('pub/sub move failed'); },
+            },
+          } as unknown as typeof slots.pubSubNode;
+        },
+      });
+      try {
+        assert.equal(errors.length, 1);
+        assert.equal(slots.nodeByAddress.has(sourceNode.address), false);
+        assert.ok(replacement);
+        // before the fix only the success path closed it
+        assert.equal(replacement.isOpen, false, 'the replacement must be closed on the error path too');
+      } finally {
+        slots.pubSubNode = undefined;
+        slots.destroy();
+        await server.close();
+      }
+    });
+
+    it('does not open a node client for a source a migration removed', async () => {
+      const { slots, sourceNode, server } = await migrateAwayFromTerminatingSource();
+      try {
+        // a caller still holding the removed node, e.g. an in-flight scan
+        await assert.rejects(slots.nodeClient(sourceNode), ClientClosedError);
+        assert.equal(sourceNode.client, undefined);
         for (let i = 0; server.openConnections() > 0 && i < 50; i++) {
           await sleep(10);
         }

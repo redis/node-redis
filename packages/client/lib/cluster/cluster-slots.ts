@@ -309,6 +309,9 @@ export default class RedisClusterSlots<
   // set by close()/destroy(), cleared by connect(): unlike !#isOpen, it isn't
   // set before the first connect()
   #shutDown = false;
+  // nodes a slot migration took out of the topology: nothing tracks them any
+  // more, so nodeClient() must not open a connection for one
+  #removedNodes = new WeakSet<ShardNode<M, F, S, RESP, TYPE_MAPPING>>();
 
   get isOpen() {
     return this.#isOpen;
@@ -745,6 +748,17 @@ export default class RedisClusterSlots<
           this.masters = this.masters.filter(master => master.address !== sourceAddress);
           this.replicas = this.replicas.filter(replica => replica.address !== sourceAddress);
           this.nodeByAddress.delete(sourceAddress);
+          this.#removedNodes.add(sourceNode);
+          // If the source terminated while we awaited, a concurrent nodeClient()
+          // may have connected a replacement. Close it now, before anything below
+          // can throw: the node is untracked, so nothing else ever would.
+          const replacement = sourceNode.client;
+          if (replacement !== undefined && replacement !== sourceClient) {
+            sourceNode.client = undefined;
+            sourceNode.connectPromise = undefined;
+            this.#reconnectionTracker.removeClient(replacement._clientId);
+            replacement.destroy();
+          }
 
           // Handle pubSubNode replacement BEFORE destroying source connections
           // This ensures subscriptions are resubscribed on a new node before the old connection is lost
@@ -780,16 +794,6 @@ export default class RedisClusterSlots<
           // and close() can hang if the server is not responding)
           this.#reconnectionTracker.removeClient(sourceClient._clientId);
           sourceClient.destroy();
-          // If the source terminated while we awaited, a concurrent nodeClient()
-          // may have connected a replacement. The node is gone from masters and
-          // nodeByAddress now, so nothing else would ever close it.
-          const replacement = sourceNode.client;
-          if (replacement !== undefined && replacement !== sourceClient) {
-            sourceNode.client = undefined;
-            sourceNode.connectPromise = undefined;
-            this.#reconnectionTracker.removeClient(replacement._clientId);
-            replacement.destroy();
-          }
           if ('pubSub' in sourceNode && sourceNode.pubSub) {
             this.#reconnectionTracker.removeClient(sourceNode.pubSub.client._clientId);
             sourceNode.pubSub.client.destroy();
@@ -1017,8 +1021,9 @@ export default class RedisClusterSlots<
     if (node.client)
       return Promise.resolve(node.client);
     // a caller still holding a node (e.g. an in-flight scan) must not open a
-    // connection once the cluster is shut down: nothing would track or close it
-    if (this.#shutDown)
+    // connection once the cluster is shut down, or once a slot migration has
+    // removed the node: nothing would track or close it
+    if (this.#shutDown || this.#removedNodes.has(node))
       return Promise.reject(new ClientClosedError());
     // if the node is disconnected
     const connectPromise = this.#createNodeClient(node);
