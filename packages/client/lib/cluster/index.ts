@@ -2,9 +2,9 @@ import { RedisClientOptions, RedisClientType, ScanIteratorOptions, WithFunctions
 import { CommandOptions, pickBatchOptions } from '../client/commands-queue';
 import { Command, CommandArguments, CommanderConfig, CommandSignature, TypeMapping, RedisArgument, RedisFunction, RedisFunctions, RedisModules, RedisScript, RedisScripts, ReplyUnion, RespVersions } from '../RESP/types';
 import { NON_STICKY_COMMANDS } from '../commands';
-import { EventEmitter } from 'node:events';
+import { WrapperSafeEmitter } from '../wrapper-safe-emitter';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
-import RedisClusterSlots, { NodeAddressMap, RESUBSCRIBE_LISTENERS_EVENT, ShardNode } from './cluster-slots';
+import RedisClusterSlots, { NodeAddressMap, ShardNode } from './cluster-slots';
 import RedisClusterMultiCommand, { RedisClusterMultiCommandType } from './multi-command';
 import { MULTI_MODE, MultiMode } from '../multi-command';
 import { PubSubListener, PubSubListeners } from '../client/pub-sub';
@@ -196,7 +196,7 @@ export default class RedisCluster<
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping,
   // POLICIES extends CommandPolicies
-> extends EventEmitter {
+> extends WrapperSafeEmitter {
   static #createCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
 
@@ -414,10 +414,16 @@ export default class RedisCluster<
       role: ClientRole.CLUSTER
     };
     this._options = options;
-    this._slots = new RedisClusterSlots(options, this.emit.bind(this), this.#identity.id);
-    this.on(RESUBSCRIBE_LISTENERS_EVENT, (listeners: Partial<PubSubListeners>) => {
-      this.resubscribeAllPubSubListeners(listeners).catch(err => this.emit('error', err));
-    });
+    // The resubscribe hook is a callback, not a listener on this emitter: a
+    // caller's `removeAllListeners()` must not stop pub/sub from following its slots.
+    this._slots = new RedisClusterSlots(
+      options,
+      this.emit.bind(this),
+      this.#identity.id,
+      listeners => {
+        this.resubscribeAllPubSubListeners(listeners).catch(err => this.emit('error', err));
+      }
+    );
 
     this._commandOptions = { timeout: DEFAULT_COMMAND_TIMEOUT, ...options?.commandOptions };
 

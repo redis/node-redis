@@ -513,7 +513,12 @@ function attachForwarders<C extends RedisClientLike>(
   mgr: MultiDbManager<C>,
   resolve: ResolveClient<C> = client => client
 ): void {
-  const skip = new Set<PropertyKey>([...INTERCEPTED, 'constructor']);
+  const skip = new Set<PropertyKey>([
+    ...INTERCEPTED,
+    // a member kind may override emitter methods; they stay the wrapper's own
+    ...Object.getOwnPropertyNames(EventEmitter.prototype),
+    'constructor'
+  ]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic patching
   const dst = target as any;
 

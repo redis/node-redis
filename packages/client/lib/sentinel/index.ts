@@ -1,4 +1,5 @@
 import { EventEmitter } from 'node:events';
+import { WrapperSafeEmitter } from '../wrapper-safe-emitter';
 import { CommandArguments, RedisArgument, RedisFunctions, RedisModules, RedisScripts, ReplyUnion, RespVersions, TypeMapping, DEFAULT_RESP } from '../RESP/types';
 import { ScanIteratorInterruptedError } from '../errors';
 import RedisClient, { AnyRedisClientOptions, RedisClientOptions, RedisClientType, ScanIteratorOptions } from '../client';
@@ -289,7 +290,7 @@ export default class RedisSentinel<
   S extends RedisScripts,
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping
-> extends EventEmitter {
+> extends WrapperSafeEmitter {
   readonly _self: RedisSentinel<M, F, S, RESP, TYPE_MAPPING>;
 
   #internal: RedisSentinelInternal<M, F, S, RESP, TYPE_MAPPING>;
@@ -763,7 +764,10 @@ export default class RedisSentinel<
         masterChanged = true;
       }
     };
-    this.on('topology-change', handleTopologyChange);
+    // Listen on the internal emitter, not on this one: a caller's
+    // `removeAllListeners()` must not hide a master change from the iteration.
+    const internal = this._self.#internal;
+    internal.on('topology-change', handleTopologyChange);
 
     try {
       do {
@@ -803,7 +807,7 @@ export default class RedisSentinel<
         // compare by string value so iteration actually terminates.
       } while (cursor.toString() !== '0');
     } finally {
-      this.removeListener('topology-change', handleTopologyChange);
+      internal.removeListener('topology-change', handleTopologyChange);
     }
   }
 }

@@ -3,7 +3,7 @@ import { EventEmitter } from 'node:events';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import testUtils from '../test-utils';
-import { createMultiDbClient, createMultiDbClientPool, CommandAbandonedError, DefaultHealthCheck, MultiDbResult } from '.';
+import { createMultiDbClient, createMultiDbClientPool, createMultiDbCluster, createMultiDbSentinel, CommandAbandonedError, DefaultHealthCheck, MultiDbResult } from '.';
 import type { FailureDetector } from '.';
 import type { FailoverEvent } from './controller';
 import RedisClient, { RedisClientType } from '../client';
@@ -26,6 +26,37 @@ const DEAD_MEMBER = {
     socket: { host: '127.0.0.1', port: 65_432, reconnectStrategy: false as const }
   }
 };
+
+// No server needed: which methods the wrapper forwards is decided at construction.
+describe('multi-db event surface', () => {
+  const NOWHERE = { host: '127.0.0.1', port: 1 };
+  const FACTORIES: Array<[string, () => { client: unknown }]> = [
+    ['client', () => createMultiDbClient({ databases: [DEAD_MEMBER] })],
+    ['pool', () => createMultiDbClientPool({ databases: [DEAD_MEMBER] })],
+    ['cluster', () => createMultiDbCluster({ databases: [{ options: { rootNodes: [{ socket: NOWHERE }] } }] })],
+    ['sentinel', () => createMultiDbSentinel({
+      databases: [{ options: { name: 'mymaster', sentinelRootNodes: [NOWHERE] } }]
+    })]
+  ];
+
+  for (const [kind, create] of FACTORIES) {
+    it(`${kind}: listeners attach to the multi-db client, not to a member`, () => {
+      const client = create().client as EventEmitter;
+      const failovers: Array<unknown> = [];
+
+      assert.equal(client.on('failover', event => failovers.push(event)), client);
+      assert.equal(client.listenerCount('failover'), 1);
+
+      // the manager emits through the multi-db client
+      const event = { from: 'db-0', to: 'db-1', reason: 'forced' };
+      assert.equal(client.emit('failover', event), true);
+      assert.deepEqual(failovers, [event]);
+
+      assert.equal(client.removeAllListeners(), client);
+      assert.equal(client.listenerCount('failover'), 0);
+    });
+  }
+});
 
 describe('multi-db', function () {
   this.timeout(30_000);

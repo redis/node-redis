@@ -15,6 +15,22 @@ import { once } from 'node:events'
 const execAsync = promisify(exec);
 
 describe('RedisSentinel', () => {
+  it('scanIterator watches for a master change without a listener on the emitter callers use', async () => {
+    // a caller's removeAllListeners() must not hide a master change from the iteration
+    const sentinel = RedisSentinel.create({
+      name: 'mymaster',
+      sentinelRootNodes: [{ host: '127.0.0.1', port: 1 }]
+    });
+    const iterator = sentinel.scanIterator();
+    const firstPage = iterator.next();
+
+    assert.equal(sentinel.listenerCount('topology-change'), 0);
+    assert.deepEqual(sentinel.eventNames(), []);
+
+    await assert.rejects(firstPage);
+    assert.deepEqual(sentinel.eventNames(), []);
+  });
+
   describe('default commandOptions', () => {
     it('applies the 5s default timeout when no commandOptions are passed', () => {
       const sentinel = RedisSentinel.create({

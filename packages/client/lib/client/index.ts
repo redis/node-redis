@@ -2,7 +2,7 @@ import COMMANDS from '../commands';
 import RedisSocket, { RedisSocketOptions } from './socket';
 import { BasicAuth, CredentialsError, CredentialsProvider, StreamingCredentialsProvider, UnableToObtainNewCredentialsError, Disposable } from '../authx';
 import RedisCommandsQueue, { CommandOptions } from './commands-queue';
-import { EventEmitter } from 'node:events';
+import { WrapperSafeEmitter } from '../wrapper-safe-emitter';
 import { attachConfig, functionArgumentsPrefix, getTransformReply, scriptArgumentsPrefix } from '../commander';
 import { defaultCommandMetadata, isCacheable, isTrackable } from '../command-metadata';
 import { AbortError, ClientClosedError, ClientOfflineError, ClientSideCacheCommandError, ClientSideCacheMarkError, DisconnectsClientError, ErrorReply, WatchError } from '../errors';
@@ -391,7 +391,7 @@ export default class RedisClient<
   S extends RedisScripts,
   RESP extends RespVersions,
   TYPE_MAPPING extends TypeMapping
-> extends EventEmitter {
+> extends WrapperSafeEmitter {
   static #createCommand(command: Command, resp: RespVersions) {
     const transformReply = getTransformReply(command, resp);
 
