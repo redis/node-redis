@@ -513,7 +513,17 @@ function attachForwarders<C extends RedisClientLike>(
   mgr: MultiDbManager<C>,
   resolve: ResolveClient<C> = client => client
 ): void {
-  const skip = new Set<PropertyKey>([...INTERCEPTED, 'constructor']);
+  const skip = new Set<PropertyKey>([
+    ...INTERCEPTED,
+    // A client kind may override emitter methods (the standalone client
+    // delegates them to the instance that emits). Those belong to the
+    // wrapper's own EventEmitter: forwarding `on`/`emit`/... to a member
+    // would attach listeners to the currently active member while the
+    // manager emits its events on the wrapper, so handlers would miss
+    // failover events and any later switch.
+    ...Object.getOwnPropertyNames(EventEmitter.prototype),
+    'constructor'
+  ]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic patching
   const dst = target as any;
 
