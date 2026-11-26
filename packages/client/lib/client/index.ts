@@ -59,6 +59,11 @@ function assertNoHimportSessionCommands(commands: Array<RedisMultiQueuedCommand>
 
 const CSC_MANAGED_CLIENT_SUBCOMMANDS = new Set(['CACHING', 'TRACKING']);
 
+// EventEmitter's own listener signature; matching it keeps typed listeners
+// (`(err: Error) => void`, ...) accepted wherever they are registered.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- mirrors EventEmitter
+type EventEmitterListener = (...args: Array<any>) => void;
+
 /**
  * With client-side caching on, the client owns the connection's tracking state: a user
  * `CLIENT TRACKING` can reset the OPTIN/OPTOUT mode or stop invalidations, and a user
@@ -683,6 +688,90 @@ export default class RedisClient<
     if (parentId) {
       this._self.#clientIdentity.parentId = parentId;
     }
+  }
+
+  /**
+   * `createClient()` returns an `Object.create(new Client(...))` wrapper, while
+   * socket events are emitted by the wrapped instance. `EventEmitter` keeps its
+   * listener state on `this` and reassigns `this._events` when the last
+   * listener of an event is removed, so calling its methods on the wrapper
+   * leaves the listeners behind on the emitter: removed listeners keep firing
+   * and later ones never do (see #3680). Delegate the emitter surface to
+   * `_self`, the instance that actually emits.
+   */
+  override on(eventName: string | symbol, listener: EventEmitterListener): this {
+    EventEmitter.prototype.on.call(this._self, eventName, listener);
+    return this;
+  }
+
+  override addListener(eventName: string | symbol, listener: EventEmitterListener): this {
+    EventEmitter.prototype.addListener.call(this._self, eventName, listener);
+    return this;
+  }
+
+  override once(eventName: string | symbol, listener: EventEmitterListener): this {
+    EventEmitter.prototype.once.call(this._self, eventName, listener);
+    return this;
+  }
+
+  override prependListener(eventName: string | symbol, listener: EventEmitterListener): this {
+    EventEmitter.prototype.prependListener.call(this._self, eventName, listener);
+    return this;
+  }
+
+  override prependOnceListener(eventName: string | symbol, listener: EventEmitterListener): this {
+    EventEmitter.prototype.prependOnceListener.call(this._self, eventName, listener);
+    return this;
+  }
+
+  override removeListener(eventName: string | symbol, listener: EventEmitterListener): this {
+    EventEmitter.prototype.removeListener.call(this._self, eventName, listener);
+    return this;
+  }
+
+  override off(eventName: string | symbol, listener: EventEmitterListener): this {
+    EventEmitter.prototype.off.call(this._self, eventName, listener);
+    return this;
+  }
+
+  override removeAllListeners(eventName?: string | symbol): this {
+    // Node branches on `arguments.length`, so an explicit `undefined` must not
+    // be treated as a call without an event name.
+    if (arguments.length === 0) {
+      EventEmitter.prototype.removeAllListeners.call(this._self);
+    } else {
+      EventEmitter.prototype.removeAllListeners.call(this._self, eventName);
+    }
+    return this;
+  }
+
+  override setMaxListeners(n: number): this {
+    EventEmitter.prototype.setMaxListeners.call(this._self, n);
+    return this;
+  }
+
+  override getMaxListeners(): number {
+    return EventEmitter.prototype.getMaxListeners.call(this._self);
+  }
+
+  override listeners(eventName: string | symbol): Array<EventEmitterListener> {
+    return EventEmitter.prototype.listeners.call(this._self, eventName) as Array<EventEmitterListener>;
+  }
+
+  override rawListeners(eventName: string | symbol): Array<EventEmitterListener> {
+    return EventEmitter.prototype.rawListeners.call(this._self, eventName) as Array<EventEmitterListener>;
+  }
+
+  override emit(eventName: string | symbol, ...args: Array<unknown>): boolean {
+    return EventEmitter.prototype.emit.call(this._self, eventName, ...args);
+  }
+
+  override listenerCount(eventName: string | symbol, listener?: EventEmitterListener): number {
+    return EventEmitter.prototype.listenerCount.call(this._self, eventName, listener);
+  }
+
+  override eventNames(): Array<string | symbol> {
+    return EventEmitter.prototype.eventNames.call(this._self);
   }
 
   /**
