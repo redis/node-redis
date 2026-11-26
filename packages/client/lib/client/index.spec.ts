@@ -144,6 +144,60 @@ describe('Client', () => {
     });
   });
 
+  // #3680: `createClient()` returns `Object.create(client)`, so the object the
+  // caller holds and the client that emits share one `_events` through the
+  // prototype — until the wrapper writes its own, which removing the last
+  // listener does. After that the wrapper's listeners never fire.
+  describe('event surface across the createClient() wrapper', () => {
+    const emitOnInner = (client: RedisClientType) => {
+      // what the socket does: emit on the client itself, not on the wrapper
+      EventEmitter.prototype.emit.call(Object.getPrototypeOf(client), 'error', new Error('boom'));
+    };
+
+    const cases: Array<[string, (c: RedisClientType, a: () => void) => void]> = [
+      ['removeListener', (c, a) => c.removeListener('error', a)],
+      ['off', (c, a) => c.off('error', a)],
+      ["removeAllListeners('error')", c => c.removeAllListeners('error')],
+      ['removeAllListeners()', c => c.removeAllListeners()]
+    ];
+
+    for (const [name, remove] of cases) {
+      it(`a listener added after ${name} receives events`, () => {
+        const client = RedisClient.create();
+        let removed = 0, added = 0;
+        const first = () => { removed++; };
+
+        client.on('error', first);
+        remove(client, first);
+        client.on('error', () => { added++; });
+
+        emitOnInner(client);
+
+        assert.equal(added, 1, 'the listener added last must receive the event');
+        assert.equal(removed, 0, 'the removed listener must not receive it');
+      });
+    }
+
+    it('reports listeners through the wrapper', () => {
+      const client = RedisClient.create();
+      const listener = () => {};
+
+      assert.equal(client.listenerCount('error'), 0);
+      client.on('error', listener);
+      assert.equal(client.listenerCount('error'), 1, 'listenerCount must see the registration');
+      assert.deepEqual(client.listeners('error'), [listener]);
+      assert.ok(client.eventNames().includes('error'));
+
+      client.removeListener('error', listener);
+      assert.equal(client.listenerCount('error'), 0, 'and must see the removal');
+    });
+
+    it('keeps on() chainable on the object the caller holds', () => {
+      const client = RedisClient.create();
+      assert.equal(client.on('error', () => {}), client, 'on() must return the wrapper');
+    });
+  });
+
   describe('parseURL', () => {
     it('redis://user:secret@localhost:6379/0', async () => {
       const result = RedisClient.parseURL('redis://user:secret@localhost:6379/0');

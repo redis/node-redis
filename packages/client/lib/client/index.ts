@@ -363,6 +363,11 @@ export type RedisClientType<
 
 type ProxyClient = RedisClient<RedisModules, RedisFunctions, RedisScripts, RespVersions, TypeMapping>;
 
+// Must mirror `EventEmitter`'s own listener type: narrowing it to `unknown[]`
+// stops existing `.on('error', (err: Error) => ...)` callers type-checking.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- matches the EventEmitter contract
+type EventListener = (...args: any[]) => void;
+
 type NamespaceProxyClient = { _self: ProxyClient };
 
 export interface ScanIteratorOptions {
@@ -656,6 +661,91 @@ export default class RedisClient<
   get options(): RedisClientOptions<M, F, S, RESP> {
     return this._self.#options;
   }
+
+  // `createClient()` returns `Object.create(client)`, so the object the caller
+  // holds and the client that actually emits are two EventEmitters sharing one
+  // `_events` through the prototype chain. `EventEmitter` reads `_events` through
+  // that chain but writes its own on the first assignment, which is what removing
+  // the last listener does — from then on the two disagree and events registered
+  // on the wrapper never fire (#3680). Route the whole event surface to `_self`
+  // so there is only ever one emitter, as the multi-db views already do.
+  //
+  // These call through `EventEmitter.prototype` on purpose: `this._self.on(...)`
+  // would recurse forever on the client itself, where `_self === this`. The
+  // chainable methods return `this` so chaining still yields what the caller
+  // holds, and optional arguments forward untouched because Node branches on
+  // `arguments.length` — passing an explicit `undefined` event to
+  // `removeAllListeners()` would clear nothing.
+
+  override addListener(event: string | symbol, listener: EventListener): this {
+    EventEmitter.prototype.addListener.call(this._self, event, listener);
+    return this;
+  }
+
+  override on(event: string | symbol, listener: EventListener): this {
+    EventEmitter.prototype.on.call(this._self, event, listener);
+    return this;
+  }
+
+  override once(event: string | symbol, listener: EventListener): this {
+    EventEmitter.prototype.once.call(this._self, event, listener);
+    return this;
+  }
+
+  override prependListener(event: string | symbol, listener: EventListener): this {
+    EventEmitter.prototype.prependListener.call(this._self, event, listener);
+    return this;
+  }
+
+  override prependOnceListener(event: string | symbol, listener: EventListener): this {
+    EventEmitter.prototype.prependOnceListener.call(this._self, event, listener);
+    return this;
+  }
+
+  override off(event: string | symbol, listener: EventListener): this {
+    EventEmitter.prototype.off.call(this._self, event, listener);
+    return this;
+  }
+
+  override removeListener(event: string | symbol, listener: EventListener): this {
+    EventEmitter.prototype.removeListener.call(this._self, event, listener);
+    return this;
+  }
+
+  override removeAllListeners(...args: [(string | symbol)?]): this {
+    EventEmitter.prototype.removeAllListeners.apply(this._self, args);
+    return this;
+  }
+
+  override setMaxListeners(n: number): this {
+    EventEmitter.prototype.setMaxListeners.call(this._self, n);
+    return this;
+  }
+
+  override emit(event: string | symbol, ...args: Array<unknown>): boolean {
+    return EventEmitter.prototype.emit.call(this._self, event, ...args);
+  }
+
+  override listenerCount(...args: [string | symbol, ((...a: Array<unknown>) => void)?]): number {
+    return EventEmitter.prototype.listenerCount.apply(this._self, args);
+  }
+
+  override listeners(event: string | symbol): Array<EventListener> {
+    return EventEmitter.prototype.listeners.call(this._self, event) as Array<EventListener>;
+  }
+
+  override rawListeners(event: string | symbol): Array<EventListener> {
+    return EventEmitter.prototype.rawListeners.call(this._self, event) as Array<EventListener>;
+  }
+
+  override eventNames(): Array<string | symbol> {
+    return EventEmitter.prototype.eventNames.call(this._self);
+  }
+
+  override getMaxListeners(): number {
+    return EventEmitter.prototype.getMaxListeners.call(this._self);
+  }
+
 
   /**
    * The configured key prefix (see {@link RedisClientOptions.keyPrefix}), if any.
