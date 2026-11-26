@@ -1,6 +1,9 @@
 import assert from "node:assert";
 import { createClient } from "../../";
 import EnterpriseMaintenanceManager from "./enterprise-maintenance-manager";
+import { EventEmitter, once } from "node:events";
+import { createServer, type AddressInfo, type Socket } from "node:net";
+import { setTimeout as sleep } from "node:timers/promises";
 
 describe("EnterpriseMaintenanceManager does not prevent proper options parsing", () => {
   it("should not throw when initializing without options", async () => {
@@ -180,4 +183,252 @@ describe("EnterpriseMaintenanceManager.parseSMigratedPush", () => {
     assert.deepStrictEqual(result.entries[0].source, { host: "127.0.0.1", port: 6379 });
     assert.deepStrictEqual(result.entries[0].destinations[0].slots, [123, 456]);
   });
+});
+
+describe("EnterpriseMaintenanceManager MOVING handoff", () => {
+  // A minimal RESP3 server: an empty map for HELLO, +OK for anything else, and
+  // like Redis it closes the connection after replying to QUIT.
+  // With `holdHandshake` set, HELLO waits until releaseHandshake(); with
+  // `holdPings`, PING waits until releasePings().
+  async function startFakeNode({ holdHandshake = false, holdPings = false } = {}) {
+    const sockets = new Set<Socket>();
+    const held: Array<() => void> = [];
+    const heldPings: Array<() => void> = [];
+    const events = new EventEmitter();
+    const server = createServer(socket => {
+      sockets.add(socket);
+      events.emit("connection");
+      socket.on("close", () => sockets.delete(socket));
+      socket.on("data", chunk => {
+        for (const command of chunk.toString().split("*").filter(part => /^\d+\r\n\$/.test(part))) {
+          if (/^\d+\r\n\$5\r\nHELLO/i.test(command)) {
+            const reply = () => socket.write("%0\r\n");
+            if (holdHandshake) {
+              held.push(reply);
+              events.emit("handshake");
+            } else {
+              reply();
+            }
+          } else if (holdPings && /^\d+\r\n\$4\r\nPING/i.test(command)) {
+            heldPings.push(() => socket.write("+OK\r\n"));
+            events.emit("ping");
+          } else if (/^\d+\r\n\$4\r\nQUIT/i.test(command)) {
+            socket.end("+OK\r\n");
+          } else {
+            socket.write("+OK\r\n");
+          }
+        }
+      });
+    });
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    return {
+      port: (server.address() as AddressInfo).port,
+      events,
+      openConnections: () => sockets.size,
+      sendMoving(toPort: number) {
+        const url = `127.0.0.1:${toPort}`;
+        for (const socket of sockets) {
+          socket.write(`>4\r\n$6\r\nMOVING\r\n:1\r\n:15\r\n$${url.length}\r\n${url}\r\n`);
+        }
+      },
+      releaseHandshake() {
+        for (const reply of held.splice(0)) reply();
+      },
+      releasePings() {
+        holdPings = false;
+        for (const reply of heldPings.splice(0)) reply();
+      },
+      dropConnections() {
+        for (const socket of sockets) socket.destroy();
+      },
+      async close() {
+        for (const socket of sockets) socket.destroy();
+        server.close();
+        await once(server, "close");
+      },
+    };
+  }
+
+  type FakeNode = Awaited<ReturnType<typeof startFakeNode>>;
+  type Client = ReturnType<typeof createClient>;
+
+  function raceSettled<T>(promise: Promise<T>, ms: number): Promise<T> {
+    return Promise.race([
+      promise,
+      sleep(ms).then(() => { throw new Error(`still pending after ${ms}ms`); }),
+    ]);
+  }
+
+  // Starts a MOVING handoff and runs `interrupt` while the new socket is
+  // still connecting, then lets the handoff finish and runs `afterRelease`.
+  async function interruptHandoff(
+    interrupt: (client: Client, source: FakeNode) => Promise<void>,
+    afterRelease: () => Promise<void> = async () => {},
+    reconnectStrategy: false | undefined = false,
+  ) {
+    const source = await startFakeNode();
+    const target = await startFakeNode({ holdHandshake: true });
+    const client = createClient({
+      RESP: 3,
+      maintNotifications: "enabled",
+      socket: { host: "127.0.0.1", port: source.port, reconnectStrategy },
+    });
+    client.on("error", () => {});
+
+    try {
+      await client.connect();
+      const handshake = once(target.events, "handshake");
+      source.sendMoving(target.port);
+      await handshake;
+
+      await interrupt(client, source);
+      target.releaseHandshake();
+      await afterRelease();
+
+      // let the handoff finish; the server sees a close a moment later
+      for (let i = 0; i < 50 && (i < 5 || target.openConnections() > 0); i++) {
+        await sleep(10);
+      }
+      return { isOpen: client.isOpen, targetConnections: target.openConnections() };
+    } finally {
+      if (client.isOpen) client.destroy();
+      await source.close();
+      await target.close();
+    }
+  }
+
+  it("does not reopen a client destroyed during the handoff", async () => {
+    const { isOpen, targetConnections } = await interruptHandoff(async client => {
+      client.destroy();
+    });
+    // before the fix the handoff swapped the new socket into the destroyed
+    // client, which then held an open connection nothing would close
+    assert.equal(isOpen, false);
+    assert.equal(targetConnections, 0);
+  });
+
+  it("does not reopen a client whose reconnectStrategy gave up during the handoff", async () => {
+    const { isOpen, targetConnections } = await interruptHandoff(async (client, source) => {
+      const terminated = once(client, "terminated");
+      source.dropConnections();
+      await terminated;
+    });
+    assert.equal(isOpen, false);
+    assert.equal(targetConnections, 0);
+  });
+
+  it("finishes commands queued before close() during the handoff, and closes", async () => {
+    let ping: Promise<unknown> | undefined;
+    let closed: Promise<void> | undefined;
+    const { isOpen, targetConnections } = await interruptHandoff(async client => {
+      // queued while the handoff has writing paused, then a graceful close
+      ping = client.ping();
+      closed = client.close();
+    }, async () => {
+      // the source keeps serving through the MOVING grace period
+      assert.equal(await raceSettled(ping!, 1000), "OK");
+      await raceSettled(closed!, 1000);
+    });
+    assert.equal(isOpen, false);
+    assert.equal(targetConnections, 0);
+  });
+
+  it("finishes commands queued before close() on the target when the source goes away during the handoff", async () => {
+    let ping: Promise<unknown> | undefined;
+    let closed: Promise<void> | undefined;
+    const { isOpen, targetConnections } = await interruptHandoff(async (client, source) => {
+      ping = client.ping();
+      closed = client.close();
+      source.dropConnections();
+    }, async () => {
+      // the close carries over to the new socket, so the queued work completes there
+      assert.equal(await raceSettled(ping!, 1000), "OK");
+      await raceSettled(closed!, 1000);
+    });
+    assert.equal(isOpen, false);
+    assert.equal(targetConnections, 0);
+  });
+
+  for (const reconnectStrategy of [false, undefined] as const) {
+    it(`finishes commands queued before QUIT during the handoff, and closes (reconnectStrategy: ${reconnectStrategy ?? "default"})`, async () => {
+      let ping: Promise<unknown> | undefined;
+      let quit: Promise<unknown> | undefined;
+      const { isOpen, targetConnections } = await interruptHandoff(async client => {
+        ping = client.ping();
+        quit = client.quit();
+      }, async () => {
+        assert.equal(await raceSettled(ping!, 1000), "OK");
+        assert.equal(await raceSettled(quit!, 1000), "OK");
+      }, reconnectStrategy);
+      // with the default strategy, the server closing after QUIT must not be
+      // taken for a failure and reconnect the client to the target
+      assert.equal(isOpen, false);
+      assert.equal(targetConnections, 0);
+    });
+  }
+
+  for (const drain of [undefined, "close", "QUIT"] as const) {
+    it(`keeps the old connection when the new one dies before the swap${drain ? `, and finishes ${drain}` : ""}`, async () => {
+      // the source holds a PING so the handoff waits on an in-flight reply
+      // after the new connection is up
+      const source = await startFakeNode({ holdPings: true });
+      const target = await startFakeNode();
+      const client = createClient({
+        RESP: 3,
+        maintNotifications: "enabled",
+        socket: { host: "127.0.0.1", port: source.port, reconnectStrategy: false },
+      });
+      client.on("error", () => {});
+      const unhandled: unknown[] = [];
+      const onUnhandled = (err: unknown) => unhandled.push(err);
+      process.on("unhandledRejection", onUnhandled);
+
+      try {
+        await client.connect();
+        const pingHeld = once(source.events, "ping");
+        const ping = client.ping();
+        await pingHeld;
+
+        const targetConnected = once(target.events, "connection");
+        source.sendMoving(target.port);
+        await targetConnected;
+        // let the new connection finish its handshake, then kill it while the
+        // handoff still waits on the held PING
+        await sleep(50);
+        target.dropConnections();
+        for (let i = 0; target.openConnections() > 0 && i < 50; i++) {
+          await sleep(10);
+        }
+        await sleep(20);
+
+        // queued while the handoff has writing paused, so the queue is still
+        // not empty when the in-flight PING completes and the swap runs
+        const queued = client.ping();
+        const drained = drain === undefined ? Promise.resolve() : drain === "close" ? client.close() : client.quit();
+        source.releasePings();
+
+        assert.equal(await raceSettled(ping, 1000), "OK");
+        assert.equal(await raceSettled(queued, 1000), "OK");
+        await raceSettled(drained, 1000);
+        await sleep(20);
+        // before the fix, installing the dead socket threw mid-swap and the
+        // drain never settled
+        assert.deepEqual(unhandled, []);
+        assert.equal(target.openConnections(), 0);
+        if (drain === undefined) {
+          // still usable on the old connection
+          assert.equal(client.isOpen, true);
+          assert.equal(await raceSettled(client.ping(), 1000), "OK");
+        } else {
+          assert.equal(client.isOpen, false);
+        }
+      } finally {
+        process.off("unhandledRejection", onUnhandled);
+        if (client.isOpen) client.destroy();
+        await source.close();
+        await target.close();
+      }
+    });
+  }
 });

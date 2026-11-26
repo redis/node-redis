@@ -8,6 +8,7 @@ import { RedisTcpSocketOptions } from "./socket";
 import diagnostics_channel from "node:diagnostics_channel";
 import { RedisArgument, DEFAULT_RESP } from "../RESP/types";
 import { publish, CHANNELS } from "./tracing";
+import { ClientClosedError } from "../errors";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- variance markers for RedisClient generics
 type RedisType = RedisClient<any, any, any, any, any>;
@@ -240,6 +241,11 @@ export default class EnterpriseMaintenanceManager {
       const waitTime = (afterSeconds * 1000) / 2;
       dbgMaintenance(`Wait for ${waitTime}ms`);
       await setTimeout(waitTime);
+      if (this.#hasEnded()) {
+        dbgMaintenance("Client has ended, skipping handoff");
+        this.#onMigrated();
+        return;
+      }
     } else {
       const split = url.split(":");
       host = split[0];
@@ -289,11 +295,22 @@ export default class EnterpriseMaintenanceManager {
       `Connected to tmp client in ${(performance.now() - start).toFixed(2)}ms`,
     );
     // 3 [EVENT] New socket connected
+    if (this.#hasEnded()) return this.#abortHandoff(tmpClient);
 
     dbgMaintenance(`Wait for all in-flight commands to complete`);
     await this.#commandsQueue.waitForInflightCommandsToComplete();
     dbgMaintenance(`In-flight commands completed`);
     // 4 [EVENT] In-flight commands completed
+    if (this.#hasEnded()) return this.#abortHandoff(tmpClient);
+    if (!tmpClient.isOpen) {
+      // The new connection gave up while we waited. The old one still serves
+      // until the move, and keeps a pending close()/QUIT's drain, so stay on it.
+      dbgMaintenance("New connection is closed, keeping the old socket");
+      tmpClient.destroy();
+      this.#client._unpause();
+      this.#onMigrated();
+      return;
+    }
 
     dbgMaintenance("Swap client sockets...");
     const oldSocket = this.#client._ejectSocket();
@@ -308,6 +325,24 @@ export default class EnterpriseMaintenanceManager {
     this.#onMigrated();
     publish(CHANNELS.CONNECTION_HANDOFF, () => ({ clientId: this.#client._clientId }));
   };
+
+  // Destroyed, or its reconnectStrategy gave up, while the handoff awaited. A
+  // client still draining after close() or QUIT has not ended: the handoff goes
+  // ahead and the drain carries over to the new socket.
+  #hasEnded() {
+    return !this.#client.isOpen && !this.#client._isClosing;
+  }
+
+  // Swapping the new socket into an ended client would reopen it, with a
+  // connection nothing would close. Nothing will write what is still queued
+  // either (writing was paused for the handoff), so reject it.
+  #abortHandoff(tmpClient: RedisType) {
+    dbgMaintenance("Client has ended, dropping the handoff socket");
+    tmpClient.destroy();
+    this.#commandsQueue.flushAll(new ClientClosedError());
+    this.#client._unpause();
+    this.#onMigrated();
+  }
 
   #onMigrating = () => {
     this.#isMaintenance++;

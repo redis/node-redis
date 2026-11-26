@@ -2,11 +2,12 @@ import { strict as assert } from 'node:assert';
 import { EventEmitter, once } from 'node:events';
 import * as net from 'node:net';
 import { createServer, type AddressInfo, type Socket } from 'node:net';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { RedisClusterClientOptions } from './index';
 import RedisClusterSlots, { groupCommandsByDestination, splitInFlightChainTail } from './cluster-slots';
 import type { MasterNode, Shard, ShardNode } from './cluster-slots';
 import type { CommandToWrite } from '../client/commands-queue';
-import { ClientClosedError, TimeoutError } from '../errors';
+import { ClientClosedError, SocketClosedUnexpectedlyError, TimeoutError } from '../errors';
 import { SMIGRATED_EVENT, type SMigratedEvent } from '../client/enterprise-maintenance-manager';
 
 describe('RedisClusterSlots', () => {
@@ -367,6 +368,443 @@ describe('RedisClusterSlots', () => {
       // Before the fix it resolved to the cached dead client (no rejection).
       await assert.rejects(slots.nodeClient(node), 'second call must retry, not return the cached dead client');
       assert.equal(node.client, undefined);
+    });
+  });
+
+  describe('nodeClient after a connected node gives up', () => {
+    // A minimal RESP2 server: +OK to every command and a one-shard CLUSTER
+    // SLOTS reply pointing at itself, so the cluster connects for real.
+    // With `holdPings` set, PING replies wait until releasePings().
+    async function startFakeNode({ holdPings = false } = {}) {
+      const sockets = new Set<Socket>();
+      const heldPings: Array<() => void> = [];
+      const pingHeld = new EventEmitter();
+      const server = createServer(socket => {
+        sockets.add(socket);
+        socket.on('close', () => sockets.delete(socket));
+        socket.on('data', chunk => {
+          for (const command of chunk.toString().split('*').filter(part => /^\d+\r\n\$/.test(part))) {
+            if (holdPings && /^1\r\n\$4\r\nPING/i.test(command)) {
+              heldPings.push(() => socket.write('+PONG\r\n'));
+              pingHeld.emit('held');
+            } else if (/CLUSTER\r\n\$5\r\nSLOTS/i.test(command)) {
+              const { port } = server.address() as AddressInfo;
+              socket.write(`*1\r\n*3\r\n:0\r\n:16383\r\n*3\r\n$9\r\n127.0.0.1\r\n:${port}\r\n$2\r\nid\r\n`);
+            } else {
+              socket.write('+OK\r\n');
+            }
+          }
+        });
+      });
+      server.listen(0, '127.0.0.1');
+      await once(server, 'listening');
+      return {
+        port: (server.address() as AddressInfo).port,
+        pingHeld,
+        releasePings() {
+          for (const reply of heldPings.splice(0)) reply();
+        },
+        dropConnections() {
+          for (const socket of sockets) socket.destroy();
+        },
+        openConnections() {
+          return sockets.size;
+        },
+        async close() {
+          for (const socket of sockets) socket.destroy();
+          server.close();
+          await once(server, 'close');
+        }
+      };
+    }
+
+    it('replaces a node client whose reconnectStrategy gave up after it connected', async () => {
+      const server = await startFakeNode();
+      // reconnectStrategy: false makes the dropped connection terminal, as a
+      // socket timeout is with the default strategy
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: server.port } }],
+        defaults: { socket: { reconnectStrategy: false } },
+        RESP: 2
+      }, () => true, 'test-cluster');
+
+      try {
+        await slots.connect();
+        const node = slots.masters[0];
+        const first = await slots.nodeClient(node);
+        assert.ok(first.isOpen);
+
+        const terminated = once(first, 'terminated');
+        server.dropConnections();
+        await terminated;
+        assert.equal(first.isOpen, false);
+
+        // Before the fix this resolved to the same closed client, so every
+        // command for the node's slots failed with ClientClosedError.
+        const second = await slots.nodeClient(node);
+        assert.notEqual(second, first, 'the closed client must be replaced');
+        assert.ok(second.isOpen, 'the replacement must be connected');
+        assert.equal(node.client, second);
+      } finally {
+        slots.destroy();
+        await server.close();
+      }
+    });
+
+    it('keeps a node client that is still draining after close()', async () => {
+      const server = await startFakeNode({ holdPings: true });
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: server.port } }],
+        RESP: 2
+      }, () => true, 'test-cluster');
+
+      try {
+        await slots.connect();
+        const node = slots.masters[0];
+        const first = await slots.nodeClient(node);
+
+        const held = once(server.pingHeld, 'held');
+        const ping = first.ping();
+        await held;
+        first.close();
+        assert.equal(first.isOpen, false);
+        assert.ok(first.isReady, 'the client is still draining');
+
+        // close() never emits 'terminated', so the draining client stays
+        // registered and its pending PING still resolves.
+        assert.equal(await slots.nodeClient(node), first, 'a draining client must not be replaced');
+
+        server.releasePings();
+        assert.equal(await ping, 'PONG');
+      } finally {
+        slots.destroy();
+        await server.close();
+      }
+    });
+
+    it('does not reconnect a closed node client after the cluster is destroyed', async () => {
+      const server = await startFakeNode();
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: server.port } }],
+        defaults: { socket: { reconnectStrategy: false } },
+        RESP: 2
+      }, () => true, 'test-cluster');
+
+      try {
+        await slots.connect();
+        const node = slots.masters[0];
+        const first = await slots.nodeClient(node);
+        slots.destroy();
+
+        assert.equal(await slots.nodeClient(node), first, 'a destroyed cluster must not open new connections');
+        assert.equal(first.isOpen, false);
+      } finally {
+        slots.destroy();
+        await server.close();
+      }
+    });
+
+    it('drops a node client that gives up during its first connect, once, and retries on the next call', async () => {
+      // The cluster itself connects to a live node; this node's port refuses
+      // connections and reconnectStrategy is disabled, so its first connect()
+      // gives up. That runs both the 'terminated' listener and the catch in
+      // #createNodeClient.
+      const server = await startFakeNode();
+      const deadServer = createServer();
+      deadServer.listen(0, '127.0.0.1');
+      await once(deadServer, 'listening');
+      const deadPort = (deadServer.address() as AddressInfo).port;
+      deadServer.close();
+      await once(deadServer, 'close');
+
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: server.port } }],
+        defaults: { socket: { reconnectStrategy: false } },
+        RESP: 2
+      }, () => true, 'test-cluster');
+
+      try {
+        await slots.connect();
+        const node = {
+          address: `127.0.0.1:${deadPort}`,
+          host: '127.0.0.1',
+          port: deadPort,
+          id: 'dead-node',
+          readonly: false,
+        } as ShardNode<Record<string, never>, Record<string, never>, Record<string, never>, 2, Record<string, never>>;
+
+        const connect = slots.nodeClient(node);
+        const first = node.client!;
+        let terminatedCount = 0;
+        first.on('terminated', () => terminatedCount++);
+
+        // the real connect error surfaces, not ClientClosedError from a second destroy()
+        await assert.rejects(connect, (err: unknown) => {
+          assert(!(err instanceof ClientClosedError), 'should surface the real connect error');
+          return true;
+        });
+        assert.equal(terminatedCount, 1);
+        assert.equal(node.client, undefined, 'the dead client must not stay cached');
+        assert.equal(first.isOpen, false);
+
+        // the next call connects a fresh client (and fails again, as the port is still closed)
+        const retry = slots.nodeClient(node);
+        assert.notEqual(node.client, first, 'the next call must create a fresh client');
+        await assert.rejects(retry);
+        assert.equal(node.client, undefined);
+      } finally {
+        slots.destroy();
+        await server.close();
+      }
+    });
+
+    it('rejects pending commands with the socket failure when the node gives up', async () => {
+      const server = await startFakeNode({ holdPings: true });
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: server.port } }],
+        defaults: { socket: { reconnectStrategy: false } },
+        RESP: 2
+      }, () => true, 'test-cluster');
+
+      try {
+        await slots.connect();
+        const client = await slots.nodeClient(slots.masters[0]);
+        client.on('error', () => {});
+
+        const held = once(server.pingHeld, 'held');
+        const ping = client.ping();
+        await held;
+        server.dropConnections();
+
+        // destroying the client synchronously on 'terminated' rejected it with
+        // DisconnectsClientError, hiding the cause
+        await assert.rejects(ping, SocketClosedUnexpectedlyError);
+      } finally {
+        slots.destroy();
+        await server.close();
+      }
+    });
+
+    it('does not open a node connection after the cluster is destroyed, once the node gave up', async () => {
+      const server = await startFakeNode();
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: server.port } }],
+        defaults: { socket: { reconnectStrategy: false } },
+        RESP: 2
+      }, () => true, 'test-cluster');
+
+      try {
+        await slots.connect();
+        const node = slots.masters[0];
+        const first = await slots.nodeClient(node);
+        const terminated = once(first, 'terminated');
+        server.dropConnections();
+        await terminated;
+        assert.equal(node.client, undefined);
+
+        // a caller still holding the node after teardown
+        slots.destroy();
+        await assert.rejects(slots.nodeClient(node), ClientClosedError);
+        assert.equal(node.client, undefined, 'no replacement must be created');
+      } finally {
+        slots.destroy();
+        await server.close();
+      }
+    });
+
+    // Drives a full-slot migration away from a real source node client, whose
+    // connection drops while the migration awaits its in-flight replies.
+    // reconnectStrategy: false makes the drop terminal, so the client emits a
+    // real 'terminated' and the listener clears node.client. `whileTerminated`
+    // runs at that point, before the migration resumes; `beforeMigration` runs
+    // just before the SMIGRATED handler.
+    type TestSlots = RedisClusterSlots<Record<string, never>, Record<string, never>, Record<string, never>, 2, Record<string, never>>;
+    type TestNode = MasterNode<Record<string, never>, Record<string, never>, Record<string, never>, 2, Record<string, never>>;
+    async function migrateAwayFromTerminatingSource({
+      whileTerminated = async () => {},
+      beforeMigration = () => {},
+    }: {
+      whileTerminated?: (slots: TestSlots, sourceNode: TestNode) => Promise<void>;
+      beforeMigration?: (slots: TestSlots, sourceNode: TestNode) => void;
+    } = {}) {
+      const server = await startFakeNode();
+      const errors: unknown[] = [];
+      const slots = new RedisClusterSlots<Record<string, never>, Record<string, never>, Record<string, never>, 2, Record<string, never>>({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: server.port } }],
+        defaults: { socket: { reconnectStrategy: false } },
+        RESP: 2
+      }, (event: string, err: unknown) => {
+        if (event === 'error') errors.push(err);
+        return true;
+      }, 'test-cluster');
+
+      try {
+        await slots.connect();
+        const sourceNode = slots.masters[0];
+        const sourceClient = await slots.nodeClient(sourceNode);
+        const [handler] = (sourceClient as unknown as EventEmitter).listeners(SMIGRATED_EVENT) as [(e: SMigratedEvent) => Promise<void>];
+
+        const queue = sourceClient._getQueue();
+        queue.waitForInflightCommandsToComplete = async () => {
+          const terminated = once(sourceClient, 'terminated');
+          server.dropConnections();
+          await terminated;
+          assert.equal(sourceNode.client, undefined, "the 'terminated' listener clears node.client");
+          await whileTerminated(slots, sourceNode);
+          return false;
+        };
+
+        const destNode = {
+          address: 'dest:6379', host: 'dest', port: 6379,
+          client: { _clientId: 'dest-client', _pause: () => {}, _unpause: () => {}, destroy: () => {} },
+        } as unknown as MasterNode<Record<string, never>, Record<string, never>, Record<string, never>, 2, Record<string, never>>;
+        slots.nodeByAddress.set('dest:6379', destNode);
+        slots.masters.push(destNode);
+        slots.slots.fill({ master: sourceNode });
+        slots.slots[16383] = { master: destNode };
+        beforeMigration(slots, sourceNode);
+
+        await handler({
+          seqId: 1,
+          entries: [{
+            source: { host: '127.0.0.1', port: server.port },
+            destinations: [{ addr: { host: 'dest', port: 6379 }, slots: [[0, 16382]] }],
+          }],
+        } as SMigratedEvent);
+
+        return { errors, slots, sourceNode, sourceClient, server };
+      } catch (err) {
+        slots.destroy();
+        await server.close();
+        throw err;
+      }
+    }
+
+    it('finishes a slot migration whose source client terminates mid-migration', async () => {
+      const { errors, slots, sourceNode, sourceClient, server } = await migrateAwayFromTerminatingSource();
+      try {
+        // reading sourceNode.client after the await threw a TypeError, so the
+        // emptied source stayed in masters and nodeByAddress
+        assert.deepEqual(errors, []);
+        assert.equal(slots.nodeByAddress.has(sourceNode.address), false);
+        assert.equal(slots.masters.includes(sourceNode), false);
+        assert.equal(sourceClient.isOpen, false);
+      } finally {
+        slots.destroy();
+        await server.close();
+      }
+    });
+
+    it('closes a node client opened for the source while it was migrating away', async () => {
+      let replacement: Awaited<ReturnType<RedisClusterSlots['nodeClient']>> | undefined;
+      const { errors, slots, sourceNode, server } = await migrateAwayFromTerminatingSource({
+        whileTerminated: async (slots, sourceNode) => {
+          // a command routed to the source while the migration waits
+          replacement = await slots.nodeClient(sourceNode);
+          assert.ok(replacement.isOpen);
+        },
+      });
+      try {
+        assert.deepEqual(errors, []);
+        assert.ok(replacement);
+        // before the fix it stayed open and untracked, even after destroy()
+        assert.equal(replacement.isOpen, false, 'the replacement must be closed with the removed node');
+        assert.equal(sourceNode.client, undefined);
+        // the server sees the close a moment later
+        for (let i = 0; server.openConnections() > 0 && i < 50; i++) {
+          await sleep(10);
+        }
+        assert.equal(server.openConnections(), 0);
+      } finally {
+        slots.destroy();
+        await server.close();
+      }
+    });
+
+    it('closes that node client when the migration fails after removing the source', async () => {
+      let replacement: Awaited<ReturnType<RedisClusterSlots['nodeClient']>> | undefined;
+      const { errors, slots, sourceNode, server } = await migrateAwayFromTerminatingSource({
+        whileTerminated: async (slots, sourceNode) => {
+          replacement = await slots.nodeClient(sourceNode);
+        },
+        // the source also serves pub/sub, and moving its listeners throws
+        // after the node has been removed from the topology
+        beforeMigration: (slots, sourceNode) => {
+          slots.pubSubNode = {
+            address: sourceNode.address,
+            client: {
+              _clientId: 'pubsub-client',
+              _pause: () => {},
+              _unpause: () => {},
+              _getQueue: () => ({ waitForInflightCommandsToComplete: async () => false }),
+              getPubSubListeners: () => { throw new Error('pub/sub move failed'); },
+            },
+          } as unknown as typeof slots.pubSubNode;
+        },
+      });
+      try {
+        assert.equal(errors.length, 1);
+        assert.equal(slots.nodeByAddress.has(sourceNode.address), false);
+        assert.ok(replacement);
+        // before the fix only the success path closed it
+        assert.equal(replacement.isOpen, false, 'the replacement must be closed on the error path too');
+      } finally {
+        slots.pubSubNode = undefined;
+        slots.destroy();
+        await server.close();
+      }
+    });
+
+    it('does not open a node client for a source a migration removed', async () => {
+      const { slots, sourceNode, server } = await migrateAwayFromTerminatingSource();
+      try {
+        // a caller still holding the removed node, e.g. an in-flight scan
+        await assert.rejects(slots.nodeClient(sourceNode), ClientClosedError);
+        assert.equal(sourceNode.client, undefined);
+        for (let i = 0; server.openConnections() > 0 && i < 50; i++) {
+          await sleep(10);
+        }
+        assert.equal(server.openConnections(), 0);
+      } finally {
+        slots.destroy();
+        await server.close();
+      }
+    });
+
+    it('does not open a node client for a node from before the cluster was reconnected', async () => {
+      const server = await startFakeNode();
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: server.port } }],
+        defaults: { socket: { reconnectStrategy: false } },
+        RESP: 2
+      }, () => true, 'test-cluster');
+
+      try {
+        await slots.connect();
+        const oldNode = slots.masters[0];
+        const first = await slots.nodeClient(oldNode);
+        const terminated = once(first, 'terminated');
+        server.dropConnections();
+        await terminated;
+        assert.equal(oldNode.client, undefined);
+
+        slots.destroy();
+        await slots.connect();
+        assert.notEqual(slots.masters[0], oldNode);
+
+        // a caller still holding the node from the first session
+        await assert.rejects(slots.nodeClient(oldNode), ClientClosedError);
+
+        slots.destroy();
+        for (let i = 0; server.openConnections() > 0 && i < 50; i++) {
+          await sleep(10);
+        }
+        // before the fix that node's new connection outlived destroy()
+        assert.equal(server.openConnections(), 0);
+      } finally {
+        slots.destroy();
+        await server.close();
+      }
     });
   });
 

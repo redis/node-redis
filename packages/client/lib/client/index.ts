@@ -641,6 +641,10 @@ export default class RedisClient<
   #himportRegistry: FieldsetRegistry;
   #preparedFieldsets = new PreparedFieldsets();
   #credentialsSubscription: Disposable | null = null;
+  // resolves a close() still waiting for the queue to drain
+  #pendingClose?: () => void;
+  // a QUIT was sent and its reply is still pending
+  #quitting = false;
   // Flag used to pause writing to the socket during maintenance windows.
   // When true, prevents new commands from being written while waiting for:
   // 1. New socket to be ready after maintenance redirect
@@ -727,6 +731,14 @@ export default class RedisClient<
     if (!this.#registered) return;
     ClientRegistry.instance.unregister(this.#clientIdentity.id);
     this.#registered = false;
+  }
+
+  /**
+   * @internal
+   * close() or QUIT is still waiting for pending commands to drain.
+   */
+  get _isClosing(): boolean {
+    return this._self.#pendingClose !== undefined || this._self.#quitting;
   }
 
   get isOpen(): boolean {
@@ -1311,6 +1323,14 @@ export default class RedisClient<
      }
      this._self.#socket = socket;
      this._self.#attachListeners(this._self.#socket);
+     // a close() or QUIT still draining carries over to the new socket
+     if (this._self.#pendingClose) {
+       socket.close();
+       this._self.#closeWhenDrained();
+     } else if (this._self.#quitting) {
+       // so the server closing the connection after QUIT isn't taken for a failure
+       socket.close();
+     }
    }
 
    /**
@@ -2381,12 +2401,21 @@ export default class RedisClient<
   QUIT(): Promise<string> {
     this._self.#credentialsSubscription?.dispose();
     this._self.#credentialsSubscription = null;
-    return this._self.#socket.quit(async () => {
+    const socket = this._self.#socket;
+    return socket.quit(async () => {
       clearTimeout(this._self.#pingTimer);
       const quitPromise = this._self.#queue.addCommand<string>(['QUIT']);
+      this._self.#quitting = true;
       this._self.#maybeScheduleWrite();
       this._self.#unregisterFromMetrics();
-      return quitPromise;
+      try {
+        return await quitPromise;
+      } finally {
+        this._self.#quitting = false;
+        // socket.quit() tears down only the socket it started on; a maintenance
+        // handoff may have swapped in another while QUIT was pending
+        if (this._self.#socket !== socket) this._self.#socket.destroySocket();
+      }
     });
   }
 
@@ -2413,35 +2442,48 @@ export default class RedisClient<
       this._self.#credentialsSubscription?.dispose();
       this._self.#credentialsSubscription = null;
 
-      // destroySocket() publishes CONNECTION_CLOSED, so unregister after it to keep
-      // this client's attributes on that metric.
-      if (this._self.#queue.isEmpty()) {
-        this._self.#socket.destroySocket();
-        this._self.#unregisterFromMetrics();
-        return resolve();
-      }
-
-      // A concurrent destroy() can force-kill the draining socket; it tears the socket down
-      // itself and emits `end`, so settle then too — otherwise we would wait forever for a
-      // `data` event that a destroyed socket never delivers, leaking this promise and its
-      // listeners.
-      const onEnd = () => {
-        this._self.#socket.off('data', maybeClose);
-        this._self.#unregisterFromMetrics();
-        resolve();
-      };
-      const maybeClose = () => {
-        if (!this._self.#queue.isEmpty()) return;
-
-        this._self.#socket.off('data', maybeClose);
-        this._self.#socket.off('end', onEnd);
-        this._self.#socket.destroySocket();
-        this._self.#unregisterFromMetrics();
-        resolve();
-      };
-      this._self.#socket.on('data', maybeClose);
-      this._self.#socket.once('end', onEnd);
+      this._self.#pendingClose = resolve;
+      this._self.#closeWhenDrained();
     });
+  }
+
+  // Finishes a pending close() once the queue drains on the current socket. A
+  // maintenance handoff that swaps the socket calls this again for the new one:
+  // ejecting the old socket removes these listeners with all the others.
+  #closeWhenDrained() {
+    const socket = this.#socket,
+      finish = () => {
+        // destroySocket() publishes CONNECTION_CLOSED, so unregister after it to
+        // keep this client's attributes on that metric.
+        this.#unregisterFromMetrics();
+        const resolve = this.#pendingClose;
+        this.#pendingClose = undefined;
+        resolve?.();
+      };
+
+    if (this.#queue.isEmpty()) {
+      socket.destroySocket();
+      return finish();
+    }
+
+    // A concurrent destroy() can force-kill the draining socket; it tears the socket down
+    // itself and emits `end`, so settle then too — otherwise we would wait forever for a
+    // `data` event that a destroyed socket never delivers, leaking this promise and its
+    // listeners.
+    const onEnd = () => {
+      socket.off('data', maybeClose);
+      finish();
+    };
+    const maybeClose = () => {
+      if (!this.#queue.isEmpty()) return;
+
+      socket.off('data', maybeClose);
+      socket.off('end', onEnd);
+      socket.destroySocket();
+      finish();
+    };
+    socket.on('data', maybeClose);
+    socket.once('end', onEnd);
   }
 
   /**
