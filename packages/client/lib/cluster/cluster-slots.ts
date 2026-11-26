@@ -309,8 +309,9 @@ export default class RedisClusterSlots<
   // set by close()/destroy(), cleared by connect(): unlike !#isOpen, it isn't
   // set before the first connect()
   #shutDown = false;
-  // nodes a slot migration took out of the topology: nothing tracks them any
-  // more, so nodeClient() must not open a connection for one
+  // nodes that left the topology (a slot migration, a refresh, or close() /
+  // destroy()): nothing tracks them any more, so nodeClient() must not open a
+  // connection for one, even after a later connect()
   #removedNodes = new WeakSet<ShardNode<M, F, S, RESP, TYPE_MAPPING>>();
 
   get isOpen() {
@@ -503,7 +504,10 @@ export default class RedisClusterSlots<
           (node as MasterNode<M, F, S, RESP, TYPE_MAPPING>).pubSub = undefined;
         }
 
-        if (!inUse) this.nodeByAddress.delete(address);
+        if (!inUse) {
+          this.nodeByAddress.delete(address);
+          this.#removedNodes.add(node);
+        }
       }
 
       // Install the slot map without waiting for the node and pub/sub
@@ -1021,8 +1025,8 @@ export default class RedisClusterSlots<
     if (node.client)
       return Promise.resolve(node.client);
     // a caller still holding a node (e.g. an in-flight scan) must not open a
-    // connection once the cluster is shut down, or once a slot migration has
-    // removed the node: nothing would track or close it
+    // connection once the cluster is shut down, or once the node has left the
+    // topology: nothing would track or close it
     if (this.#shutDown || this.#removedNodes.has(node))
       return Promise.reject(new ClientClosedError());
     // if the node is disconnected
@@ -1362,9 +1366,14 @@ export default class RedisClusterSlots<
     }
 
     this.#resetSlots();
-    this.nodeByAddress.clear();
+    this.#retireNodes();
     this.#reconnectionTracker.clear();
     this.#emit('disconnect');
+  }
+
+  #retireNodes() {
+    for (const node of this.nodeByAddress.values()) this.#removedNodes.add(node);
+    this.nodeByAddress.clear();
   }
 
   *#clients() {
@@ -1401,7 +1410,7 @@ export default class RedisClusterSlots<
     }
 
     this.#resetSlots();
-    this.nodeByAddress.clear();
+    this.#retireNodes();
     this.#reconnectionTracker.clear();
 
     await Promise.allSettled(promises);

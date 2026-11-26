@@ -770,6 +770,42 @@ describe('RedisClusterSlots', () => {
         await server.close();
       }
     });
+
+    it('does not open a node client for a node from before the cluster was reconnected', async () => {
+      const server = await startFakeNode();
+      const slots = new RedisClusterSlots({
+        rootNodes: [{ socket: { host: '127.0.0.1', port: server.port } }],
+        defaults: { socket: { reconnectStrategy: false } },
+        RESP: 2
+      }, () => true, 'test-cluster');
+
+      try {
+        await slots.connect();
+        const oldNode = slots.masters[0];
+        const first = await slots.nodeClient(oldNode);
+        const terminated = once(first, 'terminated');
+        server.dropConnections();
+        await terminated;
+        assert.equal(oldNode.client, undefined);
+
+        slots.destroy();
+        await slots.connect();
+        assert.notEqual(slots.masters[0], oldNode);
+
+        // a caller still holding the node from the first session
+        await assert.rejects(slots.nodeClient(oldNode), ClientClosedError);
+
+        slots.destroy();
+        for (let i = 0; server.openConnections() > 0 && i < 50; i++) {
+          await sleep(10);
+        }
+        // before the fix that node's new connection outlived destroy()
+        assert.equal(server.openConnections(), 0);
+      } finally {
+        slots.destroy();
+        await server.close();
+      }
+    });
   });
 
   describe('getClientAndSlotNumber with an empty-string key', () => {
