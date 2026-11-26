@@ -27,6 +27,53 @@ const DEAD_MEMBER = {
   }
 };
 
+// No server needed: this is about what `attachForwarders` copies onto the
+// wrapper, which is decided at construction.
+describe('multi-db event surface vs member prototypes', () => {
+  const EMITTER_NAMES = [
+    'on', 'once', 'off', 'addListener', 'removeListener',
+    'prependListener', 'prependOnceListener', 'removeAllListeners',
+    'setMaxListeners', 'getMaxListeners', 'emit',
+    'listenerCount', 'listeners', 'rawListeners', 'eventNames'
+  ];
+
+  const build = () => createMultiDbClient({
+    databases: [
+      { options: { socket: { host: '127.0.0.1', port: 1 } }, weight: 1 },
+      { options: { socket: { host: '127.0.0.1', port: 2 } }, weight: 0.5 }
+    ]
+  });
+
+  // A member kind may override part of the emitter surface on its own
+  // prototype — RedisClient does, to keep its wrapper and its socket on one
+  // emitter. Those overrides sit below the EventEmitter.prototype boundary the
+  // member walk stops at, so without an explicit skip they are copied as
+  // command forwarders and silently replace the multi-db event surface.
+  it('does not forward emitter methods from a member', () => {
+    const { client } = build();
+    try {
+      const forwarded = Object.getOwnPropertyNames(client).filter(n => EMITTER_NAMES.includes(n));
+      assert.deepEqual(forwarded, [], 'emitter methods must not be installed as forwarders');
+    } finally {
+      client.destroy();
+    }
+  });
+
+  it('registers listeners on the multi-db client, not on the active member', () => {
+    const { client } = build();
+    try {
+      const listener = () => {};
+      assert.equal(client.on('failover', listener), client, 'on() must return the multi-db client');
+      assert.equal(client.listenerCount('failover'), 1);
+
+      client.removeListener('failover', listener);
+      assert.equal(client.listenerCount('failover'), 0);
+    } finally {
+      client.destroy();
+    }
+  });
+});
+
 describe('multi-db', function () {
   this.timeout(30_000);
 

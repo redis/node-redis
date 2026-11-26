@@ -57,6 +57,22 @@ const INTERCEPTED = new Set<PropertyKey>([
 ]);
 
 /**
+ * The `EventEmitter` surface, by name. The member walk below stops at
+ * `EventEmitter.prototype` so emitter methods stay the wrapper's own, but a
+ * member kind may override part of that surface on its own prototype — as
+ * `RedisClient` does to keep its wrapper and its socket on one emitter
+ * (#3680). Those overrides sit below the boundary, so the walk would copy
+ * them as command forwarders and quietly replace the multi-db event surface.
+ * Skipping them by name keeps the boundary about the names, not the layout.
+ */
+const EMITTER_SURFACE: ReadonlyArray<PropertyKey> = [
+  'on', 'once', 'off', 'addListener', 'removeListener',
+  'prependListener', 'prependOnceListener', 'removeAllListeners',
+  'setMaxListeners', 'getMaxListeners', 'emit',
+  'listenerCount', 'listeners', 'rawListeners', 'eventNames'
+];
+
+/**
  * What every factory returns: the drop-in client plus the multi-db admin surface.
  * @experimental
  */
@@ -513,7 +529,7 @@ function attachForwarders<C extends RedisClientLike>(
   mgr: MultiDbManager<C>,
   resolve: ResolveClient<C> = client => client
 ): void {
-  const skip = new Set<PropertyKey>([...INTERCEPTED, 'constructor']);
+  const skip = new Set<PropertyKey>([...INTERCEPTED, ...EMITTER_SURFACE, 'constructor']);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic patching
   const dst = target as any;
 
