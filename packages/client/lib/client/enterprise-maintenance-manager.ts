@@ -302,6 +302,15 @@ export default class EnterpriseMaintenanceManager {
     dbgMaintenance(`In-flight commands completed`);
     // 4 [EVENT] In-flight commands completed
     if (this.#hasEnded()) return this.#abortHandoff(tmpClient);
+    if (!tmpClient.isOpen) {
+      // The new connection gave up while we waited. The old one still serves
+      // until the move, and keeps a pending close()/QUIT's drain, so stay on it.
+      dbgMaintenance("New connection is closed, keeping the old socket");
+      tmpClient.destroy();
+      this.#client._unpause();
+      this.#onMigrated();
+      return;
+    }
 
     dbgMaintenance("Swap client sockets...");
     const oldSocket = this.#client._ejectSocket();

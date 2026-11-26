@@ -188,13 +188,16 @@ describe("EnterpriseMaintenanceManager.parseSMigratedPush", () => {
 describe("EnterpriseMaintenanceManager MOVING handoff", () => {
   // A minimal RESP3 server: an empty map for HELLO, +OK for anything else, and
   // like Redis it closes the connection after replying to QUIT.
-  // With `holdHandshake` set, HELLO waits until releaseHandshake().
-  async function startFakeNode({ holdHandshake = false } = {}) {
+  // With `holdHandshake` set, HELLO waits until releaseHandshake(); with
+  // `holdPings`, PING waits until releasePings().
+  async function startFakeNode({ holdHandshake = false, holdPings = false } = {}) {
     const sockets = new Set<Socket>();
     const held: Array<() => void> = [];
+    const heldPings: Array<() => void> = [];
     const events = new EventEmitter();
     const server = createServer(socket => {
       sockets.add(socket);
+      events.emit("connection");
       socket.on("close", () => sockets.delete(socket));
       socket.on("data", chunk => {
         for (const command of chunk.toString().split("*").filter(part => /^\d+\r\n\$/.test(part))) {
@@ -206,6 +209,9 @@ describe("EnterpriseMaintenanceManager MOVING handoff", () => {
             } else {
               reply();
             }
+          } else if (holdPings && /^\d+\r\n\$4\r\nPING/i.test(command)) {
+            heldPings.push(() => socket.write("+OK\r\n"));
+            events.emit("ping");
           } else if (/^\d+\r\n\$4\r\nQUIT/i.test(command)) {
             socket.end("+OK\r\n");
           } else {
@@ -228,6 +234,10 @@ describe("EnterpriseMaintenanceManager MOVING handoff", () => {
       },
       releaseHandshake() {
         for (const reply of held.splice(0)) reply();
+      },
+      releasePings() {
+        holdPings = false;
+        for (const reply of heldPings.splice(0)) reply();
       },
       dropConnections() {
         for (const socket of sockets) socket.destroy();
@@ -355,6 +365,70 @@ describe("EnterpriseMaintenanceManager MOVING handoff", () => {
       // taken for a failure and reconnect the client to the target
       assert.equal(isOpen, false);
       assert.equal(targetConnections, 0);
+    });
+  }
+
+  for (const drain of [undefined, "close", "QUIT"] as const) {
+    it(`keeps the old connection when the new one dies before the swap${drain ? `, and finishes ${drain}` : ""}`, async () => {
+      // the source holds a PING so the handoff waits on an in-flight reply
+      // after the new connection is up
+      const source = await startFakeNode({ holdPings: true });
+      const target = await startFakeNode();
+      const client = createClient({
+        RESP: 3,
+        maintNotifications: "enabled",
+        socket: { host: "127.0.0.1", port: source.port, reconnectStrategy: false },
+      });
+      client.on("error", () => {});
+      const unhandled: unknown[] = [];
+      const onUnhandled = (err: unknown) => unhandled.push(err);
+      process.on("unhandledRejection", onUnhandled);
+
+      try {
+        await client.connect();
+        const pingHeld = once(source.events, "ping");
+        const ping = client.ping();
+        await pingHeld;
+
+        const targetConnected = once(target.events, "connection");
+        source.sendMoving(target.port);
+        await targetConnected;
+        // let the new connection finish its handshake, then kill it while the
+        // handoff still waits on the held PING
+        await sleep(50);
+        target.dropConnections();
+        for (let i = 0; target.openConnections() > 0 && i < 50; i++) {
+          await sleep(10);
+        }
+        await sleep(20);
+
+        // queued while the handoff has writing paused, so the queue is still
+        // not empty when the in-flight PING completes and the swap runs
+        const queued = client.ping();
+        const drained = drain === undefined ? Promise.resolve() : drain === "close" ? client.close() : client.quit();
+        source.releasePings();
+
+        assert.equal(await raceSettled(ping, 1000), "OK");
+        assert.equal(await raceSettled(queued, 1000), "OK");
+        await raceSettled(drained, 1000);
+        await sleep(20);
+        // before the fix, installing the dead socket threw mid-swap and the
+        // drain never settled
+        assert.deepEqual(unhandled, []);
+        assert.equal(target.openConnections(), 0);
+        if (drain === undefined) {
+          // still usable on the old connection
+          assert.equal(client.isOpen, true);
+          assert.equal(await raceSettled(client.ping(), 1000), "OK");
+        } else {
+          assert.equal(client.isOpen, false);
+        }
+      } finally {
+        process.off("unhandledRejection", onUnhandled);
+        if (client.isOpen) client.destroy();
+        await source.close();
+        await target.close();
+      }
     });
   }
 });
