@@ -643,6 +643,8 @@ export default class RedisClient<
   #credentialsSubscription: Disposable | null = null;
   // resolves a close() still waiting for the queue to drain
   #pendingClose?: () => void;
+  // a QUIT was sent and its reply is still pending
+  #quitting = false;
   // Flag used to pause writing to the socket during maintenance windows.
   // When true, prevents new commands from being written while waiting for:
   // 1. New socket to be ready after maintenance redirect
@@ -733,10 +735,10 @@ export default class RedisClient<
 
   /**
    * @internal
-   * close() was called and is still waiting for pending commands to drain.
+   * close() or QUIT is still waiting for pending commands to drain.
    */
   get _isClosing(): boolean {
-    return this._self.#pendingClose !== undefined;
+    return this._self.#pendingClose !== undefined || this._self.#quitting;
   }
 
   get isOpen(): boolean {
@@ -1321,10 +1323,13 @@ export default class RedisClient<
      }
      this._self.#socket = socket;
      this._self.#attachListeners(this._self.#socket);
-     // a close() still draining carries over to the new socket
+     // a close() or QUIT still draining carries over to the new socket
      if (this._self.#pendingClose) {
        socket.close();
        this._self.#closeWhenDrained();
+     } else if (this._self.#quitting) {
+       // so the server closing the connection after QUIT isn't taken for a failure
+       socket.close();
      }
    }
 
@@ -2396,12 +2401,21 @@ export default class RedisClient<
   QUIT(): Promise<string> {
     this._self.#credentialsSubscription?.dispose();
     this._self.#credentialsSubscription = null;
-    return this._self.#socket.quit(async () => {
+    const socket = this._self.#socket;
+    return socket.quit(async () => {
       clearTimeout(this._self.#pingTimer);
       const quitPromise = this._self.#queue.addCommand<string>(['QUIT']);
+      this._self.#quitting = true;
       this._self.#maybeScheduleWrite();
       this._self.#unregisterFromMetrics();
-      return quitPromise;
+      try {
+        return await quitPromise;
+      } finally {
+        this._self.#quitting = false;
+        // socket.quit() tears down only the socket it started on; a maintenance
+        // handoff may have swapped in another while QUIT was pending
+        if (this._self.#socket !== socket) this._self.#socket.destroySocket();
+      }
     });
   }
 

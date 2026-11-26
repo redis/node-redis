@@ -318,8 +318,8 @@ export default class EnterpriseMaintenanceManager {
   };
 
   // Destroyed, or its reconnectStrategy gave up, while the handoff awaited. A
-  // client still draining after close() has not ended: the handoff goes ahead
-  // and the close carries over to the new socket.
+  // client still draining after close() or QUIT has not ended: the handoff goes
+  // ahead and the drain carries over to the new socket.
   #hasEnded() {
     return !this.#client.isOpen && !this.#client._isClosing;
   }

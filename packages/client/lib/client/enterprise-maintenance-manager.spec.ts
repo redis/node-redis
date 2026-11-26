@@ -186,7 +186,8 @@ describe("EnterpriseMaintenanceManager.parseSMigratedPush", () => {
 });
 
 describe("EnterpriseMaintenanceManager MOVING handoff", () => {
-  // A minimal RESP3 server: an empty map for HELLO, +OK for anything else.
+  // A minimal RESP3 server: an empty map for HELLO, +OK for anything else, and
+  // like Redis it closes the connection after replying to QUIT.
   // With `holdHandshake` set, HELLO waits until releaseHandshake().
   async function startFakeNode({ holdHandshake = false } = {}) {
     const sockets = new Set<Socket>();
@@ -205,6 +206,8 @@ describe("EnterpriseMaintenanceManager MOVING handoff", () => {
             } else {
               reply();
             }
+          } else if (/^\d+\r\n\$4\r\nQUIT/i.test(command)) {
+            socket.end("+OK\r\n");
           } else {
             socket.write("+OK\r\n");
           }
@@ -252,13 +255,14 @@ describe("EnterpriseMaintenanceManager MOVING handoff", () => {
   async function interruptHandoff(
     interrupt: (client: Client, source: FakeNode) => Promise<void>,
     afterRelease: () => Promise<void> = async () => {},
+    reconnectStrategy: false | undefined = false,
   ) {
     const source = await startFakeNode();
     const target = await startFakeNode({ holdHandshake: true });
     const client = createClient({
       RESP: 3,
       maintNotifications: "enabled",
-      socket: { host: "127.0.0.1", port: source.port, reconnectStrategy: false },
+      socket: { host: "127.0.0.1", port: source.port, reconnectStrategy },
     });
     client.on("error", () => {});
 
@@ -335,4 +339,22 @@ describe("EnterpriseMaintenanceManager MOVING handoff", () => {
     assert.equal(isOpen, false);
     assert.equal(targetConnections, 0);
   });
+
+  for (const reconnectStrategy of [false, undefined] as const) {
+    it(`finishes commands queued before QUIT during the handoff, and closes (reconnectStrategy: ${reconnectStrategy ?? "default"})`, async () => {
+      let ping: Promise<unknown> | undefined;
+      let quit: Promise<unknown> | undefined;
+      const { isOpen, targetConnections } = await interruptHandoff(async client => {
+        ping = client.ping();
+        quit = client.quit();
+      }, async () => {
+        assert.equal(await raceSettled(ping!, 1000), "OK");
+        assert.equal(await raceSettled(quit!, 1000), "OK");
+      }, reconnectStrategy);
+      // with the default strategy, the server closing after QUIT must not be
+      // taken for a failure and reconnect the client to the target
+      assert.equal(isOpen, false);
+      assert.equal(targetConnections, 0);
+    });
+  }
 });
