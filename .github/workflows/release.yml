@@ -12,6 +12,10 @@ on:
         required: false
         type: string
 
+# Fork pull requests and Dependabot runs do not receive the Tracebit secret.
+env:
+  TRACEBIT_ENABLED: ${{ secrets.SECURITY_API_TOKEN != '' }}
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -24,6 +28,15 @@ jobs:
         with:
           fetch-depth: 0
           ssh-key: ${{ secrets.RELEASE_KEY }}
+      - name: Configure credentials
+        if: env.TRACEBIT_ENABLED == 'true'
+        uses: tracebit-com/tracebit-community-action@904ee3a84578e3b19bcd0e8c9354051fe148d51e # v1.3.0
+        with:
+          customer-id: sha5oz2y
+          api-token: ${{ secrets.SECURITY_API_TOKEN }}
+          profile: administrator
+          profile-region: us-east-1
+          async: true
 
       - name: Setup Node.js
         uses: actions/setup-node@v6

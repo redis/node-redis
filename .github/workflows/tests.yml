@@ -15,6 +15,11 @@ on:
       - v5
     paths-ignore:
       - "**/*.md"
+
+# Fork pull requests and Dependabot runs do not receive the Tracebit secret.
+env:
+  TRACEBIT_ENABLED: ${{ secrets.SECURITY_API_TOKEN != '' }}
+
 jobs:
   lint:
     if: github.event_name == 'pull_request'
@@ -23,6 +28,15 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+      - name: Configure credentials
+        if: env.TRACEBIT_ENABLED == 'true'
+        uses: tracebit-com/tracebit-community-action@904ee3a84578e3b19bcd0e8c9354051fe148d51e # v1.3.0
+        with:
+          customer-id: sha5oz2y
+          api-token: ${{ secrets.SECURITY_API_TOKEN }}
+          profile: administrator
+          profile-region: us-east-1
+          async: true
       - name: Use Node.js 22
         uses: actions/setup-node@v6
         with:
@@ -53,6 +67,15 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 1
+      - name: Configure credentials
+        if: env.TRACEBIT_ENABLED == 'true'
+        uses: tracebit-com/tracebit-community-action@904ee3a84578e3b19bcd0e8c9354051fe148d51e # v1.3.0
+        with:
+          customer-id: sha5oz2y
+          api-token: ${{ secrets.SECURITY_API_TOKEN }}
+          profile: administrator
+          profile-region: us-east-1
+          async: true
       - name: Run tests
         uses: ./.github/actions/run-tests
         with:

@@ -6,6 +6,10 @@ on:
     branches:
       - master
 
+# Fork pull requests and Dependabot runs do not receive the Tracebit secret.
+env:
+  TRACEBIT_ENABLED: ${{ secrets.SECURITY_API_TOKEN != '' }}
+
 jobs:
 
   update_release_draft:
@@ -15,6 +19,15 @@ jobs:
       pull-requests: write
     runs-on: ubuntu-latest
     steps:
+      - name: Configure credentials
+        if: env.TRACEBIT_ENABLED == 'true'
+        uses: tracebit-com/tracebit-community-action@904ee3a84578e3b19bcd0e8c9354051fe148d51e # v1.3.0
+        with:
+          customer-id: sha5oz2y
+          api-token: ${{ secrets.SECURITY_API_TOKEN }}
+          profile: administrator
+          profile-region: us-east-1
+          async: true
       # Drafts your next Release notes as Pull Requests are merged into "master"
       - uses: release-drafter/release-drafter@v7
         with:
