@@ -44,7 +44,7 @@ npm install redis
 ### Requirements
 
 - **Node.js**: `>= 20.0.0`
-- **TypeScript**: `>= 4.9` (if using TypeScript; `^5.x` recommended)
+- **TypeScript**: `5.x` (if using TypeScript)
 
 ## Packages
 
